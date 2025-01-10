@@ -12,10 +12,10 @@ import {
   DialogContentText,
   DialogTitle,
 } from '@mui/material';
-import { borderRadius } from '@mui/system';
-import { EditOutlined  } from '@ant-design/icons';
+import { EditOutlined, EyeOutlined } from '@ant-design/icons'; // Added EyeOutlined for view action
+
 // Define the columns for the data table
-const columns = (handleEdit) => [
+const columns = (handleEdit, handleView) => [
   { name: 'SL. NO', selector: (row) => row.slNo, sortable: true },
   { name: 'District', selector: (row) => row.district, sortable: true },
   { name: 'Taluk', selector: (row) => row.taluk, sortable: true },
@@ -29,146 +29,98 @@ const columns = (handleEdit) => [
   {
     name: 'Action',
     cell: (row) => (
-      <Button
-       
-        color="success" // Green color for the button
-       
-        onClick={() => handleEdit(row)} // Call edit function on click
-      >
-        <EditOutlined />
-      </Button>
+      <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+        <Button
+          color="success"
+          onClick={() => handleEdit(row)} // Call edit function on click
+          style={{ padding: '5px 12px', fontSize: '14px' }} // Adjusted padding and font size
+        >
+          <EditOutlined />
+        </Button>
+        <Button
+          color="primary"
+          onClick={() => handleView(row)} // Call view function on click
+          style={{ padding: '5px 12px', fontSize: '14px' }} // Adjusted padding and font size
+        >
+          <EyeOutlined />
+        </Button>
+      </div>
     ),
+    style: {
+      padding: '0px', // Remove unnecessary padding
+      textAlign: 'center', // Align the buttons in the center
+    },
   },
 ];
 
 // Sample data for the table
 const data = [
-    {
-      slNo: 1,
-      district: 'Kollam',
-      taluk: 'Kollam',
-      village: 'Kollam Village',
-      block: 'Block A',
-      surveyNo: '001',
-      subDivNo: '1',
-      ownerName: 'John Doe',
-      address: '123 Street, Kollam',
-      totalArea: '5.2 acres',
-    },
-    {
-      slNo: 2,
-      district: 'Kochi',
-      taluk: 'Kochi',
-      village: 'Kochi Village',
-      block: 'Block B',
-      surveyNo: '002',
-      subDivNo: '2',
-      ownerName: 'Jane Smith',
-      address: '456 Street, Kochi',
-      totalArea: '3.8 acres',
-    },
-    {
-      slNo: 3,
-      district: 'Thiruvananthapuram',
-      taluk: 'Neyyattinkara',
-      village: 'Neyyattinkara Village',
-      block: 'Block C',
-      surveyNo: '003',
-      subDivNo: '3',
-      ownerName: 'Michael Thomas',
-      address: '789 Street, Neyyattinkara',
-      totalArea: '4.5 acres',
-    },
-    {
-      slNo: 4,
-      district: 'Thrissur',
-      taluk: 'Thrissur',
-      village: 'Thrissur Village',
-      block: 'Block D',
-      surveyNo: '004',
-      subDivNo: '4',
-      ownerName: 'Emily Davis',
-      address: '101 Street, Thrissur',
-      totalArea: '6.3 acres',
-    },
-    {
-      slNo: 5,
-      district: 'Alappuzha',
-      taluk: 'Alappuzha',
-      village: 'Alappuzha Village',
-      block: 'Block E',
-      surveyNo: '005',
-      subDivNo: '5',
-      ownerName: 'Sophia Brown',
-      address: '202 Street, Alappuzha',
-      totalArea: '2.7 acres',
-    },
-    {
-      slNo: 6,
-      district: 'Kannur',
-      taluk: 'Kannur',
-      village: 'Kannur Village',
-      block: 'Block F',
-      surveyNo: '006',
-      subDivNo: '6',
-      ownerName: 'William Wilson',
-      address: '303 Street, Kannur',
-      totalArea: '3.9 acres',
-    },
-    {
-      slNo: 7,
-      district: 'Palakkad',
-      taluk: 'Palakkad',
-      village: 'Palakkad Village',
-      block: 'Block G',
-      surveyNo: '007',
-      subDivNo: '7',
-      ownerName: 'Olivia Garcia',
-      address: '404 Street, Palakkad',
-      totalArea: '5.0 acres',
-    },
-    {
-      slNo: 8,
-      district: 'Kozhikode',
-      taluk: 'Kozhikode',
-      village: 'Kozhikode Village',
-      block: 'Block H',
-      surveyNo: '008',
-      subDivNo: '8',
-      ownerName: 'Liam Martinez',
-      address: '505 Street, Kozhikode',
-      totalArea: '4.1 acres',
-    },
-    {
-      slNo: 9,
-      district: 'Ernakulam',
-      taluk: 'Aluva',
-      village: 'Aluva Village',
-      block: 'Block I',
-      surveyNo: '009',
-      subDivNo: '9',
-      ownerName: 'Charlotte White',
-      address: '606 Street, Aluva',
-      totalArea: '7.2 acres',
-    },
-    {
-      slNo: 10,
-      district: 'Malappuram',
-      taluk: 'Malappuram',
-      village: 'Malappuram Village',
-      block: 'Block J',
-      surveyNo: '010',
-      subDivNo: '10',
-      ownerName: 'James Taylor',
-      address: '707 Street, Malappuram',
-      totalArea: '3.4 acres',
-    },
-  ];
-  
+  {
+    slNo: 1,
+    district: 'Thiruvananthapuram',
+    taluk: 'Nedumangad',
+    village: 'Pothencode',
+    block: 'Pothencode Block',
+    surveyNo: 'S123',
+    subDivNo: 'SD01',
+    ownerName: 'John Doe',
+    address: '123, Example Street, Pothencode',
+    totalArea: '10 Acres',
+  },
+  {
+    slNo: 2,
+    district: 'Kochi',
+    taluk: 'Kochi',
+    village: 'Fort Kochi',
+    block: 'Fort Kochi Block',
+    surveyNo: 'S124',
+    subDivNo: 'SD02',
+    ownerName: 'Jane Smith',
+    address: '456, Kochi Road, Fort Kochi',
+    totalArea: '15 Acres',
+  },
+  {
+    slNo: 3,
+    district: 'Kollam',
+    taluk: 'Chathannoor',
+    village: 'Punnappra',
+    block: 'Chathannoor Block',
+    surveyNo: 'S125',
+    subDivNo: 'SD03',
+    ownerName: 'Michael Johnson',
+    address: '789, Punnappra Lane, Kollam',
+    totalArea: '12 Acres',
+  },
+  {
+    slNo: 4,
+    district: 'Alappuzha',
+    taluk: 'Alappuzha',
+    village: 'Punnappra',
+    block: 'Alappuzha Block',
+    surveyNo: 'S126',
+    subDivNo: 'SD04',
+    ownerName: 'Sarah Lee',
+    address: '101, Alappuzha West, Alappuzha',
+    totalArea: '8 Acres',
+  },
+  {
+    slNo: 5,
+    district: 'Pathanamthitta',
+    taluk: 'Adoor',
+    village: 'Edathua',
+    block: 'Adoor Block',
+    surveyNo: 'S127',
+    subDivNo: 'SD05',
+    ownerName: 'David Kim',
+    address: '202, Edathua Road, Pathanamthitta',
+    totalArea: '20 Acres',
+  },
+];
 
 const Btr = () => {
   const [filterText, setFilterText] = useState('');
-  const [openModal, setOpenModal] = useState(false);
+  const [openEditModal, setOpenEditModal] = useState(false);
+  const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
 
   // Function to handle filter change
@@ -186,12 +138,19 @@ const Btr = () => {
   // Function to handle edit action
   const handleEdit = (row) => {
     setSelectedRow(row); // Set the selected row to be edited
-    setOpenModal(true); // Open the modal
+    setOpenEditModal(true); // Open the edit modal
   };
 
-  // Function to close the modal
-  const handleCloseModal = () => {
-    setOpenModal(false);
+  // Function to handle view action
+  const handleView = (row) => {
+    setSelectedRow(row); // Set the selected row to be viewed
+    setOpenViewModal(true); // Open the view modal
+  };
+
+  // Function to close modals
+  const handleCloseModals = () => {
+    setOpenEditModal(false);
+    setOpenViewModal(false);
     setSelectedRow(null); // Reset selected row when closing
   };
 
@@ -213,10 +172,8 @@ const Btr = () => {
         </Stack>
       </Paper>
 
-
       <DataTable
-      
-        columns={columns(handleEdit)} // Pass handleEdit to columns function
+        columns={columns(handleEdit, handleView)} // Pass both handleEdit and handleView
         data={filteredData}
         pagination
         paginationComponentOptions={{
@@ -226,15 +183,13 @@ const Btr = () => {
           selectAllRowsItem: 'Select All',
         }}
         customStyles={{
-       
           headCells: {
             style: {
-                fontSize:'.8rem',
+              fontSize: '.9rem',
               backgroundColor: '#04255e', // Header background color
               color: '#fff', // Header text color
               fontWeight: 'bold', // Bold header text
               borderBottom: '2px solid black', // Classic border style
-           
             },
           },
           cells: {
@@ -242,27 +197,26 @@ const Btr = () => {
               backgroundColor: '',
               borderBottom: '1px solid white', // Light bottom border for rows
               color: '#333', // Darker text color for better readability
-             
             },
           },
           pagination: {
             style: {
               color: '#04255e', // Change pagination symbols to blue
-             
-              alignItems:'center',
-              justifyContent:'center'
+              alignItems: 'center',
+              justifyContent: 'center',
             },
           },
         }}
       />
 
       {/* Modal for editing */}
-      <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
-        <DialogTitle variant='h4' style={{ color: '#333', fontWeight: 'bold' }}>Edit BTR</DialogTitle>
+      <Dialog open={openEditModal} onClose={handleCloseModals} maxWidth="sm" fullWidth>
+        <DialogTitle variant="h4" style={{ color: '#333', fontWeight: 'bold' }}>
+          Edit BTR
+        </DialogTitle>
         <DialogContent>
           {selectedRow && (
             <DialogContentText>
-              {/* Organized fields using Stack for consistent alignment */}
               <Stack spacing={2} style={{ fontSize: '14px', color: '#333' }}>
                 <TextField
                   label="District"
@@ -332,11 +286,37 @@ const Btr = () => {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseModal} color="secondary" variant="outlined">
+          <Button onClick={handleCloseModals} color="secondary" variant="outlined">
             Cancel
           </Button>
-          <Button onClick={handleCloseModal} color="primary" variant="contained">
+          <Button onClick={handleCloseModals} color="primary" variant="contained">
             Save Changes
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal for viewing full details */}
+      <Dialog open={openViewModal} onClose={handleCloseModals} maxWidth="md" fullWidth>
+        <DialogTitle variant="h4" style={{ color: '#333', fontWeight: 'bold' }}>
+          View BTR Details
+        </DialogTitle>
+        <DialogContent>
+          {selectedRow && (
+            <DialogContentText>
+              <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
+                {Object.keys(selectedRow).map((key) => (
+                  <div key={key} style={{ width: '300px', margin: '10px' }}>
+                    <strong>{key}:</strong>
+                    <div>{selectedRow[key]}</div>
+                  </div>
+                ))}
+              </div>
+            </DialogContentText>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseModals} color="secondary" variant="outlined">
+            Close
           </Button>
         </DialogActions>
       </Dialog>

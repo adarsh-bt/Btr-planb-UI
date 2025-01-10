@@ -13,6 +13,7 @@ const DashboardDefault = Loadable(lazy(() => import('pages/dashboard/index')));
 const Schemes = Loadable(lazy(() => import('pages/functional-components/schemas')));
 const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_list')));
 const BTR = Loadable(lazy(() => import('pages/functional-components/earas/Btr')));
+const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
 
 
 
@@ -69,6 +70,10 @@ const MainRoutes = {
     {
       path: 'btr',
       element: <BTR />
+    },
+    {
+      path:'profile',
+      element: <Profile />
     }
 
   ]

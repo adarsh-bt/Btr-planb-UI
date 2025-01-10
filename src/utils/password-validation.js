@@ -15,7 +15,7 @@ function isSpecialChar(value) {
 }
 
 function minLength(value) {
-  return value.length > 7;
+  return value.length > 8;
 }
 
 export { isNumber, isLowercaseChar, isUppercaseChar, isSpecialChar, minLength };

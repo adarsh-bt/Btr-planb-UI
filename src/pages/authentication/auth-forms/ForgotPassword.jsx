@@ -1,203 +1,129 @@
 import React, { useState } from 'react';
-import { TextField, Button, Typography, Box, Grid, Stack } from '@mui/material';
+import { TextField, Button, Typography, Box, Stack, InputAdornment, IconButton } from '@mui/material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
+import { strengthIndicator, strengthColor } from 'utils/password-strength'; // Ensure these functions are exported correctly
 
 const ForgotPassword = ({ onBack }) => {
-  const [step, setStep] = useState(1); // Step 1: Email, Step 2: OTP, Step 3: Password Reset
-  const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '', '', '']); // Array to hold each OTP digit
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordStrength, setPasswordStrength] = useState(0);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Central dynamic heading based on the step
-  const getHeading = () => {
-    switch (step) {
-      case 1:
-        return 'Find Your Account'; // Email entry step
-      case 2:
-        return 'Verify OTP'; // OTP verification step
-      case 3:
-        return 'Reset Password'; // Password reset step
-      default:
-        return '';
-    }
+  // Handle change for new password input field
+  const handleNewPasswordChange = (e) => {
+    const password = e.target.value;
+    setNewPassword(password);
+
+    // Calculate password strength
+    const strength = strengthIndicator(password);
+    setPasswordStrength(strength);
   };
 
-  const handleEmailSubmit = (e) => {
-    e.preventDefault();
-    console.log('Email submitted:', email);
-    setStep(2); // Move to OTP step
+  // Handle change for confirm password input field
+  const handleConfirmPasswordChange = (e) => {
+    setConfirmPassword(e.target.value);
   };
 
-  const handleOtpChange = (index) => (e) => {
-    const value = e.target.value;
-    if (/^\d*$/.test(value) && value.length <= 1) {
-      const newOtp = [...otp];
-      newOtp[index] = value;
-      setOtp(newOtp);
-
-      if (value && index < otp.length - 1) {
-        document.getElementById(`otp-${index + 1}`).focus();
-      }
-    }
-  };
-
-  const handleOtpSubmit = (e) => {
-    e.preventDefault();
-    console.log('OTP submitted:', otp.join(''));
-    setStep(3); // Move to the next step for entering new password
-  };
-
+  // Handle password reset submission
   const handlePasswordResetSubmit = (e) => {
     e.preventDefault();
     if (newPassword === confirmPassword) {
       console.log('Password reset:', newPassword);
+      // Handle password reset logic
     } else {
       alert('Passwords do not match!');
     }
   };
 
+  // Determine if the reset button should be enabled
   const isResetButtonEnabled = newPassword.length > 0 && confirmPassword.length > 0 && newPassword === confirmPassword;
 
   return (
-    <Box sx={{ width: '100%', maxWidth: '400px', mx: 'auto' }}> {/* Centering the box */}
-      
-      {/* Dynamic Main Heading */}
+    <Box sx={{ width: '100%', maxWidth: '400px', mx: 'auto' }}>
       <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#333', mb: 4, textAlign: 'center' }}>
-        {getHeading()}
+        Reset Password
       </Typography>
 
       <Stack spacing={2} alignItems="center">
-        {step === 1 && (
-          <>
-            <Typography variant="body2" sx={{ color:'#666', textAlign:'center' }}>
-              Enter your registered email address to receive a One-Time Password (OTP).
+        {/* New Password Field */}
+        <TextField
+          fullWidth
+          variant="outlined"
+          label="New Password"
+          type={showNewPassword ? 'text' : 'password'}
+          value={newPassword}
+          onChange={handleNewPasswordChange}
+          sx={{
+            borderRadius: '10px',
+            mb: 2
+          }}
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton onClick={() => setShowNewPassword(!showNewPassword)} edge="end">
+                  {showNewPassword ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
+
+        {/* Show Password Strength Text */}
+        {newPassword.length > 0 && (
+          <Box sx={{ width: '100%', mt: 1 }}>
+            <Typography variant="body2" sx={{ color: strengthColor(passwordStrength).color, mt: 1, textAlign: 'center' }}>
+              {strengthColor(passwordStrength).label}
             </Typography>
-            <TextField
-              fullWidth
-              variant="outlined"
-              label="Email Address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoFocus
-              sx={{
-                borderRadius:'10px', 
-                mb :2 // Add margin bottom for spacing 
-              }}
-            />
-            <Button
-              fullWidth
-              variant="contained"
-              color="primary"
-              sx={{ 
-                borderRadius:'20px', 
-                maxWidth:'200px', 
-                mx:'auto' 
-              }} // Center the button with controlled width 
-              onClick={handleEmailSubmit}
-            >
-              Send OTP
-            </Button>
-          </>
+          </Box>
         )}
 
-        {step === 2 && (
-          <>
-            <Typography variant="body2" sx={{ color:'#666', textAlign:'center' }}>
-              Enter the OTP sent to your email.
-            </Typography>
-            <Grid container spacing={1} justifyContent="center">
-              {otp.map((digit, index) => (
-                <Grid item key={index}>
-                  <TextField
-                    variant="outlined"
-                    id={`otp-${index}`}
-                    value={digit}
-                    onChange={handleOtpChange(index)}
-                    inputProps={{
-                      maxLength: 1,
-                      style:{ textAlign:'center', width:'20px'},
-                    }}
-                    sx={{
-                      borderRadius:'20px',
-                      mb :2 // Add margin bottom for spacing 
-                    }}
-                  />
-                </Grid>
-              ))}
-            </Grid>
-            <Button
-              fullWidth
-              variant="contained"
-              color="primary"
-              sx={{ 
-                borderRadius:'20px', 
-                maxWidth:'200px', 
-                mx:'auto' 
-              }} // Center the button with controlled width 
-              onClick={handleOtpSubmit}
-            >
-              Verify OTP
-            </Button>
-          </>
-        )}
+        {/* Confirm Password Field */}
+        <TextField
+          fullWidth
+          variant="outlined"
+          label="Confirm Password"
+          type={showConfirmPassword ? 'text' : 'password'}
+          value={confirmPassword}
+          onChange={handleConfirmPasswordChange}
+          sx={{
+            borderRadius: '10px',
+            mb: 2
+          }}
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton onClick={() => setShowConfirmPassword(!showConfirmPassword)} edge="end">
+                  {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
 
-        {step === 3 && (
-          <>
-            <Typography variant="body2" sx={{ color:'#666', textAlign:'center' }}>
-              Enter your new password.
-            </Typography>
-            <TextField 
-               fullWidth 
-               variant='outlined'
-               label='New Password'
-               type='password'
-               value={newPassword}
-               onChange={(e) => setNewPassword(e.target.value)}
-               sx={{
-                 borderRadius:'20px',
-                 mb :2 // Add margin bottom for spacing 
-               }}
-             />
-             <TextField 
-               fullWidth 
-               variant='outlined'
-               label='Confirm Password'
-               type='password'
-               value={confirmPassword}
-               onChange={(e) => setConfirmPassword(e.target.value)}
-               sx={{
-                 borderRadius:'20px',
-                 mb :2 // Add margin bottom for spacing 
-               }}
-             />
-             <Button 
-               fullWidth 
-               variant='contained'
-               color='primary'
-               sx={{ 
-                 borderRadius:'20px', 
-                 maxWidth:'200px', 
-                 mx:'auto'  
-               }} // Center the button with controlled width 
-               onClick={handlePasswordResetSubmit}
-               disabled={!isResetButtonEnabled}
-             >
-               Reset Password 
-             </Button>
-             <Button 
-               fullWidth 
-               variant='text'
-               color='primary'
-               sx={{ mt :2}}
-               onClick={onBack}
-             >
-               Back to Sign In 
-             </Button>
-           </>
-         )}
-       </Stack>  
-     </Box>  
-   );  
-};  
+        {/* Reset Password Button */}
+        <Button
+          fullWidth
+          variant="contained"
+          color="primary"
+          sx={{
+            borderRadius: '20px',
+            maxWidth: '200px',
+            mx: 'auto'
+          }}
+          onClick={handlePasswordResetSubmit}
+          disabled={!isResetButtonEnabled}
+        >
+          Reset Password
+        </Button>
 
-export default ForgotPassword;  
+        {/* Back to Sign In Button */}
+        <Button fullWidth variant="text" color="primary" sx={{ mt: 2 }} onClick={onBack}>
+          Back to Sign In
+        </Button>
+      </Stack>
+    </Box>
+  );
+};
+
+export default ForgotPassword;
