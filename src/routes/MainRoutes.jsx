@@ -14,6 +14,8 @@ const Schemes = Loadable(lazy(() => import('pages/functional-components/schemas'
 const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_list')));
 const BTR = Loadable(lazy(() => import('pages/functional-components/earas/Btr')));
 
+// Approvels
+const Approvel = Loadable(lazy(() => import('pages/functional-components/approvels/approvelist')));
 
 
 // ==============================|| MAIN ROUTING ||============================== //
@@ -53,6 +55,7 @@ const MainRoutes = {
     },
 
     // Tabs Menus
+    // Schemes
 
     {
       path: 'schemes',
@@ -69,8 +72,13 @@ const MainRoutes = {
     {
       path: 'btr',
       element: <BTR />
-    }
+    },
 
+    // Approvels
+    {
+      path: 'approvals',
+      element: <Approvel />
+    }
   ]
 };
 

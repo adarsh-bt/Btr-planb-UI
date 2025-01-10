@@ -33,7 +33,9 @@ const SignInSide = () => {
   };
 
   return (
-    <Grid container sx={{ height: "100vh" }}>
+    <Grid className="main" container sx={{ height: "100vh" ,padding:'5rem', 
+    background:"linear-gradient(142deg, #043877 15%, rgba(22,77,155,1) 28%, rgba(14,63,139,1) 41%, rgba(5,48,122,1) 64%)"}}
+    >
       <Grid
         item
         xs={12}
@@ -48,6 +50,7 @@ const SignInSide = () => {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          borderRadius:'2rem 0 0 2rem'
           
         }}
         
@@ -80,7 +83,7 @@ const SignInSide = () => {
             AIDEA
           </Typography>
         </div>
-            <ul className="circles">
+            {/* <ul className="circles">
                     <li><img src="https://icon-library.com/images/rice-icon/rice-icon-22.jpg" style={{width:'5rem'}}></img></li>
                     <li><img src="https://icons.veryicon.com/png/o/food--drinks/crops-1/crop-millet-1.png" style={{width:'6rem'}}></img></li>
                     <li><img src="https://cdn1.iconfinder.com/data/icons/farming-agriculture-3/42/field-512.png" style={{width:'7rem'}}></img></li>
@@ -97,7 +100,7 @@ const SignInSide = () => {
                     <li><img src="https://cdn-icons-png.freepik.com/256/9428/9428533.png?semt=ais_hybrid" style={{width:'5rem'}}></img></li>
                 
                    
-            </ul>
+            </ul> */}
     </div>
        
       </Grid>

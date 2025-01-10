@@ -5,6 +5,28 @@
    
 } */
 
+:root {
+    --gradient: linear-gradient(142deg, #e7eaee 15%, rgba(22,77,155,1) 28%, rgba(14,63,139,1) 41%, rgb(201, 208, 220) 64%);
+  }
+.main {
+    background: #ddd;
+    background-size: 300%;
+    background-image: var(--gradient);
+    animation: bg-animation 5s infinite;
+  }
+  
+  @keyframes bg-animation {
+    0% {
+      background-position: left;
+    }
+    50% {
+      background-position: right;
+    }
+    100% {
+      background-position: left;
+    }
+  }
+
 .circles{
     position: absolute;
     top: 0;

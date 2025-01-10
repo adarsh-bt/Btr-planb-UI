@@ -34,9 +34,7 @@ export default function Header() {
 
   // common header
   const mainHeader = (
-    <Toolbar sx={{  background: 'radial-gradient( circle 950px at 2.5% 8%,  rgba(44,103,176,1) 0%, rgba(35,56,136,1) 90% )',
-    
-    }}>
+    <Toolbar sx={{  background: "linear-gradient(to bottom,rgb(158, 201, 244) 0%,rgb(107, 144, 230) 50%,rgb(44, 134, 244) 100%)"}}>
       <IconButton
         disableRipple
         aria-label="open drawer"

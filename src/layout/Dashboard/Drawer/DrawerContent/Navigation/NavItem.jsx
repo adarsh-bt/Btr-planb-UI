@@ -61,7 +61,7 @@ export default function NavItem({ item, level }) {
         py: !drawerOpen && level === 1 ? 1.25 : 1,
         ...(drawerOpen && {
           '&:hover': {
-            bgcolor: 'primary.lighter',
+            bgcolor: '#ffcc80',
             borderRadius:'2rem'
           },
           '&.Mui-selected': {
