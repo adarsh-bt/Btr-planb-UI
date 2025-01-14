@@ -10,18 +10,29 @@ import {
   Checkbox,
   FormControlLabel,
   InputAdornment,
+  Alert,Stack
 } from "@mui/material";
 // import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import EmailIcon from "@mui/icons-material/Email";
 import LockIcon from "@mui/icons-material/Lock";
 import ForgotPassword from "./auth-forms/ForgotPassword"; // Ensure this path is correct
 import logo from "./images/logo.png"; // Import the logo image
-import { Link} from 'react-router-dom'; 
+import { Link,useNavigate} from 'react-router-dom'; 
+import CircularProgress from '@mui/material/CircularProgress';
+
 
 import './login.css'
-import { width } from "@mui/system";
+
+
+import authservice from "./authservice";
 
 const SignInSide = () => {
+
+  // login state
+
+    
+
+
   const [isForgotPassword, setIsForgotPassword] = useState(false);
 
   const handleForgotPasswordClick = () => {
@@ -31,6 +42,42 @@ const SignInSide = () => {
   const handleBackToSignIn = () => {
     setIsForgotPassword(false);
   };
+
+
+  const handleSubmit = async (e) => {
+        e.preventDefault();
+    
+        try {
+        const userData = await UserService.login(username, password);
+     
+
+        if (userData.token && typeof userData.token === 'string') {
+            localStorage.setItem('token', userData.token);
+            localStorage.setItem('role', userData.role);
+
+            // Decode the JWT token
+            const decodedToken = jwtDecode(userData.token);
+            const role = decodedToken.role; // Extract the role from decoded token
+       
+            // Navigate to the welcome page
+            navigate('/profile');
+            
+        } else {
+            setError(userData.error || 'Login failed');
+        }
+
+    } catch (error) {
+        console.error('Error during login:', error);
+        setError(error.message || 'An error occurred during login');
+
+        // Clear the error after 5 seconds
+        setTimeout(() => {
+            setError('');
+        }, 5000);
+    }
+    }
+
+    
 
   return (
     <Grid className="main" container sx={{ height: "100vh" ,padding:'5rem', 
@@ -55,7 +102,6 @@ const SignInSide = () => {
         }}
         
       >
-      <div className="area" >
       <div style={{ textAlign: "center" }}>
           <img
             src={logo}
@@ -83,25 +129,8 @@ const SignInSide = () => {
             AIDEA
           </Typography>
         </div>
-            {/* <ul className="circles">
-                    <li><img src="https://icon-library.com/images/rice-icon/rice-icon-22.jpg" style={{width:'5rem'}}></img></li>
-                    <li><img src="https://icons.veryicon.com/png/o/food--drinks/crops-1/crop-millet-1.png" style={{width:'6rem'}}></img></li>
-                    <li><img src="https://cdn1.iconfinder.com/data/icons/farming-agriculture-3/42/field-512.png" style={{width:'7rem'}}></img></li>
-                    <li><img src="https://cdn-icons-png.freepik.com/512/4413/4413142.png" style={{width:'4rem'}}></img></li>
-                    <li><img src="https://cdn1.iconfinder.com/data/icons/graph-1/100/03-512.png" style={{width:'4rem'}}></img></li>
-                  
-                
-                   
-                  
-                    <li><img src="https://cdn-icons-png.flaticon.com/512/2152/2152477.png" style={{width:'8rem'}}></img></li>
-                    <li><img src="https://cdn1.iconfinder.com/data/icons/farming-outline-2/512/Agriculture_farming_gardening_water_tablet_digital_smart_farm-512.png" style={{width:'8rem'}}></img></li>
-                    <li><img src="https://cdn-icons-png.flaticon.com/512/17212/17212370.png" style={{width:'5rem'}}></img></li>
-                    <li><img src="https://cdn-icons-png.flaticon.com/512/17485/17485427.png" style={{width:'5rem'}}></img></li>
-                    <li><img src="https://cdn-icons-png.freepik.com/256/9428/9428533.png?semt=ais_hybrid" style={{width:'5rem'}}></img></li>
-                
-                   
-            </ul> */}
-    </div>
+          
+   
        
       </Grid>
       <Grid
@@ -145,98 +174,170 @@ const SignInSide = () => {
   );
 };
 
-const SignInForm = ({ onForgotPasswordClick }) => (
-  <Box
-    component="form"
-    noValidate
-    sx={{ mt: 1, width: "100%", maxWidth: "400px", mx: "auto" }}
-  >
-    <TextField
-      variant="outlined"
-      margin="normal"
-      required
-      fullWidth
-      id="email"
-      label="Email Address"
-      name="email"
-      autoComplete="email"
-      autoFocus
-      InputProps={{
-        startAdornment: (
-          <InputAdornment position="start">
-            <EmailIcon />
-          </InputAdornment>
-        ),
-      }}
-      sx={{ mb: 2, borderRadius: "10px" }} // Rounded corners for input
-    />
-    <TextField
-      variant="outlined"
-      margin="normal"
-      required
-      fullWidth
-      name="password"
-      label="Password"
-      type="password"
-      id="password"
-      autoComplete="current-password"
-      InputProps={{
-        startAdornment: (
-          <InputAdornment position="start">
-            <LockIcon />
-          </InputAdornment>
-        ),
-      }}
-      sx={{ mb: 2, borderRadius: "10px" }} // Rounded corners for input
-    />
+const SignInForm = ({ onForgotPasswordClick }) => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false); // New state for loading
 
-    {/* Remember Me Checkbox */}
-    <FormControlLabel
-      control={<Checkbox value="remember" color="primary" />}
-      label="Remember me"
-    />
 
-    {/* Centered Sign In Button */}
-    <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
-      <Button
-      component={Link} to="/"
-        type="submit"
-        variant="contained"
-        color="primary"
-        sx={{
-          p: 1.5,
-          borderRadius: "20px", // More rounded corners for button
-          width: "100%", // Make button full width within its container
-          maxWidth: "200px", // Set max width for button to maintain size consistency
-          "&:hover": {
-            backgroundColor: "primary.dark",
-            color:"white"
-          },
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if( username && password ) {
+
+    try {
+      // Call the login service (adjust parameters as needed)
+      const userData = await authservice.login(username, password);
+
+      // Check if the response contains a valid token
+      if (userData.payload && typeof userData.payload === 'string') {
+        
+        // Store the token and role in localStorage
+        localStorage.setItem('token', userData.token);
+        // localStorage.setItem('role', userData.role);
+      
+        // Decode the JWT token to extract the role
+        // const decodedToken = jwtDecode(userData.token);
+        // const role = decodedToken.role; // Extract the role from decoded token
+
+        // Navigate to the profile page (or redirect based on role)
+        navigate('/dashboard');
+      } else {
+        setError(userData.error || 'Login failed');
+      }
+    } catch (error) {
+      console.error('Error during login:', error);
+      setError(error.message || 'An error occurred during login');
+
+      // Clear the error after 5 seconds
+      setTimeout(() => {
+        setError('');
+      }, 5000);
+    }
+    } else {
+      if(!username){
+      setError('Enter your email');
+      } else {
+        setError('Enter your password');
+        }
+    }
+  };
+
+  return (
+    <Box
+      component="form"
+      noValidate
+      sx={{ mt: 1, width: '100%', maxWidth: '400px', mx: 'auto' }}
+      onSubmit={handleSubmit} // Attach handleSubmit to form submit
+    >
+      {error &&  <Stack sx={{ width: '100%',background:'#fff1f0' }} spacing={2}>
+     <center>
+      <Alert severity="error"  sx={{ textAlign: 'center',width:'max-content' }}>{error}</Alert></center>
+    </Stack>
+      
+      } {/* Show error message if any */}
+
+      <TextField
+        variant="outlined"
+        margin="normal"
+        required
+        fullWidth
+        id="email"
+        label="Email Address"
+        name="email"
+        value={username} // Use username state for the email input
+        onChange={(e) => setUsername(e.target.value)}
+        autoComplete="email"
+        autoFocus
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <EmailIcon />
+            </InputAdornment>
+          ),
         }}
-      >
-        Sign In
-      </Button>
-    </Box>
+        sx={{ mb: 2, borderRadius: '10px' }} // Rounded corners for input
+      />
+      <TextField
+        variant="outlined"
+        margin="normal"
+        required
+        fullWidth
+        name="password"
+        label="Password"
+        type="password"
+        id="password"
+        value={password} // Use password state for the password input
+        onChange={(e) => setPassword(e.target.value)}
+        autoComplete="current-password"
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <LockIcon />
+            </InputAdornment>
+          ),
+        }}
+        sx={{ mb: 2, borderRadius: '10px' }} // Rounded corners for input
+      />
 
-    {/* Add spacing between the button and links */}
-    <Box sx={{ mt: 4 }}>
-      {" "}
-      {/* Increased margin top for more space */}
-      <Grid container spacing={2}>
-        <Grid item xs textAlign="left">
-          <Typography variant="body2" onClick={onForgotPasswordClick} sx={{color:"blue",cursor:"pointer",position:'absolute'}}>
-            Forgot password?
-          </Typography>
-        </Grid>
+      {/* Remember Me Checkbox */}
+      <FormControlLabel
+        control={<Checkbox value="remember" color="primary" />}
+        label="Remember me"
+      />
 
-        <Grid item textAlign="right">
-          <Typography href="#" variant="body2">
-            {"Don't have an account? Sign Up"}
-          </Typography>
+      {/* Centered Sign In Button */}
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+      <Button
+  type="submit"
+  variant="contained"
+  color="primary"
+  sx={{
+    p: 1.5,
+    borderRadius: '20px',
+    width: '100%',
+    maxWidth: '200px',
+    '&:hover': {
+      backgroundColor: 'primary.dark',
+      color: 'white',
+    },
+  }}
+>
+  {loading ? (
+    <>
+      <CircularProgress size={24} sx={{ color: 'white', mr: 1 }} />
+      Signing In...
+    </>
+  ) : (
+    'Sign In'
+  )}
+</Button>
+
+      </Box>
+
+      {/* Add spacing between the button and links */}
+      <Box sx={{ mt: 4 }}>
+        <Grid container spacing={2}>
+          <Grid item xs textAlign="left">
+            <Typography
+              variant="body2"
+              onClick={onForgotPasswordClick}
+              sx={{ color: 'blue', cursor: 'pointer', position: 'absolute' }}
+            >
+              Forgot password?
+            </Typography>
+          </Grid>
+
+          <Grid item textAlign="right">
+            <Typography href="#" variant="body2">
+              {"Don't have an account? Sign Up"}
+            </Typography>
+          </Grid>
         </Grid>
-      </Grid>
+      </Box>
     </Box>
-  </Box>
-);
+  );
+};
 
 export default SignInSide;

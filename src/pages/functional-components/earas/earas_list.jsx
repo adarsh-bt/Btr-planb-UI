@@ -17,7 +17,7 @@ const earas_list = () => {
       title: "e-BTR",
       image: "https://png.pngtree.com/png-vector/20230302/ourmid/pngtree-dashboard-line-icon-vector-png-image_6626604.png",
       gradient: "linear-gradient(to right,rgba(118, 184, 82, 0.88), #8DC26F)",
-      url:"/btr"
+      url:"/dashboard/btr"
     },
     {
       title: "Cluster Formation",

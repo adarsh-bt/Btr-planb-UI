@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { TextField, Button, Typography, Box, Grid, Stack } from '@mui/material';
+import { TextField, Button, Typography, Box, Grid, Stack, Alert } from '@mui/material';
+import authservice from "../authservice";
+
 
 const ForgotPassword = ({ onBack }) => {
   const [step, setStep] = useState(1); // Step 1: Email, Step 2: OTP, Step 3: Password Reset
@@ -7,6 +9,7 @@ const ForgotPassword = ({ onBack }) => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']); // Array to hold each OTP digit
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
 
   // Central dynamic heading based on the step
   const getHeading = () => {
@@ -22,10 +25,19 @@ const ForgotPassword = ({ onBack }) => {
     }
   };
 
-  const handleEmailSubmit = (e) => {
+  const handleEmailSubmit = async (e) => {
     e.preventDefault();
-    console.log('Email submitted:', email);
-    setStep(2); // Move to OTP step
+    if (!email) {
+      setError('Please enter your email address.');
+    }else{
+      const userData = await authservice.email_verification(email);
+      if (userData.statusCode == 200) {
+        console.log(userData)
+    setStep(2);
+    } else {
+      setError(userData.error);
+      }
+    }// Move to OTP step
   };
 
   const handleOtpChange = (index) => (e) => {
@@ -72,6 +84,11 @@ const ForgotPassword = ({ onBack }) => {
             <Typography variant="body2" sx={{ color:'#666', textAlign:'center' }}>
               Enter your registered email address to receive a One-Time Password (OTP).
             </Typography>
+            {error &&  <Stack sx={{ width: '100%',background:'#fff1f0' }} spacing={2}>
+     <center>
+      <Alert severity="error"  sx={{ textAlign: 'center',width:'max-content' }}>{error}</Alert></center>
+    </Stack>}
+
             <TextField
               fullWidth
               variant="outlined"
@@ -97,6 +114,10 @@ const ForgotPassword = ({ onBack }) => {
             >
               Send OTP
             </Button>
+            <Typography variant="body2">
+    <a href="/" style={{textDecoration:'none'}}>Back to Login</a>
+</Typography>
+
           </>
         )}
 

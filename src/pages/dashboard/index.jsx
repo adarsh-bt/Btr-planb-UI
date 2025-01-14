@@ -25,10 +25,7 @@ import OrdersTable from './OrdersTable';
 import GiftOutlined from '@ant-design/icons/GiftOutlined';
 import MessageOutlined from '@ant-design/icons/MessageOutlined';
 import SettingOutlined from '@ant-design/icons/SettingOutlined';
-import avatar1 from 'assets/images/users/avatar-1.png';
-import avatar2 from 'assets/images/users/avatar-2.png';
-import avatar3 from 'assets/images/users/avatar-3.png';
-import avatar4 from 'assets/images/users/avatar-4.png';
+
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import CardMedia from '@mui/material/CardMedia';
@@ -106,7 +103,7 @@ export default function DashboardDefault() {
     <Grid container spacing={4} sx={{marginBottom:'3rem'}}>
     
     <Grid item xs={12} sm={4} md={4} lg={4}>
-  <Card component={Link} to='/schemes'
+  <Card component={Link} to='/dashboard/schemes'
     sx={{
       textDecoration:'none',
       position: 'relative',
@@ -638,10 +635,10 @@ export default function DashboardDefault() {
               </Grid>
               <Grid item>
                 <AvatarGroup sx={{ '& .MuiAvatar-root': { width: 32, height: 32 } }}>
-                  <Avatar alt="Remy Sharp" src={avatar1} />
-                  <Avatar alt="Travis Howard" src={avatar2} />
-                  <Avatar alt="Cindy Baker" src={avatar3} />
-                  <Avatar alt="Agnes Walker" src={avatar4} />
+                  <Avatar alt="Remy Sharp" src="" />
+                  <Avatar alt="Travis Howard" src="" />
+                  <Avatar alt="Cindy Baker" src="" />
+                  <Avatar alt="Agnes Walker" src="" />
                 </AvatarGroup>
               </Grid>
             </Grid>

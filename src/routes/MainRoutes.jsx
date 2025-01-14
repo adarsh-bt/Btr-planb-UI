@@ -21,11 +21,11 @@ const Approvel = Loadable(lazy(() => import('pages/functional-components/approve
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
-  path: '/',
+  path: '/dashboard',
   element: <Dashboard />,
   children: [
     {
-      path: '/',
+      path: '/dashboard',
       element: <DashboardDefault />
     },
     {

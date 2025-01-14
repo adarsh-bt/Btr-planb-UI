@@ -5,9 +5,9 @@ import { forwardRef } from 'react';
 import { useTheme } from '@mui/material/styles';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import CardHeader from '@mui/material/CardHeader';
-import Divider from '@mui/material/Divider';
-import Typography from '@mui/material/Typography';
+// import CardHeader from '@mui/material/CardHeader';
+// import Divider from '@mui/material/Divider';
+// import Typography from '@mui/material/Typography';
 
 // header style
 const headerSX = {
@@ -44,7 +44,7 @@ function MainCard(
         border: border ? '1px solid' : 'none',
         borderRadius: 2,
         borderColor: theme.palette.mode === 'dark' ? theme.palette.divider : theme.palette.grey.A800,
-        boxShadow: boxShadow && (!border || theme.palette.mode === 'dark') ? shadow || theme.customShadows.z1 : 'inherit',
+        boxShadow: boxShadow && (!border || theme.palette.mode === 'dark') ? shadow || 
         ':hover': {
           boxShadow: boxShadow ? shadow || theme.customShadows.z1 : 'inherit'
         },

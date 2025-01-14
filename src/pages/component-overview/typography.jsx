@@ -8,13 +8,13 @@ import Typography from '@mui/material/Typography';
 
 // project import
 import MainCard from 'components/MainCard';
-import ComponentSkeleton from './ComponentSkeleton';
+
 
 // ==============================|| COMPONENTS - TYPOGRAPHY ||============================== //
 
 export default function ComponentTypography() {
   return (
-    <ComponentSkeleton>
+   
       <Grid container spacing={3}>
       
         <Grid item xs={12} lg={6}>
@@ -265,6 +265,6 @@ export default function ComponentTypography() {
           </Stack>
         </Grid>
       </Grid>
-    </ComponentSkeleton>
+
   );
 }
