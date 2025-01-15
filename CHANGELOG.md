@@ -2,10 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.1.0] - 2024-12-29
+
+
+## [0.0.1] - 2025-01-15
+### Added
+- **Login**: Login UI and Backend intergration Completed by Adarsh.A. 
+
+
+
+## [0.0.0] - 2024-12-29
 
 ### Added
-- **User Dashboard**: Added a new `UserProfile.jsx` by Developer Adarsh.  
+- **User Dashboard**: Dashboard by Adarsh.A.  
   - Displays sidebar,navbar and main dashboard elements.
   - include step 2 tab pages(Schemes sub menus pages)
 
@@ -17,11 +25,12 @@ All notable changes to this project will be documented in this file.
 ### Created
 - **Login Functionality**: Implemented Login feature with forgot form otp,re-enter password form `login.jsx` by Robin Roy.
 
-
 ### Created
 - **Earas Sub menu pages elemnets**: Added a new `earas_list.jsx` by Developer Reshma MB.
 
-### Modified
+
+
+
 
 
 ### Fixed
