@@ -4,10 +4,14 @@ All notable changes to this project will be documented in this file.
 
 
 
-## [0.0.1] - 2025-01-15
+## [0.2.0] - 2025-01-15
 ### Added
 - **Login**: Login UI and Backend intergration Completed by Adarsh.A. 
 
+
+## [0.1.0] - 2025-01-09
+### Added
+- **Approval Menu**: Approval menu and its table UI `approvelist.jsx` by Adarsh.A. 
 
 
 ## [0.0.0] - 2024-12-29
