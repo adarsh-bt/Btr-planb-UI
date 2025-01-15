@@ -44,39 +44,6 @@ const SignInSide = () => {
   };
 
 
-  const handleSubmit = async (e) => {
-        e.preventDefault();
-    
-        try {
-        const userData = await UserService.login(username, password);
-     
-
-        if (userData.token && typeof userData.token === 'string') {
-            localStorage.setItem('token', userData.token);
-            localStorage.setItem('role', userData.role);
-
-            // Decode the JWT token
-            const decodedToken = jwtDecode(userData.token);
-            const role = decodedToken.role; // Extract the role from decoded token
-       
-            // Navigate to the welcome page
-            navigate('/profile');
-            
-        } else {
-            setError(userData.error || 'Login failed');
-        }
-
-    } catch (error) {
-        console.error('Error during login:', error);
-        setError(error.message || 'An error occurred during login');
-
-        // Clear the error after 5 seconds
-        setTimeout(() => {
-            setError('');
-        }, 5000);
-    }
-    }
-
     
 
   return (
@@ -187,30 +154,23 @@ const SignInForm = ({ onForgotPasswordClick }) => {
     if( username && password ) {
 
     try {
-      // Call the login service (adjust parameters as needed)
       const userData = await authservice.login(username, password);
-
-      // Check if the response contains a valid token
       if (userData.payload && typeof userData.payload === 'string') {
-        
-        // Store the token and role in localStorage
         localStorage.setItem('token', userData.token);
         // localStorage.setItem('role', userData.role);
-      
-        // Decode the JWT token to extract the role
         // const decodedToken = jwtDecode(userData.token);
         // const role = decodedToken.role; // Extract the role from decoded token
 
-        // Navigate to the profile page (or redirect based on role)
+       
         navigate('/dashboard');
       } else {
-        setError(userData.error || 'Login failed');
+        setError(userData.message);
       }
     } catch (error) {
       console.error('Error during login:', error);
       setError(error.message || 'An error occurred during login');
 
-      // Clear the error after 5 seconds
+     
       setTimeout(() => {
         setError('');
       }, 5000);

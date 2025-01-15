@@ -3,16 +3,17 @@ import {InvalidTokenError, jwtDecode} from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
 
 class authservice{
-    static BASE_URL = "http://localhost:8080"
+    static BASE_URL = "http://localhost:8080/useraccess"
 
     
     static async login(username, password){
       
         try{
             const response = await axios.post(`${authservice.BASE_URL}/api/login`,{username,password})
-         
+           
             return response.data
         }catch(err){
+          
             throw err;
         }
     }
