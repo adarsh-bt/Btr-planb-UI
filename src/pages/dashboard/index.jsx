@@ -25,10 +25,7 @@ import OrdersTable from './OrdersTable';
 import GiftOutlined from '@ant-design/icons/GiftOutlined';
 import MessageOutlined from '@ant-design/icons/MessageOutlined';
 import SettingOutlined from '@ant-design/icons/SettingOutlined';
-import avatar1 from 'assets/images/users/avatar-1.png';
-import avatar2 from 'assets/images/users/avatar-2.png';
-import avatar3 from 'assets/images/users/avatar-3.png';
-import avatar4 from 'assets/images/users/avatar-4.png';
+
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import CardMedia from '@mui/material/CardMedia';
@@ -106,7 +103,7 @@ export default function DashboardDefault() {
     <Grid container spacing={4} sx={{marginBottom:'3rem'}}>
     
     <Grid item xs={12} sm={4} md={4} lg={4}>
-  <Card component={Link} to='/schemes'
+  <Card component={Link} to='/dashboard/schemes'
     sx={{
       textDecoration:'none',
       position: 'relative',
@@ -250,7 +247,7 @@ export default function DashboardDefault() {
         variant="h3"
         sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}
       >
-        Tourdiary
+        Tour diary
       </Typography>
       <Typography
         variant="body2"
@@ -383,7 +380,97 @@ export default function DashboardDefault() {
     </Card>
   </Grid>
 
-
+  <Grid item xs={12} sm={4} md={4} lg={4}>
+  <Card component={Link} to='/approvals'
+    sx={{
+      textDecoration:'none',
+      position: 'relative',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '2rem',
+      borderRadius: '1rem',
+      background: 'linear-gradient(135deg, rgba(255, 184, 97, 0.57), rgb(255, 189, 109))',
+      transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+      overflow: 'hidden', // Ensure circles don't overflow the card
+      '&:hover': {
+        transform: 'scale(1.05)',
+        boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)',
+      },
+      '&::before': {
+        content: '""',
+        position: 'absolute',
+        width: '200px',
+        height: '200px',
+        borderRadius: '50%',
+        background: 'rgba(255, 255, 255, 0.2)',
+        top: '-50px',
+        right: '-50px',
+      },
+      '&::after': {
+        content: '""',
+        position: 'absolute',
+        width: '150px',
+        height: '150px',
+        borderRadius: '50%',
+        background: 'rgba(255, 255, 255, 0.15)',
+        bottom: '-40px',
+        left: '-40px',
+      },
+    }}
+  >
+    <Typography
+      variant="h6"
+      sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}
+    >
+      -
+    </Typography>
+    <Typography
+      variant="h3"
+      sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}
+    >
+      Approvels
+    </Typography>
+    <Typography
+      variant="body2"
+      sx={{
+        color: '#f3f3f3',
+        fontWeight: 'lighter',
+        marginTop: '0.5rem',
+        textAlign: 'center',
+        marginBottom:'1.2rem'
+      }}
+    >
+      Main menus
+    </Typography>
+    <Box
+      sx={{
+        position: 'absolute',
+        top: '1rem',
+        right: '1rem',
+        background: 'rgba(255, 255, 255, 0.3)',
+        padding: '0.5rem',
+        borderRadius: '50%',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
+    >
+      <CardMedia
+        component="img"
+        sx={{
+          width: '3rem',
+          height: '3rem',
+          borderRadius:'50%'
+        }}
+        image="https://www.creativefabrica.com/wp-content/uploads/2021/06/30/Search-Engine-Icon-Graphics-14065623-1-1-580x386.jpg"
+        alt="Chart Icon"
+      />
+    </Box>
+  </Card>
+</Grid>
 
          
     </Grid>
@@ -548,10 +635,10 @@ export default function DashboardDefault() {
               </Grid>
               <Grid item>
                 <AvatarGroup sx={{ '& .MuiAvatar-root': { width: 32, height: 32 } }}>
-                  <Avatar alt="Remy Sharp" src={avatar1} />
-                  <Avatar alt="Travis Howard" src={avatar2} />
-                  <Avatar alt="Cindy Baker" src={avatar3} />
-                  <Avatar alt="Agnes Walker" src={avatar4} />
+                  <Avatar alt="Remy Sharp" src="" />
+                  <Avatar alt="Travis Howard" src="" />
+                  <Avatar alt="Cindy Baker" src="" />
+                  <Avatar alt="Agnes Walker" src="" />
                 </AvatarGroup>
               </Grid>
             </Grid>

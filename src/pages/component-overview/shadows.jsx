@@ -7,8 +7,7 @@ import Typography from '@mui/material/Typography';
 
 // project import
 import MainCard from 'components/MainCard';
-import ComponentWrapper from './ComponentWrapper';
-import ComponentSkeleton from './ComponentSkeleton';
+
 
 // ===============================|| SHADOW BOX ||=============================== //
 
@@ -43,8 +42,7 @@ export default function ComponentShadow() {
   const theme = useTheme();
 
   return (
-    <ComponentSkeleton>
-      <ComponentWrapper>
+ 
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <MainCard title="Basic Shadow">
@@ -209,8 +207,7 @@ export default function ComponentShadow() {
             </MainCard>
           </Grid>
         </Grid>
-      </ComponentWrapper>
-    </ComponentSkeleton>
+    
   );
 }
 

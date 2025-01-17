@@ -8,8 +8,7 @@ import Box from '@mui/material/Box';
 
 // project import
 import MainCard from 'components/MainCard';
-import ComponentWrapper from './ComponentWrapper';
-import ComponentSkeleton from './ComponentSkeleton';
+
 
 function ColorBox({ bgcolor, title, data, dark, main }) {
   return (
@@ -51,7 +50,7 @@ function ColorBox({ bgcolor, title, data, dark, main }) {
 
 export default function ComponentColor() {
   return (
-    <ComponentSkeleton>
+
       <Grid container spacing={3}>
         <Grid item xs={12} sm={6} md={4}>
           <MainCard title="Primary Color">
@@ -128,7 +127,7 @@ export default function ComponentColor() {
           </MainCard>
         </Grid>
       </Grid>
-    </ComponentSkeleton>
+   
   );
 }
 

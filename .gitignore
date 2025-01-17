@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Logs
 logs
 *.log
@@ -106,4 +107,6 @@ dist
 
 # wincompare file
 .bak
+=======
+>>>>>>> adarsh01
 node_modules

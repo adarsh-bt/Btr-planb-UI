@@ -15,16 +15,18 @@ const Earas = Loadable(lazy(() => import('pages/functional-components/earas/eara
 const BTR = Loadable(lazy(() => import('pages/functional-components/earas/Btr')));
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
 
+// Approvels
+const Approvel = Loadable(lazy(() => import('pages/functional-components/approvels/approvelist')));
 
 
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
-  path: '/',
+  path: '/dashboard',
   element: <Dashboard />,
   children: [
     {
-      path: '/',
+      path: '/dashboard',
       element: <DashboardDefault />
     },
     {
@@ -54,6 +56,7 @@ const MainRoutes = {
     },
 
     // Tabs Menus
+    // Schemes
 
     {
       path: 'schemes',
@@ -74,8 +77,13 @@ const MainRoutes = {
     {
       path:'profile',
       element: <Profile />
-    }
+    },
 
+    // Approvels
+    {
+      path: 'approvals',
+      element: <Approvel />
+    }
   ]
 };
 

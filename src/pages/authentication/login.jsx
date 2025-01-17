@@ -1,15 +1,35 @@
 import React, { useState } from 'react';
-import { Grid, Paper, Avatar, Typography, TextField, Button, Box, Checkbox, FormControlLabel, InputAdornment } from '@mui/material';
+import {
+  Grid,
+  Paper,
+  Avatar,
+  Typography,
+  TextField,
+  Button,
+  Box,
+  Checkbox,
+  FormControlLabel,
+  InputAdornment,
+  Alert,
+  Stack
+} from '@mui/material';
+// import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import EmailIcon from '@mui/icons-material/Email';
 import LockIcon from '@mui/icons-material/Lock';
+import ForgotPassword from './auth-forms/ForgotPassword'; // Ensure this path is correct
+import logo from './images/logo.png'; // Import the logo image
+import { Link, useNavigate } from 'react-router-dom';
+import CircularProgress from '@mui/material/CircularProgress';
 import Register from './auth-forms/Register';
-import logo from "./images/logo.png";
-import ForgotPassword from './auth-forms/ForgotPassword'; // Make sure the path is correct
+import './login.css';
 
+import authservice from './authservice';
 
 const SignInSide = () => {
+  // login state
+
   const [isForgotPassword, setIsForgotPassword] = useState(false);
-  const [isRegister, setIsRegister] = useState(false);  // State for toggling Register form
+  const [isRegister, setIsRegister] = useState(false); // State for toggling Register form
 
   const handleForgotPasswordClick = () => {
     setIsForgotPassword(true);
@@ -17,18 +37,23 @@ const SignInSide = () => {
 
   const handleBackToSignIn = () => {
     setIsForgotPassword(false);
+    setIsRegister(false); // Reset register state when going back
   };
 
   const handleRegisterClick = () => {
-    setIsRegister(true);  // Show Register form
-  };
-
-  const handleBackToSignInFromRegister = () => {
-    setIsRegister(false);  // Go back to SignIn form
+    setIsRegister(true); // Show Register form
   };
 
   return (
-    <Grid container sx={{ height: '100vh' }}>
+    <Grid
+      className="main"
+      container
+      sx={{
+        height: '100vh',
+        padding: '5rem',
+        background: 'linear-gradient(142deg, #043877 15%, rgba(22,77,155,1) 28%, rgba(14,63,139,1) 41%, rgba(5,48,122,1) 64%)'
+      }}
+    >
       <Grid
         item
         xs={12}
@@ -41,35 +66,35 @@ const SignInSide = () => {
           backgroundPosition: 'center',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          borderRadius: '2rem 0 0 2rem'
         }}
       >
-        <div className="area" >
-      <div style={{ textAlign: "center" }}>
+        <div style={{ textAlign: 'center' }}>
           <img
             src={logo}
             alt="Logo"
             style={{
-              width: "160px",
-              height: "80px",
-              borderRadius: "50%",
-              marginBottom: "16px",
-              marginTop:'2rem'
+              width: '160px',
+              height: '80px',
+              borderRadius: '50%',
+              marginBottom: '16px',
+              marginTop: '2rem'
             }}
           />
-            <Typography
-              variant="h1"
-              sx={{
-                color: '#fff',
-                fontWeight: 'bold',
-                px: 4,
-                textAlign: 'center',
-                marginBottom: '5rem'
-              }}
-            >
-              AIDEA
-            </Typography>
-          </div>
+          <Typography
+            variant="h1"
+            sx={{
+              color: '#fff',
+              fontWeight: 'bold',
+              px: 4,
+              textAlign: 'center',
+              // marginTop: "1rem",
+              marginBottom: '5rem'
+            }}
+          >
+            AIDEA
+          </Typography>
         </div>
       </Grid>
       <Grid
@@ -86,11 +111,13 @@ const SignInSide = () => {
           alignItems: 'center',
           justifyContent: 'center',
           p: 4,
-          borderRadius: '20px',
+          borderRadius: '0px 20px 20px 0px', // Increased border radius for a softer look
           boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
         }}
       >
-        <Avatar sx={{ m: 1, bgcolor: 'secondary.main' }} />
+        <Avatar sx={{ m: 1, bgcolor: 'secondary.main' }}>{/* <LockOutlinedIcon /> */}</Avatar>
+
+        {/* Dynamic Heading */}
         <Typography component="h1" variant="h5" sx={{ fontWeight: 'bold', color: '#333', mb: 2 }}>
           {isForgotPassword ? '' : isRegister ? 'Register' : 'Sign In'}
         </Typography>
@@ -98,90 +125,172 @@ const SignInSide = () => {
         {isForgotPassword ? (
           <ForgotPassword onBack={handleBackToSignIn} />
         ) : isRegister ? (
-          <Register onBack={handleBackToSignInFromRegister} />
+          <Register onBack={handleBackToSignIn} />
         ) : (
-          <SignInForm onForgotPasswordClick={handleForgotPasswordClick} onRegisterClick={handleRegisterClick} />
+          <SignInForm
+            onForgotPasswordClick={handleForgotPasswordClick}
+            onRegisterClick={handleRegisterClick} // Pass the handleRegisterClick function here
+          />
         )}
       </Grid>
     </Grid>
   );
 };
 
-const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => (
-  <Box component="form" noValidate sx={{ mt: 1, width: '100%', maxWidth: '400px', mx: 'auto' }}>
-    <TextField
-      variant="outlined"
-      margin="normal"
-      required
-      fullWidth
-      id="email"
-      label="Email Address"
-      name="email"
-      autoComplete="email"
-      autoFocus
-      InputProps={{
-        startAdornment: (
-          <InputAdornment position="start">
-            <EmailIcon />
-          </InputAdornment>
-        )
-      }}
-      sx={{ mb: 2, borderRadius: '10px' }}
-    />
-    <TextField
-      variant="outlined"
-      margin="normal"
-      required
-      fullWidth
-      name="password"
-      label="Password"
-      type="password"
-      id="password"
-      autoComplete="current-password"
-      InputProps={{
-        startAdornment: (
-          <InputAdornment position="start">
-            <LockIcon />
-          </InputAdornment>
-        )
-      }}
-      sx={{ mb: 2, borderRadius: '10px' }}
-    />
-    <FormControlLabel control={<Checkbox value="remember" color="primary" />} label="Remember me" />
-    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-      <Button
-        type="submit"
-        variant="contained"
-        color="primary"
-        sx={{
-          p: 1.5,
-          borderRadius: '20px',
-          width: '100%',
-          maxWidth: '200px',
-          '&:hover': {
-            backgroundColor: 'primary.dark',
-            color: 'white'
-          }
+const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
+  // Accept onRegisterClick prop here
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false); // New state for loading
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (username && password) {
+      try {
+        // Call the login service (adjust parameters as needed)
+        const userData = await authservice.login(username, password);
+
+        // Check if the response contains a valid token
+        if (userData.payload && typeof userData.payload === 'string') {
+          // Store the token and role in localStorage
+          localStorage.setItem('token', userData.token);
+          // localStorage.setItem('role', userData.role);
+
+          // Decode the JWT token to extract the role
+          // const decodedToken = jwtDecode(userData.token);
+          // const role = decodedToken.role; // Extract the role from decoded token
+
+          // Navigate to the profile page (or redirect based on role)
+          navigate('/dashboard');
+        } else {
+          setError(userData.error || 'Login failed');
+        }
+      } catch (error) {
+        console.error('Error during login:', error);
+        setError(error.message || 'An error occurred during login');
+
+        // Clear the error after 5 seconds
+        setTimeout(() => {
+          setError('');
+        }, 5000);
+      }
+    } else {
+      if (!username) {
+        setError('Enter your email');
+      } else {
+        setError('Enter your password');
+      }
+    }
+  };
+
+  return (
+    <Box
+      component="form"
+      noValidate
+      sx={{ mt: 1, width: '100%', maxWidth: '400px', mx: 'auto' }}
+      onSubmit={handleSubmit} // Attach handleSubmit to form submit
+    >
+      {error && (
+        <Stack sx={{ width: '100%', background: '#fff1f0' }} spacing={2}>
+          <center>
+            <Alert severity="error" sx={{ textAlign: 'center', width: 'max-content' }}>
+              {error}
+            </Alert>
+          </center>
+        </Stack>
+      )}{' '}
+      {/* Show error message if any */}
+      <TextField
+        variant="outlined"
+        margin="normal"
+        required
+        fullWidth
+        id="email"
+        label="Email Address"
+        name="email"
+        value={username} // Use username state for the email input
+        onChange={(e) => setUsername(e.target.value)}
+        autoComplete="email"
+        autoFocus
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <EmailIcon />
+            </InputAdornment>
+          )
         }}
-      >
-        Sign In
-      </Button>
-    </Box>
-    <Box sx={{ mt: 4 }}>
-      <Grid container spacing={2}>
-        <Grid item xs textAlign="left">
-          <Typography variant="body2" onClick={onForgotPasswordClick} sx={{ color: 'blue', cursor: 'pointer' }}>
-            Forgot password?
-          </Typography>
+        sx={{ mb: 2, borderRadius: '10px' }} // Rounded corners for input
+      />
+      <TextField
+        variant="outlined"
+        margin="normal"
+        required
+        fullWidth
+        name="password"
+        label="Password"
+        type="password"
+        id="password"
+        value={password} // Use password state for the password input
+        onChange={(e) => setPassword(e.target.value)}
+        autoComplete="current-password"
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <LockIcon />
+            </InputAdornment>
+          )
+        }}
+        sx={{ mb: 2, borderRadius: '10px' }} // Rounded corners for input
+      />
+      {/* Remember Me Checkbox */}
+      <FormControlLabel control={<Checkbox value="remember" color="primary" />} label="Remember me" />
+      {/* Centered Sign In Button */}
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+        <Button
+          type="submit"
+          variant="contained"
+          color="primary"
+          sx={{
+            p: 1.5,
+            borderRadius: '20px',
+            width: '100%',
+            maxWidth: '200px',
+            '&:hover': {
+              backgroundColor: 'primary.dark',
+              color: 'white'
+            }
+          }}
+        >
+          {loading ? (
+            <>
+              <CircularProgress size={24} sx={{ color: 'white', mr: 1 }} />
+              Signing In...
+            </>
+          ) : (
+            'Sign In'
+          )}
+        </Button>
+      </Box>
+      {/* Add spacing between the button and links */}
+      <Box sx={{ mt: 4 }}>
+        <Grid container spacing={2}>
+          <Grid item xs textAlign="left">
+            <Typography variant="body2" onClick={onForgotPasswordClick} sx={{ color: 'blue', cursor: 'pointer', position: 'absolute' }}>
+              Forgot password?
+            </Typography>
+          </Grid>
+
+          <Grid item textAlign="right">
+            <Typography variant="body2" onClick={onRegisterClick} sx={{ color: 'blue', cursor: 'pointer' }}>
+              {"Don't have an account? Sign Up"}
+            </Typography>
+          </Grid>
         </Grid>
-        <Grid item textAlign="right">
-          <Typography variant="body2" onClick={onRegisterClick} sx={{ color: 'blue', cursor: 'pointer' }}>
-            {"Don't have an account? Register Now"}
-          </Typography>
-        </Grid>
-      </Grid>
+      </Box>
     </Box>
-  </Box>
-);
+  );
+};
 
 export default SignInSide;

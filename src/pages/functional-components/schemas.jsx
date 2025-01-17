@@ -12,8 +12,7 @@ import IconButton from '@mui/material/IconButton';
 
 import { Link} from 'react-router-dom'; 
 
-import ComponentSkeleton from '../component-overview/ComponentSkeleton';
-import ComponentWrapper from '../component-overview/ComponentWrapper';
+
 import MainCard from 'components/MainCard';
 
 
@@ -24,8 +23,7 @@ import MainCard from 'components/MainCard';
 function Schemas() {
   const theme = useTheme();
   return (
-    <ComponentSkeleton>
-      <ComponentWrapper>
+  
         <Grid container spacing={3}>
           <Grid item xs={12}>
           <Typography variant='h3' sx={{marginBottom:4}}>Schemas</Typography>
@@ -33,7 +31,7 @@ function Schemas() {
              
               <Grid container spacing={4}>
                <Grid item xs={12} sm={4} md={3} lg={3}>               
-               <Card component={Link} to="/earas"
+               <Card component={Link} to="/dashboard/earas"
         sx={{
           textDecoration:'none',
           display: 'flex',
@@ -508,8 +506,7 @@ function Schemas() {
           
         </Grid>
     
-      </ComponentWrapper>
-    </ComponentSkeleton>
+  
   )
 }
 
