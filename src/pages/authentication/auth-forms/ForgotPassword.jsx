@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+
 import { TextField, Button, Typography, Box, Grid, Stack, Alert } from '@mui/material';
 import authservice from "../authservice";
 
@@ -10,7 +11,8 @@ const ForgotPassword = ({ onBack }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
-
+  const [success, setSuccess] = useState('');
+  
   // Central dynamic heading based on the step
   const getHeading = () => {
     switch (step) {
@@ -32,43 +34,80 @@ const ForgotPassword = ({ onBack }) => {
     }else{
       const userData = await authservice.email_verification(email);
       if (userData.statusCode == 200) {
-        console.log(userData)
+        setEmail(userData.payload.user_id)
+        setError('');
     setStep(2);
     } else {
-      setError(userData.error);
+      setError(userData.message);
       }
     }// Move to OTP step
   };
 
-  const handleOtpChange = (index) => (e) => {
+  const handleOtpChange = (index) => async (e) => {
     const value = e.target.value;
+  
+    // Allow only digits and ensure the input length is 1
     if (/^\d*$/.test(value) && value.length <= 1) {
       const newOtp = [...otp];
       newOtp[index] = value;
       setOtp(newOtp);
-
+  
+      // Trigger OTP verification when OTP input changes
+     
+      // Automatically focus on the next input field if the current field is filled
       if (value && index < otp.length - 1) {
         document.getElementById(`otp-${index + 1}`).focus();
       }
     }
   };
-
-  const handleOtpSubmit = (e) => {
+  
+  const isOtpValid = otp.every(digit => /^\d$/.test(digit));
+  const handleOtpSubmit =  async (e) => {
     e.preventDefault();
-    console.log('OTP submitted:', otp.join(''));
-    setStep(3); // Move to the next step for entering new password
-  };
 
-  const handlePasswordResetSubmit = (e) => {
-    e.preventDefault();
-    if (newPassword === confirmPassword) {
-      console.log('Password reset:', newPassword);
-    } else {
-      alert('Passwords do not match!');
+    try {
+      const otpValue = otp.join(''); // Join the OTP digits together
+      if (otpValue.length === otp.length) {
+        const response = await authservice.verify_otp(email, otpValue);
+        if (response.statusCode === 200) {
+          setError('');
+          setStep(3); // Proceed to next step if OTP is correct
+        } else {
+          setError(response.message); // Show error message if OTP is invalid
+        }
+      }
+    } catch (error) {
+      console.error("Error verifying OTP:", error);
+      setError("An error occurred while verifying OTP.");
     }
+
+    console.log('OTP submitted:', otp.join(''));
+    // setStep(3); // Move to the next step for entering new password
   };
 
-  const isResetButtonEnabled = newPassword.length > 0 && confirmPassword.length > 0 && newPassword === confirmPassword;
+ 
+
+// password re-enter section
+const handlePasswordResetSubmit = async (e) => {
+  e.preventDefault();
+  
+  if (newPassword !== confirmPassword) {
+    setError('Passwords do not match');
+  } else {
+    setError('');
+  
+    const response = await authservice.password_reset(email, newPassword);
+    if (response.statusCode === 200) {
+      setSuccess(response.message) // Proceed to next step if OTP is correct
+    } else {
+      setError(response.message); // Show error message if OTP is invalid
+    }
+  }
+};
+
+// const onBack = () => {
+//   // Logic for going back to sign-in page
+// };
 
   return (
     <Box sx={{ width: '100%', maxWidth: '400px', mx: 'auto' }}> {/* Centering the box */}
@@ -114,6 +153,7 @@ const ForgotPassword = ({ onBack }) => {
             >
               Send OTP
             </Button>
+           
             <Typography variant="body2">
     <a href="/" style={{textDecoration:'none'}}>Back to Login</a>
 </Typography>
@@ -123,98 +163,119 @@ const ForgotPassword = ({ onBack }) => {
 
         {step === 2 && (
           <>
-            <Typography variant="body2" sx={{ color:'#666', textAlign:'center' }}>
-              Enter the OTP sent to your email.
-            </Typography>
-            <Grid container spacing={1} justifyContent="center">
-              {otp.map((digit, index) => (
-                <Grid item key={index}>
-                  <TextField
-                    variant="outlined"
-                    id={`otp-${index}`}
-                    value={digit}
-                    onChange={handleOtpChange(index)}
-                    inputProps={{
-                      maxLength: 1,
-                      style:{ textAlign:'center', width:'20px'},
-                    }}
-                    sx={{
-                      borderRadius:'20px',
-                      mb :2 // Add margin bottom for spacing 
-                    }}
-                  />
-                </Grid>
-              ))}
-            </Grid>
-            <Button
-              fullWidth
-              variant="contained"
-              color="primary"
-              sx={{ 
-                borderRadius:'20px', 
-                maxWidth:'200px', 
-                mx:'auto' 
-              }} // Center the button with controlled width 
-              onClick={handleOtpSubmit}
-            >
-              Verify OTP
-            </Button>
-          </>
+      <Typography variant="body2" sx={{ color: '#666', textAlign: 'center' }}>
+        Enter the OTP sent to your email.
+      </Typography>
+      {error &&  <Stack sx={{ width: '100%',background:'#fff1f0' }} spacing={2}>
+     <center>
+      <Alert severity="error"  sx={{ textAlign: 'center',width:'max-content' }}>{error}</Alert></center>
+    </Stack>}
+      <Grid container spacing={1} justifyContent="center">
+        {otp.map((digit, index) => (
+          <Grid item key={index}>
+            <TextField
+              variant="outlined"
+              id={`otp-${index}`}
+              value={digit}
+              onChange={handleOtpChange(index)}
+              inputProps={{
+                maxLength: 1,
+                style: { textAlign: 'center', width: '20px' },
+              }}
+              sx={{
+                borderRadius: '20px',
+                mb: 2, // Add margin bottom for spacing
+              }}
+            />
+          </Grid>
+        ))}
+      </Grid>
+      <Button
+        fullWidth
+        variant="contained"
+        color="primary"
+        sx={{
+          borderRadius: '20px',
+          maxWidth: '200px',
+          mx: 'auto', // Center the button with controlled width
+        }}
+        onClick={handleOtpSubmit}
+        disabled={!isOtpValid} // Disable button if OTP is invalid
+      >
+        Verify OTP
+      </Button>
+      <Typography variant="body2">
+    <a href="/" style={{textDecoration:'none'}}>Back to Login</a>
+</Typography>
+</>
         )}
 
         {step === 3 && (
           <>
-            <Typography variant="body2" sx={{ color:'#666', textAlign:'center' }}>
-              Enter your new password.
-            </Typography>
-            <TextField 
-               fullWidth 
-               variant='outlined'
-               label='New Password'
-               type='password'
-               value={newPassword}
-               onChange={(e) => setNewPassword(e.target.value)}
-               sx={{
-                 borderRadius:'20px',
-                 mb :2 // Add margin bottom for spacing 
-               }}
-             />
-             <TextField 
-               fullWidth 
-               variant='outlined'
-               label='Confirm Password'
-               type='password'
-               value={confirmPassword}
-               onChange={(e) => setConfirmPassword(e.target.value)}
-               sx={{
-                 borderRadius:'20px',
-                 mb :2 // Add margin bottom for spacing 
-               }}
-             />
-             <Button 
-               fullWidth 
-               variant='contained'
-               color='primary'
-               sx={{ 
-                 borderRadius:'20px', 
-                 maxWidth:'200px', 
-                 mx:'auto'  
-               }} // Center the button with controlled width 
-               onClick={handlePasswordResetSubmit}
-               disabled={!isResetButtonEnabled}
-             >
-               Reset Password 
-             </Button>
-             <Button 
-               fullWidth 
-               variant='text'
-               color='primary'
-               sx={{ mt :2}}
-               onClick={onBack}
-             >
-               Back to Sign In 
-             </Button>
-           </>
+      <Typography variant="body2" sx={{ color:'#666', textAlign:'center' }}>
+        Enter your new password.
+      </Typography>
+      
+      {/* Display error message if passwords don't match */}
+      {error &&  <Stack sx={{ width: '100%',background:'#fff1f0' }} spacing={2}>
+     <center>
+      <Alert severity="error"  sx={{ textAlign: 'center',width:'max-content' }}>{error}</Alert></center>
+    </Stack>}
+    {success &&  <Stack sx={{ width: '100%',background:'#fff1f0' }} spacing={2}>
+     <center>
+     {/* icon={<CheckIcon fontSize="inherit" />} */}
+     <Alert  severity="success" sx={{ textAlign: 'center',width:'max-content' }}>{success}</Alert></center>
+    </Stack>}
+      <TextField 
+        fullWidth 
+        variant='outlined'
+        label='New Password'
+        type='password'
+        value={newPassword}
+        onChange={(e) => setNewPassword(e.target.value)}
+        sx={{
+          borderRadius:'20px',
+          mb: 2 // Add margin bottom for spacing 
+        }}
+      />
+      
+      <TextField 
+        fullWidth 
+        variant='outlined'
+        label='Confirm Password'
+        type='password'
+        value={confirmPassword}
+        onChange={(e) => setConfirmPassword(e.target.value)}
+        sx={{
+          borderRadius:'20px',
+          mb: 2 // Add margin bottom for spacing 
+        }}
+      />
+      
+      <Button 
+        fullWidth 
+        variant='contained'
+        color='primary'
+        sx={{ 
+          borderRadius:'20px', 
+          maxWidth:'200px', 
+          mx:'auto'  
+        }} // Center the button with controlled width 
+        onClick={handlePasswordResetSubmit}
+      >
+        Reset Password 
+      </Button>
+      
+      <Button 
+        fullWidth 
+        variant='text'
+        color='primary'
+        sx={{ mt :2 }}
+        onClick={onBack}
+      >
+        Back to Sign In 
+      </Button>
+    </>
          )}
        </Stack>  
      </Box>  

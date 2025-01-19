@@ -38,7 +38,7 @@ export default function ProfileTab() {
         <ListItemText primary="View Profile" />
       </ListItemButton>
 
-      <ListItemButton selected={selectedIndex === 3} onClick={(event) => handleListItemClick(event, 3, 'apps/profiles/account/personal')}>
+      {/* <ListItemButton selected={selectedIndex === 3} onClick={(event) => handleListItemClick(event, 3, 'apps/profiles/account/personal')}>
         <ListItemIcon>
           <ProfileOutlined />
         </ListItemIcon>
@@ -49,13 +49,13 @@ export default function ProfileTab() {
           <WalletOutlined />
         </ListItemIcon>
         <ListItemText primary="Billing" />
-      </ListItemButton>
-      <ListItemButton selected={selectedIndex === 2}>
+      </ListItemButton> */}
+      {/* <ListItemButton selected={selectedIndex === 2}>
         <ListItemIcon>
           <LogoutOutlined />
         </ListItemIcon>
         <ListItemText primary="Logout" />
-      </ListItemButton>
+      </ListItemButton> */}
     </List>
   );
 }

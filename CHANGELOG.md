@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 
 
+
+## [0.5.0] - 2025-01-19
+### Added
+- **Private Route**: Added Private Routes setup ` PrivateRoute.jsx` Completed by Adarsh.A. 
+
+## [0.4.0] - 2025-01-19
+### Added
+- **Logout**: Logout is done Completed by Adarsh.A. 
+
+## [0.3.0] - 2025-01-18
+### Added
+- **Forgot password**: Complete forgot password and Backend intergration Completed by Adarsh.A. 
+
+
 ## [0.2.0] - 2025-01-15
 ### Added
 - **Login**: Login UI and Backend intergration Completed by Adarsh.A. 

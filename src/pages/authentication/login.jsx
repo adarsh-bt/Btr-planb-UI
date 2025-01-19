@@ -17,9 +17,9 @@ import EmailIcon from "@mui/icons-material/Email";
 import LockIcon from "@mui/icons-material/Lock";
 import ForgotPassword from "./auth-forms/ForgotPassword"; // Ensure this path is correct
 import logo from "./images/logo.png"; // Import the logo image
-import { Link,useNavigate} from 'react-router-dom'; 
+import { useNavigate} from 'react-router-dom'; 
 import CircularProgress from '@mui/material/CircularProgress';
-
+import Register from './auth-forms/Register';
 
 import './login.css'
 
@@ -34,6 +34,8 @@ const SignInSide = () => {
 
 
   const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [isRegister, setIsRegister] = useState(false); // State for toggling Register form
+
 
   const handleForgotPasswordClick = () => {
     setIsForgotPassword(true);
@@ -41,10 +43,13 @@ const SignInSide = () => {
 
   const handleBackToSignIn = () => {
     setIsForgotPassword(false);
+    setIsRegister(false); // Reset register state when going back
   };
 
 
-    
+  const handleRegisterClick = () => {
+    setIsRegister(true); // Show Register form
+  };
 
   return (
     <Grid className="main" container sx={{ height: "100vh" ,padding:'5rem', 
@@ -128,20 +133,25 @@ const SignInSide = () => {
           variant="h5"
           sx={{ fontWeight: "bold", color: "#333", mb: 2 }}
         >
-          {isForgotPassword ? "" : "Sign In"}
+          {isForgotPassword ? '' : isRegister ? 'Register' : 'Sign In'}
         </Typography>
 
         {isForgotPassword ? (
           <ForgotPassword onBack={handleBackToSignIn} />
+        ) : isRegister ? (
+          <Register onBack={handleBackToSignIn} />
         ) : (
-          <SignInForm onForgotPasswordClick={handleForgotPasswordClick} />
+          <SignInForm
+            onForgotPasswordClick={handleForgotPasswordClick}
+            onRegisterClick={handleRegisterClick} // Pass the handleRegisterClick function here
+          />
         )}
       </Grid>
     </Grid>
   );
 };
 
-const SignInForm = ({ onForgotPasswordClick }) => {
+const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -151,39 +161,30 @@ const SignInForm = ({ onForgotPasswordClick }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if( username && password ) {
-
-    try {
-      const userData = await authservice.login(username, password);
-      if (userData.payload && typeof userData.payload === 'string') {
-        localStorage.setItem('token', userData.token);
-        // localStorage.setItem('role', userData.role);
-        // const decodedToken = jwtDecode(userData.token);
-        // const role = decodedToken.role; // Extract the role from decoded token
-
-       
-        navigate('/dashboard');
-      } else {
-        setError(userData.message);
+    
+    if (username && password) {
+      try {
+        const userData = await authservice.login(username, password);
+        
+        if (userData.payload && userData.payload.token && typeof userData.payload.token === 'string') {
+          localStorage.setItem('token', userData.payload.token);
+          navigate('/dashboard');
+        } else {
+          setError(userData.message || 'Login failed');
+        }
+      } catch (error) {
+        console.error('Error during login:', error);
+        setError(error.message || 'An error occurred during login');
       }
-    } catch (error) {
-      console.error('Error during login:', error);
-      setError(error.message || 'An error occurred during login');
-
-     
-      setTimeout(() => {
-        setError('');
-      }, 5000);
-    }
     } else {
-      if(!username){
-      setError('Enter your email');
+      if (!username) {
+        setError('Enter your email');
       } else {
         setError('Enter your password');
-        }
+      }
     }
   };
-
+  
   return (
     <Box
       component="form"
@@ -290,7 +291,7 @@ const SignInForm = ({ onForgotPasswordClick }) => {
           </Grid>
 
           <Grid item textAlign="right">
-            <Typography href="#" variant="body2">
+            <Typography variant="body2" onClick={onRegisterClick} sx={{ color: 'blue', cursor: 'pointer' }}>
               {"Don't have an account? Sign Up"}
             </Typography>
           </Grid>

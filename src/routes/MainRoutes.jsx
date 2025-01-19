@@ -3,6 +3,7 @@ import { lazy } from 'react';
 // project import
 import Loadable from 'components/Loadable';
 import Dashboard from 'layout/Dashboard';
+import PrivateRoute from './PrivateRoute';
 
 const Color = Loadable(lazy(() => import('pages/component-overview/color')));
 const Typography = Loadable(lazy(() => import('pages/component-overview/typography')));
@@ -22,64 +23,92 @@ const Approvel = Loadable(lazy(() => import('pages/functional-components/approve
 
 const MainRoutes = {
   path: '/dashboard',
-  element: <Dashboard />,
+  element: (
+    <PrivateRoute>
+      <Dashboard />
+    </PrivateRoute>
+  ),
   children: [
     {
       path: '/dashboard',
-      element: <DashboardDefault />
+      element: (
+        <PrivateRoute>
+          <DashboardDefault />
+        </PrivateRoute>
+      ),
     },
     {
       path: 'color',
-      element: <Color />
+      element: (
+        <PrivateRoute>
+          <Color />
+        </PrivateRoute>
+      ),
     },
     {
       path: 'dashboard',
       children: [
         {
           path: 'default',
-          element: <DashboardDefault />
-        }
-      ]
+          element: (
+            <PrivateRoute>
+              <DashboardDefault />
+            </PrivateRoute>
+          ),
+        },
+      ],
     },
-    // {
-    //   path: 'sample-page',
-    //   element: <SamplePage />
-    // },
+    // Add more routes with PrivateRoute as needed
     {
       path: 'shadow',
-      element: <Shadow />
+      element: (
+        <PrivateRoute>
+          <Shadow />
+        </PrivateRoute>
+      ),
     },
     {
       path: 'typography',
-      element: <Typography />
+      element: (
+        <PrivateRoute>
+          <Typography />
+        </PrivateRoute>
+      ),
     },
-
-    // Tabs Menus
-    // Schemes
-
     {
       path: 'schemes',
-      element: <Schemes />
+      element: (
+        <PrivateRoute>
+          <Schemes />
+        </PrivateRoute>
+      ),
     },
-
-
     {
       path: 'earas',
-      element: <Earas />
+      element: (
+        <PrivateRoute>
+          <Earas />
+        </PrivateRoute>
+      ),
     },
-    // BTR
-
     {
       path: 'btr',
-      element: <BTR />
+      element: (
+        <PrivateRoute>
+          <BTR />
+        </PrivateRoute>
+      ),
     },
-
-    // Approvels
     {
       path: 'approvals',
-      element: <Approvel />
-    }
-  ]
+      element: (
+        <PrivateRoute>
+          <Approvel />
+        </PrivateRoute>
+      ),
+    },
+  ],
 };
+
 
 export default MainRoutes;
