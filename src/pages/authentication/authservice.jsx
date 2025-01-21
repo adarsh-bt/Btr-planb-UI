@@ -9,19 +9,29 @@ class authservice{
 
     
 
-    static async login(username, password){
-      console.log(username,password)
-        try{
-            const response = await axios.post(`${authservice.BASE_URL}/api/login`,{username,password})
-           console.log("response>>>",response.data)
-            return response.data
-        }catch(err){
+    // static async login(username, password){
+    //   console.log(username,password)
+    //     try{
+    //         const response = await axios.post(`${authservice.BASE_URL}/api/login`,{username,password})
+    //        console.log("response>>>",response.data)
+    //         return response.data
+    //     }catch(err){
           
-            throw err;
+    //         throw err;
+    //     }
+    // }
+
+    static async login(username, password) {
+        try {
+            const response = await axios.post(`${authservice.BASE_URL}/api/login`, {username,password});
+            console.log("response>>>",response.data)
+            return  response.data // Return a consistent object on success
+        } catch (err) {
+            return {
+                message: err.response.data.message
+            };
         }
     }
-
-
 
     static async registration(userData) {
         try {
@@ -39,10 +49,11 @@ class authservice{
       
         try{
             const response = await axios.post(`${authservice.BASE_URL}/api/email_verify`,{username})
-         console.log(response.data)
-            return response.data
+            return response
         }catch(err){
-            throw err;
+            return {
+                message: err.response.data.message
+            };
         }
     }
 
@@ -80,36 +91,6 @@ class authservice{
             navigate('/');
         }
     
-        static isAuth(){
-            const token = localStorage.getItem('token')
-            return !!token
-        }
-    
-        static isAdmin(){
-            try{
-    
-            
-            const token = localStorage.getItem('token')
-            const decodedToken = jwtDecode(token);  // Decodes the JWT
-            const role = decodedToken.roles; 
-            return role === 'ADMIN'
-            }catch{
-                return false
-            }
-        }
-    
-        static isUser(){
-            const token = localStorage.getItem('token')
-            const decodedToken = jwtDecode(token);  // Decodes the JWT
-            const role = decodedToken.role; 
-            return role === 'USER'
-        }
-    
-        
-        static adminOnly(){
-            return this.isAuth() && this.isAdmin();
-        }
-
 }
 
 
