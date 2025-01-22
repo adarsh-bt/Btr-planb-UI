@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { useRef, useState } from 'react';
-
+import { useNavigate } from 'react-router-dom';
 // material-ui
 import { useTheme } from '@mui/material/styles';
 import ButtonBase from '@mui/material/ButtonBase';
@@ -23,6 +23,7 @@ import SettingTab from './SettingTab';
 import Avatar from 'components/@extended/Avatar';
 import MainCard from 'components/MainCard';
 import Transitions from 'components/@extended/Transitions';
+import Swal from 'sweetalert2';
 
 // assets
 import LogoutOutlined from '@ant-design/icons/LogoutOutlined';
@@ -30,6 +31,7 @@ import SettingOutlined from '@ant-design/icons/SettingOutlined';
 import UserOutlined from '@ant-design/icons/UserOutlined';
 import avatar1 from 'assets/images/users/avatar-1.png';
 
+import authservice from 'pages/authentication/authservice';
 // tab panel wrapper
 function TabPanel({ children, value, index, ...other }) {
   return (
@@ -51,6 +53,8 @@ function a11yProps(index) {
 export default function Profile() {
   const theme = useTheme();
 
+
+  const navigate = useNavigate();
   const anchorRef = useRef(null);
   const [open, setOpen] = useState(false);
   const handleToggle = () => {
@@ -70,6 +74,22 @@ export default function Profile() {
     setValue(newValue);
   };
 
+  
+  const handleLogout = () => {
+    Swal.fire({
+      title: 'Are you sure?',
+      text: 'You are about to log out!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, log me out',
+      cancelButtonText: 'Cancel',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        authservice.logout(navigate);  // Proceed with logout
+      }
+    });
+  };
+
   const iconBackColorOpen = 'grey.100';
 
   return (
@@ -77,9 +97,9 @@ export default function Profile() {
       <ButtonBase
         sx={{
           p: 0.25,
-          bgcolor: open ? iconBackColorOpen : 'transparent',
+          bgcolor: open ? "#05307a" : 'transparent',
           borderRadius: 1,
-          '&:hover': { bgcolor: 'secondary.lighter' },
+          '&:hover': { bgcolor: '#ffbd6d' },
           '&:focus-visible': { outline: `2px solid ${theme.palette.secondary.dark}`, outlineOffset: 2 }
         }}
         aria-label="open profile"
@@ -91,7 +111,7 @@ export default function Profile() {
         <Stack direction="row" spacing={1.25} alignItems="center" sx={{ p: 0.5 }}>
           <Avatar alt="profile user" src={avatar1} size="sm" />
           <Typography variant="subtitle1" sx={{ textTransform: 'capitalize',color:"white" }}>
-            John Doe
+            admin
           </Typography>
         </Stack>
       </ButtonBase>
@@ -124,16 +144,16 @@ export default function Profile() {
                         <Stack direction="row" spacing={1.25} alignItems="center">
                           <Avatar alt="profile user" src={avatar1} sx={{ width: 32, height: 32 }} />
                           <Stack>
-                            <Typography variant="h6">John Doe</Typography>
+                            <Typography variant="h6">admin</Typography>
                             <Typography variant="body2" color="text.secondary">
-                              UI/UX Designer
+                              Super Admin
                             </Typography>
                           </Stack>
                         </Stack>
                       </Grid>
                       <Grid item>
                         <Tooltip title="Logout">
-                          <IconButton size="large" sx={{ color: 'text.primary' }}>
+                          <IconButton size="large" sx={{ color: 'text.primary' }} onClick={handleLogout}>
                             <LogoutOutlined />
                           </IconButton>
                         </Tooltip>

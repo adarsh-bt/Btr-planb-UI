@@ -16,6 +16,8 @@ import {
   Alert,
 } from '@mui/material';
 
+import authservice from '../authservice';
+
 const Register = ({ onBack }) => {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -29,6 +31,7 @@ const Register = ({ onBack }) => {
   const [office, setOffice] = useState('');
 
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -101,6 +104,27 @@ const Register = ({ onBack }) => {
     const idNumber = idType === 'PEN' ? penNumber : tenNumber;
 
     console.log('Registration submitted:', { fullName, email, phone, idType, idNumber, designation, dateOfJoining, dateOfBirth, office });
+    const userData = {
+        name: fullName,
+        email: email,
+        mobileNumber: phone,
+        penNumber: idType+idNumber,
+        designation: designation,
+        dateOfBirth: dateOfBirth,
+        dateOfJoining: dateOfJoining,
+        officeToJoining: office
+    };
+    try {
+        const userDatas = authservice.registration(userData);
+        if (userDatas.statusCode === 201) {
+            setSuccessMessage('Registration submitted successfully.');
+        }else{
+            setErrorMessage(userDatas.message);
+        }
+    }catch{
+        setErrorMessage('Registration failed.');
+    }
+    
 
     setErrorMessage('');
   };
@@ -112,7 +136,11 @@ const Register = ({ onBack }) => {
           {errorMessage}
         </Alert>
       )}
-
+      {successMessage &&  <Stack sx={{ width: '100%',background:'#fff1f0' }} spacing={2}>
+     <center>
+     {/* icon={<CheckIcon fontSize="inherit" />} */}
+     <Alert  severity="success" sx={{ textAlign: 'center',width:'max-content' }}>{successMessage}</Alert></center>
+    </Stack>}
       <TextField
         fullWidth
         variant="outlined"
@@ -175,7 +203,7 @@ const Register = ({ onBack }) => {
           value={tenNumber}
           onChange={handleTenChange}
           inputProps={{ maxLength: 6 }}
-          sx={{ mb: 2 }}
+          sx={{ mb: 2}}
         />
       )}
 
@@ -184,10 +212,8 @@ const Register = ({ onBack }) => {
           Designation <Typography component="span" color="error">*</Typography>
         </InputLabel>
         <Select value={designation} onChange={(e) => setDesignation(e.target.value)} label="Designation">
-          <MenuItem value="Software Engineer">Software Engineer</MenuItem>
-          <MenuItem value="Tester">Tester</MenuItem>
-          <MenuItem value="Manager">Manager</MenuItem>
-          <MenuItem value="Analyst">Analyst</MenuItem>
+          <MenuItem value="office">Staff</MenuItem>
+          <MenuItem value="user">Normal User</MenuItem>
         </Select>
       </MuiFormControl>
 
@@ -248,15 +274,10 @@ const Register = ({ onBack }) => {
           </Button>
         </Grid>
         <Grid item xs={12}>
-          <Button
-            fullWidth
-            variant="outlined"
-            color="secondary"
-            sx={{ borderRadius: '20px' }}
-            onClick={onBack}
-          >
-            Back to Sign In
-          </Button>
+         
+          <Typography variant="body2" onClick={onBack} sx={{ color: 'blue', cursor: 'pointer' }} textAlign="center">
+                      {"Back to Sign In"}
+                    </Typography>
         </Grid>
       </Grid>
     </Box>
