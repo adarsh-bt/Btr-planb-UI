@@ -17,6 +17,7 @@ import EmailIcon from "@mui/icons-material/Email";
 import LockIcon from "@mui/icons-material/Lock";
 import ForgotPassword from "./auth-forms/ForgotPassword"; // Ensure this path is correct
 import logo from "./images/logo.png"; // Import the logo image
+import loginimg from "./images/profile.gif"; // Import the login image
 import { useNavigate} from 'react-router-dom'; 
 import CircularProgress from '@mui/material/CircularProgress';
 import Register from './auth-forms/Register';
@@ -52,9 +53,7 @@ const SignInSide = () => {
   };
 
   return (
-    <Grid className="main" container sx={{ height: "100vh" ,padding:'5rem', 
-    background:"linear-gradient(142deg, #043877 15%, rgba(22,77,155,1) 28%, rgba(14,63,139,1) 41%, rgba(5,48,122,1) 64%)"}}
-    >
+    <Grid className="main" container>
       <Grid
         item
         xs={12}
@@ -69,7 +68,7 @@ const SignInSide = () => {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          borderRadius:'2rem 0 0 2rem'
+        
           
         }}
         
@@ -123,15 +122,17 @@ const SignInSide = () => {
           boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
         }}
       >
-        <Avatar sx={{ m: 1, bgcolor: "secondary.main" }}>
-          {/* <LockOutlinedIcon /> */}
-        </Avatar>
+      <Avatar
+            alt="User Login"
+            src={loginimg}
+            sx={{ width: 80, height: 80,marginBottom:'.5rem' }}
+            />
 
         {/* Dynamic Heading */}
         <Typography
           component="h1"
           variant="h5"
-          sx={{ fontWeight: "bold", color: "#333", mb: 2 }}
+          sx={{ fontWeight: "bold", color: "#333", mb: 3 }}
         >
           {isForgotPassword ? '' : isRegister ? 'Register' : 'Sign In'}
         </Typography>
@@ -218,7 +219,11 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
             </InputAdornment>
           ),
         }}
-        sx={{ mb: 2, borderRadius: '10px' }} // Rounded corners for input
+        sx={{
+    "& .MuiOutlinedInput-root": {
+      borderRadius: "1rem",  
+    }
+  }}
       />
       <TextField
         variant="outlined"
@@ -239,7 +244,11 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
             </InputAdornment>
           ),
         }}
-        sx={{ mb: 2, borderRadius: '10px' }} // Rounded corners for input
+        sx={{
+    "& .MuiOutlinedInput-root": {
+      borderRadius: "1rem",  
+    }
+  }}
       />
 
       {/* Remember Me Checkbox */}
@@ -292,7 +301,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
 
           <Grid item textAlign="right">
             <Typography variant="body2" onClick={onRegisterClick} sx={{ color: 'blue', cursor: 'pointer' }}>
-              {"Don't have an account? Sign Up"}
+              {"Register new User"}
             </Typography>
           </Grid>
         </Grid>

@@ -9,22 +9,10 @@ class authservice{
 
     
 
-    // static async login(username, password){
-    //   console.log(username,password)
-    //     try{
-    //         const response = await axios.post(`${authservice.BASE_URL}/api/login`,{username,password})
-    //        console.log("response>>>",response.data)
-    //         return response.data
-    //     }catch(err){
-          
-    //         throw err;
-    //     }
-    // }
 
     static async login(username, password) {
         try {
             const response = await axios.post(`${authservice.BASE_URL}/api/login`, {username,password});
-            console.log("response>>>",response.data)
             return  response.data // Return a consistent object on success
         } catch (err) {
             return {
@@ -36,10 +24,13 @@ class authservice{
     static async registration(userData) {
         try {
            
-            const response = await axios.post(`${authservice.BASE_URL}/api/user-registration/save-user`, userData);     
-            return response.data;
-        } catch (err) {           
-            throw err;
+            const response = await axios.post(`${authservice.BASE_URL}/api/user-registration/save-user`, userData);    
+            return response;
+        } catch (err) {
+            console.log("err >>",err.response.data.message)           
+            return {
+                message: err.response.data.message
+            };
         }
     }
     
