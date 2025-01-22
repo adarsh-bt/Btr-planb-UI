@@ -1,4 +1,4 @@
-import React, { useState,useEffect } from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 
 
@@ -24,15 +24,13 @@ import {
   
     Radio,
   } from '@mui/material';
-import functionalservice from '../functionalservice';
 
 const columns = (handleEdit) => [
     { name: 'SL. NO', selector: (row) => row.slNo, sortable: true },
     { name: 'Name', selector: (row) => row.name, sortable: true },
     { name: 'Email', selector: (row) => row.email, sortable: true },
-    { name: 'Phone number', selector: (row) => row.mobileNumber, sortable: true },
-    { name: 'DOJ', selector: (row) => row.dateOfJoining, sortable: true },
-    { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
+    { name: 'Phone number', selector: (row) => row.phnumber, sortable: true },
+    { name: 'DOJ', selector: (row) => row.doj, sortable: true },
     {
         name: "Status",
         selector: (row) => row.status,sortable: true,
@@ -69,9 +67,6 @@ const columns = (handleEdit) => [
   ];
   
   // Sample data for the table
-
-
-
   const data = [
     {
         "slNo": 1,
@@ -89,14 +84,77 @@ const columns = (handleEdit) => [
         "doj": "25-12-2024",
         "status":'Approved'
     },
-   
+    {
+        "slNo": 3,
+        "name": "Sujith Menon",
+        "email": "sujith.menon@example.com",
+        "phnumber": "8547567890",
+        "doj": "26-12-2024",
+        "status":'Approved'
+    },
+    {
+        "slNo": 4,
+        "name": "Divya Raj",
+        "email": "divya.raj@example.com",
+        "phnumber": "9447598521",
+        "doj": "27-12-2024",
+        "status":'Notverified'
+    },
+    {
+        "slNo": 5,
+        "name": "Anand Krishnan",
+        "email": "anand.krishnan@example.com",
+        "phnumber": "9847596231",
+        "doj": "28-12-2024",
+        "status":'Pending'
+    },
+    {
+        "slNo": 6,
+        "name": "Revathi Suresh",
+        "email": "revathi.suresh@example.com",
+        "phnumber": "8947594215",
+        "doj": "29-12-2024",
+        "status":'Approved'
+    },
+    {
+        "slNo": 7,
+        "name": "Hari Shankar",
+        "email": "hari.shankar@example.com",
+        "phnumber": "8547591230",
+        "doj": "30-12-2024",
+         "status":'Notverified'
+    },
+    {
+        "slNo": 8,
+        "name": "Nisha K",
+        "email": "nisha.k@example.com",
+        "phnumber": "9447593211",
+        "doj": "31-12-2024",
+        "status":'Pending'
+    },
+    {
+        "slNo": 9,
+        "name": "Rajesh Mohan",
+        "email": "rajesh.mohan@example.com",
+        "phnumber": "8847591289",
+        "doj": "01-01-2025",
+         "status":'Notverified'
+    },
+    {
+        "slNo": 10,
+        "name": "Meera Varma",
+        "email": "meera.varma@example.com",
+        "phnumber": "9747594520",
+        "doj": "02-01-2025",
+        "status":'Notverified'
+    }
     ];
 
 
 function CustomTabPanel(props) {
   const { children, value, index, ...other } = props;
 
-
+  
 
   return (
     <div
@@ -180,23 +238,6 @@ const handleRadioChange = (value) => {
   setRadioState(value);
 };
 
-
-const [userList, setUserList] = useState([]);
-
-useEffect(() => {
-  const fetchUserApprovals = async () => {
-      try {
-          const response = await functionalservice.user_approvel_list();
-          console.log("response>>>", response.payload);
-          setUserList(response.payload); // Store the data in state
-      } catch (err) {
-          setError(err.response?.data?.message || "An error occurred");
-      }
-  };
-
-  fetchUserApprovals(); // Call the function when the component mounts
-}, []);
-
   return (
 
     <div style={{background:'white'}}>
@@ -217,7 +258,7 @@ useEffect(() => {
       <Paper elevation={3} style={{  padding: '10px',}}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
-            New User Request 
+            New User Request
           </Typography>
           <TextField
             label="Filter"
@@ -234,7 +275,7 @@ useEffect(() => {
       <DataTable
       
         columns={columns(handleEdit)} // Pass handleEdit to columns function
-        data={userList}
+        data={filteredData}
         pagination
         paginationComponentOptions={{
           rowsPerPageText: 'Rows per page',
@@ -287,7 +328,7 @@ useEffect(() => {
       background:'#04255e'
     }}
   >
-    New User Request {userList}
+    New User Request
   </DialogTitle>
   <DialogContent style={{ padding: "20px", backgroundColor: "#fafafa" }}>
     {selectedRow && (
