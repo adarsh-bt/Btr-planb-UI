@@ -33,8 +33,8 @@ const ForgotPassword = ({ onBack }) => {
       setError('Please enter your email address.');
     }else{
       const userData = await authservice.email_verification(email);
-      if (userData.statusCode == 200) {
-        setEmail(userData.payload.user_id)
+      if (userData.status == 200) {
+        setEmail(userData.data.payload.id)
         setError('');
     setStep(2);
     } else {

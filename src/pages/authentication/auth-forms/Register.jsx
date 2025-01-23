@@ -13,7 +13,7 @@ import {
   InputLabel,
   FormControl as MuiFormControl,
   Typography,
-  Alert,
+  Alert
 } from '@mui/material';
 
 import authservice from '../authservice';
@@ -105,26 +105,25 @@ const Register = ({ onBack }) => {
 
     console.log('Registration submitted:', { fullName, email, phone, idType, idNumber, designation, dateOfJoining, dateOfBirth, office });
     const userData = {
-        name: fullName,
-        email: email,
-        mobileNumber: phone,
-        penNumber: idType+idNumber,
-        designation: designation,
-        dateOfBirth: dateOfBirth,
-        dateOfJoining: dateOfJoining,
-        officeToJoining: office
+      name: fullName,
+      email: email,
+      mobileNumber: phone,
+      penNumber: idType + idNumber,
+      designation: designation,
+      dateOfBirth: dateOfBirth,
+      dateOfJoining: dateOfJoining,
+      officeToJoining: office
     };
     try {
-        const userDatas = authservice.registration(userData);
-        if (userDatas.statusCode === 201) {
-            setSuccessMessage('Registration submitted successfully.');
-        }else{
-            setErrorMessage(userDatas.message);
-        }
-    }catch{
-        setErrorMessage('Registration failed.');
+      const userDatas = authservice.registration(userData);
+      if (userDatas.statusCode === 201) {
+        setSuccessMessage('Registration submitted successfully.');
+      } else {
+        setErrorMessage(userDatas.message);
+      }
+    } catch {
+      setErrorMessage('Registration failed.');
     }
-    
 
     setErrorMessage('');
   };
@@ -136,17 +135,25 @@ const Register = ({ onBack }) => {
           {errorMessage}
         </Alert>
       )}
-      {successMessage &&  <Stack sx={{ width: '100%',background:'#fff1f0' }} spacing={2}>
-     <center>
-     {/* icon={<CheckIcon fontSize="inherit" />} */}
-     <Alert  severity="success" sx={{ textAlign: 'center',width:'max-content' }}>{successMessage}</Alert></center>
-    </Stack>}
+      {successMessage && (
+        <Stack sx={{ width: '100%', background: '#fff1f0' }} spacing={2}>
+          <center>
+            {/* icon={<CheckIcon fontSize="inherit" />} */}
+            <Alert severity="success" sx={{ textAlign: 'center', width: 'max-content' }}>
+              {successMessage}
+            </Alert>
+          </center>
+        </Stack>
+      )}
       <TextField
         fullWidth
         variant="outlined"
         label={
           <>
-            Full Name <Typography component="span" color="error">*</Typography>
+            Full Name{' '}
+            <Typography component="span" color="error">
+              *
+            </Typography>
           </>
         }
         value={fullName}
@@ -159,7 +166,10 @@ const Register = ({ onBack }) => {
         variant="outlined"
         label={
           <>
-            Email Address <Typography component="span" color="error">*</Typography>
+            Email Address{' '}
+            <Typography component="span" color="error">
+              *
+            </Typography>
           </>
         }
         value={email}
@@ -172,7 +182,10 @@ const Register = ({ onBack }) => {
         variant="outlined"
         label={
           <>
-            Phone Number <Typography component="span" color="error">*</Typography>
+            Phone Number{' '}
+            <Typography component="span" color="error">
+              *
+            </Typography>
           </>
         }
         value={phone}
@@ -203,13 +216,16 @@ const Register = ({ onBack }) => {
           value={tenNumber}
           onChange={handleTenChange}
           inputProps={{ maxLength: 6 }}
-          sx={{ mb: 2}}
+          sx={{ mb: 2 }}
         />
       )}
 
       <MuiFormControl fullWidth sx={{ mb: 2 }}>
         <InputLabel>
-          Designation <Typography component="span" color="error">*</Typography>
+          Designation{' '}
+          <Typography component="span" color="error">
+            *
+          </Typography>
         </InputLabel>
         <Select value={designation} onChange={(e) => setDesignation(e.target.value)} label="Designation">
           <MenuItem value="office">Staff</MenuItem>
@@ -224,7 +240,10 @@ const Register = ({ onBack }) => {
             variant="outlined"
             label={
               <>
-                Date of Joining <Typography component="span" color="error">*</Typography>
+                Date of Joining{' '}
+                <Typography component="span" color="error">
+                  *
+                </Typography>
               </>
             }
             type="date"
@@ -240,7 +259,10 @@ const Register = ({ onBack }) => {
             variant="outlined"
             label={
               <>
-                Date of Birth <Typography component="span" color="error">*</Typography>
+                Date of Birth{' '}
+                <Typography component="span" color="error">
+                  *
+                </Typography>
               </>
             }
             type="date"
@@ -253,7 +275,12 @@ const Register = ({ onBack }) => {
       </Grid>
 
       <MuiFormControl fullWidth sx={{ mb: 2 }}>
-        <InputLabel>Office to Join<Typography component="span" color="error">*</Typography></InputLabel>
+        <InputLabel>
+          Office to Join
+          <Typography component="span" color="error">
+            *
+          </Typography>
+        </InputLabel>
         <Select value={office} onChange={(e) => setOffice(e.target.value)} label="Office to Join">
           <MenuItem value="Kollam">Kollam</MenuItem>
           <MenuItem value="Trivandrum">Trivandrum</MenuItem>
@@ -263,21 +290,14 @@ const Register = ({ onBack }) => {
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid item xs={12}>
-          <Button
-            fullWidth
-            variant="contained"
-            color="primary"
-            sx={{ borderRadius: '20px' }}
-            onClick={handleRegisterSubmit}
-          >
+          <Button fullWidth variant="contained" color="primary" sx={{ borderRadius: '20px' }} onClick={handleRegisterSubmit}>
             Register
           </Button>
         </Grid>
         <Grid item xs={12}>
-         
           <Typography variant="body2" onClick={onBack} sx={{ color: 'blue', cursor: 'pointer' }} textAlign="center">
-                      {"Back to Sign In"}
-                    </Typography>
+            {'Back to Sign In'}
+          </Typography>
         </Grid>
       </Grid>
     </Box>
