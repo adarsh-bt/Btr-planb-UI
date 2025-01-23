@@ -13,7 +13,9 @@ import {
   InputLabel,
   FormControl as MuiFormControl,
   Typography,
-  Alert
+  Alert,
+  Stack,
+  FormHelperText
 } from '@mui/material';
 
 import authservice from '../authservice';
@@ -33,77 +35,88 @@ const Register = ({ onBack }) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  const [errors, setErrors] = useState({
+    fullName: false,
+    email: false,
+    phone: false,
+    designation: false,
+    dateOfJoining: false,
+    dateOfBirth: false,
+    idNumber: false,
+    office: false
+  });
+
   const today = new Date().toISOString().split('T')[0];
 
   const handlePenChange = (e) => {
     setPenNumber(e.target.value);
-    if (e.target.value && errorMessage === 'PEN Number is required.') {
-      setErrorMessage('');
-    }
+    if (e.target.value) setErrors({ ...errors, idNumber: false });
   };
 
   const handleTenChange = (e) => {
     setTenNumber(e.target.value);
-    if (e.target.value && errorMessage === 'TEN Number is required.') {
-      setErrorMessage('');
+    if (e.target.value) setErrors({ ...errors, idNumber: false });
+  };
+
+  const validateField = (field) => {
+    // Return the error message if the field is invalid
+    switch (field) {
+      case 'fullName':
+        if (!fullName) return 'Full Name is required.';
+        return null;
+      case 'email':
+        if (!email) return 'Email Address is required.';
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) return 'Invalid email format.';
+        return null;
+      case 'phone':
+        if (!phone) return 'Phone Number is required.';
+        if (!/^\d{10}$/.test(phone)) return 'Phone Number must be exactly 10 digits.';
+        return null;
+      case 'designation':
+        if (!designation) return 'Designation is required.';
+        return null;
+      case 'dateOfJoining':
+        if (!dateOfJoining || new Date(dateOfJoining) > new Date()) return 'Date of Joining cannot be in the future.';
+        return null;
+      case 'dateOfBirth':
+        if (!dateOfBirth || new Date(dateOfBirth) > new Date()) return 'Date of Birth cannot be in the future.';
+        return null;
+      case 'idNumber':
+        if (idType === 'PEN' && !penNumber) return 'PEN Number is required.';
+        if (idType === 'TEN' && !tenNumber) return 'TEN Number is required.';
+        return null;
+      case 'office':
+        if (!office) return 'Office is required.';
+        return null;
+      default:
+        return null;
     }
   };
 
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
 
-    if (!fullName) {
-      setErrorMessage('Full Name is required.');
-      return;
+    let fieldErrors = { ...errors };
+    let foundError = false;
+
+    // Validate fields one by one
+    for (let field in fieldErrors) {
+      const errorMessage = validateField(field);
+      if (errorMessage) {
+        fieldErrors[field] = errorMessage;
+        setErrors(fieldErrors);
+        foundError = true;
+        break; // Stop once the first error is found
+      } else {
+        fieldErrors[field] = false; // Clear previous errors
+      }
     }
-    if (!email) {
-      setErrorMessage('Email Address is required.');
-      return;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setErrorMessage('Invalid email format.');
-      return;
-    }
-    if (!phone) {
-      setErrorMessage('Phone Number is required.');
-      return;
-    }
-    if (!/^\d{10}$/.test(phone)) {
-      setErrorMessage('Phone Number must be exactly 10 digits.');
-      return;
-    }
-    if (!designation) {
-      setErrorMessage('Designation is required.');
-      return;
-    }
-    if (!dateOfJoining) {
-      setErrorMessage('Date of Joining is required.');
-      return;
-    }
-    if (!dateOfBirth) {
-      setErrorMessage('Date of Birth is required.');
-      return;
-    }
-    if (new Date(dateOfJoining) > new Date()) {
-      setErrorMessage('Date of Joining cannot be in the future.');
-      return;
-    }
-    if (new Date(dateOfBirth) > new Date()) {
-      setErrorMessage('Date of Birth cannot be in the future.');
-      return;
-    }
-    if (idType === 'PEN' && !penNumber) {
-      setErrorMessage('PEN Number is required.');
-      return;
-    } else if (idType === 'TEN' && !tenNumber) {
-      setErrorMessage('TEN Number is required.');
-      return;
-    }
+
+    if (foundError) return; // If there's an error, return and don't proceed
 
     const idNumber = idType === 'PEN' ? penNumber : tenNumber;
 
-    console.log('Registration submitted:', { fullName, email, phone, idType, idNumber, designation, dateOfJoining, dateOfBirth, office });
     const userData = {
       name: fullName,
       email: email,
@@ -114,37 +127,42 @@ const Register = ({ onBack }) => {
       dateOfJoining: dateOfJoining,
       officeToJoining: office
     };
+
     try {
-      const userDatas = authservice.registration(userData);
-      if (userDatas.statusCode === 201) {
-        setSuccessMessage('Registration submitted successfully.');
+      const userDatas = await authservice.registration(userData); // Add await to resolve the Promise
+
+      if (userDatas.status === 201) {
+        setSuccessMessage('Registration successfully submitted. Please wait for the approval.');
       } else {
         setErrorMessage(userDatas.message);
       }
-    } catch {
+    } catch (err) {
       setErrorMessage('Registration failed.');
     }
-
-    setErrorMessage('');
   };
 
   return (
     <Box sx={{ width: '100%', maxWidth: '400px', mx: 'auto' }}>
       {errorMessage && (
-        <Alert severity="warning" sx={{ mb: 2, textAlign: 'center' }}>
-          {errorMessage}
-        </Alert>
-      )}
-      {successMessage && (
-        <Stack sx={{ width: '100%', background: '#fff1f0' }} spacing={2}>
+        <Stack sx={{ width: '100%', marginBottom: '.5rem', background: '#fffaef' }} spacing={2}>
           <center>
-            {/* icon={<CheckIcon fontSize="inherit" />} */}
-            <Alert severity="success" sx={{ textAlign: 'center', width: 'max-content' }}>
+            <Alert severity="warning" sx={{ width: 'max-content', textAlign: 'center' }}>
+              {errorMessage}
+            </Alert>
+          </center>
+        </Stack>
+      )}
+
+      {!errorMessage && successMessage && (
+        <Stack sx={{ width: '100%', marginBottom: '.5rem' }} spacing={2}>
+          <center>
+            <Alert severity="success" sx={{ textAlign: 'center', width: '100%', maxWidth: 400, margin: 'auto' }}>
               {successMessage}
             </Alert>
           </center>
         </Stack>
       )}
+
       <TextField
         fullWidth
         variant="outlined"
@@ -157,8 +175,21 @@ const Register = ({ onBack }) => {
           </>
         }
         value={fullName}
-        onChange={(e) => setFullName(e.target.value)}
-        sx={{ mb: 2 }}
+        onChange={(e) => {
+          const value = e.target.value;
+          // Allow only alphabets, spaces, and periods, and limit length to 20
+          if (/^[A-Za-z\s.]*$/.test(value) && value.length <= 20) {
+            setFullName(value); // Update state if value matches the pattern and length <= 20
+          }
+        }}
+        error={errors.fullName}
+        helperText={errors.fullName ? errors.fullName : ''}
+        sx={{
+          mb: 2,
+          '& .MuiOutlinedInput-root': {
+            borderRadius: '1rem' // Custom border-radius
+          }
+        }}
       />
 
       <TextField
@@ -173,8 +204,19 @@ const Register = ({ onBack }) => {
           </>
         }
         value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        sx={{ mb: 2 }}
+        onChange={(e) => {
+          if (e.target.value.length <= 30) {
+            setEmail(e.target.value); // Update state if length is <= 50
+          }
+        }}
+        error={errors.email}
+        helperText={errors.email ? errors.email : ''}
+        sx={{
+          mb: 2,
+          '& .MuiOutlinedInput-root': {
+            borderRadius: '1rem'
+          }
+        }}
       />
 
       <TextField
@@ -189,8 +231,25 @@ const Register = ({ onBack }) => {
           </>
         }
         value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        sx={{ mb: 2 }}
+        onChange={(e) => {
+          const value = e.target.value;
+          // Only allow digits and ensure max length is 10
+          if (/^\d*$/.test(value) && value.length <= 10) {
+            setPhone(value); // Update state if value is numeric and length <= 10
+          }
+        }}
+        error={errors.phone}
+        helperText={errors.phone ? errors.phone : ''}
+        inputProps={{
+          inputMode: 'numeric', // Ensure mobile keyboard is numeric
+          maxLength: 10 // Prevent entering more than 10 characters
+        }}
+        sx={{
+          mb: 2,
+          '& .MuiOutlinedInput-root': {
+            borderRadius: '1rem'
+          }
+        }}
       />
 
       <FormControl component="fieldset" sx={{ mb: 2 }}>
@@ -207,6 +266,8 @@ const Register = ({ onBack }) => {
           value={penNumber}
           onChange={handlePenChange}
           inputProps={{ maxLength: 4 }}
+          error={errors.idNumber}
+          helperText={errors.idNumber ? errors.idNumber : ''}
           sx={{ mb: 2 }}
         />
       ) : (
@@ -227,10 +288,11 @@ const Register = ({ onBack }) => {
             *
           </Typography>
         </InputLabel>
-        <Select value={designation} onChange={(e) => setDesignation(e.target.value)} label="Designation">
+        <Select value={designation} onChange={(e) => setDesignation(e.target.value)} label="Designation" error={errors.designation}>
           <MenuItem value="office">Staff</MenuItem>
           <MenuItem value="user">Normal User</MenuItem>
         </Select>
+        {errors.designation && <FormHelperText error>{errors.designation}</FormHelperText>}
       </MuiFormControl>
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -251,6 +313,8 @@ const Register = ({ onBack }) => {
             onChange={(e) => setDateOfJoining(e.target.value)}
             InputProps={{ inputProps: { max: today } }}
             InputLabelProps={{ shrink: true }}
+            error={errors.dateOfJoining}
+            helperText={errors.dateOfJoining ? errors.dateOfJoining : ''}
           />
         </Grid>
         <Grid item xs={6}>
@@ -270,6 +334,8 @@ const Register = ({ onBack }) => {
             onChange={(e) => setDateOfBirth(e.target.value)}
             InputProps={{ inputProps: { max: today } }}
             InputLabelProps={{ shrink: true }}
+            error={errors.dateOfBirth}
+            helperText={errors.dateOfBirth ? errors.dateOfBirth : ''}
           />
         </Grid>
       </Grid>
@@ -286,6 +352,7 @@ const Register = ({ onBack }) => {
           <MenuItem value="Trivandrum">Trivandrum</MenuItem>
           <MenuItem value="Kottayam">Kottayam</MenuItem>
         </Select>
+        {errors.office && <FormHelperText error>{errors.office}</FormHelperText>}
       </MuiFormControl>
 
       <Grid container spacing={2} sx={{ mb: 2 }}>

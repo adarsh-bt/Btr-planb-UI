@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 class functionalservice {
   // static BASE_URL = "http://localhost:8080/useraccess"
-  static BASE_URL = 'http://localhost:8080/user-access';
+  static BASE_URL = 'http://localhost:8081/user-access';
 
   // adding header token is reamining
   static async user_approvel_list() {
