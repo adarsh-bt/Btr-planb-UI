@@ -11,7 +11,6 @@ class functionalservice{
     static async user_approvel_list() {
         try {
             const response = await axios.get(`${functionalservice.BASE_URL}/api/user-registration/user/fetch-all`);
-           
             return  response.data // Return a consistent object on success
         } catch (err) {
             return {

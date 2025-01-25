@@ -153,7 +153,7 @@ const Register = ({ onBack }) => {
         </Stack>
       )}
 
-      {successMessage && (
+      {!errorMessage && successMessage && (
         <Stack sx={{ width: '100%', marginBottom: '.5rem' }} spacing={2}>
           <center>
             <Alert severity="success" sx={{ textAlign: 'center', width: '100%', maxWidth: 400, margin: 'auto' }}>

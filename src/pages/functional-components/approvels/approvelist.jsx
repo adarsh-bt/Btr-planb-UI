@@ -27,29 +27,31 @@ import {
 import functionalservice from '../functionalservice';
 
 const columns = (handleEdit) => [
-    { name: 'SL. NO', selector: (row) => row.slNo, sortable: true },
+    { name: 'SL. NO', selector:(row, index) => index + 1, sortable: true },
     { name: 'Name', selector: (row) => row.name, sortable: true },
+    { name: 'Designation', selector: (row) => row.designation, sortable: true },
     { name: 'Email', selector: (row) => row.email, sortable: true },
     { name: 'Phone number', selector: (row) => row.mobileNumber, sortable: true },
     { name: 'DOJ', selector: (row) => row.dateOfJoining, sortable: true },
+    // { name: 'Applied', selector: (row) => new Date(row.createdAt).toLocaleDateString('en-GB'), sortable: true },
     { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
     {
         name: "Status",
-        selector: (row) => row.status,sortable: true,
+        selector: (row) => row.active,sortable: true,
         cell: (row) => (
           <span
-            style={{
-              color:
-                row.status === "Approved"
-                  ? "green"
-                  : row.status === "Pending"
-                  ? "orange"
-                  : "red",
-             
-            }}
-          >
-            {row.status}
-          </span>
+          style={{
+            color:
+              row.active === true
+                ? "green"
+                : row.active === false
+                ? "orange"
+                : "red",
+          }}
+        >
+          {row.active === true ? "Approved" : row.active === false ? "Pending" : "Unknown"}
+        </span>
+        
         ),
       },
     
@@ -72,25 +74,25 @@ const columns = (handleEdit) => [
 
 
 
-  const data = [
-    {
-        "slNo": 1,
-        "name": "Arun Kumar",
-        "email": "arun.kumar@example.com",
-        "phnumber": "8847596215",
-        "doj": "24-12-2024",
-        "status":'Approved'
-    },
-    {
-        "slNo": 2,
-        "name": "Lekshmi Nair",
-        "email": "lekshmi.nair@example.com",
-        "phnumber": "9947563210",
-        "doj": "25-12-2024",
-        "status":'Approved'
-    },
+  // const data = [
+  //   {
+  //       "slNo": 1,
+  //       "name": "Arun Kumar",
+  //       "email": "arun.kumar@example.com",
+  //       "phnumber": "8847596215",
+  //       "doj": "24-12-2024",
+  //       "status":'Approved'
+  //   },
+  //   {
+  //       "slNo": 2,
+  //       "name": "Lekshmi Nair",
+  //       "email": "lekshmi.nair@example.com",
+  //       "phnumber": "9947563210",
+  //       "doj": "25-12-2024",
+  //       "status":'Approved'
+  //   },
    
-    ];
+  //   ];
 
 
 function CustomTabPanel(props) {
@@ -128,21 +130,12 @@ export default function BasicTabs() {
   const [value, setValue] = React.useState(0);
 
 
-    const [filterText, setFilterText] = useState('');
+  
     const [openModal, setOpenModal] = useState(false);
     const [selectedRow, setSelectedRow] = useState(null);
   
     // Function to handle filter change
-    const handleFilterChange = (event) => {
-      setFilterText(event.target.value);
-    };
-  
-    // Filtered data based on the filter text
-    const filteredData = data.filter((item) =>
-      Object.values(item).some((value) =>
-        value.toString().toLowerCase().includes(filterText.toLowerCase())
-      )
-    );
+    
   
     // Function to handle edit action
     const handleEdit = (row) => {
@@ -182,7 +175,7 @@ const handleRadioChange = (value) => {
 
 
 const [userList, setUserList] = useState([]);
-
+const [filterText, setFilterText] = useState('');
 useEffect(() => {
   const fetchUserApprovals = async () => {
       try {
@@ -196,8 +189,19 @@ useEffect(() => {
 
   fetchUserApprovals(); // Call the function when the component mounts
 }, []);
-
-  return (
+const handleFilterChange = (event) => {
+  console.log("evenet ?>>",event.target.value)
+  setFilterText(event.target.value);
+};
+console.log("userliat",userList)
+// Filtered data based on the filter text
+const filteredData = userList.filter((item) =>
+  Object.values(item).some((value) =>
+    value.toString().toLowerCase().includes(filterText.toLowerCase())
+  )
+);
+console.log("filtr",filterText.toLowerCase())
+return (
 
     <div style={{background:'white'}}>
     <Typography variant='h4' p={1}>Approvals </Typography>
@@ -234,7 +238,7 @@ useEffect(() => {
       <DataTable
       
         columns={columns(handleEdit)} // Pass handleEdit to columns function
-        data={userList}
+        data={filteredData}
         pagination
         paginationComponentOptions={{
           rowsPerPageText: 'Rows per page',
@@ -287,7 +291,7 @@ useEffect(() => {
       background:'#04255e'
     }}
   >
-    New User Request {userList}
+    New User Request
   </DialogTitle>
   <DialogContent style={{ padding: "20px", backgroundColor: "#fafafa" }}>
     {selectedRow && (
@@ -307,9 +311,12 @@ useEffect(() => {
           {/* Display fields in two-column layout */}
           {[
             { label: "Name", value: selectedRow.name },
+            { label: "Date Of birth", value: selectedRow.dateOfBirth },
             { label: "Email", value: selectedRow.email },
-            { label: "Phone Number", value: selectedRow.phnumber },
-            { label: "Date of Joining", value: selectedRow.doj },
+            { label: "Phone Number", value: selectedRow.mobileNumber },
+            { label: "Date of Joining", value: selectedRow.dateOfJoining },
+            { label: "Pen", value: selectedRow.penNumber },
+            { label: "Office", value: selectedRow.officeToJoining },
          
           ].map((field, index) => (
             <div
@@ -368,9 +375,9 @@ useEffect(() => {
             variant="outlined"
             style={{ marginTop: "8px" ,width:'30%'}}
           >
-            <MenuItem value="Residential">Residential</MenuItem>
-            <MenuItem value="Commercial">Commercial</MenuItem>
-            <MenuItem value="Industrial">Industrial</MenuItem>
+            <MenuItem value="Investigator">Investigator</MenuItem>
+            {/* <MenuItem value="Commercial">Commercial</MenuItem>
+            <MenuItem value="Industrial">Industrial</MenuItem> */}
           </TextField>
         </div>
 
@@ -388,7 +395,7 @@ useEffect(() => {
         >
           <strong>Status:</strong>
           <FormGroup row style={{ justifyContent: "center", marginTop: "8px" }}>
-            <FormControlLabel
+            <FormControlLabel sx={{ color: 'success.main' }}
               control={
                 <Radio
                   checked={radioState === "approved"}
@@ -397,7 +404,7 @@ useEffect(() => {
               }
               label="Approved"
             />
-            <FormControlLabel
+            <FormControlLabel sx={{ color: 'warning.main' }}
               control={
                 <Radio
                   checked={radioState === "marked"}
@@ -406,7 +413,7 @@ useEffect(() => {
               }
               label="Marked"
             />
-            <FormControlLabel
+            <FormControlLabel sx={{ color: 'error.main' }}
               control={
                 <Radio
                   checked={radioState === "rejected"}

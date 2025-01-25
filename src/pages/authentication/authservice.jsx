@@ -61,12 +61,9 @@ class authservice{
     }
 
     static async password_reset(userid,password){
-        console.log("password >>",password)
-      console.log("usernamess :",userid)
         try{
             const response = await axios.post(`${authservice.BASE_URL}/api/password_reset`,{userid,password})
-         console.log(response.data)
-            return response.data
+            return response
         }catch(err){
             throw err;
         }

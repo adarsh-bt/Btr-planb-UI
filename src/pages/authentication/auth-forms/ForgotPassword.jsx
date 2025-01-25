@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 
 import { TextField, Button, Typography, Box, Grid, Stack, Alert } from '@mui/material';
 import authservice from "../authservice";
+import CircularProgress from '@mui/material/CircularProgress';
 
 
 const ForgotPassword = ({ onBack }) => {
@@ -12,6 +13,8 @@ const ForgotPassword = ({ onBack }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
   
   // Central dynamic heading based on the step
   const getHeading = () => {
@@ -31,17 +34,21 @@ const ForgotPassword = ({ onBack }) => {
     e.preventDefault();
     if (!email) {
       setError('Please enter your email address.');
-    }else{
-      const userData = await authservice.email_verification(email);
-      if (userData.status == 200) {
-        setEmail(userData.data.payload.id)
-        setError('');
-    setStep(2);
     } else {
-      setError(userData.message);
+      setIsLoading(true); // Set loading to true when the process starts
+      const userData = await authservice.email_verification(email);
+      setIsLoading(false); // Reset loading state once the process finishes
+
+      if (userData.status == 200) {
+        setEmail(userData.data.payload.id);
+        setError('');
+        setStep(2); // Move to the OTP step
+      } else {
+        setError(userData.message);
       }
-    }// Move to OTP step
-  };
+    }
+};
+
 
   const handleOtpChange = (index) => async (e) => {
     const value = e.target.value;
@@ -97,8 +104,8 @@ const handlePasswordResetSubmit = async (e) => {
     setError('');
   
     const response = await authservice.password_reset(email, newPassword);
-    if (response.statusCode === 200) {
-      setSuccess(response.message) // Proceed to next step if OTP is correct
+    if (response.status === 200) {
+      setSuccess("Password Successfully changed") // Proceed to next step if OTP is correct
     } else {
       setError(response.message); // Show error message if OTP is invalid
     }
@@ -150,8 +157,13 @@ const handlePasswordResetSubmit = async (e) => {
                 mx:'auto' 
               }} // Center the button with controlled width 
               onClick={handleEmailSubmit}
+              disabled={isLoading}
             >
-              Send OTP
+               {isLoading ? (
+    <CircularProgress size={24} />
+  ) : (
+    'Send OTP'
+  )}
             </Button>
            
             <Typography variant="body2">
@@ -221,7 +233,7 @@ const handlePasswordResetSubmit = async (e) => {
      <center>
       <Alert severity="error"  sx={{ textAlign: 'center',width:'max-content' }}>{error}</Alert></center>
     </Stack>}
-    {success &&  <Stack sx={{ width: '100%',background:'#fff1f0' }} spacing={2}>
+    {success &&  <Stack sx={{ width: '100%' }} spacing={2}>
      <center>
      {/* icon={<CheckIcon fontSize="inherit" />} */}
      <Alert  severity="success" sx={{ textAlign: 'center',width:'max-content' }}>{success}</Alert></center>

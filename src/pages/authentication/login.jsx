@@ -17,7 +17,7 @@ import EmailIcon from "@mui/icons-material/Email";
 import LockIcon from "@mui/icons-material/Lock";
 import ForgotPassword from "./auth-forms/ForgotPassword"; // Ensure this path is correct
 import logo from "./images/logo.png"; // Import the logo image
-import loginimg from "./images/profile.gif"; // Import the login image
+import loginimg from "./images/login.png"; // Import the login image
 import { useNavigate} from 'react-router-dom'; 
 import CircularProgress from '@mui/material/CircularProgress';
 import Register from './auth-forms/Register';
@@ -62,7 +62,7 @@ const SignInSide = () => {
         lg={7}
         sx={{
           background:
-            "linear-gradient(142deg, rgba(42,110,193,1) 15%, rgba(22,77,155,1) 28%, rgba(14,63,139,1) 41%, rgba(5,48,122,1) 64%)",
+            "linear-gradient(142deg, rgba(42,110,193,1) 15%, rgba(22,77,155,1) 28%, rgba(14,63,139,1) 41%,rgb(5, 48, 122) 64%)",
           backgroundSize: "cover",
           backgroundPosition: "center",
           display: "flex",
@@ -125,7 +125,7 @@ const SignInSide = () => {
       <Avatar
             alt="User Login"
             src={loginimg}
-            sx={{ width: 80, height: 80,marginBottom:'.5rem' }}
+            sx={{ width: 50, height: 50,marginBottom:'.5rem' }}
             />
 
         {/* Dynamic Heading */}
