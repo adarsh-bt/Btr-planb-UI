@@ -6,10 +6,15 @@ import { useNavigate } from 'react-router-dom';
 
 class auth{
 
-    
           static isAuth(){
             const token = localStorage.getItem('token');
-            return token
+            alert("ok")
+            console.log(token)
+            if(token){
+                return true;
+                }
+                return false;
+           
         }
 
         static isAdmin(){

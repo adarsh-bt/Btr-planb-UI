@@ -14,6 +14,7 @@ import { Link} from 'react-router-dom';
 
 
 import MainCard from 'components/MainCard';
+import Breadcrumb from 'routes/Breadcrumb';
 
 
 
@@ -25,13 +26,14 @@ function Schemas() {
   return (
   
         <Grid container spacing={3}>
+        <Breadcrumb></Breadcrumb>
           <Grid item xs={12}>
           <Typography variant='h3' sx={{marginBottom:4}}>Schemas</Typography>
             <MainCard title="">
              
               <Grid container spacing={4}>
                <Grid item xs={12} sm={4} md={3} lg={3}>               
-               <Card component={Link} to="/dashboard/earas"
+               <Card component={Link} to="/schemes/earas"
         sx={{
           textDecoration:'none',
           display: 'flex',

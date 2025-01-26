@@ -20,6 +20,18 @@ class functionalservice{
         }
     }
 
+    static async saveApprovalDetails(payload) {
+        try {
+          const response = await axios.post(`${functionalservice.BASE_URL}/api/user-registration/save-approve-details`,
+            payload
+          );
+          return response.data; // Return response data on success
+        } catch (err) {
+          return {
+            message: err.response ? err.response.data.message : 'An error occurred',
+          }; // Return error message if the API call fails
+        }
+      }
 
 }
 export default functionalservice;
