@@ -35,21 +35,21 @@ const utilities = {
       id: 'util-typography',
       title: 'Work Allocation Report',
       type: 'item',
-      url: '/typography',
+      url: '/dashboard/typography',
       icon: icons.FormOutlined 
     },
     {
       id: 'util-color',
       title: 'Cluster Formation',
       type: 'item',
-      url: '/color',
+      url: '/dashboard/color',
       icon: icons.DeploymentUnitOutlined
     },
     {
       id: 'util-shadow',
       title: 'Crop Cutting Experiment',
       type: 'item',
-      url: '/shadow',
+      url: '/dashboard/shadow',
       icon: icons.ScissorOutlined 
     }
   ]

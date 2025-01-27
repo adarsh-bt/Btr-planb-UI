@@ -23,7 +23,7 @@ const Approvel = Loadable(lazy(() => import('pages/functional-components/approve
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
-  path: '/dashboard',
+  path: '/',
   element: (
     <PrivateRoute>
       <Dashboard />
@@ -31,7 +31,7 @@ const MainRoutes = {
   ),
   children: [
     {
-      path: '/dashboard',
+      path: '/',
       element: (
         <PrivateRoute>
           <DashboardDefault />
@@ -46,19 +46,19 @@ const MainRoutes = {
         </PrivateRoute>
       ),
     },
-    {
-      path: 'dashboard',
-      children: [
-        {
-          path: 'default',
-          element: (
-            <PrivateRoute>
-              <DashboardDefault />
-            </PrivateRoute>
-          ),
-        },
-      ],
-    },
+    // {
+    //   path: 'dashboard',
+    //   children: [
+    //     {
+    //       path: 'default',
+    //       element: (
+    //         <PrivateRoute>
+    //           <DashboardDefault />
+    //         </PrivateRoute>
+    //       ),
+    //     },
+    //   ],
+    // },
     // Add more routes with PrivateRoute as needed
     {
       path: 'shadow',
@@ -85,7 +85,7 @@ const MainRoutes = {
       ),
     },
     {
-      path: 'earas',
+      path: 'schemes/earas',
       element: (
         <PrivateRoute>
           <Earas />
@@ -101,7 +101,15 @@ const MainRoutes = {
       ),
     },
     {
-      path: 'btr',
+      path: 'profile',
+      element: (
+        <PrivateRoute>
+          <Profile />
+        </PrivateRoute>
+      ),
+    },
+    {
+      path: '/schemes/earas/btr',
       element: (
         <PrivateRoute>
           <BTR />

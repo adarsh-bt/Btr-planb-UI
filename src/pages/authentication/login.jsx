@@ -14,16 +14,12 @@ import {
   Stack
 } from '@mui/material';
 // import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import EmailIcon from '@mui/icons-material/Email';
-import LockIcon from '@mui/icons-material/Lock';
-import ForgotPassword from './auth-forms/ForgotPassword'; // Ensure this path is correct
-
-import Visibility from '@mui/icons-material/Visibility';
-import VisibilityOff from '@mui/icons-material/VisibilityOff';
-
-import logo from './images/logo.png'; // Import the logo image
-import loginimg from './images/profile.gif'; // Import the login image
-import { useNavigate } from 'react-router-dom';
+import EmailIcon from "@mui/icons-material/Email";
+import LockIcon from "@mui/icons-material/Lock";
+import ForgotPassword from "./auth-forms/ForgotPassword"; // Ensure this path is correct
+import logo from "./images/gok_logo.png"; // Import the logo image
+import loginimg from "./images/login.png"; // Import the login image
+import { useNavigate} from 'react-router-dom'; 
 import CircularProgress from '@mui/material/CircularProgress';
 import Register from './auth-forms/Register';
 
@@ -74,11 +70,11 @@ const SignInSide = () => {
             src={logo}
             alt="Logo"
             style={{
-              width: '160px',
-              height: '80px',
-              borderRadius: '50%',
-              marginBottom: '16px',
-              marginTop: '2rem'
+              width: "160px",
+              height: "120px",
+              // borderRadius: "50%",
+              marginBottom: "16px",
+              marginTop:'2rem'
             }}
           />
           <Typography
@@ -154,10 +150,11 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
 
         if (userData.payload && userData.payload.token && typeof userData.payload.token === 'string') {
           localStorage.setItem('token', userData.payload.token);
-          navigate('/dashboard');
-        } else {
+          navigate('/');
+      } else {
           setError(userData.message || 'Login failed');
-        }
+      }
+      
       } catch (error) {
         console.error('Error during login:', error);
         setError(error.message || 'An error occurred during login');

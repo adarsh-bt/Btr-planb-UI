@@ -9,14 +9,29 @@ class authservice {
 
     static async login(username, password) {
         try {
-            const response = await axios.post(`${authservice.BASE_URL}/api/login`, {username,password});
-            return  response.data // Return a consistent object on success
+            const response = await axios.post(`${authservice.BASE_URL}/api/login`, { username, password });
+            return response.data;  // Return the data when the response is successful
         } catch (err) {
-            return {
-                message: err.response.data.message
-            };
+            // Check if `err.response` exists before accessing `err.response.data`
+            if (err.response) {
+                // If the error has a response, return the error message from the backend
+                return {
+                    message: err.response.data.message || 'Unknown error from backend'
+                };
+            } else if (err.request) {
+                // If the request was made but no response was received, handle it here
+                return {
+                    message: 'Sorry, Please try again later'
+                };
+            } else {
+                // For any other errors (e.g., request setup issues)
+                return {
+                    message: err.message || 'An unknown error occurred'
+                };
+            }
         }
     }
+    
 
     static async registration(userData) {
         try {
@@ -69,12 +84,14 @@ class authservice {
     }
   }
 
-  // Checker
-  static logout(navigate) {
-    localStorage.removeItem('token');
-
-    navigate('/');
-  }
+        // Checker
+        static logout(navigate){
+        
+            localStorage.removeItem('token')
+            
+            navigate('/login');
+        }
+    
 }
 
 export default authservice;
