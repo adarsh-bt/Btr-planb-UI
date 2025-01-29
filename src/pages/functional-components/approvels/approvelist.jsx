@@ -1,10 +1,11 @@
 import React, { useState,useEffect } from 'react';
 import PropTypes from 'prop-types';
 
-
+import {InvalidTokenError, jwtDecode} from 'jwt-decode';
 import DataTable from 'react-data-table-component';
-
+import Swal from "sweetalert2";
 import VisibilityIcon from '@mui/icons-material/Visibility';
+
 import {
     Typography,
     TextField,
@@ -25,6 +26,7 @@ import {
     Radio,
   } from '@mui/material';
 import functionalservice from '../functionalservice';
+import { Approval } from '@mui/icons-material';
 
 const columns = (handleEdit) => [
     { name: 'SL. NO', selector:(row, index) => index + 1, sortable: true },
@@ -42,14 +44,14 @@ const columns = (handleEdit) => [
           <span
           style={{
             color:
-              row.active === true
+              row.approvalStatus === "Approved"
                 ? "green"
-                : row.active === false
+                : row.approvalStatus === "Marked"
                 ? "orange"
                 : "red",
           }}
         >
-          {row.active === true ? "Approved" : row.active === false ? "Pending" : "Unknown"}
+          {row.approvalStatus === "Approved" ? row.approvalStatus : row.approvalStatus === false ? row.approvalStatus : row.approvalStatus}
         </span>
         
         ),
@@ -70,30 +72,6 @@ const columns = (handleEdit) => [
     },
   ];
   
-  // Sample data for the table
-
-
-
-  // const data = [
-  //   {
-  //       "slNo": 1,
-  //       "name": "Arun Kumar",
-  //       "email": "arun.kumar@example.com",
-  //       "phnumber": "8847596215",
-  //       "doj": "24-12-2024",
-  //       "status":'Approved'
-  //   },
-  //   {
-  //       "slNo": 2,
-  //       "name": "Lekshmi Nair",
-  //       "email": "lekshmi.nair@example.com",
-  //       "phnumber": "9947563210",
-  //       "doj": "25-12-2024",
-  //       "status":'Approved'
-  //   },
-   
-  //   ];
-
 
 function CustomTabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -101,7 +79,7 @@ function CustomTabPanel(props) {
 
 
   return (
-    <div
+    <Box
       role="tabpanel"
       hidden={value !== index}
       id={`simple-tabpanel-${index}`}
@@ -109,7 +87,7 @@ function CustomTabPanel(props) {
       {...other}
     >
       {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
-    </div>
+    </Box>
   );
 }
 
@@ -133,22 +111,91 @@ export default function BasicTabs() {
   
     const [openModal, setOpenModal] = useState(false);
     const [selectedRow, setSelectedRow] = useState(null);
-  
+      // State for remarks
+
     // Function to handle filter change
     
   
     // Function to handle edit action
     const handleEdit = (row) => {
       setSelectedRow(row); // Set the selected row to be edited
+      setRadioState(row.approvalStatus.toLowerCase()); // Set the radio state to match the approval status (approved/marked/rejected)
+      setRemarks(row.remarks)
       setOpenModal(true); // Open the modal
     };
+    
   
     // Function to close the modal
     const handleCloseModal = () => {
       setOpenModal(false);
       setSelectedRow(null); // Reset selected row when closing
     };
-  
+
+    
+  const [remarks, setRemarks] = useState("");
+    const handleSaveChanges = () => {
+      // Close the modal first
+      handleCloseModal();
+    
+      // SweetAlert2 confirmation dialog
+      Swal.fire({
+        title: "Are you sure?",
+        text: "You are about to save changes. Do you want to proceed?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Yes, save changes",
+        cancelButtonText: "No, cancel",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          
+          // Prepare data for the API call
+          const token = localStorage.getItem('token')
+          const decodedToken = jwtDecode(token);  // Decodes the JWT
+          const admin_id = decodedToken.sub;
+          console.log("admin >>",admin_id)
+          console.log("approval id >>",selectedRow.approvalId)
+          console.log("remarks >>",remarks)
+          const approvalStatus = radioState;  // The status ("approved", "marked", "rejected")
+          // const remarks = radioState === "rejected" || radioState === "marked" ? remarks : "All documents verified and approved.";  // Sample remarks based on status
+          console.log("selec",selectedRow.userId)
+          // Construct the payload
+          const payload = {
+            approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "marked" ? "Marked" : "Rejected",
+            approvalDate: new Date().toISOString().split('T')[0],
+            remarks: remarks,
+            isApproved: approvalStatus === "approved", 
+            adminId: admin_id, 
+            userId: selectedRow ? selectedRow.userId : "", 
+            id:selectedRow.approvalId
+          };
+    
+          // Call the API using the separate function
+          functionalservice.saveApprovalDetails(payload)
+            .then((data) => {
+              console.log("data >>",data)
+              if (data.payload) {
+                Swal.fire("Saved!", "Your changes have been saved.", "success");
+                setUserList((prevUserList) => 
+                  prevUserList.map((user) =>
+                    // Update only the selected user, keep the rest of the users unchanged
+                    user.userId === selectedRow.userId
+                      ? { ...user, approvalStatus: data.payload.approvalStatus,approvalId:data.payload.id }
+                      : user
+                  )
+                );
+              } else {
+                Swal.fire("Error", data.message || "Something went wrong, please try again.", "error");
+              }
+            })
+            .catch((error) => {
+              Swal.fire("Error", "Failed to save changes. Please try again later.", "error");
+            });
+        } else {
+          Swal.fire("Cancelled", "Your changes have not been saved.", "error");
+        }
+      });
+    };
+    
   
 
   const handleChange = (event, newValue) => {
@@ -169,13 +216,28 @@ export default function BasicTabs() {
 //   };
 const [radioState, setRadioState] = React.useState("");
 
+const [category, setCategory] = useState('');
+const [duties, setDuties] = useState('');
+
+
 const handleRadioChange = (value) => {
   setRadioState(value);
 };
 
+const handleCategoryChange = (event) => {
+  setCategory(event.target.value);
+};
+
+const handleDutiesChange = (event) => {
+  setDuties(event.target.value);
+};
+
+const isSaveEnabled = (radioState === 'marked' || radioState === 'rejected' || radioState === 'approved') && category && duties;
+
 
 const [userList, setUserList] = useState([]);
 const [filterText, setFilterText] = useState('');
+
 useEffect(() => {
   const fetchUserApprovals = async () => {
       try {
@@ -189,6 +251,8 @@ useEffect(() => {
 
   fetchUserApprovals(); // Call the function when the component mounts
 }, []);
+
+
 const handleFilterChange = (event) => {
   console.log("evenet ?>>",event.target.value)
   setFilterText(event.target.value);
@@ -203,11 +267,11 @@ const filteredData = userList.filter((item) =>
 console.log("filtr",filterText.toLowerCase())
 return (
 
-    <div style={{background:'white'}}>
+    <Box style={{background:'white'}}>
     <Typography variant='h4' p={1}>Approvals </Typography>
     <hr></hr>
     <Box sx={{ width: '100%' }}>
-      <Box sx={{borderColor: 'divider',marginLeft:'1rem' ,justifyContent: 'center',alignItems:'center'}}>
+      <Box sx={{borderColor: 'Boxider',marginLeft:'1rem' ,justifyContent: 'center',alignItems:'center'}}>
         <Tabs value={value} onChange={handleChange} aria-label="basic tabs example"  indicatorColor="primary" >
           <Tab label="New User Request" {...a11yProps(0)} />
           <Tab label="Zone Approvals" {...a11yProps(1)} />
@@ -288,7 +352,7 @@ return (
       textAlign: "center",
       borderBottom: "2px solid #f0f0f0",
       paddingBottom: "10px",
-      background:'#04255e'
+      background: '#04255e',
     }}
   >
     New User Request
@@ -296,7 +360,6 @@ return (
   <DialogContent style={{ padding: "20px", backgroundColor: "#fafafa" }}>
     {selectedRow && (
       <DialogContentText>
-        {/* Center-aligned fields with enhanced layout */}
         <Stack
           spacing={2}
           style={{
@@ -308,18 +371,15 @@ return (
             boxShadow: "0 0 10px rgba(0, 0, 0, 0.1)",
           }}
         >
-          {/* Display fields in two-column layout */}
-          {[
-            { label: "Name", value: selectedRow.name },
+          {[{ label: "Name", value: selectedRow.name },
             { label: "Date Of birth", value: selectedRow.dateOfBirth },
             { label: "Email", value: selectedRow.email },
             { label: "Phone Number", value: selectedRow.mobileNumber },
             { label: "Date of Joining", value: selectedRow.dateOfJoining },
             { label: "Pen", value: selectedRow.penNumber },
-            { label: "Office", value: selectedRow.officeToJoining },
-         
+            { label: "Office", value: selectedRow.officeToJoining }
           ].map((field, index) => (
-            <div
+            <Box
               key={index}
               style={{
                 display: "flex",
@@ -328,7 +388,7 @@ return (
                 marginBottom: "10px",
               }}
             >
-              <div
+              <Box
                 style={{
                   textAlign: "right",
                   marginRight: "8px",
@@ -338,8 +398,8 @@ return (
                 }}
               >
                 {field.label}:
-              </div>
-              <div
+              </Box>
+              <Box
                 style={{
                   textAlign: "left",
                   width: "60%",
@@ -350,14 +410,16 @@ return (
                 }}
               >
                 {field.value}
-              </div>
-            </div>
+              </Box>
+            </Box>
           ))}
         </Stack>
 
-        {/* Dropdown for options */}
-        <div
+        {/* Category and Duties Dropdowns */}
+        <Box
           style={{
+            display: "flex",
+            justifyContent: "space-between",
             marginTop: "20px",
             textAlign: "center",
             padding: "10px",
@@ -367,22 +429,43 @@ return (
             boxShadow: "0 0 5px rgba(0, 0, 0, 0.1)",
           }}
         >
-          <strong>Category</strong><br></br>
-          <TextField
-            select
-            fullWidth
-            defaultValue=""
-            variant="outlined"
-            style={{ marginTop: "8px" ,width:'30%'}}
-          >
-            <MenuItem value="Investigator">Investigator</MenuItem>
-            {/* <MenuItem value="Commercial">Commercial</MenuItem>
-            <MenuItem value="Industrial">Industrial</MenuItem> */}
-          </TextField>
-        </div>
+          {/* Category Dropdown */}
+          <Box style={{ width: '48%' }}>
+            <strong>Category</strong><br></br>
+            <TextField
+              select
+              fullWidth
+              value={category}
+              onChange={handleCategoryChange}
+              variant="outlined"
+              style={{ marginTop: "8px" }}
+            >
+              <MenuItem value="Investigator">Investigator</MenuItem>
+              {/* Add other categories as needed */}
+            </TextField>
+          </Box>
 
-        {/* Horizontal alignment for checkboxes */}
-        <div
+          {/* Duties Dropdown */}
+          <Box style={{ width: '48%' }}>
+            <strong>Duties</strong><br></br>
+            <TextField
+              select
+              fullWidth
+              value={duties}
+              onChange={handleDutiesChange}
+              variant="outlined"
+              style={{ marginTop: "8px" }}
+            >
+              <MenuItem value="Field Work">Field Work</MenuItem>
+              <MenuItem value="Office Work">Office Work</MenuItem>
+              <MenuItem value="Research">Research</MenuItem>
+              {/* Add other duties as needed */}
+            </TextField>
+          </Box>
+        </Box>
+
+        {/* Status Radio Buttons */}
+        <Box
           style={{
             marginTop: "20px",
             textAlign: "center",
@@ -394,40 +477,48 @@ return (
           }}
         >
           <strong>Status:</strong>
-          <FormGroup row style={{ justifyContent: "center", marginTop: "8px" }}>
-            <FormControlLabel sx={{ color: 'success.main' }}
-              control={
-                <Radio
-                  checked={radioState === "approved"}
-                  onChange={() => handleRadioChange("approved")}
-                />
-              }
-              label="Approved"
-            />
-            <FormControlLabel sx={{ color: 'warning.main' }}
-              control={
-                <Radio
-                  checked={radioState === "marked"}
-                  onChange={() => handleRadioChange("marked")}
-                />
-              }
-              label="Marked"
-            />
-            <FormControlLabel sx={{ color: 'error.main' }}
-              control={
-                <Radio
-                  checked={radioState === "rejected"}
-                  onChange={() => handleRadioChange("rejected")}
-                />
-              }
-              label="Rejected"
-            />
-          </FormGroup>
-        </div>
+        <FormGroup row style={{ justifyContent: "center", marginTop: "8px" }}>
+        
+  <FormControlLabel
+    sx={{ color: 'success.main' }}
+    control={
+      <Radio
+        checked={radioState === "approved"}
+        onChange={() => handleRadioChange("approved")}
+        disabled={selectedRow.approvalStatus === "Approved"} // Make "Approved" radio button read-only
+      />
+    }
+    label="Approved"
+  />
+  <FormControlLabel
+    sx={{ color: 'warning.main' }}
+    control={
+      <Radio
+        checked={radioState === "marked"}
+        onChange={() => handleRadioChange("marked")}
+        disabled={selectedRow.approvalStatus === "Approved"} 
+      />
+    }
+    label="Marked"
+  />
+  <FormControlLabel
+    sx={{ color: 'error.main' }}
+    control={
+      <Radio
+        checked={radioState === "rejected"}
+        onChange={() => handleRadioChange("rejected")}
+        disabled={selectedRow.approvalStatus === "Approved"} 
+      />
+    }
+    label="Rejected"
+  />
+</FormGroup>
+{selectedRow.approvalStatus === "Approved" ? <Typography sx={{ color: 'primary.main' }}>Already Approved only View</Typography> : null}
+        </Box>
 
-        {/* Conditional textbox for remarks if "Rejected" is selected */}
-        {radioState === "rejected" && (
-          <div
+        {/* Remarks Textbox if Rejected */}
+        {(radioState === "rejected" || radioState === "marked") && (
+          <Box
             style={{
               marginTop: "16px",
               textAlign: "center",
@@ -444,8 +535,10 @@ return (
               fullWidth
               variant="outlined"
               style={{ fontSize: "14px" }}
+              value={remarks}  // Bind to state
+              onChange={(e) => setRemarks(e.target.value)}
             />
-          </div>
+          </Box>
         )}
       </DialogContentText>
     )}
@@ -454,13 +547,17 @@ return (
     <Button onClick={handleCloseModal} color="secondary" variant="outlined">
       Close
     </Button>
-    <Button onClick={handleCloseModal} color="primary" variant="contained" sx={{background:'#04255e'}}>
-                Save Changes
+    <Button
+      onClick={handleSaveChanges}
+      color="primary"
+      variant="contained"
+      sx={{ background: '#04255e' }}
+      disabled={!isSaveEnabled}
+    >
+      Save Changes
     </Button>
   </DialogActions>
 </Dialog>
-
-
 
 
       </CustomTabPanel>
@@ -471,6 +568,6 @@ return (
         Other Requests
       </CustomTabPanel>
     </Box>
-    </div>
+    </Box>
   );
 }

@@ -15,7 +15,7 @@ const LoginRoutes = {
   element: <MinimalLayout />,
   children: [
     {
-      path: '/',
+      path: '/login',
       element: <AuthLogin />
     },
     {

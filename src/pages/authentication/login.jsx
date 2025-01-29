@@ -16,16 +16,28 @@ import {
 import EmailIcon from "@mui/icons-material/Email";
 import LockIcon from "@mui/icons-material/Lock";
 import ForgotPassword from "./auth-forms/ForgotPassword"; // Ensure this path is correct
-import logo from "./images/logo.png"; // Import the logo image
-import loginimg from "./images/login.png"; // Import the login image
+// Import the logo image
+// Import the login image
 import { useNavigate} from 'react-router-dom'; 
 import CircularProgress from '@mui/material/CircularProgress';
 import Register from './auth-forms/Register';
-
+import logo from "./images/govt.png"; // Import the logo image
+import loginimg from "./images/login.png"; // Import the login image
+import deslogo from "./images/des.png"; // Import the DES logo image
+import duklogo from "./images/Duk-Logo.png"; // Import the DUK logo image
+import cdtilogo from "./images/cdti_icon.png"; // Import the DUK logo image
+import { keyframes } from '@emotion/react';
 import './login.css'
 
 
 import authservice from "./authservice";
+
+
+const fadeIn = keyframes`
+  0% { opacity: 0; transform: translateY(50px); }
+  100% { opacity: 1; transform: translateY(0); }
+`;
+
 
 const SignInSide = () => {
 
@@ -79,8 +91,8 @@ const SignInSide = () => {
             alt="Logo"
             style={{
               width: "160px",
-              height: "80px",
-              borderRadius: "50%",
+              height: "120px",
+              // borderRadius: "50%",
               marginBottom: "16px",
               marginTop:'2rem'
             }}
@@ -93,16 +105,69 @@ const SignInSide = () => {
               px: 4,
               textAlign: "center",
               // marginTop: "1rem",
-              marginBottom:'5rem',
+              marginBottom:'2rem',
               
             }}
           >
             AIDEA
           </Typography>
+          <Typography variant="h5"  sx={{
+              color: "#fff",
+              fontWeight: "bold",
+              px: 4,
+              textAlign: "center",
+              // marginTop: "1rem",
+              marginBottom:'3rem',
+              animation: `${fadeIn} 1.5s ease-out`,
+              
+            }}>Application for Intelligent Data Engineering and Analytics</Typography>
+        
+        <Typography style={{ display: "flex", justifyContent: "center", gap: "2rem", marginBottom: "3rem" }}>
+        <img
+        src={duklogo}
+        alt="DUK Logo"
+        style={{
+          width: "80px",
+          height: "50px",
+          padding:".7rem",
+          borderRadius: "5px", // Adds border radius for a polished look
+          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)", // Shadow for logos
+        
+        }}
+      />
+         <img
+        src={deslogo}
+        alt="DES Logo"
+        style={{
+          width: "50px",
+          height: "50px",
+          borderRadius: "10px",
+          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)",
+         
+        }}
+      />
+     <img
+        src={cdtilogo}
+        alt="DUK Logo"
+        style={{
+          width: "80px",
+          height: "50px",
+          padding:".7rem",
+          borderRadius: "5px", // Adds border radius for a polished look
+          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)", // Shadow for logos
+  
+        }}
+      />
+          {/* <Typography variant="p"  sx={{
+              color: "#fff",
+            }}>CDTI</Typography> */}
+        </Typography>
+        <Box sx={{ color: 'text.disabled' }}>© 2025 AIDEA CDTI-DUK. All rights reserved.</Box>
+
+        
         </div>
           
-   
-       
+
       </Grid>
       <Grid
         item
@@ -169,10 +234,11 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
         
         if (userData.payload && userData.payload.token && typeof userData.payload.token === 'string') {
           localStorage.setItem('token', userData.payload.token);
-          navigate('/dashboard');
-        } else {
+          navigate('/');
+      } else {
           setError(userData.message || 'Login failed');
-        }
+      }
+      
       } catch (error) {
         console.error('Error during login:', error);
         setError(error.message || 'An error occurred during login');

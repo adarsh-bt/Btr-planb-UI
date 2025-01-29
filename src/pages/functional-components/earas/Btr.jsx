@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import { borderRadius } from '@mui/system';
 import { EditOutlined  } from '@ant-design/icons';
+import Breadcrumb from 'routes/Breadcrumb';
 // Define the columns for the data table
 const columns = (handleEdit) => [
   { name: 'SL. NO', selector: (row) => row.slNo, sortable: true },
@@ -197,7 +198,9 @@ const Btr = () => {
 
   return (
     <div>
+     <Breadcrumb></Breadcrumb>
       <Paper elevation={3} style={{ marginBottom: '16px', padding: '10px' }}>
+     
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
             Basic Tax Register (RELIS)
