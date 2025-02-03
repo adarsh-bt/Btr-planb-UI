@@ -61,8 +61,6 @@ class authservice {
     }
 
   static async verify_otp(userid, otp) {
-    console.log('otp >>', otp);
-    console.log('usernamess :', userid);
     try {
       const response = await axios.post(`${authservice.BASE_URL}/api/validateOtp`, { userid, otp });
       console.log(response.data);

@@ -22,6 +22,9 @@ import loginimg from "./images/login.png"; // Import the login image
 import { useNavigate} from 'react-router-dom'; 
 import CircularProgress from '@mui/material/CircularProgress';
 import Register from './auth-forms/Register';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
+
 
 import IconButton from '@mui/material/IconButton';
 

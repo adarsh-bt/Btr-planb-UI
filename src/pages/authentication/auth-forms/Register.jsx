@@ -12,12 +12,13 @@ import {
   Select,
   InputLabel,
   FormControl as MuiFormControl,
+  Autocomplete,
   Typography,
   Alert,
   Stack,
   FormHelperText
 } from '@mui/material';
-
+import officeToJoin from './OfficeToJoin';  
 import authservice from '../authservice';
 
 const Register = ({ onBack }) => {
@@ -341,18 +342,27 @@ const Register = ({ onBack }) => {
       </Grid>
 
       <MuiFormControl fullWidth sx={{ mb: 2 }}>
-        <InputLabel>
+        {/* <InputLabel>
           Office to Join
           <Typography component="span" color="error">
             *
           </Typography>
-        </InputLabel>
-        <Select value={office} onChange={(e) => setOffice(e.target.value)} label="Office to Join">
-          <MenuItem value="Kollam">Kollam</MenuItem>
-          <MenuItem value="Trivandrum">Trivandrum</MenuItem>
-          <MenuItem value="Kottayam">Kottayam</MenuItem>
-        </Select>
-        {errors.office && <FormHelperText error>{errors.office}</FormHelperText>}
+        </InputLabel> */}
+        
+        <Autocomplete
+          disablePortal
+          options={officeToJoin.map(option => option.office)} // Extract office names for Autocomplete
+          onChange={(event, newValue) => {
+            setOffice(newValue); // Set selected value to office state
+            if (newValue) setErrors({ ...errors, office: false }); // Clear error if value is selected
+          }}
+          renderInput={(params) => (
+            <TextField {...params} label={ <span>Office to Join <Typography component="span" color="error" sx={{ ml: 0.5 }}>*</Typography></span>
+          }  error={errors.office} helperText={errors.office ? errors.office : ''} />
+          )}
+          sx={{ mb: 2 }}
+        />
+        
       </MuiFormControl>
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
