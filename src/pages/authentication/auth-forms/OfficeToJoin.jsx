@@ -1,11 +1,25 @@
-// Top 100 films as rated by IMDb users. http://www.imdb.com/chart/top
 const officeToJoin = [
-  { office: 'Thiruvanathapuram', year: 1994 },
-  { office: 'Kollam', year: 1994 },
-  { office: 'Thrissur', year: 1994 },
-  { office: 'Kottayam', year: 1994 },
-  { office: 'Kozhikode', year: 1974 },
-  { office: 'Palakad', year: 2008 }
-]
+  {
+    distOfficeId: 1,
+    distOfficeNameEn: "District Office Thiruvananthapuram",
+    talukMaster: [
+      { talukOfficeNameEn: "Taluk Statistical Office Thiruvananthapuram" },
+      { talukOfficeNameEn: "Taluk Statistical Office Neyyattinkara" },
+      { talukOfficeNameEn: "Taluk Statistical Office Nedumangad" },
+      { talukOfficeNameEn: "Taluk Statistical Office Chirayinkeezhu" }
+    ]
+  },
+  {
+    distOfficeId: 2,
+    distOfficeNameEn: "District Office Kollam",
+    talukMaster: [
+      { talukOfficeNameEn: "Taluk Statistical Office Kollam" },
+      { talukOfficeNameEn: "Taluk Statistical Office Karunagappally" },
+      { talukOfficeNameEn: "Taluk Statistical Office Kunnathur" },
+      { talukOfficeNameEn: "Taluk Statistical Office Kottarakkara" },
+      { talukOfficeNameEn: "Taluk Statistical Office Pathanapuram" }
+    ]
+  }
+];
 
-export default officeToJoin
+export default officeToJoin;

@@ -18,7 +18,7 @@ import {
   Stack,
   FormHelperText
 } from '@mui/material';
-import officeToJoin from './OfficeToJoin';  
+import officeToJoin from './OfficeToJoin';
 import authservice from '../authservice';
 
 const Register = ({ onBack }) => {
@@ -32,9 +32,12 @@ const Register = ({ onBack }) => {
   const [dateOfJoining, setDateOfJoining] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [office, setOffice] = useState('');
+  const [taluk, setTaluk] = useState('');
 
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+
+  const [loading, setLoading] = useState(false);
 
   const [errors, setErrors] = useState({
     fullName: false,
@@ -44,10 +47,29 @@ const Register = ({ onBack }) => {
     dateOfJoining: false,
     dateOfBirth: false,
     idNumber: false,
-    office: false
+    office: false,
+    taluk: false
   });
 
   const today = new Date().toISOString().split('T')[0];
+
+  const [selectedDistrict, setSelectedDistrict] = useState(null);
+
+  const handleDistrictChange = (event, newValue) => {
+    setSelectedDistrict(newValue); // Set selected district
+    setOffice(newValue?.name || ''); // Optionally set office if needed
+    setTaluk(''); // Reset the Taluk when district is changed or removed
+    setErrors({ ...errors, office: false });
+  };
+
+  const handleTalukChange = (event, newValue) => {
+    setTaluk(newValue?.name || '');
+    if (newValue) setErrors({ ...errors, taluk: false });
+  };
+
+  const filteredTaluks = selectedDistrict
+    ? [{ name: selectedDistrict.name }, ...selectedDistrict.talukMaster.map((taluk) => ({ name: taluk.talukOfficeNameEn }))]
+    : [];
 
   const handlePenChange = (e) => {
     setPenNumber(e.target.value);
@@ -89,6 +111,9 @@ const Register = ({ onBack }) => {
         return null;
       case 'office':
         if (!office) return 'Office is required.';
+        return null;
+      case 'taluk':
+        if (!taluk) return 'Taluk is required.';
         return null;
       default:
         return null;
@@ -341,28 +366,57 @@ const Register = ({ onBack }) => {
         </Grid>
       </Grid>
 
+      {/* District Office selection */}
       <MuiFormControl fullWidth sx={{ mb: 2 }}>
-        {/* <InputLabel>
-          Office to Join
-          <Typography component="span" color="error">
-            *
-          </Typography>
-        </InputLabel> */}
-        
         <Autocomplete
           disablePortal
-          options={officeToJoin.map(option => option.office)} // Extract office names for Autocomplete
-          onChange={(event, newValue) => {
-            setOffice(newValue); // Set selected value to office state
-            if (newValue) setErrors({ ...errors, office: false }); // Clear error if value is selected
-          }}
+          options={officeToJoin.map((district) => ({
+            name: district.distOfficeNameEn,
+            talukMaster: district.talukMaster
+          }))}
+          getOptionLabel={(option) => option.name}
+          onChange={handleDistrictChange}
           renderInput={(params) => (
-            <TextField {...params} label={ <span>Office to Join <Typography component="span" color="error" sx={{ ml: 0.5 }}>*</Typography></span>
-          }  error={errors.office} helperText={errors.office ? errors.office : ''} />
+            <TextField
+              {...params}
+              label={
+                <span>
+                  Office to Join{' '}
+                  <Typography component="span" color="error" sx={{ ml: 0.5 }}>
+                    *
+                  </Typography>
+                </span>
+              }
+              error={errors.office}
+              helperText={errors.office ? errors.office : ''}
+            />
           )}
-          sx={{ mb: 2 }}
         />
-        
+      </MuiFormControl>
+
+      {/* Taluk Office selection based on selected district */}
+      <MuiFormControl fullWidth sx={{ mb: 2 }}>
+        <Autocomplete
+          disablePortal
+          options={filteredTaluks} // This will now include the selected district
+          getOptionLabel={(option) => option.name}
+          onChange={handleTalukChange} // Handle Taluk selection change
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label={
+                <span>
+                  Taluk Office{' '}
+                  <Typography component="span" color="error" sx={{ ml: 0.5 }}>
+                    *
+                  </Typography>
+                </span>
+              }
+              error={errors.taluk}
+              helperText={errors.taluk ? errors.taluk : ''}
+            />
+          )}
+        />
       </MuiFormControl>
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
