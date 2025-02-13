@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   TextField,
   Button,
@@ -18,8 +18,8 @@ import {
   Stack,
   FormHelperText
 } from '@mui/material';
-import officeToJoin from './OfficeToJoin';
 import authservice from '../authservice';
+import RegisterService from 'pages/functional-components/registerservice';
 
 const Register = ({ onBack }) => {
   const [fullName, setFullName] = useState('');
@@ -31,13 +31,24 @@ const Register = ({ onBack }) => {
   const [designation, setDesignation] = useState('');
   const [dateOfJoining, setDateOfJoining] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
-  const [office, setOffice] = useState('');
-  const [taluk, setTaluk] = useState('');
+
+  const [districts, setDistricts] = useState([]);
+  const [selectedDistrict, setSelectedDistrict] = useState(null); // Store the entire district object
+  const [taluks, setTaluks] = useState([]);
+  const [selectedTaluk, setSelectedTaluk] = useState(null); // Store the entire taluk object
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [loadingTaluks, setLoadingTaluks] = useState(false);
+
+  const [designations, setDesignations] = useState([]);
 
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
   const [loading, setLoading] = useState(false);
+
+  const [districtId, setDistrictId] = useState(null); // Initialize to null
+  const [talukId, setTalukId] = useState(null); // Initialize to null
+  const [officeType, setOfficeType] = useState(''); // Initialize to empty string
 
   const [errors, setErrors] = useState({
     fullName: false,
@@ -53,23 +64,121 @@ const Register = ({ onBack }) => {
 
   const today = new Date().toISOString().split('T')[0];
 
-  const [selectedDistrict, setSelectedDistrict] = useState(null);
+  useEffect(() => {
+    const fetchDesignations = async () => {
+      try {
+        const response = await RegisterService.getDesignations();
+        if (response.payload && Array.isArray(response.payload)) {
+          setDesignations(response.payload);
+        } else {
+          setErrorMessage(response.message || 'Failed to fetch designations.');
+        }
+      } catch (err) {
+        setErrorMessage('Failed to fetch designations: ' + err.message);
+      }
+    };
+
+    fetchDesignations();
+  }, []);
+
+  useEffect(() => {
+    const fetchDistricts = async () => {
+      setLoadingDistricts(true);
+      try {
+        const response = await RegisterService.getDistricts();
+        if (response.payload && Array.isArray(response.payload)) {
+          setDistricts(response.payload);
+        } else {
+          setError(response.message || 'Failed to fetch districts: Invalid data format.');
+        }
+      } catch (err) {
+        setError('Failed to fetch districts: ' + err.message);
+      } finally {
+        // setLoadingDistricts(false);
+      }
+    };
+
+    fetchDistricts();
+  }, []);
+
+  useEffect(() => {
+    const fetchTaluks = async () => {
+      if (selectedDistrict) {
+        // setLoadingTaluks(true);
+        try {
+          const response = await RegisterService.getTaluks(selectedDistrict.distId);
+          if (response.payload && Array.isArray(response.payload)) {
+            setTaluks(response.payload);
+          } else {
+            setError(response.message || 'Failed to fetch taluks: Invalid data format.');
+          }
+        } catch (err) {
+          setError('Failed to fetch taluks: ' + err.message);
+        } finally {
+          // setLoadingTaluks(false);
+        }
+      } else {
+        setTaluks([]);
+        setSelectedTaluk(null);
+      }
+    };
+
+    fetchTaluks();
+  }, [selectedDistrict]);
 
   const handleDistrictChange = (event, newValue) => {
-    setSelectedDistrict(newValue); // Set selected district
-    setOffice(newValue?.name || ''); // Optionally set office if needed
-    setTaluk(''); // Reset the Taluk when district is changed or removed
-    setErrors({ ...errors, office: false });
+    setSelectedDistrict(newValue);
+    setSelectedTaluk(null); // Reset selectedTaluk when district changes
+    //......//
+    setDistrictId(null); // clear values
+    setTalukId(null);
+    setOfficeType('');
   };
 
   const handleTalukChange = (event, newValue) => {
-    setTaluk(newValue?.name || '');
-    if (newValue) setErrors({ ...errors, taluk: false });
+    setSelectedTaluk(newValue);
+    console.log('sel > ', selectedTaluk);
+
+    if (newValue) {
+      const label = newValue.label;
+
+      if (label?.startsWith('District Office')) {
+        // If the selected value is a district
+        setOfficeType('District');
+        alert('ok');
+        setDistrictId(newValue.id);
+        console.log('dist ', districts);
+        setTalukId(null);
+      } else if (label?.startsWith('Taluk Statistical Office')) {
+        // If it's a taluk
+        setOfficeType('Taluk');
+        setTalukId(newValue.id);
+        console.log('taluk ', newValue.id);
+        setDistrictId(null);
+      }
+    } else {
+      alert('ok');
+      // If nothing is selected, reset values
+      setOfficeType('');
+      setDistrictId(null);
+      setTalukId(null);
+    }
   };
 
+  // Modify filteredTaluks to include the district name
   const filteredTaluks = selectedDistrict
-    ? [{ name: selectedDistrict.name }, ...selectedDistrict.talukMaster.map((taluk) => ({ name: taluk.talukOfficeNameEn }))]
+    ? [
+        { id: selectedDistrict.distId, label: selectedDistrict.distOfficeNameEn },
+        ...taluks.map((taluk) => ({
+          id: taluk.desTalukId,
+          label: taluk.talukOfficeNameEn
+        }))
+      ]
     : [];
+
+  // const filteredTaluks = selectedDistrict
+  //   ? [{ name: selectedDistrict.name }, ...selectedDistrict.talukMaster.map((taluk) => ({ name: taluk.talukOfficeNameEn }))]
+  //   : [];
 
   const handlePenChange = (e) => {
     setPenNumber(e.target.value);
@@ -109,12 +218,12 @@ const Register = ({ onBack }) => {
         if (idType === 'PEN' && !penNumber) return 'PEN Number is required.';
         if (idType === 'TEN' && !tenNumber) return 'TEN Number is required.';
         return null;
-      case 'office':
-        if (!office) return 'Office is required.';
-        return null;
-      case 'taluk':
-        if (!taluk) return 'Taluk is required.';
-        return null;
+      // case 'office':
+      //   if (!office) return 'Office is required.';
+      //   return null;
+      // case 'taluk':
+      //   if (!taluk) return 'Taluk is required.';
+      //   return null;
       default:
         return null;
     }
@@ -151,11 +260,15 @@ const Register = ({ onBack }) => {
       designation: designation,
       dateOfBirth: dateOfBirth,
       dateOfJoining: dateOfJoining,
-      officeToJoining: office
+      officeType: officeType,
+      distOfficeId: districtId,
+      desTalukOfficeId: talukId
     };
 
     try {
+      setLoading(true);
       const userDatas = await authservice.registration(userData); // Add await to resolve the Promise
+      setLoading(false);
 
       if (userDatas.status === 201) {
         setSuccessMessage('Registration successfully submitted. Please wait for the approval.');
@@ -314,9 +427,12 @@ const Register = ({ onBack }) => {
             *
           </Typography>
         </InputLabel>
-        <Select value={designation} onChange={(e) => setDesignation(e.target.value)} label="Designation" error={errors.designation}>
-          <MenuItem value="office">Staff</MenuItem>
-          <MenuItem value="user">Normal User</MenuItem>
+        <Select value={designation} onChange={(e) => setDesignation(e.target.value)} error={errors.designation}>
+          {designations.map((designation) => (
+            <MenuItem key={designation.id} value={designation.designation_name}>
+              {designation.designation_name}
+            </MenuItem>
+          ))}
         </Select>
         {errors.designation && <FormHelperText error>{errors.designation}</FormHelperText>}
       </MuiFormControl>
@@ -370,59 +486,42 @@ const Register = ({ onBack }) => {
       <MuiFormControl fullWidth sx={{ mb: 2 }}>
         <Autocomplete
           disablePortal
-          options={officeToJoin.map((district) => ({
-            name: district.distOfficeNameEn,
-            talukMaster: district.talukMaster
+          options={districts.map((district) => ({
+            distId: district.districtOfficeId,
+            distOfficeNameEn: district.districtOfficeNameEn // Ensuring correct label display
           }))}
-          getOptionLabel={(option) => option.name}
+          getOptionLabel={(option) => (option ? option.distOfficeNameEn : '')}
+          value={selectedDistrict}
           onChange={handleDistrictChange}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label={
-                <span>
-                  Office to Join{' '}
-                  <Typography component="span" color="error" sx={{ ml: 0.5 }}>
-                    *
-                  </Typography>
-                </span>
-              }
-              error={errors.office}
-              helperText={errors.office ? errors.office : ''}
-            />
-          )}
+          isOptionEqualToValue={(option, value) => option.distId === value.distId} // ADD THIS LINE
+          renderInput={(params) => <TextField {...params} label="Districts" required variant="outlined" />}
         />
       </MuiFormControl>
 
-      {/* Taluk Office selection based on selected district */}
+      {/* Taluk Office selection */}
       <MuiFormControl fullWidth sx={{ mb: 2 }}>
         <Autocomplete
           disablePortal
-          options={filteredTaluks} // This will now include the selected district
-          getOptionLabel={(option) => option.name}
-          onChange={handleTalukChange} // Handle Taluk selection change
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label={
-                <span>
-                  Taluk Office{' '}
-                  <Typography component="span" color="error" sx={{ ml: 0.5 }}>
-                    *
-                  </Typography>
-                </span>
-              }
-              error={errors.taluk}
-              helperText={errors.taluk ? errors.taluk : ''}
-            />
-          )}
+          options={filteredTaluks}
+          getOptionLabel={(option) => (option ? option.label : '')}
+          value={selectedTaluk}
+          onChange={handleTalukChange}
+          isOptionEqualToValue={(option, value) => option.id === value.id} // ADD THIS LINE
+          renderInput={(params) => <TextField {...params} label="Office" required variant="outlined" />}
         />
       </MuiFormControl>
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid item xs={12}>
-          <Button fullWidth variant="contained" color="primary" sx={{ borderRadius: '20px' }} onClick={handleRegisterSubmit}>
-            Register
+          <Button
+            fullWidth
+            variant="contained"
+            color="primary"
+            sx={{ borderRadius: '20px' }}
+            onClick={handleRegisterSubmit}
+            disabled={loading} // Disable the button while loading
+          >
+            {loading ? <Typography sx={{ color: 'blue' }}>Registering...</Typography> : 'Register'}
           </Button>
         </Grid>
         <Grid item xs={12}>

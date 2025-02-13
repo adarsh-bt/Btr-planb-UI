@@ -12,10 +12,11 @@
     padding: 3rem;
     background: #ddd;
     background-size: 300%;
-    height:55rem; /* changed */
+    height:50rem; /* changed */
     background-image: var(--gradient);
     animation: bg-animation 5s infinite;
-    height: 100vh;
+    height: 130vh;
+    
   }
   
   @keyframes bg-animation {

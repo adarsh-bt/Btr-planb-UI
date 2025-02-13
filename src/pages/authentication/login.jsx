@@ -65,7 +65,9 @@ const SignInSide = () => {
           backgroundPosition: 'center',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          borderTopLeftRadius: '20px', // Curves the top-left corner
+          borderBottomLeftRadius: '20px', // Curves the bottom-left corner
         }}
       >
         <div style={{ textAlign: 'center' }}>
@@ -78,6 +80,7 @@ const SignInSide = () => {
               // borderRadius: "50%",
               marginBottom: "16px",
               marginTop:'2rem'
+              
             }}
           />
           <Typography
@@ -87,6 +90,7 @@ const SignInSide = () => {
               fontWeight: 'bold',
               px: 4,
               textAlign: 'center',
+              
               // marginTop: "1rem",
               marginBottom: '5rem'
             }}
