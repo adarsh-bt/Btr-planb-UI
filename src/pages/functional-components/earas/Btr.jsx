@@ -12,50 +12,12 @@ import {
   DialogContentText,
   DialogTitle,
 } from '@mui/material';
-<<<<<<< HEAD
-import { EyeOutlined } from '@ant-design/icons';
-import { borderRadius } from '@mui/system';
-import { EditOutlined  } from '@ant-design/icons';
-=======
 import { EditOutlined } from '@ant-design/icons';
->>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import btrservice from './btrservice';
 
 // Define the columns for the data table
-<<<<<<< HEAD
-const columns = (handleEdit, handleView) => [
-  { name: 'SL. NO', selector: (row) => row.slNo, sortable: true },
-  { name: 'District', selector: (row) => row.district, sortable: true },
-  { name: 'Taluk', selector: (row) => row.taluk, sortable: true },
-  { name: 'Village', selector: (row) => row.village, sortable: true },
-  { name: 'Block', selector: (row) => row.block, sortable: true },
-  { name: 'Survey No', selector: (row) => row.surveyNo, sortable: true },
-  { name: 'Sub Div No', selector: (row) => row.subDivNo, sortable: true },
-  { name: 'Name of Owner', selector: (row) => row.ownerName, sortable: true },
-  { name: 'Address', selector: (row) => row.address, sortable: true },
-  { name: 'Total Area', selector: (row) => row.totalArea, sortable: true },
-  {
-    name: 'Action',
-    cell: (row) => (
-      <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-        <Button
-          color="success"
-          onClick={() => handleEdit(row)} // Call edit function on click
-          style={{ padding: '5px 12px', fontSize: '14px' }} // Adjusted padding and font size
-        >
-          <EditOutlined />
-        </Button>
-        <Button
-          color="primary"
-          onClick={() => handleView(row)} // Call view function on click
-          style={{ padding: '5px 12px', fontSize: '14px' }} // Adjusted padding and font size
-        >
-          <EyeOutlined />
-        </Button>
-      </div>
-=======
 const columns = (handleEdit) => [
   { name: 'SL. NO', selector:(row, index) => index + 1, sortable: true },
   // { name: 'District', selector: (row) => row.dcode, sortable: true },
@@ -78,7 +40,6 @@ const columns = (handleEdit) => [
       <Button color="success" onClick={() => handleEdit(row)}>
         <EditOutlined />
       </Button>
->>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
     ),
     style: {
       padding: '0px', // Remove unnecessary padding
@@ -87,74 +48,8 @@ const columns = (handleEdit) => [
   },
 ];
 
-<<<<<<< HEAD
-// Sample data for the table
-const data = [
-  {
-    slNo: 1,
-    district: 'Thiruvananthapuram',
-    taluk: 'Nedumangad',
-    village: 'Pothencode',
-    block: 'Pothencode Block',
-    surveyNo: 'S123',
-    subDivNo: 'SD01',
-    ownerName: 'John Doe',
-    address: '123, Example Street, Pothencode',
-    totalArea: '10 Acres',
-  },
-  {
-    slNo: 2,
-    district: 'Kochi',
-    taluk: 'Kochi',
-    village: 'Fort Kochi',
-    block: 'Fort Kochi Block',
-    surveyNo: 'S124',
-    subDivNo: 'SD02',
-    ownerName: 'Jane Smith',
-    address: '456, Kochi Road, Fort Kochi',
-    totalArea: '15 Acres',
-  },
-  {
-    slNo: 3,
-    district: 'Kollam',
-    taluk: 'Chathannoor',
-    village: 'Punnappra',
-    block: 'Chathannoor Block',
-    surveyNo: 'S125',
-    subDivNo: 'SD03',
-    ownerName: 'Michael Johnson',
-    address: '789, Punnappra Lane, Kollam',
-    totalArea: '12 Acres',
-  },
-  {
-    slNo: 4,
-    district: 'Alappuzha',
-    taluk: 'Alappuzha',
-    village: 'Punnappra',
-    block: 'Alappuzha Block',
-    surveyNo: 'S126',
-    subDivNo: 'SD04',
-    ownerName: 'Sarah Lee',
-    address: '101, Alappuzha West, Alappuzha',
-    totalArea: '8 Acres',
-  },
-  {
-    slNo: 5,
-    district: 'Pathanamthitta',
-    taluk: 'Adoor',
-    village: 'Edathua',
-    block: 'Adoor Block',
-    surveyNo: 'S127',
-    subDivNo: 'SD05',
-    ownerName: 'David Kim',
-    address: '202, Edathua Road, Pathanamthitta',
-    totalArea: '20 Acres',
-  },
-];
-=======
 // btrservice with the API call to fetch data
 
->>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
 
 const Btr = () => {
   const [filterText, setFilterText] = useState('');
@@ -229,13 +124,8 @@ const Btr = () => {
       </Paper>
 
       <DataTable
-<<<<<<< HEAD
-        columns={columns(handleEdit, handleView)} // Pass both handleEdit and handleView
-        data={filteredData}
-=======
         columns={columns(handleEdit)} // Pass handleEdit to columns function
         data={filteredData} // Display the filtered data
->>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
         pagination
         paginationComponentOptions={{
           rowsPerPageText: 'Rows per page',
@@ -246,11 +136,7 @@ const Btr = () => {
         customStyles={{
           headCells: {
             style: {
-<<<<<<< HEAD
-              fontSize: '.9rem',
-=======
               fontSize: '.8rem',
->>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
               backgroundColor: '#04255e', // Header background color
               color: '#fff', // Header text color
               fontWeight: 'bold', // Bold header text

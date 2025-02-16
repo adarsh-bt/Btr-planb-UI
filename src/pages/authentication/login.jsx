@@ -21,11 +21,10 @@ import ForgotPassword from "./auth-forms/ForgotPassword"; // Ensure this path is
 // Import the login image
 import { useNavigate} from 'react-router-dom'; 
 import CircularProgress from '@mui/material/CircularProgress';
-import Register from './auth-forms/Register';
-<<<<<<< HEAD
+
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
-=======
+import Register from './auth-forms/Register';
 import logo from "./images/govt.png"; // Import the logo image
 import loginimg from "./images/login.png"; // Import the login image
 import deslogo from "./images/des.png"; // Import the DES logo image
@@ -33,7 +32,6 @@ import duklogo from "./images/Duk-Logo.png"; // Import the DUK logo image
 import cdtilogo from "./images/cdti_icon.png"; // Import the DUK logo image
 import { keyframes } from '@emotion/react';
 import './login.css'
->>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
 
 
 import IconButton from '@mui/material/IconButton';
@@ -55,11 +53,8 @@ const SignInSide = () => {
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isRegister, setIsRegister] = useState(false); // State for toggling Register form
 
-<<<<<<< HEAD
-=======
 
 
->>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
   const handleForgotPasswordClick = () => {
     setIsForgotPassword(true);
   };
@@ -82,16 +77,6 @@ const SignInSide = () => {
         md={7}
         lg={7}
         sx={{
-<<<<<<< HEAD
-          background: 'linear-gradient(142deg, rgba(42,110,193,1) 15%, rgba(22,77,155,1) 28%, rgba(14,63,139,1) 41%, rgba(5,48,122,1) 64%)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderTopLeftRadius: '20px', // Curves the top-left corner
-          borderBottomLeftRadius: '20px', // Curves the bottom-left corner
-=======
           background:
             "linear-gradient(142deg, rgba(42,110,193,1) 15%, rgba(22,77,155,1) 28%, rgba(14,63,139,1) 41%,rgb(5, 48, 122) 64%)",
           backgroundSize: "cover",
@@ -101,7 +86,6 @@ const SignInSide = () => {
           justifyContent: "center",
         
           
->>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
         }}
       >
         <div style={{ textAlign: 'center' }}>
@@ -123,13 +107,9 @@ const SignInSide = () => {
               color: '#fff',
               fontWeight: 'bold',
               px: 4,
-<<<<<<< HEAD
-              textAlign: 'center',
-=======
               textAlign: "center",
               // marginTop: "1rem",
-              marginBottom:'2rem',
->>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
+              // marginBottom:'2rem',
               
               // marginTop: "1rem",
               marginBottom: '5rem'
@@ -192,11 +172,8 @@ const SignInSide = () => {
 
         
         </div>
-<<<<<<< HEAD
-=======
           
 
->>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
       </Grid>
       <Grid
         item
@@ -216,15 +193,11 @@ const SignInSide = () => {
           boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
         }}
       >
-<<<<<<< HEAD
-        <Avatar alt="User Login" src={loginimg} sx={{ width: 80, height: 80, marginBottom: '.5rem' }} />
-=======
       <Avatar
             alt="User Login"
             src={loginimg}
             sx={{ width: 50, height: 50,marginBottom:'.5rem' }}
             />
->>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
 
         {/* Dynamic Heading */}
         <Typography component="h1" variant="h5" sx={{ fontWeight: 'bold', color: '#333', mb: 3 }}>
@@ -262,11 +235,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
       try {
         setIsLoading(true);
         const userData = await authservice.login(username, password);
-<<<<<<< HEAD
-
-=======
         setIsLoading(false);
->>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
         if (userData.payload && userData.payload.token && typeof userData.payload.token === 'string') {
           localStorage.setItem('token', userData.payload.token);
           navigate('/');
@@ -379,35 +348,6 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
         }}
       />
       {/* Remember Me Checkbox */}
-<<<<<<< HEAD
-      <FormControlLabel control={<Checkbox value="remember" color="primary" />} label="Remember me" />
-      {/* Centered Sign In Button */}
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-        <Button
-          type="submit"
-          variant="contained"
-          color="primary"
-          sx={{
-            p: 1.5,
-            borderRadius: '20px',
-            width: '100%',
-            maxWidth: '200px',
-            '&:hover': {
-              backgroundColor: 'primary.dark',
-              color: 'white'
-            }
-          }}
-        >
-          {loading ? (
-            <>
-              <CircularProgress size={24} sx={{ color: 'white', mr: 1 }} />
-              Signing In...
-            </>
-          ) : (
-            'Sign In'
-          )}
-        </Button>
-=======
       {/* <FormControlLabel
         control={<Checkbox value="remember" color="primary" />}
         label="Remember me"
@@ -438,7 +378,6 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
     )}
 </Button>
 
->>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
       </Box>
       {/* Add spacing between the button and links */}
       <Box sx={{ mt: 4 }}>
