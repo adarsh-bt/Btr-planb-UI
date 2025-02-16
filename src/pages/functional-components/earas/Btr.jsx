@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DataTable from 'react-data-table-component';
 import {
   Typography,
@@ -12,11 +12,19 @@ import {
   DialogContentText,
   DialogTitle,
 } from '@mui/material';
+<<<<<<< HEAD
 import { EyeOutlined } from '@ant-design/icons';
 import { borderRadius } from '@mui/system';
 import { EditOutlined  } from '@ant-design/icons';
+=======
+import { EditOutlined } from '@ant-design/icons';
+>>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
 import Breadcrumb from 'routes/Breadcrumb';
+import axios from 'axios';
+import btrservice from './btrservice';
+
 // Define the columns for the data table
+<<<<<<< HEAD
 const columns = (handleEdit, handleView) => [
   { name: 'SL. NO', selector: (row) => row.slNo, sortable: true },
   { name: 'District', selector: (row) => row.district, sortable: true },
@@ -47,6 +55,30 @@ const columns = (handleEdit, handleView) => [
           <EyeOutlined />
         </Button>
       </div>
+=======
+const columns = (handleEdit) => [
+  { name: 'SL. NO', selector:(row, index) => index + 1, sortable: true },
+  // { name: 'District', selector: (row) => row.dcode, sortable: true },
+  // { name: 'Taluk', selector: (row) => row.tcode, sortable: true },
+  // { name: 'Village', selector: (row) => row.vcode, sortable: true },
+  { name: 'Village', selector: (row) => "പെരിയ", sortable: true },
+  { name: 'Block', selector: (row) => row.bcode, sortable: true },
+  { name: 'Survey No', selector: (row) => row.resvno, sortable: true },
+  { name: 'Sub Div No', selector: (row) => row.resbdno, sortable: true },
+  { name: 'Name of Owner', selector: (row) => row.lbtype, sortable: true },
+  // { name: 'Address', selector: (row) => row.lbcode, sortable: true },
+  { name: 'Address', selector: (row) => "പുല്ലുപെരിയ", sortable: true },
+  { name: 'Land Type', selector: (row) => row.ltype, sortable: true },
+  { name: 'Total Area', selector: (row) => row.nhect, sortable: true },
+  { name: 'Total Area', selector: (row) => row.nare, sortable: true },
+  { name: 'Total Area', selector: (row) => row.nsqm, sortable: true },
+  {
+    name: 'Action',
+    cell: (row) => (
+      <Button color="success" onClick={() => handleEdit(row)}>
+        <EditOutlined />
+      </Button>
+>>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
     ),
     style: {
       padding: '0px', // Remove unnecessary padding
@@ -55,6 +87,7 @@ const columns = (handleEdit, handleView) => [
   },
 ];
 
+<<<<<<< HEAD
 // Sample data for the table
 const data = [
   {
@@ -118,12 +151,17 @@ const data = [
     totalArea: '20 Acres',
   },
 ];
+=======
+// btrservice with the API call to fetch data
+
+>>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
 
 const Btr = () => {
   const [filterText, setFilterText] = useState('');
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
+  const [data, setData] = useState([]); // State to hold the fetched data
 
   // Function to handle filter change
   const handleFilterChange = (event) => {
@@ -156,11 +194,25 @@ const Btr = () => {
     setSelectedRow(null); // Reset selected row when closing
   };
 
+  // Fetch the data from the API when the component is mounted
+  useEffect(() => {
+    const fetchData = async () => {
+      const userid = '9000ff54-14a8-4d5a-a2f4-0553de8ef7d4'; // Replace with the actual user ID
+      const response = await btrservice.btr_lists_data(userid);
+      if (response?.payload?.data) {
+        setData(response.payload.data); // Update the state with the fetched data
+      } else {
+        console.error("Failed to fetch data:", response.message);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   return (
     <div>
-     <Breadcrumb></Breadcrumb>
+      <Breadcrumb />
       <Paper elevation={3} style={{ marginBottom: '16px', padding: '10px' }}>
-     
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
             Basic Tax Register (RELIS)
@@ -177,8 +229,13 @@ const Btr = () => {
       </Paper>
 
       <DataTable
+<<<<<<< HEAD
         columns={columns(handleEdit, handleView)} // Pass both handleEdit and handleView
         data={filteredData}
+=======
+        columns={columns(handleEdit)} // Pass handleEdit to columns function
+        data={filteredData} // Display the filtered data
+>>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
         pagination
         paginationComponentOptions={{
           rowsPerPageText: 'Rows per page',
@@ -189,7 +246,11 @@ const Btr = () => {
         customStyles={{
           headCells: {
             style: {
+<<<<<<< HEAD
               fontSize: '.9rem',
+=======
+              fontSize: '.8rem',
+>>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
               backgroundColor: '#04255e', // Header background color
               color: '#fff', // Header text color
               fontWeight: 'bold', // Bold header text

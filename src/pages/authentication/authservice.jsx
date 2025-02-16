@@ -70,17 +70,15 @@ class authservice {
     }
   }
 
-  static async password_reset(userid, password) {
-    console.log('password >>', password);
-    console.log('usernamess :', userid);
-    try {
-      const response = await axios.post(`${authservice.BASE_URL}/api/password_reset`, { userid, password });
-      console.log(response.data);
-      return response.data;
-    } catch (err) {
-      throw err;
+    static async password_reset(userid,password){
+        try{
+            const response = await axios.post(`${authservice.BASE_URL}/api/password_reset`,{userid,password})
+            return response
+        }catch(err){
+            throw err;
+        }
     }
-  }
+  
 
         // Checker
         static logout(navigate){

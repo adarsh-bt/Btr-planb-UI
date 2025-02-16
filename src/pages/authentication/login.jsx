@@ -17,13 +17,23 @@ import {
 import EmailIcon from "@mui/icons-material/Email";
 import LockIcon from "@mui/icons-material/Lock";
 import ForgotPassword from "./auth-forms/ForgotPassword"; // Ensure this path is correct
-import logo from "./images/gok_logo.png"; // Import the logo image
-import loginimg from "./images/login.png"; // Import the login image
+// Import the logo image
+// Import the login image
 import { useNavigate} from 'react-router-dom'; 
 import CircularProgress from '@mui/material/CircularProgress';
 import Register from './auth-forms/Register';
+<<<<<<< HEAD
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
+=======
+import logo from "./images/govt.png"; // Import the logo image
+import loginimg from "./images/login.png"; // Import the login image
+import deslogo from "./images/des.png"; // Import the DES logo image
+import duklogo from "./images/Duk-Logo.png"; // Import the DUK logo image
+import cdtilogo from "./images/cdti_icon.png"; // Import the DUK logo image
+import { keyframes } from '@emotion/react';
+import './login.css'
+>>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
 
 
 import IconButton from '@mui/material/IconButton';
@@ -32,12 +42,24 @@ import './login.css';
 
 import authservice from './authservice';
 
+
+const fadeIn = keyframes`
+  0% { opacity: 0; transform: translateY(50px); }
+  100% { opacity: 1; transform: translateY(0); }
+`;
+
+
 const SignInSide = () => {
   // login state
 
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isRegister, setIsRegister] = useState(false); // State for toggling Register form
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
   const handleForgotPasswordClick = () => {
     setIsForgotPassword(true);
   };
@@ -60,6 +82,7 @@ const SignInSide = () => {
         md={7}
         lg={7}
         sx={{
+<<<<<<< HEAD
           background: 'linear-gradient(142deg, rgba(42,110,193,1) 15%, rgba(22,77,155,1) 28%, rgba(14,63,139,1) 41%, rgba(5,48,122,1) 64%)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
@@ -68,6 +91,17 @@ const SignInSide = () => {
           justifyContent: 'center',
           borderTopLeftRadius: '20px', // Curves the top-left corner
           borderBottomLeftRadius: '20px', // Curves the bottom-left corner
+=======
+          background:
+            "linear-gradient(142deg, rgba(42,110,193,1) 15%, rgba(22,77,155,1) 28%, rgba(14,63,139,1) 41%,rgb(5, 48, 122) 64%)",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        
+          
+>>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
         }}
       >
         <div style={{ textAlign: 'center' }}>
@@ -89,7 +123,13 @@ const SignInSide = () => {
               color: '#fff',
               fontWeight: 'bold',
               px: 4,
+<<<<<<< HEAD
               textAlign: 'center',
+=======
+              textAlign: "center",
+              // marginTop: "1rem",
+              marginBottom:'2rem',
+>>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
               
               // marginTop: "1rem",
               marginBottom: '5rem'
@@ -97,7 +137,66 @@ const SignInSide = () => {
           >
             AIDEA
           </Typography>
+          <Typography variant="h5"  sx={{
+              color: "#fff",
+              fontWeight: "bold",
+              px: 4,
+              textAlign: "center",
+              // marginTop: "1rem",
+              marginBottom:'3rem',
+              animation: `${fadeIn} 1.5s ease-out`,
+              
+            }}>Application for Intelligent Data Engineering and Analytics</Typography>
+        
+        <Typography style={{ display: "flex", justifyContent: "center", gap: "2rem", marginBottom: "3rem" }}>
+        <img
+        src={duklogo}
+        alt="DUK Logo"
+        style={{
+          width: "80px",
+          height: "50px",
+          padding:".7rem",
+          borderRadius: "5px", // Adds border radius for a polished look
+          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)", // Shadow for logos
+        
+        }}
+      />
+         {/* <img
+        src={deslogo}
+        alt="DES Logo"
+        style={{
+          width: "50px",
+          height: "50px",
+          borderRadius: "10px",
+          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)",
+         
+        }}
+      /> */}
+     <img
+        src={cdtilogo}
+        alt="DUK Logo"
+        style={{
+          width: "80px",
+          height: "50px",
+          padding:".7rem",
+          borderRadius: "5px", // Adds border radius for a polished look
+          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)", // Shadow for logos
+  
+        }}
+      />
+          {/* <Typography variant="p"  sx={{
+              color: "#fff",
+            }}>CDTI</Typography> */}
+        </Typography>
+        <Box sx={{ color: 'text.disabled' }}>© 2025 AIDEA CDTI-DUK. All rights reserved.</Box>
+
+        
         </div>
+<<<<<<< HEAD
+=======
+          
+
+>>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
       </Grid>
       <Grid
         item
@@ -117,7 +216,15 @@ const SignInSide = () => {
           boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
         }}
       >
+<<<<<<< HEAD
         <Avatar alt="User Login" src={loginimg} sx={{ width: 80, height: 80, marginBottom: '.5rem' }} />
+=======
+      <Avatar
+            alt="User Login"
+            src={loginimg}
+            sx={{ width: 50, height: 50,marginBottom:'.5rem' }}
+            />
+>>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
 
         {/* Dynamic Heading */}
         <Typography component="h1" variant="h5" sx={{ fontWeight: 'bold', color: '#333', mb: 3 }}>
@@ -144,7 +251,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false); // New state for loading
+  const [isLoading, setIsLoading] = useState(false); // New state for loading
 
   const [showPassword, setShowPassword] = useState(false); // State to toggle password visibility
 
@@ -153,8 +260,13 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
 
     if (username && password) {
       try {
+        setIsLoading(true);
         const userData = await authservice.login(username, password);
+<<<<<<< HEAD
 
+=======
+        setIsLoading(false);
+>>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
         if (userData.payload && userData.payload.token && typeof userData.payload.token === 'string') {
           localStorage.setItem('token', userData.payload.token);
           navigate('/');
@@ -267,6 +379,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
         }}
       />
       {/* Remember Me Checkbox */}
+<<<<<<< HEAD
       <FormControlLabel control={<Checkbox value="remember" color="primary" />} label="Remember me" />
       {/* Centered Sign In Button */}
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
@@ -294,6 +407,38 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
             'Sign In'
           )}
         </Button>
+=======
+      {/* <FormControlLabel
+        control={<Checkbox value="remember" color="primary" />}
+        label="Remember me"
+      /> */}
+
+      {/* Centered Sign In Button */}
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+      <Button
+  type="submit"
+  variant="contained"
+  color="primary"
+  sx={{
+    p: 1.5,
+    borderRadius: '20px',
+    width: '100%',
+    maxWidth: '200px',
+    '&:hover': {
+      backgroundColor: 'primary.dark',
+      color: 'white',
+    },
+  }}
+  disabled={isLoading}
+>
+  {isLoading ? (
+     <Typography sx={{color:'blue'}}>Logging...</Typography>
+    ) : (
+      'Login'
+    )}
+</Button>
+
+>>>>>>> c9782b2da7dd70cbe4e8a9e0c68d75af21fa4078
       </Box>
       {/* Add spacing between the button and links */}
       <Box sx={{ mt: 4 }}>
