@@ -2,6 +2,7 @@ import React from "react";
 import { useTheme } from "@mui/material/styles";
 import { Box, Card, CardContent, CardMedia, Typography } from "@mui/material";
 import { Link} from 'react-router-dom'; 
+import Breadcrumb from "routes/Breadcrumb";
 
 const earas_list = () => {
   const theme = useTheme();
@@ -17,7 +18,7 @@ const earas_list = () => {
       title: "e-BTR",
       image: "https://png.pngtree.com/png-vector/20230302/ourmid/pngtree-dashboard-line-icon-vector-png-image_6626604.png",
       gradient: "linear-gradient(to right,rgba(118, 184, 82, 0.88), #8DC26F)",
-      url:"/dashboard/btr"
+      url:"/schemes/earas/btr"
     },
     {
       title: "Cluster Formation",
@@ -47,6 +48,7 @@ const earas_list = () => {
 
   return (
     <div>
+    <Breadcrumb></Breadcrumb>
     <Typography variant="h3" sx={{marginBottom:4}}>Earas</Typography>
     <Box
       display="flex"

@@ -3,6 +3,7 @@ import { lazy } from 'react';
 // project import
 import Loadable from 'components/Loadable';
 import Dashboard from 'layout/Dashboard';
+import PrivateRoute from './PrivateRoute';
 
 const Color = Loadable(lazy(() => import('pages/component-overview/color')));
 const Typography = Loadable(lazy(() => import('pages/component-overview/typography')));
@@ -13,6 +14,7 @@ const DashboardDefault = Loadable(lazy(() => import('pages/dashboard/index')));
 const Schemes = Loadable(lazy(() => import('pages/functional-components/schemas')));
 const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_list')));
 const BTR = Loadable(lazy(() => import('pages/functional-components/earas/Btr')));
+const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
 
 // Approvels
 const Approvel = Loadable(lazy(() => import('pages/functional-components/approvels/approvelist')));
@@ -21,65 +23,109 @@ const Approvel = Loadable(lazy(() => import('pages/functional-components/approve
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
-  path: '/dashboard',
-  element: <Dashboard />,
+  path: '/',
+  element: (
+    <PrivateRoute>
+      <Dashboard />
+    </PrivateRoute>
+  ),
   children: [
     {
-      path: '/dashboard',
-      element: <DashboardDefault />
+      path: '/',
+      element: (
+        <PrivateRoute>
+          <DashboardDefault />
+        </PrivateRoute>
+      ),
     },
     {
       path: 'color',
-      element: <Color />
-    },
-    {
-      path: 'dashboard',
-      children: [
-        {
-          path: 'default',
-          element: <DashboardDefault />
-        }
-      ]
+      element: (
+        <PrivateRoute>
+          <Color />
+        </PrivateRoute>
+      ),
     },
     // {
-    //   path: 'sample-page',
-    //   element: <SamplePage />
+    //   path: 'dashboard',
+    //   children: [
+    //     {
+    //       path: 'default',
+    //       element: (
+    //         <PrivateRoute>
+    //           <DashboardDefault />
+    //         </PrivateRoute>
+    //       ),
+    //     },
+    //   ],
     // },
+    // Add more routes with PrivateRoute as needed
     {
       path: 'shadow',
-      element: <Shadow />
+      element: (
+        <PrivateRoute>
+          <Shadow />
+        </PrivateRoute>
+      ),
     },
     {
       path: 'typography',
-      element: <Typography />
+      element: (
+        <PrivateRoute>
+          <Typography />
+        </PrivateRoute>
+      ),
     },
-
-    // Tabs Menus
-    // Schemes
-
     {
       path: 'schemes',
-      element: <Schemes />
+      element: (
+        <PrivateRoute>
+          <Schemes />
+        </PrivateRoute>
+      ),
     },
-
-
     {
-      path: 'earas',
-      element: <Earas />
+      path: 'schemes/earas',
+      element: (
+        <PrivateRoute>
+          <Earas />
+        </PrivateRoute>
+      ),
     },
-    // BTR
-
     {
-      path: 'btr',
-      element: <BTR />
+      path: 'profile',
+      element: (
+        <PrivateRoute>
+          <Profile />
+        </PrivateRoute>
+      ),
     },
-
-    // Approvels
+    {
+      path: 'profile',
+      element: (
+        <PrivateRoute>
+          <Profile />
+        </PrivateRoute>
+      ),
+    },
+    {
+      path: '/schemes/earas/btr',
+      element: (
+        <PrivateRoute>
+          <BTR />
+        </PrivateRoute>
+      ),
+    },
     {
       path: 'approvals',
-      element: <Approvel />
-    }
-  ]
+      element: (
+        <PrivateRoute>
+          <Approvel />
+        </PrivateRoute>
+      ),
+    },
+  ],
 };
+
 
 export default MainRoutes;

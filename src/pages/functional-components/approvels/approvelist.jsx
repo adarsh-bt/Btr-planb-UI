@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import PropTypes from 'prop-types';
 
-
+import {InvalidTokenError, jwtDecode} from 'jwt-decode';
 import DataTable from 'react-data-table-component';
-
+import Swal from "sweetalert2";
 import VisibilityIcon from '@mui/icons-material/Visibility';
+
 import {
     Typography,
     TextField,
@@ -24,30 +25,35 @@ import {
   
     Radio,
   } from '@mui/material';
+import functionalservice from '../functionalservice';
+import { Approval } from '@mui/icons-material';
 
 const columns = (handleEdit) => [
-    { name: 'SL. NO', selector: (row) => row.slNo, sortable: true },
+    { name: 'SL. NO', selector:(row, index) => index + 1, sortable: true },
     { name: 'Name', selector: (row) => row.name, sortable: true },
+    { name: 'Designation', selector: (row) => row.designation, sortable: true },
     { name: 'Email', selector: (row) => row.email, sortable: true },
-    { name: 'Phone number', selector: (row) => row.phnumber, sortable: true },
-    { name: 'DOJ', selector: (row) => row.doj, sortable: true },
+    { name: 'Phone number', selector: (row) => row.mobileNumber, sortable: true },
+    { name: 'DOJ', selector: (row) => row.dateOfJoining, sortable: true },
+    // { name: 'Applied', selector: (row) => new Date(row.createdAt).toLocaleDateString('en-GB'), sortable: true },
+    { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
     {
         name: "Status",
-        selector: (row) => row.status,sortable: true,
+        selector: (row) => row.active,sortable: true,
         cell: (row) => (
           <span
-            style={{
-              color:
-                row.status === "Approved"
-                  ? "green"
-                  : row.status === "Pending"
-                  ? "orange"
-                  : "red",
-             
-            }}
-          >
-            {row.status}
-          </span>
+          style={{
+            color:
+              row.approvalStatus === "Approved"
+                ? "green"
+                : row.approvalStatus === "Marked"
+                ? "orange"
+                : "red",
+          }}
+        >
+          {row.approvalStatus === "Approved" ? row.approvalStatus : row.approvalStatus === false ? row.approvalStatus : row.approvalStatus}
+        </span>
+        
         ),
       },
     
@@ -66,98 +72,14 @@ const columns = (handleEdit) => [
     },
   ];
   
-  // Sample data for the table
-  const data = [
-    {
-        "slNo": 1,
-        "name": "Arun Kumar",
-        "email": "arun.kumar@example.com",
-        "phnumber": "8847596215",
-        "doj": "24-12-2024",
-        "status":'Approved'
-    },
-    {
-        "slNo": 2,
-        "name": "Lekshmi Nair",
-        "email": "lekshmi.nair@example.com",
-        "phnumber": "9947563210",
-        "doj": "25-12-2024",
-        "status":'Approved'
-    },
-    {
-        "slNo": 3,
-        "name": "Sujith Menon",
-        "email": "sujith.menon@example.com",
-        "phnumber": "8547567890",
-        "doj": "26-12-2024",
-        "status":'Approved'
-    },
-    {
-        "slNo": 4,
-        "name": "Divya Raj",
-        "email": "divya.raj@example.com",
-        "phnumber": "9447598521",
-        "doj": "27-12-2024",
-        "status":'Notverified'
-    },
-    {
-        "slNo": 5,
-        "name": "Anand Krishnan",
-        "email": "anand.krishnan@example.com",
-        "phnumber": "9847596231",
-        "doj": "28-12-2024",
-        "status":'Pending'
-    },
-    {
-        "slNo": 6,
-        "name": "Revathi Suresh",
-        "email": "revathi.suresh@example.com",
-        "phnumber": "8947594215",
-        "doj": "29-12-2024",
-        "status":'Approved'
-    },
-    {
-        "slNo": 7,
-        "name": "Hari Shankar",
-        "email": "hari.shankar@example.com",
-        "phnumber": "8547591230",
-        "doj": "30-12-2024",
-         "status":'Notverified'
-    },
-    {
-        "slNo": 8,
-        "name": "Nisha K",
-        "email": "nisha.k@example.com",
-        "phnumber": "9447593211",
-        "doj": "31-12-2024",
-        "status":'Pending'
-    },
-    {
-        "slNo": 9,
-        "name": "Rajesh Mohan",
-        "email": "rajesh.mohan@example.com",
-        "phnumber": "8847591289",
-        "doj": "01-01-2025",
-         "status":'Notverified'
-    },
-    {
-        "slNo": 10,
-        "name": "Meera Varma",
-        "email": "meera.varma@example.com",
-        "phnumber": "9747594520",
-        "doj": "02-01-2025",
-        "status":'Notverified'
-    }
-    ];
-
 
 function CustomTabPanel(props) {
   const { children, value, index, ...other } = props;
 
-  
+
 
   return (
-    <div
+    <Box
       role="tabpanel"
       hidden={value !== index}
       id={`simple-tabpanel-${index}`}
@@ -165,7 +87,7 @@ function CustomTabPanel(props) {
       {...other}
     >
       {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
-    </div>
+    </Box>
   );
 }
 
@@ -186,34 +108,94 @@ export default function BasicTabs() {
   const [value, setValue] = React.useState(0);
 
 
-    const [filterText, setFilterText] = useState('');
+  
     const [openModal, setOpenModal] = useState(false);
     const [selectedRow, setSelectedRow] = useState(null);
-  
+      // State for remarks
+
     // Function to handle filter change
-    const handleFilterChange = (event) => {
-      setFilterText(event.target.value);
-    };
-  
-    // Filtered data based on the filter text
-    const filteredData = data.filter((item) =>
-      Object.values(item).some((value) =>
-        value.toString().toLowerCase().includes(filterText.toLowerCase())
-      )
-    );
+    
   
     // Function to handle edit action
     const handleEdit = (row) => {
       setSelectedRow(row); // Set the selected row to be edited
+      setRadioState(row.approvalStatus.toLowerCase()); // Set the radio state to match the approval status (approved/marked/rejected)
+      setRemarks(row.remarks)
       setOpenModal(true); // Open the modal
     };
+    
   
     // Function to close the modal
     const handleCloseModal = () => {
       setOpenModal(false);
       setSelectedRow(null); // Reset selected row when closing
     };
-  
+
+    
+  const [remarks, setRemarks] = useState("");
+    const handleSaveChanges = () => {
+      // Close the modal first
+      handleCloseModal();
+    
+      // SweetAlert2 confirmation dialog
+      Swal.fire({
+        title: "Are you sure?",
+        text: "You are about to save changes. Do you want to proceed?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Yes, save changes",
+        cancelButtonText: "No, cancel",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          
+          // Prepare data for the API call
+          const token = localStorage.getItem('token')
+          const decodedToken = jwtDecode(token);  // Decodes the JWT
+          const admin_id = decodedToken.sub;
+          console.log("admin >>",admin_id)
+          console.log("approval id >>",selectedRow.approvalId)
+          console.log("remarks >>",remarks)
+          const approvalStatus = radioState;  // The status ("approved", "marked", "rejected")
+          // const remarks = radioState === "rejected" || radioState === "marked" ? remarks : "All documents verified and approved.";  // Sample remarks based on status
+          console.log("selec",selectedRow.userId)
+          // Construct the payload
+          const payload = {
+            approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "marked" ? "Marked" : "Rejected",
+            approvalDate: new Date().toISOString().split('T')[0],
+            remarks: remarks,
+            isApproved: approvalStatus === "approved", 
+            adminId: admin_id, 
+            userId: selectedRow ? selectedRow.userId : "", 
+            id:selectedRow.approvalId
+          };
+    
+          // Call the API using the separate function
+          functionalservice.saveApprovalDetails(payload)
+            .then((data) => {
+              console.log("data >>",data)
+              if (data.payload) {
+                Swal.fire("Saved!", "Your changes have been saved.", "success");
+                setUserList((prevUserList) => 
+                  prevUserList.map((user) =>
+                    // Update only the selected user, keep the rest of the users unchanged
+                    user.userId === selectedRow.userId
+                      ? { ...user, approvalStatus: data.payload.approvalStatus,approvalId:data.payload.id }
+                      : user
+                  )
+                );
+              } else {
+                Swal.fire("Error", data.message || "Something went wrong, please try again.", "error");
+              }
+            })
+            .catch((error) => {
+              Swal.fire("Error", "Failed to save changes. Please try again later.", "error");
+            });
+        } else {
+          Swal.fire("Cancelled", "Your changes have not been saved.", "error");
+        }
+      });
+    };
+    
   
 
   const handleChange = (event, newValue) => {
@@ -234,17 +216,62 @@ export default function BasicTabs() {
 //   };
 const [radioState, setRadioState] = React.useState("");
 
+const [category, setCategory] = useState('');
+const [duties, setDuties] = useState('');
+
+
 const handleRadioChange = (value) => {
   setRadioState(value);
 };
 
-  return (
+const handleCategoryChange = (event) => {
+  setCategory(event.target.value);
+};
 
-    <div style={{background:'white'}}>
+const handleDutiesChange = (event) => {
+  setDuties(event.target.value);
+};
+
+const isSaveEnabled = (radioState === 'marked' || radioState === 'rejected' || radioState === 'approved') && category && duties;
+
+
+const [userList, setUserList] = useState([]);
+const [filterText, setFilterText] = useState('');
+
+useEffect(() => {
+  const fetchUserApprovals = async () => {
+      try {
+          const response = await functionalservice.user_approvel_list();
+          console.log("response>>>", response.payload);
+          setUserList(response.payload); // Store the data in state
+      } catch (err) {
+          setError(err.response?.data?.message || "An error occurred");
+      }
+  };
+
+  fetchUserApprovals(); // Call the function when the component mounts
+}, []);
+
+
+const handleFilterChange = (event) => {
+  console.log("evenet ?>>",event.target.value)
+  setFilterText(event.target.value);
+};
+console.log("userliat",userList)
+// Filtered data based on the filter text
+const filteredData = userList.filter((item) =>
+  Object.values(item).some((value) =>
+    value.toString().toLowerCase().includes(filterText.toLowerCase())
+  )
+);
+console.log("filtr",filterText.toLowerCase())
+return (
+
+    <Box style={{background:'white'}}>
     <Typography variant='h4' p={1}>Approvals </Typography>
     <hr></hr>
     <Box sx={{ width: '100%' }}>
-      <Box sx={{borderColor: 'divider',marginLeft:'1rem' ,justifyContent: 'center',alignItems:'center'}}>
+      <Box sx={{borderColor: 'Boxider',marginLeft:'1rem' ,justifyContent: 'center',alignItems:'center'}}>
         <Tabs value={value} onChange={handleChange} aria-label="basic tabs example"  indicatorColor="primary" >
           <Tab label="New User Request" {...a11yProps(0)} />
           <Tab label="Zone Approvals" {...a11yProps(1)} />
@@ -258,7 +285,7 @@ const handleRadioChange = (value) => {
       <Paper elevation={3} style={{  padding: '10px',}}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
-            New User Request
+            New User Request 
           </Typography>
           <TextField
             label="Filter"
@@ -325,7 +352,7 @@ const handleRadioChange = (value) => {
       textAlign: "center",
       borderBottom: "2px solid #f0f0f0",
       paddingBottom: "10px",
-      background:'#04255e'
+      background: '#04255e',
     }}
   >
     New User Request
@@ -333,7 +360,6 @@ const handleRadioChange = (value) => {
   <DialogContent style={{ padding: "20px", backgroundColor: "#fafafa" }}>
     {selectedRow && (
       <DialogContentText>
-        {/* Center-aligned fields with enhanced layout */}
         <Stack
           spacing={2}
           style={{
@@ -345,15 +371,15 @@ const handleRadioChange = (value) => {
             boxShadow: "0 0 10px rgba(0, 0, 0, 0.1)",
           }}
         >
-          {/* Display fields in two-column layout */}
-          {[
-            { label: "Name", value: selectedRow.name },
+          {[{ label: "Name", value: selectedRow.name },
+            { label: "Date Of birth", value: selectedRow.dateOfBirth },
             { label: "Email", value: selectedRow.email },
-            { label: "Phone Number", value: selectedRow.phnumber },
-            { label: "Date of Joining", value: selectedRow.doj },
-         
+            { label: "Phone Number", value: selectedRow.mobileNumber },
+            { label: "Date of Joining", value: selectedRow.dateOfJoining },
+            { label: "Pen", value: selectedRow.penNumber },
+            { label: "Office", value: selectedRow.officeToJoining }
           ].map((field, index) => (
-            <div
+            <Box
               key={index}
               style={{
                 display: "flex",
@@ -362,7 +388,7 @@ const handleRadioChange = (value) => {
                 marginBottom: "10px",
               }}
             >
-              <div
+              <Box
                 style={{
                   textAlign: "right",
                   marginRight: "8px",
@@ -372,8 +398,8 @@ const handleRadioChange = (value) => {
                 }}
               >
                 {field.label}:
-              </div>
-              <div
+              </Box>
+              <Box
                 style={{
                   textAlign: "left",
                   width: "60%",
@@ -384,14 +410,16 @@ const handleRadioChange = (value) => {
                 }}
               >
                 {field.value}
-              </div>
-            </div>
+              </Box>
+            </Box>
           ))}
         </Stack>
 
-        {/* Dropdown for options */}
-        <div
+        {/* Category and Duties Dropdowns */}
+        <Box
           style={{
+            display: "flex",
+            justifyContent: "space-between",
             marginTop: "20px",
             textAlign: "center",
             padding: "10px",
@@ -401,22 +429,43 @@ const handleRadioChange = (value) => {
             boxShadow: "0 0 5px rgba(0, 0, 0, 0.1)",
           }}
         >
-          <strong>Category</strong><br></br>
-          <TextField
-            select
-            fullWidth
-            defaultValue=""
-            variant="outlined"
-            style={{ marginTop: "8px" ,width:'30%'}}
-          >
-            <MenuItem value="Residential">Residential</MenuItem>
-            <MenuItem value="Commercial">Commercial</MenuItem>
-            <MenuItem value="Industrial">Industrial</MenuItem>
-          </TextField>
-        </div>
+          {/* Category Dropdown */}
+          <Box style={{ width: '48%' }}>
+            <strong>Category</strong><br></br>
+            <TextField
+              select
+              fullWidth
+              value={category}
+              onChange={handleCategoryChange}
+              variant="outlined"
+              style={{ marginTop: "8px" }}
+            >
+              <MenuItem value="Investigator">Investigator</MenuItem>
+              {/* Add other categories as needed */}
+            </TextField>
+          </Box>
 
-        {/* Horizontal alignment for checkboxes */}
-        <div
+          {/* Duties Dropdown */}
+          <Box style={{ width: '48%' }}>
+            <strong>Duties</strong><br></br>
+            <TextField
+              select
+              fullWidth
+              value={duties}
+              onChange={handleDutiesChange}
+              variant="outlined"
+              style={{ marginTop: "8px" }}
+            >
+              <MenuItem value="Field Work">Field Work</MenuItem>
+              <MenuItem value="Office Work">Office Work</MenuItem>
+              <MenuItem value="Research">Research</MenuItem>
+              {/* Add other duties as needed */}
+            </TextField>
+          </Box>
+        </Box>
+
+        {/* Status Radio Buttons */}
+        <Box
           style={{
             marginTop: "20px",
             textAlign: "center",
@@ -428,40 +477,48 @@ const handleRadioChange = (value) => {
           }}
         >
           <strong>Status:</strong>
-          <FormGroup row style={{ justifyContent: "center", marginTop: "8px" }}>
-            <FormControlLabel
-              control={
-                <Radio
-                  checked={radioState === "approved"}
-                  onChange={() => handleRadioChange("approved")}
-                />
-              }
-              label="Approved"
-            />
-            <FormControlLabel
-              control={
-                <Radio
-                  checked={radioState === "marked"}
-                  onChange={() => handleRadioChange("marked")}
-                />
-              }
-              label="Marked"
-            />
-            <FormControlLabel
-              control={
-                <Radio
-                  checked={radioState === "rejected"}
-                  onChange={() => handleRadioChange("rejected")}
-                />
-              }
-              label="Rejected"
-            />
-          </FormGroup>
-        </div>
+        <FormGroup row style={{ justifyContent: "center", marginTop: "8px" }}>
+        
+  <FormControlLabel
+    sx={{ color: 'success.main' }}
+    control={
+      <Radio
+        checked={radioState === "approved"}
+        onChange={() => handleRadioChange("approved")}
+        disabled={selectedRow.approvalStatus === "Approved"} // Make "Approved" radio button read-only
+      />
+    }
+    label="Approved"
+  />
+  <FormControlLabel
+    sx={{ color: 'warning.main' }}
+    control={
+      <Radio
+        checked={radioState === "marked"}
+        onChange={() => handleRadioChange("marked")}
+        disabled={selectedRow.approvalStatus === "Approved"} 
+      />
+    }
+    label="Marked"
+  />
+  <FormControlLabel
+    sx={{ color: 'error.main' }}
+    control={
+      <Radio
+        checked={radioState === "rejected"}
+        onChange={() => handleRadioChange("rejected")}
+        disabled={selectedRow.approvalStatus === "Approved"} 
+      />
+    }
+    label="Rejected"
+  />
+</FormGroup>
+{selectedRow.approvalStatus === "Approved" ? <Typography sx={{ color: 'primary.main' }}>Already Approved only View</Typography> : null}
+        </Box>
 
-        {/* Conditional textbox for remarks if "Rejected" is selected */}
-        {radioState === "rejected" && (
-          <div
+        {/* Remarks Textbox if Rejected */}
+        {(radioState === "rejected" || radioState === "marked") && (
+          <Box
             style={{
               marginTop: "16px",
               textAlign: "center",
@@ -478,8 +535,10 @@ const handleRadioChange = (value) => {
               fullWidth
               variant="outlined"
               style={{ fontSize: "14px" }}
+              value={remarks}  // Bind to state
+              onChange={(e) => setRemarks(e.target.value)}
             />
-          </div>
+          </Box>
         )}
       </DialogContentText>
     )}
@@ -488,13 +547,17 @@ const handleRadioChange = (value) => {
     <Button onClick={handleCloseModal} color="secondary" variant="outlined">
       Close
     </Button>
-    <Button onClick={handleCloseModal} color="primary" variant="contained" sx={{background:'#04255e'}}>
-                Save Changes
+    <Button
+      onClick={handleSaveChanges}
+      color="primary"
+      variant="contained"
+      sx={{ background: '#04255e' }}
+      disabled={!isSaveEnabled}
+    >
+      Save Changes
     </Button>
   </DialogActions>
 </Dialog>
-
-
 
 
       </CustomTabPanel>
@@ -505,6 +568,6 @@ const handleRadioChange = (value) => {
         Other Requests
       </CustomTabPanel>
     </Box>
-    </div>
+    </Box>
   );
 }

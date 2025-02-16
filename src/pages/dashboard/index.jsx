@@ -35,7 +35,10 @@ import CardActionArea from '@mui/material/CardActionArea';
 import CardActions from '@mui/material/CardActions';
 
 
+
 import tabmenus from './tabmenus/tabmenus';
+import auth from 'contexts/auth-reducer/auth';
+import Breadcrumb from 'routes/Breadcrumb';
 // avatar style
 const avatarSX = {
   width: 36,
@@ -54,10 +57,13 @@ const actionSX = {
 };
 
 
+
 const { children } = tabmenus.items2[0];
 // ==============================|| DASHBOARD - DEFAULT ||============================== //
 
 export default function DashboardDefault() {
+  const isauth = auth.isAdmin()
+
   return (
     
     <Grid
@@ -69,8 +75,14 @@ export default function DashboardDefault() {
     >
       {/* Row 1 */}
       <Grid item xs={12}>
+     <Breadcrumb></Breadcrumb>
         <Typography variant="h4" align="center" sx={{ mb: 3 }}>
-          Dashboard
+          Dashboard  
+          {/* {isauth ? (
+        <h3>Welcome to your Dashboard</h3>
+      ) : (
+        <h3>Please log in to access the Dashboard</h3>
+      )} */}
         </Typography>
       </Grid>
 
@@ -103,7 +115,7 @@ export default function DashboardDefault() {
     <Grid container spacing={4} sx={{marginBottom:'3rem'}}>
     
     <Grid item xs={12} sm={4} md={4} lg={4}>
-  <Card component={Link} to='/dashboard/schemes'
+  <Card component={Link} to='/schemes'
     sx={{
       textDecoration:'none',
       position: 'relative',
