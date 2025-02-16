@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DataTable from 'react-data-table-component';
 import {
   Typography,
@@ -12,165 +12,46 @@ import {
   DialogContentText,
   DialogTitle,
 } from '@mui/material';
-import { borderRadius } from '@mui/system';
-import { EditOutlined  } from '@ant-design/icons';
+import { EditOutlined } from '@ant-design/icons';
 import Breadcrumb from 'routes/Breadcrumb';
+import axios from 'axios';
+import btrservice from './btrservice';
+
 // Define the columns for the data table
 const columns = (handleEdit) => [
-  { name: 'SL. NO', selector: (row) => row.slNo, sortable: true },
-  { name: 'District', selector: (row) => row.district, sortable: true },
-  { name: 'Taluk', selector: (row) => row.taluk, sortable: true },
-  { name: 'Village', selector: (row) => row.village, sortable: true },
-  { name: 'Block', selector: (row) => row.block, sortable: true },
-  { name: 'Survey No', selector: (row) => row.surveyNo, sortable: true },
-  { name: 'Sub Div No', selector: (row) => row.subDivNo, sortable: true },
-  { name: 'Name of Owner', selector: (row) => row.ownerName, sortable: true },
-  { name: 'Address', selector: (row) => row.address, sortable: true },
-  { name: 'Total Area', selector: (row) => row.totalArea, sortable: true },
+  { name: 'SL. NO', selector:(row, index) => index + 1, sortable: true },
+  // { name: 'District', selector: (row) => row.dcode, sortable: true },
+  // { name: 'Taluk', selector: (row) => row.tcode, sortable: true },
+  // { name: 'Village', selector: (row) => row.vcode, sortable: true },
+  { name: 'Village', selector: (row) => "പെരിയ", sortable: true },
+  { name: 'Block', selector: (row) => row.bcode, sortable: true },
+  { name: 'Survey No', selector: (row) => row.resvno, sortable: true },
+  { name: 'Sub Div No', selector: (row) => row.resbdno, sortable: true },
+  { name: 'Name of Owner', selector: (row) => row.lbtype, sortable: true },
+  // { name: 'Address', selector: (row) => row.lbcode, sortable: true },
+  { name: 'Address', selector: (row) => "പുല്ലുപെരിയ", sortable: true },
+  { name: 'Land Type', selector: (row) => row.ltype, sortable: true },
+  { name: 'Total Area', selector: (row) => row.nhect, sortable: true },
+  { name: 'Total Area', selector: (row) => row.nare, sortable: true },
+  { name: 'Total Area', selector: (row) => row.nsqm, sortable: true },
   {
     name: 'Action',
     cell: (row) => (
-      <Button
-       
-        color="success" // Green color for the button
-       
-        onClick={() => handleEdit(row)} // Call edit function on click
-      >
+      <Button color="success" onClick={() => handleEdit(row)}>
         <EditOutlined />
       </Button>
     ),
   },
 ];
 
-// Sample data for the table
-const data = [
-    {
-      slNo: 1,
-      district: 'Kollam',
-      taluk: 'Kollam',
-      village: 'Kollam Village',
-      block: 'Block A',
-      surveyNo: '001',
-      subDivNo: '1',
-      ownerName: 'John Doe',
-      address: '123 Street, Kollam',
-      totalArea: '5.2 acres',
-    },
-    {
-      slNo: 2,
-      district: 'Kochi',
-      taluk: 'Kochi',
-      village: 'Kochi Village',
-      block: 'Block B',
-      surveyNo: '002',
-      subDivNo: '2',
-      ownerName: 'Jane Smith',
-      address: '456 Street, Kochi',
-      totalArea: '3.8 acres',
-    },
-    {
-      slNo: 3,
-      district: 'Thiruvananthapuram',
-      taluk: 'Neyyattinkara',
-      village: 'Neyyattinkara Village',
-      block: 'Block C',
-      surveyNo: '003',
-      subDivNo: '3',
-      ownerName: 'Michael Thomas',
-      address: '789 Street, Neyyattinkara',
-      totalArea: '4.5 acres',
-    },
-    {
-      slNo: 4,
-      district: 'Thrissur',
-      taluk: 'Thrissur',
-      village: 'Thrissur Village',
-      block: 'Block D',
-      surveyNo: '004',
-      subDivNo: '4',
-      ownerName: 'Emily Davis',
-      address: '101 Street, Thrissur',
-      totalArea: '6.3 acres',
-    },
-    {
-      slNo: 5,
-      district: 'Alappuzha',
-      taluk: 'Alappuzha',
-      village: 'Alappuzha Village',
-      block: 'Block E',
-      surveyNo: '005',
-      subDivNo: '5',
-      ownerName: 'Sophia Brown',
-      address: '202 Street, Alappuzha',
-      totalArea: '2.7 acres',
-    },
-    {
-      slNo: 6,
-      district: 'Kannur',
-      taluk: 'Kannur',
-      village: 'Kannur Village',
-      block: 'Block F',
-      surveyNo: '006',
-      subDivNo: '6',
-      ownerName: 'William Wilson',
-      address: '303 Street, Kannur',
-      totalArea: '3.9 acres',
-    },
-    {
-      slNo: 7,
-      district: 'Palakkad',
-      taluk: 'Palakkad',
-      village: 'Palakkad Village',
-      block: 'Block G',
-      surveyNo: '007',
-      subDivNo: '7',
-      ownerName: 'Olivia Garcia',
-      address: '404 Street, Palakkad',
-      totalArea: '5.0 acres',
-    },
-    {
-      slNo: 8,
-      district: 'Kozhikode',
-      taluk: 'Kozhikode',
-      village: 'Kozhikode Village',
-      block: 'Block H',
-      surveyNo: '008',
-      subDivNo: '8',
-      ownerName: 'Liam Martinez',
-      address: '505 Street, Kozhikode',
-      totalArea: '4.1 acres',
-    },
-    {
-      slNo: 9,
-      district: 'Ernakulam',
-      taluk: 'Aluva',
-      village: 'Aluva Village',
-      block: 'Block I',
-      surveyNo: '009',
-      subDivNo: '9',
-      ownerName: 'Charlotte White',
-      address: '606 Street, Aluva',
-      totalArea: '7.2 acres',
-    },
-    {
-      slNo: 10,
-      district: 'Malappuram',
-      taluk: 'Malappuram',
-      village: 'Malappuram Village',
-      block: 'Block J',
-      surveyNo: '010',
-      subDivNo: '10',
-      ownerName: 'James Taylor',
-      address: '707 Street, Malappuram',
-      totalArea: '3.4 acres',
-    },
-  ];
-  
+// btrservice with the API call to fetch data
+
 
 const Btr = () => {
   const [filterText, setFilterText] = useState('');
   const [openModal, setOpenModal] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
+  const [data, setData] = useState([]); // State to hold the fetched data
 
   // Function to handle filter change
   const handleFilterChange = (event) => {
@@ -196,11 +77,25 @@ const Btr = () => {
     setSelectedRow(null); // Reset selected row when closing
   };
 
+  // Fetch the data from the API when the component is mounted
+  useEffect(() => {
+    const fetchData = async () => {
+      const userid = '9000ff54-14a8-4d5a-a2f4-0553de8ef7d4'; // Replace with the actual user ID
+      const response = await btrservice.btr_lists_data(userid);
+      if (response?.payload?.data) {
+        setData(response.payload.data); // Update the state with the fetched data
+      } else {
+        console.error("Failed to fetch data:", response.message);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   return (
     <div>
-     <Breadcrumb></Breadcrumb>
+      <Breadcrumb />
       <Paper elevation={3} style={{ marginBottom: '16px', padding: '10px' }}>
-     
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
             Basic Tax Register (RELIS)
@@ -216,11 +111,9 @@ const Btr = () => {
         </Stack>
       </Paper>
 
-
       <DataTable
-      
         columns={columns(handleEdit)} // Pass handleEdit to columns function
-        data={filteredData}
+        data={filteredData} // Display the filtered data
         pagination
         paginationComponentOptions={{
           rowsPerPageText: 'Rows per page',
@@ -229,15 +122,13 @@ const Btr = () => {
           selectAllRowsItem: 'Select All',
         }}
         customStyles={{
-       
           headCells: {
             style: {
-                fontSize:'.8rem',
+              fontSize: '.8rem',
               backgroundColor: '#04255e', // Header background color
               color: '#fff', // Header text color
               fontWeight: 'bold', // Bold header text
               borderBottom: '2px solid black', // Classic border style
-           
             },
           },
           cells: {
@@ -245,15 +136,13 @@ const Btr = () => {
               backgroundColor: '',
               borderBottom: '1px solid white', // Light bottom border for rows
               color: '#333', // Darker text color for better readability
-             
             },
           },
           pagination: {
             style: {
               color: '#04255e', // Change pagination symbols to blue
-             
-              alignItems:'center',
-              justifyContent:'center'
+              alignItems: 'center',
+              justifyContent: 'center',
             },
           },
         }}

@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 
-import { TextField, Button, Typography, Box, Grid, Stack, Alert } from '@mui/material';
+import { TextField, Button, Typography, Box, Grid, Stack, Alert,CircularProgress } from '@mui/material';
 import authservice from "../authservice";
-import CircularProgress from '@mui/material/CircularProgress';
 
 
 const ForgotPassword = ({ onBack }) => {

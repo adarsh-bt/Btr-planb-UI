@@ -50,6 +50,7 @@ const SignInSide = () => {
   const [isRegister, setIsRegister] = useState(false); // State for toggling Register form
 
 
+
   const handleForgotPasswordClick = () => {
     setIsForgotPassword(true);
   };
@@ -135,7 +136,7 @@ const SignInSide = () => {
         
         }}
       />
-         <img
+         {/* <img
         src={deslogo}
         alt="DES Logo"
         style={{
@@ -145,7 +146,7 @@ const SignInSide = () => {
           boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)",
          
         }}
-      />
+      /> */}
      <img
         src={cdtilogo}
         alt="DUK Logo"
@@ -222,7 +223,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false); // New state for loading
+  const [isLoading, setIsLoading] = useState(false); // New state for loading
 
 
   const handleSubmit = async (e) => {
@@ -230,8 +231,9 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
     
     if (username && password) {
       try {
+        setIsLoading(true);
         const userData = await authservice.login(username, password);
-        
+        setIsLoading(false);
         if (userData.payload && userData.payload.token && typeof userData.payload.token === 'string') {
           localStorage.setItem('token', userData.payload.token);
           navigate('/');
@@ -318,10 +320,10 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
       />
 
       {/* Remember Me Checkbox */}
-      <FormControlLabel
+      {/* <FormControlLabel
         control={<Checkbox value="remember" color="primary" />}
         label="Remember me"
-      />
+      /> */}
 
       {/* Centered Sign In Button */}
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
@@ -339,15 +341,13 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
       color: 'white',
     },
   }}
+  disabled={isLoading}
 >
-  {loading ? (
-    <>
-      <CircularProgress size={24} sx={{ color: 'white', mr: 1 }} />
-      Signing In...
-    </>
-  ) : (
-    'Sign In'
-  )}
+  {isLoading ? (
+     <Typography sx={{color:'blue'}}>Logging...</Typography>
+    ) : (
+      'Login'
+    )}
 </Button>
 
       </Box>
