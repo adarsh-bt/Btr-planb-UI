@@ -18,8 +18,8 @@ import {
   Stack,
   FormHelperText
 } from '@mui/material';
-import authservice from '../authservice';
-import RegisterService from 'pages/functional-components/registerservice';
+import authservice from '../services/authservice';
+import RegisterService from 'pages/authentication/services/registerservice';
 
 const Register = ({ onBack }) => {
   const [fullName, setFullName] = useState('');
@@ -283,7 +283,7 @@ const Register = ({ onBack }) => {
   return (
     <Box sx={{ width: '100%', maxWidth: '400px', mx: 'auto' }}>
       {errorMessage && (
-        <Stack sx={{ width: '100%', marginBottom: '.5rem', background: '#fffaef' }} spacing={2}>
+        <Stack sx={{ width: '100%', marginBottom: '.5rem', background: '#fffaef' }} spacing={1}>
           <center>
             <Alert severity="warning" sx={{ width: 'max-content', textAlign: 'center' }}>
               {errorMessage}

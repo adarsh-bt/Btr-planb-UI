@@ -6,6 +6,7 @@ import {
   Stack,
   Paper,
   Button,
+  Box,
   Dialog,
   DialogActions,
   DialogContent,
@@ -14,31 +15,33 @@ import {
 } from '@mui/material';
 import { EditOutlined } from '@ant-design/icons';
 import Breadcrumb from 'routes/Breadcrumb';
-import axios from 'axios';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import btrservice from './btrservice';
 
 // Define the columns for the data table
-const columns = (handleEdit) => [
-  { name: 'SL. NO', selector:(row, index) => index + 1, sortable: true },
+const columns = (handleEdit,handleView) => [
+  { name: 'SL. NO', selector:(row, index) => index + 1 },
   // { name: 'District', selector: (row) => row.dcode, sortable: true },
   // { name: 'Taluk', selector: (row) => row.tcode, sortable: true },
   // { name: 'Village', selector: (row) => row.vcode, sortable: true },
-  { name: 'Village', selector: (row) => "പെരിയ", sortable: true },
-  { name: 'Block', selector: (row) => row.bcode, sortable: true },
-  { name: 'Survey No', selector: (row) => row.resvno, sortable: true },
-  { name: 'Sub Div No', selector: (row) => row.resbdno, sortable: true },
-  { name: 'Name of Owner', selector: (row) => row.lbtype, sortable: true },
+  { name: 'Village', selector: (row) => row.villageName?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'Block', selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'Survey No', selector: (row) => row.resvno?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'Sub Div No', selector: (row) => row.resbdno?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'Name of Owner', selector: (row) => row.lbtype?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'Address', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
   // { name: 'Address', selector: (row) => row.lbcode, sortable: true },
-  { name: 'Address', selector: (row) => "പുല്ലുപെരിയ", sortable: true },
-  { name: 'Land Type', selector: (row) => row.ltype, sortable: true },
-  { name: 'Total Area', selector: (row) => row.nhect, sortable: true },
-  { name: 'Total Area', selector: (row) => row.nare, sortable: true },
-  { name: 'Total Area', selector: (row) => row.nsqm, sortable: true },
+ 
+  { name: 'Land Type', selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'nhect', selector: (row) => row.nhect?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'nare', selector: (row) => row.nare?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'nsqm', selector: (row) => row.nsqm?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+
   {
-    name: 'Action',
+    name: 'View',
     cell: (row) => (
-      <Button color="success" onClick={() => handleEdit(row)}>
-        <EditOutlined />
+      <Button color="success" onClick={() => handleView(row)}>
+         <VisibilityIcon />
       </Button>
     ),
     style: {
@@ -46,6 +49,19 @@ const columns = (handleEdit) => [
       textAlign: 'center', // Align the buttons in the center
     },
   },
+  // {
+  //   name: 'Action',
+  //   cell: (row) => (
+  //     <Button color="success" onClick={() => handleEdit(row)}>
+  //       <EditOutlined />
+  //     </Button>
+  //   ),
+  //   style: {
+  //     padding: '0px', // Remove unnecessary padding
+  //     textAlign: 'center', // Align the buttons in the center
+  //   },
+  // },
+ 
 ];
 
 // btrservice with the API call to fetch data
@@ -57,18 +73,25 @@ const Btr = () => {
   const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
   const [data, setData] = useState([]); // State to hold the fetched data
+  const [page, setPage] = useState(0); // Current page
+  const [size, setSize] = useState(10); // Number of items per page
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalArea, setTotalArea] = useState(0);
 
   // Function to handle filter change
   const handleFilterChange = (event) => {
     setFilterText(event.target.value);
+    fetchData(event.target.value);
   };
 
   // Filtered data based on the filter text
   const filteredData = data.filter((item) =>
-    Object.values(item).some((value) =>
-      value.toString().toLowerCase().includes(filterText.toLowerCase())
-    )
-  );
+    Object.values(item).some((value) => {
+        // Safely handle null or undefined values
+        const stringValue = value !== null && value !== undefined ? value.toString().toLowerCase() : '';
+        return stringValue.includes(filterText.toLowerCase());
+    })
+);
 
   // Function to handle edit action
   const handleEdit = (row) => {
@@ -78,42 +101,65 @@ const Btr = () => {
 
   // Function to handle view action
   const handleView = (row) => {
-    setSelectedRow(row); // Set the selected row to be viewed
-    setOpenViewModal(true); // Open the view modal
+    setSelectedRow(row); 
+    setOpenViewModal(true); 
   };
 
   // Function to close modals
   const handleCloseModals = () => {
     setOpenEditModal(false);
     setOpenViewModal(false);
-    setSelectedRow(null); // Reset selected row when closing
+    setSelectedRow(null); 
   };
 
+  const handlePageChange = (newPage) => {
+    setPage(newPage); 
+  };
+  const handleRowsPerPageChange = (newSize) => {
+    setSize(newSize); 
+  };
   // Fetch the data from the API when the component is mounted
-  useEffect(() => {
-    const fetchData = async () => {
-      const userid = '9000ff54-14a8-4d5a-a2f4-0553de8ef7d4'; // Replace with the actual user ID
-      const response = await btrservice.btr_lists_data(userid);
-      if (response?.payload?.data) {
-        setData(response.payload.data); // Update the state with the fetched data
-      } else {
-        console.error("Failed to fetch data:", response.message);
-      }
-    };
+  const fetchData = async (filter = '') => {
 
-    fetchData();
-  }, []);
+    const userid = '1605'; 
+  
+    // Only calculate maxPage when totalRecords is available and greater than 0
+    const maxPage = totalRecords > 0 ? Math.ceil(totalRecords / size) : 1; // Default maxPage to 1 if no records yet
+  
+    // If the current page is beyond the maximum, adjust it to the last page
+    const currentPage = page >= maxPage ? maxPage - 1 : page;
+  
+    console.log("Fetching data for page:", currentPage);  // Debugging: Check current page
+  
+    const response = await btrservice.btr_lists_data(userid, currentPage, size, filter || '');
+  
+    if (response?.payload?.data) {
+      setData(response.payload.data); 
+      setTotalRecords(response.payload.totalCount);  // Update total records count
+      setTotalArea(response.payload.totalArea);  // Update total records count
+    } else {
+      console.error("Failed to fetch data:", response.message);
+    }
+  };
+  
+
+useEffect(() => {
+    fetchData(filterText);
+    console.log("fli",filterText)
+}, [page, size, filterText]);
 
   return (
     <div>
-      <Breadcrumb />
+   
+  <Breadcrumb />
+ 
       <Paper elevation={3} style={{ marginBottom: '16px', padding: '10px' }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
             Basic Tax Register (RELIS)
-          </Typography>
+          </Typography>  <Typography variant="body1" component="p" sx={{ color: '#04255e'}}>Total Area : {totalArea}</Typography>
           <TextField
-            label="Filter"
+            label="Search"
             variant="outlined"
             value={filterText}
             onChange={handleFilterChange}
@@ -123,154 +169,125 @@ const Btr = () => {
         </Stack>
       </Paper>
 
-      <DataTable
-        columns={columns(handleEdit)} // Pass handleEdit to columns function
-        data={filteredData} // Display the filtered data
-        pagination
-        paginationComponentOptions={{
-          rowsPerPageText: 'Rows per page',
-          rangeSeparatorText: 'of',
-          selectAllRowsItemText: 'All',
-          selectAllRowsItem: 'Select All',
-        }}
-        customStyles={{
-          headCells: {
-            style: {
-              fontSize: '.8rem',
-              backgroundColor: '#04255e', // Header background color
-              color: '#fff', // Header text color
-              fontWeight: 'bold', // Bold header text
-              borderBottom: '2px solid black', // Classic border style
-            },
-          },
-          cells: {
-            style: {
-              backgroundColor: '',
-              borderBottom: '1px solid white', // Light bottom border for rows
-              color: '#333', // Darker text color for better readability
-            },
-          },
-          pagination: {
-            style: {
-              color: '#04255e', // Change pagination symbols to blue
-              alignItems: 'center',
-              justifyContent: 'center',
-            },
-          },
-        }}
-      />
 
-      {/* Modal for editing */}
-      <Dialog open={openEditModal} onClose={handleCloseModals} maxWidth="sm" fullWidth>
-        <DialogTitle variant="h4" style={{ color: '#333', fontWeight: 'bold' }}>
-          Edit BTR
-        </DialogTitle>
-        <DialogContent>
-          {selectedRow && (
-            <DialogContentText>
-              <Stack spacing={2} style={{ fontSize: '14px', color: '#333' }}>
-                <TextField
-                  label="District"
-                  type="text"
-                  fullWidth
-                  defaultValue={selectedRow.district}
-                  style={{ fontSize: '14px' }}
-                />
-                <TextField
-                  label="Taluk"
-                  type="text"
-                  fullWidth
-                  defaultValue={selectedRow.taluk}
-                  style={{ fontSize: '14px' }}
-                />
-                <TextField
-                  label="Village"
-                  type="text"
-                  fullWidth
-                  defaultValue={selectedRow.village}
-                  style={{ fontSize: '14px' }}
-                />
-                <TextField
-                  label="Block"
-                  type="text"
-                  fullWidth
-                  defaultValue={selectedRow.block}
-                  style={{ fontSize: '14px' }}
-                />
-                <TextField
-                  label="Survey No"
-                  type="text"
-                  fullWidth
-                  defaultValue={selectedRow.surveyNo}
-                  style={{ fontSize: '14px' }}
-                />
-                <TextField
-                  label="Sub Div No"
-                  type="text"
-                  fullWidth
-                  defaultValue={selectedRow.subDivNo}
-                  style={{ fontSize: '14px' }}
-                />
-                <TextField
-                  label="Name of Owner"
-                  type="text"
-                  fullWidth
-                  defaultValue={selectedRow.ownerName}
-                  style={{ fontSize: '14px' }}
-                />
-                <TextField
-                  label="Address"
-                  type="text"
-                  fullWidth
-                  defaultValue={selectedRow.address}
-                  style={{ fontSize: '14px' }}
-                />
-                <TextField
-                  label="Total Area"
-                  type="text"
-                  fullWidth
-                  defaultValue={selectedRow.totalArea}
-                  style={{ fontSize: '14px' }}
-                />
-              </Stack>
-            </DialogContentText>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseModals} color="secondary" variant="outlined">
-            Cancel
-          </Button>
-          <Button onClick={handleCloseModals} color="primary" variant="contained">
-            Save Changes
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DataTable
+  columns={columns(handleEdit, handleView)}
+  data={filteredData} 
+  pagination
+  paginationServer
+  paginationTotalRows={totalRecords}  // Set the total records to manage pagination correctly
+  paginationPerPage={size}
+  onChangePage={handlePageChange}
+  onChangeRowsPerPage={handleRowsPerPageChange}
+  customStyles={{
+    headCells: {
+      style: {
+        fontSize: '.8rem',
+        backgroundColor: '#04255e',
+        color: '#fff',
+        fontWeight: 'bold',
+        borderBottom: '2px solid black',
+      },
+    },
+    cells: {
+      style: {
+        backgroundColor: '',
+        borderBottom: '1px solid white',
+        color: '#333',
+      },
+    },
+    pagination: {
+      style: {
+        color: '#04255e',
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
+    },
+  }}
+/>
+
+    
 
       {/* Modal for viewing full details */}
       <Dialog open={openViewModal} onClose={handleCloseModals} maxWidth="md" fullWidth>
-        <DialogTitle variant="h4" style={{ color: '#333', fontWeight: 'bold' }}>
-          View BTR Details
-        </DialogTitle>
-        <DialogContent>
-          {selectedRow && (
-            <DialogContentText>
-              <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
-                {Object.keys(selectedRow).map((key) => (
-                  <div key={key} style={{ width: '300px', margin: '10px' }}>
-                    <strong>{key}:</strong>
-                    <div>{selectedRow[key]}</div>
-                  </div>
-                ))}
+  <DialogTitle
+    variant="h4"
+    style={{
+      color: '#fff',
+      fontWeight: 'bold',
+      textAlign: 'center',
+      borderBottom: '2px solid #f0f0f0',
+      paddingBottom: '10px',
+      background: '#04255e',
+    }}
+  >
+    View BTR Details
+  </DialogTitle>
+  <DialogContent style={{ padding: '20px', backgroundColor: '#fafafa' }}>
+    {selectedRow && (
+      <DialogContentText>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+            gap: '20px',
+            fontSize: '14px',
+            color: '#333',
+            backgroundColor: '#fff',
+            padding: '20px',
+            borderRadius: '8px',
+            boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)',
+          }}
+        >
+          {Object.keys(selectedRow).filter((key) => key !== 'id').map((key) => {
+            const value = selectedRow[key] || 'NA'; // Display 'NA' if the value is empty or undefined
+            return (
+              <div
+                key={key}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'flex-start',
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 'bold',
+                    color: 'gray',
+                    marginBottom: '8px',
+                  }}
+                >
+                  {key}:
+                </div>
+                <div
+                  style={{
+                    backgroundColor: '#f9f9f9',
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    boxShadow: 'inset 0 0 5px rgba(0, 0, 0, 0.1)',
+                    wordBreak: 'break-word',
+                    width: '100%',
+                  }}
+                >
+                  {value}
+                </div>
               </div>
-            </DialogContentText>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseModals} color="secondary" variant="outlined">
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
+            );
+          })}
+        </div>
+      </DialogContentText>
+    )}
+  </DialogContent>
+  <DialogActions style={{ justifyContent: 'center' }}>
+    <Button onClick={handleCloseModals} color="secondary" variant="outlined">
+      Close
+    </Button>
+  </DialogActions>
+</Dialog>
+
+
+
     </div>
   );
 };

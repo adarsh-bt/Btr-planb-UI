@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 import { TextField, Button, Typography, Box, Grid, Stack, Alert,CircularProgress } from '@mui/material';
-import authservice from "../authservice";
+import authservice from '../services/authservice';
 
 
 const ForgotPassword = ({ onBack }) => {

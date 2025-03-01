@@ -16,7 +16,7 @@ import {
 // import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import EmailIcon from "@mui/icons-material/Email";
 import LockIcon from "@mui/icons-material/Lock";
-import ForgotPassword from "./auth-forms/ForgotPassword"; // Ensure this path is correct
+import ForgotPassword from './ForgotPassword'; // Ensure this path is correct
 // Import the logo image
 // Import the login image
 import { useNavigate} from 'react-router-dom'; 
@@ -24,21 +24,21 @@ import CircularProgress from '@mui/material/CircularProgress';
 
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import Register from './auth-forms/Register';
-import logo from "./images/govt.png"; // Import the logo image
-import loginimg from "./images/login.png"; // Import the login image
-import deslogo from "./images/des.png"; // Import the DES logo image
-import duklogo from "./images/Duk-Logo.png"; // Import the DUK logo image
-import cdtilogo from "./images/cdti_icon.png"; // Import the DUK logo image
+import Register from './Register';
+import logo from "../images/govt.png"; // Import the logo image
+import loginimg from "../images/login.png"; // Import the login image
+import bg1 from "../images/bg1.jpg"; // Import the background image
+import duklogo from "../images/Duk-Logo.png"; // Import the DUK logo image
+import cdtilogo from "../images/cdti_icon.png"; // Import the DUK logo image
 import { keyframes } from '@emotion/react';
-import './login.css'
+import '../login.css'
 
 
 import IconButton from '@mui/material/IconButton';
 
-import './login.css';
 
-import authservice from './authservice';
+
+import authservice from '../services/authservice';
 
 
 const fadeIn = keyframes`
@@ -77,8 +77,7 @@ const SignInSide = () => {
         md={7}
         lg={7}
         sx={{
-          background:
-            "linear-gradient(142deg, rgba(42,110,193,1) 15%, rgba(22,77,155,1) 28%, rgba(14,63,139,1) 41%,rgb(5, 48, 122) 64%)",
+          backgroundImage: `url(${bg1})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
           display: "flex",
@@ -184,6 +183,7 @@ const SignInSide = () => {
         elevation={6}
         square
         sx={{
+          backgroundColor: "rgb(250, 251, 252)",
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -237,7 +237,6 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
         const userData = await authservice.login(username, password);
         setIsLoading(false);
         if (userData.payload && userData.payload.token && typeof userData.payload.token === 'string') {
-          localStorage.setItem('token', userData.payload.token);
           navigate('/');
       } else {
           setError(userData.message || 'Login failed');
@@ -283,7 +282,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
         name="email"
         value={username} // Use username state for the email input
         onChange={(e) => {
-          if (e.target.value.length <= 30) {
+          if (e.target.value.length <= 255) {
             setUsername(e.target.value); // Update state if length is <= 50
           }
         }}

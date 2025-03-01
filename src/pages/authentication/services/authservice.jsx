@@ -3,13 +3,15 @@ import { InvalidTokenError, jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
 
 class authservice {
-  static BASE_URL = "http://localhost:8080/user-access"
-//   static BASE_URL = 'http://localhost:8081/user-access';
+//   static BASE_URL = "https://c163-103-170-55-191.ngrok-free.app/user-access"
+  static BASE_URL = 'http://localhost:8080/user-access';
 
 
     static async login(username, password) {
         try {
             const response = await axios.post(`${authservice.BASE_URL}/api/login`, { username, password });
+            localStorage.setItem('token', response.data.payload.token);
+            localStorage.setItem('user', response.data.payload.username);
             return response.data;  // Return the data when the response is successful
         } catch (err) {
             // Check if `err.response` exists before accessing `err.response.data`
@@ -37,6 +39,7 @@ class authservice {
         try {
            
             const response = await axios.post(`${authservice.BASE_URL}/api/user-registration/save-user`, userData);    
+          
             return response;
         } catch (err) {
             console.log("err >>",err.response.data.message)           
@@ -84,6 +87,7 @@ class authservice {
         static logout(navigate){
         
             localStorage.removeItem('token')
+            localStorage.removeItem('user')
             
             navigate('/login');
         }

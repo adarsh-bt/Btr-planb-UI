@@ -8,9 +8,9 @@ class btrservice{
     static BASE_URL = "http://localhost:8080/user-access"
 
     // adding header token is reamining
-    static async btr_lists_data(userid) {
+    static async btr_lists_data(userid,page = 0, size = 10,filter = '') {
         try {
-            const response = await axios.get(`${btrservice.BASE_URL}/api/zoneslists/${userid}`);
+            const response = await axios.get(`${btrservice.BASE_URL}/api/zoneslists/${userid}?page=${page}&size=${size}&filter=${filter}`);
             console.log(response.data)
             return  response.data // Return a consistent object on success
         } catch (err) {
@@ -19,6 +19,8 @@ class btrservice{
             };
         }
     }
+
+  
 
 }
 export default btrservice;

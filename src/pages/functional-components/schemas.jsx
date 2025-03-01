@@ -85,7 +85,7 @@ function Schemas() {
       </Card>
     </Grid>
 
-    <Grid item xs={12} sm={4} md={3} lg={3}>             
+    {/* <Grid item xs={12} sm={4} md={3} lg={3}>             
     <Card
         sx={{
           display: 'flex',
@@ -500,7 +500,7 @@ function Schemas() {
           </CardContent>
         </Box>
       </Card>
-    </Grid>          
+    </Grid>           */}
               </Grid>
             </MainCard>
           </Grid>
