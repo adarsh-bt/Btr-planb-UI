@@ -443,7 +443,7 @@ export default function DashboardDefault() {
       variant="h3"
       sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}
     >
-      Approvels
+      Approvals
     </Typography>
     <Typography
       variant="body2"

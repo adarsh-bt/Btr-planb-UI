@@ -8,42 +8,42 @@ const earas_list = () => {
   const theme = useTheme();
 
   const cardData = [
-    // {
-    //   title: "Zone Details",
-    //   image: "https://png.pngtree.com/png-vector/20230302/ourmid/pngtree-dashboard-line-icon-vector-png-image_6626604.png",
-    //   gradient: "linear-gradient(to right,rgba(255, 128, 119, 0.82) 0%, #ff867a 0%, #ff8c7f 21%, #f99185 52%, #cf556c 78%, #b12a5b 100%)",
-    //   url:""
-    // },
+    {
+      title: "Zone Details",
+      image: "https://png.pngtree.com/png-vector/20230302/ourmid/pngtree-dashboard-line-icon-vector-png-image_6626604.png",
+      gradient: "linear-gradient(to right,rgba(255, 128, 119, 0.82) 0%, #ff867a 0%, #ff8c7f 21%, #f99185 52%, #cf556c 78%, #b12a5b 100%)",
+      url:""
+    },
     {
       title: "e-BTR",
       image: "https://png.pngtree.com/png-vector/20230302/ourmid/pngtree-dashboard-line-icon-vector-png-image_6626604.png",
       gradient: "linear-gradient(to right,rgba(118, 184, 82, 0.88), #8DC26F)",
       url:"/schemes/earas/btr"
     },
-    // {
-    //   title: "Cluster Formation",
-    //   image: "https://png.pngtree.com/png-vector/20230302/ourmid/pngtree-dashboard-line-icon-vector-png-image_6626604.png",
-    //   gradient: "linear-gradient(to right, rgba(141, 68, 173, 0.84), #3498db)",
-    //   url:''
-    // },
-    // {
-    //   title: "Crop Cutting Experiment",
-    //   image: "https://png.pngtree.com/png-vector/20230302/ourmid/pngtree-dashboard-line-icon-vector-png-image_6626604.png",
-    //   gradient: "linear-gradient(to right,rgba(255, 154, 139, 0.93), #ffc3a0)",
-    //   url:''
-    // },
-    // {
-    //   title: "Reports",
-    //   image: "https://png.pngtree.com/png-vector/20230302/ourmid/pngtree-dashboard-line-icon-vector-png-image_6626604.png",
-    //   gradient: "linear-gradient(to right,rgba(255, 127, 95, 0.86), #feb47b)",
-    //   url:''
-    // },
-    // {
-    //   title: "Form 1",
-    //   image: "https://png.pngtree.com/png-vector/20230302/ourmid/pngtree-dashboard-line-icon-vector-png-image_6626604.png",
-    //   gradient: "linear-gradient(to right,rgba(0, 200, 255, 0.89), #0072ff)",
-    //   url:''
-    // },
+    {
+      title: "Cluster Formation",
+      image: "https://png.pngtree.com/png-vector/20230302/ourmid/pngtree-dashboard-line-icon-vector-png-image_6626604.png",
+      gradient: "linear-gradient(to right, rgba(141, 68, 173, 0.84), #3498db)",
+      url:''
+    },
+    {
+      title: "Crop Cutting Experiment",
+      image: "https://png.pngtree.com/png-vector/20230302/ourmid/pngtree-dashboard-line-icon-vector-png-image_6626604.png",
+      gradient: "linear-gradient(to right,rgba(255, 154, 139, 0.93), #ffc3a0)",
+      url:''
+    },
+    {
+      title: "Reports",
+      image: "https://png.pngtree.com/png-vector/20230302/ourmid/pngtree-dashboard-line-icon-vector-png-image_6626604.png",
+      gradient: "linear-gradient(to right,rgba(255, 127, 95, 0.86), #feb47b)",
+      url:''
+    },
+    {
+      title: "Form 1",
+      image: "https://png.pngtree.com/png-vector/20230302/ourmid/pngtree-dashboard-line-icon-vector-png-image_6626604.png",
+      gradient: "linear-gradient(to right,rgba(0, 200, 255, 0.89), #0072ff)",
+      url:''
+    },
   ];
 
   return (

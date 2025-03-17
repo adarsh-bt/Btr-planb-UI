@@ -28,7 +28,7 @@ function Schemas() {
         <Grid container spacing={3}>
         <Breadcrumb></Breadcrumb>
           <Grid item xs={12}>
-          <Typography variant='h3' sx={{marginBottom:4}}>Schemas</Typography>
+          <Typography variant='h3' sx={{marginBottom:2}}>Schemes</Typography>
             <MainCard title="">
              
               <Grid container spacing={4}>
@@ -85,7 +85,7 @@ function Schemas() {
       </Card>
     </Grid>
 
-    {/* <Grid item xs={12} sm={4} md={3} lg={3}>             
+    <Grid item xs={12} sm={4} md={3} lg={3}>             
     <Card
         sx={{
           display: 'flex',
@@ -118,7 +118,7 @@ function Schemas() {
         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
           <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
             <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-              EARAS
+              Prices
             </Typography>
             <Typography
               variant="subtitle1"
@@ -170,7 +170,7 @@ function Schemas() {
         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
           <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
             <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-              EARAS
+             Scheme 3
             </Typography>
             <Typography
               variant="subtitle1"
@@ -222,7 +222,7 @@ function Schemas() {
         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
           <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
             <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-              EARAS
+              Scheme 4
             </Typography>
             <Typography
               variant="subtitle1"
@@ -240,7 +240,7 @@ function Schemas() {
         </Box>
       </Card>
     </Grid>
-
+ {/*
     <Grid item xs={12} sm={4} md={3} lg={3}>              
     <Card
         sx={{
