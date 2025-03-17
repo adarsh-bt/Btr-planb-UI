@@ -351,7 +351,7 @@ export default function DashboardDefault() {
         variant="h3"
         sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}
       >
-        Report
+        Report  
       </Typography>
       <Typography
         variant="body2"

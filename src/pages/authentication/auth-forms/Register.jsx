@@ -149,6 +149,13 @@ const Register = ({ onBack }) => {
         setDistrictId(newValue.id);
         console.log('dist ', districts);
         setTalukId(null);
+
+      }else if (label?.startsWith('Directorate Office')) {
+        setOfficeType('Directorate');
+        alert('ok');
+        setDistrictId(newValue.id);
+        setTalukId(null);
+        
       } else if (label?.startsWith('Taluk Statistical Office')) {
         // If it's a taluk
         setOfficeType('Taluk');

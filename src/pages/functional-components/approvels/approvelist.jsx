@@ -303,6 +303,8 @@ return (
       
         columns={columns(handleEdit)} // Pass handleEdit to columns function
         data={filteredData}
+        fixedHeader
+        fixedHeaderScrollHeight="400px"
         pagination
         paginationComponentOptions={{
           rowsPerPageText: 'Rows per page',

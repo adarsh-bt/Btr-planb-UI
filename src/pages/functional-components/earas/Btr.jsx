@@ -32,13 +32,7 @@ const columns = (handleEdit, handleView) => [
     name: 'Action',
     cell: (row) => (
       <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-        <Button
-          color="success"
-          onClick={() => handleEdit(row)} // Call edit function on click
-          style={{ padding: '5px 12px', fontSize: '14px' }} // Adjusted padding and font size
-        >
-          <EditOutlined />
-        </Button>
+        
         <Button
           color="primary"
           onClick={() => handleView(row)} // Call view function on click
@@ -56,6 +50,7 @@ const columns = (handleEdit, handleView) => [
 ];
 
 // Sample data for the table
+// Sample data for the table
 const data = [
   {
     slNo: 1,
@@ -67,7 +62,7 @@ const data = [
     subDivNo: 'SD01',
     ownerName: 'John Doe',
     address: '123, Example Street, Pothencode',
-    totalArea: '10 Acres',
+    totalArea: '10 Acres'
   },
   {
     slNo: 2,
@@ -79,7 +74,7 @@ const data = [
     subDivNo: 'SD02',
     ownerName: 'Jane Smith',
     address: '456, Kochi Road, Fort Kochi',
-    totalArea: '15 Acres',
+    totalArea: '15 Acres'
   },
   {
     slNo: 3,
@@ -91,7 +86,7 @@ const data = [
     subDivNo: 'SD03',
     ownerName: 'Michael Johnson',
     address: '789, Punnappra Lane, Kollam',
-    totalArea: '12 Acres',
+    totalArea: '12 Acres'
   },
   {
     slNo: 4,
@@ -103,7 +98,7 @@ const data = [
     subDivNo: 'SD04',
     ownerName: 'Sarah Lee',
     address: '101, Alappuzha West, Alappuzha',
-    totalArea: '8 Acres',
+    totalArea: '8 Acres'
   },
   {
     slNo: 5,
@@ -115,8 +110,368 @@ const data = [
     subDivNo: 'SD05',
     ownerName: 'David Kim',
     address: '202, Edathua Road, Pathanamthitta',
-    totalArea: '20 Acres',
+    totalArea: '20 Acres'
   },
+  {
+    slNo: 6,
+    district: 'Thiruvananthapuram',
+    taluk: 'Nedumangad',
+    village: 'Pothencode',
+    block: 'Pothencode Block',
+    surveyNo: 'S123',
+    subDivNo: 'SD01',
+    ownerName: 'John Doe',
+    address: '123, Example Street, Pothencode',
+    totalArea: '10 Acres'
+  },
+  {
+    slNo: 7,
+    district: 'Kochi',
+    taluk: 'Kochi',
+    village: 'Fort Kochi',
+    block: 'Fort Kochi Block',
+    surveyNo: 'S124',
+    subDivNo: 'SD02',
+    ownerName: 'Jane Smith',
+    address: '456, Kochi Road, Fort Kochi',
+    totalArea: '15 Acres'
+  },
+  {
+    slNo: 8,
+    district: 'Kollam',
+    taluk: 'Chathannoor',
+    village: 'Punnappra',
+    block: 'Chathannoor Block',
+    surveyNo: 'S125',
+    subDivNo: 'SD03',
+    ownerName: 'Michael Johnson',
+    address: '789, Punnappra Lane, Kollam',
+    totalArea: '12 Acres'
+  },
+  {
+    slNo: 9,
+    district: 'Alappuzha',
+    taluk: 'Alappuzha',
+    village: 'Punnappra',
+    block: 'Alappuzha Block',
+    surveyNo: 'S126',
+    subDivNo: 'SD04',
+    ownerName: 'Sarah Lee',
+    address: '101, Alappuzha West, Alappuzha',
+    totalArea: '8 Acres'
+  },
+  {
+    slNo: 10,
+    district: 'Pathanamthitta',
+    taluk: 'Adoor',
+    village: 'Edathua',
+    block: 'Adoor Block',
+    surveyNo: 'S127',
+    subDivNo: 'SD05',
+    ownerName: 'David Kim',
+    address: '202, Edathua Road, Pathanamthitta',
+    totalArea: '20 Acres'
+  },
+  {
+    slNo: 11,
+    district: 'Thiruvananthapuram',
+    taluk: 'Nedumangad',
+    village: 'Pothencode',
+    block: 'Pothencode Block',
+    surveyNo: 'S123',
+    subDivNo: 'SD01',
+    ownerName: 'John Doe',
+    address: '123, Example Street, Pothencode',
+    totalArea: '10 Acres'
+  },
+  {
+    slNo: 12,
+    district: 'Kochi',
+    taluk: 'Kochi',
+    village: 'Fort Kochi',
+    block: 'Fort Kochi Block',
+    surveyNo: 'S124',
+    subDivNo: 'SD02',
+    ownerName: 'Jane Smith',
+    address: '456, Kochi Road, Fort Kochi',
+    totalArea: '15 Acres'
+  },
+  {
+    slNo: 13,
+    district: 'Kollam',
+    taluk: 'Chathannoor',
+    village: 'Punnappra',
+    block: 'Chathannoor Block',
+    surveyNo: 'S125',
+    subDivNo: 'SD03',
+    ownerName: 'Michael Johnson',
+    address: '789, Punnappra Lane, Kollam',
+    totalArea: '12 Acres'
+  },
+  {
+    slNo: 14,
+    district: 'Alappuzha',
+    taluk: 'Alappuzha',
+    village: 'Punnappra',
+    block: 'Alappuzha Block',
+    surveyNo: 'S126',
+    subDivNo: 'SD04',
+    ownerName: 'Sarah Lee',
+    address: '101, Alappuzha West, Alappuzha',
+    totalArea: '8 Acres'
+  },
+  {
+    slNo: 15,
+    district: 'Pathanamthitta',
+    taluk: 'Adoor',
+    village: 'Edathua',
+    block: 'Adoor Block',
+    surveyNo: 'S127',
+    subDivNo: 'SD05',
+    ownerName: 'David Kim',
+    address: '202, Edathua Road, Pathanamthitta',
+    totalArea: '20 Acres'
+  },
+  {
+    slNo: 16,
+    district: 'Thiruvananthapuram',
+    taluk: 'Nedumangad',
+    village: 'Pothencode',
+    block: 'Pothencode Block',
+    surveyNo: 'S123',
+    subDivNo: 'SD01',
+    ownerName: 'John Doe',
+    address: '123, Example Street, Pothencode',
+    totalArea: '10 Acres'
+  },
+  {
+    slNo: 17,
+    district: 'Kochi',
+    taluk: 'Kochi',
+    village: 'Fort Kochi',
+    block: 'Fort Kochi Block',
+    surveyNo: 'S124',
+    subDivNo: 'SD02',
+    ownerName: 'Jane Smith',
+    address: '456, Kochi Road, Fort Kochi',
+    totalArea: '15 Acres'
+  },
+  {
+    slNo: 18,
+    district: 'Kollam',
+    taluk: 'Chathannoor',
+    village: 'Punnappra',
+    block: 'Chathannoor Block',
+    surveyNo: 'S125',
+    subDivNo: 'SD03',
+    ownerName: 'Michael Johnson',
+    address: '789, Punnappra Lane, Kollam',
+    totalArea: '12 Acres'
+  },
+  {
+    slNo: 19,
+    district: 'Alappuzha',
+    taluk: 'Alappuzha',
+    village: 'Punnappra',
+    block: 'Alappuzha Block',
+    surveyNo: 'S126',
+    subDivNo: 'SD04',
+    ownerName: 'Sarah Lee',
+    address: '101, Alappuzha West, Alappuzha',
+    totalArea: '8 Acres'
+  },
+  {
+    slNo: 20,
+    district: 'Pathanamthitta',
+    taluk: 'Adoor',
+    village: 'Edathua',
+    block: 'Adoor Block',
+    surveyNo: 'S127',
+    subDivNo: 'SD05',
+    ownerName: 'David Kim',
+    address: '202, Edathua Road, Pathanamthitta',
+    totalArea: '20 Acres'
+  },
+  {
+    slNo: 21,
+    district: 'Thiruvananthapuram',
+    taluk: 'Nedumangad',
+    village: 'Pothencode',
+    block: 'Pothencode Block',
+    surveyNo: 'S123',
+    subDivNo: 'SD01',
+    ownerName: 'John Doe',
+    address: '123, Example Street, Pothencode',
+    totalArea: '10 Acres'
+  },
+  {
+    slNo: 22,
+    district: 'Kochi',
+    taluk: 'Kochi',
+    village: 'Fort Kochi',
+    block: 'Fort Kochi Block',
+    surveyNo: 'S124',
+    subDivNo: 'SD02',
+    ownerName: 'Jane Smith',
+    address: '456, Kochi Road, Fort Kochi',
+    totalArea: '15 Acres'
+  },
+  {
+    slNo: 23,
+    district: 'Kollam',
+    taluk: 'Chathannoor',
+    village: 'Punnappra',
+    block: 'Chathannoor Block',
+    surveyNo: 'S125',
+    subDivNo: 'SD03',
+    ownerName: 'Michael Johnson',
+    address: '789, Punnappra Lane, Kollam',
+    totalArea: '12 Acres'
+  },
+  {
+    slNo: 24,
+    district: 'Alappuzha',
+    taluk: 'Alappuzha',
+    village: 'Punnappra',
+    block: 'Alappuzha Block',
+    surveyNo: 'S126',
+    subDivNo: 'SD04',
+    ownerName: 'Sarah Lee',
+    address: '101, Alappuzha West, Alappuzha',
+    totalArea: '8 Acres'
+  },
+  {
+    slNo: 25,
+    district: 'Pathanamthitta',
+    taluk: 'Adoor',
+    village: 'Edathua',
+    block: 'Adoor Block',
+    surveyNo: 'S127',
+    subDivNo: 'SD05',
+    ownerName: 'David Kim',
+    address: '202, Edathua Road, Pathanamthitta',
+    totalArea: '20 Acres'
+  },
+  {
+    slNo: 26,
+    district: 'Thiruvananthapuram',
+    taluk: 'Nedumangad',
+    village: 'Pothencode',
+    block: 'Pothencode Block',
+    surveyNo: 'S123',
+    subDivNo: 'SD01',
+    ownerName: 'John Doe',
+    address: '123, Example Street, Pothencode',
+    totalArea: '10 Acres'
+  },
+  {
+    slNo: 27,
+    district: 'Kochi',
+    taluk: 'Kochi',
+    village: 'Fort Kochi',
+    block: 'Fort Kochi Block',
+    surveyNo: 'S124',
+    subDivNo: 'SD02',
+    ownerName: 'Jane Smith',
+    address: '456, Kochi Road, Fort Kochi',
+    totalArea: '15 Acres'
+  },
+  {
+    slNo: 28,
+    district: 'Kollam',
+    taluk: 'Chathannoor',
+    village: 'Punnappra',
+    block: 'Chathannoor Block',
+    surveyNo: 'S125',
+    subDivNo: 'SD03',
+    ownerName: 'Michael Johnson',
+    address: '789, Punnappra Lane, Kollam',
+    totalArea: '12 Acres'
+  },
+  {
+    slNo: 29,
+    district: 'Alappuzha',
+    taluk: 'Alappuzha',
+    village: 'Punnappra',
+    block: 'Alappuzha Block',
+    surveyNo: 'S126',
+    subDivNo: 'SD04',
+    ownerName: 'Sarah Lee',
+    address: '101, Alappuzha West, Alappuzha',
+    totalArea: '8 Acres'
+  },
+  {
+    slNo: 30,
+    district: 'Pathanamthitta',
+    taluk: 'Adoor',
+    village: 'Edathua',
+    block: 'Adoor Block',
+    surveyNo: 'S127',
+    subDivNo: 'SD05',
+    ownerName: 'David Kim',
+    address: '202, Edathua Road, Pathanamthitta',
+    totalArea: '20 Acres'
+  },
+  {
+    slNo: 31,
+    district: 'Thiruvananthapuram',
+    taluk: 'Nedumangad',
+    village: 'Pothencode',
+    block: 'Pothencode Block',
+    surveyNo: 'S123',
+    subDivNo: 'SD01',
+    ownerName: 'John Doe',
+    address: '123, Example Street, Pothencode',
+    totalArea: '10 Acres'
+  },
+  {
+    slNo: 32,
+    district: 'Kochi',
+    taluk: 'Kochi',
+    village: 'Fort Kochi',
+    block: 'Fort Kochi Block',
+    surveyNo: 'S124',
+    subDivNo: 'SD02',
+    ownerName: 'Jane Smith',
+    address: '456, Kochi Road, Fort Kochi',
+    totalArea: '15 Acres'
+  },
+  {
+    slNo: 33,
+    district: 'Kollam',
+    taluk: 'Chathannoor',
+    village: 'Punnappra',
+    block: 'Chathannoor Block',
+    surveyNo: 'S125',
+    subDivNo: 'SD03',
+    ownerName: 'Michael Johnson',
+    address: '789, Punnappra Lane, Kollam',
+    totalArea: '12 Acres'
+  },
+  {
+    slNo: 34,
+    district: 'Alappuzha',
+    taluk: 'Alappuzha',
+    village: 'Punnappra',
+    block: 'Alappuzha Block',
+    surveyNo: 'S126',
+    subDivNo: 'SD04',
+    ownerName: 'Sarah Lee',
+    address: '101, Alappuzha West, Alappuzha',
+    totalArea: '8 Acres'
+  },
+  {
+    slNo: 35,
+    district: 'Pathanamthitta',
+    taluk: 'Adoor',
+    village: 'Edathua',
+    block: 'Adoor Block',
+    surveyNo: 'S127',
+    subDivNo: 'SD05',
+    ownerName: 'David Kim',
+    address: '202, Edathua Road, Pathanamthitta',
+    totalArea: '20 Acres'
+  }
 ];
 
 const Btr = () => {
@@ -137,11 +492,6 @@ const Btr = () => {
     )
   );
 
-  // Function to handle edit action
-  const handleEdit = (row) => {
-    setSelectedRow(row); // Set the selected row to be edited
-    setOpenEditModal(true); // Open the edit modal
-  };
 
   // Function to handle view action
   const handleView = (row) => {
@@ -177,8 +527,10 @@ const Btr = () => {
       </Paper>
 
       <DataTable
-        columns={columns(handleEdit, handleView)} // Pass both handleEdit and handleView
+        columns={columns(handleView)} // Pass  handleView
         data={filteredData}
+        fixedHeader
+  fixedHeaderScrollHeight="400px"
         pagination
         paginationComponentOptions={{
           rowsPerPageText: 'Rows per page',

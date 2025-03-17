@@ -202,7 +202,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
         name="email"
         value={username} // Use username state for the email input
         onChange={(e) => {
-          if (e.target.value.length <= 30) {
+          if (e.target.value.length <= 255) {
             setUsername(e.target.value); // Update state if length is <= 50
           }
         }}
