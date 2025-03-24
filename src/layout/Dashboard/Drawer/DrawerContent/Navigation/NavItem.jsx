@@ -36,7 +36,9 @@ export default function NavItem({ item, level }) {
   const itemIcon = item.icon ? <Icon style={{ fontSize: drawerOpen ? '1rem' : '1.25rem' }} /> : false;
 
   const { pathname } = useLocation();
-  const isSelected = !!matchPath({ path: item.url, end: false }, pathname) || openItem === item.id;
+  // const isSelected = !!matchPath({ path: item.url, end: false }, pathname) || openItem === item.id;
+  const isSelected = pathname === item.url || openItem === item.id;
+
 
   // active menu item on page load
   useEffect(() => {

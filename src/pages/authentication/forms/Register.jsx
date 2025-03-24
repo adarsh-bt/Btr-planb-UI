@@ -18,8 +18,8 @@ import {
   Stack,
   FormHelperText
 } from '@mui/material';
-import authservice from '../authservice';
-import RegisterService from 'pages/functional-components/registerservice';
+import authservice from '../services/authservice';
+import RegisterService from 'pages/authentication/services/registerservice';
 
 const Register = ({ onBack }) => {
   const [fullName, setFullName] = useState('');
@@ -137,7 +137,6 @@ const Register = ({ onBack }) => {
 
   const handleTalukChange = (event, newValue) => {
     setSelectedTaluk(newValue);
-    console.log('sel > ', selectedTaluk);
 
     if (newValue) {
       const label = newValue.label;
@@ -145,17 +144,15 @@ const Register = ({ onBack }) => {
       if (label?.startsWith('District Office')) {
         // If the selected value is a district
         setOfficeType('District');
-        alert('ok');
-        setDistrictId(newValue.id);
-        console.log('dist ', districts);
-        setTalukId(null);
 
-      }else if (label?.startsWith('Directorate Office')) {
-        setOfficeType('Directorate');
-        alert('ok');
         setDistrictId(newValue.id);
+        console.log('dist ', newValue.id);
         setTalukId(null);
-        
+      } else if (label === 'Directorate Office') {
+        setOfficeType('Directorate');
+        setDistrictId(1);
+        console.log('dire ', newValue.id); // Hardcode District ID as 1 for Directorate
+        setTalukId(null);
       } else if (label?.startsWith('Taluk Statistical Office')) {
         // If it's a taluk
         setOfficeType('Taluk');
@@ -176,13 +173,17 @@ const Register = ({ onBack }) => {
   const filteredTaluks = selectedDistrict
     ? [
         { id: selectedDistrict.distId, label: selectedDistrict.distOfficeNameEn },
+        ...(selectedDistrict.distId === 1
+          ? [
+              { id: 1, label: 'Directorate Office' } // Add Directorate Office only for Thiruvananthapuram
+            ]
+          : []),
         ...taluks.map((taluk) => ({
           id: taluk.desTalukId,
           label: taluk.talukOfficeNameEn
         }))
       ]
     : [];
-
   // const filteredTaluks = selectedDistrict
   //   ? [{ name: selectedDistrict.name }, ...selectedDistrict.talukMaster.map((taluk) => ({ name: taluk.talukOfficeNameEn }))]
   //   : [];
@@ -258,7 +259,7 @@ const Register = ({ onBack }) => {
     if (foundError) return; // If there's an error, return and don't proceed
 
     const idNumber = idType === 'PEN' ? penNumber : tenNumber;
-
+    
     const userData = {
       name: fullName,
       email: email,
@@ -290,7 +291,7 @@ const Register = ({ onBack }) => {
   return (
     <Box sx={{ width: '100%', maxWidth: '400px', mx: 'auto' }}>
       {errorMessage && (
-        <Stack sx={{ width: '100%', marginBottom: '.5rem', background: '#fffaef' }} spacing={2}>
+        <Stack sx={{ width: '100%', marginBottom: '.5rem', background: '#fffaef' }} spacing={1}>
           <center>
             <Alert severity="warning" sx={{ width: 'max-content', textAlign: 'center' }}>
               {errorMessage}

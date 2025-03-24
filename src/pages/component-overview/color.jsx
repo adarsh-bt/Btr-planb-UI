@@ -54,7 +54,7 @@ export default function ComponentColor() {
       <Grid container spacing={3}>
         <Grid item xs={12} sm={6} md={4}>
           <MainCard title="Primary Color">
-            <Stack>
+            {/* <Stack>
               <ColorBox bgcolor="primary.lighter" data={{ label: 'Blue-1', color: '#e6f7ff' }} title="primary.lighter" dark />
               <ColorBox bgcolor="primary.100" data={{ label: 'Blue-2', color: '#bae7ff' }} title="primary[100]" dark />
               <ColorBox bgcolor="primary.200" data={{ label: 'Blue-3', color: '#91d5ff' }} title="primary[200]" dark />
@@ -65,12 +65,12 @@ export default function ComponentColor() {
               <ColorBox bgcolor="primary.700" data={{ label: 'Blue-8', color: '#0050b3' }} title="primary[700]" />
               <ColorBox bgcolor="primary.darker" data={{ label: 'Blue-9', color: '#003a8c' }} title="primary.darker" />
               <ColorBox bgcolor="primary.900" data={{ label: 'Blue-10', color: '#002766' }} title="primary.900" />
-            </Stack>
+            </Stack> */}
           </MainCard>
         </Grid>
         <Grid item xs={12} sm={6} md={4}>
           <MainCard title="Secondary Color">
-            <Stack>
+            {/* <Stack>
               <ColorBox bgcolor="secondary.lighter" data={{ label: 'Grey-1', color: '#fafafa' }} title="secondary.lighter" dark />
               <ColorBox bgcolor="secondary.100" data={{ label: 'Grey-2', color: '#f5f5f5' }} title="secondary[100]" dark />
               <ColorBox bgcolor="secondary.200" data={{ label: 'Grey-3', color: '#f0f0f0' }} title="secondary[200]" dark />
@@ -81,19 +81,19 @@ export default function ComponentColor() {
               <ColorBox bgcolor="secondary.dark" data={{ label: 'Grey-8', color: '#262626' }} title="secondary.dark" />
               <ColorBox bgcolor="secondary.800" data={{ label: 'Grey-9', color: '#141414' }} title="secondary[800]" />
               <ColorBox bgcolor="secondary.darker" data={{ label: 'Grey-10', color: '#000000' }} title="secondary.darker" />
-            </Stack>
+            </Stack> */}
           </MainCard>
         </Grid>
         <Grid item xs={12} sm={6} md={4}>
           <MainCard title="Other Color">
-            <Stack>
+            {/* <Stack>
               <ColorBox bgcolor="secondary.A100" data={{ label: 'Grey-A1', color: '#ffffff' }} title="secondary.A100" dark />
               <ColorBox bgcolor="secondary.A200" data={{ label: 'Grey-A2', color: '#434343' }} title="secondary.A200" />
               <ColorBox bgcolor="secondary.A300" data={{ label: 'Grey-A3', color: '#1f1f1f' }} title="secondary.A300" />
-            </Stack>
+            </Stack> */}
           </MainCard>
         </Grid>
-        <Grid item xs={12} sm={6} md={4}>
+        {/* <Grid item xs={12} sm={6} md={4}>
           <MainCard title="Success Color">
             <Stack>
               <ColorBox bgcolor="success.lighter" data={{ label: 'Green-1', color: '#f6ffed' }} title="success.lighter" dark />
@@ -125,7 +125,7 @@ export default function ComponentColor() {
               <ColorBox bgcolor="warning.darker" data={{ label: 'Gold-10', color: '#613400' }} title="warning.darker" />
             </Stack>
           </MainCard>
-        </Grid>
+        </Grid> */}
       </Grid>
    
   );

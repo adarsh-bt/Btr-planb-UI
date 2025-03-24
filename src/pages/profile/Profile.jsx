@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Tabs, Tab, Typography, Paper, Divider } from '@mui/material';
 import ChangePassword from './ChangePassword';
-import profileService from 'pages/functional-components/profileservice';
+import profileService from 'pages/profile/profileservice';
 import { jwtDecode } from 'jwt-decode';
 
 const Profile = () => {

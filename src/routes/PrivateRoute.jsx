@@ -17,11 +17,13 @@ const PrivateRoute = ({ children }) => {
     // If the token is expired, remove it from localStorage and redirect to login
     if (decodedToken.exp < currentTime) {
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       return <Navigate to="/login" replace />;
     }
   } catch (error) {
     // If decoding the token fails, also redirect to login
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     return <Navigate to="/login" replace />;
   }
 

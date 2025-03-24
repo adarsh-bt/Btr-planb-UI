@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DataTable from 'react-data-table-component';
 import {
   Typography,
@@ -6,517 +6,155 @@ import {
   Stack,
   Paper,
   Button,
+  Box,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
 } from '@mui/material';
-import { EyeOutlined } from '@ant-design/icons';
-import { borderRadius } from '@mui/system';
-import { EditOutlined  } from '@ant-design/icons';
+import { EditOutlined } from '@ant-design/icons';
 import Breadcrumb from 'routes/Breadcrumb';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import btrservice from './btrservice';
+
 // Define the columns for the data table
-const columns = (handleEdit, handleView) => [
-  { name: 'SL. NO', selector: (row) => row.slNo, sortable: true },
-  { name: 'District', selector: (row) => row.district, sortable: true },
-  { name: 'Taluk', selector: (row) => row.taluk, sortable: true },
-  { name: 'Village', selector: (row) => row.village, sortable: true },
-  { name: 'Block', selector: (row) => row.block, sortable: true },
-  { name: 'Survey No', selector: (row) => row.surveyNo, sortable: true },
-  { name: 'Sub Div No', selector: (row) => row.subDivNo, sortable: true },
-  { name: 'Name of Owner', selector: (row) => row.ownerName, sortable: true },
-  { name: 'Address', selector: (row) => row.address, sortable: true },
-  { name: 'Total Area', selector: (row) => row.totalArea, sortable: true },
+const columns = (handleEdit,handleView) => [
+  { name: 'SL. NO', selector:(row, index) => index + 1 },
+  // { name: 'District', selector: (row) => row.dcode, sortable: true },
+  // { name: 'Taluk', selector: (row) => row.tcode, sortable: true },
+  // { name: 'Village', selector: (row) => row.vcode, sortable: true },
+  { name: 'Village', selector: (row) => row.villageName?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'Block', selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'Survey No', selector: (row) => row.resvno?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'Sub Div No', selector: (row) => row.resbdno?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'Name of Owner', selector: (row) => row.lbtype?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'Address', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  // { name: 'Address', selector: (row) => row.lbcode, sortable: true },
+ 
+  { name: 'Land Type', selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'nhect', selector: (row) => row.nhect?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'nare', selector: (row) => row.nare?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'nsqm', selector: (row) => row.nsqm?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+
   {
-    name: 'Action',
+    name: 'View',
     cell: (row) => (
-      <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-        
-        <Button
-          color="primary"
-          onClick={() => handleView(row)} // Call view function on click
-          style={{ padding: '5px 12px', fontSize: '14px' }} // Adjusted padding and font size
-        >
-          <EyeOutlined />
-        </Button>
-      </div>
+      <Button color="success" onClick={() => handleView(row)}>
+         <VisibilityIcon />
+      </Button>
     ),
     style: {
       padding: '0px', // Remove unnecessary padding
       textAlign: 'center', // Align the buttons in the center
     },
   },
+  // {
+  //   name: 'Action',
+  //   cell: (row) => (
+  //     <Button color="success" onClick={() => handleEdit(row)}>
+  //       <EditOutlined />
+  //     </Button>
+  //   ),
+  //   style: {
+  //     padding: '0px', // Remove unnecessary padding
+  //     textAlign: 'center', // Align the buttons in the center
+  //   },
+  // },
+ 
 ];
 
-// Sample data for the table
-// Sample data for the table
-const data = [
-  {
-    slNo: 1,
-    district: 'Thiruvananthapuram',
-    taluk: 'Nedumangad',
-    village: 'Pothencode',
-    block: 'Pothencode Block',
-    surveyNo: 'S123',
-    subDivNo: 'SD01',
-    ownerName: 'John Doe',
-    address: '123, Example Street, Pothencode',
-    totalArea: '10 Acres'
-  },
-  {
-    slNo: 2,
-    district: 'Kochi',
-    taluk: 'Kochi',
-    village: 'Fort Kochi',
-    block: 'Fort Kochi Block',
-    surveyNo: 'S124',
-    subDivNo: 'SD02',
-    ownerName: 'Jane Smith',
-    address: '456, Kochi Road, Fort Kochi',
-    totalArea: '15 Acres'
-  },
-  {
-    slNo: 3,
-    district: 'Kollam',
-    taluk: 'Chathannoor',
-    village: 'Punnappra',
-    block: 'Chathannoor Block',
-    surveyNo: 'S125',
-    subDivNo: 'SD03',
-    ownerName: 'Michael Johnson',
-    address: '789, Punnappra Lane, Kollam',
-    totalArea: '12 Acres'
-  },
-  {
-    slNo: 4,
-    district: 'Alappuzha',
-    taluk: 'Alappuzha',
-    village: 'Punnappra',
-    block: 'Alappuzha Block',
-    surveyNo: 'S126',
-    subDivNo: 'SD04',
-    ownerName: 'Sarah Lee',
-    address: '101, Alappuzha West, Alappuzha',
-    totalArea: '8 Acres'
-  },
-  {
-    slNo: 5,
-    district: 'Pathanamthitta',
-    taluk: 'Adoor',
-    village: 'Edathua',
-    block: 'Adoor Block',
-    surveyNo: 'S127',
-    subDivNo: 'SD05',
-    ownerName: 'David Kim',
-    address: '202, Edathua Road, Pathanamthitta',
-    totalArea: '20 Acres'
-  },
-  {
-    slNo: 6,
-    district: 'Thiruvananthapuram',
-    taluk: 'Nedumangad',
-    village: 'Pothencode',
-    block: 'Pothencode Block',
-    surveyNo: 'S123',
-    subDivNo: 'SD01',
-    ownerName: 'John Doe',
-    address: '123, Example Street, Pothencode',
-    totalArea: '10 Acres'
-  },
-  {
-    slNo: 7,
-    district: 'Kochi',
-    taluk: 'Kochi',
-    village: 'Fort Kochi',
-    block: 'Fort Kochi Block',
-    surveyNo: 'S124',
-    subDivNo: 'SD02',
-    ownerName: 'Jane Smith',
-    address: '456, Kochi Road, Fort Kochi',
-    totalArea: '15 Acres'
-  },
-  {
-    slNo: 8,
-    district: 'Kollam',
-    taluk: 'Chathannoor',
-    village: 'Punnappra',
-    block: 'Chathannoor Block',
-    surveyNo: 'S125',
-    subDivNo: 'SD03',
-    ownerName: 'Michael Johnson',
-    address: '789, Punnappra Lane, Kollam',
-    totalArea: '12 Acres'
-  },
-  {
-    slNo: 9,
-    district: 'Alappuzha',
-    taluk: 'Alappuzha',
-    village: 'Punnappra',
-    block: 'Alappuzha Block',
-    surveyNo: 'S126',
-    subDivNo: 'SD04',
-    ownerName: 'Sarah Lee',
-    address: '101, Alappuzha West, Alappuzha',
-    totalArea: '8 Acres'
-  },
-  {
-    slNo: 10,
-    district: 'Pathanamthitta',
-    taluk: 'Adoor',
-    village: 'Edathua',
-    block: 'Adoor Block',
-    surveyNo: 'S127',
-    subDivNo: 'SD05',
-    ownerName: 'David Kim',
-    address: '202, Edathua Road, Pathanamthitta',
-    totalArea: '20 Acres'
-  },
-  {
-    slNo: 11,
-    district: 'Thiruvananthapuram',
-    taluk: 'Nedumangad',
-    village: 'Pothencode',
-    block: 'Pothencode Block',
-    surveyNo: 'S123',
-    subDivNo: 'SD01',
-    ownerName: 'John Doe',
-    address: '123, Example Street, Pothencode',
-    totalArea: '10 Acres'
-  },
-  {
-    slNo: 12,
-    district: 'Kochi',
-    taluk: 'Kochi',
-    village: 'Fort Kochi',
-    block: 'Fort Kochi Block',
-    surveyNo: 'S124',
-    subDivNo: 'SD02',
-    ownerName: 'Jane Smith',
-    address: '456, Kochi Road, Fort Kochi',
-    totalArea: '15 Acres'
-  },
-  {
-    slNo: 13,
-    district: 'Kollam',
-    taluk: 'Chathannoor',
-    village: 'Punnappra',
-    block: 'Chathannoor Block',
-    surveyNo: 'S125',
-    subDivNo: 'SD03',
-    ownerName: 'Michael Johnson',
-    address: '789, Punnappra Lane, Kollam',
-    totalArea: '12 Acres'
-  },
-  {
-    slNo: 14,
-    district: 'Alappuzha',
-    taluk: 'Alappuzha',
-    village: 'Punnappra',
-    block: 'Alappuzha Block',
-    surveyNo: 'S126',
-    subDivNo: 'SD04',
-    ownerName: 'Sarah Lee',
-    address: '101, Alappuzha West, Alappuzha',
-    totalArea: '8 Acres'
-  },
-  {
-    slNo: 15,
-    district: 'Pathanamthitta',
-    taluk: 'Adoor',
-    village: 'Edathua',
-    block: 'Adoor Block',
-    surveyNo: 'S127',
-    subDivNo: 'SD05',
-    ownerName: 'David Kim',
-    address: '202, Edathua Road, Pathanamthitta',
-    totalArea: '20 Acres'
-  },
-  {
-    slNo: 16,
-    district: 'Thiruvananthapuram',
-    taluk: 'Nedumangad',
-    village: 'Pothencode',
-    block: 'Pothencode Block',
-    surveyNo: 'S123',
-    subDivNo: 'SD01',
-    ownerName: 'John Doe',
-    address: '123, Example Street, Pothencode',
-    totalArea: '10 Acres'
-  },
-  {
-    slNo: 17,
-    district: 'Kochi',
-    taluk: 'Kochi',
-    village: 'Fort Kochi',
-    block: 'Fort Kochi Block',
-    surveyNo: 'S124',
-    subDivNo: 'SD02',
-    ownerName: 'Jane Smith',
-    address: '456, Kochi Road, Fort Kochi',
-    totalArea: '15 Acres'
-  },
-  {
-    slNo: 18,
-    district: 'Kollam',
-    taluk: 'Chathannoor',
-    village: 'Punnappra',
-    block: 'Chathannoor Block',
-    surveyNo: 'S125',
-    subDivNo: 'SD03',
-    ownerName: 'Michael Johnson',
-    address: '789, Punnappra Lane, Kollam',
-    totalArea: '12 Acres'
-  },
-  {
-    slNo: 19,
-    district: 'Alappuzha',
-    taluk: 'Alappuzha',
-    village: 'Punnappra',
-    block: 'Alappuzha Block',
-    surveyNo: 'S126',
-    subDivNo: 'SD04',
-    ownerName: 'Sarah Lee',
-    address: '101, Alappuzha West, Alappuzha',
-    totalArea: '8 Acres'
-  },
-  {
-    slNo: 20,
-    district: 'Pathanamthitta',
-    taluk: 'Adoor',
-    village: 'Edathua',
-    block: 'Adoor Block',
-    surveyNo: 'S127',
-    subDivNo: 'SD05',
-    ownerName: 'David Kim',
-    address: '202, Edathua Road, Pathanamthitta',
-    totalArea: '20 Acres'
-  },
-  {
-    slNo: 21,
-    district: 'Thiruvananthapuram',
-    taluk: 'Nedumangad',
-    village: 'Pothencode',
-    block: 'Pothencode Block',
-    surveyNo: 'S123',
-    subDivNo: 'SD01',
-    ownerName: 'John Doe',
-    address: '123, Example Street, Pothencode',
-    totalArea: '10 Acres'
-  },
-  {
-    slNo: 22,
-    district: 'Kochi',
-    taluk: 'Kochi',
-    village: 'Fort Kochi',
-    block: 'Fort Kochi Block',
-    surveyNo: 'S124',
-    subDivNo: 'SD02',
-    ownerName: 'Jane Smith',
-    address: '456, Kochi Road, Fort Kochi',
-    totalArea: '15 Acres'
-  },
-  {
-    slNo: 23,
-    district: 'Kollam',
-    taluk: 'Chathannoor',
-    village: 'Punnappra',
-    block: 'Chathannoor Block',
-    surveyNo: 'S125',
-    subDivNo: 'SD03',
-    ownerName: 'Michael Johnson',
-    address: '789, Punnappra Lane, Kollam',
-    totalArea: '12 Acres'
-  },
-  {
-    slNo: 24,
-    district: 'Alappuzha',
-    taluk: 'Alappuzha',
-    village: 'Punnappra',
-    block: 'Alappuzha Block',
-    surveyNo: 'S126',
-    subDivNo: 'SD04',
-    ownerName: 'Sarah Lee',
-    address: '101, Alappuzha West, Alappuzha',
-    totalArea: '8 Acres'
-  },
-  {
-    slNo: 25,
-    district: 'Pathanamthitta',
-    taluk: 'Adoor',
-    village: 'Edathua',
-    block: 'Adoor Block',
-    surveyNo: 'S127',
-    subDivNo: 'SD05',
-    ownerName: 'David Kim',
-    address: '202, Edathua Road, Pathanamthitta',
-    totalArea: '20 Acres'
-  },
-  {
-    slNo: 26,
-    district: 'Thiruvananthapuram',
-    taluk: 'Nedumangad',
-    village: 'Pothencode',
-    block: 'Pothencode Block',
-    surveyNo: 'S123',
-    subDivNo: 'SD01',
-    ownerName: 'John Doe',
-    address: '123, Example Street, Pothencode',
-    totalArea: '10 Acres'
-  },
-  {
-    slNo: 27,
-    district: 'Kochi',
-    taluk: 'Kochi',
-    village: 'Fort Kochi',
-    block: 'Fort Kochi Block',
-    surveyNo: 'S124',
-    subDivNo: 'SD02',
-    ownerName: 'Jane Smith',
-    address: '456, Kochi Road, Fort Kochi',
-    totalArea: '15 Acres'
-  },
-  {
-    slNo: 28,
-    district: 'Kollam',
-    taluk: 'Chathannoor',
-    village: 'Punnappra',
-    block: 'Chathannoor Block',
-    surveyNo: 'S125',
-    subDivNo: 'SD03',
-    ownerName: 'Michael Johnson',
-    address: '789, Punnappra Lane, Kollam',
-    totalArea: '12 Acres'
-  },
-  {
-    slNo: 29,
-    district: 'Alappuzha',
-    taluk: 'Alappuzha',
-    village: 'Punnappra',
-    block: 'Alappuzha Block',
-    surveyNo: 'S126',
-    subDivNo: 'SD04',
-    ownerName: 'Sarah Lee',
-    address: '101, Alappuzha West, Alappuzha',
-    totalArea: '8 Acres'
-  },
-  {
-    slNo: 30,
-    district: 'Pathanamthitta',
-    taluk: 'Adoor',
-    village: 'Edathua',
-    block: 'Adoor Block',
-    surveyNo: 'S127',
-    subDivNo: 'SD05',
-    ownerName: 'David Kim',
-    address: '202, Edathua Road, Pathanamthitta',
-    totalArea: '20 Acres'
-  },
-  {
-    slNo: 31,
-    district: 'Thiruvananthapuram',
-    taluk: 'Nedumangad',
-    village: 'Pothencode',
-    block: 'Pothencode Block',
-    surveyNo: 'S123',
-    subDivNo: 'SD01',
-    ownerName: 'John Doe',
-    address: '123, Example Street, Pothencode',
-    totalArea: '10 Acres'
-  },
-  {
-    slNo: 32,
-    district: 'Kochi',
-    taluk: 'Kochi',
-    village: 'Fort Kochi',
-    block: 'Fort Kochi Block',
-    surveyNo: 'S124',
-    subDivNo: 'SD02',
-    ownerName: 'Jane Smith',
-    address: '456, Kochi Road, Fort Kochi',
-    totalArea: '15 Acres'
-  },
-  {
-    slNo: 33,
-    district: 'Kollam',
-    taluk: 'Chathannoor',
-    village: 'Punnappra',
-    block: 'Chathannoor Block',
-    surveyNo: 'S125',
-    subDivNo: 'SD03',
-    ownerName: 'Michael Johnson',
-    address: '789, Punnappra Lane, Kollam',
-    totalArea: '12 Acres'
-  },
-  {
-    slNo: 34,
-    district: 'Alappuzha',
-    taluk: 'Alappuzha',
-    village: 'Punnappra',
-    block: 'Alappuzha Block',
-    surveyNo: 'S126',
-    subDivNo: 'SD04',
-    ownerName: 'Sarah Lee',
-    address: '101, Alappuzha West, Alappuzha',
-    totalArea: '8 Acres'
-  },
-  {
-    slNo: 35,
-    district: 'Pathanamthitta',
-    taluk: 'Adoor',
-    village: 'Edathua',
-    block: 'Adoor Block',
-    surveyNo: 'S127',
-    subDivNo: 'SD05',
-    ownerName: 'David Kim',
-    address: '202, Edathua Road, Pathanamthitta',
-    totalArea: '20 Acres'
-  }
-];
+// btrservice with the API call to fetch data
+
 
 const Btr = () => {
   const [filterText, setFilterText] = useState('');
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
+  const [data, setData] = useState([]); // State to hold the fetched data
+  const [page, setPage] = useState(0); // Current page
+  const [size, setSize] = useState(10); // Number of items per page
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalArea, setTotalArea] = useState(0);
 
   // Function to handle filter change
   const handleFilterChange = (event) => {
     setFilterText(event.target.value);
+    fetchData(event.target.value);
   };
 
   // Filtered data based on the filter text
   const filteredData = data.filter((item) =>
-    Object.values(item).some((value) =>
-      value.toString().toLowerCase().includes(filterText.toLowerCase())
-    )
-  );
+    Object.values(item).some((value) => {
+        // Safely handle null or undefined values
+        const stringValue = value !== null && value !== undefined ? value.toString().toLowerCase() : '';
+        return stringValue.includes(filterText.toLowerCase());
+    })
+);
 
 
   // Function to handle view action
   const handleView = (row) => {
-    setSelectedRow(row); // Set the selected row to be viewed
-    setOpenViewModal(true); // Open the view modal
+    setSelectedRow(row); 
+    setOpenViewModal(true); 
   };
 
   // Function to close modals
   const handleCloseModals = () => {
     setOpenEditModal(false);
     setOpenViewModal(false);
-    setSelectedRow(null); // Reset selected row when closing
+    setSelectedRow(null); 
   };
+
+  const handlePageChange = (newPage) => {
+    setPage(newPage); 
+  };
+  const handleRowsPerPageChange = (newSize) => {
+    setSize(newSize); 
+  };
+  // Fetch the data from the API when the component is mounted
+  const fetchData = async (filter = '') => {
+
+    const userid = '1605'; 
+  
+    // Only calculate maxPage when totalRecords is available and greater than 0
+    const maxPage = totalRecords > 0 ? Math.ceil(totalRecords / size) : 1; // Default maxPage to 1 if no records yet
+  
+    // If the current page is beyond the maximum, adjust it to the last page
+    const currentPage = page >= maxPage ? maxPage - 1 : page;
+  
+    console.log("Fetching data for page:", currentPage);  // Debugging: Check current page
+  
+    const response = await btrservice.btr_lists_data(userid, currentPage, size, filter || '');
+  
+    if (response?.payload?.data) {
+      setData(response.payload.data); 
+      setTotalRecords(response.payload.totalCount);  // Update total records count
+      setTotalArea(response.payload.totalArea);  // Update total records count
+    } else {
+      console.error("Failed to fetch data:", response.message);
+    }
+  };
+  
+
+useEffect(() => {
+    fetchData(filterText);
+    console.log("fli",filterText)
+}, [page, size, filterText]);
 
   return (
     <div>
-     <Breadcrumb></Breadcrumb>
+   
+  <Breadcrumb />
+ 
       <Paper elevation={3} style={{ marginBottom: '16px', padding: '10px' }}>
-     
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
             Basic Tax Register (RELIS)
-          </Typography>
+          </Typography>  <Typography variant="body1" component="p" sx={{ color: '#04255e'}}>Total Area : {totalArea}</Typography>
           <TextField
-            label="Filter"
+            label="Search"
             variant="outlined"
             value={filterText}
             onChange={handleFilterChange}
@@ -526,11 +164,10 @@ const Btr = () => {
         </Stack>
       </Paper>
 
+
       <DataTable
-        columns={columns(handleView)} // Pass  handleView
+        columns={columns(handleEdit, handleView)} // Pass both handleEdit and handleView
         data={filteredData}
-        fixedHeader
-  fixedHeaderScrollHeight="400px"
         pagination
         paginationComponentOptions={{
           rowsPerPageText: 'Rows per page',
@@ -565,117 +202,88 @@ const Btr = () => {
         }}
       />
 
-      {/* Modal for editing */}
-      <Dialog open={openEditModal} onClose={handleCloseModals} maxWidth="sm" fullWidth>
-        <DialogTitle variant="h4" style={{ color: '#333', fontWeight: 'bold' }}>
-          Edit BTR
-        </DialogTitle>
-        <DialogContent>
-          {selectedRow && (
-            <DialogContentText>
-              <Stack spacing={2} style={{ fontSize: '14px', color: '#333' }}>
-                <TextField
-                  label="District"
-                  type="text"
-                  fullWidth
-                  defaultValue={selectedRow.district}
-                  style={{ fontSize: '14px' }}
-                />
-                <TextField
-                  label="Taluk"
-                  type="text"
-                  fullWidth
-                  defaultValue={selectedRow.taluk}
-                  style={{ fontSize: '14px' }}
-                />
-                <TextField
-                  label="Village"
-                  type="text"
-                  fullWidth
-                  defaultValue={selectedRow.village}
-                  style={{ fontSize: '14px' }}
-                />
-                <TextField
-                  label="Block"
-                  type="text"
-                  fullWidth
-                  defaultValue={selectedRow.block}
-                  style={{ fontSize: '14px' }}
-                />
-                <TextField
-                  label="Survey No"
-                  type="text"
-                  fullWidth
-                  defaultValue={selectedRow.surveyNo}
-                  style={{ fontSize: '14px' }}
-                />
-                <TextField
-                  label="Sub Div No"
-                  type="text"
-                  fullWidth
-                  defaultValue={selectedRow.subDivNo}
-                  style={{ fontSize: '14px' }}
-                />
-                <TextField
-                  label="Name of Owner"
-                  type="text"
-                  fullWidth
-                  defaultValue={selectedRow.ownerName}
-                  style={{ fontSize: '14px' }}
-                />
-                <TextField
-                  label="Address"
-                  type="text"
-                  fullWidth
-                  defaultValue={selectedRow.address}
-                  style={{ fontSize: '14px' }}
-                />
-                <TextField
-                  label="Total Area"
-                  type="text"
-                  fullWidth
-                  defaultValue={selectedRow.totalArea}
-                  style={{ fontSize: '14px' }}
-                />
-              </Stack>
-            </DialogContentText>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseModals} color="secondary" variant="outlined">
-            Cancel
-          </Button>
-          <Button onClick={handleCloseModals} color="primary" variant="contained">
-            Save Changes
-          </Button>
-        </DialogActions>
-      </Dialog>
+    
 
       {/* Modal for viewing full details */}
       <Dialog open={openViewModal} onClose={handleCloseModals} maxWidth="md" fullWidth>
-        <DialogTitle variant="h4" style={{ color: '#333', fontWeight: 'bold' }}>
-          View BTR Details
-        </DialogTitle>
-        <DialogContent>
-          {selectedRow && (
-            <DialogContentText>
-              <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
-                {Object.keys(selectedRow).map((key) => (
-                  <div key={key} style={{ width: '300px', margin: '10px' }}>
-                    <strong>{key}:</strong>
-                    <div>{selectedRow[key]}</div>
-                  </div>
-                ))}
+  <DialogTitle
+    variant="h4"
+    style={{
+      color: '#fff',
+      fontWeight: 'bold',
+      textAlign: 'center',
+      borderBottom: '2px solid #f0f0f0',
+      paddingBottom: '10px',
+      background: '#04255e',
+    }}
+  >
+    View BTR Details
+  </DialogTitle>
+  <DialogContent style={{ padding: '20px', backgroundColor: '#fafafa' }}>
+    {selectedRow && (
+      <DialogContentText>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+            gap: '20px',
+            fontSize: '14px',
+            color: '#333',
+            backgroundColor: '#fff',
+            padding: '20px',
+            borderRadius: '8px',
+            boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)',
+          }}
+        >
+          {Object.keys(selectedRow).filter((key) => key !== 'id').map((key) => {
+            const value = selectedRow[key] || 'NA'; // Display 'NA' if the value is empty or undefined
+            return (
+              <div
+                key={key}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'flex-start',
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 'bold',
+                    color: 'gray',
+                    marginBottom: '8px',
+                  }}
+                >
+                  {key}:
+                </div>
+                <div
+                  style={{
+                    backgroundColor: '#f9f9f9',
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    boxShadow: 'inset 0 0 5px rgba(0, 0, 0, 0.1)',
+                    wordBreak: 'break-word',
+                    width: '100%',
+                  }}
+                >
+                  {value}
+                </div>
               </div>
-            </DialogContentText>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseModals} color="secondary" variant="outlined">
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
+            );
+          })}
+        </div>
+      </DialogContentText>
+    )}
+  </DialogContent>
+  <DialogActions style={{ justifyContent: 'center' }}>
+    <Button onClick={handleCloseModals} color="secondary" variant="outlined">
+      Close
+    </Button>
+  </DialogActions>
+</Dialog>
+
+
+
     </div>
   );
 };

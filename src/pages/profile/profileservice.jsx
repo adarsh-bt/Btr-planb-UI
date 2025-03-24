@@ -1,5 +1,5 @@
 import axios from 'axios';
-import authservice from 'pages/authentication/authservice';
+import authservice from 'pages/authentication/services/authservice';
 
 const API_BASE_URL = 'http://localhost:8081/user-access/api/user-registration'; // Base URL for your API
 

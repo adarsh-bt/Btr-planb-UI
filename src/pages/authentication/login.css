@@ -15,7 +15,7 @@
     height:50rem; /* changed */
     background-image: var(--gradient);
     animation: bg-animation 5s infinite;
-    height: 130vh;
+    /* height: 130vh; */
     
   }
   

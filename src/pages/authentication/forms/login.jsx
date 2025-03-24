@@ -16,27 +16,44 @@ import {
 // import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import EmailIcon from "@mui/icons-material/Email";
 import LockIcon from "@mui/icons-material/Lock";
-import ForgotPassword from "./auth-forms/ForgotPassword"; // Ensure this path is correct
-import logo from "./images/gok_logo.png"; // Import the logo image
-import loginimg from "./images/login.png"; // Import the login image
+import ForgotPassword from './ForgotPassword'; // Ensure this path is correct
+// Import the logo image
+// Import the login image
 import { useNavigate} from 'react-router-dom'; 
 import CircularProgress from '@mui/material/CircularProgress';
-import Register from './auth-forms/Register';
+
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import Register from './Register';
+import logo from "../images/govt.png"; // Import the logo image
+import loginimg from "../images/login.png"; // Import the login image
+import bg1 from "../images/bg1.jpg"; // Import the background image
+import duklogo from "../images/Duk-Logo.png"; // Import the DUK logo image
+import cdtilogo from "../images/cdti_icon.png"; // Import the DUK logo image
+import { keyframes } from '@emotion/react';
+import '../login.css'
 
 
 import IconButton from '@mui/material/IconButton';
 
-import './login.css';
 
-import authservice from './authservice';
+
+import authservice from '../services/authservice';
+
+
+const fadeIn = keyframes`
+  0% { opacity: 0; transform: translateY(50px); }
+  100% { opacity: 1; transform: translateY(0); }
+`;
+
 
 const SignInSide = () => {
   // login state
 
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isRegister, setIsRegister] = useState(false); // State for toggling Register form
+
+
 
   const handleForgotPasswordClick = () => {
     setIsForgotPassword(true);
@@ -60,14 +77,14 @@ const SignInSide = () => {
         md={7}
         lg={7}
         sx={{
-          background: 'linear-gradient(142deg, rgba(42,110,193,1) 15%, rgba(22,77,155,1) 28%, rgba(14,63,139,1) 41%, rgba(5,48,122,1) 64%)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderTopLeftRadius: '20px', // Curves the top-left corner
-          borderBottomLeftRadius: '20px', // Curves the bottom-left corner
+          backgroundImage: `url(${bg1})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        
+          
         }}
       >
         <div style={{ textAlign: 'center' }}>
@@ -89,7 +106,9 @@ const SignInSide = () => {
               color: '#fff',
               fontWeight: 'bold',
               px: 4,
-              textAlign: 'center',
+              textAlign: "center",
+              // marginTop: "1rem",
+              // marginBottom:'2rem',
               
               // marginTop: "1rem",
               marginBottom: '5rem'
@@ -97,7 +116,63 @@ const SignInSide = () => {
           >
             AIDEA
           </Typography>
+          <Typography variant="h5"  sx={{
+              color: "#fff",
+              fontWeight: "bold",
+              px: 4,
+              textAlign: "center",
+              // marginTop: "1rem",
+              marginBottom:'3rem',
+              animation: `${fadeIn} 1.5s ease-out`,
+              
+            }}>Application for Intelligent Data Engineering and Analytics</Typography>
+        
+        <Typography style={{ display: "flex", justifyContent: "center", gap: "2rem", marginBottom: "3rem" }}>
+        <img
+        src={duklogo}
+        alt="DUK Logo"
+        style={{
+          width: "80px",
+          height: "50px",
+          padding:".7rem",
+          borderRadius: "5px", // Adds border radius for a polished look
+          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)", // Shadow for logos
+        
+        }}
+      />
+         {/* <img
+        src={deslogo}
+        alt="DES Logo"
+        style={{
+          width: "50px",
+          height: "50px",
+          borderRadius: "10px",
+          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)",
+         
+        }}
+      /> */}
+     <img
+        src={cdtilogo}
+        alt="DUK Logo"
+        style={{
+          width: "80px",
+          height: "50px",
+          padding:".7rem",
+          borderRadius: "5px", // Adds border radius for a polished look
+          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)", // Shadow for logos
+  
+        }}
+      />
+          {/* <Typography variant="p"  sx={{
+              color: "#fff",
+            }}>CDTI</Typography> */}
+        </Typography>
+        <Box sx={{ color: 'text.disabled' }}>© 2025 AIDEA CDTI-DUK. All rights reserved.</Box>
+
+        
         </div>
+          
+
       </Grid>
       <Grid
         item
@@ -108,6 +183,7 @@ const SignInSide = () => {
         elevation={6}
         square
         sx={{
+          backgroundColor: "rgb(250, 251, 252)",
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -117,7 +193,11 @@ const SignInSide = () => {
           boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
         }}
       >
-        <Avatar alt="User Login" src={loginimg} sx={{ width: 80, height: 80, marginBottom: '.5rem' }} />
+      <Avatar
+            alt="User Login"
+            src={loginimg}
+            sx={{ width: 50, height: 50,marginBottom:'.5rem' }}
+            />
 
         {/* Dynamic Heading */}
         <Typography component="h1" variant="h5" sx={{ fontWeight: 'bold', color: '#333', mb: 3 }}>
@@ -144,7 +224,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false); // New state for loading
+  const [isLoading, setIsLoading] = useState(false); // New state for loading
 
   const [showPassword, setShowPassword] = useState(false); // State to toggle password visibility
 
@@ -153,10 +233,10 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
 
     if (username && password) {
       try {
+        setIsLoading(true);
         const userData = await authservice.login(username, password);
-
+        setIsLoading(false);
         if (userData.payload && userData.payload.token && typeof userData.payload.token === 'string') {
-          localStorage.setItem('token', userData.payload.token);
           navigate('/');
       } else {
           setError(userData.message || 'Login failed');
@@ -267,33 +347,36 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
         }}
       />
       {/* Remember Me Checkbox */}
-      <FormControlLabel control={<Checkbox value="remember" color="primary" />} label="Remember me" />
+      {/* <FormControlLabel
+        control={<Checkbox value="remember" color="primary" />}
+        label="Remember me"
+      /> */}
+
       {/* Centered Sign In Button */}
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-        <Button
-          type="submit"
-          variant="contained"
-          color="primary"
-          sx={{
-            p: 1.5,
-            borderRadius: '20px',
-            width: '100%',
-            maxWidth: '200px',
-            '&:hover': {
-              backgroundColor: 'primary.dark',
-              color: 'white'
-            }
-          }}
-        >
-          {loading ? (
-            <>
-              <CircularProgress size={24} sx={{ color: 'white', mr: 1 }} />
-              Signing In...
-            </>
-          ) : (
-            'Sign In'
-          )}
-        </Button>
+      <Button
+  type="submit"
+  variant="contained"
+  color="primary"
+  sx={{
+    p: 1.5,
+    borderRadius: '20px',
+    width: '100%',
+    maxWidth: '200px',
+    '&:hover': {
+      backgroundColor: 'primary.dark',
+      color: 'white',
+    },
+  }}
+  disabled={isLoading}
+>
+  {isLoading ? (
+     <Typography sx={{color:'blue'}}>Logging...</Typography>
+    ) : (
+      'Login'
+    )}
+</Button>
+
       </Box>
       {/* Add spacing between the button and links */}
       <Box sx={{ mt: 4 }}>

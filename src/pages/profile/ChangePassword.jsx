@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TextField, Button, Typography, Box, Grid, Stack, Alert, Paper, IconButton, InputAdornment } from '@mui/material';
-import profileService from 'pages/functional-components/profileservice';
+import profileService from 'pages/profile/profileservice';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { jwtDecode } from 'jwt-decode';
