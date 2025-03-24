@@ -1,14 +1,19 @@
 import axios from 'axios';
 import { InvalidTokenError, jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
+import { encrypt } from './encryptionUtils';
 
 class authservice {
 //   static BASE_URL = "https://c163-103-170-55-191.ngrok-free.app/user-access"
-  static BASE_URL = 'http://localhost:8081/user-access';
+  static BASE_URL = 'http://localhost:8080/user-access';
 
 
     static async login(username, password) {
         try {
+            // const username = encrypt(user_name);
+            // const password = encrypt(pass_word);
+
+            // console.log("username : ",user_name, ">> password : ", pass_word);
             const response = await axios.post(`${authservice.BASE_URL}/api/login`, { username, password });
             localStorage.setItem('token', response.data.payload.token);
             localStorage.setItem('user', response.data.payload.username);

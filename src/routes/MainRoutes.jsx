@@ -12,7 +12,8 @@ const DashboardDefault = Loadable(lazy(() => import('pages/dashboard/index')));
 
 // Schems Sub menus
 const Schemes = Loadable(lazy(() => import('pages/functional-components/schemas')));
-const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_list')));
+// const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_list')));
+const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_menus')));
 const BTR = Loadable(lazy(() => import('pages/functional-components/earas/Btr')));
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
 
