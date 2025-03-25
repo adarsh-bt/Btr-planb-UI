@@ -12,7 +12,9 @@ const DashboardDefault = Loadable(lazy(() => import('pages/dashboard/index')));
 
 // Schems Sub menus
 const Schemes = Loadable(lazy(() => import('pages/functional-components/schemas')));
-const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_list')));
+// const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_list')));
+const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_menus')));
+const Zone_Details = Loadable(lazy(() => import('pages/functional-components/earas/zone_details')));
 const BTR = Loadable(lazy(() => import('pages/functional-components/earas/Btr')));
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
 
@@ -113,6 +115,14 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <BTR />
+        </PrivateRoute>
+      ),
+    },
+    {
+      path: '/schemes/earas/zone_details',
+      element: (
+        <PrivateRoute>
+          <Zone_Details />
         </PrivateRoute>
       ),
     },
