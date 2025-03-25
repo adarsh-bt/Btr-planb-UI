@@ -35,7 +35,7 @@ function Earas_menus() {
 
               <Grid container spacing={4}>
                <Grid item xs={12} sm={4} md={3} lg={3}>               
-               <Card component={Link} to="/schemes/earas"
+               <Card component={Link} to="/schemes/earas/zone_details"
         sx={{
           textDecoration:'none',
           display: 'flex',
@@ -88,8 +88,9 @@ function Earas_menus() {
     </Grid>
 
     <Grid item xs={12} sm={4} md={3} lg={3}>             
-    <Card
+    <Card component={Link} to="/schemes/earas/btr"
         sx={{
+          textDecoration:'none',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

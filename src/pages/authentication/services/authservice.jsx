@@ -5,7 +5,7 @@ import { encrypt } from './encryptionUtils';
 
 class authservice {
 //   static BASE_URL = "https://c163-103-170-55-191.ngrok-free.app/user-access"
-  static BASE_URL = 'http://localhost:8080/user-access';
+  static BASE_URL = 'http://localhost:8081/user-access';
 
 
     static async login(username, password) {
