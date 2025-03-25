@@ -28,7 +28,7 @@ function Schemas() {
         <Grid container spacing={3}>
         <Breadcrumb></Breadcrumb>
           <Grid item xs={12}>
-          <Typography variant='h3' sx={{marginBottom:4}}>Schemas</Typography>
+          <Typography variant='h3' sx={{marginBottom:2}}>Schemes</Typography>
             <MainCard title="">
              
               <Grid container spacing={4}>
@@ -41,7 +41,9 @@ function Schemas() {
           justifyContent: 'center',
           padding: '1rem',
           borderRadius: '1rem',
-          background: 'linear-gradient(135deg, rgba(99, 155, 255, 0.57), rgb(51, 125, 253))', // Gradient color
+          background: 'linear-gradient(135deg, rgba(99, 155, 255, 0.45), rgb(129, 175, 255))',
+
+ // Gradient color
           transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
           boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
           '&:hover': {
@@ -85,7 +87,7 @@ function Schemas() {
       </Card>
     </Grid>
 
-    {/* <Grid item xs={12} sm={4} md={3} lg={3}>             
+    <Grid item xs={12} sm={4} md={3} lg={3}>             
     <Card
         sx={{
           display: 'flex',
@@ -93,7 +95,9 @@ function Schemas() {
           justifyContent: 'center',
           padding: '1rem',
           borderRadius: '1rem',
-          background: 'linear-gradient(135deg, rgba(79, 208, 170, 0.57), rgb(37, 187, 142))', // Gradient color
+          background: 'linear-gradient(135deg, rgba(79, 208, 170, 0.45), rgb(98, 218, 182))',
+
+ // Gradient color
           transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
           boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
           '&:hover': {
@@ -118,7 +122,7 @@ function Schemas() {
         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
           <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
             <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-              EARAS
+              Prices
             </Typography>
             <Typography
               variant="subtitle1"
@@ -145,7 +149,8 @@ function Schemas() {
           justifyContent: 'center',
           padding: '1rem',
           borderRadius: '1rem',
-          background: 'linear-gradient(135deg, rgba(255, 142, 142, 0.57), rgb(243, 85, 85))', // Gradient color
+          background: 'linear-gradient(135deg, rgba(255, 142, 142, 0.45), rgb(255, 115, 115))',
+ // Gradient color
           transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
           boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
           '&:hover': {
@@ -170,7 +175,7 @@ function Schemas() {
         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
           <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
             <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-              EARAS
+             Scheme 3
             </Typography>
             <Typography
               variant="subtitle1"
@@ -197,7 +202,7 @@ function Schemas() {
           justifyContent: 'center',
           padding: '1rem',
           borderRadius: '1rem',
-          background: 'linear-gradient(135deg, rgba(180, 146, 254, 0.57), rgb(132, 94, 247))', // Gradient color
+          background: 'linear-gradient(135deg, rgba(180, 146, 254, 0.45), rgb(155, 120, 250))', // Gradient color
           transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
           boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
           '&:hover': {
@@ -222,7 +227,7 @@ function Schemas() {
         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
           <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
             <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-              EARAS
+              Scheme 4
             </Typography>
             <Typography
               variant="subtitle1"
@@ -240,7 +245,7 @@ function Schemas() {
         </Box>
       </Card>
     </Grid>
-
+ {/*
     <Grid item xs={12} sm={4} md={3} lg={3}>              
     <Card
         sx={{

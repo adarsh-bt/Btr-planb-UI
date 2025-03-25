@@ -75,7 +75,6 @@ export default function DashboardDefault() {
     >
       {/* Row 1 */}
       <Grid item xs={12}>
-     <Breadcrumb></Breadcrumb>
         <Typography variant="h4" align="center" sx={{ mb: 3 }}>
           Dashboard  
           {/* {isauth ? (
@@ -443,7 +442,7 @@ export default function DashboardDefault() {
       variant="h3"
       sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}
     >
-      Approvels
+      Approvals
     </Typography>
     <Typography
       variant="body2"

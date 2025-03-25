@@ -17,6 +17,8 @@ import { EditOutlined } from '@ant-design/icons';
 import Breadcrumb from 'routes/Breadcrumb';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import btrservice from './btrservice';
+import { Grid } from '@mui/material';
+
 
 // Define the columns for the data table
 const columns = (handleEdit,handleView) => [
@@ -144,29 +146,29 @@ useEffect(() => {
 }, [page, size, filterText]);
 
   return (
-    <div>
-   
-  <Breadcrumb />
+    <Grid container spacing={3}>
+      <Breadcrumb></Breadcrumb>
+      <Grid item xs={12}>
  
-      <Paper elevation={3} style={{ marginBottom: '16px', padding: '10px' }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
-            Basic Tax Register (RELIS)
-          </Typography>  <Typography variant="body1" component="p" sx={{ color: '#04255e'}}>Total Area : {totalArea}</Typography>
-          <TextField
-            label="Search"
-            variant="outlined"
-            value={filterText}
-            onChange={handleFilterChange}
-            size="small"
-            style={{ width: '200px' }}
-          />
-        </Stack>
-      </Paper>
+        <Paper elevation={3} style={{ marginBottom: '16px', padding: '10px' }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
+              Basic Tax Register (RELIS)
+            </Typography>  <Typography variant="body1" component="p" sx={{ color: '#04255e'}}>Total Area : {totalArea}</Typography>
+            <TextField
+              label="Search"
+              variant="outlined"
+              value={filterText}
+              onChange={handleFilterChange}
+              size="small"
+              style={{ width: '200px' }}
+            />
+          </Stack>
+        </Paper>
 
 
       <DataTable
-        columns={columns(handleEdit, handleView)} // Pass both handleEdit and handleView
+        columns={columns(undefined, handleView)} // Pass both handleEdit and handleView
         data={filteredData}
         pagination
         paginationComponentOptions={{
@@ -283,8 +285,9 @@ useEffect(() => {
 </Dialog>
 
 
-
-    </div>
+    
+    </Grid>
+        </Grid>
   );
 };
 

@@ -6,12 +6,14 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { emphasize, styled } from "@mui/material/styles";
 
 // Styled Chip for Breadcrumb
-const StyledBreadcrumb = styled(Chip)(({ theme }) => {
-  const backgroundColor = theme.palette.grey[200];
+const StyledBreadcrumb = styled(Chip)(({ theme, isLast }) => {
+  const backgroundColor = isLast
+    ? "#e3f2fd" // Light blue for current path
+    : theme.palette.grey[200];
   return {
     backgroundColor,
     height: theme.spacing(3),
-    color: theme.palette.text.primary,
+    color: isLast ? "#1e88e5" : theme.palette.text.primary,
     fontWeight: theme.typography.fontWeightMedium,
     '&:hover, &:focus': {
       backgroundColor: emphasize(backgroundColor, 0.1),
@@ -45,11 +47,12 @@ const Breadcrumb = () => {
               <StyledBreadcrumb
                 key={to}
                 label={value}
+                isLast={isLast}
                 deleteIcon={<ExpandMoreIcon />}
                 onDelete={() => {}}
               />
             ) : (
-              <StyledBreadcrumb key={to} component={Link} to={to} label={value} />
+              <StyledBreadcrumb key={to} component={Link} to={to} label={value} isLast={false} />
             );
           })}
         </Breadcrumbs>

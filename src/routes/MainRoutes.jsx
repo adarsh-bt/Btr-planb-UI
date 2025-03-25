@@ -11,10 +11,13 @@ const Shadow = Loadable(lazy(() => import('pages/component-overview/shadows')));
 const DashboardDefault = Loadable(lazy(() => import('pages/dashboard/index')));
 
 // Schems Sub menus
-const Schemes = Loadable(lazy(() => import('pages/functional-components/schemas')));
-const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_list')));
-const BTR = Loadable(lazy(() => import('pages/functional-components/earas/Btr')));
+const Schemes = Loadable(lazy(() => import('pages/functional-components/schemes/schemas')));
+// const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_list')));
+const Earas = Loadable(lazy(() => import('pages/functional-components/schemes/earas/earas_menus')));
+const BTR = Loadable(lazy(() => import('pages/functional-components/schemes/earas/Btr')));
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
+
+const RoleDetail = Loadable(lazy(() => import('pages/roles/Roles')));
 
 // Approvels
 const Approvel = Loadable(lazy(() => import('pages/functional-components/approvels/approvelist')));
@@ -100,14 +103,16 @@ const MainRoutes = {
         </PrivateRoute>
       ),
     },
+
     {
-      path: 'profile',
+      path: 'role',
       element: (
         <PrivateRoute>
-          <Profile />
+          <RoleDetail />
         </PrivateRoute>
       ),
     },
+
     {
       path: '/schemes/earas/btr',
       element: (
