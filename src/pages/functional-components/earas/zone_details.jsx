@@ -1,10 +1,12 @@
 import React, {useEffect,useState} from 'react';
-import { Grid, Typography } from '@mui/material';
+import { Grid, Typography,Box,Paper,Table, TableBody, TableCell, TableContainer, TableHead, TableRow, } from '@mui/material';
 import MainCard from 'components/MainCard';
 import DataTable from 'react-data-table-component';
 import { width } from '@mui/system';
 import { useTheme } from '@mui/material/styles';
 import Breadcrumb from 'routes/Breadcrumb';
+import './earascss/zone_deta.css'
+
 
 const columns = [
   { name: 'SL. NO', selector: (row, index) => index + 1 },
@@ -12,6 +14,35 @@ const columns = [
   { name: 'Wet', selector: (row) => row.Wet_area?.toString() || <span style={{ color: '#888' }}>NA</span> },
   { name: 'Dry', selector: (row) => row.Dry_area?.toString() || <span style={{ color: '#888' }}>NA</span> },
   { name: 'Total', selector: (row) => row.Total_area?.toString() || <span style={{ color: '#888' }}>NA</span> },
+];
+
+
+const rows = [
+  {
+    sl: 1,
+    name: 'John Doe',
+    village: 'Village A',
+    block: 'Block 1',
+    wetArea: 30,
+    dryArea: 50,
+    totalArea: 80,
+    wetPlots: 10,
+    dryPlots: 20,
+    totalPlots: 30,
+  },
+  {
+    sl: 2,
+    name: 'Jane Smith',
+    village: 'Village B',
+    block: 'Block 2',
+    wetArea: 40,
+    dryArea: 60,
+    totalArea: 100,
+    wetPlots: 15,
+    dryPlots: 25,
+    totalPlots: 40,
+  },
+  // Add more rows as needed
 ];
 
 const sampleData = [
@@ -76,8 +107,95 @@ function ZoneDetails() {
         <Typography variant="h3" sx={{ marginBottom: 2 }}>
           Zone Details
         </Typography>
+        <MainCard>
+        <Box className="bar-container">
+      <Paper className="bar-paper">
+        <Grid container spacing={2}>
+          <Grid item xs={6} sm={3} className="bar-grid-item">
+            <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
+              District:
+            </Typography>
+            <Typography variant="body1" align="center" sx={{ color: '#00796b' }}>
+              Thiruvananthapuram
+            </Typography>
+          </Grid>
+          <Grid item xs={6} sm={3} className="bar-grid-item">
+            <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
+              Taluk:
+            </Typography>
+            <Typography variant="body1" align="center" sx={{ color: '#00796b' }}>
+              Nem
+            </Typography>
+          </Grid>
+          <Grid item xs={6} sm={3} className="bar-grid-item">
+            <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
+              LocalBody:
+            </Typography>
+            <Typography variant="body1" align="center" sx={{ color: '#00796b' }}>
+              Panchayat
+            </Typography>
+          </Grid>
+          <Grid item xs={6} sm={3}>
+            <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
+              Zone:
+            </Typography>
+            <Typography variant="body1" align="center" sx={{ color: '#00796b' }}>
+              Killie
+            </Typography>
+          </Grid>
+        </Grid>
+      </Paper>
+    </Box>
+        </MainCard>
+
         <MainCard title="">
-          <DataTable
+
+        <TableContainer component={Paper}>
+  <Table sx={{ border: 1, borderColor: 'grey.300' }}>
+    <TableHead>
+      {/* Main Header Row */}
+      <TableRow>
+        <TableCell rowSpan={2} sx={{ border: 1,borderColor: 'grey.300' }}>SL</TableCell>
+        <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>Name</TableCell>
+        <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>Village</TableCell>
+        <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>Block</TableCell>
+        <TableCell colSpan={3} align="center" sx={{ border: 1, borderColor: 'grey.300' }}>Area</TableCell>
+        <TableCell colSpan={3} align="center" sx={{ border: 1, borderColor: 'grey.300' }}>Plots</TableCell>
+      </TableRow>
+
+      {/* Sub-header Row */}
+      <TableRow>
+        {/* Area Sub-columns */}
+        <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Wet</TableCell>
+        <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Dry</TableCell>
+        <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Total</TableCell>
+        
+        {/* Plots Sub-columns */}
+        <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Wet</TableCell>
+        <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Dry</TableCell>
+        <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Total</TableCell>
+      </TableRow>
+    </TableHead>
+
+    <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.sl}>
+              <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.sl}</TableCell>
+              <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.name}</TableCell>
+              <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.village}</TableCell>
+              <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.block}</TableCell>
+              <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.wetArea}</TableCell>
+              <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.dryArea}</TableCell>
+              <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.totalArea}</TableCell>
+              <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.wetPlots}</TableCell>
+              <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.dryPlots}</TableCell>
+              <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.totalPlots}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+  </Table>
+</TableContainer>
+          {/* <DataTable
             columns={columns}
             data={data}
             customStyles={{
@@ -97,7 +215,7 @@ function ZoneDetails() {
                 },
               },
             }}
-          />
+          /> */}
         </MainCard>
       </Grid>
     </Grid>
