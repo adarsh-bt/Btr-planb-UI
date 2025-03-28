@@ -22,9 +22,13 @@ import {
   MenuItem,
   FormGroup,
   FormControlLabel,
+  FormControl,
+  InputLabel,
+  Select,
   Radio
 } from '@mui/material';
 import functionalservice from '../functionalservice';
+import RoleSchemeService from 'pages/authentication/services/roleschemeservice';
 
 const columns = (handleEdit) => [
   { name: 'SL. NO', selector: (row, index) => index + 1, sortable: true },
@@ -92,16 +96,32 @@ export default function BasicTabs() {
   const [selectedRow, setSelectedRow] = useState(null);
   const [remarks, setRemarks] = useState('');
   const [radioState, setRadioState] = React.useState('');
-  const [schemes, setScheme] = useState('');
   const [zone, setZone] = useState('');
-  const [roles, setRoles] = useState('');
   const [userList, setUserList] = useState([]);
   const [filterText, setFilterText] = useState('');
+
+  const [schemes, setScheme] = useState('');
+  const [roles, setRoles] = useState('');
+  const [availableSchemes, setAvailableSchemes] = useState([]);
+  const [availableRoles, setAvailableRoles] = useState([]);
 
   // States for filtered users in each tab
   const [districtUsers, setDistrictUsers] = useState([]);
   const [talukUsers, setTalukUsers] = useState([]);
   const [directorateUsers, setDirectorateUsers] = useState([]);
+
+  useEffect(() => {
+    // Extract roles from the JWT token and save it to state
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const decodedToken = jwtDecode(token);
+        setRoles(decodedToken.roles); // Save the roles field into state
+      } catch (error) {
+        console.error('Error decoding token:', error);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const fetchUserApprovals = async () => {
@@ -118,11 +138,16 @@ export default function BasicTabs() {
   }, []);
 
   useEffect(() => {
-    // Filter users based on officeType
-    setDistrictUsers(userList.filter(user => user.officeType === "District"));
-    setTalukUsers(userList.filter(user => user.officeType === "Taluk"));
-    setDirectorateUsers(userList.filter(user => user.officeType === "Directorate"));
-  }, [userList]); // Update when userList changes
+    if (roles === 'Super Admin') {
+      setDirectorateUsers(userList.filter((user) => user.officeType === 'Directorate'));
+      setDistrictUsers([]);
+      setTalukUsers([]);
+    } else {
+      setDistrictUsers(userList.filter((user) => user.officeType === 'District'));
+      setTalukUsers(userList.filter((user) => user.officeType === 'Taluk'));
+      setDirectorateUsers(userList.filter((user) => user.officeType === 'Directorate'));
+    }
+  }, [userList, roles]); //  Also, include roles in the dependency array
 
   const handleEdit = (row) => {
     setSelectedRow(row); // Set the selected row to be edited
@@ -207,10 +232,6 @@ export default function BasicTabs() {
     setRadioState(value);
   };
 
-  const handleSchemeChange = (event) => {
-    setScheme(event.target.value);
-  };
-
   const handleZoneChange = (event) => {
     setZone(event.target.value);
   };
@@ -232,16 +253,85 @@ export default function BasicTabs() {
 
   // Filter data based on the filter text for each user type
   const filteredDistrictUsers = districtUsers.filter((item) =>
-    Object.values(item).some((value) => value.toString().toLowerCase().includes(filterText.toLowerCase()))
+    Object.values(item).some((value) => value != null && value.toString().toLowerCase().includes(filterText.toLowerCase()))
   );
 
   const filteredTalukUsers = talukUsers.filter((item) =>
-    Object.values(item).some((value) => value.toString().toLowerCase().includes(filterText.toLowerCase()))
+    Object.values(item).some((value) => value != null && value.toString().toLowerCase().includes(filterText.toLowerCase()))
   );
 
   const filteredDirectorateUsers = directorateUsers.filter((item) =>
-    Object.values(item).some((value) => value.toString().toLowerCase().includes(filterText.toLowerCase()))
+    Object.values(item).some((value) => value != null && value.toString().toLowerCase().includes(filterText.toLowerCase()))
   );
+
+  // Fetch data based on roles
+  useEffect(() => {
+    const fetchData = async () => {
+      if (roles === 'Super Admin') {
+        // Fetch all roles if the user is a Super Admin
+        try {
+          const fetchedRoles = await RoleSchemeService.getRoles();
+          if (Array.isArray(fetchedRoles)) {
+            setAvailableRoles(fetchedRoles);
+          } else {
+            console.error('Fetched roles are not an array:', fetchedRoles);
+            setAvailableRoles([]);
+          }
+        } catch (error) {
+          console.error('Error fetching roles:', error);
+          setAvailableRoles([]);
+        }
+      } else {
+        // Fetch schemes first for other roles
+        try {
+          const fetchedSchemes = await RoleSchemeService.getSchemes();
+          if (Array.isArray(fetchedSchemes)) {
+            console.log('schmes set', fetchedSchemes);
+            setAvailableSchemes(fetchedSchemes);
+          } else {
+            console.error('Fetched schemes are not an array:', fetchedSchemes);
+            setAvailableSchemes([]);
+          }
+        } catch (error) {
+          console.error('Error fetching schemes:', error);
+          setAvailableSchemes([]);
+        }
+      }
+    };
+
+    if (roles) {
+      fetchData();
+    }
+  }, [roles]);
+
+  // Handle scheme selection and fetch roles for the selected scheme
+  const handleSchemeChange = async (selectedSchemeId) => {
+    setScheme(selectedSchemeId); // Update selected scheme ID in state
+    try {
+      const fetchedRolesByScheme = await RoleSchemeService.getRolesbySchemes(selectedSchemeId);
+      if (Array.isArray(fetchedRolesByScheme)) {
+        setAvailableRoles(fetchedRolesByScheme);
+      } else {
+        console.error('Fetched roles by scheme are not an array:', fetchedRolesByScheme);
+        setAvailableRoles([]);
+      }
+    } catch (error) {
+      console.error('Error fetching roles by scheme:', error);
+      setAvailableRoles([]);
+    }
+  };
+
+  const handleRoleSelectionChange = (selectedRoleId) => {
+    setRoles(selectedRoleId); // Update selected role in state
+
+    if (!selectedRoleId) {
+      console.log('No role selected');
+      return;
+    }
+
+    console.log(`Selected Role ID: ${selectedRoleId}`);
+    // Additional logic can be added here if required for role selection
+  };
 
   return (
     <Box style={{ background: 'white' }}>
@@ -252,131 +342,153 @@ export default function BasicTabs() {
       <Box sx={{ width: '100%' }}>
         <Box sx={{ borderColor: 'Boxider', marginLeft: '1rem', justifyContent: 'center', alignItems: 'center' }}>
           <Tabs value={value} onChange={handleChange} aria-label="basic tabs example" indicatorColor="primary">
-            <Tab label="District Level Users" {...a11yProps(0)} />
-            <Tab label="Taluk Level Users" {...a11yProps(1)} />
-            <Tab label="Directorate User Request" {...a11yProps(2)} />
-            <Tab label="Others Request" {...a11yProps(3)} />
+            {/* Tabs for IT Admin */}
+            {roles === 'IT Admin' && (
+              <>
+                <Tab label="District Level Users" {...a11yProps(0)} />
+                <Tab label="Directorate User Request" {...a11yProps(1)} />
+              </>
+            )}
+
+            {/* Tabs for Super Admin */}
+            {roles === 'Super Admin' && <Tab label="Directorate User Request" {...a11yProps(0)} />}
+
+            {/* Other roles will have different tab configurations */}
+            {roles !== 'Super Admin' && roles !== 'IT Admin' && (
+              <>
+                <Tab label="Taluk Level Users" {...a11yProps(0)} />
+                <Tab label="Others Request" {...a11yProps(1)} />
+              </>
+            )}
           </Tabs>
         </Box>
 
         {/* District Level Users Tab */}
         <CustomTabPanel value={value} index={0}>
-          <Paper elevation={3} style={{ padding: '10px' }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
-                District Level Users
-              </Typography>
-              <TextField
-                label="Filter"
-                variant="outlined"
-                value={filterText}
-                onChange={handleFilterChange}
-                size="small"
-                style={{ width: '200px' }}
-              />
-            </Stack>
-          </Paper>
-          <DataTable
-            columns={columns(handleEdit)}
-            data={filteredDistrictUsers}
-            fixedHeader
-            fixedHeaderScrollHeight="400px"
-            pagination
-            paginationComponentOptions={{
-              rowsPerPageText: 'Rows per page',
-              rangeSeparatorText: 'of',
-              selectAllRowsItemText: 'All',
-              selectAllRowsItem: 'Select All'
-            }}
-            customStyles={{
-              headCells: {
-                style: {
-                  fontSize: '.8rem',
-                  backgroundColor: '#04255e', // Header background color
-                  color: '#fff', // Header text color
-                  fontWeight: 'bold', // Bold header text
-                  borderBottom: '2px solid black' // Classic border style
-                }
-              },
-              cells: {
-                style: {
-                  backgroundColor: '',
-                  borderBottom: '1px solid white', // Light bottom border for rows
-                  color: '#333' // Darker text color for better readability
-                }
-              },
-              pagination: {
-                style: {
-                  color: '#04255e', // Change pagination symbols to blue
+          {roles === 'IT Admin' && (
+            <>
+              <Paper elevation={3} style={{ padding: '10px' }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
+                    District Level Users
+                  </Typography>
+                  <TextField
+                    label="Filter"
+                    variant="outlined"
+                    value={filterText}
+                    onChange={handleFilterChange}
+                    size="small"
+                    style={{ width: '200px' }}
+                  />
+                </Stack>
+              </Paper>
+              <DataTable
+                columns={columns(handleEdit)}
+                data={filteredDistrictUsers}
+                fixedHeader
+                fixedHeaderScrollHeight="400px"
+                pagination
+                paginationComponentOptions={{
+                  rowsPerPageText: 'Rows per page',
+                  rangeSeparatorText: 'of',
+                  selectAllRowsItemText: 'All',
+                  selectAllRowsItem: 'Select All'
+                }}
+                customStyles={{
+                  headCells: {
+                    style: {
+                      fontSize: '.8rem',
+                      backgroundColor: '#04255e', // Header background color
+                      color: '#fff', // Header text color
+                      fontWeight: 'bold', // Bold header text
+                      borderBottom: '2px solid black' // Classic border style
+                    }
+                  },
+                  cells: {
+                    style: {
+                      backgroundColor: '',
+                      borderBottom: '1px solid white', // Light bottom border for rows
+                      color: '#333' // Darker text color for better readability
+                    }
+                  },
+                  pagination: {
+                    style: {
+                      color: '#04255e', // Change pagination symbols to blue
 
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }
-              }
-            }}
-          />
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }
+                  }
+                }}
+              />
+            </>
+          )}
         </CustomTabPanel>
 
         {/* Taluk Level Users Tab */}
         <CustomTabPanel value={value} index={1}>
-          <Paper elevation={3} style={{ padding: '10px' }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
-                Taluk Level Users
-              </Typography>
-              <TextField
-                label="Filter"
-                variant="outlined"
-                value={filterText}
-                onChange={handleFilterChange}
-                size="small"
-                style={{ width: '200px' }}
-              />
-            </Stack>
-          </Paper>
-          <DataTable
-            columns={columns(handleEdit)}
-            data={filteredTalukUsers}
-            fixedHeader
-            fixedHeaderScrollHeight="400px"
-            pagination
-            paginationComponentOptions={{
-              rowsPerPageText: 'Rows per page',
-              rangeSeparatorText: 'of',
-              selectAllRowsItemText: 'All',
-              selectAllRowsItem: 'Select All'
-            }}
-            customStyles={{
-              headCells: {
-                style: {
-                  fontSize: '.8rem',
-                  backgroundColor: '#04255e', // Header background color
-                  color: '#fff', // Header text color
-                  fontWeight: 'bold', // Bold header text
-                  borderBottom: '2px solid black' // Classic border style
-                }
-              },
-              cells: {
-                style: {
-                  backgroundColor: '',
-                  borderBottom: '1px solid white', // Light bottom border for rows
-                  color: '#333' // Darker text color for better readability
-                }
-              },
-              pagination: {
-                style: {
-                  color: '#04255e', // Change pagination symbols to blue
+          {roles !== 'Super Admin' && roles !== 'IT Admin' && (
+            <>
+              <Paper elevation={3} style={{ padding: '10px' }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
+                    Taluk Level Users
+                  </Typography>
+                  <TextField
+                    label="Filter"
+                    variant="outlined"
+                    value={filterText}
+                    onChange={handleFilterChange}
+                    size="small"
+                    style={{ width: '200px' }}
+                  />
+                </Stack>
+              </Paper>
+              <DataTable
+                columns={columns(handleEdit)}
+                data={filteredTalukUsers}
+                fixedHeader
+                fixedHeaderScrollHeight="400px"
+                pagination
+                paginationComponentOptions={{
+                  rowsPerPageText: 'Rows per page',
+                  rangeSeparatorText: 'of',
+                  selectAllRowsItemText: 'All',
+                  selectAllRowsItem: 'Select All'
+                }}
+                customStyles={{
+                  headCells: {
+                    style: {
+                      fontSize: '.8rem',
+                      backgroundColor: '#04255e', // Header background color
+                      color: '#fff', // Header text color
+                      fontWeight: 'bold', // Bold header text
+                      borderBottom: '2px solid black' // Classic border style
+                    }
+                  },
+                  cells: {
+                    style: {
+                      backgroundColor: '',
+                      borderBottom: '1px solid white', // Light bottom border for rows
+                      color: '#333' // Darker text color for better readability
+                    }
+                  },
+                  pagination: {
+                    style: {
+                      color: '#04255e', // Change pagination symbols to blue
 
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }
-              }
-            }}
-          />
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }
+                  }
+                }}
+              />
+            </>
+          )}
         </CustomTabPanel>
 
         {/* Directorate User Request Tab */}
-        <CustomTabPanel value={value} index={2}>
+        <CustomTabPanel value={value} index={roles === 'IT Admin' ? 1 : 0}>
           <Paper elevation={3} style={{ padding: '10px' }}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
@@ -435,61 +547,65 @@ export default function BasicTabs() {
 
         {/* Others Request Tab (If needed, implement filtering and data display similar to above) */}
         <CustomTabPanel value={value} index={3}>
-          <Paper elevation={3} style={{ padding: '10px' }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
-                Others Request
-              </Typography>
-              <TextField
-                label="Filter"
-                variant="outlined"
-                value={filterText}
-                onChange={handleFilterChange}
-                size="small"
-                style={{ width: '200px' }}
-              />
-            </Stack>
-          </Paper>
-          {/* Implement your data display for "Others Request" here */}
-          <DataTable
-            columns={columns(handleEdit)}
-            data={userList} // to display other user details
-            fixedHeader
-            fixedHeaderScrollHeight="400px"
-            pagination
-            paginationComponentOptions={{
-              rowsPerPageText: 'Rows per page',
-              rangeSeparatorText: 'of',
-              selectAllRowsItemText: 'All',
-              selectAllRowsItem: 'Select All'
-            }}
-            customStyles={{
-              headCells: {
-                style: {
-                  fontSize: '.8rem',
-                  backgroundColor: '#04255e', // Header background color
-                  color: '#fff', // Header text color
-                  fontWeight: 'bold', // Bold header text
-                  borderBottom: '2px solid black' // Classic border style
-                }
-              },
-              cells: {
-                style: {
-                  backgroundColor: '',
-                  borderBottom: '1px solid white', // Light bottom border for rows
-                  color: '#333' // Darker text color for better readability
-                }
-              },
-              pagination: {
-                style: {
-                  color: '#04255e', // Change pagination symbols to blue
+          {roles !== 'Super Admin' && roles !== 'IT Admin' && (
+            <>
+              <Paper elevation={3} style={{ padding: '10px' }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
+                    Others Request
+                  </Typography>
+                  <TextField
+                    label="Filter"
+                    variant="outlined"
+                    value={filterText}
+                    onChange={handleFilterChange}
+                    size="small"
+                    style={{ width: '200px' }}
+                  />
+                </Stack>
+              </Paper>
+              {/* Implement your data display for "Others Request" here */}
+              <DataTable
+                columns={columns(handleEdit)}
+                data={userList} // to display other user details
+                fixedHeader
+                fixedHeaderScrollHeight="400px"
+                pagination
+                paginationComponentOptions={{
+                  rowsPerPageText: 'Rows per page',
+                  rangeSeparatorText: 'of',
+                  selectAllRowsItemText: 'All',
+                  selectAllRowsItem: 'Select All'
+                }}
+                customStyles={{
+                  headCells: {
+                    style: {
+                      fontSize: '.8rem',
+                      backgroundColor: '#04255e', // Header background color
+                      color: '#fff', // Header text color
+                      fontWeight: 'bold', // Bold header text
+                      borderBottom: '2px solid black' // Classic border style
+                    }
+                  },
+                  cells: {
+                    style: {
+                      backgroundColor: '',
+                      borderBottom: '1px solid white', // Light bottom border for rows
+                      color: '#333' // Darker text color for better readability
+                    }
+                  },
+                  pagination: {
+                    style: {
+                      color: '#04255e', // Change pagination symbols to blue
 
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }
-              }
-            }}
-          />
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }
+                  }
+                }}
+              />
+            </>
+          )}
         </CustomTabPanel>
 
         {/* Modal for editing user details (remains the same) */}
@@ -580,6 +696,52 @@ export default function BasicTabs() {
                     boxShadow: '0 0 5px rgba(0, 0, 0, 0.1)'
                   }}
                 ></Box>
+
+                <div>
+                  {/* Render UI conditionally based on user role */}
+                  {roles === 'Super Admin' ? (
+                    <div>
+                      <h2>Available Roles:</h2>
+                      <ul>
+                        {availableRoles.map((role) => (
+                          <li key={role.id}>{role.name}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <div>
+                      <h2>Select a Scheme:</h2>
+                      <select onChange={(e) => handleSchemeChange(e.target.value)}>
+                        <option value="">-- Select Scheme --</option>
+                        {availableSchemes.map((scheme) => (
+                          <option key={scheme.id} value={scheme.id}>
+                            {scheme.schemeName}
+                          </option>
+                        ))}
+                      </select>
+
+                      <h2>Available Roles</h2>
+                      {schemes ? (
+                        <FormControl fullWidth>
+                          <InputLabel id="available-roles-label">Select Role</InputLabel>
+                          <Select
+                            labelId="available-roles-label"
+                            value={roles}
+                            onChange={(event) => handleRoleSelectionChange(event.target.value)} // Updated to handle role change
+                          >
+                            {availableRoles.map((role) => (
+                              <MenuItem key={role.id} value={role.id}>
+                                {role.name}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      ) : (
+                        <p>Please select a scheme to view available roles.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {/* Status Radio Buttons */}
                 <Box
