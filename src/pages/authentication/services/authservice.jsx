@@ -97,6 +97,23 @@ class authservice {
             navigate('/login');
         }
     
+        static userid(){
+            const token = localStorage.getItem('token');
+            const decodedToken = jwtDecode(token);
+            return decodedToken.sub
+        }
+
+        static getrole(){
+            const token = localStorage.getItem('token');
+             const decodedToken = jwtDecode(token);
+           
+             return decodedToken.roles
+        }
+
+        static gettoken(){
+            return localStorage.getItem('token')
+        }
+
 }
 
 export default authservice;

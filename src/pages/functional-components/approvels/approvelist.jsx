@@ -28,6 +28,10 @@ import {
     Radio,
   } from '@mui/material';
 import functionalservice from '../functionalservice';
+import approvalservice from './approvalservice';
+import auth from 'contexts/auth-reducer/auth';
+import authservice from 'pages/authentication/services/authservice';
+import Taluk from './talukusers';
 
 const columns = (handleEdit) => [
     { name: 'SL. NO', selector:(row, index) => index + 1, sortable: true },
@@ -47,7 +51,7 @@ const columns = (handleEdit) => [
             color:
               row.approvalStatus === "Approved"
                 ? "green"
-                : row.approvalStatus === "Marked"
+                : row.approvalStatus === "Pending"
                 ? "orange"
                 : "red",
           }}
@@ -98,17 +102,15 @@ CustomTabPanel.propTypes = {
   value: PropTypes.number.isRequired,
 };
 
-function a11yProps(index) {
-  return {
-    id: `simple-tab-${index}`,
-    'aria-controls': `simple-tabpanel-${index}`,
-  };
-}
+const a11yProps = (index) => ({
+  id: `simple-tab-${index}`,
+  'aria-controls': `simple-tabpanel-${index}`,
+});
 
 export default function BasicTabs() {
   const [value, setValue] = React.useState(0);
 
-
+  const [admrole,setAdmrole] = useState('');
   
     const [openModal, setOpenModal] = useState(false);
     const [selectedRow, setSelectedRow] = useState(null);
@@ -116,13 +118,18 @@ export default function BasicTabs() {
 
     // Function to handle filter change
     
-  
+    useEffect(() => {
+      const userRole = authservice.getrole(); // Or get it from localStorage, etc.
+      setAdmrole(userRole);
+    }, []);
     // Function to handle edit action
     const handleEdit = (row) => {
-      setSelectedRow(row); // Set the selected row to be edited
-      setRadioState(row.approvalStatus.toLowerCase()); // Set the radio state to match the approval status (approved/marked/rejected)
-      setRemarks(row.remarks)
-      setOpenModal(true); // Open the modal
+      setSelectedRow(row); 
+      setRadioState(row.approvalStatus.toLowerCase()); 
+      setRemarks(row.remarks || ""); // Reset remarks to row's value or empty
+      setSelectedScheme(""); // Reset scheme selection
+      setSelectedRole(""); // Reset role selection
+      setOpenModal(true); 
     };
     
   
@@ -156,23 +163,29 @@ export default function BasicTabs() {
           console.log("admin >>",admin_id)
           console.log("approval id >>",selectedRow.approvalId)
           console.log("remarks >>",remarks)
+          console.log("select role >>",selectedRole)
           const approvalStatus = radioState;  // The status ("approved", "marked", "rejected")
           // const remarks = radioState === "rejected" || radioState === "marked" ? remarks : "All documents verified and approved.";  // Sample remarks based on status
           console.log("selec",selectedRow.userId)
           // Construct the payload
           const payload = {
-            approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "marked" ? "Marked" : "Rejected",
+            approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "PENDING" : "Rejected",
             approvalDate: new Date().toISOString().split('T')[0],
             remarks: remarks,
             isApproved: approvalStatus === "approved", 
             adminId: admin_id, 
             userId: selectedRow ? selectedRow.userId : "", 
-            id:selectedRow.approvalId
+            id:selectedRow.approvalId,
+            roleId:selectedRole
           };
     
-          // Call the API using the separate function
-          functionalservice.saveApprovalDetails(payload)
-            .then((data) => {
+         if(admrole === "IT Admin"){
+          var apicall = approvalservice.saveItadminApproval(payload)
+         }else if(admrole === "District Level Approver"){
+          var apicall = approvalservice.saveDisApproval(payload)
+         }
+         
+            apicall.then((data) => {
               console.log("data >>",data)
               if (data.payload) {
                 Swal.fire("Saved!", "Your changes have been saved.", "success");
@@ -199,10 +212,9 @@ export default function BasicTabs() {
     
   
 
-  const handleChange = (event, newValue) => {
-    setValue(newValue);
-  };
-
+    const handleChange = (event, newValue) => {
+      setValue(newValue);
+    };
   // const [checkboxState, setCheckboxState] = React.useState({
   //   approved: false,
   //   marked: false,
@@ -222,7 +234,10 @@ const [schemes, setScheme] = useState('');
 const [zone, setZone] = useState('');
 const [roles, setRoles] = useState('');
 
-
+const [schemesList, setSchemesList] = useState([]);
+const [selectedScheme, setSelectedScheme] = useState('');
+const [rolesList, setRolesList] = useState([]);
+const [selectedRole, setSelectedRole] = useState('');
 
 const handleRadioChange = (value) => {
   setRadioState(value);
@@ -243,31 +258,93 @@ const handleRoleChange = (event) => {
 };
 
 
-const isSaveEnabled = (radioState === 'marked' || radioState === 'rejected' || radioState === 'approved') && roles && schemes && (schemes === 'Earas' ? zone : true);
-
+const isSaveEnabled = 
+  (radioState === 'pending' || radioState === 'rejected' || 
+    (radioState === 'approved' && selectedRole !== '')) && 
+  rolesList && 
+  schemesList && 
+  (schemesList === 'Earas' ? zone : true); 
 
 
 const [userList, setUserList] = useState([]);
+const [userListDis, setUserListDis] = useState([]);
 const [filterText, setFilterText] = useState('');
+const [DisfilterText, setDisFilterText] = useState('');
+
+useEffect(() => {
+  const fetchInitialData = async () => {
+    if (admrole === 'IT Admin') {
+   
+      // Fetch all roles for super admin
+      const rolesResponse = await approvalservice.allroles();
+      console.log("role payload ",rolesResponse)
+      setRolesList(rolesResponse.payload);
+    } else if (admrole === 'District Level Approver') {
+     
+      console.log("schmed  ",admrole)
+      // Fetch all schemes for district user
+      const schemesResponse = await approvalservice.allschmes();
+      console.log("schmre ",schemesResponse.payload)
+      setSchemesList(schemesResponse.payload);
+    }
+  };
+  fetchInitialData();
+}, [admrole]);
+
+
+useEffect(() => {
+  if ((admrole === 'IT Admin' || admrole === 'District Level Approver') && selectedScheme) {
+    const fetchSchemeRoles = async () => {
+      const rolesResponse = await approvalservice.allrolesBySchems(selectedScheme);
+      setRolesList(rolesResponse.payload);
+      setSelectedRole(''); // Reset role selection when scheme changes
+    };
+    fetchSchemeRoles();
+  }
+}, [selectedScheme, admrole]);
+
 
 useEffect(() => {
   const fetchUserApprovals = async () => {
-      try {
-          const response = await functionalservice.user_approvel_list();
-          console.log("response>>>", response.payload);
-          setUserList(response.payload); // Store the data in state
-      } catch (err) {
-          setError(err.response?.data?.message || "An error occurred");
+
+    
+    try {
+      if (admrole === "Super Admin") {
+       
+        var response = await approvalservice.superadmin_approval();
+        console.log("super admin approval ", response.payload)
+        setUserList(response.payload);
+      } else if (admrole === "IT Admin") {
+        var response = await approvalservice.itadmin_approval();
+        setUserList(response.payload.directorateUsers); 
+        setUserListDis(response.payload.districtUsers);
+        console.log("director IT ",response.payload.directorateUsers)
+        console.log("distict IT ",response.payload.districtUsers)
+      }else if(admrole === "District Level Approver"){
+        console.log("disttict admin set")
+        var response = await approvalservice.districtadmin_approval();
+        console.log("dist admin data ", response.payload.districtUsers)
+        setUserListDis(response.payload.districtUsers);
+        setUserList(response.payload.talukUsers); 
+      }else if(admrole == "Taluk Level Approver"){
+        var response = await approvalservice.tsoadmin_roleassign();
+        setUserList(response.payload); 
       }
+     
+    } catch (err) {
+      setError(err.response?.data?.message || "An error occurred");
+    }
   };
 
-  fetchUserApprovals(); // Call the function when the component mounts
-}, []);
+  fetchUserApprovals();
+}, [admrole]); // Make sure admrole is updated before fetching
+
 
 
 const handleFilterChange = (event) => {
-  console.log("evenet ?>>",event.target.value)
+ 
   setFilterText(event.target.value);
+  setDisFilterText(event.target.value)
 };
 console.log("userliat",userList)
 // Filtered data based on the filter text
@@ -276,29 +353,43 @@ const filteredData = userList.filter((item) =>
     value.toString().toLowerCase().includes(filterText.toLowerCase())
   )
 );
-console.log("filtr",filterText.toLowerCase())
+
+
+console.log("dis uses")
+const filteredDataDis = userListDis.filter((item) =>
+  Object.values(item).some((value) =>
+    value.toString().toLowerCase().includes(DisfilterText.toLowerCase())
+)
+);
+// console.log("filtr",filterText.toLowerCase())
 return (
 
     <Box style={{background:'white'}}>
-    <Typography variant='h4' p={1}>Approvals </Typography>
+    <Typography variant='h4' p={1}>Approvals</Typography>
     <hr></hr>
     <Box sx={{ width: '100%' }}>
-      <Box sx={{borderColor: 'Boxider',marginLeft:'1rem' ,justifyContent: 'center',alignItems:'center'}}>
-        <Tabs value={value} onChange={handleChange} aria-label="basic tabs example"  indicatorColor="primary" >
-          <Tab label="District Level Users" {...a11yProps(0)} />
-          <Tab label="Taluk Level Users" {...a11yProps(1)} />
-          <Tab label="Directorate User Request" {...a11yProps(2)} />
-          <Tab label="Others Request" {...a11yProps(3)} />
-        </Tabs>
-      </Box>
-      <CustomTabPanel value={value} index={0}>
-
-
-      
-      <Paper elevation={3} style={{  padding: '10px',}}>
+  <Box sx={{ borderColor: 'Boxider', marginLeft: '1rem', justifyContent: 'center', alignItems: 'center' }}>
+    <Tabs value={value} onChange={handleChange} aria-label="basic tabs example" indicatorColor="primary">
+      {[
+        // Tab configurations in order of desired appearance
+        { label: 'District Level Users', roles: ['IT Admin', 'District Level Approver'] },
+        { label: 'Taluk Level Users', roles: ['District Level Approver'] },
+        { label: 'Directorate Users', roles: ['IT Admin', 'Super Admin'] },
+        { label: 'Taluk Level Users', roles: ['Taluk Level Approver'] },
+      ]
+      .filter(tab => tab.roles.includes(admrole))
+      .map((tab, index) => (
+        <Tab key={index} label={tab.label} {...a11yProps(index)} />
+      ))}
+    </Tabs>
+  </Box>
+  {[
+    /* Panel contents in the same order as tabs */
+    <Paper elevation={3} style={{ padding: '10px' }}>
+    <Paper elevation={3} style={{  padding: '10px',}}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
-          Directorate User Request 
+          Districts User Request 
           </Typography>
           <TextField
             label="Filter"
@@ -310,8 +401,89 @@ return (
           />
         </Stack>
       </Paper>
+      {/* District Users content */}
+       <DataTable
+            
+              columns={columns(handleEdit)} // Pass handleEdit to columns function
+              data={filteredDataDis}
+              pagination
+              paginationComponentOptions={{
+                rowsPerPageText: 'Rows per page',
+                rangeSeparatorText: 'of',
+                selectAllRowsItemText: 'All',
+                selectAllRowsItem: 'Select All',
+              }}
+              customStyles={{
+             
+                headCells: {
+                  style: {
+                      fontSize:'.8rem',
+                    backgroundColor: '#04255e', // Header background color
+                    color: '#fff', // Header text color
+                    fontWeight: 'bold', // Bold header text
+                    borderBottom: '2px solid black', // Classic border style
+                 
+                  },
+                },
+                cells: {
+                  style: {
+                    backgroundColor: '',
+                    borderBottom: '1px solid white', // Light bottom border for rows
+                    color: '#333', // Darker text color for better readability
+                   
+                  },
+                },
+                pagination: {
+                  style: {
+                    color: '#04255e', // Change pagination symbols to blue
+                   
+                    alignItems:'center',
+                    justifyContent:'center'
+                  },
+                },
+              }}
+            />
+    </Paper>,
+    <Paper elevation={3} style={{ padding: '10px' }}>
+              <Taluk data={filteredData} ></Taluk>
+      {/* Taluk Users content */}
+    </Paper>,
+    <Directorate data={filteredData} />,
+    <Taluk></Taluk>
+  ]
+  .filter((_, index) => 
+    // Match the same filtering logic as tabs
+    [
+      ['IT Admin', 'District Level Approver'],
+      ['District Level Approver'],
+      ['IT Admin', 'Super Admin'],
+      ['Taluk Level Approver']
+    ][index].includes(admrole)
+  )
+  .map((content, index) => (
+    <CustomTabPanel key={index} value={value} index={index}>
+      {content}
+    </CustomTabPanel>
+  ))}
 
 
+      {/* <CustomTabPanel value={value} index={0}>
+
+      <Paper elevation={3} style={{  padding: '10px',}}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
+          District Users Requestssss
+          </Typography>
+          <TextField
+            label="Filter"
+            variant="outlined"
+            value={filterText}
+            onChange={handleFilterChange}
+            size="small"
+            style={{ width: '200px' }}
+          />
+        </Stack>
+      </Paper>
       <DataTable
       
         columns={columns(handleEdit)} // Pass handleEdit to columns function
@@ -352,7 +524,7 @@ return (
             },
           },
         }}
-      />
+      /> */}
 
 
 {/* Modal for District Users */}
@@ -362,194 +534,10 @@ return (
 
 {/* Modal for Taluk Users */}
 {/* <Dialog open={openModal2} onClose={handleCloseModal} maxWidth="sm" fullWidth> */}
-<Dialog maxWidth="sm" fullWidth>
 
-  <DialogTitle
-    variant="h4"
-    style={{
-      color: "white",
-      fontWeight: "bold",
-      textAlign: "center",
-      borderBottom: "2px solid #f0f0f0",
-      paddingBottom: "10px",
-      background: '#04255e',
-    }}
-  >
-    Taluk User Request
-  </DialogTitle>
-  <DialogContent style={{ padding: "20px", backgroundColor: "#fafafa" }}>
-    {selectedRow && (
-      <DialogContentText>
-        <Stack
-          spacing={2}
-          style={{
-            fontSize: "14px",
-            color: "#333",
-            backgroundColor: "#fff",
-            padding: "20px",
-            borderRadius: "8px",
-            boxShadow: "0 0 10px rgba(0, 0, 0, 0.1)",
-          }}
-        >
-          {[{ label: "Name", value: selectedRow.name },
-            { label: "Date Of birth", value: selectedRow.dateOfBirth },
-            { label: "Email", value: selectedRow.email },
-            { label: "Phone Number", value: selectedRow.mobileNumber },
-            { label: "Date of Joining", value: selectedRow.dateOfJoining },
-            { label: "Pen", value: selectedRow.penNumber },
-            { label: "Office", value: selectedRow.officeToJoining }
-          ].map((field, index) => (
-            <Box
-              key={index}
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                marginBottom: "10px",
-              }}
-            >
-              <Box
-                style={{
-                  textAlign: "right",
-                  marginRight: "8px",
-                  width: "40%",
-                  fontWeight: "bold",
-                  color: "#555",
-                }}
-              >
-                {field.label}:
-              </Box>
-              <Box
-                style={{
-                  textAlign: "left",
-                  width: "60%",
-                  backgroundColor: "#f9f9f9",
-                  padding: "5px 10px",
-                  borderRadius: "4px",
-                  boxShadow: "inset 0 0 5px rgba(0, 0, 0, 0.1)",
-                }}
-              >
-                {field.value}
-              </Box>
-            </Box>
-          ))}
-        </Stack>
-
-        {/* Category and Duties Dropdowns */}
-        <Box
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginTop: "20px",
-            textAlign: "center",
-            padding: "10px",
-            border: "1px solid #f0f0f0",
-            borderRadius: "8px",
-            backgroundColor: "#fff",
-            boxShadow: "0 0 5px rgba(0, 0, 0, 0.1)",
-          }}
-        >
-        </Box>
-
-        {/* Status Radio Buttons */}
-        <Box
-          style={{
-            marginTop: "20px",
-            textAlign: "center",
-            padding: "10px",
-            border: "1px solid #f0f0f0",
-            borderRadius: "8px",
-            backgroundColor: "#fff",
-            boxShadow: "0 0 5px rgba(0, 0, 0, 0.1)",
-          }}
-        >
-          <strong>Status:</strong>
-        <FormGroup row style={{ justifyContent: "center", marginTop: "8px" }}>
-        
-  <FormControlLabel
-    sx={{ color: 'success.main' }}
-    control={
-      <Radio
-        checked={radioState === "approved"}
-        onChange={() => handleRadioChange("approved")}
-        disabled={selectedRow.approvalStatus === "Approved"} // Make "Approved" radio button read-only
-      />
-    }
-    label="Approved"
-  />
-  <FormControlLabel
-    sx={{ color: 'warning.main' }}
-    control={
-      <Radio
-        checked={radioState === "marked"}
-        onChange={() => handleRadioChange("marked")}
-        disabled={selectedRow.approvalStatus === "Approved"} 
-      />
-    }
-    label="Marked"
-  />
-  <FormControlLabel
-    sx={{ color: 'error.main' }}
-    control={
-      <Radio
-        checked={radioState === "rejected"}
-        onChange={() => handleRadioChange("rejected")}
-        disabled={selectedRow.approvalStatus === "Approved"} 
-      />
-    }
-    label="Rejected"
-  />
-</FormGroup>
-{selectedRow.approvalStatus === "Approved" ? <Typography sx={{ color: 'primary.main' }}>Already Approved only View</Typography> : null}
-        </Box>
-
-        {/* Remarks Textbox if Rejected */}
-        {(radioState === "rejected" || radioState === "marked") && (
-          <Box
-            style={{
-              marginTop: "16px",
-              textAlign: "center",
-              padding: "10px",
-              border: "1px solid #f0f0f0",
-              borderRadius: "8px",
-              backgroundColor: "#fff",
-              boxShadow: "0 0 5px rgba(0, 0, 0, 0.1)",
-            }}
-          >
-            <TextField
-              label="Remarks"
-              type="text"
-              fullWidth
-              variant="outlined"
-              style={{ fontSize: "14px" }}
-              value={remarks}  // Bind to state
-              onChange={(e) => setRemarks(e.target.value)}
-            />
-          </Box>
-        )}
-      </DialogContentText>
-    )}
-  </DialogContent>
-  <DialogActions style={{ justifyContent: "center" }}>
-    <Button onClick={handleCloseModal} color="secondary" variant="outlined">
-      Close
-    </Button>
-    <Button
-      onClick={handleSaveChanges}
-      color="primary"
-      variant="contained"
-      sx={{ background: '#04255e' }}
-      disabled={!isSaveEnabled}
-    >
-      Save Changes
-    </Button>
-  </DialogActions>
-</Dialog>
-
-
-      </CustomTabPanel>
+      {/* </CustomTabPanel> */}
       {/* Taluk Table */}
-      <CustomTabPanel value={value} index={1}>
+      {/* <CustomTabPanel value={value} index={1}>
       <Paper elevation={3} style={{  padding: '10px',}}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
@@ -609,13 +597,17 @@ return (
         }}
       />
       </CustomTabPanel>
-      <CustomTabPanel value={value} index={2}>
+       */}
+      {/* <CustomTabPanel value={value} index={2}>
+      {value}
       <Directorate></Directorate>
-      </CustomTabPanel>
-      <CustomTabPanel value={value} index={3}>
+      </CustomTabPanel> */}
+      {/* <CustomTabPanel value={value} index={3}>
         Other Requests
-      </CustomTabPanel>
+      </CustomTabPanel> */}
     </Box>
+
+
     <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
   <DialogTitle
     variant="h4"
@@ -628,7 +620,7 @@ return (
       background: '#04255e',
     }}
   >
-    New User Request
+    New User Requesta
   </DialogTitle>
   <DialogContent style={{ padding: "20px", backgroundColor: "#fafafa" }}>
     {selectedRow && (
@@ -645,12 +637,13 @@ return (
           }}
         >
           {[{ label: "Name", value: selectedRow.name },
+            { label: "Designation", value: selectedRow.designation },
             { label: "Date Of birth", value: selectedRow.dateOfBirth },
             { label: "Email", value: selectedRow.email },
             { label: "Phone Number", value: selectedRow.mobileNumber },
             { label: "Date of Joining", value: selectedRow.dateOfJoining },
             { label: "Pen", value: selectedRow.penNumber },
-            { label: "Office", value: selectedRow.officeToJoining }
+            { label: "Office", value: selectedRow.distict }
           ].map((field, index) => (
             <Box
               key={index}
@@ -692,7 +685,7 @@ return (
         <Box
           style={{
             display: "flex",
-            justifyContent: "space-between",
+            justifyContent: 'center',
             marginTop: "20px",
             textAlign: "center",
             padding: "10px",
@@ -705,36 +698,44 @@ return (
          
 
 {/* shcemes */}
-<Box style={{ width: '48%' }}>
-            <strong>Schemes</strong><br></br>
-            <TextField
-              select
-              fullWidth
-              value={schemes}
-              onChange={handleSchemeChange}
-              variant="outlined"
-              style={{ marginTop: "8px" }}
-            >
-              <MenuItem value="Earas">Earas</MenuItem>
-              <MenuItem value="Price">Price</MenuItem>
-              {/* Add other categories as needed */}
-            </TextField>
-          </Box>
+{admrole !== 'IT Admin' && (
+  <Box style={{ width: '48%' }}>
+    <strong>Schemes</strong><br />
+    <TextField
+      select
+      fullWidth
+      value={selectedScheme}
+      onChange={(e) => setSelectedScheme(e.target.value)}
+      variant="outlined"
+      style={{ marginTop: "8px" }}
+    >
+      {schemesList.map((scheme) => (
+        <MenuItem key={scheme.id} value={scheme.id}>
+          {scheme.schemeName}
+        </MenuItem>
+      ))}
+    </TextField>
+  </Box>
+)}
 
-          <Box style={{ width: '48%' }}>
-            <strong>Role</strong><br></br>
-            <TextField
-              select
-              fullWidth
-              value={roles}
-              onChange={handleRoleChange}
-              variant="outlined"
-              style={{ marginTop: "8px" }}
-            >
-              <MenuItem value="Investigator">Investigator</MenuItem>
-              {/* Add other categories as needed */}
-            </TextField>
-          </Box>
+{/* Always show Roles dropdown */}
+<Box style={{ width: '48%' }}>
+  <strong>Role</strong><br />
+  <TextField
+    select
+    fullWidth
+    value={selectedRole}
+    onChange={(e) => setSelectedRole(e.target.value)} 
+    variant="outlined"
+    style={{ marginTop: "8px" }}
+  >
+    {rolesList.map((role) => (
+      <MenuItem key={role.id} value={role.id}>
+        {role.name}
+      </MenuItem>
+    ))}
+  </TextField>
+</Box>
 
           {/* Duties Dropdown */}
           {/* <Box style={{ width: '30%' }}>
@@ -757,7 +758,7 @@ return (
          
         </Box>
  {/* zones */}
- { schemes == 'Earas' && (
+ { selectedScheme == '1' && (
         <Box style={{ width: '30%',margin:'auto' }}>
             <center><strong>Select Zone</strong></center>
             <TextField
@@ -805,12 +806,12 @@ return (
     sx={{ color: 'warning.main' }}
     control={
       <Radio
-        checked={radioState === "marked"}
-        onChange={() => handleRadioChange("marked")}
+        checked={radioState === "pending"}
+        onChange={() => handleRadioChange("pending")}
         disabled={selectedRow.approvalStatus === "Approved"} 
       />
     }
-    label="Marked"
+    label="pending"
   />
   <FormControlLabel
     sx={{ color: 'error.main' }}
@@ -828,7 +829,7 @@ return (
         </Box>
 
         {/* Remarks Textbox if Rejected */}
-        {(radioState === "rejected" || radioState === "marked") && (
+        {(radioState === "rejected" || radioState === "pending") && (
           <Box
             style={{
               marginTop: "16px",

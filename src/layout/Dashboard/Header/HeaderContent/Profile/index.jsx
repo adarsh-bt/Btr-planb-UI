@@ -146,7 +146,7 @@ export default function Profile() {
                           <Stack>
                             <Typography variant="h6">{user}</Typography>
                             <Typography variant="body2" color="text.secondary">
-                              Zone User
+                              {authservice.getrole()}
                             </Typography>
                           </Stack>
                         </Stack>
