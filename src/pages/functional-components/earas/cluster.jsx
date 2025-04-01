@@ -66,7 +66,7 @@ const sampleData = [
   },
 ];
 
-function ZoneDetails() {
+function cluster() {
 
     const theme = useTheme();
     const [data, setData] = useState([]); // State to store API data
@@ -235,4 +235,4 @@ function ZoneDetails() {
   );
 }
 
-export default ZoneDetails;
+export default Cluster;

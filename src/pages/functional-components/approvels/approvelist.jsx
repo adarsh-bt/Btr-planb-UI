@@ -252,7 +252,9 @@ const [filterText, setFilterText] = useState('');
 
 useEffect(() => {
   const fetchUserApprovals = async () => {
+
       try {
+        
           const response = await functionalservice.user_approvel_list();
           console.log("response>>>", response.payload);
           setUserList(response.payload); // Store the data in state

@@ -141,8 +141,9 @@ function Earas_menus() {
     </Grid>
 
     <Grid item xs={12} sm={4} md={3} lg={3}>              
-    <Card
+    <Card component={Link} to="/schemes/earas/cluster"
         sx={{
+          textDecoration:'none',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

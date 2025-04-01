@@ -16,6 +16,9 @@ const Schemes = Loadable(lazy(() => import('pages/functional-components/schemas'
 const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_menus')));
 const Zone_Details = Loadable(lazy(() => import('pages/functional-components/earas/zone_details')));
 const BTR = Loadable(lazy(() => import('pages/functional-components/earas/Btr')));
+const Cluster = Loadable(lazy(() => import('pages/functional-components/earas/cluster')));
+
+
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
 
 // Approvels
@@ -123,6 +126,14 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <Zone_Details />
+        </PrivateRoute>
+      ),
+    },
+    {
+      path: '/schemes/earas/cluster',
+      element: (
+        <PrivateRoute>
+          <Cluster />
         </PrivateRoute>
       ),
     },
