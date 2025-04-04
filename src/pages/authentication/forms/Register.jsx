@@ -29,6 +29,7 @@ const Register = ({ onBack }) => {
   const [penNumber, setPenNumber] = useState('');
   const [tenNumber, setTenNumber] = useState('');
   const [designation, setDesignation] = useState('');
+  const [designation_id, setDesignationId] = useState(null); // Store the desigantion Id
   const [dateOfJoining, setDateOfJoining] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
 
@@ -55,6 +56,7 @@ const Register = ({ onBack }) => {
     email: false,
     phone: false,
     designation: false,
+    designation_id:false,
     dateOfJoining: false,
     dateOfBirth: false,
     idNumber: false,
@@ -137,21 +139,25 @@ const Register = ({ onBack }) => {
 
   const handleTalukChange = (event, newValue) => {
     setSelectedTaluk(newValue);
-    console.log('sel > ', selectedTaluk);
 
     if (newValue) {
       const label = newValue.label;
 
       if (label?.startsWith('District Office')) {
         // If the selected value is a district
-        setOfficeType('District');
-        alert('ok');
+        setOfficeType('DISTRICT');
+
         setDistrictId(newValue.id);
-        console.log('dist ', districts);
+        console.log('dist ', newValue.id);
+        setTalukId(null);
+      } else if (label === 'Directorate Office') {
+        setOfficeType('DIRECTORATE');
+        setDistrictId(1);
+        console.log('dire ', newValue.id); // Hardcode District ID as 1 for Directorate
         setTalukId(null);
       } else if (label?.startsWith('Taluk Statistical Office')) {
         // If it's a taluk
-        setOfficeType('Taluk');
+        setOfficeType('TALUK');
         setTalukId(newValue.id);
         console.log('taluk ', newValue.id);
         setDistrictId(null);
@@ -169,13 +175,17 @@ const Register = ({ onBack }) => {
   const filteredTaluks = selectedDistrict
     ? [
         { id: selectedDistrict.distId, label: selectedDistrict.distOfficeNameEn },
+        ...(selectedDistrict.distId === 1
+          ? [
+              { id: 1, label: 'Directorate Office' } // Add Directorate Office only for Thiruvananthapuram
+            ]
+          : []),
         ...taluks.map((taluk) => ({
           id: taluk.desTalukId,
           label: taluk.talukOfficeNameEn
         }))
       ]
     : [];
-
   // const filteredTaluks = selectedDistrict
   //   ? [{ name: selectedDistrict.name }, ...selectedDistrict.talukMaster.map((taluk) => ({ name: taluk.talukOfficeNameEn }))]
   //   : [];
@@ -251,13 +261,14 @@ const Register = ({ onBack }) => {
     if (foundError) return; // If there's an error, return and don't proceed
 
     const idNumber = idType === 'PEN' ? penNumber : tenNumber;
-
+    
     const userData = {
       name: fullName,
       email: email,
       mobileNumber: phone,
       penNumber: idType + idNumber,
       designation: designation,
+      designation_id:designation,
       dateOfBirth: dateOfBirth,
       dateOfJoining: dateOfJoining,
       officeType: officeType,
@@ -266,6 +277,7 @@ const Register = ({ onBack }) => {
     };
 
     try {
+      console.log("designation id ",designation);
       setLoading(true);
       const userDatas = await authservice.registration(userData); // Add await to resolve the Promise
       setLoading(false);
@@ -429,7 +441,8 @@ const Register = ({ onBack }) => {
         </InputLabel>
         <Select value={designation} onChange={(e) => setDesignation(e.target.value)} error={errors.designation}>
           {designations.map((designation) => (
-            <MenuItem key={designation.id} value={designation.designation_name}>
+            <MenuItem key={designation.id} value={designation.id}>
+            
               {designation.designation_name}
             </MenuItem>
           ))}
