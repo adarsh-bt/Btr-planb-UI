@@ -408,7 +408,7 @@ return (
 
 
 {/* Modal for District Users */}
-{(authservice.getrole() === "Taluk Level Approver" &&
+{((authservice.getrole() === "Taluk Level Approver" || authservice.getrole() === "District Level Approver")  &&
 <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
   <DialogTitle
     variant="h4"
@@ -421,7 +421,7 @@ return (
       background: '#04255e',
     }}
   >
-    New User Request
+    New User Request taluks
   </DialogTitle>
   <DialogContent style={{ padding: "20px", backgroundColor: "#fafafa" }}>
     {selectedRow && (
@@ -481,18 +481,6 @@ return (
             </Box>
           ))}
         </Stack>
-
-        {/* Category and Duties Dropdowns */}
-        {/* <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          p: 1,
-          m: 1,
-          bgcolor: 'background.paper',
-          borderRadius: 1,
-        }}
-      > */}
         <Box
           style={{
             display: "flex",
@@ -670,6 +658,7 @@ return (
   </DialogActions>
 </Dialog>)}
 
+{((authservice.getrole() !== "District Level Approver") &&
 <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
   <DialogTitle
     variant="h4"
@@ -857,7 +846,7 @@ return (
     </Button>
     
   </DialogActions>
-</Dialog>
+</Dialog>)}
  {/* Duties Dropdown */}
           {/* <Box style={{ width: '30%' }}>
             <strong>Duties</strong><br></br>
