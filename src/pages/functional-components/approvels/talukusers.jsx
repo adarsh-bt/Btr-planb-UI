@@ -127,7 +127,8 @@ export default function Taluk({data}) {
       setRemarks(row.remarks || ""); // Reset remarks to row's value or empty
       setSelectedScheme(""); // Reset scheme selection
       setSelectedRole(""); // Reset role selection
-      setOpenModal(true); 
+      setOpenModal(true);
+      setZone("") 
     };
     
   
@@ -233,12 +234,19 @@ const [schemesList, setSchemesList] = useState([]);
 const [selectedScheme, setSelectedScheme] = useState('');
 const [rolesList, setRolesList] = useState([]);
 const [selectedRole, setSelectedRole] = useState('');
+const [Desiganation, setDesignation] = useState('');
  const [admrole,setAdmrole] = useState('');
+
+const [zonesList, setZonesList] = useState([]);
 
 const handleRadioChange = (value) => {
   setRadioState(value);
 };
 
+const handleDesignChange = (value) => {
+
+  setDesignation(value);
+};
 
 
 const handleSchemeChange = (event) => {
@@ -256,7 +264,7 @@ const handleRoleChange = (event) => {
 
 
 const isSaveEnabled = 
-  ((radioState === 'pending' || radioState === 'rejected' || 
+  ((authservice.getrole() === "District Level Approver" && Desiganation !== "Taluk Statistical Officer" && radioState === 'approved' ) || (radioState === 'pending' || radioState === 'rejected' || 
     (radioState === 'approved' && selectedRole !== '')) && 
   rolesList && 
   schemesList)
@@ -311,9 +319,18 @@ useEffect(() => {
 useEffect(() => {
   if ((admrole === 'District Level Approver' && selectedScheme) || (admrole === 'Taluk Level Approver' && selectedScheme)) {
     const fetchSchemeRoles = async () => {
-      const rolesResponse = await approvalservice.allrolesBySchems(selectedScheme);
-      setRolesList(rolesResponse.payload);
-      setSelectedRole(''); // Reset role selection when scheme changes
+      try{
+        const [rolesResponse,zoneslist] = await Promise.all([
+          approvalservice.allrolesBySchems(selectedScheme),
+          approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
+        ]);
+        setZonesList(zoneslist.payload);
+        setRolesList(rolesResponse.payload);
+        setSelectedRole('');
+        setZone('');
+      }catch (error) {
+        console.error('Error fetching data', error);
+      }
     };
     fetchSchemeRoles();
   }
@@ -407,8 +424,8 @@ return (
       />
 
 
-{/* Modal for District Users */}
-{((authservice.getrole() === "Taluk Level Approver" || authservice.getrole() === "District Level Approver")  &&
+{/* Modal for Taluk Users */}
+{((authservice.getrole() !== "Taluk Level Approver" || authservice.getrole() === "District Level Approver")  &&
 <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
   <DialogTitle
     variant="h4"
@@ -539,29 +556,9 @@ return (
   </TextField>
 </Box>
 )}
-         
 
-         
         </Box>
- {/* zones */}
- {/* { selectedScheme == '1' && (
-        <Box style={{ width: '30%',margin:'auto' }}>
-            <center><strong>Select Zone</strong></center>
-            <TextField
-              select
-              fullWidth
-              value={zone}
-              onChange={handleZoneChange}
-              variant="outlined"
-              style={{ marginTop: "8px" }}
-            >
-              <MenuItem value="Field Work">Tvm 1</MenuItem>
-              <MenuItem value="Office Work">Tvm 2</MenuItem>
-              <MenuItem value="Research">Tvm 3</MenuItem>
-            
-            </TextField>
-          </Box>)
- } */}
+
         {/* Status Radio Buttons */}
         <Box
           style={{
@@ -582,7 +579,7 @@ return (
     control={
       <Radio
         checked={radioState === "approved"}
-        onChange={() => handleRadioChange("approved")}
+        onChange={() => {handleRadioChange("approved");handleDesignChange(selectedRow.designation)}}
         disabled={selectedRow.approvalStatus === "Approved"} // Make "Approved" radio button read-only
       />
     }
@@ -646,14 +643,15 @@ return (
       Close
     </Button>
     <Button
-      onClick={handleSaveChanges}
-      color="primary"
-      variant="contained"
-      sx={{ background: '#04255e' }}
-      disabled={!isSaveEnabled}
-    >
-      Save Change
-    </Button>
+  onClick={handleSaveChanges}
+  color="primary"
+  variant="contained"
+  sx={{ background: '#04255e' }}
+  disabled={!isSaveEnabled}
+>
+  Save Change
+</Button>
+
     
   </DialogActions>
 </Dialog>)}
@@ -732,17 +730,7 @@ return (
           ))}
         </Stack>
 
-        {/* Category and Duties Dropdowns */}
-        {/* <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          p: 1,
-          m: 1,
-          bgcolor: 'background.paper',
-          borderRadius: 1,
-        }}
-      > */}
+       
         <Box
           style={{
             display: "flex",
@@ -758,8 +746,6 @@ return (
         >
          
 
-{/* shcemes */}
-{/* Conditionally render Schemes dropdown only for District users */}
 
 
   <Box style={{ width: '48%' }}>
@@ -803,7 +789,7 @@ return (
 
          
         </Box>
- {/* zones */}
+
  { selectedScheme == '1' && (
         <Box style={{ width: '30%',margin:'auto' }}>
             <center><strong>Select Zone</strong></center>
@@ -811,22 +797,14 @@ return (
               select
               fullWidth
               value={zone}
-              onChange={handleZoneChange}
+              onChange={(e) => setZone(e.target.value)}
               variant="outlined"
-              style={{ marginTop: "8px" }}
-            >
-              <MenuItem value="Field Work">Tvm 1</MenuItem>
-              <MenuItem value="Office Work">Tvm 2</MenuItem>
-              <MenuItem value="Research">Tvm 3</MenuItem>
-            
-            </TextField>
-          </Box>)
+              style={{ marginTop: "8px" }}>
+            {zonesList.map((zone)=>(
+              <MenuItem key={zone.zoneId} value={zone.zoneId}>{zone.zoneNameEn}</MenuItem>))}
+              </TextField></Box>)
  }
-        {/* Status Radio Buttons */}
      
-
-
-        {/* Remarks Textbox if Rejected */}
        
       </DialogContentText>
     )}

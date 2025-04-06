@@ -128,6 +128,7 @@ export default function Directorate({data}) {
       setSelectedScheme(""); // Reset scheme selection
       setSelectedRole(""); // Reset role selection
       setOpenModal(true); 
+      setZone("")
     };
     
   
@@ -138,7 +139,7 @@ export default function Directorate({data}) {
     };
 
     
-  const [remarks, setRemarks] = useState("");
+    const [remarks, setRemarks] = useState("");
     const handleSaveChanges = () => {
       // Close the modal first
       handleCloseModal();
@@ -153,48 +154,60 @@ export default function Directorate({data}) {
         cancelButtonText: "No, cancel",
       }).then((result) => {
         if (result.isConfirmed) {
-          
-        
-          const admin_id = authservice.userid()
-          const approvalStatus = radioState; 
-
+          const admin_id = authservice.userid();
+          const approvalStatus = radioState;
+    
           const payload = {
             approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "pending" : "Rejected",
             approvalDate: new Date().toISOString().split('T')[0],
             remarks: remarks,
-            isApproved: approvalStatus === "approved", 
-            adminId: admin_id, 
-            userId: selectedRow ? selectedRow.userId : "", 
-            id:selectedRow.approvalId,
-            roleId:selectedRole
+            isApproved: approvalStatus === "approved",
+            adminId: admin_id,
+            userId: selectedRow ? selectedRow.userId : "",
+            id: selectedRow.approvalId,
+            roleId: selectedRole
           };
-          console.log("paye ",payload)
+          console.log("payload ", payload);
           // Call the API using the separate function
-          if(admrole === "Super Admin"){
-          var ser = approvalservice.saveSuperadminApproval(payload)
-          }else if(admrole === "IT Admin"){
-            console.log(" IT ",payload)
-           var ser =  approvalservice.saveItadminApproval(payload)
+          let ser;
+    
+          if (admrole === "Super Admin") {
+            ser = approvalservice.saveSuperadminApproval(payload);
+          } else if (admrole === "IT Admin") {
+            console.log("IT", payload);
+            ser = approvalservice.saveItadminApproval(payload);
           }
-            ser.then((data) => {
-              console.log("data >>",data)
-              if (data.payload) {
-                Swal.fire("Saved!", "Your changes have been saved.", "success");
-                setUserList((prevUserList) => 
-                  prevUserList.map((user) =>
-                    // Update only the selected user, keep the rest of the users unchanged
-                    user.userId === selectedRow.userId
-                      ? { ...user, approvalStatus: data.payload.approvalStatus,approvalId:data.payload.id }
-                      : user
-                  )
-                );
-              } else {
-                Swal.fire("Error", data.message || "Something went wrong, please try again.", "error");
-              }
-            })
-            .catch((error) => {
-              Swal.fire("Error", "Failed to save changes. Please try again later.", "error");
-            });
+    
+          ser.then((data) => {
+            console.log("data >>", data);
+            if (data.payload) {
+              Swal.fire("Saved!", "Your changes have been saved.", "success");
+              setUserList((prevUserList) =>
+                prevUserList.map((user) =>
+                  user.userId === selectedRow.userId
+                    ? { ...user, approvalStatus: data.payload.approvalStatus, approvalId: data.payload.id }
+                    : user
+                )
+              );
+            } else {
+              Swal.fire("Error", data.message || "Something went wrong, please try again.", "error");
+            }
+          })
+          .catch((error) => {
+            Swal.fire("Error", "Failed to save changes. Please try again later.", "error");
+          });
+    
+          // Check if 'zone' is not null and call 'zone_save' API separately if needed
+          // if (zone !== null) {
+          //   approvalservice.zone_save(zone, selectedRow.userId, authservice.userid())
+          //     .then((response) => {
+          //       console.log("Zone saved successfully", response);
+          //     })
+          //     .catch((error) => {
+          //       console.error("Error saving zone", error);
+          //     });
+          // }
+    
         } else {
           Swal.fire("Cancelled", "Your changes have not been saved.", "error");
         }
@@ -224,12 +237,13 @@ const [radioState, setRadioState] = React.useState("");
 
 const [zone, setZone] = useState('');
 
-
 const [schemesList, setSchemesList] = useState([]);
 const [selectedScheme, setSelectedScheme] = useState('');
 const [rolesList, setRolesList] = useState([]);
 const [selectedRole, setSelectedRole] = useState('');
  const [admrole,setAdmrole] = useState('');
+
+const [zonesList, setZonesList] = useState([]);
 
 const handleRadioChange = (value) => {
   setRadioState(value);
@@ -248,6 +262,7 @@ const handleZoneChange = (event) => {
 const handleRoleChange = (event) => {
   setRolesList(event.target.value);
 };
+
 
 
 
@@ -309,14 +324,25 @@ useEffect(() => {
 // Fetch roles when scheme changes (for district users)
 useEffect(() => {
   if (admrole === 'IT Admin' && selectedScheme) {
-    const fetchSchemeRoles = async () => {
-      const rolesResponse = await approvalservice.allrolesBySchems(selectedScheme);
-      setRolesList(rolesResponse.payload);
-      setSelectedRole(''); // Reset role selection when scheme changes
+    const fetchSchemeRolesAndZones = async () => {
+      try {
+        // Fetch both roles and zones in parallel
+        const [rolesResponse, zoneslist] = await Promise.all([
+          approvalservice.allrolesBySchems(selectedScheme),
+          approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
+        ]);
+        setZonesList(zoneslist.payload);
+        setRolesList(rolesResponse.payload);
+        setSelectedRole(''); 
+        setZone('');
+      } catch (error) {
+        console.error('Error fetching data', error);
+      }
     };
-    fetchSchemeRoles();
+    fetchSchemeRolesAndZones();
   }
 }, [selectedScheme, admrole]);
+
 
 
 const handleFilterChange = (event) => {
@@ -547,26 +573,23 @@ return (
     ))}
   </TextField>
 </Box>
-
-         
-
-         
+     
         </Box>
  {/* zones */}
- { selectedScheme == '1' && (
+ { (selectedScheme == '1' && selectedRole == "1") && (
         <Box style={{ width: '30%',margin:'auto' }}>
             <center><strong>Select Zone</strong></center>
             <TextField
               select
               fullWidth
               value={zone}
-              onChange={handleZoneChange}
+              onChange={(e) => setZone(e.target.value)}
               variant="outlined"
               style={{ marginTop: "8px" }}
             >
-              <MenuItem value="Field Work">Tvm 1</MenuItem>
-              <MenuItem value="Office Work">Tvm 2</MenuItem>
-              <MenuItem value="Research">Tvm 3</MenuItem>
+            {zonesList.map((zone)=>(
+              <MenuItem key={zone.zoneId} value={zone.zoneId}>{zone.zoneNameEn}</MenuItem>
+            ))}
               {/* Add other duties as needed */}
             </TextField>
           </Box>)

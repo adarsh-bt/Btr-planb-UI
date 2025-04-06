@@ -91,10 +91,10 @@ const Register = ({ onBack }) => {
         if (response.payload && Array.isArray(response.payload)) {
           setDistricts(response.payload);
         } else {
-          setError(response.message || 'Failed to fetch districts: Invalid data format.');
+          setErrors(response.message || 'Failed to fetch districts: Invalid data format.');
         }
       } catch (err) {
-        setError('Failed to fetch districts: ' + err.message);
+        setErrors('Failed to fetch districts: ' + err.message);
       } finally {
         // setLoadingDistricts(false);
       }
@@ -282,8 +282,11 @@ const Register = ({ onBack }) => {
       const userDatas = await authservice.registration(userData); // Add await to resolve the Promise
       setLoading(false);
 
+      console.log("suss ",userDatas.status)
       if (userDatas.status === 201) {
+        console.log("suss ",userDatas.status)
         setSuccessMessage('Registration successfully submitted. Please wait for the approval.');
+        setErrorMessage('');
       } else {
         setErrorMessage(userDatas.message);
       }
@@ -501,7 +504,8 @@ const Register = ({ onBack }) => {
           disablePortal
           options={districts.map((district) => ({
             distId: district.districtOfficeId,
-            distOfficeNameEn: district.districtOfficeNameEn // Ensuring correct label display
+            // distOfficeNameEn: district.districtOfficeNameEn.slice(16) // Ensuring correct label display
+            distOfficeNameEn: district.districtOfficeNameEn  // Ensuring correct label display
           }))}
           getOptionLabel={(option) => (option ? option.distOfficeNameEn : '')}
           value={selectedDistrict}

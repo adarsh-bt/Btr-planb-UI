@@ -51,7 +51,7 @@ const columns = (handleEdit) => [
             color:
               row.approvalStatus === "Approved"
                 ? "green"
-                : row.approvalStatus === "Pending"
+                : row.approvalStatus === "pending"
                 ? "orange"
                 : "red",
           }}
@@ -130,6 +130,7 @@ export default function BasicTabs() {
       setSelectedScheme(""); // Reset scheme selection
       setSelectedRole(""); // Reset role selection
       setOpenModal(true); 
+      setZone("")
     };
     
   
@@ -160,16 +161,16 @@ export default function BasicTabs() {
           const token = localStorage.getItem('token')
           const decodedToken = jwtDecode(token);  // Decodes the JWT
           const admin_id = decodedToken.sub;
-          console.log("admin >>",admin_id)
-          console.log("approval id >>",selectedRow.approvalId)
-          console.log("remarks >>",remarks)
-          console.log("select role >>",selectedRole)
+          // console.log("admin >>",admin_id)
+          // console.log("approval id >>",selectedRow.approvalId)
+          // console.log("remarks >>",remarks)
+          // console.log("select role >>",selectedRole)
           const approvalStatus = radioState;  // The status ("approved", "marked", "rejected")
           // const remarks = radioState === "rejected" || radioState === "marked" ? remarks : "All documents verified and approved.";  // Sample remarks based on status
-          console.log("selec",selectedRow.userId)
+          // console.log("selec",selectedRow.userId)
           // Construct the payload
           const payload = {
-            approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "PENDING" : "Rejected",
+            approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "pending" : "Rejected",
             approvalDate: new Date().toISOString().split('T')[0],
             remarks: remarks,
             isApproved: approvalStatus === "approved", 
@@ -186,17 +187,34 @@ export default function BasicTabs() {
          }
          
             apicall.then((data) => {
-              console.log("data >>",data)
+              // console.log("data >>",data)
               if (data.payload) {
                 Swal.fire("Saved!", "Your changes have been saved.", "success");
-                setUserList((prevUserList) => 
-                  prevUserList.map((user) =>
-                    // Update only the selected user, keep the rest of the users unchanged
-                    user.userId === selectedRow.userId
-                      ? { ...user, approvalStatus: data.payload.approvalStatus,approvalId:data.payload.id }
-                      : user
-                  )
-                );
+                // setUserList((prevUserList) => 
+                //   prevUserList.map((user) =>
+                //     // Update only the selected user, keep the rest of the users unchanged
+                //     user.userId === selectedRow.userId
+                //       ? { ...user, approvalStatus: data.payload.approvalStatus,approvalId:data.payload.id }
+                //       : user
+                //   )
+                // );
+                if (value === 0) { // District Level Users tab
+                  setUserListDis(prev => 
+                    prev.map(user => 
+                      user.userId === selectedRow.userId
+                        ? { ...user, approvalStatus: data.payload.approvalStatus, approvalId: data.payload.id }
+                        : user
+                    )
+                  );
+                } else if (value === 2) { // Directorate Users tab
+                  setUserList(prev => 
+                    prev.map(user => 
+                      user.userId === selectedRow.userId
+                        ? { ...user, approvalStatus: data.payload.approvalStatus, approvalId: data.payload.id }
+                        : user
+                    )
+                  );
+                }
               } else {
                 Swal.fire("Error", data.message || "Something went wrong, please try again.", "error");
               }
@@ -238,6 +256,8 @@ const [schemesList, setSchemesList] = useState([]);
 const [selectedScheme, setSelectedScheme] = useState('');
 const [rolesList, setRolesList] = useState([]);
 const [selectedRole, setSelectedRole] = useState('');
+
+const [zonesList, setZonesList] = useState([]);
 
 const handleRadioChange = (value) => {
   setRadioState(value);
@@ -294,12 +314,23 @@ useEffect(() => {
 
 useEffect(() => {
   if ((admrole === 'IT Admin' || admrole === 'District Level Approver') && selectedScheme) {
-    const fetchSchemeRoles = async () => {
-      const rolesResponse = await approvalservice.allrolesBySchems(selectedScheme);
-      setRolesList(rolesResponse.payload);
-      setSelectedRole(''); // Reset role selection when scheme changes
+    const fetchSchemeRolesAndZones = async () => {
+
+      try{
+        const [rolesResponse, zoneslist] = await Promise.all([
+          approvalservice.allrolesBySchems(selectedScheme),
+          approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
+        ]);
+        
+        setZonesList(zoneslist.payload);
+        setRolesList(rolesResponse.payload);
+        setSelectedRole(''); // Reset role selection when scheme changes
+        setZone('');
+      }catch (error) {
+        console.error('Error fetching data', error);
     };
-    fetchSchemeRoles();
+  }
+    fetchSchemeRolesAndZones();
   }
 }, [selectedScheme, admrole]);
 
@@ -312,21 +343,22 @@ useEffect(() => {
       if (admrole === "Super Admin") {
        
         var response = await approvalservice.superadmin_approval();
-        console.log("super admin approval ", response.payload)
+        // console.log("super admin approval ", response.payload)
         setUserList(response.payload);
       } else if (admrole === "IT Admin") {
         var response = await approvalservice.itadmin_approval();
         setUserList(response.payload.directorateUsers); 
         setUserListDis(response.payload.districtUsers);
-        console.log("director IT ",response.payload.directorateUsers)
-        console.log("distict IT ",response.payload.districtUsers)
+        // console.log("director IT ",response.payload.directorateUsers)
+        // console.log("distict IT ",response.payload.districtUsers)
       }else if(admrole === "District Level Approver"){
-        console.log("disttict admin set")
+        // console.log("disttict admin set")
         var response = await approvalservice.districtadmin_approval();
-        console.log("dist admin data ", response.payload.districtUsers)
+        // console.log("dist admin data ", response.payload.districtUsers)
         setUserListDis(response.payload.districtUsers);
         setUserList(response.payload.talukUsers); 
       }else if(admrole == "Taluk Level Approver"){
+        alert(ok)
         var response = await approvalservice.tsoadmin_roleassign();
         setUserList(response.payload); 
       }
@@ -346,7 +378,7 @@ const handleFilterChange = (event) => {
   setFilterText(event.target.value);
   setDisFilterText(event.target.value)
 };
-console.log("userliat",userList)
+// console.log("userliat",userList)
 // Filtered data based on the filter text
 const filteredData = userList.filter((item) =>
   Object.values(item).some((value) =>
@@ -355,7 +387,7 @@ const filteredData = userList.filter((item) =>
 );
 
 
-console.log("dis uses")
+// console.log("dis uses")
 const filteredDataDis = userListDis.filter((item) =>
   Object.values(item).some((value) =>
     value.toString().toLowerCase().includes(DisfilterText.toLowerCase())
@@ -389,7 +421,7 @@ return (
     <Paper elevation={3} style={{  padding: '10px',}}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
-          Districts User Request 
+          Districts User Request
           </Typography>
           <TextField
             label="Filter"
@@ -620,7 +652,7 @@ return (
       background: '#04255e',
     }}
   >
-    New User Requesta
+    New User Request
   </DialogTitle>
   <DialogContent style={{ padding: "20px", backgroundColor: "#fafafa" }}>
     {selectedRow && (
@@ -758,21 +790,20 @@ return (
          
         </Box>
  {/* zones */}
- { selectedScheme == '1' && (
+ { (selectedScheme == '1' && selectedRow.designation === "Statistical Investigator" ) && (
         <Box style={{ width: '30%',margin:'auto' }}>
             <center><strong>Select Zone</strong></center>
             <TextField
               select
               fullWidth
               value={zone}
-              onChange={handleZoneChange}
+              onChange={(e) => setZone(e.target.value)}
               variant="outlined"
               style={{ marginTop: "8px" }}
             >
-              <MenuItem value="Field Work">Tvm 1</MenuItem>
-              <MenuItem value="Office Work">Tvm 2</MenuItem>
-              <MenuItem value="Research">Tvm 3</MenuItem>
-              {/* Add other duties as needed */}
+               {zonesList.map((zone)=>(
+                            <MenuItem key={zone.zoneId} value={zone.zoneId}>{zone.zoneNameEn}</MenuItem>
+                          ))}
             </TextField>
           </Box>)
  }
