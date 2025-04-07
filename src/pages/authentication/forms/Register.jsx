@@ -436,7 +436,7 @@ const Register = ({ onBack }) => {
         <InputLabel>
           Designation{' '}
           <Typography component="span" color="error">
-            *
+            *npm
           </Typography>
         </InputLabel>
         <Select value={designation} onChange={(e) => setDesignation(e.target.value)} error={errors.designation}>
