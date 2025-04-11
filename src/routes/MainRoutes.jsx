@@ -19,6 +19,8 @@ const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
 
 const RoleDetail = Loadable(lazy(() => import('pages/roles/Roles')));
 
+const RoleManage = Loadable(lazy(() => import('pages/roles/RoleManage')));
+
 // Approvels
 const Approvel = Loadable(lazy(() => import('pages/functional-components/approvels/approvelist')));
 
@@ -109,6 +111,15 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <RoleDetail />
+        </PrivateRoute>
+      ),
+    },
+
+    {
+      path: 'role/manage',
+      element: (
+        <PrivateRoute>
+          <RoleManage />
         </PrivateRoute>
       ),
     },

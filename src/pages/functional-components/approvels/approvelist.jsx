@@ -127,15 +127,21 @@ export default function BasicTabs() {
     const fetchUserApprovals = async () => {
       try {
         const response = await functionalservice.user_approvel_list();
-        console.log('response>>>', response.payload);
-        setUserList(response.payload); // Store the data in state
+        if (response && Array.isArray(response.payload)) {
+          setUserList(response.payload);
+        } else {
+          console.error('Unexpected response structure:', response);
+          setUserList([]); // Set to an empty array to avoid undefined issues
+        }
       } catch (err) {
-        setError(err.response?.data?.message || 'An error occurred');
+        console.error('Error fetching user approvals:', err);
+        setUserList([]); // Handle errors gracefully
       }
     };
-
-    fetchUserApprovals(); // Call the function when the component mounts
+  
+    fetchUserApprovals();
   }, []);
+  
 
   useEffect(() => {
     if (roles === 'Super Admin') {
