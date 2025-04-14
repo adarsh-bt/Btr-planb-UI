@@ -234,7 +234,11 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
     if (username && password) {
       try {
         setIsLoading(true);
-        const userData = await authservice.login(username, password);
+        const userLogin = {
+          username :username,
+          password : password,
+        }
+        const userData = await authservice.login(userLogin);
         setIsLoading(false);
         if (userData.payload && userData.payload.token && typeof userData.payload.token === 'string') {
           navigate('/');
