@@ -12,7 +12,7 @@ class btrservice{
     static async btr_lists_data(userid,page = 0, size = 10,filter = '') {
         try {
             const token = localStorage.getItem('token');
-            var userid = authservice.user_reid();
+            var userid = authservice.userid;
             const response = await axios.get(`${btrservice.BASE_URL}/btr-api/zoneslists/${userid}?page=${page}&size=${size}&filter=${filter}`,
                 {
                 headers: {

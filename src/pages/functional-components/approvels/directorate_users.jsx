@@ -168,20 +168,22 @@ export default function Directorate({data}) {
             roleId: selectedRole
           };
           console.log("payload ", payload);
+    
           // Call the API using the separate function
           let ser;
     
           if (admrole === "Super Admin") {
             ser = approvalservice.saveSuperadminApproval(payload);
           } else if (admrole === "IT Admin") {
-            console.log("IT", payload);
             ser = approvalservice.saveItadminApproval(payload);
           }
     
           ser.then((data) => {
-            console.log("data >>", data);
+            
             if (data.payload) {
               Swal.fire("Saved!", "Your changes have been saved.", "success");
+            
+    
               setUserList((prevUserList) =>
                 prevUserList.map((user) =>
                   user.userId === selectedRow.userId
@@ -189,6 +191,20 @@ export default function Directorate({data}) {
                     : user
                 )
               );
+    
+              // Now, after saving the approval, check if zone needs to be saved
+              if (zone !== null && data.payload.loginId !== null) {
+                // Call the zone_save API with required parameters
+                approvalservice.zone_save(zone, data.payload.loginId, admin_id)
+                  .then((zoneResponse) => {
+                  
+                    // Optionally, handle zone save success, like showing a notification
+                  })
+                  .catch((zoneError) => {
+                  
+                    Swal.fire("Error", "Failed to save zone information. Please try again later.", "error");
+                  });
+              }
             } else {
               Swal.fire("Error", data.message || "Something went wrong, please try again.", "error");
             }
@@ -197,22 +213,12 @@ export default function Directorate({data}) {
             Swal.fire("Error", "Failed to save changes. Please try again later.", "error");
           });
     
-          // Check if 'zone' is not null and call 'zone_save' API separately if needed
-          // if (zone !== null) {
-          //   approvalservice.zone_save(zone, selectedRow.userId, authservice.userid())
-          //     .then((response) => {
-          //       console.log("Zone saved successfully", response);
-          //     })
-          //     .catch((error) => {
-          //       console.error("Error saving zone", error);
-          //     });
-          // }
-    
         } else {
           Swal.fire("Cancelled", "Your changes have not been saved.", "error");
         }
       });
     };
+    
     
   
 

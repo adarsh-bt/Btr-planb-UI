@@ -3,9 +3,11 @@ import { InvalidTokenError, jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
 import { encrypt } from './encryptionUtils';
 
+import mainapi from 'api/mainapi';
+
 class authservice {
 //   static BASE_URL = "https://c163-103-170-55-191.ngrok-free.app/user-access"
-  static BASE_URL = 'http://localhost:8081';
+  static BASE_URL = mainapi.USER_API;
 
 
     static async login(userLogin) {
@@ -15,10 +17,12 @@ class authservice {
          
 
             console.log("usercncry : ",userEncrypted);
-            const response = await axios.post(`${authservice.BASE_URL}/user-access/api/login`,userEncrypted,{
-                headers: {
-                    'Content-Type': 'text/plain'
-                }});
+            const response = await axios.post(`${authservice.BASE_URL}/user-access/api/login`,userLogin,
+                // {
+                // headers: {
+                //     'Content-Type': 'text/plain'
+                // }}
+            );
             localStorage.setItem('token', response.data.payload.token);
             localStorage.setItem('user', response.data.payload.username);
             return response.data;  // Return the data when the response is successful
@@ -47,6 +51,7 @@ class authservice {
     static async registration(userData) {
         try {
            
+            console.log("userdataregister > ",userData);
             const response = await axios.post(`${authservice.BASE_URL}/user-access/api/user-registration/save-user`, userData, {
                 headers: {
                   'Cache-Control': 'no-cache',
@@ -111,11 +116,7 @@ class authservice {
             return decodedToken.sub
         }
 
-        static user_reid(){
-            const token = localStorage.getItem('token');
-            const decodedToken = jwtDecode(token);
-            return decodedToken.u_id
-        }
+      
 
         static getrole(){
             const token = localStorage.getItem('token');
