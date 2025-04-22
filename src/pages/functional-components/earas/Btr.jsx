@@ -14,7 +14,8 @@ import {
   DialogTitle,
 } from '@mui/material';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
-import { EditOutlined } from '@ant-design/icons';
+import CircularProgress from '@mui/material/CircularProgress';
+
 import Breadcrumb from 'routes/Breadcrumb';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import btrservice from './btrservice';
@@ -34,7 +35,7 @@ const columns = (handleEdit,handleView) => [
   // { name: 'Address', selector: (row) => row.lbcode, sortable: true },
  
   { name: 'Land Type', selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  { name: 'Total area', selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'Total area(cent)', selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
  
 
   {
@@ -79,6 +80,8 @@ const Btr = () => {
   const [totalArea, setTotalArea] = useState(0);
   const [totalWetArea, setTotalWetArea] = useState(0);
   const [totalDryArea, setTotalDryArea] = useState(0);
+  const [downloading, setDownloading] = useState(false);
+
 
   // Function to handle filter change
   const handleFilterChange = (event) => {
@@ -148,6 +151,34 @@ const Btr = () => {
   };
   
 
+  const handleDownloadExcel = async () => {
+    setDownloading(true);
+    const userId = '3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924'; // Get dynamically if needed
+  
+    try {
+      const response = await fetch(`http://localhost:8082/btr-service/btr-api/export?userId=${userId}`);
+  
+      if (!response.ok) {
+        throw new Error('Failed to download file');
+      }
+  
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'btr_data.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Download failed.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+  
+
 useEffect(() => {
     fetchData(filterText);
     console.log("fli",filterText)
@@ -163,12 +194,34 @@ useEffect(() => {
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
             Basic Tax Register (RELIS)
           </Typography> 
-           <Typography variant="body1" component="p" sx={{ color: 'green'}}>Total Wet : {totalWetArea}</Typography>
-           <Typography variant="body1" component="p" sx={{ color: 'blue'}}>Total Dry : {totalDryArea}</Typography>
-           <Typography variant="body1" component="p" sx={{ color: '#04255e'}}>Total Area : {totalArea}</Typography>
-           <Button variant="contained" color="primary">
-           <CloudDownloadIcon/>
+           <Typography variant="body1" component="p" sx={{ color: 'green'}}>Total Wet : {totalWetArea} ac</Typography>
+           <Typography variant="body1" component="p" sx={{ color: 'blue'}}>Total Dry : {totalDryArea} ac</Typography>
+           <Typography variant="body1" component="p" sx={{ color: '#04255e'}}>Total Area : {totalArea} ac</Typography>
+
+
+           <Button
+  variant="contained"
+  color="primary"
+  onClick={handleDownloadExcel}
+  disabled={downloading}
+  startIcon={
+    downloading ? <CircularProgress size={20} color="inherit" /> : <CloudDownloadIcon />
+  }
+  sx={{
+    backgroundColor: downloading ? '#1976d2' : undefined,
+    opacity: downloading ? 0.8 : 1,
+    pointerEvents: downloading ? 'none' : 'auto',
+    color: '#fff',
+    '&.Mui-disabled': {
+      backgroundColor: '#1976d2', // keep the blue background
+      color: '#fff',               // keep white text
+    },
+  }}
+>
+  {downloading ? 'Downloading...' : 'Download Excel'}
 </Button>
+
+
 
           <TextField
             label="Search"
