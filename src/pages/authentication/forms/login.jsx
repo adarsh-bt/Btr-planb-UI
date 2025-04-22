@@ -70,6 +70,7 @@ const SignInSide = () => {
 
   return (
     <Grid className="main" container>
+    {isRegister}
       <Grid
         item
         xs={12}

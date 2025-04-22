@@ -1,11 +1,14 @@
 import React, {useEffect,useState} from 'react';
-import { Grid, Typography,Box,Paper,Table, TableBody, TableCell, TableContainer, TableHead, TableRow, } from '@mui/material';
+import { Grid, Typography,Box,Paper,Table, TableBody, TableCell, TableContainer, TableHead, TableRow,Button } from '@mui/material';
+import SendIcon from '@mui/icons-material/Send';
 import MainCard from 'components/MainCard';
 import DataTable from 'react-data-table-component';
 import { width } from '@mui/system';
 import { useTheme } from '@mui/material/styles';
 import Breadcrumb from 'routes/Breadcrumb';
 import './earascss/zone_deta.css'
+import authservice from 'pages/authentication/services/authservice';
+import { Link } from 'react-router-dom';
 
 
 const columns = [
@@ -82,7 +85,15 @@ function ZoneDetails() {
     useEffect(() => {
         const fetchData = async () => {
           try {
-            const response = await fetch('http://localhost:8082/btr-service/btr-api/keyplots/9d511610-6941-4590-b9e8-f5b7c0eb8888');
+            const token = localStorage.getItem('token');
+            console.log("user id ",authservice.user_reid())
+            const user_id = authservice.user_reid()
+            const response = await fetch(`http://localhost:8080/btr-service/btr-api/keyplots/${user_id}`,
+              {
+              headers: {
+                  'Authorization': `Bearer ${token}` // Add token in Authorization header
+              }
+                });
             if (!response.ok) {
               throw new Error('Failed to fetch data');
             }
@@ -112,9 +123,20 @@ function ZoneDetails() {
     <Grid container spacing={3}>
     <Breadcrumb></Breadcrumb>
     <Grid item xs={12}>
-      <Typography variant="h3" sx={{ marginBottom: 2 }}>
-        Zone Details
-      </Typography>
+    <Grid container sx={{ marginBottom: 2 }} alignItems="center">
+      <Grid item xs={6}>
+        <Typography variant="h3" sx={{ marginBottom: 2 }}>
+          Zone Details
+        </Typography>
+      </Grid>
+      <Grid item xs={6} container justifyContent="flex-end">
+      <Link to="/schemes/earas/cluster/keyplots" style={{ textDecoration: 'none' }}>
+        <Button variant="contained" sx={{background:'blue'}} endIcon={<SendIcon />}>
+          Generate KeyPlots
+        </Button>
+        </Link>
+      </Grid>
+    </Grid>
       <MainCard>
         <Box className="bar-container">
           <Paper className="bar-paper">

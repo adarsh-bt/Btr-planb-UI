@@ -39,6 +39,7 @@ import CardActions from '@mui/material/CardActions';
 import tabmenus from './tabmenus/tabmenus';
 import auth from 'contexts/auth-reducer/auth';
 import Breadcrumb from 'routes/Breadcrumb';
+import authservice from 'pages/authentication/services/authservice';
 // avatar style
 const avatarSX = {
   width: 36,
@@ -112,6 +113,7 @@ export default function DashboardDefault() {
       </Grid>
 
     ))} */}
+
     <Grid container spacing={4} sx={{marginBottom:'3rem'}}>
     
     <Grid item xs={12} sm={4} md={4} lg={4}>
@@ -392,6 +394,7 @@ export default function DashboardDefault() {
     </Card>
   </Grid>
 
+
   <Grid item xs={12} sm={4} md={4} lg={4}>
   <Card component={Link} to='/approvals'
     sx={{
@@ -618,6 +621,7 @@ export default function DashboardDefault() {
           <OrdersTable />
         </MainCard>
       </Grid>
+
       <Grid item xs={12} md={5} lg={4}>
         <Grid container alignItems="center" justifyContent="space-between">
           <Grid item>
@@ -648,6 +652,8 @@ export default function DashboardDefault() {
       <Grid item xs={12} md={7} lg={8}>
         <SaleReportCard />
       </Grid>
+
+
       <Grid item xs={12} md={5} lg={4}>
         <Grid container alignItems="center" justifyContent="space-between">
           <Grid item>

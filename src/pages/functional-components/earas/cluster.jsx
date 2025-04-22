@@ -82,7 +82,13 @@ function cluster() {
     useEffect(() => {
         const fetchData = async () => {
           try {
-            const response = await fetch('http://localhost:8082/btr-service/btr-api/keyplots/9d511610-6941-4590-b9e8-f5b7c0eb8888');
+            const token = localStorage.getItem('token');
+            const response = await fetch('http://localhost:8082/btr-service/btr-api/keyplots/9d511610-6941-4590-b9e8-f5b7c0eb8888',
+              {
+              headers: {
+                  'Authorization': `Bearer ${token}` // Add token in Authorization header
+              }
+                });
             if (!response.ok) {
               throw new Error('Failed to fetch data');
             }
