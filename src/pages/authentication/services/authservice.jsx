@@ -7,7 +7,8 @@ import mainapi from 'api/mainapi';
 
 class authservice {
 //   static BASE_URL = "https://c163-103-170-55-191.ngrok-free.app/user-access"
-  static BASE_URL = mainapi.USER_API;
+//   static BASE_URL = mainapi.USER_API;
+  static BASE_URL = "https://9a89-103-149-159-190.ngrok-free.app";
 
 
     static async login(userLogin) {
@@ -17,24 +18,24 @@ class authservice {
          
 
             console.log("usercncry : ",userEncrypted);
-            const response = await axios.post(`${authservice.BASE_URL}/user-access/api/login`,userLogin,
-                // {
-                // headers: {
-                //     'Content-Type': 'text/plain'
-                // }}
+            const response = await axios.post(`${authservice.BASE_URL}/user-access/api/login`,userEncrypted,
+                {
+                headers: {
+                    'Content-Type': 'text/plain'
+                }}
             );
             localStorage.setItem('token', response.data.payload.token);
             localStorage.setItem('user', response.data.payload.username);
             return response.data;  // Return the data when the response is successful
         } catch (err) {
-            // Check if `err.response` exists before accessing `err.response.data`
+           
             if (err.response) {
-                // If the error has a response, return the error message from the backend
+               
                 return {
                     message: err.response.data.message || 'Unknown error from backend'
                 };
             } else if (err.request) {
-                // If the request was made but no response was received, handle it here
+               
                 return {
                     message: 'Sorry, Please try again later'
                 };

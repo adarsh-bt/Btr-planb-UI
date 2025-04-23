@@ -35,7 +35,7 @@ const columns = (handleEdit,handleView) => [
   // { name: 'Address', selector: (row) => row.lbcode, sortable: true },
  
   { name: 'Land Type', selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  { name: 'Total area', selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'Total area(cent)', selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
  
 
   {
@@ -80,8 +80,7 @@ const Btr = () => {
   const [totalArea, setTotalArea] = useState(0);
   const [totalWetArea, setTotalWetArea] = useState(0);
   const [totalDryArea, setTotalDryArea] = useState(0);
-
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
 
   // Function to handle filter change
@@ -152,26 +151,30 @@ const Btr = () => {
   };
   
 
-  const handleDownload = async () => {
-    setIsDownloading(true);
-    alert(isDownloading)
-    try {
-      const userId = '3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924'; // Or use dynamic user ID if available
-      const response = await btrservice.btrservice_download.download_excel(userId); // Assuming this endpoint returns Excel file
+  const handleDownloadExcel = async () => {
+    setDownloading(true);
+    const userId = '3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924'; // Get dynamically if needed
   
-      // Create blob and trigger download
-      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    try {
+      const response = await fetch(`http://localhost:8082/btr-service/btr-api/export?userId=${userId}`);
+  
+      if (!response.ok) {
+        throw new Error('Failed to download file');
+      }
+  
+      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'land_data.xlsx');
+      link.setAttribute('download', 'btr_data.xlsx');
       document.body.appendChild(link);
       link.click();
       link.remove();
     } catch (error) {
-      console.error('Download failed:', error);
+      console.error('Download error:', error);
+      alert('Download failed.');
     } finally {
-      setIsDownloading(false);
+      setDownloading(false);
     }
   };
   
@@ -195,20 +198,33 @@ useEffect(() => {
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
             Basic Tax Register (RELIS)
           </Typography> 
-           <Typography variant="body1" component="p" sx={{ color: 'green'}}>Total Wet : {totalWetArea}</Typography>
-           <Typography variant="body1" component="p" sx={{ color: 'blue'}}>Total Dry : {totalDryArea}</Typography>
-           <Typography variant="body1" component="p" sx={{ color: '#04255e'}}>Total Area : {totalArea}</Typography>
+           <Typography variant="body1" component="p" sx={{ color: 'green'}}>Total Wet : {totalWetArea} ac</Typography>
+           <Typography variant="body1" component="p" sx={{ color: 'blue'}}>Total Dry : {totalDryArea} ac</Typography>
+           <Typography variant="body1" component="p" sx={{ color: '#04255e'}}>Total Area : {totalArea} ac</Typography>
+
 
            <Button
   variant="contained"
   color="primary"
-  onClick={handleDownload}
-  disabled={isDownloading}
-  startIcon={isDownloading ? <CircularProgress size={20} color="inherit" /> : <CloudDownloadIcon />}
+  onClick={handleDownloadExcel}
+  disabled={downloading}
+  startIcon={
+    downloading ? <CircularProgress size={20} color="inherit" /> : <CloudDownloadIcon />
+  }
+  sx={{
+    backgroundColor: downloading ? '#1976d2' : undefined,
+    opacity: downloading ? 0.8 : 1,
+    pointerEvents: downloading ? 'none' : 'auto',
+    color: '#fff',
+    '&.Mui-disabled': {
+      backgroundColor: '#1976d2', // keep the blue background
+      color: '#fff',               // keep white text
+    },
+  }}
 >
-  {isDownloading ? 'Downloading...' : 'Download'}
+  {downloading ? 'Downloading...' : 'Download Excel'}
 </Button>
-          
+
 
 
           <TextField
