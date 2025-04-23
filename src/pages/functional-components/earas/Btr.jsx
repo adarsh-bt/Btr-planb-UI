@@ -13,7 +13,9 @@ import {
   DialogContentText,
   DialogTitle,
 } from '@mui/material';
-import { EditOutlined } from '@ant-design/icons';
+import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
+import CircularProgress from '@mui/material/CircularProgress';
+
 import Breadcrumb from 'routes/Breadcrumb';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import btrservice from './btrservice';
@@ -33,9 +35,8 @@ const columns = (handleEdit,handleView) => [
   // { name: 'Address', selector: (row) => row.lbcode, sortable: true },
  
   { name: 'Land Type', selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  { name: 'nhect', selector: (row) => row.nhect?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  { name: 'nare', selector: (row) => row.nare?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  { name: 'nsqm', selector: (row) => row.nsqm?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'Total area', selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+ 
 
   {
     name: 'View',
@@ -77,6 +78,11 @@ const Btr = () => {
   const [size, setSize] = useState(10); // Number of items per page
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalArea, setTotalArea] = useState(0);
+  const [totalWetArea, setTotalWetArea] = useState(0);
+  const [totalDryArea, setTotalDryArea] = useState(0);
+
+  const [isDownloading, setIsDownloading] = useState(false);
+
 
   // Function to handle filter change
   const handleFilterChange = (event) => {
@@ -133,12 +139,39 @@ const Btr = () => {
   
     const response = await btrservice.btr_lists_data(userid, currentPage, size, filter || '');
   
+    
     if (response?.payload?.data) {
       setData(response.payload.data); 
       setTotalRecords(response.payload.totalCount);  // Update total records count
-      setTotalArea(response.payload.totalArea);  // Update total records count
+      setTotalWetArea(response.payload.totalWetArea);  
+      setTotalDryArea(response.payload.totalDryArea);  
+      setTotalArea(response.payload.totalArea);  
     } else {
       console.error("Failed to fetch data:", response.message);
+    }
+  };
+  
+
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    alert(isDownloading)
+    try {
+      const userId = '3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924'; // Or use dynamic user ID if available
+      const response = await btrservice.btrservice_download.download_excel(userId); // Assuming this endpoint returns Excel file
+  
+      // Create blob and trigger download
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'land_data.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Download failed:', error);
+    } finally {
+      setIsDownloading(false);
     }
   };
   
@@ -148,16 +181,36 @@ useEffect(() => {
     console.log("fli",filterText)
 }, [page, size, filterText]);
 
+
+
   return (
     <div>
    
   <Breadcrumb />
  
       <Paper elevation={3} style={{ marginBottom: '16px', padding: '10px' }}>
+      
         <Stack direction="row" justifyContent="space-between" alignItems="center">
+        
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
             Basic Tax Register (RELIS)
-          </Typography>  <Typography variant="body1" component="p" sx={{ color: '#04255e'}}>Total Area : {totalArea}</Typography>
+          </Typography> 
+           <Typography variant="body1" component="p" sx={{ color: 'green'}}>Total Wet : {totalWetArea}</Typography>
+           <Typography variant="body1" component="p" sx={{ color: 'blue'}}>Total Dry : {totalDryArea}</Typography>
+           <Typography variant="body1" component="p" sx={{ color: '#04255e'}}>Total Area : {totalArea}</Typography>
+
+           <Button
+  variant="contained"
+  color="primary"
+  onClick={handleDownload}
+  disabled={isDownloading}
+  startIcon={isDownloading ? <CircularProgress size={20} color="inherit" /> : <CloudDownloadIcon />}
+>
+  {isDownloading ? 'Downloading...' : 'Download'}
+</Button>
+          
+
+
           <TextField
             label="Search"
             variant="outlined"

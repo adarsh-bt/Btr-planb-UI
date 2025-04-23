@@ -193,6 +193,19 @@ export default function Taluk({data}) {
                       : user
                   )
                 );
+
+                if (zone !== null && data.payload.loginId !== null) {
+                  // Call the zone_save API with required parameters
+                  approvalservice.zone_save(zone, data.payload.loginId, admin_id)
+                    .then((zoneResponse) => {
+                    
+                      // Optionally, handle zone save success, like showing a notification
+                    })
+                    .catch((zoneError) => {
+                    
+                      Swal.fire("Error", "Failed to save zone information. Please try again later.", "error");
+                    });
+                }
               } else {
                 Swal.fire("Error", data.message || "Something went wrong, please try again.", "error");
               }

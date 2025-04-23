@@ -267,7 +267,7 @@ const Register = ({ onBack }) => {
       email: email,
       mobileNumber: phone,
       penNumber: idType + idNumber,
-      designation_id:designation,
+      designationId: designation,
       dateOfBirth: dateOfBirth,
       dateOfJoining: dateOfJoining,
       officeType: officeType,
@@ -331,7 +331,7 @@ const Register = ({ onBack }) => {
         onChange={(e) => {
           const value = e.target.value;
           // Allow only alphabets, spaces, and periods, and limit length to 20
-          if (/^[A-Za-z\s.]*$/.test(value) && value.length <= 20) {
+          if (/^[A-Za-z\s.]*$/.test(value) && value.length <= 32) {
             setFullName(value); // Update state if value matches the pattern and length <= 20
           }
         }}
