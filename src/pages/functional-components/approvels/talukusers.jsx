@@ -108,7 +108,7 @@ function a11yProps(index) {
   };
 }
 
-export default function Directorate({data}) {
+export default function Taluk({data}) {
   const [value, setValue] = React.useState(0);
 
 
@@ -127,8 +127,8 @@ export default function Directorate({data}) {
       setRemarks(row.remarks || ""); // Reset remarks to row's value or empty
       setSelectedScheme(""); // Reset scheme selection
       setSelectedRole(""); // Reset role selection
-      setOpenModal(true); 
-      setZone("")
+      setOpenModal(true);
+      setZone("") 
     };
     
   
@@ -139,7 +139,7 @@ export default function Directorate({data}) {
     };
 
     
-    const [remarks, setRemarks] = useState("");
+  const [remarks, setRemarks] = useState("");
     const handleSaveChanges = () => {
       // Close the modal first
       handleCloseModal();
@@ -154,60 +154,52 @@ export default function Directorate({data}) {
         cancelButtonText: "No, cancel",
       }).then((result) => {
         if (result.isConfirmed) {
-          const admin_id = authservice.userid();
-          const approvalStatus = radioState;
-    
-          const payload = {
+          
+        
+          const admin_id = authservice.userid()
+          const approvalStatus = radioState; 
+
+          
+          var payload = {
             approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "pending" : "Rejected",
             approvalDate: new Date().toISOString().split('T')[0],
             remarks: remarks,
-            isApproved: approvalStatus === "approved",
-            adminId: admin_id,
-            userId: selectedRow ? selectedRow.userId : "",
-            id: selectedRow.approvalId,
-            roleId: selectedRole
+            isApproved: approvalStatus === "approved", 
+            adminId: admin_id, 
+            userId: selectedRow ? selectedRow.userId : "", 
+            id:selectedRow.approvalId,
+            roleId:selectedRole
           };
-          console.log("payload ", payload);
+         
           // Call the API using the separate function
-          let ser;
-    
-          if (admrole === "Super Admin") {
-            ser = approvalservice.saveSuperadminApproval(payload);
-          } else if (admrole === "IT Admin") {
-            console.log("IT", payload);
-            ser = approvalservice.saveItadminApproval(payload);
-          }
-    
-          ser.then((data) => {
-            console.log("data >>", data);
-            if (data.payload) {
-              Swal.fire("Saved!", "Your changes have been saved.", "success");
-              setUserList((prevUserList) =>
-                prevUserList.map((user) =>
-                  user.userId === selectedRow.userId
-                    ? { ...user, approvalStatus: data.payload.approvalStatus, approvalId: data.payload.id }
-                    : user
-                )
-              );
-            } else {
-              Swal.fire("Error", data.message || "Something went wrong, please try again.", "error");
-            }
-          })
-          .catch((error) => {
-            Swal.fire("Error", "Failed to save changes. Please try again later.", "error");
-          });
-    
-          // Check if 'zone' is not null and call 'zone_save' API separately if needed
-          // if (zone !== null) {
-          //   approvalservice.zone_save(zone, selectedRow.userId, authservice.userid())
-          //     .then((response) => {
-          //       console.log("Zone saved successfully", response);
-          //     })
-          //     .catch((error) => {
-          //       console.error("Error saving zone", error);
-          //     });
-          // }
-    
+          
+          if(admrole !== "Taluk Level Approver"){
+         
+        var saveapi = approvalservice.saveDisApproval(payload)
+        }else{
+         var payload={userId:selectedRow ? selectedRow.userId : "",adminId:admin_id,roleId:selectedRole}
+        var saveapi = approvalservice.saveTsoRolesAssign(payload)
+        }
+        console.log("paye TSO",payload)
+            saveapi.then((data) => {
+             
+              if (data.payload) {
+                Swal.fire("Saved!", "Your changes have been saved.", "success");
+                setUserList((prevUserList) => 
+                  prevUserList.map((user) =>
+                    // Update only the selected user, keep the rest of the users unchanged
+                    user.userId === selectedRow.userId
+                      ? { ...user, approvalStatus: data.payload.approvalStatus,approvalId:data.payload.id }
+                      : user
+                  )
+                );
+              } else {
+                Swal.fire("Error", data.message || "Something went wrong, please try again.", "error");
+              }
+            })
+            .catch((error) => {
+              Swal.fire("Error", "Failed to save changes. Please try again later.", "error");
+            });
         } else {
           Swal.fire("Cancelled", "Your changes have not been saved.", "error");
         }
@@ -237,10 +229,12 @@ const [radioState, setRadioState] = React.useState("");
 
 const [zone, setZone] = useState('');
 
+
 const [schemesList, setSchemesList] = useState([]);
 const [selectedScheme, setSelectedScheme] = useState('');
 const [rolesList, setRolesList] = useState([]);
 const [selectedRole, setSelectedRole] = useState('');
+const [Desiganation, setDesignation] = useState('');
  const [admrole,setAdmrole] = useState('');
 
 const [zonesList, setZonesList] = useState([]);
@@ -249,6 +243,10 @@ const handleRadioChange = (value) => {
   setRadioState(value);
 };
 
+const handleDesignChange = (value) => {
+
+  setDesignation(value);
+};
 
 
 const handleSchemeChange = (event) => {
@@ -265,15 +263,11 @@ const handleRoleChange = (event) => {
 
 
 
-
 const isSaveEnabled = 
-  (radioState === 'pending' || radioState === 'rejected' || 
+  ((authservice.getrole() === "District Level Approver" && Desiganation !== "Taluk Statistical Officer" && radioState === 'approved' ) || (radioState === 'pending' || radioState === 'rejected' || 
     (radioState === 'approved' && selectedRole !== '')) && 
   rolesList && 
-  schemesList && 
-  (schemesList === 'Earas' ? zone : true); 
-
-
+  schemesList)
 
 const [userList, setUserList] = useState([]);
 const [filterText, setFilterText] = useState('');
@@ -284,7 +278,7 @@ useEffect(() => {
       const userRole = authservice.getrole();
       console.log("len of data",data)
       if (!data || data.length === 0) {
-        const response = await approvalservice.superadmin_approval();
+        const response = await approvalservice.tsoadmin_roleassign();
         console.log("api response >> ", response.payload);
         setUserList(response.payload || []);
     
@@ -310,9 +304,9 @@ useEffect(() => {
    
       // Fetch all roles for super admin
       const rolesResponse = await approvalservice.allroles();
-      console.log("role payload ",rolesResponse)
+     
       setRolesList(rolesResponse.payload);
-    } else if (admrole === 'IT Admin') {
+    } else if (admrole === 'District Level Approver' || admrole === 'Taluk Level Approver') {
       // Fetch all schemes for district user
       const schemesResponse = await approvalservice.allschmes();
       setSchemesList(schemesResponse.payload);
@@ -323,26 +317,24 @@ useEffect(() => {
 
 // Fetch roles when scheme changes (for district users)
 useEffect(() => {
-  if (admrole === 'IT Admin' && selectedScheme) {
-    const fetchSchemeRolesAndZones = async () => {
-      try {
-        // Fetch both roles and zones in parallel
-        const [rolesResponse, zoneslist] = await Promise.all([
+  if ((admrole === 'District Level Approver' && selectedScheme) || (admrole === 'Taluk Level Approver' && selectedScheme)) {
+    const fetchSchemeRoles = async () => {
+      try{
+        const [rolesResponse,zoneslist] = await Promise.all([
           approvalservice.allrolesBySchems(selectedScheme),
           approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
         ]);
         setZonesList(zoneslist.payload);
         setRolesList(rolesResponse.payload);
-        setSelectedRole(''); 
+        setSelectedRole('');
         setZone('');
-      } catch (error) {
+      }catch (error) {
         console.error('Error fetching data', error);
       }
     };
-    fetchSchemeRolesAndZones();
+    fetchSchemeRoles();
   }
 }, [selectedScheme, admrole]);
-
 
 
 const handleFilterChange = (event) => {
@@ -375,7 +367,7 @@ return (
       <Paper elevation={3} style={{  padding: '10px',}}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
-          Directorate User Request
+          Taluk User Request 
           </Typography>
           <TextField
             label="Filter"
@@ -432,7 +424,8 @@ return (
       />
 
 
-{/* Modal for District Users */}
+{/* Modal for Taluk Users */}
+{((authservice.getrole() !== "Taluk Level Approver" || authservice.getrole() === "District Level Approver")  &&
 <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
   <DialogTitle
     variant="h4"
@@ -445,7 +438,7 @@ return (
       background: '#04255e',
     }}
   >
-    New User Request
+    New User Request taluks
   </DialogTitle>
   <DialogContent style={{ padding: "20px", backgroundColor: "#fafafa" }}>
     {selectedRow && (
@@ -468,7 +461,7 @@ return (
             { label: "Phone Number", value: selectedRow.mobileNumber },
             { label: "Date of Joining", value: selectedRow.dateOfJoining },
             { label: "Pen", value: selectedRow.penNumber },
-            { label: "Office", value: selectedRow.officeType }
+            { label: "Office", value: selectedRow.taluk }
           ].map((field, index) => (
             <Box
               key={index}
@@ -505,18 +498,6 @@ return (
             </Box>
           ))}
         </Stack>
-
-        {/* Category and Duties Dropdowns */}
-        {/* <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          p: 1,
-          m: 1,
-          bgcolor: 'background.paper',
-          borderRadius: 1,
-        }}
-      > */}
         <Box
           style={{
             display: "flex",
@@ -535,7 +516,7 @@ return (
 {/* shcemes */}
 {/* Conditionally render Schemes dropdown only for District users */}
 
-{admrole !== 'Super Admin' && (
+{selectedRow.designation === "Taluk Statistical Officer" && (
   <Box style={{ width: '48%' }}>
     <strong>Schemes</strong><br />
     <TextField
@@ -555,7 +536,8 @@ return (
   </Box>
 )}
 
-{/* Always show Roles dropdown */}
+{selectedRow.designation === "Taluk Statistical Officer" && (
+
 <Box style={{ width: '48%' }}>
   <strong>Role</strong><br />
   <TextField
@@ -573,27 +555,10 @@ return (
     ))}
   </TextField>
 </Box>
-     
+)}
+
         </Box>
- {/* zones */}
- { (selectedScheme == '1' && selectedRole == "1") && (
-        <Box style={{ width: '30%',margin:'auto' }}>
-            <center><strong>Select Zone</strong></center>
-            <TextField
-              select
-              fullWidth
-              value={zone}
-              onChange={(e) => setZone(e.target.value)}
-              variant="outlined"
-              style={{ marginTop: "8px" }}
-            >
-            {zonesList.map((zone)=>(
-              <MenuItem key={zone.zoneId} value={zone.zoneId}>{zone.zoneNameEn}</MenuItem>
-            ))}
-              {/* Add other duties as needed */}
-            </TextField>
-          </Box>)
- }
+
         {/* Status Radio Buttons */}
         <Box
           style={{
@@ -614,7 +579,7 @@ return (
     control={
       <Radio
         checked={radioState === "approved"}
-        onChange={() => handleRadioChange("approved")}
+        onChange={() => {handleRadioChange("approved");handleDesignChange(selectedRow.designation)}}
         disabled={selectedRow.approvalStatus === "Approved"} // Make "Approved" radio button read-only
       />
     }
@@ -678,16 +643,188 @@ return (
       Close
     </Button>
     <Button
+  onClick={handleSaveChanges}
+  color="primary"
+  variant="contained"
+  sx={{ background: '#04255e' }}
+  disabled={!isSaveEnabled}
+>
+  Save Change
+</Button>
+
+    
+  </DialogActions>
+</Dialog>)}
+
+{((authservice.getrole() !== "District Level Approver") &&
+<Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
+  <DialogTitle
+    variant="h4"
+    style={{
+      color: "white",
+      fontWeight: "bold",
+      textAlign: "center",
+      borderBottom: "2px solid #f0f0f0",
+      paddingBottom: "10px",
+      background: '#04255e',
+    }}
+  >
+    New User Request Role
+  </DialogTitle>
+  <DialogContent style={{ padding: "20px", backgroundColor: "#fafafa" }}>
+    {selectedRow && (
+      <DialogContentText>
+        <Stack
+          spacing={2}
+          style={{
+            fontSize: "14px",
+            color: "#333",
+            backgroundColor: "#fff",
+            padding: "20px",
+            borderRadius: "8px",
+            boxShadow: "0 0 10px rgba(0, 0, 0, 0.1)",
+          }}
+        >
+          {[{ label: "Name", value: selectedRow.name },
+            { label: "Designation", value: selectedRow.designation },
+            { label: "Date Of birth", value: selectedRow.dateOfBirth },
+            { label: "Email", value: selectedRow.email },
+            { label: "Phone Number", value: selectedRow.mobileNumber },
+            { label: "Date of Joining", value: selectedRow.dateOfJoining },
+            { label: "Pen", value: selectedRow.penNumber },
+            { label: "Office", value: selectedRow.taluk }
+          ].map((field, index) => (
+            <Box
+              key={index}
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                marginBottom: "10px",
+              }}
+            >
+              <Box
+                style={{
+                  textAlign: "right",
+                  marginRight: "8px",
+                  width: "40%",
+                  fontWeight: "bold",
+                  color: "#555",
+                }}
+              >
+                {field.label}:
+              </Box>
+              <Box
+                style={{
+                  textAlign: "left",
+                  width: "60%",
+                  backgroundColor: "#f9f9f9",
+                  padding: "5px 10px",
+                  borderRadius: "4px",
+                  boxShadow: "inset 0 0 5px rgba(0, 0, 0, 0.1)",
+                }}
+              >
+                {field.value}
+              </Box>
+            </Box>
+          ))}
+        </Stack>
+
+       
+        <Box
+          style={{
+            display: "flex",
+            justifyContent: 'center',
+            marginTop: "20px",
+            textAlign: "center",
+            padding: "10px",
+            border: "1px solid #f0f0f0",
+            borderRadius: "8px",
+            backgroundColor: "#fff",
+            boxShadow: "0 0 5px rgba(0, 0, 0, 0.1)",
+          }}
+        >
+         
+
+
+
+  <Box style={{ width: '48%' }}>
+    <strong>Schemes</strong><br />
+    <TextField
+      select
+      fullWidth
+      value={selectedScheme}
+      onChange={(e) => setSelectedScheme(e.target.value)}
+      variant="outlined"
+      style={{ marginTop: "8px" }}
+    >
+      {schemesList.map((scheme) => (
+        <MenuItem key={scheme.id} value={scheme.id}>
+          {scheme.schemeName}
+        </MenuItem>
+      ))}
+    </TextField>
+  </Box>
+
+
+<Box style={{ width: '48%' }}>
+  <strong>Role</strong><br />
+  <TextField
+    select
+    fullWidth
+    value={selectedRole}
+    onChange={(e) => setSelectedRole(e.target.value)} 
+    variant="outlined"
+    style={{ marginTop: "8px" }}
+  >
+    {rolesList.map((role) => (
+      <MenuItem key={role.id} value={role.id}>
+        {role.name}
+      </MenuItem>
+    ))}
+  </TextField>
+</Box>
+
+         
+
+         
+        </Box>
+
+ { selectedScheme == '1' && (
+        <Box style={{ width: '30%',margin:'auto' }}>
+            <center><strong>Select Zone</strong></center>
+            <TextField
+              select
+              fullWidth
+              value={zone}
+              onChange={(e) => setZone(e.target.value)}
+              variant="outlined"
+              style={{ marginTop: "8px" }}>
+            {zonesList.map((zone)=>(
+              <MenuItem key={zone.zoneId} value={zone.zoneId}>{zone.zoneNameEn}</MenuItem>))}
+              </TextField></Box>)
+ }
+     
+       
+      </DialogContentText>
+    )}
+  </DialogContent>
+  <DialogActions style={{ justifyContent: "center" }}>
+    <Button onClick={handleCloseModal} color="secondary" variant="outlined">
+      Close
+    </Button>
+    <Button
       onClick={handleSaveChanges}
       color="primary"
       variant="contained"
       sx={{ background: '#04255e' }}
       disabled={!isSaveEnabled}
     >
-      Save Changes
+      Save Change
     </Button>
+    
   </DialogActions>
-</Dialog>
+</Dialog>)}
  {/* Duties Dropdown */}
           {/* <Box style={{ width: '30%' }}>
             <strong>Duties</strong><br></br>

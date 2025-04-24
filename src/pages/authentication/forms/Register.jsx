@@ -29,6 +29,7 @@ const Register = ({ onBack }) => {
   const [penNumber, setPenNumber] = useState('');
   const [tenNumber, setTenNumber] = useState('');
   const [designation, setDesignation] = useState('');
+  const [designation_id, setDesignationId] = useState(null); // Store the desigantion Id
   const [dateOfJoining, setDateOfJoining] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
 
@@ -55,6 +56,7 @@ const Register = ({ onBack }) => {
     email: false,
     phone: false,
     designation: false,
+    designation_id: false,
     dateOfJoining: false,
     dateOfBirth: false,
     idNumber: false,
@@ -89,10 +91,10 @@ const Register = ({ onBack }) => {
         if (response.payload && Array.isArray(response.payload)) {
           setDistricts(response.payload);
         } else {
-          setError(response.message || 'Failed to fetch districts: Invalid data format.');
+          setErrors(response.message || 'Failed to fetch districts: Invalid data format.');
         }
       } catch (err) {
-        setError('Failed to fetch districts: ' + err.message);
+        setErrors('Failed to fetch districts: ' + err.message);
       } finally {
         // setLoadingDistricts(false);
       }
@@ -143,19 +145,19 @@ const Register = ({ onBack }) => {
 
       if (label?.startsWith('District Office')) {
         // If the selected value is a district
-        setOfficeType('District');
+        setOfficeType('DISTRICT');
 
         setDistrictId(newValue.id);
         console.log('dist ', newValue.id);
         setTalukId(null);
       } else if (label === 'Directorate Office') {
-        setOfficeType('Directorate');
+        setOfficeType('DIRECTORATE');
         setDistrictId(1);
         console.log('dire ', newValue.id); // Hardcode District ID as 1 for Directorate
         setTalukId(null);
       } else if (label?.startsWith('Taluk Statistical Office')) {
         // If it's a taluk
-        setOfficeType('Taluk');
+        setOfficeType('TALUK');
         setTalukId(newValue.id);
         console.log('taluk ', newValue.id);
         setDistrictId(null);
@@ -259,13 +261,14 @@ const Register = ({ onBack }) => {
     if (foundError) return; // If there's an error, return and don't proceed
 
     const idNumber = idType === 'PEN' ? penNumber : tenNumber;
-    
+
     const userData = {
       name: fullName,
       email: email,
       mobileNumber: phone,
       penNumber: idType + idNumber,
       designation: designation,
+      designation_id: designation,
       dateOfBirth: dateOfBirth,
       dateOfJoining: dateOfJoining,
       officeType: officeType,
@@ -274,12 +277,16 @@ const Register = ({ onBack }) => {
     };
 
     try {
+      console.log('designation id ', designation);
       setLoading(true);
       const userDatas = await authservice.registration(userData); // Add await to resolve the Promise
       setLoading(false);
 
+      console.log('suss ', userDatas.status);
       if (userDatas.status === 201) {
+        console.log('suss ', userDatas.status);
         setSuccessMessage('Registration successfully submitted. Please wait for the approval.');
+        setErrorMessage('');
       } else {
         setErrorMessage(userDatas.message);
       }
@@ -437,8 +444,8 @@ const Register = ({ onBack }) => {
         </InputLabel>
         <Select value={designation} onChange={(e) => setDesignation(e.target.value)} error={errors.designation}>
           {designations.map((designation) => (
-            <MenuItem key={designation.id} value={designation.designation_name}>
-              {designation.designation_name}
+            <MenuItem key={designation.id} value={designation.id}>
+              {designation.designationName}
             </MenuItem>
           ))}
         </Select>
@@ -496,6 +503,7 @@ const Register = ({ onBack }) => {
           disablePortal
           options={districts.map((district) => ({
             distId: district.districtOfficeId,
+            // distOfficeNameEn: district.districtOfficeNameEn.slice(16) // Ensuring correct label display
             distOfficeNameEn: district.districtOfficeNameEn // Ensuring correct label display
           }))}
           getOptionLabel={(option) => (option ? option.distOfficeNameEn : '')}

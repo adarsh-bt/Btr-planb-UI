@@ -29,16 +29,15 @@ import SettingOutlined from '@ant-design/icons/SettingOutlined';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import CardMedia from '@mui/material/CardMedia';
-import { Link } from 'react-router-dom'; 
+import { Link } from 'react-router-dom';
 // import Button from '@mui/material/Button';
 import CardActionArea from '@mui/material/CardActionArea';
 import CardActions from '@mui/material/CardActions';
 
-
-
 import tabmenus from './tabmenus/tabmenus';
 import auth from 'contexts/auth-reducer/auth';
 import Breadcrumb from 'routes/Breadcrumb';
+import authservice from 'pages/authentication/services/authservice';
 // avatar style
 const avatarSX = {
   width: 36,
@@ -56,27 +55,23 @@ const actionSX = {
   transform: 'none'
 };
 
-
-
 const { children } = tabmenus.items2[0];
 // ==============================|| DASHBOARD - DEFAULT ||============================== //
 
 export default function DashboardDefault() {
-  const isauth = auth.isAdmin()
+  const isauth = auth.isAdmin();
 
   return (
-    
     <Grid
       container
       rowSpacing={4.5}
-    
       justifyContent="center" // Ensures all cards are horizontally centered
       alignItems="center" // Ensures proper vertical alignment
     >
       {/* Row 1 */}
       <Grid item xs={12}>
         <Typography variant="h4" align="center" sx={{ mb: 3 }}>
-          Dashboard  
+          Dashboard
           {/* {isauth ? (
         <h3>Welcome to your Dashboard</h3>
       ) : (
@@ -111,381 +106,443 @@ export default function DashboardDefault() {
       </Grid>
 
     ))} */}
-    <Grid container spacing={4} sx={{marginBottom:'3rem'}}>
-    
-    <Grid item xs={12} sm={4} md={4} lg={4}>
-  <Card component={Link} to='/schemes'
-    sx={{
-      textDecoration:'none',
-      position: 'relative',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '2rem',
-      borderRadius: '1rem',
-      background: 'linear-gradient(135deg, rgba(255, 110, 97, 0.57), rgb(255, 128, 109))',
-      transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-      overflow: 'hidden', // Ensure circles don't overflow the card
-      '&:hover': {
-        transform: 'scale(1.05)',
-        boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)',
-      },
-      '&::before': {
-        content: '""',
-        position: 'absolute',
-        width: '200px',
-        height: '200px',
-        borderRadius: '50%',
-        background: 'rgba(255, 255, 255, 0.2)',
-        top: '-50px',
-        right: '-50px',
-      },
-      '&::after': {
-        content: '""',
-        position: 'absolute',
-        width: '150px',
-        height: '150px',
-        borderRadius: '50%',
-        background: 'rgba(255, 255, 255, 0.15)',
-        bottom: '-40px',
-        left: '-40px',
-      },
-    }}
-  >
-    <Typography
-      variant="h6"
-      sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}
-    >
-      -
-    </Typography>
-    <Typography
-      variant="h3"
-      sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}
-    >
-      Schemes
-    </Typography>
-    <Typography
-      variant="body2"
-      sx={{
-        color: '#f3f3f3',
-        fontWeight: 'lighter',
-        marginTop: '0.5rem',
-        textAlign: 'center',
-        marginBottom:'1.2rem'
-      }}
-    >
-      Main menus
-    </Typography>
-    <Box
-      sx={{
-        position: 'absolute',
-        top: '1rem',
-        right: '1rem',
-        background: 'rgba(255, 255, 255, 0.3)',
-        padding: '0.5rem',
-        borderRadius: '50%',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-    >
-      <CardMedia
-        component="img"
-        sx={{
-          width: '3rem',
-          height: '3rem',
-          borderRadius:'50%'
-        }}
-        image="https://www.creativefabrica.com/wp-content/uploads/2021/06/30/Search-Engine-Icon-Graphics-14065623-1-1-580x386.jpg"
-        alt="Chart Icon"
-      />
-    </Box>
-  </Card>
-</Grid>
 
+      <Grid container spacing={4} sx={{ marginBottom: '3rem' }}>
+        <Grid item xs={12} sm={4} md={4} lg={4}>
+          <Card
+            component={Link}
+            to="/schemes"
+            sx={{
+              textDecoration: 'none',
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '2rem',
+              borderRadius: '1rem',
+              background: 'linear-gradient(135deg, rgba(255, 110, 97, 0.57), rgb(255, 128, 109))',
+              transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+              overflow: 'hidden', // Ensure circles don't overflow the card
+              '&:hover': {
+                transform: 'scale(1.05)',
+                boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
+              },
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                width: '200px',
+                height: '200px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.2)',
+                top: '-50px',
+                right: '-50px'
+              },
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                width: '150px',
+                height: '150px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.15)',
+                bottom: '-40px',
+                left: '-40px'
+              }
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
+              -
+            </Typography>
+            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
+              Schemes
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: '#f3f3f3',
+                fontWeight: 'lighter',
+                marginTop: '0.5rem',
+                textAlign: 'center',
+                marginBottom: '1.2rem'
+              }}
+            >
+              Main menus
+            </Typography>
+            <Box
+              sx={{
+                position: 'absolute',
+                top: '1rem',
+                right: '1rem',
+                background: 'rgba(255, 255, 255, 0.3)',
+                padding: '0.5rem',
+                borderRadius: '50%',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}
+            >
+              <CardMedia
+                component="img"
+                sx={{
+                  width: '3rem',
+                  height: '3rem',
+                  borderRadius: '50%'
+                }}
+                image="https://www.creativefabrica.com/wp-content/uploads/2021/06/30/Search-Engine-Icon-Graphics-14065623-1-1-580x386.jpg"
+                alt="Chart Icon"
+              />
+            </Box>
+          </Card>
+        </Grid>
 
+        <Grid item xs={12} sm={4} md={4} lg={4}>
+          <Card
+            sx={{
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '2rem',
+              borderRadius: '1rem',
+              background: 'linear-gradient(135deg, rgba(99, 155, 255, 0.57), rgb(51, 125, 253))',
+              transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+              overflow: 'hidden',
+              '&:hover': {
+                transform: 'scale(1.05)',
+                boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
+              },
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                width: '200px',
+                height: '200px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.2)',
+                top: '-50px',
+                right: '-50px'
+              },
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                width: '150px',
+                height: '150px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.15)',
+                bottom: '-40px',
+                left: '-40px'
+              }
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
+              -
+            </Typography>
+            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
+              Tour diary
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: '#f3f3f3',
+                fontWeight: 'lighter',
+                marginTop: '0.5rem',
+                textAlign: 'center',
+                marginBottom: '1.2rem'
+              }}
+            >
+              Tracking
+            </Typography>
+            <Box
+              sx={{
+                position: 'absolute',
+                top: '1rem',
+                right: '1rem',
+                background: 'rgba(255, 255, 255, 0.3)',
+                padding: '0.5rem',
+                borderRadius: '50%',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}
+            >
+              <CardMedia
+                component="img"
+                sx={{
+                  width: '3rem',
+                  height: '3rem',
+                  borderRadius: '50%'
+                }}
+                image="https://www.creativefabrica.com/wp-content/uploads/2021/03/08/job-search-icon-Graphics-9353222-1-1-580x386.jpg"
+                alt="Bookmark Icon"
+              />
+            </Box>
+          </Card>
+        </Grid>
 
+        <Grid item xs={12} sm={4} md={4} lg={4}>
+          <Card
+            sx={{
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '2rem',
+              borderRadius: '1rem',
+              background: 'linear-gradient(135deg, rgba(79, 208, 170, 0.57), rgb(37, 187, 142))',
+              transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+              overflow: 'hidden',
+              '&:hover': {
+                transform: 'scale(1.05)',
+                boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
+              },
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                width: '200px',
+                height: '200px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.2)',
+                top: '-50px',
+                right: '-50px'
+              },
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                width: '150px',
+                height: '150px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.15)',
+                bottom: '-40px',
+                left: '-40px'
+              }
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
+              -
+            </Typography>
+            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
+              Report
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: '#f3f3f3',
+                fontWeight: 'lighter',
+                marginTop: '0.5rem',
+                textAlign: 'center',
+                marginBottom: '1.2rem'
+              }}
+            >
+              Report of works
+            </Typography>
+            <Box
+              sx={{
+                position: 'absolute',
+                top: '1rem',
+                right: '1rem',
+                background: 'rgba(255, 255, 255, 0.3)',
+                padding: '0.5rem',
+                borderRadius: '50%',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}
+            >
+              <CardMedia
+                component="img"
+                sx={{
+                  width: '3rem',
+                  height: '3rem',
+                  borderRadius: '50%'
+                }}
+                image="https://www.creativefabrica.com/wp-content/uploads/2021/03/22/Choice-selection-icon-Graphics-9864202-1-1-580x386.jpg"
+                alt="Diamond Icon"
+              />
+            </Box>
+          </Card>
+        </Grid>
 
-  <Grid item xs={12} sm={4} md={4} lg={4}>
-    <Card
-      sx={{
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '2rem',
-        borderRadius: '1rem',
-        background: 'linear-gradient(135deg, rgba(99, 155, 255, 0.57), rgb(51, 125, 253))',
-        transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-        overflow: 'hidden',
-        '&:hover': {
-          transform: 'scale(1.05)',
-          boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)',
-        },
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          width: '200px',
-          height: '200px',
-          borderRadius: '50%',
-          background: 'rgba(255, 255, 255, 0.2)',
-          top: '-50px',
-          right: '-50px',
-        },
-        '&::after': {
-          content: '""',
-          position: 'absolute',
-          width: '150px',
-          height: '150px',
-          borderRadius: '50%',
-          background: 'rgba(255, 255, 255, 0.15)',
-          bottom: '-40px',
-          left: '-40px',
-        },
-      }}
-    >
-      <Typography
-        variant="h6"
-        sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}
-      >
-        -
-      </Typography>
-      <Typography
-        variant="h3"
-        sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}
-      >
-        Tour diary
-      </Typography>
-      <Typography
-        variant="body2"
-        sx={{
-          color: '#f3f3f3',
-          fontWeight: 'lighter',
-          marginTop: '0.5rem',
-          textAlign: 'center',
-          marginBottom:'1.2rem'
-        }}
-      >
-        Tracking
-      </Typography>
-      <Box
-        sx={{
-          position: 'absolute',
-          top: '1rem',
-          right: '1rem',
-          background: 'rgba(255, 255, 255, 0.3)',
-          padding: '0.5rem',
-          borderRadius: '50%',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        <CardMedia
-          component="img"
-          sx={{
-            width: '3rem',
-            height: '3rem',
-            borderRadius: '50%',
-          }}
-          image="https://www.creativefabrica.com/wp-content/uploads/2021/03/08/job-search-icon-Graphics-9353222-1-1-580x386.jpg"
-          alt="Bookmark Icon"
-        />
-      </Box>
-    </Card>
-  </Grid>
+        {authservice.getrole() === ''}
+        <Grid item xs={12} sm={4} md={4} lg={4}>
+          <Card
+            component={Link}
+            to="/approvals"
+            sx={{
+              textDecoration: 'none',
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '2rem',
+              borderRadius: '1rem',
+              background: 'linear-gradient(135deg, rgba(255, 184, 97, 0.57), rgb(255, 189, 109))',
+              transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+              overflow: 'hidden', // Ensure circles don't overflow the card
+              '&:hover': {
+                transform: 'scale(1.05)',
+                boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
+              },
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                width: '200px',
+                height: '200px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.2)',
+                top: '-50px',
+                right: '-50px'
+              },
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                width: '150px',
+                height: '150px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.15)',
+                bottom: '-40px',
+                left: '-40px'
+              }
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
+              -
+            </Typography>
+            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
+              Approvals
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: '#f3f3f3',
+                fontWeight: 'lighter',
+                marginTop: '0.5rem',
+                textAlign: 'center',
+                marginBottom: '1.2rem'
+              }}
+            >
+              Main menus
+            </Typography>
+            <Box
+              sx={{
+                position: 'absolute',
+                top: '1rem',
+                right: '1rem',
+                background: 'rgba(255, 255, 255, 0.3)',
+                padding: '0.5rem',
+                borderRadius: '50%',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}
+            >
+              <CardMedia
+                component="img"
+                sx={{
+                  width: '3rem',
+                  height: '3rem',
+                  borderRadius: '50%'
+                }}
+                image="https://www.creativefabrica.com/wp-content/uploads/2021/06/30/Search-Engine-Icon-Graphics-14065623-1-1-580x386.jpg"
+                alt="Chart Icon"
+              />
+            </Box>
+          </Card>
+        </Grid>
 
-
-  <Grid item xs={12} sm={4} md={4} lg={4}>
-    <Card
-      sx={{
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '2rem',
-        borderRadius: '1rem',
-        background: 'linear-gradient(135deg, rgba(79, 208, 170, 0.57), rgb(37, 187, 142))',
-        transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-        overflow: 'hidden',
-        '&:hover': {
-          transform: 'scale(1.05)',
-          boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)',
-        },
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          width: '200px',
-          height: '200px',
-          borderRadius: '50%',
-          background: 'rgba(255, 255, 255, 0.2)',
-          top: '-50px',
-          right: '-50px',
-        },
-        '&::after': {
-          content: '""',
-          position: 'absolute',
-          width: '150px',
-          height: '150px',
-          borderRadius: '50%',
-          background: 'rgba(255, 255, 255, 0.15)',
-          bottom: '-40px',
-          left: '-40px',
-        },
-      }}
-    >
-      <Typography
-        variant="h6"
-        sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}
-      >
-        -
-      </Typography>
-      <Typography
-        variant="h3"
-        sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}
-      >
-        Report  
-      </Typography>
-      <Typography
-        variant="body2"
-        sx={{
-          color: '#f3f3f3',
-          fontWeight: 'lighter',
-          marginTop: '0.5rem',
-          textAlign: 'center',
-          marginBottom:'1.2rem'
-        }}
-      >
-        Report of works
-      </Typography>
-      <Box
-        sx={{
-          position: 'absolute',
-          top: '1rem',
-          right: '1rem',
-          background: 'rgba(255, 255, 255, 0.3)',
-          padding: '0.5rem',
-          borderRadius: '50%',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        <CardMedia
-          component="img"
-          sx={{
-            width: '3rem',
-            height: '3rem',
-            borderRadius: '50%',
-          }}
-          image="https://www.creativefabrica.com/wp-content/uploads/2021/03/22/Choice-selection-icon-Graphics-9864202-1-1-580x386.jpg"
-          alt="Diamond Icon"
-        />
-      </Box>
-    </Card>
-  </Grid>
-
-  <Grid item xs={12} sm={4} md={4} lg={4}>
-  <Card component={Link} to='/approvals'
-    sx={{
-      textDecoration:'none',
-      position: 'relative',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '2rem',
-      borderRadius: '1rem',
-      background: 'linear-gradient(135deg, rgba(255, 184, 97, 0.57), rgb(255, 189, 109))',
-      transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-      overflow: 'hidden', // Ensure circles don't overflow the card
-      '&:hover': {
-        transform: 'scale(1.05)',
-        boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)',
-      },
-      '&::before': {
-        content: '""',
-        position: 'absolute',
-        width: '200px',
-        height: '200px',
-        borderRadius: '50%',
-        background: 'rgba(255, 255, 255, 0.2)',
-        top: '-50px',
-        right: '-50px',
-      },
-      '&::after': {
-        content: '""',
-        position: 'absolute',
-        width: '150px',
-        height: '150px',
-        borderRadius: '50%',
-        background: 'rgba(255, 255, 255, 0.15)',
-        bottom: '-40px',
-        left: '-40px',
-      },
-    }}
-  >
-    <Typography
-      variant="h6"
-      sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}
-    >
-      -
-    </Typography>
-    <Typography
-      variant="h3"
-      sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}
-    >
-      Approvals
-    </Typography>
-    <Typography
-      variant="body2"
-      sx={{
-        color: '#f3f3f3',
-        fontWeight: 'lighter',
-        marginTop: '0.5rem',
-        textAlign: 'center',
-        marginBottom:'1.2rem'
-      }}
-    >
-      Main menus
-    </Typography>
-    <Box
-      sx={{
-        position: 'absolute',
-        top: '1rem',
-        right: '1rem',
-        background: 'rgba(255, 255, 255, 0.3)',
-        padding: '0.5rem',
-        borderRadius: '50%',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-    >
-      <CardMedia
-        component="img"
-        sx={{
-          width: '3rem',
-          height: '3rem',
-          borderRadius:'50%'
-        }}
-        image="https://www.creativefabrica.com/wp-content/uploads/2021/06/30/Search-Engine-Icon-Graphics-14065623-1-1-580x386.jpg"
-        alt="Chart Icon"
-      />
-    </Box>
-  </Card>
-</Grid>
-
-         
-    </Grid>
-    
+        <Grid item xs={12} sm={4} md={4} lg={4}>
+          <Card
+            component={Link}
+            to="/usermanage"
+            sx={{
+              textDecoration: 'none',
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '2rem',
+              borderRadius: '1rem',
+              background: 'linear-gradient(135deg, rgba(173, 97, 255, 0.57), rgb(175, 109, 255))',
+              transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+              overflow: 'hidden', // Ensure circles don't overflow the card
+              '&:hover': {
+                transform: 'scale(1.05)',
+                boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
+              },
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                width: '200px',
+                height: '200px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.2)',
+                top: '-50px',
+                right: '-50px'
+              },
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                width: '150px',
+                height: '150px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.15)',
+                bottom: '-40px',
+                left: '-40px'
+              }
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
+              -
+            </Typography>
+            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
+              User Manage
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: '#f3f3f3',
+                fontWeight: 'lighter',
+                marginTop: '0.5rem',
+                textAlign: 'center',
+                marginBottom: '1.2rem'
+              }}
+            >
+              Main menus
+            </Typography>
+            <Box
+              sx={{
+                position: 'absolute',
+                top: '1rem',
+                right: '1rem',
+                background: 'rgba(255, 255, 255, 0.3)',
+                padding: '0.5rem',
+                borderRadius: '50%',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}
+            >
+              <CardMedia
+                component="img"
+                sx={{
+                  width: '3rem',
+                  height: '3rem',
+                  borderRadius: '50%'
+                }}
+                image="https://www.creativefabrica.com/wp-content/uploads/2021/06/30/Search-Engine-Icon-Graphics-14065623-1-1-580x386.jpg"
+                alt="Chart Icon"
+              />
+            </Box>
+          </Card>
+        </Grid>
+      </Grid>
 
       <Grid item md={8} sx={{ display: { sm: 'none', md: 'block', lg: 'none' } }} />
 
@@ -525,6 +582,7 @@ export default function DashboardDefault() {
           <OrdersTable />
         </MainCard>
       </Grid>
+
       <Grid item xs={12} md={5} lg={4}>
         <Grid container alignItems="center" justifyContent="space-between">
           <Grid item>
@@ -555,6 +613,7 @@ export default function DashboardDefault() {
       <Grid item xs={12} md={7} lg={8}>
         <SaleReportCard />
       </Grid>
+
       <Grid item xs={12} md={5} lg={4}>
         <Grid container alignItems="center" justifyContent="space-between">
           <Grid item>

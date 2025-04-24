@@ -5,15 +5,23 @@ import { encrypt } from './encryptionUtils';
 
 class authservice {
   //   static BASE_URL = "https://c163-103-170-55-191.ngrok-free.app/user-access"
-  static BASE_URL = 'http://localhost:8081/user-access';
+  static BASE_URL = 'http://localhost:8081';
 
-  static async login(username, password) {
+  static async login(userLogin) {
     try {
-      // const username = encrypt(user_name);
-      // const password = encrypt(pass_word);
+      console.log('user login ', userLogin);
+      const userEncrypted = encrypt(JSON.stringify(userLogin));
 
-      // console.log("username : ",user_name, ">> password : ", pass_word);
-      const response = await axios.post(`${authservice.BASE_URL}/api/login`, { username, password });
+      console.log('usercncry : ', userEncrypted);
+      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/login`
+        , userLogin
+        
+    //     , {
+    //     // headers: {
+    //     //   'Content-Type': 'text/plain'
+    //     // }
+    //   }
+    );
       localStorage.setItem('token', response.data.payload.token);
       localStorage.setItem('user', response.data.payload.username);
       return response.data; // Return the data when the response is successful
@@ -40,8 +48,12 @@ class authservice {
 
   static async registration(userData) {
     try {
-      const response = await axios.post(`${authservice.BASE_URL}/api/user-registration/save-user`, userData);
-
+      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/user-registration/save-user`, userData, {
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+      console.log('ress   ', response.status);
       return response;
     } catch (err) {
       console.log('err >>', err.response.data.message);
@@ -53,7 +65,7 @@ class authservice {
 
   static async email_verification(username) {
     try {
-      const response = await axios.post(`${authservice.BASE_URL}/api/email_verify`, { username });
+      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/email_verify`, { username });
       return response;
     } catch (err) {
       return {
@@ -64,7 +76,7 @@ class authservice {
 
   static async verify_otp(userid, otp) {
     try {
-      const response = await axios.post(`${authservice.BASE_URL}/api/validateOtp`, { userid, otp });
+      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/validateOtp`, { userid, otp });
       console.log(response.data);
       return response.data;
     } catch (err) {
@@ -74,7 +86,7 @@ class authservice {
 
   static async password_reset(userid, password) {
     try {
-      const response = await axios.post(`${authservice.BASE_URL}/api/password_reset`, { userid, password });
+      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/password_reset`, { userid, password });
       return response;
     } catch (err) {
       throw err;
@@ -87,6 +99,29 @@ class authservice {
     localStorage.removeItem('user');
 
     navigate('/login');
+  }
+
+  static userid() {
+    const token = localStorage.getItem('token');
+    const decodedToken = jwtDecode(token);
+    return decodedToken.sub;
+  }
+
+  static user_reid() {
+    const token = localStorage.getItem('token');
+    const decodedToken = jwtDecode(token);
+    return decodedToken.u_id;
+  }
+
+  static getrole() {
+    const token = localStorage.getItem('token');
+    const decodedToken = jwtDecode(token);
+
+    return decodedToken.roles;
+  }
+
+  static gettoken() {
+    return localStorage.getItem('token');
   }
 }
 
