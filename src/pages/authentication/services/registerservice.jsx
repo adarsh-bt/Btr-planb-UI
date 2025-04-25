@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const RegisterService = {
-  BASE_URL: 'http://localhost:8080/user-access',
+  BASE_URL: 'http://localhost:9113/user-access',
 
   async getDistricts() {
     try {
@@ -29,7 +29,7 @@ const RegisterService = {
 
   async getDesignations() {
     try {
-      const response = await axios.get(`${this.BASE_URL}/api/designation`);
+      const response = await axios.get(`${this.BASE_URL}/api/fetch-designations`);
       return response.data;
     } catch (err) {
       return {

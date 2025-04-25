@@ -17,6 +17,7 @@ const Earas = Loadable(lazy(() => import('pages/functional-components/earas/eara
 const Zone_Details = Loadable(lazy(() => import('pages/functional-components/earas/zone_details')));
 const BTR = Loadable(lazy(() => import('pages/functional-components/earas/Btr')));
 const Cluster = Loadable(lazy(() => import('pages/functional-components/earas/cluster')));
+const Keyplots = Loadable(lazy(() => import('pages/functional-components/earas/keyplots')));
 
 
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
@@ -134,6 +135,14 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <Cluster />
+        </PrivateRoute>
+      ),
+    },
+    {
+      path: '/schemes/earas/cluster/keyplots',
+      element: (
+        <PrivateRoute>
+          <Keyplots />
         </PrivateRoute>
       ),
     },

@@ -4,14 +4,14 @@ import { useNavigate } from 'react-router-dom';
 
 class approvalservice {
   // static BASE_URL = "http://localhost:8080/useraccess"
-  static BASE_URL = 'http://localhost:8080/user-access';
+  static BASE_URL = 'http://localhost:8080';
  
 
     // adding header token is reamining
     static async superadmin_approval() {
         try {
           const token = localStorage.getItem('token');
-          const response = await axios.get(`${approvalservice.BASE_URL}/super-admin/fetch-all`,
+          const response = await axios.get(`${approvalservice.BASE_URL}/user-access/super-admin/fetch-all`,
             
             {
             headers: {
@@ -29,7 +29,7 @@ class approvalservice {
     static async itadmin_approval() {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`${approvalservice.BASE_URL}/it-admin/fetch-all`,
+        const response = await axios.get(`${approvalservice.BASE_URL}/user-access/it-admin/fetch-all`,
           
           {
           headers: {
@@ -47,7 +47,7 @@ class approvalservice {
   static async districtadmin_approval() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${approvalservice.BASE_URL}/district-admin/fetch-all`,
+      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/district-admin/fetch-all`,
         
         {
         headers: {
@@ -66,7 +66,7 @@ class approvalservice {
 static async tsoadmin_roleassign() {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.get(`${approvalservice.BASE_URL}/tso-admin/fetch-all`,
+    const response = await axios.get(`${approvalservice.BASE_URL}/user-access/tso-admin/fetch-all`,
       
       {
       headers: {
@@ -86,7 +86,7 @@ static async tsoadmin_roleassign() {
       try {
         const token = localStorage.getItem('token');
           const response = await axios.post(
-              `${approvalservice.BASE_URL}/super-admin/saveapprovals`,
+              `${approvalservice.BASE_URL}/user-access/super-admin/saveapprovals`,
               payload, // Send payload as the body
               {
                   headers: {
@@ -109,7 +109,7 @@ static async tsoadmin_roleassign() {
     try {
       const token = localStorage.getItem('token');
         const response = await axios.post(
-            `${approvalservice.BASE_URL}/it-admin/saveapprovals`,
+            `${approvalservice.BASE_URL}/user-access/it-admin/saveapprovals`,
             payload, // Send payload as the body
             {
                 headers: {
@@ -132,7 +132,7 @@ static async saveDisApproval(payload) {
   try {
     const token = localStorage.getItem('token');
       const response = await axios.post(
-          `${approvalservice.BASE_URL}/district-admin/saveapprovals`,
+          `${approvalservice.BASE_URL}/user-access/district-admin/saveapprovals`,
           payload, // Send payload as the body
           {
               headers: {
@@ -155,7 +155,7 @@ static async saveTsoRolesAssign(payload) {
   try {
     const token = localStorage.getItem('token');
       const response = await axios.post(
-          `${approvalservice.BASE_URL}/tso-admin/saverole`,
+          `${approvalservice.BASE_URL}/user-access/tso-admin/saverole`,
           payload, // Send payload as the body
           {
               headers: {
@@ -178,8 +178,14 @@ static async saveTsoRolesAssign(payload) {
 
       static async allroles() {
         try {
-      
-          const response = await axios.get(`${approvalservice.BASE_URL}/api/fetch/roles`);
+          const token = localStorage.getItem('token');
+          const response = await axios.get(`${approvalservice.BASE_URL}/user-access/role/fetch/roles`,
+            {
+              headers: {
+                  'Authorization': `Bearer ${token}` // Ensure token is included
+              }
+          }
+          );
 
           return response.data; // Return response data on success
         } catch (err) {
@@ -191,8 +197,13 @@ static async saveTsoRolesAssign(payload) {
 
       static async allschmes() {
         try {
-      
-          const response = await axios.get(`${approvalservice.BASE_URL}/api/fetch/schemes`);
+           const token = localStorage.getItem('token');
+          const response = await axios.get(`${approvalservice.BASE_URL}/user-access/role/fetch/schemes`,
+            {
+              headers: {
+                  'Authorization': `Bearer ${token}` // Ensure token is included
+              }}
+          );
           console.log("schmes ",response.data)
           return response.data; // Return response data on success
         } catch (err) {
@@ -204,7 +215,13 @@ static async saveTsoRolesAssign(payload) {
 
       static async allrolesBySchems(schemeId) {
         try {
-          const response = await axios.get(`${approvalservice.BASE_URL}/api/fetch/schemes/${schemeId}/roles`);
+           const token = localStorage.getItem('token');
+          const response = await axios.get(`${approvalservice.BASE_URL}/user-access/role/fetch/schemes/${schemeId}/roles`,
+            {
+              headers: {
+                  'Authorization': `Bearer ${token}` // Ensure token is included
+              }}
+          );
           console.log("schmes ",response.data)
           return response.data; // Return response data on success
         } catch (err) {
@@ -214,7 +231,46 @@ static async saveTsoRolesAssign(payload) {
         }
       }
       
+      
       // end
+
+      // zone services
+
+      static async zoneslist(officeType,officeId) {
+        console.log("office type ",officeType," officeId ",officeId)
+        try {
+           const token = localStorage.getItem('token');
+          const response = await axios.get(`${approvalservice.BASE_URL}/btr-service/btr-api/zones/${officeType}/${officeId}`,
+            {
+              headers: {
+                  'Authorization': `Bearer ${token}` // Ensure token is included
+              }}
+          );
+          return response.data; // Return response data on success
+        } catch (err) {
+          return {
+            message: err.response ? err.response.data.message : 'An error occurred',
+          }; // Return error message if the API call fails
+        }
+      }
+
+      static async zone_save(zoneId,user_id,assigner_id) {
+        console.log("zone id ",zoneId," userid ",user_id)
+        try {
+           const token = localStorage.getItem('token');
+          const response = await axios.get(`${approvalservice.BASE_URL}/btr-service/btr-api/assigned-zone-save`,{user_id,zoneId,assigner_id},
+            {
+              headers: {
+                  'Authorization': `Bearer ${token}` // Ensure token is included
+              }}
+          );
+          return response.data; // Return response data on success
+        } catch (err) {
+          return {
+            message: err.response ? err.response.data.message : 'An error occurred',
+          }; // Return error message if the API call fails
+        }
+      }
 
 }
 export default approvalservice;

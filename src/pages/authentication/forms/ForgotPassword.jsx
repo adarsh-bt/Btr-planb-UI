@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 
-import { TextField, Button, Typography, Box, Grid, Stack, Alert,CircularProgress } from '@mui/material';
+import { TextField, Button, Typography, Box, Grid, Stack, Alert,CircularProgress,  InputAdornment, } from '@mui/material';
 import authservice from '../services/authservice';
+import LockIcon from "@mui/icons-material/Lock";
+import IconButton from '@mui/material/IconButton';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
 
 const ForgotPassword = ({ onBack }) => {
@@ -13,7 +17,7 @@ const ForgotPassword = ({ onBack }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
+  const [showPassword, setShowPassword] = useState(false);
   
   // Central dynamic heading based on the step
   const getHeading = () => {
@@ -241,9 +245,34 @@ const handlePasswordResetSubmit = async (e) => {
         fullWidth 
         variant='outlined'
         label='New Password'
-        type='password'
+        type={showPassword ? 'text' : 'password'}
         value={newPassword}
-        onChange={(e) => setNewPassword(e.target.value)}
+        onChange={(e) => {
+          if (e.target.value.length <= 16) {
+          setNewPassword(e.target.value)}
+        }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <LockIcon fontSize="small" />
+            </InputAdornment>
+          ),
+          endAdornment: (
+            <InputAdornment position="end">
+              <IconButton
+                onClick={() => setShowPassword((prev) => !prev)} // Toggle visibility
+                edge="end"
+                aria-label="toggle password visibility"
+              >
+                {showPassword ? (
+                  <VisibilityOff sx={{ fontSize: '18px' }} /> // Smaller icon size
+                ) : (
+                  <Visibility sx={{ fontSize: '18px' }} /> // Smaller icon size
+                )}
+              </IconButton>
+            </InputAdornment>
+          )
+        }}
         sx={{
           borderRadius:'20px',
           mb: 2 // Add margin bottom for spacing 
@@ -254,9 +283,20 @@ const handlePasswordResetSubmit = async (e) => {
         fullWidth 
         variant='outlined'
         label='Confirm Password'
-        type='password'
+        type={showPassword ? 'text' : 'password'}
         value={confirmPassword}
-        onChange={(e) => setConfirmPassword(e.target.value)}
+        onChange={(e) => {
+          if (e.target.value.length <= 16) {
+          setConfirmPassword(e.target.value)}
+        }}
+         InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <LockIcon fontSize="small" />
+            </InputAdornment>
+          ),
+         
+        }}
         sx={{
           borderRadius:'20px',
           mb: 2 // Add margin bottom for spacing 
