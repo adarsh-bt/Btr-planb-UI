@@ -26,12 +26,12 @@ const columns = (handleEdit,handleView) => [
   // { name: 'District', selector: (row) => row.dcode, sortable: true },
   // { name: 'Taluk', selector: (row) => row.tcode, sortable: true },
   // { name: 'Village', selector: (row) => row.vcode, sortable: true },
+  { name: 'Panchayth', selector: (row) => row.lbtype?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
   { name: 'Village', selector: (row) => row.villageName?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
   { name: 'Block', selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
   { name: 'Survey No', selector: (row) => row.resvno?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
   { name: 'Sub Div No', selector: (row) => row.resbdno?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  { name: 'Name of Owner', selector: (row) => row.lbtype?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  { name: 'Address', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  // { name: 'Address', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
   // { name: 'Address', selector: (row) => row.lbcode, sortable: true },
  
   { name: 'Land Type', selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
@@ -222,7 +222,7 @@ useEffect(() => {
     },
   }}
 >
-  {downloading ? 'Downloading...' : 'Download Excel'}
+  {downloading ? 'Downloading...' : 'Download'}
 </Button>
 
 
