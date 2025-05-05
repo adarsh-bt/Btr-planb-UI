@@ -294,12 +294,30 @@ const handleRoleChange = (event) => {
 };
 
 
-const isSaveEnabled = 
-  (radioState === 'pending' || radioState === 'rejected' || 
-    (radioState === 'approved' && selectedRole !== '')) && 
-  rolesList && 
-  schemesList && 
-  (schemesList === 'Earas' ? zone : true); 
+// const isSaveEnabled = 
+//   (radioState === 'pending' || radioState === 'rejected' || 
+//     (radioState === 'approved' && selectedRole !== '')) && 
+//   rolesList && 
+//   schemesList && 
+//   (schemesList === 'Earas' ? zone : true); 
+
+const isDeputyDirector = selectedRow?.designation === 'Deputy Director -Districts';
+const isStatisticalInvestigator = selectedRow?.designation === 'Statistical Investigator';
+
+// Zone is required **only** for Statistical Investigator + selectedScheme === '1'
+const isZoneValid = !(selectedScheme === '1' && isStatisticalInvestigator) || !!zone;
+
+// Button should be enabled only if:
+const isSaveEnabled = (
+  (radioState === 'pending' || radioState === 'rejected') || 
+  (
+    radioState === 'approved' && (
+      (isDeputyDirector && selectedRole !== '') || // Role required for Deputy Director
+      (!isDeputyDirector) // No role needed for others
+    )
+  )
+) && rolesList && schemesList && isZoneValid;
+
 
 
 const [userList, setUserList] = useState([]);
@@ -775,23 +793,26 @@ return (
 )}
 
 {/* Always show Roles dropdown */}
-<Box style={{ width: '48%' }}>
-  <strong>Role</strong><br />
-  <TextField
-    select
-    fullWidth
-    value={selectedRole}
-    onChange={(e) => setSelectedRole(e.target.value)} 
-    variant="outlined"
-    style={{ marginTop: "8px" }}
-  >
-    {rolesList.map((role) => (
-      <MenuItem key={role.id} value={role.id}>
-        {role.name}
-      </MenuItem>
-    ))}
-  </TextField>
-</Box>
+{!(admrole === 'IT Admin' && selectedRow.designation !== 'Deputy Director -Districts') && (
+  <Box style={{ width: '48%' }}>
+    <strong>Role</strong><br />
+    <TextField
+      select
+      fullWidth
+      value={selectedRole}
+      onChange={(e) => setSelectedRole(e.target.value)} 
+      variant="outlined"
+      style={{ marginTop: "8px" }}
+    >
+      {rolesList.map((role) => (
+        <MenuItem key={role.id} value={role.id}>
+          {role.name}
+        </MenuItem>
+      ))}
+    </TextField>
+  </Box>
+)}
+
 
           {/* Duties Dropdown */}
           {/* <Box style={{ width: '30%' }}>
@@ -814,7 +835,7 @@ return (
          
         </Box>
  {/* zones */}
- { (selectedScheme == '1' && selectedRow.designation === "Statistical Investigator" ) && (
+ { (selectedScheme == '1' && selectedRole == "1" ) && (
         <Box style={{ width: '30%',margin:'auto' }}>
             <center><strong>Select Zone</strong></center>
             <TextField

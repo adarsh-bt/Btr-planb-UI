@@ -173,9 +173,13 @@ export default function Taluk({data}) {
          
           // Call the API using the separate function
           
-          if(admrole !== "Taluk Level Approver"){
-         
+          if(admrole !== "Taluk Level Approver" && admrole !== "IT Admin"){
+        
         var saveapi = approvalservice.saveDisApproval(payload)
+          }
+        else if (admrole === "IT Admin"){
+    
+          var saveapi = approvalservice.saveItadminApproval(payload)
         }else{
          var payload={userId:selectedRow ? selectedRow.userId : "",adminId:admin_id,roleId:selectedRole}
         var saveapi = approvalservice.saveTsoRolesAssign(payload)
@@ -319,7 +323,7 @@ useEffect(() => {
       const rolesResponse = await approvalservice.allroles();
      
       setRolesList(rolesResponse.payload);
-    } else if (admrole === 'District Level Approver' || admrole === 'Taluk Level Approver') {
+    } else if (admrole === 'District Level Approver' || admrole === 'Taluk Level Approver' || admrole === 'IT Admin') {
       // Fetch all schemes for district user
       const schemesResponse = await approvalservice.allschmes();
       setSchemesList(schemesResponse.payload);
@@ -330,7 +334,7 @@ useEffect(() => {
 
 // Fetch roles when scheme changes (for district users)
 useEffect(() => {
-  if ((admrole === 'District Level Approver' && selectedScheme) || (admrole === 'Taluk Level Approver' && selectedScheme)) {
+  if ((admrole === 'District Level Approver' && selectedScheme) || (admrole === 'Taluk Level Approver' && selectedScheme) || (admrole === 'IT Admin' && selectedScheme)) {
     const fetchSchemeRoles = async () => {
       try{
         const [rolesResponse,zoneslist] = await Promise.all([
@@ -438,7 +442,7 @@ return (
 
 
 {/* Modal for Taluk Users */}
-{((authservice.getrole() !== "Taluk Level Approver" || authservice.getrole() === "District Level Approver")  &&
+{((authservice.getrole() !== "Taluk Level Approver" || authservice.getrole() === "District Level Approver" || authservice.getrole() === "IT Admin")  &&
 <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
   <DialogTitle
     variant="h4"
@@ -669,7 +673,7 @@ return (
   </DialogActions>
 </Dialog>)}
 
-{((authservice.getrole() !== "District Level Approver") &&
+{((authservice.getrole() !== "District Level Approver" && authservice.getrole() !== "IT Admin") &&
 <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
   <DialogTitle
     variant="h4"
