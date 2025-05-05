@@ -17,6 +17,8 @@ const UserManage = Loadable(lazy(() => import('pages/functional-components/userm
 const RoleManage = Loadable(lazy(() => import('pages/usermanage/RoleManage')));
 const DesignationManage = Loadable(lazy(() => import('pages/usermanage/DesignationManage')));
 
+const RoleDesignation = Loadable(lazy(() => import('pages/usermanage/RoleDesignationTabs')));
+
 // const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_list')));
 const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_menus')));
 const Zone_Details = Loadable(lazy(() => import('pages/functional-components/earas/zone_details')));
@@ -26,6 +28,7 @@ const Keyplots = Loadable(lazy(() => import('pages/functional-components/earas/k
 
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
 
+const RoleList = Loadable(lazy(() => import('pages/usermanage/RoleList')));
 const RoleDetail = Loadable(lazy(() => import('pages/usermanage/Roles')));
 
 // Approvels
@@ -123,6 +126,15 @@ const MainRoutes = {
     },
 
     {
+      path: 'rolelist',
+      element: (
+        <PrivateRoute>
+          <RoleList />
+        </PrivateRoute>
+      )
+    },
+
+    {
       path: 'role',
       element: (
         <PrivateRoute>
@@ -144,6 +156,15 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <DesignationManage />
+        </PrivateRoute>
+      )
+    },
+
+    {
+      path: '/RoleDesignation',
+      element: (
+        <PrivateRoute>
+          <RoleDesignation />
         </PrivateRoute>
       )
     },

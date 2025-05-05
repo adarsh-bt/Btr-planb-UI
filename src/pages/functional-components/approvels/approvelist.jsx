@@ -36,7 +36,7 @@ import Taluk from './talukusers';
 const columns = (handleEdit) => [
   { name: 'SL. NO', selector: (row, index) => index + 1, sortable: true },
   { name: 'Name', selector: (row) => row.name, sortable: true },
-  { name: 'Designation', selector: (row) => row.designation, sortable: true },
+  { name: 'Designation', selector: (row) => row.designations.designationName, sortable: true },
   { name: 'Email', selector: (row) => row.email, sortable: true },
   { name: 'Phone number', selector: (row) => row.mobileNumber, sortable: true },
   { name: 'DOJ', selector: (row) => row.dateOfJoining, sortable: true },
@@ -107,14 +107,14 @@ export default function BasicTabs() {
     setAdmrole(userRole);
   }, []);
   // Function to handle edit action
+  // Handle edit click
   const handleEdit = (row) => {
     setSelectedRow(row);
-    setRadioState(row.approvalStatus.toLowerCase());
-    setRemarks(row.remarks || ''); // Reset remarks to row's value or empty
-    setSelectedScheme(''); // Reset scheme selection
-    setSelectedRole(''); // Reset role selection
-    setOpenModal(true);
+    setRadioState(row.approvalStatus ? row.approvalStatus.toLowerCase() : '');
+    setRemarks(row.remarks || '');
+    setSchemeRolePairs([{ schemeId: '', roleId: '' }]); // Reset pairs on edit
     setZone('');
+    setOpenModal(true);
   };
 
   // Function to close the modal
@@ -138,18 +138,19 @@ export default function BasicTabs() {
       cancelButtonText: 'No, cancel'
     }).then((result) => {
       if (result.isConfirmed) {
-        // Prepare data for the API call
         const token = localStorage.getItem('token');
-        const decodedToken = jwtDecode(token); // Decodes the JWT
+        const decodedToken = jwtDecode(token);
         const admin_id = decodedToken.sub;
-        // console.log("admin >>",admin_id)
-        // console.log("approval id >>",selectedRow.approvalId)
-        // console.log("remarks >>",remarks)
-        // console.log("select role >>",selectedRole)
-        const approvalStatus = radioState; // The status ("approved", "marked", "rejected")
-        // const remarks = radioState === "rejected" || radioState === "marked" ? remarks : "All documents verified and approved.";  // Sample remarks based on status
-        // console.log("selec",selectedRow.userId)
-        // Construct the payload
+        const approvalStatus = radioState;
+
+        // Filter out incomplete pairs
+        const filteredPairs = schemeRolePairs.filter((pair) => pair.schemeId && pair.roleId);
+
+        if (approvalStatus === 'approved' && filteredPairs.length === 0) {
+          Swal.fire('Validation Error', 'Please select at least one scheme and role pair when approving.', 'error');
+          return;
+        }
+
         const payload = {
           approvalStatus: approvalStatus === 'approved' ? 'Approved' : approvalStatus === 'pending' ? 'pending' : 'Rejected',
           approvalDate: new Date().toISOString().split('T')[0],
@@ -157,31 +158,28 @@ export default function BasicTabs() {
           isApproved: approvalStatus === 'approved',
           adminId: admin_id,
           userId: selectedRow ? selectedRow.userId : '',
-          id: selectedRow.approvalId,
-          roleId: selectedRole
+          roleSchemes: filteredPairs.map((pair) => ({
+            roleId: pair.roleId,
+            schemeId: pair.schemeId
+          }))
         };
 
+        let apicall;
         if (admrole === 'IT Admin') {
-          var apicall = approvalservice.saveItadminApproval(payload);
+          apicall = approvalservice.saveItadminApproval(payload);
         } else if (admrole === 'District Level Approver') {
-          var apicall = approvalservice.saveDisApproval(payload);
+          apicall = approvalservice.saveDisApproval(payload);
+        } else {
+          Swal.fire('Error', 'Your role is not authorized to save approvals.', 'error');
+          return;
         }
 
         apicall
           .then((data) => {
-            // console.log("data >>",data)
             if (data.payload) {
               Swal.fire('Saved!', 'Your changes have been saved.', 'success');
-              // setUserList((prevUserList) =>
-              //   prevUserList.map((user) =>
-              //     // Update only the selected user, keep the rest of the users unchanged
-              //     user.userId === selectedRow.userId
-              //       ? { ...user, approvalStatus: data.payload.approvalStatus,approvalId:data.payload.id }
-              //       : user
-              //   )
-              // );
+
               if (value === 0) {
-                // District Level Users tab
                 setUserListDis((prev) =>
                   prev.map((user) =>
                     user.userId === selectedRow.userId
@@ -189,8 +187,13 @@ export default function BasicTabs() {
                       : user
                   )
                 );
+
+                if (zone !== null && data.payload.loginId !== null) {
+                  approvalservice.zone_save(zone, data.payload.loginId, admin_id).catch(() => {
+                    Swal.fire('Error', 'Failed to save zone information. Please try again later.', 'error');
+                  });
+                }
               } else if (value === 2) {
-                // Directorate Users tab
                 setUserList((prev) =>
                   prev.map((user) =>
                     user.userId === selectedRow.userId
@@ -203,7 +206,7 @@ export default function BasicTabs() {
               Swal.fire('Error', data.message || 'Something went wrong, please try again.', 'error');
             }
           })
-          .catch((error) => {
+          .catch(() => {
             Swal.fire('Error', 'Failed to save changes. Please try again later.', 'error');
           });
       } else {
@@ -240,29 +243,72 @@ export default function BasicTabs() {
 
   const [zonesList, setZonesList] = useState([]);
 
+  // New state for multiple scheme-role pairs
+  const [schemeRolePairs, setSchemeRolePairs] = useState([{ schemeId: '', roleId: '' }]);
+
+  const [rolesMap, setRolesMap] = useState({});
+
   const handleRadioChange = (value) => {
     setRadioState(value);
   };
 
-  const handleSchemeChange = (event) => {
-    setScheme(event.target.value);
+  // Handle remarks change
+  const handleRemarksChange = (event) => {
+    setRemarks(event.target.value);
   };
 
   const handleZoneChange = (event) => {
     setZone(event.target.value);
   };
 
-  const handleRoleChange = (event) => {
-    setRoles(event.target.value);
+  // Scheme-role pair handlers
+  const addSchemeRolePair = () => {
+    setSchemeRolePairs([...schemeRolePairs, { schemeId: '', roleId: '' }]);
+  };
+
+  const updateSchemeRolePair = async (index, field, value) => {
+    const updatedPairs = [...schemeRolePairs];
+    updatedPairs[index][field] = value;
+
+    // If schemeId changes, reset roleId and fetch roles
+    if (field === 'schemeId') {
+      updatedPairs[index].roleId = '';
+
+      // Fetch roles only if not already cached
+      if (!rolesMap[value]) {
+        try {
+          const response = await approvalservice.allrolesBySchems(value);
+          setRolesMap((prev) => ({
+            ...prev,
+            [value]: response.payload
+          }));
+        } catch (error) {
+          console.error('Error fetching roles for scheme', error);
+        }
+      }
+    }
+
+    setSchemeRolePairs(updatedPairs);
+  };
+
+  const removeSchemeRolePair = (index) => {
+    if (schemeRolePairs.length > 1) {
+      const updatedPairs = [...schemeRolePairs];
+      updatedPairs.splice(index, 1);
+      setSchemeRolePairs(updatedPairs);
+    }
   };
 
   const isSaveEnabled =
-    (radioState === 'pending' || radioState === 'rejected' || (radioState === 'approved' && selectedRole !== '')) &&
+    (radioState === 'pending' ||
+      radioState === 'rejected' ||
+      (radioState === 'approved' && schemeRolePairs.some((pair) => pair.schemeId && pair.roleId))) &&
     rolesList &&
     schemesList &&
     (schemesList === 'Earas' ? zone : true);
 
   const [userList, setUserList] = useState([]);
+  const [userList2, setUserList2] = useState([]);
   const [userListDis, setUserListDis] = useState([]);
   const [filterText, setFilterText] = useState('');
   const [DisfilterText, setDisFilterText] = useState('');
@@ -286,25 +332,26 @@ export default function BasicTabs() {
   }, [admrole]);
 
   useEffect(() => {
-    if ((admrole === 'IT Admin' || admrole === 'District Level Approver') && selectedScheme) {
-      const fetchSchemeRolesAndZones = async () => {
-        try {
-          const [rolesResponse, zoneslist] = await Promise.all([
-            approvalservice.allrolesBySchems(selectedScheme),
-            approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
-          ]);
-
-          setZonesList(zoneslist.payload);
-          setRolesList(rolesResponse.payload);
-          setSelectedRole(''); // Reset role selection when scheme changes
-          setZone('');
-        } catch (error) {
-          console.error('Error fetching data', error);
-        }
-      };
-      fetchSchemeRolesAndZones();
+    if ((admrole === 'IT Admin' || admrole === 'District Level Approver') && schemeRolePairs.length > 0) {
+      // Fetch roles for each scheme selected, but for simplicity, fetch for last pair's scheme
+      const lastPair = schemeRolePairs[schemeRolePairs.length - 1];
+      if (lastPair.schemeId) {
+        const fetchSchemeRolesAndZones = async () => {
+          try {
+            const [rolesResponse, zoneslist] = await Promise.all([
+              approvalservice.allrolesBySchems(lastPair.schemeId),
+              selectedRow ? approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId) : Promise.resolve({ payload: [] })
+            ]);
+            setZonesList(zoneslist.payload);
+            setRolesList(rolesResponse.payload);
+          } catch (error) {
+            console.error('Error fetching data', error);
+          }
+        };
+        fetchSchemeRolesAndZones();
+      }
     }
-  }, [selectedScheme, admrole]);
+  }, [schemeRolePairs, admrole, selectedRow]);
 
   useEffect(() => {
     const fetchUserApprovals = async () => {
@@ -317,13 +364,15 @@ export default function BasicTabs() {
           var response = await approvalservice.itadmin_approval();
           setUserList(response.payload.directorateUsers);
           setUserListDis(response.payload.districtUsers);
+          setUserList2(response.payload.talukUsers);
           // console.log("director IT ",response.payload.directorateUsers)
           // console.log("distict IT ",response.payload.districtUsers)
         } else if (admrole === 'District Level Approver') {
           // console.log("disttict admin set")
           var response = await approvalservice.districtadmin_approval();
+          console.log('response >>> >>  ', response.payload.directorateUsers);
+          console.log('response >>> >>  ', response.payload.talukUsers);
           // console.log("dist admin data ", response.payload.districtUsers)
-          console.log('disadmin PPR ', response.payload);
           setUserListDis(response.payload.districtUsers);
           setUserList(response.payload.talukUsers);
         } else if (admrole == 'Taluk Level Approver') {
@@ -349,6 +398,10 @@ export default function BasicTabs() {
     Object.values(item).some((value) => value.toString().toLowerCase().includes(filterText.toLowerCase()))
   );
 
+  const filteredDataTalukforIT = userList2.filter((item) =>
+    Object.values(item).some((value) => value.toString().toLowerCase().includes(filterText.toLowerCase()))
+  );
+
   // console.log("dis uses")
   const filteredDataDis = userListDis.filter((item) =>
     Object.values(item).some((value) => value.toString().toLowerCase().includes(DisfilterText.toLowerCase()))
@@ -366,7 +419,7 @@ export default function BasicTabs() {
             {[
               // Tab configurations in order of desired appearance
               { label: 'District Level Users', roles: ['IT Admin', 'District Level Approver'] },
-              { label: 'Taluk Level Users', roles: ['District Level Approver'] },
+              { label: 'Taluk Level Users', roles: ['District Level Approver', 'IT Admin'] },
               { label: 'Directorate Users', roles: ['IT Admin', 'Super Admin'] },
               { label: 'Taluk Level Users', roles: ['Taluk Level Approver'] }
             ]
@@ -451,143 +504,7 @@ export default function BasicTabs() {
               {content}
             </CustomTabPanel>
           ))}
-
-        {/* <CustomTabPanel value={value} index={0}>
-
-      <Paper elevation={3} style={{  padding: '10px',}}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
-          District Users Requestssss
-          </Typography>
-          <TextField
-            label="Filter"
-            variant="outlined"
-            value={filterText}
-            onChange={handleFilterChange}
-            size="small"
-            style={{ width: '200px' }}
-          />
-        </Stack>
-      </Paper>
-      <DataTable
-      
-        columns={columns(handleEdit)} // Pass handleEdit to columns function
-        data={filteredData}
-        pagination
-        paginationComponentOptions={{
-          rowsPerPageText: 'Rows per page',
-          rangeSeparatorText: 'of',
-          selectAllRowsItemText: 'All',
-          selectAllRowsItem: 'Select All',
-        }}
-        customStyles={{
-       
-          headCells: {
-            style: {
-                fontSize:'.8rem',
-              backgroundColor: '#04255e', // Header background color
-              color: '#fff', // Header text color
-              fontWeight: 'bold', // Bold header text
-              borderBottom: '2px solid black', // Classic border style
-           
-            },
-          },
-          cells: {
-            style: {
-              backgroundColor: '',
-              borderBottom: '1px solid white', // Light bottom border for rows
-              color: '#333', // Darker text color for better readability
-             
-            },
-          },
-          pagination: {
-            style: {
-              color: '#04255e', // Change pagination symbols to blue
-             
-              alignItems:'center',
-              justifyContent:'center'
-            },
-          },
-        }}
-      /> */}
-
-        {/* Modal for District Users */}
-
-        {/* Modal for Taluk Users */}
-        {/* <Dialog open={openModal2} onClose={handleCloseModal} maxWidth="sm" fullWidth> */}
-
-        {/* </CustomTabPanel> */}
-        {/* Taluk Table */}
-        {/* <CustomTabPanel value={value} index={1}>
-      <Paper elevation={3} style={{  padding: '10px',}}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
-          Taluk User Request 
-          </Typography>
-          <TextField
-            label="Filter"
-            variant="outlined"
-            value={filterText}
-            onChange={handleFilterChange}
-            size="small"
-            style={{ width: '200px' }}
-          />
-        </Stack>
-      </Paper>
-
-
-      <DataTable
-      
-        columns={columns(handleEdit)} // Pass handleEdit to columns function
-        data={filteredData}
-        pagination
-        paginationComponentOptions={{
-          rowsPerPageText: 'Rows per page',
-          rangeSeparatorText: 'of',
-          selectAllRowsItemText: 'All',
-          selectAllRowsItem: 'Select All',
-        }}
-        customStyles={{
-       
-          headCells: {
-            style: {
-                fontSize:'.8rem',
-              backgroundColor: '#04255e', // Header background color
-              color: '#fff', // Header text color
-              fontWeight: 'bold', // Bold header text
-              borderBottom: '2px solid black', // Classic border style
-           
-            },
-          },
-          cells: {
-            style: {
-              backgroundColor: '',
-              borderBottom: '1px solid white', // Light bottom border for rows
-              color: '#333', // Darker text color for better readability
-             
-            },
-          },
-          pagination: {
-            style: {
-              color: '#04255e', // Change pagination symbols to blue
-             
-              alignItems:'center',
-              justifyContent:'center'
-            },
-          },
-        }}
-      />
-      </CustomTabPanel>
-       */}
-        {/* <CustomTabPanel value={value} index={2}>
-      {value}
-      <Directorate></Directorate>
-      </CustomTabPanel> */}
-        {/* <CustomTabPanel value={value} index={3}>
-        Other Requests
-      </CustomTabPanel> */}
       </Box>
-
       <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
         <DialogTitle
           variant="h4"
@@ -618,7 +535,7 @@ export default function BasicTabs() {
               >
                 {[
                   { label: 'Name', value: selectedRow.name },
-                  { label: 'Designation', value: selectedRow.designation },
+                  { label: 'Designation', value: selectedRow.designations.designationName },
                   { label: 'Date Of birth', value: selectedRow.dateOfBirth },
                   { label: 'Email', value: selectedRow.email },
                   { label: 'Phone Number', value: selectedRow.mobileNumber },
@@ -660,162 +577,91 @@ export default function BasicTabs() {
                     </Box>
                   </Box>
                 ))}
-              </Stack>
 
-              {/* Category and Duties Dropdowns */}
-              <Box
-                style={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  marginTop: '20px',
-                  textAlign: 'center',
-                  padding: '10px',
-                  border: '1px solid #f0f0f0',
-                  borderRadius: '8px',
-                  backgroundColor: '#fff',
-                  boxShadow: '0 0 5px rgba(0, 0, 0, 0.1)'
-                }}
-              >
-                {/* shcemes */}
-                {admrole !== 'IT Admin' && (
-                  <Box style={{ width: '48%' }}>
-                    <strong>Schemes</strong>
-                    <br />
+                {/* Category and Duties Dropdowns */}
+                {schemeRolePairs.map((pair, index) => (
+                  <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <FormControl sx={{ minWidth: 150, mr: 2 }} size="small">
+                      <InputLabel>Scheme</InputLabel>
+                      <Select
+                        value={pair.schemeId}
+                        onChange={(e) => updateSchemeRolePair(index, 'schemeId', e.target.value)}
+                        label="Scheme"
+                      >
+                        {schemesList && Array.isArray(schemesList)
+                          ? schemesList.map((scheme) => (
+                              <MenuItem key={scheme.id} value={scheme.id}>
+                                {scheme.schemeName}
+                              </MenuItem>
+                            ))
+                          : null}
+                      </Select>
+                    </FormControl>
+
+                    <FormControl sx={{ minWidth: 150, mr: 2 }} size="small">
+                      <InputLabel>Role</InputLabel>
+                      <Select
+                        value={pair.roleId}
+                        onChange={(e) => updateSchemeRolePair(index, 'roleId', e.target.value)}
+                        label="Role"
+                        disabled={!pair.schemeId}
+                      >
+                        {(rolesMap[pair.schemeId] || []).map((role) => (
+                          <MenuItem key={role.id} value={role.id}>
+                            {role.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    {/* Show + button only on last pair and if both scheme and role are selected */}
+                    {index === schemeRolePairs.length - 1 && pair.schemeId && pair.roleId && (
+                      <Button onClick={addSchemeRolePair} variant="contained" color="primary" size="small" sx={{ minWidth: 40, mr: 1 }}>
+                        +
+                      </Button>
+                    )}
+
+                    {/* Show - button if more than one pair */}
+                    {schemeRolePairs.length > 1 && (
+                      <Button
+                        onClick={() => removeSchemeRolePair(index)}
+                        variant="contained"
+                        color="error"
+                        size="small"
+                        sx={{ minWidth: 40 }}
+                      >
+                        -
+                      </Button>
+                    )}
+                  </Box>
+                ))}
+
+                {/* zones */}
+                {selectedScheme == '1' && selectedRow.designation === 'Statistical Investigator' && (
+                  <Box style={{ width: '30%', margin: 'auto' }}>
+                    <center>
+                      <strong>Select Zone</strong>
+                    </center>
                     <TextField
                       select
                       fullWidth
-                      value={selectedScheme}
-                      onChange={(e) => setSelectedScheme(e.target.value)}
+                      value={zone}
+                      onChange={(e) => setZone(e.target.value)}
                       variant="outlined"
                       style={{ marginTop: '8px' }}
                     >
-                      {schemesList.map((scheme) => (
-                        <MenuItem key={scheme.id} value={scheme.id}>
-                          {scheme.schemeName}
+                      {zonesList.map((zone) => (
+                        <MenuItem key={zone.zoneId} value={zone.zoneId}>
+                          {zone.zoneNameEn}
                         </MenuItem>
                       ))}
                     </TextField>
                   </Box>
                 )}
-
-                {/* Always show Roles dropdown */}
-                <Box style={{ width: '48%' }}>
-                  <strong>Role</strong>
-                  <br />
-                  <TextField
-                    select
-                    fullWidth
-                    value={selectedRole}
-                    onChange={(e) => setSelectedRole(e.target.value)}
-                    variant="outlined"
-                    style={{ marginTop: '8px' }}
-                  >
-                    {rolesList.map((role) => (
-                      <MenuItem key={role.id} value={role.id}>
-                        {role.name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Box>
-
-                {/* Duties Dropdown */}
-                {/* <Box style={{ width: '30%' }}>
-            <strong>Duties</strong><br></br>
-            <TextField
-              select
-              fullWidth
-              value={duties}
-              onChange={handleDutiesChange}
-              variant="outlined"
-              style={{ marginTop: "8px" }}
-            >
-              <MenuItem value="Field Work">Field Work</MenuItem>
-              <MenuItem value="Office Work">Office Work</MenuItem>
-              <MenuItem value="Research">Research</MenuItem>
-           
-            </TextField>
-          </Box> */}
-              </Box>
-              {/* zones */}
-              {selectedScheme == '1' && selectedRow.designation === 'Statistical Investigator' && (
-                <Box style={{ width: '30%', margin: 'auto' }}>
-                  <center>
-                    <strong>Select Zone</strong>
-                  </center>
-                  <TextField
-                    select
-                    fullWidth
-                    value={zone}
-                    onChange={(e) => setZone(e.target.value)}
-                    variant="outlined"
-                    style={{ marginTop: '8px' }}
-                  >
-                    {zonesList.map((zone) => (
-                      <MenuItem key={zone.zoneId} value={zone.zoneId}>
-                        {zone.zoneNameEn}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Box>
-              )}
-              {/* Status Radio Buttons */}
-              <Box
-                style={{
-                  marginTop: '20px',
-                  textAlign: 'center',
-                  padding: '10px',
-                  border: '1px solid #f0f0f0',
-                  borderRadius: '8px',
-                  backgroundColor: '#fff',
-                  boxShadow: '0 0 5px rgba(0, 0, 0, 0.1)'
-                }}
-              >
-                <strong>Status:</strong>
-                <FormGroup row style={{ justifyContent: 'center', marginTop: '8px' }}>
-                  <FormControlLabel
-                    sx={{ color: 'success.main' }}
-                    control={
-                      <Radio
-                        checked={radioState === 'approved'}
-                        onChange={() => handleRadioChange('approved')}
-                        disabled={selectedRow.approvalStatus === 'Approved'} // Make "Approved" radio button read-only
-                      />
-                    }
-                    label="Approved"
-                  />
-                  <FormControlLabel
-                    sx={{ color: 'warning.main' }}
-                    control={
-                      <Radio
-                        checked={radioState === 'pending'}
-                        onChange={() => handleRadioChange('pending')}
-                        disabled={selectedRow.approvalStatus === 'Approved'}
-                      />
-                    }
-                    label="pending"
-                  />
-                  <FormControlLabel
-                    sx={{ color: 'error.main' }}
-                    control={
-                      <Radio
-                        checked={radioState === 'rejected'}
-                        onChange={() => handleRadioChange('rejected')}
-                        disabled={selectedRow.approvalStatus === 'Approved'}
-                      />
-                    }
-                    label="Rejected"
-                  />
-                </FormGroup>
-                {selectedRow.approvalStatus === 'Approved' ? (
-                  <Typography sx={{ color: 'primary.main' }}>Already Approved only View</Typography>
-                ) : null}
-              </Box>
-
-              {/* Remarks Textbox if Rejected */}
-              {(radioState === 'rejected' || radioState === 'pending') && (
+                {/* Status Radio Buttons */}
                 <Box
                   style={{
-                    marginTop: '16px',
+                    marginTop: '20px',
                     textAlign: 'center',
                     padding: '10px',
                     border: '1px solid #f0f0f0',
@@ -824,17 +670,72 @@ export default function BasicTabs() {
                     boxShadow: '0 0 5px rgba(0, 0, 0, 0.1)'
                   }}
                 >
-                  <TextField
-                    label="Remarks"
-                    type="text"
-                    fullWidth
-                    variant="outlined"
-                    style={{ fontSize: '14px' }}
-                    value={remarks} // Bind to state
-                    onChange={(e) => setRemarks(e.target.value)}
-                  />
+                  <strong>Status:</strong>
+                  <FormGroup row style={{ justifyContent: 'center', marginTop: '8px' }}>
+                    <FormControlLabel
+                      sx={{ color: 'success.main' }}
+                      control={
+                        <Radio
+                          checked={radioState === 'approved'}
+                          onChange={() => handleRadioChange('approved')}
+                          disabled={selectedRow.approvalStatus === 'Approved'} // Make "Approved" radio button read-only
+                        />
+                      }
+                      label="Approved"
+                    />
+                    <FormControlLabel
+                      sx={{ color: 'warning.main' }}
+                      control={
+                        <Radio
+                          checked={radioState === 'pending'}
+                          onChange={() => handleRadioChange('pending')}
+                          disabled={selectedRow.approvalStatus === 'Approved'}
+                        />
+                      }
+                      label="pending"
+                    />
+                    <FormControlLabel
+                      sx={{ color: 'error.main' }}
+                      control={
+                        <Radio
+                          checked={radioState === 'rejected'}
+                          onChange={() => handleRadioChange('rejected')}
+                          disabled={selectedRow.approvalStatus === 'Approved'}
+                        />
+                      }
+                      label="Rejected"
+                    />
+                  </FormGroup>
+                  {selectedRow.approvalStatus === 'Approved' ? (
+                    <Typography sx={{ color: 'primary.main' }}>Already Approved only View</Typography>
+                  ) : null}
                 </Box>
-              )}
+
+                {/* Remarks Textbox if Rejected */}
+                {(radioState === 'rejected' || radioState === 'pending') && (
+                  <Box
+                    style={{
+                      marginTop: '16px',
+                      textAlign: 'center',
+                      padding: '10px',
+                      border: '1px solid #f0f0f0',
+                      borderRadius: '8px',
+                      backgroundColor: '#fff',
+                      boxShadow: '0 0 5px rgba(0, 0, 0, 0.1)'
+                    }}
+                  >
+                    <TextField
+                      label="Remarks"
+                      type="text"
+                      fullWidth
+                      variant="outlined"
+                      style={{ fontSize: '14px' }}
+                      value={remarks} // Bind to state
+                      onChange={(e) => setRemarks(e.target.value)}
+                    />
+                  </Box>
+                )}
+              </Stack>
             </DialogContentText>
           )}
         </DialogContent>

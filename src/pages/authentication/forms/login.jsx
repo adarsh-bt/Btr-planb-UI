@@ -28,7 +28,7 @@ import Register from './Register';
 import logo from "../images/govt.png"; // Import the logo image
 import loginimg from "../images/login.png"; // Import the login image
 import bg1 from "../images/bg1.jpg"; // Import the background image
-import duklogo from "../images/Duk-Logo.png"; // Import the DUK logo image
+import duklogo from "../images/duk_icon.png"; // Import the DUK logo image
 import cdtilogo from "../images/cdti_icon.png"; // Import the DUK logo image
 import { keyframes } from '@emotion/react';
 import '../login.css'
@@ -92,31 +92,51 @@ const SignInSide = () => {
             src={logo}
             alt="Logo"
             style={{
-              width: "160px",
-              height: "120px",
+              width: "180px",
+              height: "140px",
               // borderRadius: "50%",
               marginBottom: "16px",
               marginTop:'2rem'
               
             }}
           />
+
           <Typography
-            variant="h1"
-            sx={{
-              color: '#fff',
-              fontWeight: 'bold',
-              px: 4,
-              textAlign: "center",
-              // marginTop: "1rem",
-              // marginBottom:'2rem',
-              
-              // marginTop: "1rem",
-              marginBottom: '5rem'
-            }}
-          >
-            AIDEA
+              variant="h3"
+              sx={{
+                color: '#fff',
+                // fontWeight: 'bold',
+                px: 4,
+                textAlign: "center",
+                // marginTop: "1rem",
+                // marginBottom:'2rem',
+                
+                // marginTop: "1rem",
+                marginBottom: '1rem'
+              }}
+            >
+              Department of Economics & Statistics
           </Typography>
-          <Typography variant="h5"  sx={{
+
+          <Typography
+              variant="h3"
+              sx={{
+                color: '#fff',
+                // fontWeight: 'bold',
+                px: 4,
+                textAlign: "center",
+                // marginTop: "1rem",
+                // marginBottom:'2rem',
+                
+                // marginTop: "1rem",
+                marginBottom: '5rem'
+              }}
+            >
+              Government of Kerala
+          </Typography>
+
+          
+          <Typography variant="h3"  sx={{
               color: "#fff",
               fontWeight: "bold",
               px: 4,
@@ -125,18 +145,18 @@ const SignInSide = () => {
               marginBottom:'3rem',
               animation: `${fadeIn} 1.5s ease-out`,
               
-            }}>Application for Intelligent Data Engineering and Analytics</Typography>
+            }}>Application for Intelligent Data Engineering and Analytics (AIDEA)</Typography>
         
         <Typography style={{ display: "flex", justifyContent: "center", gap: "2rem", marginBottom: "3rem" }}>
         <img
         src={duklogo}
         alt="DUK Logo"
         style={{
-          width: "80px",
-          height: "50px",
+          width: "120px",
+          height: "60px",
           padding:".7rem",
           borderRadius: "5px", // Adds border radius for a polished look
-          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)", // Shadow for logos
+          // boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)", // Shadow for logos
         
         }}
       />
@@ -155,14 +175,14 @@ const SignInSide = () => {
         src={cdtilogo}
         alt="DUK Logo"
         style={{
-          width: "80px",
-          height: "50px",
-          padding:".7rem",
-          borderRadius: "5px", // Adds border radius for a polished look
-          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)", // Shadow for logos
-  
+          width: "120px",
+          height: "60px",
+          padding: ".7rem",
+          borderRadius: "5px",
+          marginTop: "-8px" // Lifts the logo slightly
         }}
       />
+
           {/* <Typography variant="p"  sx={{
               color: "#fff",
             }}>CDTI</Typography> */}

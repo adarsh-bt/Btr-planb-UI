@@ -56,7 +56,7 @@ const Register = ({ onBack }) => {
     email: false,
     phone: false,
     designation: false,
-    designation_id: false,
+    designation_id:false,
     dateOfJoining: false,
     dateOfBirth: false,
     idNumber: false,
@@ -261,14 +261,13 @@ const Register = ({ onBack }) => {
     if (foundError) return; // If there's an error, return and don't proceed
 
     const idNumber = idType === 'PEN' ? penNumber : tenNumber;
-
+    
     const userData = {
       name: fullName,
       email: email,
       mobileNumber: phone,
       penNumber: idType + idNumber,
-      designation: designation,
-      designation_id: designation,
+      designationId: designation,
       dateOfBirth: dateOfBirth,
       dateOfJoining: dateOfJoining,
       officeType: officeType,
@@ -277,14 +276,14 @@ const Register = ({ onBack }) => {
     };
 
     try {
-      console.log('designation id ', designation);
+      console.log("designation id ",designation);
       setLoading(true);
       const userDatas = await authservice.registration(userData); // Add await to resolve the Promise
       setLoading(false);
 
-      console.log('suss ', userDatas.status);
+      console.log("suss ",userDatas.status)
       if (userDatas.status === 201) {
-        console.log('suss ', userDatas.status);
+        console.log("suss ",userDatas.status)
         setSuccessMessage('Registration successfully submitted. Please wait for the approval.');
         setErrorMessage('');
       } else {
@@ -332,7 +331,7 @@ const Register = ({ onBack }) => {
         onChange={(e) => {
           const value = e.target.value;
           // Allow only alphabets, spaces, and periods, and limit length to 20
-          if (/^[A-Za-z\s.]*$/.test(value) && value.length <= 20) {
+          if (/^[A-Za-z\s.]*$/.test(value) && value.length <= 32) {
             setFullName(value); // Update state if value matches the pattern and length <= 20
           }
         }}
@@ -445,6 +444,7 @@ const Register = ({ onBack }) => {
         <Select value={designation} onChange={(e) => setDesignation(e.target.value)} error={errors.designation}>
           {designations.map((designation) => (
             <MenuItem key={designation.id} value={designation.id}>
+            
               {designation.designationName}
             </MenuItem>
           ))}
@@ -504,7 +504,7 @@ const Register = ({ onBack }) => {
           options={districts.map((district) => ({
             distId: district.districtOfficeId,
             // distOfficeNameEn: district.districtOfficeNameEn.slice(16) // Ensuring correct label display
-            distOfficeNameEn: district.districtOfficeNameEn // Ensuring correct label display
+            distOfficeNameEn: district.districtOfficeNameEn  // Ensuring correct label display
           }))}
           getOptionLabel={(option) => (option ? option.distOfficeNameEn : '')}
           value={selectedDistrict}

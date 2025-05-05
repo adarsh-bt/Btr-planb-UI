@@ -282,8 +282,11 @@ export default function DashboardDefault() {
         </Grid>
 
         <Grid item xs={12} sm={4} md={4} lg={4}>
-          <Card
+        <Card
+            component={Link}
+            to="/rolelist"
             sx={{
+              textDecoration: 'none',
               position: 'relative',
               display: 'flex',
               flexDirection: 'column',
@@ -294,7 +297,7 @@ export default function DashboardDefault() {
               background: 'linear-gradient(135deg, rgba(79, 208, 170, 0.57), rgb(37, 187, 142))',
               transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
               boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-              overflow: 'hidden',
+              overflow: 'hidden', // Ensure circles don't overflow the card
               '&:hover': {
                 transform: 'scale(1.05)',
                 boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
@@ -325,7 +328,7 @@ export default function DashboardDefault() {
               -
             </Typography>
             <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
-              Report
+              Role List
             </Typography>
             <Typography
               variant="body2"
@@ -337,7 +340,7 @@ export default function DashboardDefault() {
                 marginBottom: '1.2rem'
               }}
             >
-              Report of works
+              List of Roles
             </Typography>
             <Box
               sx={{
@@ -359,8 +362,8 @@ export default function DashboardDefault() {
                   height: '3rem',
                   borderRadius: '50%'
                 }}
-                image="https://www.creativefabrica.com/wp-content/uploads/2021/03/22/Choice-selection-icon-Graphics-9864202-1-1-580x386.jpg"
-                alt="Diamond Icon"
+                image="https://www.creativefabrica.com/wp-content/uploads/2021/06/30/Search-Engine-Icon-Graphics-14065623-1-1-580x386.jpg"
+                alt="Chart Icon"
               />
             </Box>
           </Card>

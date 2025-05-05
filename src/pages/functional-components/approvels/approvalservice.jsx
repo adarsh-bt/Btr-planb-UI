@@ -1,10 +1,12 @@
 import axios from 'axios';
 import authservice from 'pages/authentication/services/authservice';
 import { useNavigate } from 'react-router-dom';
+import mainapi from 'api/mainapi';
 
 class approvalservice {
   // static BASE_URL = "http://localhost:8080/useraccess"
-  static BASE_URL = 'http://localhost:8081';
+  static BASE_URL = mainapi.USER_API;
+  static BTR_URL = mainapi.BTR_API;
 
   // adding header token is reamining
   static async superadmin_approval() {
@@ -19,6 +21,7 @@ class approvalservice {
           }
         }
       );
+
       return response.data; // Return a consistent object on success
     } catch (err) {
       return {
@@ -50,7 +53,6 @@ class approvalservice {
   static async districtadmin_approval() {
     try {
       const token = localStorage.getItem('token');
-
       const response = await axios.get(
         `${approvalservice.BASE_URL}/user-access/district-admin/fetch-all`,
 
@@ -60,8 +62,6 @@ class approvalservice {
           }
         }
       );
-
-      console.log(' dis admin ', response.data);
       return response.data; // Return a consistent object on success
     } catch (err) {
       return {
@@ -91,11 +91,10 @@ class approvalservice {
   }
 
   static async saveSuperadminApproval(payload) {
-    console.log('service payload', payload);
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${approvalservice.BASE_URL}/user-access/super-admin/saveapprovals`,
+        `${approvalservice.BASE_URL}/user-access/super-admin/save-approvals`,
         payload, // Send payload as the body
         {
           headers: {
@@ -106,7 +105,6 @@ class approvalservice {
 
       return response.data; // Return response data on success
     } catch (err) {
-      console.log('errrrrr ', err);
       return {
         message: err.response ? err.response.data.message : 'An error occurred'
       }; // Return error message if the API call fails
@@ -114,11 +112,10 @@ class approvalservice {
   }
 
   static async saveItadminApproval(payload) {
-    console.log('service payload', payload);
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${approvalservice.BASE_URL}/user-access/it-admin/saveapprovals`,
+        `${approvalservice.BASE_URL}/user-access/it-admin/save-approvals`,
         payload, // Send payload as the body
         {
           headers: {
@@ -126,10 +123,8 @@ class approvalservice {
           }
         }
       );
-
       return response.data; // Return response data on success
     } catch (err) {
-      console.log('errrrrr ', err);
       return {
         message: err.response ? err.response.data.message : 'An error occurred'
       }; // Return error message if the API call fails
@@ -137,11 +132,10 @@ class approvalservice {
   }
 
   static async saveDisApproval(payload) {
-    console.log('service payload', payload);
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${approvalservice.BASE_URL}/user-access/district-admin/saveapprovals`,
+        `${approvalservice.BASE_URL}/user-access/district-admin/save-approvals`,
         payload, // Send payload as the body
         {
           headers: {
@@ -152,7 +146,6 @@ class approvalservice {
 
       return response.data; // Return response data on success
     } catch (err) {
-      console.log('errrrrr ', err);
       return {
         message: err.response ? err.response.data.message : 'An error occurred'
       }; // Return error message if the API call fails
@@ -174,7 +167,6 @@ class approvalservice {
 
       return response.data; // Return response data on success
     } catch (err) {
-      console.log('errrrrr ', err);
       return {
         message: err.response ? err.response.data.message : 'An error occurred'
       }; // Return error message if the API call fails
@@ -186,7 +178,7 @@ class approvalservice {
   static async allroles() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/role/fetch/roles`, {
+      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/api/roles`, {
         headers: {
           Authorization: `Bearer ${token}` // Ensure token is included
         }
@@ -203,12 +195,11 @@ class approvalservice {
   static async allschmes() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/role/fetch/schemes`, {
+      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/api/schemes`, {
         headers: {
           Authorization: `Bearer ${token}` // Ensure token is included
         }
       });
-      console.log('schmes ', response.data);
       return response.data; // Return response data on success
     } catch (err) {
       return {
@@ -220,12 +211,11 @@ class approvalservice {
   static async allrolesBySchems(schemeId) {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/role/fetch/schemes/${schemeId}/roles`, {
+      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/api/schemes/${schemeId}/roles`, {
         headers: {
           Authorization: `Bearer ${token}` // Ensure token is included
         }
       });
-      console.log('schmes ', response.data);
       return response.data; // Return response data on success
     } catch (err) {
       return {
@@ -239,14 +229,16 @@ class approvalservice {
   // zone services
 
   static async zoneslist(officeType, officeId) {
-    console.log('office type ', officeType, ' officeId ', officeId);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${approvalservice.BASE_URL}/btr-service/btr-api/zones/${officeType}/${officeId}`, {
-        headers: {
-          Authorization: `Bearer ${token}` // Ensure token is included
-        }
-      });
+      const response = await axios.get(
+        `${approvalservice.BTR_URL}/btr-service/btr-api/zones/${officeType}/${officeId}`
+        //   , {
+        //   headers: {
+        //     Authorization: `Bearer ${token}` // Ensure token is included
+        //   }
+        // }
+      );
       return response.data; // Return response data on success
     } catch (err) {
       return {
@@ -256,17 +248,15 @@ class approvalservice {
   }
 
   static async zone_save(zoneId, user_id, assigner_id) {
-    console.log('zone id ', zoneId, ' userid ', user_id);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${approvalservice.BASE_URL}/btr-service/btr-api/assigned-zone-save`,
-        { user_id, zoneId, assigner_id },
-        {
-          headers: {
-            Authorization: `Bearer ${token}` // Ensure token is included
-          }
-        }
+      const response = await axios.post(
+        `${approvalservice.BTR_URL}/btr-service/btr-api/assigned-zone-save`,
+        { user_id, zoneId, assigner_id }
+        // {
+        //   headers: {
+        //       'Authorization': `Bearer ${token}` // Ensure token is included
+        //   }}
       );
       return response.data; // Return response data on success
     } catch (err) {
