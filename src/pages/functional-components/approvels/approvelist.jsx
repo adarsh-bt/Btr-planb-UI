@@ -182,7 +182,12 @@ export default function BasicTabs() {
     
          if(admrole === "IT Admin"){
           var apicall = approvalservice.saveItadminApproval(payload)
+          
+          console.log("zone saved")
+
          }else if(admrole === "District Level Approver"){
+         
+         
           var apicall = approvalservice.saveDisApproval(payload)
          }
          
@@ -206,6 +211,17 @@ export default function BasicTabs() {
                         : user
                     )
                   );
+                  console.log("admin ",admin_id)
+                  console.log("admin ",zone)
+                  console.log("userid ",data.payload.loginId)
+                   if (zone !== null && data.payload.loginId !== null) {
+                                 // Call the zone_save API with required parameters
+                      approvalservice.zone_save(zone, data.payload.loginId, admin_id)
+                            .then((zoneResponse) => {
+                            }).catch((zoneError) => {
+                             Swal.fire("Error", "Failed to save zone information. Please try again later.", "error");
+                  });
+              }
                 } else if (value === 2) { // Directorate Users tab
                   setUserList(prev => 
                     prev.map(user => 
@@ -287,6 +303,7 @@ const isSaveEnabled =
 
 
 const [userList, setUserList] = useState([]);
+const [userList2, setUserList2] = useState([]);
 const [userListDis, setUserListDis] = useState([]);
 const [filterText, setFilterText] = useState('');
 const [DisfilterText, setDisFilterText] = useState('');
@@ -349,6 +366,7 @@ useEffect(() => {
         var response = await approvalservice.itadmin_approval();
         setUserList(response.payload.directorateUsers); 
         setUserListDis(response.payload.districtUsers);
+        setUserList2(response.payload.talukUsers);
         // console.log("director IT ",response.payload.directorateUsers)
         // console.log("distict IT ",response.payload.districtUsers)
       }else if(admrole === "District Level Approver"){
@@ -386,6 +404,11 @@ const filteredData = userList.filter((item) =>
   )
 );
 
+const filteredDataTalukforIT = userList2.filter((item) =>
+  Object.values(item).some((value) =>
+    value.toString().toLowerCase().includes(filterText.toLowerCase())
+  )
+);
 
 // console.log("dis uses")
 const filteredDataDis = userListDis.filter((item) =>
@@ -405,7 +428,7 @@ return (
       {[
         // Tab configurations in order of desired appearance
         { label: 'District Level Users', roles: ['IT Admin', 'District Level Approver'] },
-        { label: 'Taluk Level Users', roles: ['District Level Approver'] },
+        { label: 'Taluk Level Users', roles: ['District Level Approver','IT Admin'] },
         { label: 'Directorate Users', roles: ['IT Admin', 'Super Admin'] },
         { label: 'Taluk Level Users', roles: ['Taluk Level Approver'] },
       ]
@@ -477,7 +500,8 @@ return (
             />
     </Paper>,
     <Paper elevation={3} style={{ padding: '10px' }}>
-              <Taluk data={filteredData} ></Taluk>
+    <Taluk data={admrole === "IT Admin" ? filteredDataTalukforIT : filteredData} />
+
       {/* Taluk Users content */}
     </Paper>,
     <Directorate data={filteredData} />,
@@ -487,7 +511,7 @@ return (
     // Match the same filtering logic as tabs
     [
       ['IT Admin', 'District Level Approver'],
-      ['District Level Approver'],
+      ['District Level Approver','IT Admin'],
       ['IT Admin', 'Super Admin'],
       ['Taluk Level Approver']
     ][index].includes(admrole)

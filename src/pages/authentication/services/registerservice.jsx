@@ -1,12 +1,12 @@
 import axios from 'axios';
+import mainapi from 'api/mainapi';
 
 const RegisterService = {
-  BASE_URL: 'http://localhost:9113/user-access',
+  BASE_URL: 'http://localhost:9113',
 
   async getDistricts() {
     try {
-      const response = await axios.get(`${this.BASE_URL}/api/districts`);
-      console.log('dist > ', response.data);
+      const response = await axios.get(`${this.BASE_URL}/user-access/api/districts`);
       return response.data;
     } catch (err) {
       return {
@@ -17,8 +17,7 @@ const RegisterService = {
 
   async getTaluks(districtId) {
     try {
-      const response = await axios.get(`${this.BASE_URL}/api/districts/${districtId}/taluks`);
-      console.log('taluk >>', response.data);
+      const response = await axios.get(`${this.BASE_URL}/user-access/api/districts/${districtId}/taluks`);
       return response.data;
     } catch (err) {
       return {
@@ -29,7 +28,7 @@ const RegisterService = {
 
   async getDesignations() {
     try {
-      const response = await axios.get(`${this.BASE_URL}/api/fetch-designations`);
+      const response = await axios.get(`${this.BASE_URL}/user-access/api/fetch-designations`);
       return response.data;
     } catch (err) {
       return {

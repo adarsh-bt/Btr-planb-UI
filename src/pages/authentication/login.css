@@ -5,6 +5,9 @@
    
 } */
 
+body{
+  overflow-y: hidden;
+}
 :root {
     --gradient: linear-gradient(142deg, #e7eaee 15%, rgba(22,77,155,1) 28%, rgba(14,63,139,1) 41%, rgb(201, 208, 220) 64%);
   }
@@ -14,6 +17,7 @@
     background-size: 300%;
     height:50rem; /* changed */
     background-image: var(--gradient);
+    /* overflow-y: scroll; */
     animation: bg-animation 5s infinite;
     /* height: 130vh; */
     

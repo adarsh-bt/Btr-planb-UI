@@ -86,9 +86,9 @@ function ZoneDetails() {
         const fetchData = async () => {
           try {
             const token = localStorage.getItem('token');
-            console.log("user id ",authservice.user_reid())
-            const user_id = authservice.user_reid()
-            const response = await fetch(`http://localhost:8080/btr-service/btr-api/keyplots/${user_id}`,
+            
+            const user_id = authservice.userid()
+            const response = await fetch(`http://localhost:8082/btr-service/btr-api/keyplots/${user_id}`,
               {
               headers: {
                   'Authorization': `Bearer ${token}` // Add token in Authorization header
