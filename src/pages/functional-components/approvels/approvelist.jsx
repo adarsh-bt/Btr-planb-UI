@@ -151,6 +151,21 @@ export default function BasicTabs() {
           return;
         }
 
+        const hasDuplicateSchemeRole = filteredPairs.some((pair, idx) =>
+          filteredPairs.some(
+            (otherPair, otherIdx) => idx !== otherIdx && pair.schemeId === otherPair.schemeId && pair.roleId === otherPair.roleId
+          )
+        );
+
+        if (hasDuplicateSchemeRole) {
+          Swal.fire(
+            'Validation Error',
+            'Each role for a scheme must be unique. Please select different roles for the same scheme.',
+            'error'
+          );
+          return;
+        }
+
         const payload = {
           approvalStatus: approvalStatus === 'approved' ? 'Approved' : approvalStatus === 'pending' ? 'pending' : 'Rejected',
           approvalDate: new Date().toISOString().split('T')[0],
@@ -578,10 +593,9 @@ export default function BasicTabs() {
                   </Box>
                 ))}
 
-                {/* Category and Duties Dropdowns */}
                 {schemeRolePairs.map((pair, index) => (
-                  <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <FormControl sx={{ minWidth: 150, mr: 2 }} size="small">
+                  <Stack key={index} direction="row" alignItems="center" justifyContent="center" spacing={2} sx={{ width: '100%', mb: 2 }}>
+                    <FormControl sx={{ minWidth: 180 }} size="small">
                       <InputLabel>Scheme</InputLabel>
                       <Select
                         value={pair.schemeId}
@@ -598,7 +612,7 @@ export default function BasicTabs() {
                       </Select>
                     </FormControl>
 
-                    <FormControl sx={{ minWidth: 150, mr: 2 }} size="small">
+                    <FormControl sx={{ minWidth: 180 }} size="small">
                       <InputLabel>Role</InputLabel>
                       <Select
                         value={pair.roleId}
@@ -606,11 +620,17 @@ export default function BasicTabs() {
                         label="Role"
                         disabled={!pair.schemeId}
                       >
-                        {(rolesMap[pair.schemeId] || []).map((role) => (
-                          <MenuItem key={role.id} value={role.id}>
-                            {role.name}
-                          </MenuItem>
-                        ))}
+                        {(rolesMap[pair.schemeId] || []).map((role) => {
+                          // Check if this role is already selected for this scheme in another pair
+                          const isRoleAlreadySelected = schemeRolePairs.some(
+                            (p, i) => i !== index && p.schemeId === pair.schemeId && p.roleId === role.id
+                          );
+                          return (
+                            <MenuItem key={role.id} value={role.id} disabled={isRoleAlreadySelected}>
+                              {role.name}
+                            </MenuItem>
+                          );
+                        })}
                       </Select>
                     </FormControl>
 
@@ -633,7 +653,7 @@ export default function BasicTabs() {
                         -
                       </Button>
                     )}
-                  </Box>
+                  </Stack>
                 ))}
 
                 {/* zones */}

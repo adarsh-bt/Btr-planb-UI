@@ -56,7 +56,7 @@ const Register = ({ onBack }) => {
     email: false,
     phone: false,
     designation: false,
-    designation_id:false,
+    designation_id: false,
     dateOfJoining: false,
     dateOfBirth: false,
     idNumber: false,
@@ -191,13 +191,20 @@ const Register = ({ onBack }) => {
   //   : [];
 
   const handlePenChange = (e) => {
-    setPenNumber(e.target.value);
-    if (e.target.value) setErrors({ ...errors, idNumber: false });
+    const value = e.target.value;
+    if (/^\d*$/.test(value)) { // Only allow digits
+      setPenNumber(value);
+      if (value) setErrors({ ...errors, idNumber: false });
+    }
   };
+  
 
   const handleTenChange = (e) => {
-    setTenNumber(e.target.value);
-    if (e.target.value) setErrors({ ...errors, idNumber: false });
+    const value = e.target.value;
+    if (/^\d*$/.test(value)) { // Only allow digits
+      setTenNumber(value);
+      if (value) setErrors({ ...errors, idNumber: false });
+    }
   };
 
   const validateField = (field) => {
@@ -208,7 +215,7 @@ const Register = ({ onBack }) => {
         return null;
       case 'email':
         if (!email) return 'Email Address is required.';
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const emailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
         if (!emailRegex.test(email)) return 'Invalid email format.';
         return null;
       case 'phone':
@@ -225,8 +232,17 @@ const Register = ({ onBack }) => {
         if (!dateOfBirth || new Date(dateOfBirth) > new Date()) return 'Date of Birth cannot be in the future.';
         return null;
       case 'idNumber':
-        if (idType === 'PEN' && !penNumber) return 'PEN Number is required.';
-        if (idType === 'TEN' && !tenNumber) return 'TEN Number is required.';
+        if (idType === 'PEN') {
+          if (!penNumber) return 'PEN Number is required.';
+          if (penNumber.length !== 10) return 'PEN Number must be exactly 10 characters.';
+          // You can add more specific validation for the PEN number (e.g., check if it's numeric)
+        }
+
+        if (idType === 'TEN') {
+          if (!tenNumber) return 'TEN Number is required.';
+          if (tenNumber.length < 6 || tenNumber.length > 10) return 'TEN Number must be between 6 and 10 characters.';
+        }
+
         return null;
       // case 'office':
       //   if (!office) return 'Office is required.';
@@ -261,7 +277,7 @@ const Register = ({ onBack }) => {
     if (foundError) return; // If there's an error, return and don't proceed
 
     const idNumber = idType === 'PEN' ? penNumber : tenNumber;
-    
+
     const userData = {
       name: fullName,
       email: email,
@@ -276,14 +292,14 @@ const Register = ({ onBack }) => {
     };
 
     try {
-      console.log("designation id ",designation);
+      console.log('designation id ', designation);
       setLoading(true);
       const userDatas = await authservice.registration(userData); // Add await to resolve the Promise
       setLoading(false);
 
-      console.log("suss ",userDatas.status)
+      console.log('suss ', userDatas.status);
       if (userDatas.status === 201) {
-        console.log("suss ",userDatas.status)
+        console.log('suss ', userDatas.status);
         setSuccessMessage('Registration successfully submitted. Please wait for the approval.');
         setErrorMessage('');
       } else {
@@ -418,18 +434,21 @@ const Register = ({ onBack }) => {
           label="PEN"
           value={penNumber}
           onChange={handlePenChange}
-          inputProps={{ maxLength: 4 }}
-          error={errors.idNumber}
-          helperText={errors.idNumber ? errors.idNumber : ''}
+          inputProps={{ maxLength: 10 }}
+          error={!!errors.idNumber}
+          helperText={errors.idNumber ? errors.idNumber : " "}
           sx={{ mb: 2 }}
         />
+      
       ) : (
         <TextField
           variant="outlined"
           label="TEN"
           value={tenNumber}
           onChange={handleTenChange}
-          inputProps={{ maxLength: 6 }}
+          inputProps={{ maxLength: 10 }}
+          error={!!errors.idNumber}
+          helperText={errors.idNumber ? errors.idNumber : " "}
           sx={{ mb: 2 }}
         />
       )}
@@ -444,7 +463,6 @@ const Register = ({ onBack }) => {
         <Select value={designation} onChange={(e) => setDesignation(e.target.value)} error={errors.designation}>
           {designations.map((designation) => (
             <MenuItem key={designation.id} value={designation.id}>
-            
               {designation.designationName}
             </MenuItem>
           ))}
@@ -504,7 +522,7 @@ const Register = ({ onBack }) => {
           options={districts.map((district) => ({
             distId: district.districtOfficeId,
             // distOfficeNameEn: district.districtOfficeNameEn.slice(16) // Ensuring correct label display
-            distOfficeNameEn: district.districtOfficeNameEn  // Ensuring correct label display
+            distOfficeNameEn: district.districtOfficeNameEn // Ensuring correct label display
           }))}
           getOptionLabel={(option) => (option ? option.distOfficeNameEn : '')}
           value={selectedDistrict}

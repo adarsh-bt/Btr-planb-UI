@@ -134,6 +134,7 @@ class approvalservice {
   static async saveDisApproval(payload) {
     try {
       const token = localStorage.getItem('token');
+      console.log('payload: ', payload);
       const response = await axios.post(
         `${approvalservice.BASE_URL}/user-access/district-admin/save-approvals`,
         payload, // Send payload as the body
