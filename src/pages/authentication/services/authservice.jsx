@@ -6,9 +6,9 @@ import { encryptData } from './encryptionUtils';
 import mainapi from 'api/mainapi';
 
 class authservice {
-//   static BASE_URL = "https://c163-103-170-55-191.ngrok-free.app/user-access"
+
   static BASE_URL = mainapi.USER_API;
-//   static BASE_URL = "https://9251-14-139-189-168.ngrok-free.app";
+//   static BASE_URL = "https://9a89-103-149-159-190.ngrok-free.app";
 
 
     static async login(userLogin) {
