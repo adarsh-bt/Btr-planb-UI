@@ -19,6 +19,8 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Breadcrumb from 'routes/Breadcrumb';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import btrservice from './btrservice';
+import { Grid } from '@mui/material';
+
 
 // Define the columns for the data table
 const columns = (handleEdit,handleView) => [
@@ -98,11 +100,6 @@ const Btr = () => {
     })
 );
 
-  // Function to handle edit action
-  const handleEdit = (row) => {
-    setSelectedRow(row); // Set the selected row to be edited
-    setOpenEditModal(true); // Open the edit modal
-  };
 
   // Function to handle view action
   const handleView = (row) => {
@@ -185,9 +182,9 @@ useEffect(() => {
 }, [page, size, filterText]);
 
   return (
-    <div>
-   
-  <Breadcrumb />
+    <Grid container spacing={3}>
+      <Breadcrumb></Breadcrumb>
+      <Grid item xs={12}>
  
       <Paper elevation={3} style={{ marginBottom: '16px', padding: '10px' }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -236,40 +233,41 @@ useEffect(() => {
 
 
       <DataTable
-  columns={columns(handleEdit, handleView)}
-  data={filteredData} 
-  pagination
-  paginationServer
-  paginationTotalRows={totalRecords}  // Set the total records to manage pagination correctly
-  paginationPerPage={size}
-  onChangePage={handlePageChange}
-  onChangeRowsPerPage={handleRowsPerPageChange}
-  customStyles={{
-    headCells: {
-      style: {
-        fontSize: '.8rem',
-        backgroundColor: '#04255e',
-        color: '#fff',
-        fontWeight: 'bold',
-        borderBottom: '2px solid black',
-      },
-    },
-    cells: {
-      style: {
-        backgroundColor: '',
-        borderBottom: '1px solid white',
-        color: '#333',
-      },
-    },
-    pagination: {
-      style: {
-        color: '#04255e',
-        alignItems: 'center',
-        justifyContent: 'center',
-      },
-    },
-  }}
-/>
+        columns={columns(undefined, handleView)} // Pass both handleEdit and handleView
+        data={filteredData}
+        pagination
+        paginationComponentOptions={{
+          rowsPerPageText: 'Rows per page',
+          rangeSeparatorText: 'of',
+          selectAllRowsItemText: 'All',
+          selectAllRowsItem: 'Select All',
+        }}
+        customStyles={{
+          headCells: {
+            style: {
+              fontSize: '.9rem',
+              backgroundColor: '#04255e', // Header background color
+              color: '#fff', // Header text color
+              fontWeight: 'bold', // Bold header text
+              borderBottom: '2px solid black', // Classic border style
+            },
+          },
+          cells: {
+            style: {
+              backgroundColor: '',
+              borderBottom: '1px solid white', // Light bottom border for rows
+              color: '#333', // Darker text color for better readability
+            },
+          },
+          pagination: {
+            style: {
+              color: '#04255e', // Change pagination symbols to blue
+              alignItems: 'center',
+              justifyContent: 'center',
+            },
+          },
+        }}
+      />
 
     
 
@@ -352,8 +350,9 @@ useEffect(() => {
 </Dialog>
 
 
-
-    </div>
+    
+    </Grid>
+        </Grid>
   );
 };
 

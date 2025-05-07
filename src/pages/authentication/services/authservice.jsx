@@ -6,9 +6,8 @@ import { encrypt } from './encryptionUtils';
 import mainapi from 'api/mainapi';
 
 class authservice {
-//   static BASE_URL = "https://c163-103-170-55-191.ngrok-free.app/user-access"
+  //   static BASE_URL = "https://c163-103-170-55-191.ngrok-free.app/user-access"
   static BASE_URL = 'http://localhost:9113';
-
 
     static async login(userLogin) {
         try {
@@ -17,8 +16,7 @@ class authservice {
          
 
             console.log("usercncry : ",userEncrypted);
-            const response = await axios.post(`${authservice.BASE_URL}/user-access/api/login`,userLogin
-                // ,
+            const response = await axios.post(`${authservice.BASE_URL}/user-access/api/login`,userLogin,
                 // {
                 // headers: {
                 //     'Content-Type': 'text/plain'
@@ -92,44 +90,41 @@ class authservice {
     }
   }
 
-    static async password_reset(userid,password){
-        try{
-            const response = await axios.post(`${authservice.BASE_URL}/user-access/api/password_reset`,{userid,password})
-            return response
-        }catch(err){
-            throw err;
-        }
+  static async password_reset(userid, password) {
+    try {
+      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/password_reset`, { userid, password });
+      return response;
+    } catch (err) {
+      throw err;
     }
-  
+  }
 
-        // Checker
-        static logout(navigate){
-        
-            localStorage.removeItem('token')
-            localStorage.removeItem('user')
-            
-            navigate('/login');
-        }
-    
-        static userid(){
-            const token = localStorage.getItem('token');
-            const decodedToken = jwtDecode(token);
-            return decodedToken.sub
-        }
+  // Checker
+  static logout(navigate) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+
+    navigate('/login');
+  }
+
+  static userid() {
+    const token = localStorage.getItem('token');
+    const decodedToken = jwtDecode(token);
+    return decodedToken.sub;
+  }
 
       
 
-        static getrole(){
-            const token = localStorage.getItem('token');
-             const decodedToken = jwtDecode(token);
-            
-             return decodedToken.roles
-        }
+  static getrole() {
+    const token = localStorage.getItem('token');
+    const decodedToken = jwtDecode(token);
 
-        static gettoken(){
-            return localStorage.getItem('token')
-        }
+    return decodedToken.roles;
+  }
 
+  static gettoken() {
+    return localStorage.getItem('token');
+  }
 }
 
 export default authservice;

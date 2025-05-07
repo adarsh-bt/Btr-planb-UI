@@ -33,7 +33,7 @@ function Schemas() {
              
               <Grid container spacing={4}>
                <Grid item xs={12} sm={4} md={3} lg={3}>               
-               <Card component={Link} to="/schemes/earas"
+               <Card component={Link} to="/schemes/earas/zone_details"
         sx={{
           textDecoration:'none',
           display: 'flex',
@@ -41,7 +41,9 @@ function Schemas() {
           justifyContent: 'center',
           padding: '1rem',
           borderRadius: '1rem',
-          background: 'linear-gradient(135deg, rgba(99, 155, 255, 0.57), rgb(51, 125, 253))', // Gradient color
+          background: 'linear-gradient(135deg, rgba(99, 155, 255, 0.45), rgb(129, 175, 255))',
+
+ // Gradient color
           transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
           boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
           '&:hover': {
@@ -86,14 +88,17 @@ function Schemas() {
     </Grid>
 
     <Grid item xs={12} sm={4} md={3} lg={3}>             
-    <Card
+    <Card component={Link} to="/schemes/earas/btr"
         sx={{
+          textDecoration:'none',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           padding: '1rem',
           borderRadius: '1rem',
-          background: 'linear-gradient(135deg, rgba(79, 208, 170, 0.57), rgb(37, 187, 142))', // Gradient color
+          background: 'linear-gradient(135deg, rgba(79, 208, 170, 0.45), rgb(98, 218, 182))',
+
+ // Gradient color
           transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
           boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
           '&:hover': {
@@ -138,14 +143,16 @@ function Schemas() {
     </Grid>
 
     <Grid item xs={12} sm={4} md={3} lg={3}>              
-    <Card
+    <Card component={Link} to="/schemes/earas/cluster"
         sx={{
+          textDecoration:'none',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           padding: '1rem',
           borderRadius: '1rem',
-          background: 'linear-gradient(135deg, rgba(255, 142, 142, 0.57), rgb(243, 85, 85))', // Gradient color
+          background: 'linear-gradient(135deg, rgba(255, 142, 142, 0.45), rgb(255, 115, 115))',
+ // Gradient color
           transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
           boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
           '&:hover': {
@@ -197,7 +204,7 @@ function Schemas() {
           justifyContent: 'center',
           padding: '1rem',
           borderRadius: '1rem',
-          background: 'linear-gradient(135deg, rgba(180, 146, 254, 0.57), rgb(132, 94, 247))', // Gradient color
+          background: 'linear-gradient(135deg, rgba(180, 146, 254, 0.45), rgb(155, 120, 250))', // Gradient color
           transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
           boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
           '&:hover': {
