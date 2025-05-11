@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useRef, useState } from 'react';
+import { useRef, useState , useContext} from 'react';
 import { useNavigate } from 'react-router-dom';
 // material-ui
 import { useTheme } from '@mui/material/styles';
@@ -32,6 +32,7 @@ import UserOutlined from '@ant-design/icons/UserOutlined';
 import avatar1 from 'assets/images/users/avatar-1.png';
 
 import authservice from 'pages/authentication/services/authservice';
+import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
 // tab panel wrapper
 function TabPanel({ children, value, index, ...other }) {
   return (
@@ -53,7 +54,9 @@ function a11yProps(index) {
 export default function Profile() {
   const theme = useTheme();
 
-
+const { permissions, loading, error } = useContext(PermissionsContext);
+console.log("user anme ", permissions);
+// const username = permissions.schemes?.[0]?.roles?.[0]?.permissions?.includes('View BTR');
   const navigate = useNavigate();
   const anchorRef = useRef(null);
   const [open, setOpen] = useState(false);
@@ -144,7 +147,8 @@ export default function Profile() {
                         <Stack direction="row" spacing={1.25} alignItems="center">
                           <Avatar alt="profile user" src={avatar1} sx={{ width: 32, height: 32 }} />
                           <Stack>
-                            <Typography variant="h6">{user}</Typography>
+                            <Typography variant="h6">{user}
+                            </Typography>
                             <Typography variant="body2" color="text.secondary">
                               {authservice.getrole()}
                             </Typography>
