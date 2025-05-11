@@ -12,19 +12,27 @@ const DashboardDefault = Loadable(lazy(() => import('pages/dashboard/index')));
 
 // Schems Sub menus
 const Schemes = Loadable(lazy(() => import('pages/functional-components/schemas')));
+
+const UserManage = Loadable(lazy(() => import('pages/functional-components/usermanage')));
+const RoleManage = Loadable(lazy(() => import('pages/usermanage/RoleManage')));
+const DesignationManage = Loadable(lazy(() => import('pages/usermanage/DesignationManage')));
+
+const RoleDesignation = Loadable(lazy(() => import('pages/usermanage/RoleDesignationTabs')));
+
 // const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_list')));
 const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_menus')));
 const Zone_Details = Loadable(lazy(() => import('pages/functional-components/earas/zone_details')));
 const BTR = Loadable(lazy(() => import('pages/functional-components/earas/Btr')));
-const Cluster = Loadable(lazy(() => import('pages/functional-components/earas/cluster')));
+const ClusterForm = Loadable(lazy(() => import('pages/functional-components/earas/cluster_form')));
 const Keyplots = Loadable(lazy(() => import('pages/functional-components/earas/keyplots')));
-
 
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
 
+const RoleList = Loadable(lazy(() => import('pages/usermanage/RoleList')));
+const RoleDetail = Loadable(lazy(() => import('pages/usermanage/Roles')));
+
 // Approvels
 const Approvel = Loadable(lazy(() => import('pages/functional-components/approvels/approvelist')));
-
 
 // ==============================|| MAIN ROUTING ||============================== //
 
@@ -42,7 +50,7 @@ const MainRoutes = {
         <PrivateRoute>
           <DashboardDefault />
         </PrivateRoute>
-      ),
+      )
     },
     {
       path: 'color',
@@ -50,7 +58,7 @@ const MainRoutes = {
         <PrivateRoute>
           <Color />
         </PrivateRoute>
-      ),
+      )
     },
     // {
     //   path: 'dashboard',
@@ -72,7 +80,7 @@ const MainRoutes = {
         <PrivateRoute>
           <Shadow />
         </PrivateRoute>
-      ),
+      )
     },
     {
       path: 'typography',
@@ -80,7 +88,7 @@ const MainRoutes = {
         <PrivateRoute>
           <Typography />
         </PrivateRoute>
-      ),
+      )
     },
     {
       path: 'schemes',
@@ -88,7 +96,16 @@ const MainRoutes = {
         <PrivateRoute>
           <Schemes />
         </PrivateRoute>
-      ),
+      )
+    },
+
+    {
+      path: 'usermanage',
+      element: (
+        <PrivateRoute>
+          <UserManage />
+        </PrivateRoute>
+      )
     },
     {
       path: 'schemes/earas',
@@ -96,31 +113,69 @@ const MainRoutes = {
         <PrivateRoute>
           <Earas />
         </PrivateRoute>
-      ),
+      )
     },
+
     {
       path: 'profile',
       element: (
         <PrivateRoute>
           <Profile />
         </PrivateRoute>
-      ),
+      )
     },
+
     {
-      path: 'profile',
+      path: 'rolelist',
       element: (
         <PrivateRoute>
-          <Profile />
+          <RoleList />
         </PrivateRoute>
-      ),
+      )
     },
+
+    {
+      path: 'role',
+      element: (
+        <PrivateRoute>
+          <RoleDetail />
+        </PrivateRoute>
+      )
+    },
+
+    {
+      path: '/rolemanage',
+      element: (
+        <PrivateRoute>
+          <RoleManage />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/designationmanage',
+      element: (
+        <PrivateRoute>
+          <DesignationManage />
+        </PrivateRoute>
+      )
+    },
+
+    {
+      path: '/RoleDesignation',
+      element: (
+        <PrivateRoute>
+          <RoleDesignation />
+        </PrivateRoute>
+      )
+    },
+
     {
       path: '/schemes/earas/btr',
       element: (
         <PrivateRoute>
           <BTR />
         </PrivateRoute>
-      ),
+      )
     },
     {
       path: '/schemes/earas/zone_details',
@@ -128,23 +183,23 @@ const MainRoutes = {
         <PrivateRoute>
           <Zone_Details />
         </PrivateRoute>
-      ),
+      )
     },
     {
       path: '/schemes/earas/cluster',
       element: (
         <PrivateRoute>
-          <Cluster />
+          <ClusterForm />
         </PrivateRoute>
-      ),
+      )
     },
     {
-      path: '/schemes/earas/cluster/keyplots',
+      path: '/schemes/earas/keyplots',
       element: (
         <PrivateRoute>
           <Keyplots />
         </PrivateRoute>
-      ),
+      )
     },
     {
       path: 'approvals',
@@ -152,10 +207,9 @@ const MainRoutes = {
         <PrivateRoute>
           <Approvel />
         </PrivateRoute>
-      ),
-    },
-  ],
+      )
+    }
+  ]
 };
-
 
 export default MainRoutes;

@@ -92,44 +92,41 @@ class authservice {
     }
   }
 
-    static async password_reset(userid,password){
-        try{
-            const response = await axios.post(`${authservice.BASE_URL}/user-access/api/password_reset`,{userid,password})
-            return response
-        }catch(err){
-            throw err;
-        }
+  static async password_reset(userid, password) {
+    try {
+      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/password_reset`, { userid, password });
+      return response;
+    } catch (err) {
+      throw err;
     }
-  
+  }
 
-        // Checker
-        static logout(navigate){
-        
-            localStorage.removeItem('token')
-            localStorage.removeItem('user')
-            
-            navigate('/login');
-        }
-    
-        static userid(){
-            const token = localStorage.getItem('token');
-            const decodedToken = jwtDecode(token);
-            return decodedToken.sub
-        }
+  // Checker
+  static logout(navigate) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+
+    navigate('/login');
+  }
+
+  static userid() {
+    const token = localStorage.getItem('token');
+    const decodedToken = jwtDecode(token);
+    return decodedToken.sub;
+  }
 
       
 
-        static getrole(){
-            const token = localStorage.getItem('token');
-             const decodedToken = jwtDecode(token);
-            
-             return decodedToken.roles
-        }
+  static getrole() {
+    const token = localStorage.getItem('token');
+    const decodedToken = jwtDecode(token);
 
-        static gettoken(){
-            return localStorage.getItem('token')
-        }
+    return decodedToken.roles;
+  }
 
+  static gettoken() {
+    return localStorage.getItem('token');
+  }
 }
 
 export default authservice;
