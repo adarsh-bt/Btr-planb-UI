@@ -8,7 +8,7 @@ class mainapi {
   static USER_API = 'http://localhost:9113';
 
   // BTR API
-  static BTR_API = 'http://localhost:8083';
+  static BTR_API = 'http://localhost:8082';
 }
 
 export default mainapi;

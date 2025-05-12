@@ -23,17 +23,19 @@ export default function ProfileTab() {
 
   return (
     <List component="nav" sx={{ p: 0, '& .MuiListItemIcon-root': { minWidth: 32 } }}>
-      {/* <ListItemButton selected={selectedIndex === 0} onClick={() => handleListItemClick(0, '/apps/profiles/user/personal')}>
-        <ListItemIcon>
-          <EditOutlined />
-        </ListItemIcon>
-        <ListItemText primary="Edit Profile" />
-      </ListItemButton> */}
+
       <ListItemButton selected={selectedIndex === 1} onClick={() => handleListItemClick(1, '/profile')}>
         <ListItemIcon>
           <UserOutlined />
         </ListItemIcon>
         <ListItemText primary="View Profile" />
+      </ListItemButton>
+
+      <ListItemButton selected={selectedIndex === 0} onClick={() => handleListItemClick(0, '/apps/profiles/user/personal')}>
+        <ListItemIcon>
+          <EditOutlined />
+        </ListItemIcon>
+        <ListItemText primary="Logout" />
       </ListItemButton>
     </List>
   );

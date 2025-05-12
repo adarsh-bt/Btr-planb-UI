@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState , useContext, createContext} from 'react';
 import {
   Grid,
   Paper,
@@ -33,6 +33,7 @@ import cdtilogo from "../images/cdti_icon.png"; // Import the DUK logo image
 import { keyframes } from '@emotion/react';
 import '../login.css'
 
+import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext'
 
 import IconButton from '@mui/material/IconButton';
 
@@ -246,39 +247,65 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false); // New state for loading
 
+ 
+  const { setPermissions, setLoading, setError: setPermissionsError } = useContext(PermissionsContext); // Access the context update functions
+
   const [showPassword, setShowPassword] = useState(false); // State to toggle password visibility
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    if (username && password) {
-      try {
-        setIsLoading(true);
-        const userLogin = {
-          username :username,
-          password : password,
+  if (username && password) {
+    try {
+      setIsLoading(true);
+      const userLogin = {
+        username: username,
+        password: password,
+      };
+      const userData = await authservice.login(userLogin);
+      setIsLoading(false);
+
+      if (userData.payload && userData.payload.token && typeof userData.payload.token === 'string') {
+        localStorage.setItem('token', userData.payload.token);
+        localStorage.setItem('user', userData.payload.username);
+
+        // After successful login, fetch the user's permissions
+        setLoading(true); // Set loading state in PermissionsContext
+        try {
+          const permissionsResponse = await fetch('http://localhost:8081/user-access/user-state/userpremissions', {
+            headers: {
+              'Authorization': `Bearer ${userData.payload.token}`, // If your API requires a token
+              'Content-Type': 'application/json', // Adjust content type as needed
+            },
+          });
+
+          if (!permissionsResponse.ok) {
+            throw new Error(`HTTP error! status: ${permissionsResponse.status}`);
+          }
+
+          const permissionsData = await permissionsResponse.json();
+          console.log("premisio  ",permissionsData)
+          setPermissions(permissionsData); // Update the permissions in the context
+          setLoading(false); // Reset loading state
+          navigate('/'); // Redirect to the home page
+        } catch (permissionsError) {
+          console.error('Error fetching permissions after login:', permissionsError);
+          setError(permissionsError); // Set error in PermissionsContext
+          setLoading(false);
+          navigate('/'); // Consider your navigation strategy here
         }
-        const userData = await authservice.login(userLogin);
-        setIsLoading(false);
-        if (userData.payload && userData.payload.token && typeof userData.payload.token === 'string') {
-          navigate('/');
       } else {
-          setError(userData.message || 'Login failed');
+        setError(userData.message || 'Login failed');
       }
-      
-      } catch (error) {
-        console.error('Error during login:', error);
-        setError(error.message || 'An error occurred during login');
-      }
-    } else {
-      if (!username) {
-        setError('Enter your email');
-      } else {
-        setError('Enter your password');
-      }
+    } catch (error) {
+      console.error('Error during login:', error);
+      setError(error.message || 'An error occurred during login');
+      setIsLoading(false);
     }
-  };
-
+  } else {
+    setError(username ? 'Enter your password' : 'Enter your email');
+  }
+};
   return (
     <Box
       component="form"
@@ -403,10 +430,10 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
 
       </Box>
       {/* Add spacing between the button and links */}
-      <Box sx={{ mt: 4 }}>
+      <Box sx={{ mt: 4 }} >
         <Grid container spacing={2}>
           <Grid item xs textAlign="left">
-            <Typography variant="body2" onClick={onForgotPasswordClick} sx={{ color: 'blue', cursor: 'pointer', position: 'absolute' }}>
+            <Typography variant="body2" onClick={onForgotPasswordClick} sx={{ color: 'blue', cursor: 'pointer' }}>
               Forgot password?
             </Typography>
           </Grid>

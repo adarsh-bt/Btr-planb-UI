@@ -11,6 +11,7 @@ import {
   Typography
 } from '@mui/material';
 import DesignationManageService from 'pages/authentication/services/designationmanageservice';
+import Swal from 'sweetalert2';
 
 const DesignationManage = () => {
   const [designations, setDesignations] = useState([]);
@@ -19,24 +20,29 @@ const DesignationManage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const fetchDesignations = async () => {
+    setLoading(true);
+    const result = await DesignationManageService.getDesignations();
+    if (Array.isArray(result.payload)) {
+      setDesignations(result.payload);
+      setError('');
+    } else {
+      setError(result.message);
+    }
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const fetchDesignations = async () => {
-      setLoading(true);
-      const result = await DesignationManageService.getDesignations();
-      if (Array.isArray(result.payload)) {
-        setDesignations(result.payload);
-        setError('');
-      } else {
-        setError(result.message);
-      }
-      setLoading(false);
-    };
     fetchDesignations();
   }, []);
 
   const handleCreateDesignation = async () => {
-    if (!designationName.length === 0) {
-      alert('Please fill in the designation');
+    if (designationName.trim().length === 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Missing Input',
+        text: 'Please fill in the designation name.',
+      });
       return;
     }
 
@@ -46,18 +52,27 @@ const DesignationManage = () => {
 
   const result = await DesignationManageService.saveOrUpdateDesignation(userData);
   
-      if (result?.message) {
-        alert(result.message);
-      } else {
-        alert('Designation successfully created!');
-        setDesignationName('');
-      }
-    };
+  if (result?.message) {
+    Swal.fire({
+      icon: 'info',
+      title: 'Info',
+      text: result.message,
+    });
+  } else {
+    Swal.fire({
+      icon: 'success',
+      title: 'Success',
+      text: 'Designation successfully created!',
+    });
+    setDesignationName('');
+    fetchDesignations();
+  }
+};
 
   return (
     <Box
       sx={{
-        maxWidth: 700,
+        maxWidth: 800,
         margin: 'auto',
         padding: 4,
         borderRadius: 2,

@@ -24,7 +24,10 @@ import {
   MenuItem,
   FormGroup,
   FormControlLabel,
-  Radio
+  Radio,
+   FormControl,
+    InputLabel,
+    Select,
 } from '@mui/material';
 import functionalservice from '../functionalservice';
 import approvalservice from './approvalservice';
@@ -95,6 +98,9 @@ export default function Taluk({ data }) {
 
   const [openModal, setOpenModal] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
+  const[zoneVisble, setzoneVisble] = useState(false);
+  const [schemeRolePairs, setSchemeRolePairs] = useState([{ schemeId: '', roleId: '' }]);
+const [rolesMap, setRolesMap] = useState({});
   // State for remarks
 
   // Function to handle filter change
@@ -116,42 +122,101 @@ export default function Taluk({ data }) {
     setSelectedRow(null); // Reset selected row when closing
   };
 
-  const [remarks, setRemarks] = useState('');
-  const handleSaveChanges = () => {
-    // Close the modal first
-    handleCloseModal();
+    
+  const addSchemeRolePair = () => {
+    setSchemeRolePairs([...schemeRolePairs, { schemeId: '', roleId: '' }]);
+  };
+  
+  const updateSchemeRolePair = async (index, field, value) => {
+    const updatedPairs = [...schemeRolePairs];
+    updatedPairs[index][field] = value;
+    if (field === "roleId" && value == "1"){
+      setzoneVisble(true)
+     
+    }else{
+      setzoneVisble(false)
+    }
+    if (field === 'schemeId') {
+      updatedPairs[index].roleId = '';
+      if (!rolesMap[value]) {
+        try {
+          // Fetch roles and zones in parallel
+          const [rolesResponse, zonesResponse] = await Promise.all([
+            approvalservice.allrolesBySchems(value),
+            approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
+          ]);
+        
+          // Cache roles for the scheme
+          setRolesMap((prev) => ({
+            ...prev,
+            [value]: rolesResponse.payload
+          }));
+        
+          // Update zones list
+          setZonesList(zonesResponse.payload);
+          setSelectedRole('');
+          setZone('');
+        } catch (error) {
+          console.error('Error fetching roles for scheme', error);
+        }
+      }
+    }
+  
+    setSchemeRolePairs(updatedPairs);
+  };
+  
+  const removeSchemeRolePair = (index) => {
+    if (schemeRolePairs.length > 1) {
+      const updatedPairs = [...schemeRolePairs];
+      updatedPairs.splice(index, 1);
+      setSchemeRolePairs(updatedPairs);
+    }
+  };
 
-    // SweetAlert2 confirmation dialog
-    Swal.fire({
-      title: 'Are you sure?',
-      text: 'You are about to save changes. Do you want to proceed?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Yes, save changes',
-      cancelButtonText: 'No, cancel'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        const admin_id = authservice.userid();
-        const approvalStatus = radioState;
+  const [remarks, setRemarks] = useState("");
+    const handleSaveChanges = () => {
+      // Close the modal first
+      handleCloseModal();
+    
+      // SweetAlert2 confirmation dialog
+      Swal.fire({
+        title: "Are you sure?",
+        text: "You are about to save changes. Do you want to proceed?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Yes, save changes",
+        cancelButtonText: "No, cancel",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          
+        
+          const admin_id = authservice.userid()
+          const approvalStatus = radioState; 
 
-        var payload = {
-          approvalStatus: approvalStatus === 'approved' ? 'Approved' : approvalStatus === 'pending' ? 'pending' : 'Rejected',
-          approvalDate: new Date().toISOString().split('T')[0],
-          remarks: remarks,
-          isApproved: approvalStatus === 'approved',
-          adminId: admin_id,
-          userId: selectedRow ? selectedRow.userId : '',
-          id: selectedRow.approvalId,
-          roleId: selectedRole
-        };
-
-        // Call the API using the separate function
-
-        if (admrole !== 'Taluk Level Approver') {
-          var saveapi = approvalservice.saveDisApproval(payload);
-        } else {
-          var payload = { userId: selectedRow ? selectedRow.userId : '', adminId: admin_id, roleId: selectedRole };
-          var saveapi = approvalservice.saveTsoRolesAssign(payload);
+          
+          var payload = {
+            approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "pending" : "Rejected",
+            approvalDate: new Date().toISOString().split('T')[0],
+            remarks: remarks,
+            isApproved: approvalStatus === "approved", 
+            adminId: admin_id, 
+            userId: selectedRow ? selectedRow.userId : "", 
+            id:selectedRow.approvalId,
+            roleId:selectedRole
+          };
+         
+          // Call the API using the separate function
+          
+          if(admrole !== "Taluk Level Approver" && admrole !== "IT Admin"){
+        
+        var saveapi = approvalservice.saveDisApproval(payload)
+          }
+        else if (admrole === "IT Admin"){
+    
+          var saveapi = approvalservice.saveItadminApproval(payload)
+        }else{
+         var payload={userId:selectedRow ? selectedRow.userId : "",adminId:admin_id,roleId:selectedRole}
+        var saveapi = approvalservice.saveTsoRolesAssign(payload)
         }
         console.log('paye TSO', payload);
         saveapi
@@ -240,11 +305,34 @@ export default function Taluk({ data }) {
     setRolesList(event.target.value);
   };
 
-  const isSaveEnabled =
+  const isSaveEnabled = 
+  // First condition
+  (
+    (radioState === 'pending' ||
+    radioState === 'rejected' ||
+    (radioState === 'approved' && 
+      schemeRolePairs.some(pair => pair.schemeId && pair.roleId) &&
+      schemeRolePairs.every(pair => {
+        const isDuplicate = schemeRolePairs.some(otherPair => 
+          pair !== otherPair &&
+          pair.schemeId === otherPair.schemeId &&
+          pair.roleId === otherPair.roleId
+        );
+        return !isDuplicate;
+      })
+    )
+  ) &&
+  (selectedScheme === '1' ? !!zone : true)
+  
+  // OR (second condition)
+  ||
+  (
     (authservice.getrole() === 'District Level Approver' && Desiganation !== 'Taluk Statistical Officer' && radioState === 'approved') ||
     ((radioState === 'pending' || radioState === 'rejected' || (radioState === 'approved' && selectedRole !== '')) &&
       rolesList &&
-      schemesList);
+      schemesList)
+  ));
+
 
   const [userList, setUserList] = useState([]);
   const [filterText, setFilterText] = useState('');
@@ -274,43 +362,46 @@ export default function Taluk({ data }) {
     fetchUserApprovals();
   }, []);
 
-  // Fetch initial data based on user type
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      if (admrole === 'Super Admin') {
-        // Fetch all roles for super admin
-        const rolesResponse = await approvalservice.allroles();
 
+// Fetch initial data based on user type
+useEffect(() => {
+  const fetchInitialData = async () => {
+    if (admrole === 'Super Admin') {
+   
+      // Fetch all roles for super admin
+      const rolesResponse = await approvalservice.allroles();
+     
+      setRolesList(rolesResponse.payload);
+    } else if (admrole === 'District Level Approver' || admrole === 'Taluk Level Approver' || admrole === 'IT Admin') {
+      // Fetch all schemes for district user
+      const schemesResponse = await approvalservice.allschmes();
+      setSchemesList(schemesResponse.payload);
+    }
+  };
+  fetchInitialData();
+}, [admrole]);
+
+// Fetch roles when scheme changes (for district users)
+useEffect(() => {
+  if ((admrole === 'District Level Approver' && selectedScheme) || (admrole === 'Taluk Level Approver' && selectedScheme) || (admrole === 'IT Admin' && selectedScheme)) {
+    const fetchSchemeRoles = async () => {
+      try{
+        const [rolesResponse,zoneslist] = await Promise.all([
+          approvalservice.allrolesBySchems(selectedScheme),
+          approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
+        ]);
+        setZonesList(zoneslist.payload);
         setRolesList(rolesResponse.payload);
-      } else if (admrole === 'District Level Approver' || admrole === 'Taluk Level Approver') {
-        // Fetch all schemes for district user
-        const schemesResponse = await approvalservice.allschmes();
-        setSchemesList(schemesResponse.payload);
+        setSelectedRole('');
+        setZone('');
+      }catch (error) {
+        console.error('Error fetching data', error);
       }
     };
-    fetchInitialData();
-  }, [admrole]);
+    fetchSchemeRoles();
+  }
+}, [selectedScheme, admrole]);
 
-  // Fetch roles when scheme changes (for district users)
-  useEffect(() => {
-    if ((admrole === 'District Level Approver' && selectedScheme) || (admrole === 'Taluk Level Approver' && selectedScheme)) {
-      const fetchSchemeRoles = async () => {
-        try {
-          const [rolesResponse, zoneslist] = await Promise.all([
-            approvalservice.allrolesBySchems(selectedScheme),
-            approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
-          ]);
-          setZonesList(zoneslist.payload);
-          setRolesList(rolesResponse.payload);
-          setSelectedRole('');
-          setZone('');
-        } catch (error) {
-          console.error('Error fetching data', error);
-        }
-      };
-      fetchSchemeRoles();
-    }
-  }, [selectedScheme, admrole]);
 
   const handleFilterChange = (event) => {
     console.log('evenet ?>>', event.target.value);
@@ -383,98 +474,99 @@ export default function Taluk({ data }) {
         }}
       />
 
-      {/* Modal for Taluk Users */}
-      {(authservice.getrole() !== 'Taluk Level Approver' || authservice.getrole() === 'District Level Approver') && (
-        <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
-          <DialogTitle
-            variant="h4"
-            style={{
-              color: 'white',
-              fontWeight: 'bold',
-              textAlign: 'center',
-              borderBottom: '2px solid #f0f0f0',
-              paddingBottom: '10px',
-              background: '#04255e'
-            }}
-          >
-            New User Request taluks
-          </DialogTitle>
-          <DialogContent style={{ padding: '20px', backgroundColor: '#fafafa' }}>
-            {selectedRow && (
-              <DialogContentText>
-                <Stack
-                  spacing={2}
-                  style={{
-                    fontSize: '14px',
-                    color: '#333',
-                    backgroundColor: '#fff',
-                    padding: '20px',
-                    borderRadius: '8px',
-                    boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)'
-                  }}
-                >
-                  {[
-                    { label: 'Name', value: selectedRow.name },
-                    { label: 'Designation', value: selectedRow.designations.designationName },
-                    { label: 'Date Of birth', value: selectedRow.dateOfBirth },
-                    { label: 'Email', value: selectedRow.email },
-                    { label: 'Phone Number', value: selectedRow.mobileNumber },
-                    { label: 'Date of Joining', value: selectedRow.dateOfJoining },
-                    { label: 'Pen', value: selectedRow.penNumber },
-                    { label: 'Office', value: selectedRow.taluk }
-                  ].map((field, index) => (
-                    <Box
-                      key={index}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        marginBottom: '10px'
-                      }}
-                    >
-                      <Box
-                        style={{
-                          textAlign: 'right',
-                          marginRight: '8px',
-                          width: '40%',
-                          fontWeight: 'bold',
-                          color: '#555'
-                        }}
-                      >
-                        {field.label}:
-                      </Box>
-                      <Box
-                        style={{
-                          textAlign: 'left',
-                          width: '60%',
-                          backgroundColor: '#f9f9f9',
-                          padding: '5px 10px',
-                          borderRadius: '4px',
-                          boxShadow: 'inset 0 0 5px rgba(0, 0, 0, 0.1)'
-                        }}
-                      >
-                        {field.value}
-                      </Box>
-                    </Box>
-                  ))}
-                </Stack>
-                <Box
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    marginTop: '20px',
-                    textAlign: 'center',
-                    padding: '10px',
-                    border: '1px solid #f0f0f0',
-                    borderRadius: '8px',
-                    backgroundColor: '#fff',
-                    boxShadow: '0 0 5px rgba(0, 0, 0, 0.1)'
-                  }}
-                >
-                  {/* shcemes */}
-                  {/* Conditionally render Schemes dropdown only for District users */}
+{/* Modal for Taluk Users */}
+{((authservice.getrole() !== "Taluk Level Approver" || authservice.getrole() === "District Level Approver" || authservice.getrole() === "IT Admin")  &&
+<Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
+  <DialogTitle
+    variant="h4"
+    style={{
+      color: "white",
+      fontWeight: "bold",
+      textAlign: "center",
+      borderBottom: "2px solid #f0f0f0",
+      paddingBottom: "10px",
+      background: '#04255e',
+    }}
+  >
+    New User Request taluks
+  </DialogTitle>
+  <DialogContent style={{ padding: "20px", backgroundColor: "#fafafa" }}>
+    {selectedRow && (
+      <DialogContentText>
+        <Stack
+          spacing={2}
+          style={{
+            fontSize: "14px",
+            color: "#333",
+            backgroundColor: "#fff",
+            padding: "20px",
+            borderRadius: "8px",
+            boxShadow: "0 0 10px rgba(0, 0, 0, 0.1)",
+          }}
+        >
+          {[{ label: "Name", value: selectedRow.name },
+            { label: "Designation", value: selectedRow.designation },
+            { label: "Date Of birth", value: selectedRow.dateOfBirth },
+            { label: "Email", value: selectedRow.email },
+            { label: "Phone Number", value: selectedRow.mobileNumber },
+            { label: "Date of Joining", value: selectedRow.dateOfJoining },
+            { label: "Pen", value: selectedRow.penNumber },
+            { label: "Office", value: selectedRow.taluk }
+          ].map((field, index) => (
+            <Box
+              key={index}
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                marginBottom: "10px",
+              }}
+            >
+              <Box
+                style={{
+                  textAlign: "right",
+                  marginRight: "8px",
+                  width: "40%",
+                  fontWeight: "bold",
+                  color: "#555",
+                }}
+              >
+                {field.label}:
+              </Box>
+              <Box
+                style={{
+                  textAlign: "left",
+                  width: "60%",
+                  backgroundColor: "#f9f9f9",
+                  padding: "5px 10px",
+                  borderRadius: "4px",
+                  boxShadow: "inset 0 0 5px rgba(0, 0, 0, 0.1)",
+                }}
+              >
+                {field.value}
+              </Box>
+            </Box>
+          ))}
+        </Stack>
+        <Box
+          style={{
+            display: "flex",
+            justifyContent: 'center',
+            marginTop: "20px",
+            textAlign: "center",
+            padding: "10px",
+            border: "1px solid #f0f0f0",
+            borderRadius: "8px",
+            backgroundColor: "#fff",
+            boxShadow: "0 0 5px rgba(0, 0, 0, 0.1)",
+          }}
+        >
+         
 
-                  {selectedRow.designation === 'Taluk Statistical Officer' && (
+{/* shcemes */}
+{/* Conditionally render Schemes dropdown only for District users */}
+
+                  {/* {selectedRow.designation === 'Taluk Statistical Officer' && (
                     <Box style={{ width: '48%' }}>
                       <strong>Schemes</strong>
                       <br />
@@ -514,7 +606,96 @@ export default function Taluk({ data }) {
                         ))}
                       </TextField>
                     </Box>
-                  )}
+                  )} */}
+
+                  {selectedRow.designation === 'Taluk Statistical Officer' && (
+
+ <Box
+  style={{
+    display: "flex",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: "16px",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: "20px",
+    padding: "10px",
+    border: "1px solid #f0f0f0",
+    borderRadius: "8px",
+    backgroundColor: "#fff",
+    boxShadow: "0 0 5px rgba(0, 0, 0, 0.1)"
+  }}
+>
+  {schemeRolePairs.map((pair, index) => (
+    <div key={index} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <FormControl sx={{ minWidth: 180 }} size="small">
+        <InputLabel>Scheme</InputLabel>
+        <Select
+          value={pair.schemeId}
+          onChange={(e) => updateSchemeRolePair(index, 'schemeId', e.target.value)}
+          label="Scheme"
+        >
+          {schemesList.map((scheme) => (
+            <MenuItem key={scheme.id} value={scheme.id}>
+              {scheme.schemeName}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+
+      <FormControl sx={{ minWidth: 180 }} size="small">
+        <InputLabel>Role</InputLabel>
+        <Select
+          value={pair.roleId}
+          onChange={(e) => updateSchemeRolePair(index, 'roleId', e.target.value)}
+          label="Role"
+          disabled={!pair.schemeId}
+        >
+          {(rolesMap[pair.schemeId] || []).map((role) => (
+            <MenuItem 
+              key={role.id} 
+              value={role.id}
+              disabled={schemeRolePairs.some((p, i) => 
+                i !== index && 
+                p.schemeId === pair.schemeId && 
+                p.roleId === role.id
+              )}
+            >
+              {role.name}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+
+      <div style={{ display: "flex", gap: "4px" }}>
+        {schemeRolePairs.length > 1 && (
+          <Button
+            onClick={() => removeSchemeRolePair(index)}
+            variant="contained"
+            color="error"
+            size="small"
+            sx={{ minWidth: 32, height: 32 }}
+          >
+            -
+          </Button>
+        )}
+        {index === schemeRolePairs.length - 1 && (
+          <Button
+            onClick={addSchemeRolePair}
+            variant="contained"
+            color="primary"
+            size="small"
+            sx={{ minWidth: 32, height: 32 }}
+          >
+            +
+          </Button>
+        )}
+      </div>
+    </div>
+  ))}
+</Box>
+)}
+
                 </Box>
 
                 {/* Status Radio Buttons */}
@@ -617,112 +798,201 @@ export default function Taluk({ data }) {
         </Dialog>
       )}
 
-      {authservice.getrole() !== 'District Level Approver' && (
-        <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
-          <DialogTitle
-            variant="h4"
-            style={{
-              color: 'white',
-              fontWeight: 'bold',
-              textAlign: 'center',
-              borderBottom: '2px solid #f0f0f0',
-              paddingBottom: '10px',
-              background: '#04255e'
-            }}
-          >
-            New User Request Role
-          </DialogTitle>
-          <DialogContent style={{ padding: '20px', backgroundColor: '#fafafa' }}>
-            {selectedRow && (
-              <DialogContentText>
-                <Stack
-                  spacing={2}
-                  style={{
-                    fontSize: '14px',
-                    color: '#333',
-                    backgroundColor: '#fff',
-                    padding: '20px',
-                    borderRadius: '8px',
-                    boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)'
-                  }}
-                >
-                  {[
-                    { label: 'Name', value: selectedRow.name },
-                    { label: 'Designation', value: selectedRow.designations.designationName },
-                    { label: 'Date Of birth', value: selectedRow.dateOfBirth },
-                    { label: 'Email', value: selectedRow.email },
-                    { label: 'Phone Number', value: selectedRow.mobileNumber },
-                    { label: 'Date of Joining', value: selectedRow.dateOfJoining },
-                    { label: 'Pen', value: selectedRow.penNumber },
-                    { label: 'Office', value: selectedRow.taluk }
-                  ].map((field, index) => (
-                    <Box
-                      key={index}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        marginBottom: '10px'
-                      }}
-                    >
-                      <Box
-                        style={{
-                          textAlign: 'right',
-                          marginRight: '8px',
-                          width: '40%',
-                          fontWeight: 'bold',
-                          color: '#555'
-                        }}
-                      >
-                        {field.label}:
-                      </Box>
-                      <Box
-                        style={{
-                          textAlign: 'left',
-                          width: '60%',
-                          backgroundColor: '#f9f9f9',
-                          padding: '5px 10px',
-                          borderRadius: '4px',
-                          boxShadow: 'inset 0 0 5px rgba(0, 0, 0, 0.1)'
-                        }}
-                      >
-                        {field.value}
-                      </Box>
-                    </Box>
-                  ))}
-                </Stack>
+{((authservice.getrole() !== "District Level Approver" && authservice.getrole() !== "IT Admin") &&
+<Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
+  <DialogTitle
+    variant="h4"
+    style={{
+      color: "white",
+      fontWeight: "bold",
+      textAlign: "center",
+      borderBottom: "2px solid #f0f0f0",
+      paddingBottom: "10px",
+      background: '#04255e',
+    }}
+  >
+    New User Request Role
+  </DialogTitle>
+  <DialogContent style={{ padding: "20px", backgroundColor: "#fafafa" }}>
+    {selectedRow && (
+      <DialogContentText>
+        <Stack
+          spacing={2}
+          style={{
+            fontSize: "14px",
+            color: "#333",
+            backgroundColor: "#fff",
+            padding: "20px",
+            borderRadius: "8px",
+            boxShadow: "0 0 10px rgba(0, 0, 0, 0.1)",
+          }}
+        >
+          {[{ label: "Name", value: selectedRow.name },
+            { label: "Designation", value: selectedRow.designation },
+            { label: "Date Of birth", value: selectedRow.dateOfBirth },
+            { label: "Email", value: selectedRow.email },
+            { label: "Phone Number", value: selectedRow.mobileNumber },
+            { label: "Date of Joining", value: selectedRow.dateOfJoining },
+            { label: "Pen", value: selectedRow.penNumber },
+            { label: "Office", value: selectedRow.taluk }
+          ].map((field, index) => (
+            <Box
+              key={index}
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                marginBottom: "10px",
+              }}
+            >
+              <Box
+                style={{
+                  textAlign: "right",
+                  marginRight: "8px",
+                  width: "40%",
+                  fontWeight: "bold",
+                  color: "#555",
+                }}
+              >
+                {field.label}:
+              </Box>
+              <Box
+                style={{
+                  textAlign: "left",
+                  width: "60%",
+                  backgroundColor: "#f9f9f9",
+                  padding: "5px 10px",
+                  borderRadius: "4px",
+                  boxShadow: "inset 0 0 5px rgba(0, 0, 0, 0.1)",
+                }}
+              >
+                {field.value}
+              </Box>
+            </Box>
+          ))}
+        </Stack>
 
-                <Box
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    marginTop: '20px',
-                    textAlign: 'center',
-                    padding: '10px',
-                    border: '1px solid #f0f0f0',
-                    borderRadius: '8px',
-                    backgroundColor: '#fff',
-                    boxShadow: '0 0 5px rgba(0, 0, 0, 0.1)'
-                  }}
-                >
-                  <Box style={{ width: '48%' }}>
-                    <strong>Schemes</strong>
-                    <br />
-                    <TextField
-                      select
-                      fullWidth
-                      value={selectedScheme}
-                      onChange={(e) => setSelectedScheme(e.target.value)}
-                      variant="outlined"
-                      style={{ marginTop: '8px' }}
-                    >
-                      {schemesList.map((scheme) => (
-                        <MenuItem key={scheme.id} value={scheme.id}>
-                          {scheme.schemeName}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  </Box>
+       
+        <Box
+          style={{
+            display: "flex",
+            justifyContent: 'center',
+            marginTop: "20px",
+            textAlign: "center",
+            padding: "10px",
+            border: "1px solid #f0f0f0",
+            borderRadius: "8px",
+            backgroundColor: "#fff",
+            boxShadow: "0 0 5px rgba(0, 0, 0, 0.1)",
+          }}
+        >
+         
+
+         {admrole === 'Taluk Level Approver' && (
+
+<Box
+ style={{
+   display: "flex",
+   flexDirection: "row",
+   flexWrap: "wrap",
+   gap: "16px",
+   alignItems: "center",
+   justifyContent: "center",
+   marginTop: "20px",
+   padding: "10px",
+   border: "1px solid #f0f0f0",
+   borderRadius: "8px",
+   backgroundColor: "#fff",
+   boxShadow: "0 0 5px rgba(0, 0, 0, 0.1)"
+ }}
+>
+ {schemeRolePairs.map((pair, index) => (
+   <div key={index} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+     <FormControl sx={{ minWidth: 180 }} size="small">
+       <InputLabel>Scheme</InputLabel>
+       <Select
+         value={pair.schemeId}
+         onChange={(e) => updateSchemeRolePair(index, 'schemeId', e.target.value)}
+         label="Scheme"
+       >
+         {schemesList.map((scheme) => (
+           <MenuItem key={scheme.id} value={scheme.id}>
+             {scheme.schemeName}
+           </MenuItem>
+         ))}
+       </Select>
+     </FormControl>
+
+     <FormControl sx={{ minWidth: 180 }} size="small">
+       <InputLabel>Role</InputLabel>
+       <Select
+         value={pair.roleId}
+         onChange={(e) => updateSchemeRolePair(index, 'roleId', e.target.value)}
+         label="Role"
+         disabled={!pair.schemeId}
+       >
+         {(rolesMap[pair.schemeId] || []).map((role) => (
+           <MenuItem 
+             key={role.id} 
+             value={role.id}
+             disabled={schemeRolePairs.some((p, i) => 
+               i !== index && 
+               p.schemeId === pair.schemeId && 
+               p.roleId === role.id
+             )}
+           >
+             {role.name}
+           </MenuItem>
+         ))}
+       </Select>
+     </FormControl>
+
+     <div style={{ display: "flex", gap: "4px" }}>
+       {schemeRolePairs.length > 1 && (
+         <Button
+           onClick={() => removeSchemeRolePair(index)}
+           variant="contained"
+           color="error"
+           size="small"
+           sx={{ minWidth: 32, height: 32 }}
+         >
+           -
+         </Button>
+       )}
+       {index === schemeRolePairs.length - 1 && (
+         <Button
+           onClick={addSchemeRolePair}
+           variant="contained"
+           color="primary"
+           size="small"
+           sx={{ minWidth: 32, height: 32 }}
+         >
+           +
+         </Button>
+       )}
+     </div>
+   </div>
+ ))}
+</Box>
+)}
+
+  {/* <Box style={{ width: '48%' }}>
+    <strong>Schemes</strong><br />
+    <TextField
+      select
+      fullWidth
+      value={selectedScheme}
+      onChange={(e) => setSelectedScheme(e.target.value)}
+      variant="outlined"
+      style={{ marginTop: "8px" }}
+    >
+      {schemesList.map((scheme) => (
+        <MenuItem key={scheme.id} value={scheme.id}>
+          {scheme.schemeName}
+        </MenuItem>
+      ))}
+    </TextField>
+  </Box>
 
                   <Box style={{ width: '48%' }}>
                     <strong>Role</strong>
@@ -741,10 +1011,16 @@ export default function Taluk({ data }) {
                         </MenuItem>
                       ))}
                     </TextField>
-                  </Box>
+                  </Box> */}
+
+
+
                 </Box>
 
-                {selectedScheme == '1' && (
+
+
+               {/* { (selectedScheme == '1' && selectedRole == "1") && ( */}
+ { (zoneVisble === true) && (
                   <Box style={{ width: '30%', margin: 'auto' }}>
                     <center>
                       <strong>Select Zone</strong>

@@ -1,3 +1,4 @@
+import React, { useContext } from 'react';
 // material-ui
 import Avatar from '@mui/material/Avatar';
 import AvatarGroup from '@mui/material/AvatarGroup';
@@ -38,6 +39,9 @@ import tabmenus from './tabmenus/tabmenus';
 import auth from 'contexts/auth-reducer/auth';
 import Breadcrumb from 'routes/Breadcrumb';
 import authservice from 'pages/authentication/services/authservice';
+
+
+import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
 // avatar style
 const avatarSX = {
   width: 36,
@@ -60,6 +64,9 @@ const { children } = tabmenus.items2[0];
 
 export default function DashboardDefault() {
   const isauth = auth.isAdmin();
+
+const { permissions, loading, error } = useContext(PermissionsContext);
+console.log("User Permissions:", permissions);
 
   return (
     <Grid

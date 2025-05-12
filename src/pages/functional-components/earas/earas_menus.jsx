@@ -28,7 +28,7 @@ function Earas_menus() {
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                to="/schemes/earas"
+                to="/schemes/earas/zone_details"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',

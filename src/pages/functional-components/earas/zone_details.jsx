@@ -11,63 +11,10 @@ import authservice from 'pages/authentication/services/authservice';
 import { Link } from 'react-router-dom';
 
 
-const columns = [
-  { name: 'SL. NO', selector: (row, index) => index + 1 },
-  { name: 'Panchayth Names', selector: (row) => row.Panchayth_name || <span style={{ color: '#888' }}>NA</span> },
-  { name: 'Wet', selector: (row) => row.Wet_area?.toString() || <span style={{ color: '#888' }}>NA</span> },
-  { name: 'Dry', selector: (row) => row.Dry_area?.toString() || <span style={{ color: '#888' }}>NA</span> },
-  { name: 'Total', selector: (row) => row.Total_area?.toString() || <span style={{ color: '#888' }}>NA</span> },
-];
 
 
-const rows = [
-  {
-    sl: 1,
-    name: 'P1',
-    village: 'Village A',
-    block: 'Block 1',
-    wetArea: 30,
-    dryArea: 50,
-    totalArea: 80,
-    wetPlots: 10,
-    dryPlots: 20,
-    totalPlots: 30,
-  },
-  {
-    sl: 2,
-    name: 'P2',
-    village: 'Village B',
-    block: 'Block 2',
-    wetArea: 40,
-    dryArea: 60,
-    totalArea: 100,
-    wetPlots: 15,
-    dryPlots: 25,
-    totalPlots: 40,
-  },
-  // Add more rows as needed
-];
 
-const sampleData = [
-  {
-    villageName: 'Village A',
-    bcode: 'Wet Code 1',
-    resvno: 'Dry Code 1',
-    resbdno: 'Total 1',
-  },
-  {
-    villageName: 'Village B',
-    bcode: 'Wet Code 2',
-    resvno: 'Dry Code 2',
-    resbdno: 'Total 2',
-  },
-  {
-    villageName: 'Village C',
-    bcode: 'Wet Code 3',
-    resvno: 'Dry Code 3',
-    resbdno: 'Total 3',
-  },
-];
+
 
 function ZoneDetails() {
 
@@ -88,7 +35,7 @@ function ZoneDetails() {
             const token = localStorage.getItem('token');
             
             const user_id = authservice.userid()
-            const response = await fetch(`http://localhost:8082/btr-service/btr-api/keyplots/${user_id}`,
+            const response = await fetch(`http://localhost:8082/btr-service/btr-api/zone-details/${user_id}`,
               {
               headers: {
                   'Authorization': `Bearer ${token}` // Add token in Authorization header
@@ -130,7 +77,7 @@ function ZoneDetails() {
         </Typography>
       </Grid>
       <Grid item xs={6} container justifyContent="flex-end">
-      <Link to="/schemes/earas/cluster/keyplots" style={{ textDecoration: 'none' }}>
+      <Link to="/schemes/earas/keyplots" style={{ textDecoration: 'none' }}>
         <Button variant="contained" sx={{background:'blue'}} endIcon={<SendIcon />}>
           Generate KeyPlots
         </Button>

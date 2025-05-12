@@ -1,16 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Box,
-  Button,
-  Checkbox,
-  FormControlLabel,
-  Grid,
-  MenuItem,
-  Select,
-  TextField,
-  Typography
-} from '@mui/material';
+import { Box, Button, Checkbox, FormControlLabel, Grid, MenuItem, Select, TextField, Typography } from '@mui/material';
 import roleManageService from 'pages/authentication/services/rolemanageservice';
+import Swal from 'sweetalert2';
+
 
 const RoleManage = () => {
   const [schemes, setSchemes] = useState([]);
@@ -59,13 +51,11 @@ const RoleManage = () => {
     fetchPermissions();
   }, [selectedScheme]);
 
-  const filteredPermissions = permissions.filter((perm) =>
-    perm.permissionName.toLowerCase().includes(searchPermission.toLowerCase())
-  );
+  const filteredPermissions = permissions.filter((perm) => perm.permissionName.toLowerCase().includes(searchPermission.toLowerCase()));
 
   const handleCreateRole = async () => {
     if (!roleName || !selectedScheme || selectedPermissionIds.length === 0) {
-      alert('Please fill in all fields and select permissions.');
+      Swal.fire('Validation Error', 'Please fill in all fields and select permissions.', 'warning');
       return;
     }
 
@@ -78,19 +68,24 @@ const RoleManage = () => {
 
     const result = await roleManageService.saveOrUpdateRole(userData); // ✅ Corrected function call
 
-    if (result?.message) {
-      alert(result.message);
-    } else {
-      alert('Role successfully created!');
-      setRoleName('');
-      setSelectedPermissionIds([]);
-    }
-  };
+    // Check for the success message
+  if (result?.message === 'Successfully created') {
+    Swal.fire({
+      icon: 'success',
+      title: 'Role successfully created!',
+      confirmButtonText: 'OK'
+    }).then(() => {
+      window.location.reload();
+    });
+  } else {
+    Swal.fire('Error', result?.message || 'Something went wrong.', 'error');
+  }
+};
 
   return (
     <Box
       sx={{
-        maxWidth: 600,
+        maxWidth: 800,
         margin: 'auto',
         padding: 3,
         borderRadius: 1,
@@ -191,23 +186,27 @@ const RoleManage = () => {
                   padding: 1
                 }}
               >
-                {filteredPermissions.map((permission) => (
-                  <FormControlLabel
-                    key={permission.id}
-                    control={
-                      <Checkbox
-                        checked={selectedPermissionIds.includes(permission.id)}
-                        onChange={(e) => {
-                          const isChecked = e.target.checked;
-                          setSelectedPermissionIds((prev) =>
-                            isChecked ? [...prev, permission.id] : prev.filter((id) => id !== permission.id)
-                          );
-                        }}
+                <Grid container spacing={1}>
+                  {filteredPermissions.map((permission) => (
+                    <Grid item xs={12} sm={6} md={4} key={permission.id}>
+                      <FormControlLabel
+                        key={permission.id}
+                        control={
+                          <Checkbox
+                            checked={selectedPermissionIds.includes(permission.id)}
+                            onChange={(e) => {
+                              const isChecked = e.target.checked;
+                              setSelectedPermissionIds((prev) =>
+                                isChecked ? [...prev, permission.id] : prev.filter((id) => id !== permission.id)
+                              );
+                            }}
+                          />
+                        }
+                        label={permission.permissionName}
                       />
-                    }
-                    label={permission.permissionName}
-                  />
-                ))}
+                    </Grid>
+                  ))}
+                </Grid>
               </Box>
             ) : (
               <Typography>No matching permissions found.</Typography>

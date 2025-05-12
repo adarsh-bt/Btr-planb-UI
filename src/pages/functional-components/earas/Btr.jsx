@@ -19,6 +19,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Breadcrumb from 'routes/Breadcrumb';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import btrservice from './btrservice';
+import authservice from 'pages/authentication/services/authservice';
 import { Grid } from '@mui/material';
 
 
@@ -150,7 +151,7 @@ const Btr = () => {
 
   const handleDownloadExcel = async () => {
     setDownloading(true);
-    const userId = '3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924'; // Get dynamically if needed
+    const userId = authservice.userid(); // Get dynamically if needed
   
     try {
       const response = await fetch(`http://localhost:8082/btr-service/btr-api/export?userId=${userId}`);
