@@ -24,7 +24,9 @@ import {
     MenuItem,
     FormGroup,
     FormControlLabel,
-  
+    FormControl,
+    InputLabel,
+    Select,
     Radio,
   } from '@mui/material';
 import functionalservice from '../functionalservice';
@@ -112,7 +114,9 @@ export default function Directorate({data}) {
   const [value, setValue] = React.useState(0);
 
 
-  
+  const [schemeRolePairs, setSchemeRolePairs] = useState([{ schemeId: '', roleId: '' }]);
+const [rolesMap, setRolesMap] = useState({});
+const[zoneVisble, setzoneVisble] = useState(false);
     const [openModal, setOpenModal] = useState(false);
     const [selectedRow, setSelectedRow] = useState(null);
       // State for remarks
@@ -138,6 +142,59 @@ export default function Directorate({data}) {
       setSelectedRow(null); // Reset selected row when closing
     };
 
+
+    const addSchemeRolePair = () => {
+      setSchemeRolePairs([...schemeRolePairs, { schemeId: '', roleId: '' }]);
+     
+    };
+    
+    const updateSchemeRolePair = async (index, field, value) => {
+     
+      if (field === "roleId" && value == "1"){
+        setzoneVisble(true)
+       
+      }else{
+        setzoneVisble(false)
+      }
+      const updatedPairs = [...schemeRolePairs];
+      updatedPairs[index][field] = value;
+      
+      if (field === 'schemeId') {
+        updatedPairs[index].roleId = '';
+        if (!rolesMap[value]) {
+          try {
+            // Fetch roles and zones in parallel
+            const [rolesResponse, zonesResponse] = await Promise.all([
+              approvalservice.allrolesBySchems(value),
+              approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
+            ]);
+          
+            // Cache roles for the scheme
+            setRolesMap((prev) => ({
+              ...prev,
+              [value]: rolesResponse.payload
+            }));
+          
+            // Update zones list
+            setZonesList(zonesResponse.payload);
+            setSelectedRole('');
+            setZone('');
+          }catch (error) {
+            console.error('Error fetching roles for scheme', error);
+          }
+        }
+      }
+    
+      setSchemeRolePairs(updatedPairs);
+    };
+    
+    const removeSchemeRolePair = (index) => {
+      if (schemeRolePairs.length > 1) {
+        const updatedPairs = [...schemeRolePairs];
+        updatedPairs.splice(index, 1);
+        setSchemeRolePairs(updatedPairs);
+      }
+    };
     
     const [remarks, setRemarks] = useState("");
     const handleSaveChanges = () => {
@@ -156,17 +213,31 @@ export default function Directorate({data}) {
         if (result.isConfirmed) {
           const admin_id = authservice.userid();
           const approvalStatus = radioState;
-    
-          const payload = {
-            approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "pending" : "Rejected",
-            approvalDate: new Date().toISOString().split('T')[0],
-            remarks: remarks,
-            isApproved: approvalStatus === "approved",
-            adminId: admin_id,
-            userId: selectedRow ? selectedRow.userId : "",
-            id: selectedRow.approvalId,
-            roleId: selectedRole
-          };
+          const filteredPairs = schemeRolePairs.filter(pair => pair.schemeId && pair.roleId);
+          
+const payload = {
+  approvalStatus: approvalStatus === 'approved' ? 'Approved' : approvalStatus === 'pending' ? 'pending' : 'Rejected',
+  approvalDate: new Date().toISOString().split('T')[0],
+  remarks: remarks,
+  isApproved: approvalStatus === 'approved',
+  adminId: admin_id,
+  userId: selectedRow ? selectedRow.userId : "", 
+  id: selectedRow.approvalId,
+  roleSchemes: filteredPairs.map(pair => ({
+    roleId: pair.roleId,
+    schemeId: pair.schemeId
+  }))
+};
+          // const payload = {
+          //   approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "pending" : "Rejected",
+          //   approvalDate: new Date().toISOString().split('T')[0],
+          //   remarks: remarks,
+          //   isApproved: approvalStatus === "approved",
+          //   adminId: admin_id,
+          //   userId: selectedRow ? selectedRow.userId : "",
+          //   id: selectedRow.approvalId,
+          //   roleId: selectedRole
+          // };
           console.log("payload ", payload);
     
           // Call the API using the separate function
@@ -272,13 +343,28 @@ const handleRoleChange = (event) => {
 
 
 
-const isSaveEnabled = 
-  (radioState === 'pending' || radioState === 'rejected' || 
-    (radioState === 'approved' && selectedRole !== '')) && 
-  rolesList && 
-  schemesList && 
-  (schemesList === 'Earas' ? zone : true); 
-
+// const isSaveEnabled = 
+//   (radioState === 'pending' || radioState === 'rejected' || 
+//     (radioState === 'approved' && selectedRole !== '')) && 
+//   rolesList && 
+//   schemesList && 
+//   (schemesList === 'Earas' ? zone : true); 
+const isSaveEnabled =
+  (radioState === 'pending' ||
+    radioState === 'rejected' ||
+    (radioState === 'approved' && 
+      schemeRolePairs.some(pair => pair.schemeId && pair.roleId) &&
+      schemeRolePairs.every(pair => {
+        const isDuplicate = schemeRolePairs.some(otherPair => 
+          pair !== otherPair &&
+          pair.schemeId === otherPair.schemeId &&
+          pair.roleId === otherPair.roleId
+        );
+        return !isDuplicate;
+      })
+    )
+  ) &&
+  (selectedScheme === '1' ? !!zone : true);
 
 
 const [userList, setUserList] = useState([]);
@@ -329,6 +415,7 @@ useEffect(() => {
 
 // Fetch roles when scheme changes (for district users)
 useEffect(() => {
+  console.log("zone  >>> ",zone)
   if (admrole === 'IT Admin' && selectedScheme) {
     const fetchSchemeRolesAndZones = async () => {
       try {
@@ -542,26 +629,83 @@ return (
 {/* Conditionally render Schemes dropdown only for District users */}
 
 {admrole !== 'Super Admin' && (
-  <Box style={{ width: '48%' }}>
-    <strong>Schemes</strong><br />
-    <TextField
-      select
-      fullWidth
-      value={selectedScheme}
-      onChange={(e) => setSelectedScheme(e.target.value)}
-      variant="outlined"
-      style={{ marginTop: "8px" }}
-    >
-      {schemesList.map((scheme) => (
-        <MenuItem key={scheme.id} value={scheme.id}>
-          {scheme.schemeName}
-        </MenuItem>
-      ))}
-    </TextField>
-  </Box>
+  <Stack direction="column" spacing={2} alignItems="center">
+    {schemeRolePairs.map((pair, index) => (
+      <Box
+        key={index}
+        sx={{
+          display: "flex",
+          flexDirection: "row",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 2,
+        }}
+      >
+        {/* Scheme Dropdown */}
+        <FormControl sx={{ minWidth: 180 }} size="small">
+          <InputLabel>Scheme</InputLabel>
+          <Select
+            value={pair.schemeId}
+            onChange={(e) => updateSchemeRolePair(index, 'schemeId', e.target.value)}
+            label="Scheme"
+          >
+            {schemesList.map((scheme) => (
+              <MenuItem key={scheme.id} value={scheme.id}>
+                {scheme.schemeName}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        {/* Role Dropdown */}
+        <FormControl sx={{ minWidth: 180 }} size="small">
+          <InputLabel>Role</InputLabel>
+          <Select
+            value={pair.roleId}
+            onChange={(e) => updateSchemeRolePair(index, 'roleId', e.target.value)}
+            label="Role"
+            disabled={!pair.schemeId}
+          >
+            {(rolesMap[pair.schemeId] || []).map((role) => (
+              <MenuItem
+                key={role.id}
+                value={role.id}
+                disabled={schemeRolePairs.some((p, i) =>
+                  i !== index &&
+                  p.schemeId === pair.schemeId &&
+                  p.roleId === role.id
+                )}
+              >
+                {role.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        {/* Buttons */}
+        {index === schemeRolePairs.length - 1 && (
+          <Button onClick={addSchemeRolePair} variant="contained" color="primary" size="small">
+            +
+          </Button>
+        )}
+
+        {schemeRolePairs.length > 1 && (
+          <Button
+            onClick={() => removeSchemeRolePair(index)}
+            variant="contained"
+            color="error"
+            size="small"
+          >
+            -
+          </Button>
+        )}
+      </Box>
+    ))}
+  </Stack>
 )}
 
 {/* Always show Roles dropdown */}
+{admrole === 'Super Admin' && (
 <Box style={{ width: '48%' }}>
   <strong>Role</strong><br />
   <TextField
@@ -579,10 +723,11 @@ return (
     ))}
   </TextField>
 </Box>
-     
+)}
         </Box>
  {/* zones */}
- { (selectedScheme == '1' && selectedRole == "1") && (
+ {/* { (selectedScheme == '1' && selectedRole == "1") && ( */}
+ { (zoneVisble === true) && (
         <Box style={{ width: '30%',margin:'auto' }}>
             <center><strong>Select Zone</strong></center>
             <TextField

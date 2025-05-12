@@ -77,7 +77,7 @@ function ZoneDetails() {
         </Typography>
       </Grid>
       <Grid item xs={6} container justifyContent="flex-end">
-      <Link to="/schemes/earas/cluster/keyplots" style={{ textDecoration: 'none' }}>
+      <Link to="/schemes/earas/keyplots" style={{ textDecoration: 'none' }}>
         <Button variant="contained" sx={{background:'blue'}} endIcon={<SendIcon />}>
           Generate KeyPlots
         </Button>

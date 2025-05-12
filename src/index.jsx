@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { PermissionsProvider } from 'contexts/auth-reducer/PermissionsContext';
 
 // scroll bar
 import 'simplebar-react/dist/simplebar.min.css';
@@ -31,5 +32,11 @@ import '@fontsource/public-sans/700.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);
+root.render(
+    <React.StrictMode>
+    <PermissionsProvider>
+      <App />
+    </PermissionsProvider>
+  </React.StrictMode>
+);
 reportWebVitals();

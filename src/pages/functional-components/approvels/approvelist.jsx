@@ -1,3 +1,4 @@
+
 import React, { useState,useEffect } from 'react';
 import PropTypes from 'prop-types';
 
@@ -24,7 +25,9 @@ import {
     MenuItem,
     FormGroup,
     FormControlLabel,
-  
+    FormControl,
+    InputLabel,
+    Select,
     Radio,
   } from '@mui/material';
 import functionalservice from '../functionalservice';
@@ -112,6 +115,10 @@ export default function BasicTabs() {
 
   const [admrole,setAdmrole] = useState('');
   
+
+  const [schemeRolePairs, setSchemeRolePairs] = useState([{ schemeId: '', roleId: '' }]);
+const [rolesMap, setRolesMap] = useState({});
+const[zoneVisble, setzoneVisble] = useState(false);
     const [openModal, setOpenModal] = useState(false);
     const [selectedRow, setSelectedRow] = useState(null);
       // State for remarks
@@ -140,7 +147,57 @@ export default function BasicTabs() {
       setSelectedRow(null); // Reset selected row when closing
     };
 
+    const addSchemeRolePair = () => {
+      setSchemeRolePairs([...schemeRolePairs, { schemeId: '', roleId: '' }]);
+    };
     
+    const updateSchemeRolePair = async (index, field, value) => {
+      const updatedPairs = [...schemeRolePairs];
+      updatedPairs[index][field] = value;
+      if (field === "roleId" && value == "1"){
+        setzoneVisble(true)
+        console.log("zpne viss ",zoneVisble)
+      }else{
+        setzoneVisble(false)
+      }
+      if (field === 'schemeId') {
+        updatedPairs[index].roleId = '';
+        if (!rolesMap[value]) {
+          try {
+            // Fetch roles and zones in parallel
+            const [rolesResponse, zonesResponse] = await Promise.all([
+              approvalservice.allrolesBySchems(value),
+              approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
+            ]);
+          
+            // Cache roles for the scheme
+            setRolesMap((prev) => ({
+              ...prev,
+              [value]: rolesResponse.payload
+            }));
+          
+            // Update zones list
+            setZonesList(zonesResponse.payload);
+            setSelectedRole('');
+            setZone('');
+          }catch (error) {
+            console.error('Error fetching roles for scheme', error);
+          }
+        }
+      }
+    
+      setSchemeRolePairs(updatedPairs);
+    };
+    
+    const removeSchemeRolePair = (index) => {
+      if (schemeRolePairs.length > 1) {
+        const updatedPairs = [...schemeRolePairs];
+        updatedPairs.splice(index, 1);
+        setSchemeRolePairs(updatedPairs);
+      }
+    };
+
+
   const [remarks, setRemarks] = useState("");
     const handleSaveChanges = () => {
       // Close the modal first
@@ -755,45 +812,30 @@ return (
           ))}
         </Stack>
 
+        
         {/* Category and Duties Dropdowns */}
+        
         <Box
-          style={{
-            display: "flex",
-            justifyContent: 'center',
-            marginTop: "20px",
-            textAlign: "center",
-            padding: "10px",
-            border: "1px solid #f0f0f0",
-            borderRadius: "8px",
-            backgroundColor: "#fff",
-            boxShadow: "0 0 5px rgba(0, 0, 0, 0.1)",
-          }}
-        >
-         
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center", // This centers the whole column
+    marginTop: "20px",
+    textAlign: "center",
+    padding: "10px",
+    border: "1px solid #f0f0f0",
+    borderRadius: "8px",
+    backgroundColor: "#fff",
+    boxShadow: "0 0 5px rgba(193, 8, 8, 0.1)",
+  }}
+>
 
-{/* shcemes */}
-{admrole !== 'IT Admin' && (
-  <Box style={{ width: '48%' }}>
-    <strong>Schemes</strong><br />
-    <TextField
-      select
-      fullWidth
-      value={selectedScheme}
-      onChange={(e) => setSelectedScheme(e.target.value)}
-      variant="outlined"
-      style={{ marginTop: "8px" }}
-    >
-      {schemesList.map((scheme) => (
-        <MenuItem key={scheme.id} value={scheme.id}>
-          {scheme.schemeName}
-        </MenuItem>
-      ))}
-    </TextField>
-  </Box>
-)}
-
-{/* Always show Roles dropdown */}
-{!(admrole === 'IT Admin' && selectedRow.designation !== 'Deputy Director -Districts') && (
+{/* IT ADMIN CASE */}
+{/* IT ADMIN CASE */}
+{!(
+  (admrole === 'IT Admin' && selectedRow.designation !== 'Deputy Director -Districts') ||
+  admrole === 'District Level Approver'
+) && (
   <Box style={{ width: '48%' }}>
     <strong>Role</strong><br />
     <TextField
@@ -814,28 +856,93 @@ return (
 )}
 
 
-          {/* Duties Dropdown */}
-          {/* <Box style={{ width: '30%' }}>
-            <strong>Duties</strong><br></br>
-            <TextField
-              select
-              fullWidth
-              value={duties}
-              onChange={handleDutiesChange}
-              variant="outlined"
-              style={{ marginTop: "8px" }}
-            >
-              <MenuItem value="Field Work">Field Work</MenuItem>
-              <MenuItem value="Office Work">Office Work</MenuItem>
-              <MenuItem value="Research">Research</MenuItem>
-           
-            </TextField>
-          </Box> */}
 
-         
-        </Box>
+{/* Dis Admin Case */}
+{admrole !== 'IT Admin' && (
+
+  <Stack direction="column" spacing={2} alignItems="center">
+    {schemeRolePairs.map((pair, index) => (
+      <Box
+        key={index}
+        sx={{
+          display: "flex",
+          flexDirection: "row",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 2,
+        }}
+      >
+        {/* Scheme Dropdown */}
+        <FormControl sx={{ minWidth: 180 }} size="small">
+          <InputLabel>Scheme</InputLabel>
+          <Select
+            value={pair.schemeId}
+            onChange={(e) => updateSchemeRolePair(index, 'schemeId', e.target.value)}
+            label="Scheme"
+          >
+            {schemesList.map((scheme) => (
+              <MenuItem key={scheme.id} value={scheme.id}>
+                {scheme.schemeName}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        {/* Role Dropdown */}
+        <FormControl sx={{ minWidth: 180 }} size="small">
+          <InputLabel>Role</InputLabel>
+          <Select
+            value={pair.roleId}
+            onChange={(e) => updateSchemeRolePair(index, 'roleId', e.target.value)}
+            label="Role"
+            disabled={!pair.schemeId}
+          >
+            {(rolesMap[pair.schemeId] || []).map((role) => (
+              <MenuItem
+                key={role.id}
+                value={role.id}
+                disabled={schemeRolePairs.some((p, i) =>
+                  i !== index &&
+                  p.schemeId === pair.schemeId &&
+                  p.roleId === role.id
+                )}
+              >
+                {role.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        {/* Buttons */}
+        {index === schemeRolePairs.length - 1 && (
+          <Button onClick={addSchemeRolePair} variant="contained" color="primary" size="small">
+            +
+          </Button>
+        )}
+
+        {schemeRolePairs.length > 1 && (
+          <Button
+            onClick={() => removeSchemeRolePair(index)}
+            variant="contained"
+            color="error"
+            size="small"
+          >
+            -
+          </Button>
+        )}
+      </Box>
+    ))}
+  </Stack>
+)}
+
+</Box>
+
+
+
+
  {/* zones */}
- { (selectedScheme == '1' && selectedRole == "1" ) && (
+ {/* { (selectedScheme == '1' && selectedRole == "1") && ( */}
+ { (zoneVisble === true) && (
         <Box style={{ width: '30%',margin:'auto' }}>
             <center><strong>Select Zone</strong></center>
             <TextField

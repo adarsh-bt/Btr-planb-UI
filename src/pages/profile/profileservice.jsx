@@ -5,8 +5,13 @@ const API_BASE_URL = 'http://localhost:8081/user-access/api/user-registration'; 
 
 const profileService = {
   fetchUserById: async (userId) => {
+    const token = localStorage.getItem('token');
+    const userId1 = "05041486-30f1-4620-ae6a-998c40881981"
+    console.log(userId)
     try {
-      const response = await axios.get(`${API_BASE_URL}/user/fetch-by-id/${userId}`);
+      const response = await axios.get(`${API_BASE_URL}/user/fetch-by-id/${userId1}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       return response.data; // Return the entire response payload
     } catch (error) {
       console.error('Error fetching user by ID:', error);

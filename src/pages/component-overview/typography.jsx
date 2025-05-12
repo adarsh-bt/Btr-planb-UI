@@ -29,6 +29,7 @@ function WorkAllocationStatement() {
             try {
                 const token = localStorage.getItem('token');
                 const user_id = authservice.userid();
+            
                 const response = await fetch(`http://localhost:8082/btr-service/btr-api/zone-details/${user_id}`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -40,7 +41,7 @@ function WorkAllocationStatement() {
                 const result = await response.json();
                 setResult(result.payload);
                 setData(result.payload.data);
-
+                console.log("ressss>> ",result.payload)
                 // Initialize input state with default 0s for each entry
                 const initialized = result.payload.data.map(item => ({
                     name: item.p_name,
@@ -159,9 +160,9 @@ function WorkAllocationStatement() {
                                                     ))}
                                                     <TableRow>
                                                         <TableCell><b>Zone Total</b></TableCell>
-                                                        <TableCell><TextField fullWidth value={result.totalWetArea.toFixed(2)} disabled /></TableCell>
-                                                        <TableCell><TextField fullWidth value={result.totalDryArea.toFixed(2)} disabled /></TableCell>
-                                                        <TableCell><TextField fullWidth value={result.totalArea.toFixed(2)} disabled /></TableCell>
+                                                        <TableCell><TextField fullWidth value={result.totalWetArea.toFixed(2)} /></TableCell>
+                                                        <TableCell><TextField fullWidth value={result.totalDryArea.toFixed(2)} /></TableCell>
+                                                        <TableCell><TextField fullWidth value={result.totalArea.toFixed(2)} /></TableCell>
                                                     </TableRow>
                                                 </TableBody>
                                             </Table>

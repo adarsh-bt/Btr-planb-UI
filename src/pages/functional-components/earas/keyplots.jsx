@@ -92,6 +92,7 @@ const KeyPlot = () => {
       const transformSample = (sample, type) => ({
         slNo: sample["Sl.No"],
         syNo: sample["Sy. No"],
+        panchayth: sample["panchayth"],
         area: sample["Area (Cents)"],
         villageBlock: sample["Village/Block"],
         reserveList: type === "wet" ? "Wet" : "Dry",
