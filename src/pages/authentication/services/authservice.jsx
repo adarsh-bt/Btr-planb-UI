@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { InvalidTokenError, jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
-import { encrypt } from './encryptionUtils';
+import { encryptData } from './encryptionUtils';
 
 import mainapi from 'api/mainapi';
 
@@ -14,7 +14,7 @@ class authservice {
     static async login(userLogin) {
         try {
             console.log("user login ",userLogin)
-            const userEncrypted = encrypt(JSON.stringify(userLogin));
+            const userEncrypted = encryptData(JSON.stringify(userLogin));
          
 
             console.log("usercncry : ",userEncrypted);

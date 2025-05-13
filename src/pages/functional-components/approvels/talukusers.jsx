@@ -192,7 +192,7 @@ const [rolesMap, setRolesMap] = useState({});
         
           const admin_id = authservice.userid()
           const approvalStatus = radioState; 
-
+          const filteredPairs = schemeRolePairs.filter(pair => pair.schemeId && pair.roleId);
           
           var payload = {
             approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "pending" : "Rejected",
@@ -202,7 +202,11 @@ const [rolesMap, setRolesMap] = useState({});
             adminId: admin_id, 
             userId: selectedRow ? selectedRow.userId : "", 
             id:selectedRow.approvalId,
-            roleId:selectedRole
+            // roleId:selectedRole
+             roleSchemes: filteredPairs.map(pair => ({
+    roleId: pair.roleId,
+    schemeId: pair.schemeId
+  }))
           };
          
           // Call the API using the separate function
@@ -213,6 +217,7 @@ const [rolesMap, setRolesMap] = useState({});
           }
         else if (admrole === "IT Admin"){
     
+          console.log("IT payload ", payload);
           var saveapi = approvalservice.saveItadminApproval(payload)
         }else{
          var payload={userId:selectedRow ? selectedRow.userId : "",adminId:admin_id,roleId:selectedRole}
