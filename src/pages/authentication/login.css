@@ -12,10 +12,11 @@ body{
     --gradient: linear-gradient(142deg, #e7eaee 15%, rgba(22,77,155,1) 28%, rgba(14,63,139,1) 41%, rgb(201, 208, 220) 64%);
   }
 .main {
+ 
     padding: 3rem;
     background: #ddd;
     background-size: 300%;
-    height:50rem; /* changed */
+    height:100vh;
     background-image: var(--gradient);
     overflow-y: scroll;
     animation: bg-animation 5s infinite;
@@ -42,7 +43,6 @@ body{
         padding: .4rem;
         height:100vh;
         overflow-y: scroll;
-       
     }
     
   }

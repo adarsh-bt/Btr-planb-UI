@@ -118,7 +118,7 @@ const ClusterForm = () => {
     };
 
     return (
-        <Container maxWidth="xl" sx={{ mt: 4, bgcolor: '#f4f4f9', p: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+        <Container maxWidth="xl" sx={{ mt: 4,overflowY:"scroll", bgcolor: '#f4f4f9', p: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
             <Typography variant="h4" align="center" gutterBottom color="primary">
                 Cluster Land Form
             </Typography>

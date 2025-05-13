@@ -32,6 +32,16 @@ class btrservice{
     }
 
   
+    static btrservice_download = {
+        // Existing functions like btr_lists_data...
+     
+        download_excel: (UserId) => {
+          return axios.get(`${btrservice.BASE_URL}/btr-api/exportExcel/${UserId}`, {
+            
+           responseType: 'arraybuffer' 
+          });
+        },
+      };
 
 }
 export default btrservice;
