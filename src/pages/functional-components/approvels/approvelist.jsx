@@ -215,17 +215,11 @@ const[zoneVisble, setzoneVisble] = useState(false);
         if (result.isConfirmed) {
           
           // Prepare data for the API call
-          const token = localStorage.getItem('token')
-          const decodedToken = jwtDecode(token);  // Decodes the JWT
-          const admin_id = decodedToken.sub;
-          // console.log("admin >>",admin_id)
-          // console.log("approval id >>",selectedRow.approvalId)
-          // console.log("remarks >>",remarks)
-          // console.log("select role >>",selectedRole)
+      
+           const admin_id = authservice.userid();
+        
           const approvalStatus = radioState;  // The status ("approved", "marked", "rejected")
-          // const remarks = radioState === "rejected" || radioState === "marked" ? remarks : "All documents verified and approved.";  // Sample remarks based on status
-          // console.log("selec",selectedRow.userId)
-          // Construct the payload
+        const filteredPairs = schemeRolePairs.filter(pair => pair.schemeId && pair.roleId);
           const payload = {
             approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "pending" : "Rejected",
             approvalDate: new Date().toISOString().split('T')[0],
@@ -234,10 +228,22 @@ const[zoneVisble, setzoneVisble] = useState(false);
             adminId: admin_id, 
             userId: selectedRow ? selectedRow.userId : "", 
             id:selectedRow.approvalId,
-            roleId:selectedRole
-          };
+            // roleId:selectedRole
+     roleSchemes: selectedRole
+    ? [
+        {
+          roleId: selectedRole,
+          schemeId: null
+        }
+      ]
+    : filteredPairs.map(pair => ({
+        roleId: pair.roleId,
+        schemeId: pair.schemeId
+      }))
+    };
     
          if(admrole === "IT Admin"){
+          console.log("IT Dis ",payload)
           var apicall = approvalservice.saveItadminApproval(payload)
           
           console.log("zone saved")
@@ -361,9 +367,13 @@ const handleRoleChange = (event) => {
 const isDeputyDirector = selectedRow?.designation === 'Deputy Director -Districts';
 const isStatisticalInvestigator = selectedRow?.designation === 'Statistical Investigator';
 
+const areSchemeRolePairsValid = schemeRolePairs.every(pair => 
+  pair.schemeId && pair.roleId
+);
+
 // Zone is required **only** for Statistical Investigator + selectedScheme === '1'
 const isZoneValid = !(selectedScheme === '1' && isStatisticalInvestigator) || !!zone;
-
+console.log("is apppp ",areSchemeRolePairsValid)
 // Button should be enabled only if:
 const isSaveEnabled = (
   (radioState === 'pending' || radioState === 'rejected') || 
@@ -373,7 +383,7 @@ const isSaveEnabled = (
       (!isDeputyDirector) // No role needed for others
     )
   )
-) && rolesList && schemesList && isZoneValid;
+)
 
 
 
