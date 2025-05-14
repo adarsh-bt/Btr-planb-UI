@@ -24,10 +24,15 @@ export const encryptData = (data) => {
 
 
 
-export const decrypt = (data) => {
-    const decrypted = CryptoJS.AES.decrypt(data, SECRET_KEY_HEX, {
-        mode: CryptoJS.mode.ECB,
+export const decryptData = (encryptedBase64) => {
+    const key = CryptoJS.enc.Base64.parse(SECRET_KEY_BASE64);
+    const iv = CryptoJS.enc.Base64.parse(IV_BASE64);
+
+    const decrypted = CryptoJS.AES.decrypt(encryptedBase64, key, {
+        iv: iv,
+        mode: CryptoJS.mode.CBC,
         padding: CryptoJS.pad.Pkcs7,
     });
+
     return decrypted.toString(CryptoJS.enc.Utf8);
 };
