@@ -29,7 +29,7 @@ const RegisterService = {
 
   async getDesignations() {
     try {
-      const response = await axios.get(`${this.BASE_URL}/user-access/api/designation`);
+      const response = await axios.get(`${this.BASE_URL}/user-access/api/fetch-designations`);
       console.log('designations: ', response.data.payload);
       return response.data;
     } catch (err) {

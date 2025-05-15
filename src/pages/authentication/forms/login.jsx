@@ -91,19 +91,14 @@ const SignInSide = () => {
       >
         <div style={{ textAlign: 'center' }}>
           <img
+          className='logo_gov'
             src={logo}
             alt="Logo"
-            style={{
-              width: "180px",
-              height: "140px",
-              // borderRadius: "50%",
-              marginBottom: "16px",
-              marginTop:'2rem'
-              
-            }}
+           
           />
 
-          <Typography
+          <Typography 
+          className='deparment'
               variant="h3"
               sx={{
                 color: '#fff',
@@ -122,23 +117,14 @@ const SignInSide = () => {
 
           <Typography
               variant="h3"
-              sx={{
-                color: '#fff',
-                // fontWeight: 'bold',
-                px: 4,
-                textAlign: "center",
-                // marginTop: "1rem",
-                // marginBottom:'2rem',
-                
-                // marginTop: "1rem",
-                marginBottom: '5rem'
-              }}
-            >
+                className='deparment'>
               Government of Kerala
           </Typography>
 
           
-          <Typography variant="h3"  sx={{
+          <Typography variant="h3" 
+            className='deparment'
+           sx={{
               color: "#fff",
               fontWeight: "bold",
               px: 4,
@@ -149,18 +135,12 @@ const SignInSide = () => {
               
             }}>Application for Intelligent Data Engineering and Analytics (AIDEA)</Typography>
         
-        <Typography style={{ display: "flex", justifyContent: "center", gap: "2rem", marginBottom: "3rem" }}>
+        <Typography className='duk_logo_typ'>
         <img
+        className='duk_logo'
         src={duklogo}
         alt="DUK Logo"
-        style={{
-          width: "120px",
-          height: "60px",
-          padding:".7rem",
-          borderRadius: "5px", // Adds border radius for a polished look
-          // boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)", // Shadow for logos
-        
-        }}
+       
       />
          {/* <img
         src={deslogo}
@@ -174,22 +154,17 @@ const SignInSide = () => {
         }}
       /> */}
      <img
+     className='cdti_logo'
         src={cdtilogo}
         alt="DUK Logo"
-        style={{
-          width: "120px",
-          height: "60px",
-          padding: ".7rem",
-          borderRadius: "5px",
-          marginTop: "-8px" // Lifts the logo slightly
-        }}
+       
       />
 
           {/* <Typography variant="p"  sx={{
               color: "#fff",
             }}>CDTI</Typography> */}
         </Typography>
-        <Box sx={{ color: 'text.disabled' }}>© 2025 AIDEA CDTI-DUK. All rights reserved.</Box>
+        <Box className="copy_right" sx={{ color: 'text.disabled' }}>© 2025 AIDEA CDTI-DUK. All rights reserved.</Box>
 
         
         </div>

@@ -158,7 +158,7 @@ class approvalservice {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${approvalservice.BASE_URL}/user-access/tso-admin/saverole`,
+        `${approvalservice.BASE_URL}/user-access/tso-admin/save-role-assign`,
         payload, // Send payload as the body
         {
           headers: {
