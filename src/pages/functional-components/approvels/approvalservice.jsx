@@ -180,7 +180,7 @@ class approvalservice {
   static async allroles() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/api/roles`, {
+      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/api/fetch/roles`, {
         headers: {
           Authorization: `Bearer ${token}` // Ensure token is included
         }

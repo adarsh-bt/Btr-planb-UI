@@ -1,4 +1,3 @@
-
 import React, { useState,useEffect } from 'react';
 import PropTypes from 'prop-types';
 
@@ -361,7 +360,7 @@ const handleRoleChange = (event) => {
 const isDeputyDirector = selectedRow?.designation === 'Deputy Director -Districts';
 const isStatisticalInvestigator = selectedRow?.designation === 'Statistical Investigator';
 
-// Zone is required **only** for Statistical Investigator + selectedScheme === '1'
+// Zone is required *only* for Statistical Investigator + selectedScheme === '1'
 const isZoneValid = !(selectedScheme === '1' && isStatisticalInvestigator) || !!zone;
 
 // Button should be enabled only if:
