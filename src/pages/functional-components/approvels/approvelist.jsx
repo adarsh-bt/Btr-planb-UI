@@ -761,7 +761,7 @@ return (
       background: '#04255e',
     }}
   >
-    New User Request
+    New User Requestaaa
   </DialogTitle>
   <DialogContent style={{ padding: "20px", backgroundColor: "#fafafa" }}>
     {selectedRow && (
@@ -784,7 +784,7 @@ return (
             { label: "Phone Number", value: selectedRow.mobileNumber },
             { label: "Date of Joining", value: selectedRow.dateOfJoining },
             { label: "Pen", value: selectedRow.penNumber },
-            { label: "Office", value: selectedRow.distict }
+            { label: "Office", value: selectedRow.office_location }
           ].map((field, index) => (
             <Box
               key={index}
