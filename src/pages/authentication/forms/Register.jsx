@@ -163,7 +163,7 @@ const Register = ({ onBack }) => {
         setDistrictId(null);
       }
     } else {
-      alert('ok');
+     
       // If nothing is selected, reset values
       setOfficeType('');
       setDistrictId(null);
