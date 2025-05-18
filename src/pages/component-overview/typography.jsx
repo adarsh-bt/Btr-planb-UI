@@ -1,250 +1,245 @@
-// material-ui
-import React, { useState, useEffect } from 'react';
-import Breadcrumbs from '@mui/material/Breadcrumbs';
-import Divider from '@mui/material/Divider';
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
-import UniqueVisitorCard from 'pages/dashboard/UniqueVisitorCard';
-import OrderTable from 'pages/dashboard/OrdersTable';
-// project import
-import MainCard from 'components/MainCard';
-import authservice from 'pages/authentication/services/authservice';
-import { Container, TextField, Button, Grid, Tabs, Tab, Typography, Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
+import React, { useState } from 'react';
+import {
+  Box,
+  Button,
+  Container,
+  Tab,
+  Tabs,
+  TextField,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+} from '@mui/material';
 
-// ==============================|| COMPONENTS - TYPOGRAPHY ||============================== //
+function WorkAllocationForm() {
+  const [tabIndex, setTabIndex] = useState(0);
+  const [district, setDistrict] = useState('');
 
+  const [areaDetails, setAreaDetails] = useState([
+    { block: '', panchayat: '', wet: '', dry: '', total: '' },
+  ]);
 
+  const [forestDetails, setForestDetails] = useState([
+    { a: '', b: '', c: '', under: '', notUnder: '', excluded: '', kayal: '' },
+  ]);
 
-function WorkAllocationStatement() {
-    const [tabIndex, setTabIndex] = useState(0);
-    const [result, setResult] = useState(null);
-    const [data, setData] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+  const [otherDetails, setOtherDetails] = useState([
+    {
+      dry13: '',
+      wet14: '',
+      total15: '',
+      plotsDry16: '',
+      plotsWet17: '',
+      plotsTotal18: '',
+      totalDry19: '',
+      total20: '',
+      totalDry21: '',
+      total22: '',
+      remarks: '',
+    },
+  ]);
 
-    const [inputData, setInputData] = useState([]); // For user-entered values
+  const handleAddRow = () => {
+    if (tabIndex === 0) {
+      setAreaDetails([...areaDetails, { block: '', panchayat: '', wet: '', dry: '', total: '' }]);
+    } else if (tabIndex === 1) {
+      setForestDetails([
+        ...forestDetails,
+        { a: '', b: '', c: '', under: '', notUnder: '', excluded: '', kayal: '' },
+      ]);
+    } else if (tabIndex === 2) {
+      setOtherDetails([
+        ...otherDetails,
+        {
+          dry13: '',
+          wet14: '',
+          total15: '',
+          plotsDry16: '',
+          plotsWet17: '',
+          plotsTotal18: '',
+          totalDry19: '',
+          total20: '',
+          totalDry21: '',
+          total22: '',
+          remarks: '',
+        },
+      ]);
+    }
+  };
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                const user_id = authservice.userid();
-            
-                const response = await fetch(`http://localhost:8082/btr-service/btr-api/zone-details/${user_id}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                if (!response.ok) throw new Error("Failed to fetch data");
-
-                const result = await response.json();
-                setResult(result.payload);
-                setData(result.payload.data);
-                console.log("ressss>> ",result.payload)
-                // Initialize input state with default 0s for each entry
-                const initialized = result.payload.data.map(item => ({
-                    name: item.p_name,
-                    wet: 0,
-                    dry: 0,
-                    total: 0,
-                    forestA: 0,
-                    forestB: 0,
-                    forestC: 0,
-                    forestTotal: 0
-                }));
-                setInputData(result.payload.data);
-                console.log("innn", result.payload.data)
-            } catch (err) {
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
-    }, []);
-
-    const handleTabChange = (event, newValue) => {
-        setTabIndex(newValue);
+  const handleSubmit = () => {
+    const data = {
+      district,
+      areaDetails,
+      forestDetails,
+      otherDetails,
     };
+    console.log(JSON.stringify(data, null, 2));
+    alert('Form data has been logged to the console.');
+  };
 
-    const handleInputChange = (index, field, value) => {
-        const updated = [...inputData];
-        updated[index][field] = Number(value);
-        if (tabIndex === 0) {
-            updated[index].total = updated[index].wet + updated[index].dry;
-        } else {
-            updated[index].forestTotal = updated[index].forestA + updated[index].forestB + updated[index].forestC;
-        }
-        setInputData(updated);
-    };
+  return (
+    <Container maxWidth="xl">
+      <Box sx={{ bgcolor: '#fff', mt: 4, p: 4, borderRadius: 2, boxShadow: 2 }}>
+        <Typography variant="h5" align="center" gutterBottom>
+          WORK ALLOCATION STATEMENT
+        </Typography>
 
-    const getZoneTotals = (field) =>
-        inputData.reduce((sum, item) => sum + (item[field] || 0), 0);
+        <TextField
+          label="District"
+          value={district}
+          onChange={(e) => setDistrict(e.target.value)}
+          fullWidth
+          margin="normal"
+        />
 
-    if (loading) return <Typography>Loading...</Typography>;
-    if (error) return <Typography color="error">Error: {error}</Typography>;
+        <Tabs value={tabIndex} onChange={(e, newValue) => setTabIndex(newValue)} sx={{ mb: 2 }}>
+          <Tab label="Area Details" />
+          <Tab label="Forest Details" />
+          <Tab label="Other Details" />
+        </Tabs>
 
-    return (
-        <Container sx={{ mt: 4 }}>
-            <Grid container spacing={3}>
-                <Grid item xs={12}>
-                    <Stack spacing={3}>
-                        <MainCard title="Work Allocation Statement">
-                            <Typography variant="h4" align="center" sx={{ mb: 3 }}>
-                                Work Allocation Report
-                            </Typography>
+        {/* --- Tab 1: Area Details --- */}
+        {tabIndex === 0 && (
+          <TableContainer component={Paper} sx={{ mb: 2 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Block</TableCell>
+                  <TableCell>Panchayat</TableCell>
+                  <TableCell>Wet</TableCell>
+                  <TableCell>Dry</TableCell>
+                  <TableCell>Total</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {areaDetails.map((row, index) => (
+                  <TableRow key={index}>
+                    {['block', 'panchayat', 'wet', 'dry', 'total'].map((field) => (
+                      <TableCell key={field}>
+                        <TextField
+                          value={row[field]}
+                          onChange={(e) =>
+                            setAreaDetails((prev) =>
+                              prev.map((r, i) =>
+                                i === index ? { ...r, [field]: e.target.value } : r
+                              )
+                            )
+                          }
+                          variant="outlined"
+                          size="small"
+                        />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
 
-                            <form>
-                                {/* Auto-filled Zone Info */}
-                                <Grid container spacing={3} sx={{ mb: 3 }}>
-                                    <Grid item xs={12} md={4}>
-                                        <TextField label="District" variant="outlined" fullWidth value={result.district || ''} />
-                                    </Grid>
-                                    <Grid item xs={12} md={4}>
-                                        <TextField label="Taluk" variant="outlined" fullWidth value={result.taluk || ''}  />
-                                    </Grid>
-                                    <Grid item xs={12} md={4}>
-                                        <TextField label="Zone" variant="outlined" fullWidth value={result.zone_name || ''}/>
-                                    </Grid>
-                                </Grid>
+        {/* --- Tab 2: Forest Details --- */}
+        {tabIndex === 1 && (
+          <TableContainer component={Paper} sx={{ mb: 2 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>A</TableCell>
+                  <TableCell>B</TableCell>
+                  <TableCell>C</TableCell>
+                  <TableCell>Under Cultivation</TableCell>
+                  <TableCell>Not Under</TableCell>
+                  <TableCell>Excluded</TableCell>
+                  <TableCell>Kayal</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {forestDetails.map((row, index) => (
+                  <TableRow key={index}>
+                    {['a', 'b', 'c', 'under', 'notUnder', 'excluded', 'kayal'].map((field) => (
+                      <TableCell key={field}>
+                        <TextField
+                          value={row[field]}
+                          onChange={(e) =>
+                            setForestDetails((prev) =>
+                              prev.map((r, i) =>
+                                i === index ? { ...r, [field]: e.target.value } : r
+                              )
+                            )
+                          }
+                          variant="outlined"
+                          size="small"
+                        />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
 
-                                {/* Tabs */}
-                                <Tabs value={tabIndex} onChange={handleTabChange} indicatorColor="primary" textColor="primary" centered>
-                                    <Tab label="Area as per village records (in acres)" />
-                                    <Tab label="Forest Area" />
-                                </Tabs>
+        {/* --- Tab 3: Other Details --- */}
+        {tabIndex === 2 && (
+          <TableContainer component={Paper} sx={{ mb: 2 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Dry (13)</TableCell>
+                  <TableCell>Wet (14)</TableCell>
+                  <TableCell>Total (15)</TableCell>
+                  <TableCell>Plots Dry (16)</TableCell>
+                  <TableCell>Plots Wet (17)</TableCell>
+                  <TableCell>Plots Total (18)</TableCell>
+                  <TableCell>Total Dry (19)</TableCell>
+                  <TableCell>Total (20)</TableCell>
+                  <TableCell>Total Dry (21)</TableCell>
+                  <TableCell>Total (22)</TableCell>
+                  <TableCell>Remarks</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {otherDetails.map((row, index) => (
+                  <TableRow key={index}>
+                    {Object.keys(row).map((field) => (
+                      <TableCell key={field}>
+                        <TextField
+                          value={row[field]}
+                          onChange={(e) =>
+                            setOtherDetails((prev) =>
+                              prev.map((r, i) =>
+                                i === index ? { ...r, [field]: e.target.value } : r
+                              )
+                            )
+                          }
+                          variant="outlined"
+                          size="small"
+                        />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
 
-                                <Box sx={{ mt: 3 }}>
-                                    {/* Area Table */}
-                                    {tabIndex === 0 && (
-                                        <TableContainer component={Paper}>
-                                            <Table>
-                                                <TableHead>
-                                                    <TableRow>
-                                                        <TableCell>Panchayat</TableCell>
-                                                        <TableCell>Wet in Ac</TableCell>
-                                                        <TableCell>Dry in Ac</TableCell>
-                                                        <TableCell>Total in Ac</TableCell>
-                                                    </TableRow>
-                                                </TableHead>
-                                                <TableBody>
-                                                    {inputData.map((row, index) => (
-                                                        <TableRow key={index}>
-                                                            <TableCell>{row.p_name}</TableCell>
-                                                            <TableCell>
-                                                                <TextField
-                                                                    type="number"
-                                                                    fullWidth
-                                                                    value={row.Wet_area}
-                                                                    onChange={(e) => handleInputChange(index, 'wet', e.target.value)}
-                                                                />
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <TextField
-                                                                    type="number"
-                                                                    fullWidth
-                                                                    value={row.Dry_area}
-                                                                    onChange={(e) => handleInputChange(index, 'dry', e.target.value)}
-                                                                />
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <TextField
-                                                                    type="number"
-                                                                    fullWidth
-                                                                    value={row.Total_area}
-                                                                    disabled
-                                                                />
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                    <TableRow>
-                                                        <TableCell><b>Zone Total</b></TableCell>
-                                                        <TableCell><TextField fullWidth value={result.totalWetArea.toFixed(2)} /></TableCell>
-                                                        <TableCell><TextField fullWidth value={result.totalDryArea.toFixed(2)} /></TableCell>
-                                                        <TableCell><TextField fullWidth value={result.totalArea.toFixed(2)} /></TableCell>
-                                                    </TableRow>
-                                                </TableBody>
-                                            </Table>
-                                        </TableContainer>
-                                    )}
-
-                                    {/* Forest Area Table */}
-                                    {tabIndex === 1 && (
-                                        <TableContainer component={Paper}>
-                                            <Table>
-                                                <TableHead>
-                                                    <TableRow>
-                                                        <TableCell>Panchayat</TableCell>
-                                                        <TableCell>A</TableCell>
-                                                        <TableCell>B</TableCell>
-                                                        <TableCell>C</TableCell>
-                                                        <TableCell>Total</TableCell>
-                                                    </TableRow>
-                                                </TableHead>
-                                                <TableBody>
-                                                    {inputData.map((row, index) => (
-                                                        <TableRow key={index}>
-                                                            <TableCell>{row.name}</TableCell>
-                                                            <TableCell>
-                                                                <TextField
-                                                                    type="number"
-                                                                    fullWidth
-                                                                    value={row.forestA}
-                                                                    onChange={(e) => handleInputChange(index, 'forestA', e.target.value)}
-                                                                />
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <TextField
-                                                                    type="number"
-                                                                    fullWidth
-                                                                    value={row.forestB}
-                                                                    onChange={(e) => handleInputChange(index, 'forestB', e.target.value)}
-                                                                />
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <TextField
-                                                                    type="number"
-                                                                    fullWidth
-                                                                    value={row.forestC}
-                                                                    onChange={(e) => handleInputChange(index, 'forestC', e.target.value)}
-                                                                />
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <TextField
-                                                                    type="number"
-                                                                    fullWidth
-                                                                    value={row.forestTotal}
-                                                                    disabled
-                                                                />
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                    <TableRow>
-                                                        <TableCell><b>Zone Total</b></TableCell>
-                                                        <TableCell><TextField fullWidth value={getZoneTotals('forestA')} disabled /></TableCell>
-                                                        <TableCell><TextField fullWidth value={getZoneTotals('forestB')} disabled /></TableCell>
-                                                        <TableCell><TextField fullWidth value={getZoneTotals('forestC')} disabled /></TableCell>
-                                                        <TableCell><TextField fullWidth value={getZoneTotals('forestTotal')} disabled /></TableCell>
-                                                    </TableRow>
-                                                </TableBody>
-                                            </Table>
-                                        </TableContainer>
-                                    )}
-                                </Box>
-
-                                {/* Submit Button */}
-                                <Box sx={{ textAlign: 'center', mt: 4 }}>
-                                    <Button variant="contained" color="primary" type="submit">Submit</Button>
-                                </Box>
-                            </form>
-                        </MainCard>
-                    </Stack>
-                </Grid>
-            </Grid>
-        </Container>
-    );
+        <Box display="flex" gap={2}>
+          <Button variant="contained" color="primary" onClick={handleAddRow}>
+            Add Row
+          </Button>
+          <Button variant="contained" color="success" onClick={handleSubmit}>
+            Submit
+          </Button>
+        </Box>
+      </Box>
+    </Container>
+  );
 }
 
-export default WorkAllocationStatement;
-
+export default WorkAllocationForm;

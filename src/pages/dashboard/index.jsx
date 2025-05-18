@@ -376,7 +376,7 @@ console.log("User Permissions:", permissions);
           </Card>
         </Grid>
 
-        {authservice.getrole() === ''}
+       {authservice.hasAllowedRole() && (
         <Grid item xs={12} sm={4} md={4} lg={4}>
           <Card
             component={Link}
@@ -464,7 +464,7 @@ console.log("User Permissions:", permissions);
             </Box>
           </Card>
         </Grid>
-
+)}
         <Grid item xs={12} sm={4} md={4} lg={4}>
           <Card
             component={Link}

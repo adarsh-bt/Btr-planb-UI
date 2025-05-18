@@ -126,6 +126,38 @@ class authservice {
   static gettoken() {
     return localStorage.getItem('token');
   }
+
+static hasAllowedRole() {
+  const token = localStorage.getItem('token');
+  if (!token) return false;
+
+  try {
+    const decoded = jwtDecode(token);
+    let userRoles = decoded.roles;
+
+    // Normalize roles into an array
+    if (typeof userRoles === 'string') {
+      userRoles = [userRoles];
+    } else if (!Array.isArray(userRoles)) {
+      return false; // Unexpected format
+    }
+
+    const allowedRoles = new Set([
+      'Taluk Level Approver',
+      'District Level Approver',
+      'Super Admin',
+      'State Level Approver',
+      'IT Admin'
+    ]);
+
+    return userRoles.some(role => allowedRoles.has(role));
+  } catch (error) {
+    console.error('Invalid token:', error);
+    return false;
+  }
+}
+
+
 }
 
 export default authservice;
