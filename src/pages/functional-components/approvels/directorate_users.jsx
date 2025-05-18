@@ -246,7 +246,7 @@ const payload = {
           //   id: selectedRow.approvalId,
           //   roleId: selectedRole
           // };
-          console.log("payload ", payload);
+
     
           // Call the API using the separate function
           let ser;
@@ -271,8 +271,10 @@ const payload = {
                 )
               );
     
+      
               // Now, after saving the approval, check if zone needs to be saved
               if (zone !== null && data.payload.loginId !== null) {
+              
                 // Call the zone_save API with required parameters
                 approvalservice.zone_save(zone, data.payload.loginId, admin_id)
                   .then((zoneResponse) => {
@@ -403,7 +405,7 @@ useEffect(() => {
         console.log("api response >> ", response.payload);
         setUserList(response.payload || []);
     
-      setUserList(response.payload || []);
+    
     }else{
       console.log("data set >>>", data);
       setUserList(data); // Ensure userList is always an array
@@ -427,7 +429,7 @@ useEffect(() => {
       const rolesResponse = await approvalservice.allroles();
       const schemesResponse = await approvalservice.allschmes();
       setSchemesList(schemesResponse.payload);
-      console.log("role payload ",rolesResponse)
+
       setRolesList(rolesResponse.payload);
     } else if (admrole === 'IT Admin' || admrole === 'Super Admin') {
     

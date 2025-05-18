@@ -1,35 +1,35 @@
-
-import React, { useState,useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 
-import {InvalidTokenError, jwtDecode} from 'jwt-decode';
+import { InvalidTokenError, jwtDecode } from 'jwt-decode';
 import DataTable from 'react-data-table-component';
-import Swal from "sweetalert2";
+import Swal from 'sweetalert2';
 
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import Directorate from './directorate_users';
 
 import {
-    Typography,
-    TextField,
-    Stack,
-    Paper,
-    Button,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogContentText,
-    DialogTitle,
-    Box,
-    Tab,Tabs,
-    MenuItem,
-    FormGroup,
-    FormControlLabel,
-    FormControl,
-    InputLabel,
-    Select,
-    Radio,
-  } from '@mui/material';
+  Typography,
+  TextField,
+  Stack,
+  Paper,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Box,
+  Tab,
+  Tabs,
+  MenuItem,
+  FormGroup,
+  FormControlLabel,
+  FormControl,
+  InputLabel,
+  Select,
+  Radio
+} from '@mui/material';
 import functionalservice from '../functionalservice';
 import approvalservice from './approvalservice';
 import auth from 'contexts/auth-reducer/auth';
@@ -37,63 +37,47 @@ import authservice from 'pages/authentication/services/authservice';
 import Taluk from './talukusers';
 
 const columns = (handleEdit) => [
-    { name: 'SL. NO', selector:(row, index) => index + 1, sortable: true },
-    { name: 'Name', selector: (row) => row.name, sortable: true },
-    { name: 'Designation', selector: (row) => row.designation, sortable: true },
-    { name: 'Email', selector: (row) => row.email, sortable: true },
-    { name: 'Phone number', selector: (row) => row.mobileNumber, sortable: true },
-    { name: 'DOJ', selector: (row) => row.dateOfJoining, sortable: true },
-    // { name: 'Applied', selector: (row) => new Date(row.createdAt).toLocaleDateString('en-GB'), sortable: true },
-    { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
-    {
-        name: "Status",
-        selector: (row) => row.active,sortable: true,
-        cell: (row) => (
-          <span
-          style={{
-            color:
-              row.approvalStatus === "Approved"
-                ? "green"
-                : row.approvalStatus === "pending"
-                ? "orange"
-                : "red",
-          }}
-        >
-          {row.approvalStatus === "Approved" ? row.approvalStatus : row.approvalStatus === false ? row.approvalStatus : row.approvalStatus}
-        </span>
-        
-        ),
-      },
-    
-    {
-      name: 'Action',
-      cell: (row) => (
-        <Button
-         
-          color="success" // Green color for the button
-         
-          onClick={() => handleEdit(row)} // Call edit function on click
-        >
-          <ManageAccountsIcon />
-        </Button>
-      ),
-    },
-  ];
-  
+  { name: 'SL. NO', selector: (row, index) => index + 1, sortable: true },
+  { name: 'Name', selector: (row) => row.name, sortable: true },
+  { name: 'Designation', selector: (row) => row.designation, sortable: true },
+  { name: 'Email', selector: (row) => row.email, sortable: true },
+  { name: 'Phone number', selector: (row) => row.mobileNumber, sortable: true },
+  { name: 'DOJ', selector: (row) => row.dateOfJoining, sortable: true },
+  // { name: 'Applied', selector: (row) => new Date(row.createdAt).toLocaleDateString('en-GB'), sortable: true },
+  { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
+  {
+    name: 'Status',
+    selector: (row) => row.active,
+    sortable: true,
+    cell: (row) => (
+      <span
+        style={{
+          color: row.approvalStatus === 'Approved' ? 'green' : row.approvalStatus === 'pending' ? 'orange' : 'red'
+        }}
+      >
+        {row.approvalStatus === 'Approved' ? row.approvalStatus : row.approvalStatus === false ? row.approvalStatus : row.approvalStatus}
+      </span>
+    )
+  },
+
+  {
+    name: 'Action',
+    cell: (row) => (
+      <Button
+        color="success" // Green color for the button
+        onClick={() => handleEdit(row)} // Call edit function on click
+      >
+        <ManageAccountsIcon />
+      </Button>
+    )
+  }
+];
 
 function CustomTabPanel(props) {
   const { children, value, index, ...other } = props;
 
-
-
   return (
-    <Box
-      role="tabpanel"
-      hidden={value !== index}
-      id={`simple-tabpanel-${index}`}
-      aria-labelledby={`simple-tab-${index}`}
-      {...other}
-    >
+    <Box role="tabpanel" hidden={value !== index} id={`simple-tabpanel-${index}`} aria-labelledby={`simple-tab-${index}`} {...other}>
       {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
     </Box>
   );
@@ -102,19 +86,18 @@ function CustomTabPanel(props) {
 CustomTabPanel.propTypes = {
   children: PropTypes.node,
   index: PropTypes.number.isRequired,
-  value: PropTypes.number.isRequired,
+  value: PropTypes.number.isRequired
 };
 
 const a11yProps = (index) => ({
   id: `simple-tab-${index}`,
-  'aria-controls': `simple-tabpanel-${index}`,
+  'aria-controls': `simple-tabpanel-${index}`
 });
 
 export default function BasicTabs() {
   const [value, setValue] = React.useState(0);
 
-  const [admrole,setAdmrole] = useState('');
-  
+  const [admrole, setAdmrole] = useState('');
 
   const [schemeRolePairs, setSchemeRolePairs] = useState([{ schemeId: '', roleId: '' }]);
 const [rolesMap, setRolesMap] = useState({});
@@ -124,29 +107,28 @@ const[zoneVisble, setzoneVisble] = useState(false);
     const [zonesList, setZonesList] = useState([]);
       // State for remarks
 
-    // Function to handle filter change
-    
-    useEffect(() => {
-      const userRole = authservice.getrole(); // Or get it from localStorage, etc.
-      setAdmrole(userRole);
-    }, []);
-    // Function to handle edit action
-    const handleEdit = (row) => {
-      setSelectedRow(row); 
-      setRadioState(row.approvalStatus.toLowerCase()); 
-      setRemarks(row.remarks || ""); // Reset remarks to row's value or empty
-      setSelectedScheme(""); // Reset scheme selection
-      setSelectedRole(""); // Reset role selection
-      setOpenModal(true); 
-      setZone("")
-    };
-    
-  
-    // Function to close the modal
-    const handleCloseModal = () => {
-      setOpenModal(false);
-      setSelectedRow(null); // Reset selected row when closing
-    };
+  // Function to handle filter change
+
+  useEffect(() => {
+    const userRole = authservice.getrole(); // Or get it from localStorage, etc.
+    setAdmrole(userRole);
+  }, []);
+  // Function to handle edit action
+  const handleEdit = (row) => {
+    setSelectedRow(row);
+    setRadioState(row.approvalStatus.toLowerCase());
+    setRemarks(row.remarks || ''); // Reset remarks to row's value or empty
+    setSelectedScheme(''); // Reset scheme selection
+    setSelectedRole(''); // Reset role selection
+    setOpenModal(true);
+    setZone('');
+  };
+
+  // Function to close the modal
+  const handleCloseModal = () => {
+    setOpenModal(false);
+    setSelectedRow(null); // Reset selected row when closing
+  };
 
     const addSchemeRolePair = () => {
       setSchemeRolePairs([...schemeRolePairs, { schemeId: '', roleId: '' }]);
@@ -314,60 +296,56 @@ const[zoneVisble, setzoneVisble] = useState(false);
     
   
 
-    const handleChange = (event, newValue) => {
-      setValue(newValue);
-    };
+  const handleChange = (event, newValue) => {
+    setValue(newValue);
+  };
   // const [checkboxState, setCheckboxState] = React.useState({
   //   approved: false,
   //   marked: false,
   //   rejected: false,
   // });
-  
-//   const handleCheckboxChange = (key, value) => {
-//     setCheckboxState((prevState) => ({
-//       ...prevState,
-//       [key]: value,
-//     }));
-//   };
-const [radioState, setRadioState] = React.useState("");
 
+  //   const handleCheckboxChange = (key, value) => {
+  //     setCheckboxState((prevState) => ({
+  //       ...prevState,
+  //       [key]: value,
+  //     }));
+  //   };
+  const [radioState, setRadioState] = React.useState('');
 
-const [schemes, setScheme] = useState('');
-const [zone, setZone] = useState('');
-const [roles, setRoles] = useState('');
+  const [schemes, setScheme] = useState('');
+  const [zone, setZone] = useState('');
+  const [roles, setRoles] = useState('');
 
-const [schemesList, setSchemesList] = useState([]);
-const [selectedScheme, setSelectedScheme] = useState('');
-const [rolesList, setRolesList] = useState([]);
-const [selectedRole, setSelectedRole] = useState('');
-
-
-
-const handleRadioChange = (value) => {
-  setRadioState(value);
-};
+  const [schemesList, setSchemesList] = useState([]);
+  const [selectedScheme, setSelectedScheme] = useState('');
+  const [rolesList, setRolesList] = useState([]);
+  const [selectedRole, setSelectedRole] = useState('');
 
 
 
-const handleSchemeChange = (event) => {
-  setScheme(event.target.value);
-};
+  const handleRadioChange = (value) => {
+    setRadioState(value);
+  };
 
-const handleZoneChange = (event) => {
-  setZone(event.target.value);
-};
+  const handleSchemeChange = (event) => {
+    setScheme(event.target.value);
+  };
 
-const handleRoleChange = (event) => {
-  setRoles(event.target.value);
-};
+  const handleZoneChange = (event) => {
+    setZone(event.target.value);
+  };
 
+  const handleRoleChange = (event) => {
+    setRoles(event.target.value);
+  };
 
-// const isSaveEnabled = 
-//   (radioState === 'pending' || radioState === 'rejected' || 
-//     (radioState === 'approved' && selectedRole !== '')) && 
-//   rolesList && 
-//   schemesList && 
-//   (schemesList === 'Earas' ? zone : true); 
+  // const isSaveEnabled =
+  //   (radioState === 'pending' || radioState === 'rejected' ||
+  //     (radioState === 'approved' && selectedRole !== '')) &&
+  //   rolesList &&
+  //   schemesList &&
+  //   (schemesList === 'Earas' ? zone : true);
 
 
 
@@ -409,11 +387,11 @@ const isSaveEnabled =
   isApprovedWithSelectedRole;
 
 
-const [userList, setUserList] = useState([]);
-const [userList2, setUserList2] = useState([]);
-const [userListDis, setUserListDis] = useState([]);
-const [filterText, setFilterText] = useState('');
-const [DisfilterText, setDisFilterText] = useState('');
+  const [userList, setUserList] = useState([]);
+  const [userList2, setUserList2] = useState([]);
+  const [userListDis, setUserListDis] = useState([]);
+  const [filterText, setFilterText] = useState('');
+  const [DisfilterText, setDisFilterText] = useState('');
 
 useEffect(() => {
   const fetchInitialData = async () => {
@@ -479,7 +457,7 @@ useEffect(() => {
         setUserListDis(response.payload.districtUsers);
         setUserList2(response.payload.talukUsers);
         // console.log("director IT ",response.payload.directorateUsers)
-        // console.log("distict IT ",response.payload.districtUsers)
+        console.log("distict IT ",response.payload.districtUsers)
       }
       else if(admrole === "District Level Approver"){
         // console.log("disttict admin set")
@@ -498,29 +476,22 @@ useEffect(() => {
     }
   };
 
-  fetchUserApprovals();
-}, [admrole]); // Make sure admrole is updated before fetching
+    fetchUserApprovals();
+  }, [admrole]); // Make sure admrole is updated before fetching
 
+  const handleFilterChange = (event) => {
+    setFilterText(event.target.value);
+    setDisFilterText(event.target.value);
+  };
+  // console.log("userliat",userList)
+  // Filtered data based on the filter text
+  const filteredData = userList.filter((item) =>
+    Object.values(item).some((value) => value.toString().toLowerCase().includes(filterText.toLowerCase()))
+  );
 
-
-const handleFilterChange = (event) => {
- 
-  setFilterText(event.target.value);
-  setDisFilterText(event.target.value)
-};
-// console.log("userliat",userList)
-// Filtered data based on the filter text
-const filteredData = userList.filter((item) =>
-  Object.values(item).some((value) =>
-    value.toString().toLowerCase().includes(filterText.toLowerCase())
-  )
-);
-
-const filteredDataTalukforIT = userList2.filter((item) =>
-  Object.values(item).some((value) =>
-    value.toString().toLowerCase().includes(filterText.toLowerCase())
-  )
-);
+  const filteredDataTalukforIT = userList2.filter((item) =>
+    Object.values(item).some((value) => value.toString().toLowerCase().includes(filterText.toLowerCase()))
+  );
 
 // console.log("dis uses")
 const filteredDataDis = userListDis.filter((item) =>
@@ -578,36 +549,33 @@ return (
                 rowsPerPageText: 'Rows per page',
                 rangeSeparatorText: 'of',
                 selectAllRowsItemText: 'All',
-                selectAllRowsItem: 'Select All',
+                selectAllRowsItem: 'Select All'
               }}
               customStyles={{
-             
                 headCells: {
                   style: {
-                      fontSize:'.8rem',
+                    fontSize: '.8rem',
                     backgroundColor: '#04255e', // Header background color
                     color: '#fff', // Header text color
                     fontWeight: 'bold', // Bold header text
-                    borderBottom: '2px solid black', // Classic border style
-                 
-                  },
+                    borderBottom: '2px solid black' // Classic border style
+                  }
                 },
                 cells: {
                   style: {
                     backgroundColor: '',
                     borderBottom: '1px solid white', // Light bottom border for rows
-                    color: '#333', // Darker text color for better readability
-                   
-                  },
+                    color: '#333' // Darker text color for better readability
+                  }
                 },
                 pagination: {
                   style: {
                     color: '#04255e', // Change pagination symbols to blue
-                   
-                    alignItems:'center',
-                    justifyContent:'center'
-                  },
-                },
+
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }
+                }
               }}
             />
     </Paper>,
@@ -925,37 +893,35 @@ return (
           </Select>
         </FormControl>
 
-        {/* Role Dropdown */}
-        <FormControl sx={{ minWidth: 180 }} size="small">
-          <InputLabel>Role</InputLabel>
-          <Select
-            value={pair.roleId}
-            onChange={(e) => updateSchemeRolePair(index, 'roleId', e.target.value)}
-            label="Role"
-            disabled={!pair.schemeId}
-          >
-            {(rolesMap[pair.schemeId] || []).map((role) => (
-              <MenuItem
-                key={role.id}
-                value={role.id}
-                disabled={schemeRolePairs.some((p, i) =>
-                  i !== index &&
-                  p.schemeId === pair.schemeId &&
-                  p.roleId === role.id
-                )}
-              >
-                {role.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+                        {/* Role Dropdown */}
+                        <FormControl sx={{ minWidth: 180 }} size="small">
+                          <InputLabel>Role</InputLabel>
+                          <Select
+                            value={pair.roleId}
+                            onChange={(e) => updateSchemeRolePair(index, 'roleId', e.target.value)}
+                            label="Role"
+                            disabled={!pair.schemeId}
+                          >
+                            {(rolesMap[pair.schemeId] || []).map((role) => (
+                              <MenuItem
+                                key={role.id}
+                                value={role.id}
+                                disabled={schemeRolePairs.some(
+                                  (p, i) => i !== index && p.schemeId === pair.schemeId && p.roleId === role.id
+                                )}
+                              >
+                                {role.name}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
 
-        {/* Buttons */}
-        {index === schemeRolePairs.length - 1 && (
-          <Button onClick={addSchemeRolePair} variant="contained" color="primary" size="small">
-            +
-          </Button>
-        )}
+                        {/* Buttons */}
+                        {index === schemeRolePairs.length - 1 && (
+                          <Button onClick={addSchemeRolePair} variant="contained" color="primary" size="small">
+                            +
+                          </Button>
+                        )}
 
         {schemeRolePairs.length > 1 && (
           <Button
