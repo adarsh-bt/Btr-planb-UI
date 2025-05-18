@@ -5,7 +5,7 @@ const BASE_URL = 'http://localhost:8081/user-access';
 const roleManageService = {
   async getAllSchemes() {
     try {
-      const response = await axios.get(`${BASE_URL}/api/fetch/schemes`);
+      const response = await axios.get(`${BASE_URL}/api/schemes`);
       return response.data.payload; // ✅ return only the payload array
     } catch (err) {
       return {
