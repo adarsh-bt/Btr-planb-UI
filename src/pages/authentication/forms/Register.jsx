@@ -474,7 +474,7 @@ const Register = ({ onBack }) => {
         {errors.designation && <FormHelperText error>{errors.designation}</FormHelperText>}
       </MuiFormControl>
 
-      <Grid container spacing={2} sx={{ mb: 2 }}>
+      <Grid container spacing={2} sx={{ mb: 2 } }>
         <Grid item xs={6}>
           <TextField
             fullWidth
