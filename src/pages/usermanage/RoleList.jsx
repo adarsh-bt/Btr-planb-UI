@@ -7,6 +7,7 @@ import { jwtDecode } from 'jwt-decode';
 
 import ApprovedUserService from 'pages/functional-components/approvels/ApprovedUserService';
 
+import authservice from 'pages/authentication/services/authservice';
 // Columns definition (update as per your API fields)
 const columns = (handleView) => [
   {
@@ -114,6 +115,7 @@ const RoleList = () => {
         const decodedToken = jwtDecode(token);
         // You may need to adjust this depending on your JWT structure
         const userRole = decodedToken.roles || decodedToken.role || decodedToken.authorities?.[0] || '';
+        // const userRolea = authservice.getrole();
         setRole(userRole);
 
         if (userRole === 'IT Admin') {
@@ -135,7 +137,7 @@ const RoleList = () => {
           setError('Unauthorized or unknown admin role');
         }
       } catch (err) {
-        setError(err.message || 'Failed to fetch user data');
+        setError(err.message+"aa" || 'Failed to fetch user data');
       } finally {
         setLoading(false);
       }

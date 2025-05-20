@@ -101,6 +101,7 @@ export default function Taluk({ data }) {
   const[zoneVisble, setzoneVisble] = useState(false);
   const [schemeRolePairs, setSchemeRolePairs] = useState([{ schemeId: '', roleId: '' }]);
 const [rolesMap, setRolesMap] = useState({});
+  const [zonesList, setZonesList] = useState([]);
   // State for remarks
 
   // Function to handle filter change
@@ -157,6 +158,7 @@ const [rolesMap, setRolesMap] = useState({});
           setSelectedRole('');
           setZone('');
         } catch (error) {
+           setZonesList([])
           console.error('Error fetching roles for scheme', error);
         }
       }
@@ -192,7 +194,7 @@ const [rolesMap, setRolesMap] = useState({});
         
           const admin_id = authservice.userid()
           const approvalStatus = radioState; 
-
+          const filteredPairs = schemeRolePairs.filter(pair => pair.schemeId && pair.roleId);
           
           var payload = {
             approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "pending" : "Rejected",
@@ -202,20 +204,29 @@ const [rolesMap, setRolesMap] = useState({});
             adminId: admin_id, 
             userId: selectedRow ? selectedRow.userId : "", 
             id:selectedRow.approvalId,
-            roleId:selectedRole
+            // roleId:selectedRole
+             roleSchemes: filteredPairs.map(pair => ({
+    roleId: pair.roleId,
+    schemeId: pair.schemeId
+  }))
           };
          
           // Call the API using the separate function
           
-          if(admrole !== "Taluk Level Approver" && admrole !== "IT Admin"){
+          if(admrole !== "Taluk Level Approver" && admrole !== "IT Admin" && admrole !== "Super Admin"){
         
         var saveapi = approvalservice.saveDisApproval(payload)
           }
         else if (admrole === "IT Admin"){
     
+          console.log("IT payload ", payload);
           var saveapi = approvalservice.saveItadminApproval(payload)
+        }else if (admrole === "Super Admin"){
+           var saveapi = approvalservice.saveSuperadminApproval(payload)
         }else{
-         var payload={userId:selectedRow ? selectedRow.userId : "",adminId:admin_id,roleId:selectedRole}
+         var payload={userId:selectedRow ? selectedRow.userId : "",adminId:admin_id,roleSchemes: filteredPairs.map(pair => ({
+    roleId: pair.roleId,
+    schemeId: pair.schemeId  }))}
         var saveapi = approvalservice.saveTsoRolesAssign(payload)
         }
         console.log('paye TSO', payload);
@@ -283,7 +294,7 @@ const [rolesMap, setRolesMap] = useState({});
   const [Desiganation, setDesignation] = useState('');
   const [admrole, setAdmrole] = useState('');
 
-  const [zonesList, setZonesList] = useState([]);
+
 
   const handleRadioChange = (value) => {
     setRadioState(value);
@@ -327,7 +338,7 @@ const [rolesMap, setRolesMap] = useState({});
   // OR (second condition)
   ||
   (
-    (authservice.getrole() === 'District Level Approver' && Desiganation !== 'Taluk Statistical Officer' && radioState === 'approved') ||
+    ((authservice.getrole() === 'District Level Approver' || authservice.getrole() === "Super Admin") && Desiganation !== 'Taluk Statistical Officer' && radioState === 'approved') ||
     ((radioState === 'pending' || radioState === 'rejected' || (radioState === 'approved' && selectedRole !== '')) &&
       rolesList &&
       schemesList)
@@ -370,7 +381,8 @@ useEffect(() => {
    
       // Fetch all roles for super admin
       const rolesResponse = await approvalservice.allroles();
-     
+     const schemesResponse = await approvalservice.allschmes();
+      setSchemesList(schemesResponse.payload);
       setRolesList(rolesResponse.payload);
     } else if (admrole === 'District Level Approver' || admrole === 'Taluk Level Approver' || admrole === 'IT Admin') {
       // Fetch all schemes for district user
@@ -382,32 +394,12 @@ useEffect(() => {
 }, [admrole]);
 
 // Fetch roles when scheme changes (for district users)
-useEffect(() => {
-  if ((admrole === 'District Level Approver' && selectedScheme) || (admrole === 'Taluk Level Approver' && selectedScheme) || (admrole === 'IT Admin' && selectedScheme)) {
-    const fetchSchemeRoles = async () => {
-      try{
-        const [rolesResponse,zoneslist] = await Promise.all([
-          approvalservice.allrolesBySchems(selectedScheme),
-          approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
-        ]);
-        setZonesList(zoneslist.payload);
-        setRolesList(rolesResponse.payload);
-        setSelectedRole('');
-        setZone('');
-      }catch (error) {
-        console.error('Error fetching data', error);
-      }
-    };
-    fetchSchemeRoles();
-  }
-}, [selectedScheme, admrole]);
 
 
   const handleFilterChange = (event) => {
-    console.log('evenet ?>>', event.target.value);
     setFilterText(event.target.value);
   };
-  console.log('User List currenly >>> ', userList);
+
   // // Filtered data based on the filter text
   // const filteredData = Array.isArray(userList) ? userList.filter((item) =>
   //   Object.values(item).some((value) =>
@@ -785,6 +777,9 @@ useEffect(() => {
             <Button onClick={handleCloseModal} color="secondary" variant="outlined">
               Close
             </Button>
+            {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow && selectedRow.designation === "Deputy Director -Districts") || (
+      (admrole === "District Level Approver")
+    )) && (
             <Button
               onClick={handleSaveChanges}
               color="primary"
@@ -794,11 +789,12 @@ useEffect(() => {
             >
               Save Change
             </Button>
+            )}
           </DialogActions>
         </Dialog>
       )}
 
-{((authservice.getrole() !== "District Level Approver" && authservice.getrole() !== "IT Admin") &&
+{((authservice.getrole() !== "District Level Approver" && authservice.getrole() !== "IT Admin" && authservice.getrole() !== "Super Admin") &&
 <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
   <DialogTitle
     variant="h4"
@@ -1033,11 +1029,15 @@ useEffect(() => {
                       variant="outlined"
                       style={{ marginTop: '8px' }}
                     >
-                      {zonesList.map((zone) => (
-                        <MenuItem key={zone.zoneId} value={zone.zoneId}>
-                          {zone.zoneNameEn}
-                        </MenuItem>
-                      ))}
+                      {zonesList && zonesList.length > 0 ? ( // Add this check
+                             zonesList.map((zone) => (
+                               <MenuItem key={zone.zoneId} value={zone.zoneId}>
+                                 {zone.zoneNameEn}
+                               </MenuItem>
+                             ))
+                           ) : (
+                             <MenuItem disabled>No zones available</MenuItem>
+                           )}
                     </TextField>
                   </Box>
                 )}

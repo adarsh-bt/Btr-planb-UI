@@ -8,8 +8,10 @@ import {
   PartitionOutlined,
   FormOutlined,
   DeploymentUnitOutlined,
-  ScissorOutlined  
+  ScissorOutlined,
+  TableOutlined  
 } from '@ant-design/icons';
+
 
 // icons
 const icons = {
@@ -21,7 +23,8 @@ const icons = {
   PartitionOutlined,
   FormOutlined,
   DeploymentUnitOutlined,
-  ScissorOutlined 
+  ScissorOutlined ,
+  TableOutlined
 };
 
 // ==============================|| MENU ITEMS - UTILITIES ||============================== //
@@ -51,6 +54,14 @@ const utilities = {
       type: 'item',
       url: '/shadow',
       icon: icons.ScissorOutlined 
+    },
+
+    {
+      id: 'util-btr',
+      title: 'View E-Btr',
+      type: 'item',
+      url: '/schemes/earas/btr',
+      icon: icons.TableOutlined 
     }
   ]
 };

@@ -17,7 +17,8 @@ import {
   Radio,
   RadioGroup,
   FormControlLabel,
-  Button
+  Button,
+  InputLabel
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import MainCard from 'components/MainCard';
@@ -55,6 +56,10 @@ const Roles = () => {
   const [selectedDesignationId, setSelectedDesignationId] = useState(null);
   const [designationLoading, setDesignationLoading] = useState(false);
   const [designationError, setDesignationError] = useState('');
+
+  // zone State
+const [isAddZoneClicked, setIsAddZoneClicked] = useState(false);
+const [selectedNewZone, setSelectedNewZone] = useState('');
 
   // Fetch user details on mount
   useEffect(() => {
@@ -400,6 +405,7 @@ const Roles = () => {
                     <Tab label="Change Schemes & Roles" />
                     <Tab label="Change Designations" />
                     <Tab label="Change Office Type" />
+                    <Tab label="Zone Manage" />
                     <Tab label="Change user status" />
                   </Tabs>
 
@@ -556,8 +562,67 @@ const Roles = () => {
                     </Grid>
                   )}
 
+                       {innerTabValue === 3 && (
+                  <Grid container spacing={2} alignItems="center">
+  <Grid item xs={12} sm={6}>
+    <FormControl fullWidth size="small">
+      <Typography variant="body2" sx={{ mb: 1 }}>
+        Current Zone
+      </Typography>
+      <TextField
+        value={"Vellanad 2"}
+        variant="outlined"
+        size="small"
+        InputProps={{
+          readOnly: true,
+        }}
+      />
+    </FormControl>
+  </Grid>
+  <Grid item xs={12} sm={6}>
+    <FormControl component="fieldset">
+      <Typography variant="body2" sx={{ mb: 1 }}>
+        Zone Status
+      </Typography>
+      <RadioGroup row aria-label="zone-status" name="zone-status" defaultValue="active">
+        <FormControlLabel value="active" control={<Radio />} label="Active" />
+        <FormControlLabel value="inactive" control={<Radio />} label="Inactive" />
+      </RadioGroup>
+    </FormControl>
+  </Grid>
+
+  <Grid item xs={12}>
+    <Box display="flex" justifyContent="flex-end">
+      <Button variant="contained" color="primary" onClick={() => setIsAddZoneClicked(true)}>
+        Add Zone
+      </Button>
+    </Box>
+  </Grid>
+
+  {/* Conditionally render the dropdown based on a state, for example: */}
+  {isAddZoneClicked && (
+    <Grid item xs={12}>
+      <FormControl fullWidth size="small">
+        <InputLabel id="select-zone-label">Select New Zone</InputLabel>
+        <Select
+          labelId="select-zone-label"
+          id="select-zone"
+          value={selectedNewZone}
+          label="Select New Zone"
+          onChange={(e) => setSelectedNewZone(e.target.value)}
+        >
+          <MenuItem value={"Zone A"}>Zone A</MenuItem>
+          <MenuItem value={"Zone B"}>Zone B</MenuItem>
+          <MenuItem value={"Zone C"}>Zone C</MenuItem>
+        </Select>
+      </FormControl>
+    </Grid>
+  )}
+</Grid>
+                  )}
+
                   {/* Change user status */}
-                  {innerTabValue === 3 && (
+                  {innerTabValue === 4 && (
                     <FormControl component="fieldset" sx={{ mt: 2 }}>
                       <Typography variant="body2" sx={{ mb: 1 }}>
                         User Status

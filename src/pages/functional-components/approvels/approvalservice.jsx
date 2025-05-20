@@ -158,7 +158,7 @@ class approvalservice {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${approvalservice.BASE_URL}/user-access/tso-admin/saverole`,
+        `${approvalservice.BASE_URL}/user-access/tso-admin/save-role-assign`,
         payload, // Send payload as the body
         {
           headers: {
@@ -180,7 +180,7 @@ class approvalservice {
   static async allroles() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/api/roles`, {
+      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/api/fetch/roles`, {
         headers: {
           Authorization: `Bearer ${token}` // Ensure token is included
         }
@@ -197,7 +197,7 @@ class approvalservice {
   static async allschmes() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/api/schemes`, {
+      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/api/fetch/schemes`, {
         headers: {
           Authorization: `Bearer ${token}` // Ensure token is included
         }
@@ -213,7 +213,7 @@ class approvalservice {
   static async allrolesBySchems(schemeId) {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/api/schemes/${schemeId}/roles`, {
+      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/api/fetch/schemes/${schemeId}/roles`, {
         headers: {
           Authorization: `Bearer ${token}` // Ensure token is included
         }

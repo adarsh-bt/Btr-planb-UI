@@ -12,6 +12,9 @@ import ListItemText from '@mui/material/ListItemText';
 import EditOutlined from '@ant-design/icons/EditOutlined';
 import UserOutlined from '@ant-design/icons/UserOutlined';
 
+import Swal from 'sweetalert2';
+import authservice from 'pages/authentication/services/authservice';
+
 export default function ProfileTab() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const navigate = useNavigate();
@@ -19,6 +22,22 @@ export default function ProfileTab() {
   const handleListItemClick = (index, path) => {
     setSelectedIndex(index);
     navigate(path); // Use React Router for navigation
+  };
+
+
+    const handleLogout = () => {
+    Swal.fire({
+      title: 'Are you sure?',
+      text: 'You are about to log out!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, log me out',
+      cancelButtonText: 'Cancel',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        authservice.logout(navigate);  // Proceed with logout
+      }
+    });
   };
 
   return (
@@ -31,7 +50,7 @@ export default function ProfileTab() {
         <ListItemText primary="View Profile" />
       </ListItemButton>
 
-      <ListItemButton selected={selectedIndex === 0} onClick={() => handleListItemClick(0, '/apps/profiles/user/personal')}>
+      <ListItemButton selected={selectedIndex === 0} onClick={handleLogout}>
         <ListItemIcon>
           <EditOutlined />
         </ListItemIcon>

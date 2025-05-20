@@ -1,250 +1,289 @@
-// material-ui
-import React, { useState, useEffect } from 'react';
-import Breadcrumbs from '@mui/material/Breadcrumbs';
-import Divider from '@mui/material/Divider';
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
-import UniqueVisitorCard from 'pages/dashboard/UniqueVisitorCard';
-import OrderTable from 'pages/dashboard/OrdersTable';
-// project import
-import MainCard from 'components/MainCard';
-import authservice from 'pages/authentication/services/authservice';
-import { Container, TextField, Button, Grid, Tabs, Tab, Typography, Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
+import React, { useState } from 'react';
+import {
+  Container,
+  Typography,
+  TextField,
+  Tabs,
+  Tab,
+  Box,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  Button,
+  Paper,
+  Grid,
+} from '@mui/material';
+import { styled } from '@mui/system';
+import { makeStyles } from '@mui/styles';
 
-// ==============================|| COMPONENTS - TYPOGRAPHY ||============================== //
+// Custom styles using MUI's styled API
+const FormHeader = styled('div')(({ theme }) => ({
+  display: 'grid',
+  gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', // Initial columns for Tab 1
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: theme.spacing(0.5),
+  fontWeight: 600,
+  fontSize: theme.typography.pxToRem(12),
+  color: theme.palette.grey[700],
+  [theme.breakpoints.up('sm')]: {
+    gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', // Adjust for larger screens if needed
+  },
+}));
 
+const FormHeaderCell = styled('div')({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  wordWrap: 'break-word',
+});
 
+const FormInput = styled(TextField)(({ theme }) => ({
+  border: `1px solid ${theme.palette.grey[200]}`,
+  borderRadius: theme.shape.borderRadius,
+  padding: theme.spacing(0.5),
+  fontSize: theme.typography.pxToRem(12),
+  width: '100%',
+  boxSizing: 'border-box',
+  '&:focus': {
+    outline: 'none',
+    borderColor: theme.palette.primary.main,
+    boxShadow: `0 0 0 0.15rem ${theme.palette.primary[200]}`,
+  },
+  '& .MuiInputBase-input': { // Adjust MUI input base styles
+    padding: theme.spacing(0.75, 1), // Adjust padding inside the input
+    fontSize: theme.typography.pxToRem(14), // Adjust input text size
+  },
+}));
 
-function WorkAllocationStatement() {
-    const [tabIndex, setTabIndex] = useState(0);
-    const [result, setResult] = useState(null);
-    const [data, setData] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+const StyledTab = styled(Tab)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: theme.spacing(1, 2),
+  fontSize: theme.typography.pxToRem(14),
+  fontWeight: 500,
+  color: theme.palette.grey[700],
+  cursor: 'pointer',
+  borderBottom: `2px solid transparent`,
+  transition: 'border-color 0.15s ease-in-out, color 0.15s ease-in-out',
+  '&:hover': {
+    borderBottomColor: theme.palette.primary.main,
+    color: theme.palette.primary.main,
+  },
+  '&.Mui-selected': {
+    borderBottomColor: theme.palette.primary.main,
+    color: theme.palette.primary.main,
+    fontWeight: 600,
+  },
+}));
 
-    const [inputData, setInputData] = useState([]); // For user-entered values
+const TabContent = styled('div')({
+  display: 'none',
+  '&.active': {
+    display: 'block',
+  },
+});
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                const user_id = authservice.userid();
-            
-                const response = await fetch(`http://localhost:8082/btr-service/btr-api/zone-details/${user_id}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
+// Definition for StyledTabs
+const StyledTabs = styled(Tabs)(({ theme }) => ({
+  borderBottom: `1px solid ${theme.palette.grey[200]}`,
+  marginBottom: theme.spacing(1.5),
+}));
 
-                if (!response.ok) throw new Error("Failed to fetch data");
+function WorkAllocationForm() {
+  const [district, setDistrict] = useState('');
+  const [activeTab, setActiveTab] = useState('tab1');
+  const [areaDetailsRows, setAreaDetailsRows] = useState([{}]);
+  const [forestDetailsRows, setForestDetailsRows] = useState([{}]);
+  const [otherDetailsRows, setOtherDetailsRows] = useState([{}]);
 
-                const result = await response.json();
-                setResult(result.payload);
-                setData(result.payload.data);
-                console.log("ressss>> ",result.payload)
-                // Initialize input state with default 0s for each entry
-                const initialized = result.payload.data.map(item => ({
-                    name: item.p_name,
-                    wet: 0,
-                    dry: 0,
-                    total: 0,
-                    forestA: 0,
-                    forestB: 0,
-                    forestC: 0,
-                    forestTotal: 0
-                }));
-                setInputData(result.payload.data);
-                console.log("innn", result.payload.data)
-            } catch (err) {
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
-    }, []);
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+  };
 
-    const handleTabChange = (event, newValue) => {
-        setTabIndex(newValue);
+  const handleAddRow = () => {
+    if (activeTab === 'tab1') {
+      setAreaDetailsRows([...areaDetailsRows, {}]);
+    } else if (activeTab === 'tab2') {
+      setForestDetailsRows([...forestDetailsRows, {}]);
+    } else if (activeTab === 'tab3') {
+      setOtherDetailsRows([...otherDetailsRows, {}]);
+    }
+  };
+
+  const handleSubmit = () => {
+    const formData = {
+      district,
+      areaDetails: areaDetailsRows,
+      forestDetails: forestDetailsRows,
+      otherDetails: otherDetailsRows,
     };
+    console.log(JSON.stringify(formData, null, 2));
+    alert('Form data has been logged to the console. Check the console to see the data.');
+    // In a real application, you would send this data to your server
+  };
 
-    const handleInputChange = (index, field, value) => {
-        const updated = [...inputData];
-        updated[index][field] = Number(value);
-        if (tabIndex === 0) {
-            updated[index].total = updated[index].wet + updated[index].dry;
-        } else {
-            updated[index].forestTotal = updated[index].forestA + updated[index].forestB + updated[index].forestC;
-        }
-        setInputData(updated);
-    };
+  const renderAreaDetailsTable = () => (
+    <Table size="small">
+      <TableHead sx={{ backgroundColor: 'grey.50' }}>
+        <TableRow>
+          <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Block (1)</TableCell>
+          <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Panchayat / Municipality / Corporation Zone (2)</TableCell>
+          <TableCell align="center" colSpan={3} sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Area as per village records (in cents)</TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell></TableCell>
+          <TableCell></TableCell>
+          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Wet (3)</TableCell>
+          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Dry (4)</TableCell>
+          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Total (5)</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {areaDetailsRows.map((row, index) => (
+          <TableRow key={index}>
+            <TableCell><FormInput name={`block[${index}]`} size="small" placeholder="Enter Block" /></TableCell>
+            <TableCell><FormInput name={`panchayat[${index}]`} size="small" placeholder="Enter Panchayat" /></TableCell>
+            <TableCell><FormInput name={`area_wet[${index}]`} size="small" placeholder="Wet" /></TableCell>
+            <TableCell><FormInput name={`area_dry[${index}]`} size="small" placeholder="Dry" /></TableCell>
+            <TableCell><FormInput name={`area_total[${index}]`} size="small" placeholder="Total" /></TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
 
-    const getZoneTotals = (field) =>
-        inputData.reduce((sum, item) => sum + (item[field] || 0), 0);
+  const renderForestDetailsTable = () => (
+    <Table size="small">
+      <TableHead sx={{ backgroundColor: 'grey.50' }}>
+        <TableRow>
+          <TableCell align="center" colSpan={3} sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Forest Area as per village records (in cents)</TableCell>
+          <TableCell align="center" colSpan={2} sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Area under plantation (in cents)</TableCell>
+          <TableCell align="center" rowSpan={2} sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Forest Area excluded from Village records if any (in cents) (11)</TableCell>
+          <TableCell align="center" rowSpan={2} sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Kayal excluded from EARAS Survey (in cents) (12)</TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>A (6)</TableCell>
+          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>B (7)</TableCell>
+          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>C (8)</TableCell>
+          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Under Cultivation (9)</TableCell>
+          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Not Under Cultivation (10)</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {forestDetailsRows.map((row, index) => (
+          <TableRow key={index}>
+            <TableCell><FormInput name={`forest_a[${index}]`} size="small" placeholder="A" /></TableCell>
+            <TableCell><FormInput name={`forest_b[${index}]`} size="small" placeholder="B" /></TableCell>
+            <TableCell><FormInput name={`forest_c[${index}]`} size="small" placeholder="C" /></TableCell>
+            <TableCell><FormInput name={`plantation_under[${index}]`} size="small" placeholder="Under" /></TableCell>
+            <TableCell><FormInput name={`plantation_not_under[${index}]`} size="small" placeholder="Not Under" /></TableCell>
+            <TableCell><FormInput name={`forest_excluded[${index}]`} size="small" /></TableCell>
+            <TableCell><FormInput name={`kayal_excluded[${index}]`} size="small" /></TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
 
-    if (loading) return <Typography>Loading...</Typography>;
-    if (error) return <Typography color="error">Error: {error}</Typography>;
+  const renderOtherDetailsTable = () => (
+    <Table size="small">
+      <TableHead sx={{ backgroundColor: 'grey.50' }}>
+        <TableRow>
+          <TableCell align="center" colSpan={3} sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Others excluded from EARAS Survey (in cents)</TableCell>
+          <TableCell align="center" colSpan={3} sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>No. of Plots for Estimation purpose</TableCell>
+          <TableCell align="center" colSpan={3} sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Total Area for Estimation Purpose (in cents)</TableCell>
+          <TableCell align="left" rowSpan={2} sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Remarks (23)</TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Dry (13)</TableCell>
+          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Wet (14)</TableCell>
+          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Total (15)</TableCell>
+          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Dry (16)</TableCell>
+          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Wet (17)</TableCell>
+          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Total (18)</TableCell>
+          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Dry (19)</TableCell>
+          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Total (20)</TableCell>
+          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Dry (21)</TableCell>
+          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: 'grey.500' }}>Total (22)</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {otherDetailsRows.map((row, index) => (
+          <TableRow key={index}>
+            <TableCell><FormInput name={`others_dry_13[${index}]`} size="small" placeholder="Dry" /></TableCell>
+            <TableCell><FormInput name={`others_wet_14[${index}]`} size="small" placeholder="Wet" /></TableCell>
+            <TableCell><FormInput name={`others_total[${index}]`} size="small" placeholder="Total" /></TableCell>
+            <TableCell><FormInput name={`plots_dry_16[${index}]`} size="small" placeholder="Dry" /></TableCell>
+            <TableCell><FormInput name={`plots_wet_17[${index}]`} size="small" placeholder="Wet" /></TableCell>
+            <TableCell><FormInput name={`plots_total[${index}]`} size="small" placeholder="Total" /></TableCell>
+            <TableCell><FormInput name={`total_area_dry_19[${index}]`} size="small" placeholder="Dry" /></TableCell>
+            <TableCell><FormInput name={`total_area_total_20[${index}]`} size="small" placeholder="Total" /></TableCell>
+            <TableCell><FormInput name={`total_area_dry_21[${index}]`} size="small" placeholder="Dry" /></TableCell>
+            <TableCell><FormInput name={`total_area_total_22[${index}]`} size="small" placeholder="Total" /></TableCell>
+            <TableCell><FormInput name={`remarks[${index}]`} size="small" placeholder="Enter Remarks" /></TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
 
-    return (
-        <Container sx={{ mt: 4 }}>
-            <Grid container spacing={3}>
-                <Grid item xs={12}>
-                    <Stack spacing={3}>
-                        <MainCard title="Work Allocation Statement">
-                            <Typography variant="h4" align="center" sx={{ mb: 3 }}>
-                                Work Allocation Report
-                            </Typography>
-
-                            <form>
-                                {/* Auto-filled Zone Info */}
-                                <Grid container spacing={3} sx={{ mb: 3 }}>
-                                    <Grid item xs={12} md={4}>
-                                        <TextField label="District" variant="outlined" fullWidth value={result.district || ''} />
-                                    </Grid>
-                                    <Grid item xs={12} md={4}>
-                                        <TextField label="Taluk" variant="outlined" fullWidth value={result.taluk || ''}  />
-                                    </Grid>
-                                    <Grid item xs={12} md={4}>
-                                        <TextField label="Zone" variant="outlined" fullWidth value={result.zone_name || ''}/>
-                                    </Grid>
-                                </Grid>
-
-                                {/* Tabs */}
-                                <Tabs value={tabIndex} onChange={handleTabChange} indicatorColor="primary" textColor="primary" centered>
-                                    <Tab label="Area as per village records (in acres)" />
-                                    <Tab label="Forest Area" />
-                                </Tabs>
-
-                                <Box sx={{ mt: 3 }}>
-                                    {/* Area Table */}
-                                    {tabIndex === 0 && (
-                                        <TableContainer component={Paper}>
-                                            <Table>
-                                                <TableHead>
-                                                    <TableRow>
-                                                        <TableCell>Panchayat</TableCell>
-                                                        <TableCell>Wet</TableCell>
-                                                        <TableCell>Dry</TableCell>
-                                                        <TableCell>Total</TableCell>
-                                                    </TableRow>
-                                                </TableHead>
-                                                <TableBody>
-                                                    {inputData.map((row, index) => (
-                                                        <TableRow key={index}>
-                                                            <TableCell>{row.p_name}</TableCell>
-                                                            <TableCell>
-                                                                <TextField
-                                                                    type="number"
-                                                                    fullWidth
-                                                                    value={row.Wet_area}
-                                                                    onChange={(e) => handleInputChange(index, 'wet', e.target.value)}
-                                                                />
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <TextField
-                                                                    type="number"
-                                                                    fullWidth
-                                                                    value={row.Dry_area}
-                                                                    onChange={(e) => handleInputChange(index, 'dry', e.target.value)}
-                                                                />
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <TextField
-                                                                    type="number"
-                                                                    fullWidth
-                                                                    value={row.Total_area}
-                                                                    disabled
-                                                                />
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                    <TableRow>
-                                                        <TableCell><b>Zone Total</b></TableCell>
-                                                        <TableCell><TextField fullWidth value={result.totalWetArea.toFixed(2)} /></TableCell>
-                                                        <TableCell><TextField fullWidth value={result.totalDryArea.toFixed(2)} /></TableCell>
-                                                        <TableCell><TextField fullWidth value={result.totalArea.toFixed(2)} /></TableCell>
-                                                    </TableRow>
-                                                </TableBody>
-                                            </Table>
-                                        </TableContainer>
-                                    )}
-
-                                    {/* Forest Area Table */}
-                                    {tabIndex === 1 && (
-                                        <TableContainer component={Paper}>
-                                            <Table>
-                                                <TableHead>
-                                                    <TableRow>
-                                                        <TableCell>Panchayat</TableCell>
-                                                        <TableCell>A</TableCell>
-                                                        <TableCell>B</TableCell>
-                                                        <TableCell>C</TableCell>
-                                                        <TableCell>Total</TableCell>
-                                                    </TableRow>
-                                                </TableHead>
-                                                <TableBody>
-                                                    {inputData.map((row, index) => (
-                                                        <TableRow key={index}>
-                                                            <TableCell>{row.name}</TableCell>
-                                                            <TableCell>
-                                                                <TextField
-                                                                    type="number"
-                                                                    fullWidth
-                                                                    value={row.forestA}
-                                                                    onChange={(e) => handleInputChange(index, 'forestA', e.target.value)}
-                                                                />
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <TextField
-                                                                    type="number"
-                                                                    fullWidth
-                                                                    value={row.forestB}
-                                                                    onChange={(e) => handleInputChange(index, 'forestB', e.target.value)}
-                                                                />
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <TextField
-                                                                    type="number"
-                                                                    fullWidth
-                                                                    value={row.forestC}
-                                                                    onChange={(e) => handleInputChange(index, 'forestC', e.target.value)}
-                                                                />
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <TextField
-                                                                    type="number"
-                                                                    fullWidth
-                                                                    value={row.forestTotal}
-                                                                    disabled
-                                                                />
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                    <TableRow>
-                                                        <TableCell><b>Zone Total</b></TableCell>
-                                                        <TableCell><TextField fullWidth value={getZoneTotals('forestA')} disabled /></TableCell>
-                                                        <TableCell><TextField fullWidth value={getZoneTotals('forestB')} disabled /></TableCell>
-                                                        <TableCell><TextField fullWidth value={getZoneTotals('forestC')} disabled /></TableCell>
-                                                        <TableCell><TextField fullWidth value={getZoneTotals('forestTotal')} disabled /></TableCell>
-                                                    </TableRow>
-                                                </TableBody>
-                                            </Table>
-                                        </TableContainer>
-                                    )}
-                                </Box>
-
-                                {/* Submit Button */}
-                                <Box sx={{ textAlign: 'center', mt: 4 }}>
-                                    <Button variant="contained" color="primary" type="submit">Submit</Button>
-                                </Box>
-                            </form>
-                        </MainCard>
-                    </Stack>
-                </Grid>
-            </Grid>
-        </Container>
-    );
+  return (
+    <Container maxWidth="xl" sx={{ py: 8 }}>
+      <Paper elevation={3} sx={{ p: 3 }}>
+        <Typography variant="h6" gutterBottom align="center">
+          WORK ALLOCATION STATEMENT
+        </Typography>
+        <TextField
+          fullWidth
+          label="District"
+          id="district"
+          name="district"
+          value={district}
+          onChange={(e) => setDistrict(e.target.value)}
+          margin="normal"
+          size="small"
+        />
+        <StyledTabs value={activeTab} onChange={handleTabChange} aria-label="work allocation tabs">
+          <StyledTab label="Area Details" value="tab1" />
+          <StyledTab label="Forest Details" value="tab2" />
+          <StyledTab label="Other Details" value="tab3" />
+        </StyledTabs>
+        <Box sx={{ overflowX: 'auto', mb: 2 }}>
+          {activeTab === 'tab1' && (
+            <TabContent className={activeTab === 'tab1' ? 'active' : ''}>
+              {renderAreaDetailsTable()}
+            </TabContent>
+          )}
+          {activeTab === 'tab2' && (
+            <TabContent className={activeTab === 'tab2' ? 'active' : ''}>
+              {renderForestDetailsTable()}
+            </TabContent>
+          )}
+          {activeTab === 'tab3' && (
+            <TabContent className={activeTab === 'tab3' ? 'active' : ''}>
+              {renderOtherDetailsTable()}
+            </TabContent>
+          )}
+        </Box>
+        <Grid container spacing={2} justifyContent="flex-end">
+          <Grid item>
+            <Button variant="contained" color="primary" onClick={handleAddRow}>
+              Add Row
+            </Button>
+          </Grid>
+          <Grid item>
+            <Button variant="contained" color="success" onClick={handleSubmit}>
+              Submit
+            </Button>
+          </Grid>
+        </Grid>
+      </Paper>
+    </Container>
+  );
 }
 
-export default WorkAllocationStatement;
-
+export default WorkAllocationForm;

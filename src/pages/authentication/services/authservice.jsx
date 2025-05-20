@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { InvalidTokenError, jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
-import { encrypt } from './encryptionUtils';
+import { encryptData , decryptData } from './encryptionUtils';
 
 import mainapi from 'api/mainapi';
 
@@ -12,42 +12,41 @@ class authservice {
 
 
     static async login(userLogin) {
-        try {
-            console.log("user login ",userLogin)
-            const userEncrypted = encrypt(JSON.stringify(userLogin));
-         
+    try {
+        const encrypted = encryptData(JSON.stringify(userLogin));
 
-            console.log("usercncry : ",userEncrypted);
-            const response = await axios.post(`${authservice.BASE_URL}/user-access/api/login`,userEncrypted,
-                {
-                headers: {
-                    'Content-Type': 'text/plain'
-                }}
-            );
-            localStorage.setItem('token', response.data.payload.token);
-            localStorage.setItem('user', response.data.payload.username);
-            return response.data;  // Return the data when the response is successful
-        } catch (err) {
-           
-            if (err.response) {
-               
-                return {
-                    message: err.response.data.message || 'Unknown error from backend'
-                };
-            } else if (err.request) {
-               
-                return {
-                    message: 'Sorry, Please try again later'
-                };
-            } else {
-                // For any other errors (e.g., request setup issues)
-                return {
-                    message: err.message || 'An unknown error occurred'
-                };
+        const response = await axios.post(`${authservice.BASE_URL}/user-access/api/login`, encrypted, {
+            headers: {
+                'Content-Type': 'text/plain'
             }
+        });
+
+        // Decrypt the response here
+        const decryptedJson = decryptData(response.data);
+        const responseData = JSON.parse(decryptedJson);
+
+        // Store token/user
+        localStorage.setItem('token', responseData.payload.token);
+        localStorage.setItem('user', responseData.payload.username);
+
+        return responseData;
+    } catch (err) {
+        if (err.response) {
+            return {
+                message: err.response.data.message || 'Unknown error from backend'
+            };
+        } else if (err.request) {
+            return {
+                message: 'Sorry, Please try again later'
+            };
+        } else {
+            return {
+                message: err.message || 'An unknown error occurred'
+            };
         }
     }
-    
+}
+
 
     static async registration(userData) {
         try {
@@ -127,6 +126,38 @@ class authservice {
   static gettoken() {
     return localStorage.getItem('token');
   }
+
+static hasAllowedRole() {
+  const token = localStorage.getItem('token');
+  if (!token) return false;
+
+  try {
+    const decoded = jwtDecode(token);
+    let userRoles = decoded.roles;
+
+    // Normalize roles into an array
+    if (typeof userRoles === 'string') {
+      userRoles = [userRoles];
+    } else if (!Array.isArray(userRoles)) {
+      return false; // Unexpected format
+    }
+
+    const allowedRoles = new Set([
+      'Taluk Level Approver',
+      'District Level Approver',
+      'Super Admin',
+      'State Level Approver',
+      'IT Admin'
+    ]);
+
+    return userRoles.some(role => allowedRoles.has(role));
+  } catch (error) {
+    console.error('Invalid token:', error);
+    return false;
+  }
+}
+
+
 }
 
 export default authservice;
