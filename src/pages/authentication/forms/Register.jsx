@@ -162,11 +162,11 @@ const Register = ({ onBack }) => {
         return (!dateOfBirth || new Date(dateOfBirth) > new Date()) ? 'Date of Birth cannot be in the future.' : null;
       case 'idNumber':
         if (idType === 'PEN') {
-          if (!penNumber) return 'PEN Number is required.';
+          if (!penNumber) return 'PEN/TEN Number is required.';
           return penNumber.length !== 10 ? 'PEN Number must be exactly 10 characters.' : null;
         }
         if (idType === 'TEN') {
-          if (!tenNumber) return 'TEN Number is required.';
+          if (!tenNumber) return 'PEN/TEN Number is required.';
           return (tenNumber.length < 6 || tenNumber.length > 10) ? 'TEN Number must be between 6 and 10 characters.' : null;
         }
         return null;
