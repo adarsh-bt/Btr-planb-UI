@@ -6,6 +6,7 @@ import DataTable from 'react-data-table-component';
 import Swal from "sweetalert2";
 
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+import VerifiedIcon from '@mui/icons-material/Verified';
 
 
 import {
@@ -66,14 +67,12 @@ const columns = (handleEdit) => [
     {
       name: 'Action',
       cell: (row) => (
-        <Button
-         
-          color="success" // Green color for the button
-         
-          onClick={() => handleEdit(row)} // Call edit function on click
-        >
-          <ManageAccountsIcon />
-        </Button>
+       <Button
+  color="success" // Green color for the button
+  onClick={row.approvalStatus === "Approved" ? null : () => handleEdit(row)} // Conditionally disable the click handler
+>
+  {row.approvalStatus === "Approved" ? <VerifiedIcon /> : <ManageAccountsIcon />}
+</Button>
       ),
     },
   ];
@@ -403,7 +402,7 @@ useEffect(() => {
       if (!data || data.length === 0) {
         const response = await approvalservice.superadmin_approval();
         console.log("api response >> ", response.payload);
-        setUserList(response.payload || []);
+        setUserList(response.payload.directorateUsersy || []);
     
     
     }else{
