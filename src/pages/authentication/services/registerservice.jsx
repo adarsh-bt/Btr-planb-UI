@@ -2,8 +2,8 @@ import axios from 'axios';
 import mainapi from 'api/mainapi';
 
 const RegisterService = {
-  // BASE_URL: mainapi.USER_API,
-  BASE_URL: 'http://localhost:9113',
+  BASE_URL: mainapi.USER_API,
+  // BASE_URL: 'http://localhost:8081/user-access',
 
   async getDistricts() {
     try {

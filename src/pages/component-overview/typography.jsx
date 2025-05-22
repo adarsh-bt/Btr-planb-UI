@@ -123,9 +123,9 @@ function WorkAllocationStatement() {
                                                 <TableHead>
                                                     <TableRow>
                                                         <TableCell>Panchayat</TableCell>
-                                                        <TableCell>Wet</TableCell>
-                                                        <TableCell>Dry</TableCell>
-                                                        <TableCell>Total</TableCell>
+                                                        <TableCell>Wet in Ac</TableCell>
+                                                        <TableCell>Dry in Ac</TableCell>
+                                                        <TableCell>Total in Ac</TableCell>
                                                     </TableRow>
                                                 </TableHead>
                                                 <TableBody>

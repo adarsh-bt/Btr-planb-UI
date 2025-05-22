@@ -29,12 +29,12 @@ const columns = (handleEdit,handleView) => [
   // { name: 'District', selector: (row) => row.dcode, sortable: true },
   // { name: 'Taluk', selector: (row) => row.tcode, sortable: true },
   // { name: 'Village', selector: (row) => row.vcode, sortable: true },
+  { name: 'Panchayth', selector: (row) => row.lbtype?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
   { name: 'Village', selector: (row) => row.villageName?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
   { name: 'Block', selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  { name: 'Survey No', selector: (row) => row.resvno?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'Re-Survey No', selector: (row) => row.resvno?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
   { name: 'Sub Div No', selector: (row) => row.resbdno?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  { name: 'Name of Owner', selector: (row) => row.lbtype?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  { name: 'Address', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  // { name: 'Address', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
   // { name: 'Address', selector: (row) => row.lbcode, sortable: true },
  
   { name: 'Land Type', selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
@@ -182,19 +182,23 @@ useEffect(() => {
     console.log("fli",filterText)
 }, [page, size, filterText]);
 
+
+
   return (
     <Grid container spacing={3}>
       <Breadcrumb></Breadcrumb>
       <Grid item xs={12}>
  
       <Paper elevation={3} style={{ marginBottom: '16px', padding: '10px' }}>
+      
         <Stack direction="row" justifyContent="space-between" alignItems="center">
+        
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
-            Basic Tax Register (RELIS)
+            Basic Tax Register 
           </Typography> 
-           <Typography variant="body1" component="p" sx={{ color: 'green'}}>Total Wet : {totalWetArea} ac</Typography>
-           <Typography variant="body1" component="p" sx={{ color: 'blue'}}>Total Dry : {totalDryArea} ac</Typography>
-           <Typography variant="body1" component="p" sx={{ color: '#04255e'}}>Total Area : {totalArea} ac</Typography>
+           <Typography variant="body1" component="p" sx={{ color: 'green'}}>Total Wet : {totalWetArea} Ac</Typography>
+           <Typography variant="body1" component="p" sx={{ color: 'red'}}>Total Dry : {totalDryArea} Ac</Typography>
+           <Typography variant="body1" component="p" sx={{ color: '#04255e'}}>Total Area : {totalArea} Ac</Typography>
 
 
            <Button
@@ -216,7 +220,7 @@ useEffect(() => {
     },
   }}
 >
-  {downloading ? 'Downloading...' : 'Download Excel'}
+  {downloading ? 'Downloading...' : 'Download'}
 </Button>
 
 
