@@ -29,16 +29,14 @@ const Register = ({ onBack }) => {
   const [penNumber, setPenNumber] = useState('');
   const [tenNumber, setTenNumber] = useState('');
   const [designation, setDesignation] = useState('');
-  const [designation_id, setDesignationId] = useState(null); // Store the desigantion Id
   const [dateOfJoining, setDateOfJoining] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
 
   const [districts, setDistricts] = useState([]);
-  const [selectedDistrict, setSelectedDistrict] = useState(null); // Store the entire district object
+  const [selectedDistrict, setSelectedDistrict] = useState(null);
   const [taluks, setTaluks] = useState([]);
-  const [selectedTaluk, setSelectedTaluk] = useState(null); // Store the entire taluk object
+  const [selectedTaluk, setSelectedTaluk] = useState(null);
   const [loadingDistricts, setLoadingDistricts] = useState(false);
-  const [loadingTaluks, setLoadingTaluks] = useState(false);
 
   const [designations, setDesignations] = useState([]);
 
@@ -47,21 +45,20 @@ const Register = ({ onBack }) => {
 
   const [loading, setLoading] = useState(false);
 
-  const [districtId, setDistrictId] = useState(null); // Initialize to null
-  const [talukId, setTalukId] = useState(null); // Initialize to null
-  const [officeType, setOfficeType] = useState(''); // Initialize to empty string
+  const [districtId, setDistrictId] = useState(null);
+  const [talukId, setTalukId] = useState(null);
+  const [officeType, setOfficeType] = useState('');
 
   const [errors, setErrors] = useState({
-    fullName: false,
-    email: false,
-    phone: false,
-    designation: false,
-    designation_id: false,
-    dateOfJoining: false,
-    dateOfBirth: false,
-    idNumber: false,
-    office: false,
-    taluk: false
+    fullName: '',
+    email: '',
+    phone: '',
+    designation: '',
+    dateOfJoining: '',
+    dateOfBirth: '',
+    idNumber: '',
+    district: '',
+    office: '',
   });
 
   const today = new Date().toISOString().split('T')[0];
@@ -91,12 +88,12 @@ const Register = ({ onBack }) => {
         if (response.payload && Array.isArray(response.payload)) {
           setDistricts(response.payload);
         } else {
-          setErrors(response.message || 'Failed to fetch districts: Invalid data format.');
+          setErrorMessage(response.message || 'Failed to fetch districts: Invalid data format.');
         }
       } catch (err) {
-        setErrors('Failed to fetch districts: ' + err.message);
+        setErrorMessage('Failed to fetch districts: ' + err.message);
       } finally {
-        // setLoadingDistricts(false);
+        setLoadingDistricts(false);
       }
     };
 
@@ -106,18 +103,15 @@ const Register = ({ onBack }) => {
   useEffect(() => {
     const fetchTaluks = async () => {
       if (selectedDistrict) {
-        // setLoadingTaluks(true);
         try {
           const response = await RegisterService.getTaluks(selectedDistrict.distId);
           if (response.payload && Array.isArray(response.payload)) {
             setTaluks(response.payload);
           } else {
-            setError(response.message || 'Failed to fetch taluks: Invalid data format.');
+            setErrorMessage(response.message || 'Failed to fetch taluks: Invalid data format.');
           }
         } catch (err) {
-          setError('Failed to fetch taluks: ' + err.message);
-        } finally {
-          // setLoadingTaluks(false);
+          setErrorMessage('Failed to fetch taluks: ' + err.message);
         }
       } else {
         setTaluks([]);
@@ -128,13 +122,124 @@ const Register = ({ onBack }) => {
     fetchTaluks();
   }, [selectedDistrict]);
 
+
+
+
+
+  const filteredTaluks = selectedDistrict
+    ? [
+        { id: selectedDistrict.distId, label: selectedDistrict.distOfficeNameEn },
+        ...(selectedDistrict.distId === 1
+          ? [
+              { id: 1, label: 'Directorate Office' }
+            ]
+          : []),
+        ...taluks.map((taluk) => ({
+          id: taluk.desTalukId,
+          label: taluk.talukOfficeNameEn
+        }))
+      ]
+    : [];
+
+
+
+  const validateField = (field) => {
+    switch (field) {
+      case 'fullName':
+        return !fullName ? 'Full Name is required.' : null;
+      case 'email':
+        if (!email) return 'Email Address is required.';
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        return !emailRegex.test(email) ? 'Invalid email format.' : null;
+      case 'phone':
+        if (!phone) return 'Phone Number is required.';
+        return !/^\d{10}$/.test(phone) ? 'Phone Number must be exactly 10 digits.' : null;
+      case 'designation':
+        return !designation ? 'Designation is required.' : null;
+      case 'dateOfJoining':
+        return (!dateOfJoining || new Date(dateOfJoining) > new Date()) ? 'Date of Joining cannot be in the future.' : null;
+      case 'dateOfBirth':
+        return (!dateOfBirth || new Date(dateOfBirth) > new Date()) ? 'Date of Birth cannot be in the future.' : null;
+      case 'idNumber':
+        if (idType === 'PEN') {
+          if (!penNumber) return 'PEN Number is required.';
+          return penNumber.length !== 10 ? 'PEN Number must be exactly 10 characters.' : null;
+        }
+        if (idType === 'TEN') {
+          if (!tenNumber) return 'TEN Number is required.';
+          return (tenNumber.length < 6 || tenNumber.length > 10) ? 'TEN Number must be between 6 and 10 characters.' : null;
+        }
+        return null;
+      case 'district':
+        return !selectedDistrict ? 'Please select a District.' : null;
+      case 'office':
+        return !selectedTaluk ? 'Please select an Office.' : null;
+      default:
+        return null;
+    }
+  };
+
+const handleFullNameChange = (e) => {
+    const value = e.target.value;
+    if (/^[A-Za-z\s.]*$/.test(value) && value.length <= 32) {
+      setFullName(value);
+      setErrors(prevErrors => ({ ...prevErrors, fullName: '' })); // Clear error
+    }
+  };
+
+  const handleEmailChange = (e) => {
+    if (e.target.value.length <= 256) {
+      setEmail(e.target.value);
+      setErrors(prevErrors => ({ ...prevErrors, email: '' })); // Clear error
+    }
+  };
+
+  const handlePhoneChange = (e) => {
+    const value = e.target.value;
+    if (/^\d*$/.test(value) && value.length <= 10) {
+      setPhone(value);
+      setErrors(prevErrors => ({ ...prevErrors, phone: '' })); // Clear error
+    }
+  };
+
+  const handlePenChange = (e) => {
+    const value = e.target.value;
+    if (/^\d*$/.test(value)) {
+      setPenNumber(value);
+      setErrors(prevErrors => ({ ...prevErrors, idNumber: '' })); // Clear error
+    }
+  };
+
+  const handleTenChange = (e) => {
+    const value = e.target.value;
+    if (/^\d*$/.test(value)) {
+      setTenNumber(value);
+      setErrors(prevErrors => ({ ...prevErrors, idNumber: '' })); // Clear error
+    }
+  };
+
+  const handleDesignationChange = (e) => {
+    setDesignation(e.target.value);
+    setErrors(prevErrors => ({ ...prevErrors, designation: '' })); // Clear error
+  };
+
+  const handleDateOfJoiningChange = (e) => {
+    setDateOfJoining(e.target.value);
+    setErrors(prevErrors => ({ ...prevErrors, dateOfJoining: '' })); // Clear error
+  };
+
+  const handleDateOfBirthChange = (e) => {
+    setDateOfBirth(e.target.value);
+    setErrors(prevErrors => ({ ...prevErrors, dateOfBirth: '' })); // Clear error
+  };
+
   const handleDistrictChange = (event, newValue) => {
     setSelectedDistrict(newValue);
-    setSelectedTaluk(null); // Reset selectedTaluk when district changes
-    //......//
-    setDistrictId(null); // clear values
+    setSelectedTaluk(null);
+    setDistrictId(null);
     setTalukId(null);
     setOfficeType('');
+    setErrors(prevErrors => ({ ...prevErrors, district: '' })); // Clear error
   };
 
   const handleTalukChange = (event, newValue) => {
@@ -144,141 +249,50 @@ const Register = ({ onBack }) => {
       const label = newValue.label;
 
       if (label?.startsWith('District Office')) {
-        // If the selected value is a district
         setOfficeType('DISTRICT');
-
         setDistrictId(newValue.id);
-        console.log('dist ', newValue.id);
         setTalukId(null);
       } else if (label === 'Directorate Office') {
         setOfficeType('DIRECTORATE');
         setDistrictId(1);
-        console.log('dire ', newValue.id); // Hardcode District ID as 1 for Directorate
         setTalukId(null);
       } else if (label?.startsWith('Taluk Statistical Office')) {
-        // If it's a taluk
         setOfficeType('TALUK');
         setTalukId(newValue.id);
-        console.log('taluk ', newValue.id);
         setDistrictId(null);
       }
+      setErrors(prevErrors => ({ ...prevErrors, office: '' })); // Clear error
     } else {
-      alert('ok');
-      // If nothing is selected, reset values
       setOfficeType('');
       setDistrictId(null);
       setTalukId(null);
+      setErrors(prevErrors => ({ ...prevErrors, office: '' })); // Clear error
     }
   };
 
-  // Modify filteredTaluks to include the district name
-  const filteredTaluks = selectedDistrict
-    ? [
-        { id: selectedDistrict.distId, label: selectedDistrict.distOfficeNameEn },
-        ...(selectedDistrict.distId === 1
-          ? [
-              { id: 1, label: 'Directorate Office' } // Add Directorate Office only for Thiruvananthapuram
-            ]
-          : []),
-        ...taluks.map((taluk) => ({
-          id: taluk.desTalukId,
-          label: taluk.talukOfficeNameEn
-        }))
-      ]
-    : [];
-  // const filteredTaluks = selectedDistrict
-  //   ? [{ name: selectedDistrict.name }, ...selectedDistrict.talukMaster.map((taluk) => ({ name: taluk.talukOfficeNameEn }))]
-  //   : [];
-
-  const handlePenChange = (e) => {
-    const value = e.target.value;
-    if (/^\d*$/.test(value)) { // Only allow digits
-      setPenNumber(value);
-      if (value) setErrors({ ...errors, idNumber: false });
-    }
-  };
-  
-
-  const handleTenChange = (e) => {
-    const value = e.target.value;
-    if (/^\d*$/.test(value)) { // Only allow digits
-      setTenNumber(value);
-      if (value) setErrors({ ...errors, idNumber: false });
-    }
-  };
-
-  const validateField = (field) => {
-    // Return the error message if the field is invalid
-    switch (field) {
-      case 'fullName':
-        if (!fullName) return 'Full Name is required.';
-        return null;
-
-        // const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      case 'email':
-        if (!email) return 'Email Address is required.';
-        // const emailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
-        const emailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
-
-        if (!emailRegex.test(email)) return 'Invalid email format.';
-        return null;
-      case 'phone':
-        if (!phone) return 'Phone Number is required.';
-        if (!/^\d{10}$/.test(phone)) return 'Phone Number must be exactly 10 digits.';
-        return null;
-      case 'designation':
-        if (!designation) return 'Designation is required.';
-        return null;
-      case 'dateOfJoining':
-        if (!dateOfJoining || new Date(dateOfJoining) > new Date()) return 'Date of Joining cannot be in the future.';
-        return null;
-      case 'dateOfBirth':
-        if (!dateOfBirth || new Date(dateOfBirth) > new Date()) return 'Date of Birth cannot be in the future.';
-        return null;
-      case 'idNumber':
-        if (idType === 'PEN') {
-          if (!penNumber) return 'PEN Number is required.';
-          if (penNumber.length !== 10) return 'PEN Number must be exactly 10 characters.';
-          // You can add more specific validation for the PEN number (e.g., check if it's numeric)
-        }
-
-        if (idType === 'TEN') {
-          if (!tenNumber) return 'TEN Number is required.';
-          if (tenNumber.length < 6 || tenNumber.length > 10) return 'TEN Number must be between 6 and 10 characters.';
-        }
-
-        return null;
-      // case 'office':
-      //   if (!office) return 'Office is required.';
-      //   return null;
-      // case 'taluk':
-      //   if (!taluk) return 'Taluk is required.';
-      //   return null;
-      default:
-        return null;
-    }
-  };
 
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
 
-    let fieldErrors = { ...errors };
-    let foundError = false;
+    let newErrors = {};
+    let isValid = true;
 
-    // Validate fields one by one
-    for (let field in fieldErrors) {
-      const errorMessage = validateField(field);
-      if (errorMessage) {
-        fieldErrors[field] = errorMessage;
-        setErrors(fieldErrors);
-        foundError = true;
-        break; // Stop once the first error is found
+    // Validate all fields
+    for (const field in errors) {
+      const message = validateField(field);
+      if (message) {
+        newErrors[field] = message;
+        isValid = false;
       } else {
-        fieldErrors[field] = false; // Clear previous errors
+        newErrors[field] = ''; // Clear any previous error messages
       }
     }
 
-    if (foundError) return; // If there's an error, return and don't proceed
+    setErrors(newErrors);
+
+    if (!isValid) {
+      return; // Stop submission if there are errors
+    }
 
     const idNumber = idType === 'PEN' ? penNumber : tenNumber;
 
@@ -296,16 +310,39 @@ const Register = ({ onBack }) => {
     };
 
     try {
-      console.log('designation id ', designation);
       setLoading(true);
-      const userDatas = await authservice.registration(userData); // Add await to resolve the Promise
+      const userDatas = await authservice.registration(userData);
       setLoading(false);
 
-      console.log('suss ', userDatas.status);
       if (userDatas.status === 201) {
-        console.log('suss ', userDatas.status);
         setSuccessMessage('Registration successfully submitted. Please wait for the approval.');
         setErrorMessage('');
+        // Clear the form fields
+        setFullName('');
+        setEmail('');
+        setPhone('');
+        setIdType('PEN');
+        setPenNumber('');
+        setTenNumber('');
+        setDesignation('');
+        setDateOfJoining('');
+        setDateOfBirth('');
+        setSelectedDistrict(null);
+        setSelectedTaluk(null);
+        setDistrictId(null);
+        setTalukId(null);
+        setOfficeType('');
+        // setErrors({ // Also clear any lingering errors
+        //   fullName: '',
+        //   email: '',
+        //   phone: '',
+        //   designation: '',
+        //   dateOfJoining: '',
+        //   dateOfBirth: '',
+        //   idNumber: '',
+        //   district: '',
+        //   office: '',
+        // });
       } else {
         setErrorMessage(userDatas.message);
       }
@@ -347,16 +384,18 @@ const Register = ({ onBack }) => {
             </Typography>
           </>
         }
-        value={fullName}
-        onChange={(e) => {
-          const value = e.target.value;
-          // Allow only alphabets, spaces, and periods, and limit length to 20
-          if (/^[A-Za-z\s.]*$/.test(value) && value.length <= 32) {
-            setFullName(value); // Update state if value matches the pattern and length <= 20
-          }
-        }}
-        error={errors.fullName}
-        helperText={errors.fullName ? errors.fullName : ''}
+        value={fullName} onChange={handleFullNameChange}
+        error={!!errors.fullName}
+        helperText={errors.fullName}
+        // onChange={(e) => {
+        //   const value = e.target.value;
+        //   // Allow only alphabets, spaces, and periods, and limit length to 20
+        //   if (/^[A-Za-z\s.]*$/.test(value) && value.length <= 32) {
+        //     setFullName(value); // Update state if value matches the pattern and length <= 20
+        //   }
+        // }}
+        // error={errors.fullName}
+        // helperText={errors.fullName ? errors.fullName : ''}
         sx={{
           mb: 2,
           '& .MuiOutlinedInput-root': {
@@ -377,13 +416,9 @@ const Register = ({ onBack }) => {
           </>
         }
         value={email}
-        onChange={(e) => {
-          if (e.target.value.length <= 256) {
-            setEmail(e.target.value); // Update state if length is <= 50
-          }
-        }}
-        error={errors.email}
-        helperText={errors.email ? errors.email : ''}
+       onChange={handleEmailChange}
+        error={!!errors.email}
+        helperText={errors.email}
         sx={{
           mb: 2,
           '& .MuiOutlinedInput-root': {
@@ -404,18 +439,12 @@ const Register = ({ onBack }) => {
           </>
         }
         value={phone}
-        onChange={(e) => {
-          const value = e.target.value;
-          // Only allow digits and ensure max length is 10
-          if (/^\d*$/.test(value) && value.length <= 10) {
-            setPhone(value); // Update state if value is numeric and length <= 10
-          }
-        }}
-        error={errors.phone}
-        helperText={errors.phone ? errors.phone : ''}
+       onChange={handlePhoneChange}
+        error={!!errors.phone}
+        helperText={errors.phone}
         inputProps={{
-          inputMode: 'numeric', // Ensure mobile keyboard is numeric
-          maxLength: 10 // Prevent entering more than 10 characters
+          inputMode: 'numeric',
+          maxLength: 10
         }}
         sx={{
           mb: 2,
@@ -457,14 +486,14 @@ const Register = ({ onBack }) => {
         />
       )}
 
-      <MuiFormControl fullWidth sx={{ mb: 2 }}>
+     <MuiFormControl fullWidth sx={{ mb: 2 }} error={!!errors.designation}>
         <InputLabel>
           Designation{' '}
           <Typography component="span" color="error">
             *
           </Typography>
         </InputLabel>
-        <Select value={designation} onChange={(e) => setDesignation(e.target.value)} error={errors.designation}>
+        <Select value={designation} onChange={handleDesignationChange} error={!!errors.designation}>
           {designations.map((designation) => (
             <MenuItem key={designation.id} value={designation.id}>
               {designation.designationName}
@@ -474,8 +503,9 @@ const Register = ({ onBack }) => {
         {errors.designation && <FormHelperText error>{errors.designation}</FormHelperText>}
       </MuiFormControl>
 
+
       <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={6}>
+              <Grid item xs={6}>
           <TextField
             fullWidth
             variant="outlined"
@@ -489,14 +519,15 @@ const Register = ({ onBack }) => {
             }
             type="date"
             value={dateOfJoining}
-            onChange={(e) => setDateOfJoining(e.target.value)}
+            onChange={handleDateOfJoiningChange}
             InputProps={{ inputProps: { max: today } }}
             InputLabelProps={{ shrink: true }}
-            error={errors.dateOfJoining}
-            helperText={errors.dateOfJoining ? errors.dateOfJoining : ''}
+            error={!!errors.dateOfJoining}
+            helperText={errors.dateOfJoining}
           />
         </Grid>
-        <Grid item xs={6}>
+
+      <Grid item xs={6}>
           <TextField
             fullWidth
             variant="outlined"
@@ -510,43 +541,44 @@ const Register = ({ onBack }) => {
             }
             type="date"
             value={dateOfBirth}
-            onChange={(e) => setDateOfBirth(e.target.value)}
+            onChange={handleDateOfBirthChange}
             InputProps={{ inputProps: { max: today } }}
             InputLabelProps={{ shrink: true }}
-            error={errors.dateOfBirth}
-            helperText={errors.dateOfBirth ? errors.dateOfBirth : ''}
+            error={!!errors.dateOfBirth}
+            helperText={errors.dateOfBirth}
           />
         </Grid>
       </Grid>
 
-      {/* District Office selection */}
-      <MuiFormControl fullWidth sx={{ mb: 2 }}>
+     {/* District Office selection */}
+      <MuiFormControl fullWidth sx={{ mb: 2 }} error={!!errors.district}>
         <Autocomplete
           disablePortal
           options={districts.map((district) => ({
             distId: district.districtOfficeId,
-            // distOfficeNameEn: district.districtOfficeNameEn.slice(16) // Ensuring correct label display
-            distOfficeNameEn: district.districtOfficeNameEn // Ensuring correct label display
+            distOfficeNameEn: district.districtOfficeNameEn
           }))}
           getOptionLabel={(option) => (option ? option.distOfficeNameEn : '')}
           value={selectedDistrict}
           onChange={handleDistrictChange}
-          isOptionEqualToValue={(option, value) => option.distId === value.distId} // ADD THIS LINE
+          isOptionEqualToValue={(option, value) => option?.distId === value?.distId}
           renderInput={(params) => <TextField {...params} label="Districts" required variant="outlined" />}
         />
+        {errors.district && <FormHelperText error>{errors.district}</FormHelperText>}
       </MuiFormControl>
 
       {/* Taluk Office selection */}
-      <MuiFormControl fullWidth sx={{ mb: 2 }}>
+      <MuiFormControl fullWidth sx={{ mb: 2 }} error={!!errors.office}>
         <Autocomplete
           disablePortal
           options={filteredTaluks}
           getOptionLabel={(option) => (option ? option.label : '')}
           value={selectedTaluk}
           onChange={handleTalukChange}
-          isOptionEqualToValue={(option, value) => option.id === value.id} // ADD THIS LINE
+          isOptionEqualToValue={(option, value) => option?.id === value?.id}
           renderInput={(params) => <TextField {...params} label="Office" required variant="outlined" />}
         />
+        {errors.office && <FormHelperText error>{errors.office}</FormHelperText>}
       </MuiFormControl>
 
       <Grid container spacing={2} sx={{ mb: 2 }}>

@@ -114,7 +114,6 @@ class approvalservice {
   static async saveItadminApproval(payload) {
     try {
       const token = localStorage.getItem('token');
-      
       const response = await axios.post(
         `${approvalservice.BASE_URL}/user-access/it-admin/save-approvals`,
         payload, // Send payload as the body
@@ -158,7 +157,7 @@ class approvalservice {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${approvalservice.BASE_URL}/user-access/tso-admin/saverole`,
+        `${approvalservice.BASE_URL}/user-access/tso-admin/save-role-assign`,
         payload, // Send payload as the body
         {
           headers: {
@@ -197,13 +196,11 @@ class approvalservice {
   static async allschmes() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/api/fetch/schemes`
-        , {
+      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/api/fetch/schemes`, {
         headers: {
           Authorization: `Bearer ${token}` // Ensure token is included
         }
-      }
-    );
+      });
       return response.data; // Return response data on success
     } catch (err) {
       return {
@@ -235,7 +232,6 @@ class approvalservice {
   static async zoneslist(officeType, officeId) {
     try {
       const token = localStorage.getItem('token');
-   
       const response = await axios.get(
         `${approvalservice.BTR_URL}/btr-service/btr-api/zones/${officeType}/${officeId}`
         //   , {
@@ -244,7 +240,7 @@ class approvalservice {
         //   }
         // }
       );
-      console.log("aaa",response.data)
+      console.log('aaa', response.data);
       return response.data; // Return response data on success
     } catch (err) {
       return {

@@ -119,6 +119,7 @@ const [rolesMap, setRolesMap] = useState({});
 const[zoneVisble, setzoneVisble] = useState(false);
     const [openModal, setOpenModal] = useState(false);
     const [selectedRow, setSelectedRow] = useState(null);
+ const [zonesList, setZonesList] = useState([]);
       // State for remarks
 
     // Function to handle filter change
@@ -149,10 +150,8 @@ const[zoneVisble, setzoneVisble] = useState(false);
     };
     
     const updateSchemeRolePair = async (index, field, value) => {
-     
       if (field === "roleId" && value == "1"){
         setzoneVisble(true)
-       
       }else{
         setzoneVisble(false)
       }
@@ -180,6 +179,7 @@ const[zoneVisble, setzoneVisble] = useState(false);
             setSelectedRole('');
             setZone('');
           }catch (error) {
+            setZonesList([])
             console.error('Error fetching roles for scheme', error);
           }
         }
@@ -216,17 +216,25 @@ const[zoneVisble, setzoneVisble] = useState(false);
           const filteredPairs = schemeRolePairs.filter(pair => pair.schemeId && pair.roleId);
           
 const payload = {
-  approvalStatus: approvalStatus === 'approved' ? 'Approved' : approvalStatus === 'pending' ? 'pending' : 'Rejected',
+  approvalStatus: approvalStatus === 'approved' ? 'Approved' : approvalStatus === 'pending' ? 'Pending' : 'Rejected',
   approvalDate: new Date().toISOString().split('T')[0],
   remarks: remarks,
   isApproved: approvalStatus === 'approved',
   adminId: admin_id,
   userId: selectedRow ? selectedRow.userId : "", 
   id: selectedRow.approvalId,
-  roleSchemes: filteredPairs.map(pair => ({
-    roleId: pair.roleId,
-    schemeId: pair.schemeId
-  }))
+  roleSchemes: selectedRole
+    ? [
+        {
+          roleId: selectedRole,
+          schemeId: null
+        }
+      ]
+    : filteredPairs.map(pair => ({
+        roleId: pair.roleId,
+        schemeId: pair.schemeId
+      }))
+    
 };
           // const payload = {
           //   approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "pending" : "Rejected",
@@ -238,7 +246,6 @@ const payload = {
           //   id: selectedRow.approvalId,
           //   roleId: selectedRole
           // };
-          console.log("payload ", payload);
     
           // Call the API using the separate function
           let ser;
@@ -263,8 +270,10 @@ const payload = {
                 )
               );
     
+      
               // Now, after saving the approval, check if zone needs to be saved
               if (zone !== null && data.payload.loginId !== null) {
+              
                 // Call the zone_save API with required parameters
                 approvalservice.zone_save(zone, data.payload.loginId, admin_id)
                   .then((zoneResponse) => {
@@ -320,10 +329,16 @@ const [rolesList, setRolesList] = useState([]);
 const [selectedRole, setSelectedRole] = useState('');
  const [admrole,setAdmrole] = useState('');
 
-const [zonesList, setZonesList] = useState([]);
+
 
 const handleRadioChange = (value) => {
   setRadioState(value);
+
+  // Clear role/selection when not "approved"
+  if (value !== "approved") {
+    setSelectedRole('');
+    // setSchemeRolePairs([]); // Or your initial state
+  }
 };
 
 
@@ -349,22 +364,30 @@ const handleRoleChange = (event) => {
 //   rolesList && 
 //   schemesList && 
 //   (schemesList === 'Earas' ? zone : true); 
+const isApprovedWithValidPairs =
+  radioState === 'approved' &&
+  schemeRolePairs.some(pair => pair.schemeId && pair.roleId) &&
+  schemeRolePairs.every(pair => {
+    const isDuplicate = schemeRolePairs.some(otherPair =>
+      pair !== otherPair &&
+      pair.schemeId === otherPair.schemeId &&
+      pair.roleId === otherPair.roleId
+    );
+    return !isDuplicate;
+  });
+
+const isApprovedWithSelectedRole = radioState === 'approved' && (selectedRole !== '') ;
+
 const isSaveEnabled =
-  (radioState === 'pending' ||
-    radioState === 'rejected' ||
-    (radioState === 'approved' && 
-      schemeRolePairs.some(pair => pair.schemeId && pair.roleId) &&
-      schemeRolePairs.every(pair => {
-        const isDuplicate = schemeRolePairs.some(otherPair => 
-          pair !== otherPair &&
-          pair.schemeId === otherPair.schemeId &&
-          pair.roleId === otherPair.roleId
-        );
-        return !isDuplicate;
-      })
-    )
-  ) &&
-  (selectedScheme === '1' ? !!zone : true);
+  radioState === 'pending' ||
+  radioState === 'rejected' ||
+  isApprovedWithValidPairs ||
+  isApprovedWithSelectedRole;
+
+// Optional zone check (uncomment if needed)
+// && (selectedScheme === '1' ? !!zone : true);
+
+
 
 
 const [userList, setUserList] = useState([]);
@@ -380,7 +403,7 @@ useEffect(() => {
         console.log("api response >> ", response.payload);
         setUserList(response.payload || []);
     
-      setUserList(response.payload || []);
+    
     }else{
       console.log("data set >>>", data);
       setUserList(data); // Ensure userList is always an array
@@ -402,9 +425,12 @@ useEffect(() => {
    
       // Fetch all roles for super admin
       const rolesResponse = await approvalservice.allroles();
-      console.log("role payload ",rolesResponse)
+      const schemesResponse = await approvalservice.allschmes();
+      setSchemesList(schemesResponse.payload);
+
       setRolesList(rolesResponse.payload);
-    } else if (admrole === 'IT Admin') {
+    } else if (admrole === 'IT Admin' || admrole === 'Super Admin') {
+    
       // Fetch all schemes for district user
       const schemesResponse = await approvalservice.allschmes();
       setSchemesList(schemesResponse.payload);
@@ -414,27 +440,28 @@ useEffect(() => {
 }, [admrole]);
 
 // Fetch roles when scheme changes (for district users)
-useEffect(() => {
-  console.log("zone  >>> ",zone)
-  if (admrole === 'IT Admin' && selectedScheme) {
-    const fetchSchemeRolesAndZones = async () => {
-      try {
-        // Fetch both roles and zones in parallel
-        const [rolesResponse, zoneslist] = await Promise.all([
-          approvalservice.allrolesBySchems(selectedScheme),
-          approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
-        ]);
-        setZonesList(zoneslist.payload);
-        setRolesList(rolesResponse.payload);
-        setSelectedRole(''); 
-        setZone('');
-      } catch (error) {
-        console.error('Error fetching data', error);
-      }
-    };
-    fetchSchemeRolesAndZones();
-  }
-}, [selectedScheme, admrole]);
+// useEffect(() => {
+//   console.log("zone  >>> ",zone)
+//   if (admrole === 'IT Admin' && selectedScheme) {
+//     const fetchSchemeRolesAndZones = async () => {
+//       try {
+//         // Fetch both roles and zones in parallel
+//         const [rolesResponse, zoneslist] = await Promise.all([
+//           approvalservice.allrolesBySchems(selectedScheme),
+//           approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
+//         ]);
+//         setZonesList(zoneslist.payload);
+//         setRolesList(rolesResponse.payload);
+//         setSelectedRole(''); 
+//         setZone('');
+//       } catch (error) {
+//         setZonesList([])
+//         console.error('Error fetching data', error);
+//       }
+//     };
+//     fetchSchemeRolesAndZones();
+//   }
+// }, [selectedScheme, admrole]);
 
 
 
@@ -628,7 +655,7 @@ return (
 {/* shcemes */}
 {/* Conditionally render Schemes dropdown only for District users */}
 
-{admrole !== 'Super Admin' && (
+{((admrole === 'Super Admin' || admrole === "IT Admin") && selectedRow.designation !== "Deputy Director -IT" ) && (
   <Stack direction="column" spacing={2} alignItems="center">
     {schemeRolePairs.map((pair, index) => (
       <Box
@@ -705,7 +732,7 @@ return (
 )}
 
 {/* Always show Roles dropdown */}
-{admrole === 'Super Admin' && (
+{(admrole === 'Super Admin' && selectedRow.designation === "Deputy Director -IT" ) && (
 <Box style={{ width: '48%' }}>
   <strong>Role</strong><br />
   <TextField
@@ -727,24 +754,30 @@ return (
         </Box>
  {/* zones */}
  {/* { (selectedScheme == '1' && selectedRole == "1") && ( */}
- { (zoneVisble === true) && (
-        <Box style={{ width: '30%',margin:'auto' }}>
-            <center><strong>Select Zone</strong></center>
-            <TextField
-              select
-              fullWidth
-              value={zone}
-              onChange={(e) => setZone(e.target.value)}
-              variant="outlined"
-              style={{ marginTop: "8px" }}
-            >
-            {zonesList.map((zone)=>(
-              <MenuItem key={zone.zoneId} value={zone.zoneId}>{zone.zoneNameEn}</MenuItem>
-            ))}
-              {/* Add other duties as needed */}
-            </TextField>
-          </Box>)
- }
+{(zoneVisble === true && selectedRow.designation !== 'Deputy Director -IT') && (
+  <Box style={{ width: '30%', margin: 'auto' }}>
+    <center><strong>Select Zone</strong></center>
+    <TextField
+      select
+      fullWidth
+      value={zone}
+      onChange={(e) => setZone(e.target.value)}
+      variant="outlined"
+      style={{ marginTop: "8px" }}
+    >
+      {zonesList && zonesList.length > 0 ? ( // Add this check
+        zonesList.map((zone) => (
+          <MenuItem key={zone.zoneId} value={zone.zoneId}>
+            {zone.zoneNameEn}
+          </MenuItem>
+        ))
+      ) : (
+        <MenuItem disabled>No zones available</MenuItem>
+      )}
+    </TextField>
+  </Box>
+)}
+
         {/* Status Radio Buttons */}
         <Box
           style={{
