@@ -11,6 +11,12 @@ const ClusterForm = () => {
     const [wetDry, setWetDry] = useState('W');
     const [keyplotType, setKeyplotType] = useState('K');
     const [reserveKeyplot, setReserveKeyplot] = useState('');
+    const [keyplotDetails, setKeyplotDetails] = useState({ // New state for API fetched data
+        villageBlock: '',
+        panchayath: '',
+        syNo: '',
+        areaCents: ''
+    });
     const [keyplots, setKeyplots] = useState([
         {
             id: 'w',
@@ -47,13 +53,35 @@ const ClusterForm = () => {
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
 
-    useEffect(() => {
-        const urlParams = new URLSearchParams(location.search);
-        const syNoFromURL = urlParams.get('syNo');
-        if (syNoFromURL) {
-            setSyNo(decodeURIComponent(syNoFromURL));
-        }
-    }, [location]);
+   useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const syNoFromURL = urlParams.get('syNo');
+    if (syNoFromURL) {
+        setSyNo(decodeURIComponent(syNoFromURL));
+    }
+
+    if (syNo) {
+        console.log('Fetching keyplot details for syNo:', syNo); // <--- Add this
+        const fetchKeyplotDetails = async () => {
+            try {
+              
+             const response = await fetch(`http://localhost:8082/btr-service/key-plots/get-keyplot/${syNo}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                if (data.payload) {
+                    setKeyplotDetails(data.payload);
+                }
+            } catch (error) {
+                console.error("Error fetching keyplot details:", error);
+                setSnackbarMessage('Failed to load keyplot details.');
+                setSnackbarOpen(true);
+            }
+        };
+        fetchKeyplotDetails();
+    }
+}, [location, syNo]);
 
     const handleKeyplotLabelChange = (event, index) => {
         const newKeyplots = [...keyplots];
@@ -106,7 +134,7 @@ const ClusterForm = () => {
 
     const handleSubmit = (event) => {
         event.preventDefault();
-        console.log('Form submitted with data:', { wardNumber, wetDry, keyplotType, reserveKeyplot, keyplots });
+        console.log('Form submitted with data:', { wardNumber, wetDry, keyplotType, reserveKeyplot, keyplots, keyplotDetails });
         // Add your submission logic here
     };
 
@@ -132,19 +160,15 @@ const ClusterForm = () => {
                     <TextField label="Cluster No." value={syNo || 'Not Available'} InputProps={{ readOnly: true }} fullWidth />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                    <TextField label="പഞ്ചായത്ത്" value="കിളിമാനൂർ" InputProps={{ readOnly: true }} fullWidth />
+                    <TextField label="പഞ്ചായത്ത്" value={keyplotDetails.panchayath || ''} InputProps={{ readOnly: true }} fullWidth />
                 </Grid>
                 <Grid item xs={12} sm={6} md={2}>
                     <TextField label="വാർഡ് നമ്പർ" value={wardNumber} onChange={(e) => setWardNumber(e.target.value)} fullWidth />
                 </Grid>
                 <Grid item xs={12} sm={6} md={2}>
-                    <FormControl fullWidth>
-                        <InputLabel id="wet-dry-label">WET/DRY</InputLabel>
-                        <Select labelId="wet-dry-label" id="wet-dry" value={wetDry} onChange={(e) => setWetDry(e.target.value)} label="WET/DRY">
-                            <MenuItem value="W">W</MenuItem>
-                        </Select>
-                    </FormControl>
+                    <TextField label="Land Type" value={keyplotDetails.landType} InputProps={{ readOnly: true }} fullWidth />
                 </Grid>
+                
                 <Grid item xs={12} sm={6} md={2}>
                     <FormControl fullWidth>
                         <InputLabel id="keyplot-label">KEYPLOT</InputLabel>
@@ -154,13 +178,13 @@ const ClusterForm = () => {
                     </FormControl>
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                    <TextField label="SY.No." value="107/19" InputProps={{ readOnly: true }} fullWidth />
+                    <TextField label="SY.No." value={keyplotDetails.syNo || ''} InputProps={{ readOnly: true }} fullWidth />
                 </Grid>
                 <Grid item xs={12} sm={6} md={2}>
-                    <TextField label="AREA (Cent)" value="18.77" InputProps={{ readOnly: true }} fullWidth />
+                    <TextField label="AREA (Cent)" value={keyplotDetails.areaCents || ''} InputProps={{ readOnly: true }} fullWidth />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                    <TextField label="BLOCK/VILLAGE" value="29" InputProps={{ readOnly: true }} fullWidth />
+                    <TextField label="BLOCK/VILLAGE" value={keyplotDetails.villageBlock || ''} InputProps={{ readOnly: true }} fullWidth />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                     <TextField label="RESERVE KEYPLOT" value={reserveKeyplot} onChange={(e) => setReserveKeyplot(e.target.value)} placeholder="-" fullWidth />
@@ -174,7 +198,7 @@ const ClusterForm = () => {
                 <Box key={keyplot.id} sx={{ mt: 3, border: '1px solid #ccc', borderRadius: 1, overflowX: 'auto', bgcolor: 'white', p: 2 }}>
                     <Box sx={{ bgcolor: '#05307a', color: 'white', p: 1, borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
-                            <Typography sx={{ mr: 1 }}>KEYPLOT:</Typography>
+                            <Typography sx={{ mr: 1 }}>SIDE PLOT:</Typography>
                             <TextField
                                 value={keyplot.label}
                                 onChange={(e) => handleKeyplotLabelChange(e, index)}

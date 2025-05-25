@@ -61,7 +61,7 @@ const columns = (handleEdit) => [
   {
     name: 'Action',
     cell: (row) => (
-       <Button
+   <Button
   color="success" // Green color for the button
   onClick={row.approvalStatus === "Approved" ? null : () => handleEdit(row)} // Conditionally disable the click handler
 >
@@ -778,7 +778,7 @@ useEffect(() => {
             <Button onClick={handleCloseModal} color="secondary" variant="outlined">
               Close
             </Button>
-            {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow && selectedRow.designation === "Deputy Director -Districts") || (
+  {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow && selectedRow.designation === "Deputy Director -Districts") || (
       (admrole === "District Level Approver") || (selectedRow && selectedRow.designation === "Taluk Statistical Officer")
     )) && (
             <Button

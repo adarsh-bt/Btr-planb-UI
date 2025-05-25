@@ -8,7 +8,8 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
 // Email validation function
-const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+const isValidEmail = (email) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
 
 // Password validation function
 function validatePassword(password) {
@@ -53,16 +54,19 @@ const ForgotPassword = ({ onBack }) => {
     e.preventDefault();
     setError('');
     setSuccess('');
-    if (!email) {
+   const trimmedEmail = email.trim();
+  
+    if (!trimmedEmail) {
       setError('Please enter your email address.');
       return;
     }
-    if (!isValidEmail(email)) {
+    if (!isValidEmail(trimmedEmail)) {
       setError('Please enter a valid email address.');
       return;
     }
     setIsLoading(true);
-    const userData = await authservice.email_verification(email);
+    
+    const userData = await authservice.email_verification(trimmedEmail);
     setIsLoading(false);
     if (userData.status === 200) {
       setEmail(userData.data.payload.id);
@@ -131,8 +135,9 @@ const ForgotPassword = ({ onBack }) => {
       setError('Passwords do not match.');
       return;
     }
-
-    const response = await authservice.password_reset(email, newPassword);
+ 
+    const trimmedPassword = newPassword.trim();
+    const response = await authservice.password_reset(email, trimmedPassword);
     if (response.status === 200) {
       setSuccess('Password Successfully changed');
       setError('');

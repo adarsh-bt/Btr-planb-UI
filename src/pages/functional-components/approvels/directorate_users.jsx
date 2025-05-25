@@ -67,14 +67,12 @@ const columns = (handleEdit) => [
     {
       name: 'Action',
       cell: (row) => (
-  <Button
+       <Button
   color="success" // Green color for the button
   onClick={row.approvalStatus === "Approved" ? null : () => handleEdit(row)} // Conditionally disable the click handler
 >
   {row.approvalStatus === "Approved" ? <VerifiedIcon /> : <ManageAccountsIcon />}
 </Button>
-
-
       ),
     },
   ];

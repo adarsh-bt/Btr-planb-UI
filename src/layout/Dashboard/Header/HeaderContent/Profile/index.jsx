@@ -23,7 +23,7 @@ import SettingTab from './SettingTab';
 import Avatar from 'components/@extended/Avatar';
 import MainCard from 'components/MainCard';
 import Transitions from 'components/@extended/Transitions';
-import Swal from 'sweetalert2';
+
 
 // assets
 import LogoutOutlined from '@ant-design/icons/LogoutOutlined';
@@ -78,20 +78,7 @@ console.log("user anme ", permissions);
   };
 
   
-  const handleLogout = () => {
-    Swal.fire({
-      title: 'Are you sure?',
-      text: 'You are about to log out!',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Yes, log me out',
-      cancelButtonText: 'Cancel',
-    }).then((result) => {
-      if (result.isConfirmed) {
-        authservice.logout(navigate);  // Proceed with logout
-      }
-    });
-  };
+
 
   const iconBackColorOpen = 'grey.100';
   const user = localStorage.getItem('user');
@@ -155,14 +142,18 @@ console.log("user anme ", permissions);
                           </Stack>
                         </Stack>
                       </Grid>
-                      <Grid item>
+
+                      {/* <Grid item>
                         <Tooltip title="Logout">
                           <IconButton size="large" sx={{ color: 'text.primary' }} onClick={handleLogout}>
                             <LogoutOutlined />
                           </IconButton>
                         </Tooltip>
-                      </Grid>
+                      </Grid> */}
+
+
                     </Grid>
+                    
                   </CardContent>
 
                   <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>

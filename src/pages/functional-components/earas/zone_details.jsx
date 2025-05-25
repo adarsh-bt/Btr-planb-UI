@@ -76,13 +76,7 @@ function ZoneDetails() {
           Zone Details
         </Typography>
       </Grid>
-      <Grid item xs={6} container justifyContent="flex-end">
-      <Link to="/schemes/earas/keyplots" style={{ textDecoration: 'none' }}>
-        <Button variant="contained" sx={{background:'blue'}} endIcon={<SendIcon />}>
-          Generate KeyPlots
-        </Button>
-        </Link>
-      </Grid>
+    
     </Grid>
       <MainCard>
         <Box className="bar-container">
