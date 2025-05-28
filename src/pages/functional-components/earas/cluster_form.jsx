@@ -21,33 +21,22 @@ const ClusterForm = () => {
         {
             id: 'w',
             label: 'W',
-            rows: [
-                { svNo: '325', sub: '5', block: '30', actual: '', area: '7.90' },
-                { svNo: '325', sub: '7', block: '30', actual: '', area: '55.33' },
-            ],
+            rows: [{ svNo: '', sub: '', block: '', actual: '', area: '' }], // Empty row
         },
         {
             id: 'w1',
             label: 'W1',
-            rows: [
-                { svNo: '348', sub: '1', block: '30', actual: '', area: '8.15' },
-                { svNo: '348', sub: '2', block: '30', actual: '', area: '35.57' },
-                { svNo: '348', sub: '3', block: '30', actual: '', area: '4.45' },
-                { svNo: '348', sub: '8', block: '30', actual: '', area: '11.86' },
-                { svNo: '348', sub: '5', block: '30', actual: '', area: '24.21' },
-                { svNo: '348', sub: '6', block: '30', actual: '', area: '21.24' },
-                { svNo: '348', sub: '7', block: '30', actual: '', area: '16.55' },
-            ],
+            rows: [{ svNo: '', sub: '', block: '', actual: '', area: '' }], // Empty row
         },
         {
             id: 'n2',
             label: 'N2',
-            rows: [{ svNo: '', sub: '', block: '', actual: '', area: '215.00' }],
+            rows: [{ svNo: '', sub: '', block: '', actual: '', area: '' }], // Empty row
         },
         {
             id: 'w2',
             label: 'W2',
-            rows: [{ svNo: '', sub: '', block: '', actual: '', area: '259.00' }],
+            rows: [{ svNo: '', sub: '', block: '', actual: '', area: '' }], // Empty row
         },
     ]);
     const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -61,11 +50,11 @@ const ClusterForm = () => {
     }
 
     if (syNo) {
-        console.log('Fetching keyplot details for syNo:', syNo); // <--- Add this
+        console.log('Fetching keyplot details for syNo:', syNo);
         const fetchKeyplotDetails = async () => {
             try {
-              
-             const response = await fetch(`http://localhost:8082/btr-service/key-plots/get-keyplot/${syNo}`);
+
+              const response = await fetch(`http://localhost:8082/btr-service/key-plots/get-keyplot/${syNo}`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -90,16 +79,20 @@ const ClusterForm = () => {
     };
 
     const handleKeyplotRowChange = (event, keyplotIndex, rowIndex, field) => {
+        const { value } = event.target;
+        // Allow empty string for initial input or if user clears the field
+        // Otherwise, convert to number and check if it's negative for 'actual' and 'area'
+        if ((field === 'actual' || field === 'area') && value !== '' && parseFloat(value) < 0) {
+            setSnackbarMessage('Negative values are not allowed for this field.');
+            setSnackbarOpen(true);
+            return; // Do not update state if value is negative
+        }
+
         const newKeyplots = [...keyplots];
-        newKeyplots[keyplotIndex].rows[rowIndex][field] = event.target.value;
+        newKeyplots[keyplotIndex].rows[rowIndex][field] = value;
         setKeyplots(newKeyplots);
     };
 
-    const handleAreaInputChange = (event, keyplotIndex, rowIndex) => {
-        const newKeyplots = [...keyplots];
-        newKeyplots[keyplotIndex].rows[rowIndex].area = event.target.value;
-        setKeyplots(newKeyplots);
-    };
 
     const handleAreaInputBlur = (keyplotIndex) => {
         const newKeyplots = [...keyplots];
@@ -130,6 +123,14 @@ const ClusterForm = () => {
 
     const calculateTotalArea = (rows) => {
         return rows.reduce((sum, row) => sum + parseFloat(row.area || 0), 0).toFixed(2);
+    };
+
+    const calculateOverallTotalArea = () => {
+        let total = 0;
+        keyplots.forEach(keyplot => {
+            total += parseFloat(calculateTotalArea(keyplot.rows));
+        });
+        return total.toFixed(2);
     };
 
     const handleSubmit = (event) => {
@@ -165,17 +166,12 @@ const ClusterForm = () => {
                 <Grid item xs={12} sm={6} md={2}>
                     <TextField label="വാർഡ് നമ്പർ" value={wardNumber} onChange={(e) => setWardNumber(e.target.value)} fullWidth />
                 </Grid>
-                <Grid item xs={12} sm={6} md={2}>
-                    <TextField label="Land Type" value={keyplotDetails.landType} InputProps={{ readOnly: true }} fullWidth />
+                   <Grid item xs={12} sm={6} md={2}>
+                    <TextField label="Land Type" value={keyplotDetails.landType || ''} InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} fullWidth/>
                 </Grid>
-                
                 <Grid item xs={12} sm={6} md={2}>
-                    <FormControl fullWidth>
-                        <InputLabel id="keyplot-label">KEYPLOT</InputLabel>
-                        <Select labelId="keyplot-label" id="keyplot" value={keyplotType} onChange={(e) => setKeyplotType(e.target.value)} label="KEYPLOT">
-                            <MenuItem value="K">K</MenuItem>
-                        </Select>
-                    </FormControl>
+                    <TextField label="KEYPLOT" value={"K" || ''} InputProps={{ readOnly: true }} fullWidth />
+
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                     <TextField label="SY.No." value={keyplotDetails.syNo || ''} InputProps={{ readOnly: true }} fullWidth />
@@ -190,7 +186,7 @@ const ClusterForm = () => {
                     <TextField label="RESERVE KEYPLOT" value={reserveKeyplot} onChange={(e) => setReserveKeyplot(e.target.value)} placeholder="-" fullWidth />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                    <TextField label="TOTAL AREA" value="1040.00" InputProps={{ readOnly: true }} fullWidth />
+                    <TextField label="TOTAL AREA" value={calculateOverallTotalArea()} InputProps={{ readOnly: true }} fullWidth />
                 </Grid>
             </Grid>
 
@@ -237,7 +233,13 @@ const ClusterForm = () => {
                                     <TextField value={row.block} onChange={(e) => handleKeyplotRowChange(e, index, rowIndex, 'block')} size="small" fullWidth />
                                 </Grid>
                                 <Grid item xs={3}>
-                                    <TextField value={row.actual} onChange={(e) => handleKeyplotRowChange(e, index, rowIndex, 'actual')} size="small" fullWidth type='number'/>
+                                    <TextField
+                                        value={row.actual}
+                                        onChange={(e) => handleKeyplotRowChange(e, index, rowIndex, 'actual')}
+                                        size="small"
+                                        fullWidth
+                                        type='number' // Ensure number input
+                                    />
                                 </Grid>
                                 <Grid item xs={3}>
                                     <TextField
@@ -246,7 +248,7 @@ const ClusterForm = () => {
                                         onBlur={() => handleAreaInputBlur(index)}
                                         size="small"
                                         fullWidth
-                                        type='number'
+                                        type='number' // Ensure number input
                                     />
                                 </Grid>
                             </React.Fragment>

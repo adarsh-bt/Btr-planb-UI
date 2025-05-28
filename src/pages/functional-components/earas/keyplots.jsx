@@ -33,6 +33,7 @@ import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
 import SearchIcon from '@mui/icons-material/Search';
 
 const KeyPlot = () => {
+
     const [loading, setLoading] = useState(false);
     const [dataVisible, setDataVisible] = useState(false);
     const [plotData, setPlotData] = useState([]);
@@ -132,7 +133,7 @@ const KeyPlot = () => {
                 id: sample.id, // Add id from backend for removal
                 plot_id : sample["plot_id"],
                 slNo: sample["Sl.No"],
-              
+                syNo: sample["Sy. No"],
                 panchayth: sample["panchayth"],
                 area: sample["Area (Cents)"],
                 villageBlock: sample["Village/Block"],
