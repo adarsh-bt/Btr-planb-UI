@@ -199,12 +199,15 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+
         if (username && password) {
+             const trimmedEmail = username.trim();
+                const trimmedPassword = password.trim();
             try {
                 setIsLoading(true);
                 const userLogin = {
-                    username: username,
-                    password: password,
+                    username: trimmedEmail,
+                    password: trimmedPassword,
                 };
                 const userData = await authservice.login(userLogin);
                 setIsLoading(false);

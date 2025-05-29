@@ -551,21 +551,27 @@ const handleFullNameChange = (e) => {
       </Grid>
 
      {/* District Office selection */}
-      <MuiFormControl fullWidth sx={{ mb: 2 }} error={!!errors.district}>
-        <Autocomplete
-          disablePortal
-          options={districts.map((district) => ({
-            distId: district.districtOfficeId,
-            distOfficeNameEn: district.districtOfficeNameEn
-          }))}
-          getOptionLabel={(option) => (option ? option.distOfficeNameEn : '')}
-          value={selectedDistrict}
-          onChange={handleDistrictChange}
-          isOptionEqualToValue={(option, value) => option?.distId === value?.distId}
-          renderInput={(params) => <TextField {...params} label="Districts" required variant="outlined" />}
-        />
-        {errors.district && <FormHelperText error>{errors.district}</FormHelperText>}
-      </MuiFormControl>
+   <MuiFormControl fullWidth sx={{ mb: 2 }} error={!!errors.district}>
+  <Autocomplete
+    disablePortal
+    options={districts.map((district) => ({
+      distId: district.districtOfficeId,
+      distOfficeNameEn: district.districtOfficeNameEn,
+    }))}
+    getOptionLabel={(option) => {
+      if (!option) return '';
+      // Remove 'District Office ' prefix from the name
+      return option.distOfficeNameEn.replace('District Office ', '');
+    }}
+    value={selectedDistrict}
+    onChange={handleDistrictChange}
+    isOptionEqualToValue={(option, value) => option?.distId === value?.distId}
+    renderInput={(params) => (
+      <TextField {...params} label="Districts" required variant="outlined" />
+    )}
+  />
+  {errors.district && <FormHelperText error>{errors.district}</FormHelperText>}
+</MuiFormControl>
 
       {/* Taluk Office selection */}
       <MuiFormControl fullWidth sx={{ mb: 2 }} error={!!errors.office}>

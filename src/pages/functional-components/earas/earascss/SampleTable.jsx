@@ -2,6 +2,11 @@ import React, { useState , useEffect } from 'react';
 import { Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TableSortLabel } from '@mui/material';
 import { useNavigate,useLocation } from 'react-router-dom';
 
+import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
+import RemoveRedEyeIcon from '@mui/icons-material/RemoveRedEye';
+
+
+
 const SampleTable = ({ data }) => {
   const [order, setOrder] = React.useState('asc');
   const [orderBy, setOrderBy] = React.useState('slNo');
@@ -98,12 +103,20 @@ const SampleTable = ({ data }) => {
               <TableCell align="center">{row.reserveList}</TableCell>
               <TableCell align="center">
                 <Button
+                 
+                  size="small"
+                  color="primary"
+                  onClick={() => handleViewClusterClick(row.syNo)} // Pass the syNo
+                >
+                  <RemoveCircleIcon/>
+                </Button>
+                 <Button
                   variant="outlined"
                   size="small"
                   color="primary"
                   onClick={() => handleViewClusterClick(row.syNo)} // Pass the syNo
                 >
-                  View Cluster
+                  <RemoveCircleIcon/>
                 </Button>
               </TableCell>
             </TableRow>
