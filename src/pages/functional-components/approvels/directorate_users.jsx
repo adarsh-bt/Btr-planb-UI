@@ -399,6 +399,7 @@ useEffect(() => {
     try {
       const userRole = authservice.getrole();
       console.log("len of data",data)
+      Array.isArray(data)
       if (!data || data.length === 0) {
         const response = await approvalservice.superadmin_approval();
         console.log("api response >> ", response.payload);
@@ -470,7 +471,7 @@ const handleFilterChange = (event) => {
   console.log("evenet ?>>",event.target.value)
   setFilterText(event.target.value);
 };
-console.log("User List currenly >>> ",userList);
+console.log("User List currenly dir>>> ",userList);
 // // Filtered data based on the filter text
 // const filteredData = Array.isArray(userList) ? userList.filter((item) =>
 //   Object.values(item).some((value) =>
@@ -862,6 +863,7 @@ return (
     <Button onClick={handleCloseModal} color="secondary" variant="outlined">
       Close
     </Button>
+
     <Button
       onClick={handleSaveChanges}
       color="primary"

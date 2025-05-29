@@ -29,7 +29,7 @@ const columns = (handleEdit,handleView) => [
   // { name: 'District', selector: (row) => row.dcode, sortable: true },
   // { name: 'Taluk', selector: (row) => row.tcode, sortable: true },
   // { name: 'Village', selector: (row) => row.vcode, sortable: true },
-  { name: 'Panchayth', selector: (row) => row.lbtype?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'Panchayth', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
   { name: 'Village', selector: (row) => row.villageName?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
   { name: 'Block', selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
   { name: 'Re-Survey No', selector: (row) => row.resvno?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
@@ -53,6 +53,8 @@ const columns = (handleEdit,handleView) => [
       textAlign: 'center', // Align the buttons in the center
     },
   },
+
+  
   // {
   //   name: 'Action',
   //   cell: (row) => (
