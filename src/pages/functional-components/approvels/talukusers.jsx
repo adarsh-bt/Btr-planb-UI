@@ -41,8 +41,8 @@ const columns = (handleEdit) => [
   { name: 'Email', selector: (row) => row.email, sortable: true },
   { name: 'Phone number', selector: (row) => row.mobileNumber, sortable: true },
   { name: 'DOJ', selector: (row) => row.dateOfJoining, sortable: true },
-  // { name: 'Applied', selector: (row) => new Date(row.createdAt).toLocaleDateString('en-GB'), sortable: true },
-  { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
+  { name: 'Applied', selector: (row) => new Date(row.createdAt).toLocaleDateString('en-GB'), sortable: true },
+  // { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
   {
     name: 'Status',
     selector: (row) => row.active,
@@ -61,12 +61,15 @@ const columns = (handleEdit) => [
   {
     name: 'Action',
     cell: (row) => (
+      
    <Button
   color="success" // Green color for the button
-  onClick={row.approvalStatus === "Approved" ? null : () => handleEdit(row)} // Conditionally disable the click handler
+  onClick={row.approvalStatus === "Approved" || authservice.getrole() !== "Taluk Level Approver"  ? null : () => handleEdit(row)} // Conditionally disable the click handler
 >
-  {row.approvalStatus === "Approved" ? <VerifiedIcon /> : <ManageAccountsIcon />}
+  {row.approvalStatus === "Approved" && authservice.getrole() !== "Taluk Level Approver" ? <VerifiedIcon /> : <ManageAccountsIcon />}
 </Button>
+
+
     )
   }
 ];
