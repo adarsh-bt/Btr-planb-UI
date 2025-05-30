@@ -70,10 +70,18 @@ class authservice {
 
    
     static async email_verification(username){
-      
         try{
-            const response = await axios.post(`${authservice.BASE_URL}/user-access/api/email_verify`,{username})
-            return response
+          const encrypted = encryptData(JSON.stringify(username));
+            const response = await axios.post(`${authservice.BASE_URL}/user-access/api/email_verify`,encrypted, // assuming `encrypted` is a string or compatible payload
+                    {
+                    headers: {
+                    'Content-Type': 'text/plain',
+                      },
+                  }
+                );
+        const decryptedJson = decryptData(response.data);
+        const responseData = JSON.parse(decryptedJson);
+            return responseData
         }catch(err){
             return {
                 message: err.response.data.message
@@ -81,19 +89,36 @@ class authservice {
         }
     }
 
-  static async verify_otp(userid, otp) {
+  static async verify_otp(userData) {
     try {
-      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/validateOtp`, { userid, otp });
-      console.log(response.data);
-      return response.data;
+       const encrypted = encryptData(JSON.stringify(userData));
+      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/validateOtp`, encrypted,
+        {
+                    headers: {
+                    'Content-Type': 'text/plain',
+                      },
+                  }
+      );
+
+      const decryptedJson = decryptData(response.data);
+      const responseData = JSON.parse(decryptedJson);
+      return responseData;
     } catch (err) {
       throw err;
     }
   }
 
-  static async password_reset(userid, password) {
+  static async password_reset(userData) {
     try {
-      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/password_reset`, { userid, password });
+
+      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/password_reset`, userData,
+          {
+                    headers: {
+                    'Content-Type': 'text/plain',
+                      },
+                  }
+      );
+      
       return response;
     } catch (err) {
       throw err;
