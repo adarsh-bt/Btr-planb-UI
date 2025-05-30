@@ -45,7 +45,7 @@ class ApprovedUserService {
   // Fetch user details by ID
   static async fetchUserById(userId) {
     try {
-      const userId = '95a816d1-e16a-4fc5-8353-9be4d555bf8a';git 
+      // const userId = '95a816d1-e16a-4fc5-8353-9be4d555bf8a';
       const token = localStorage.getItem('token');
       // const userId = "44b2a345-b9c5-429f-8f66-52830f1962c8"
       const response = await axios.get(`${ApprovedUserService.BASE_URL}/user-access/api/user-manage/user/fetch-by-id/${userId}`, {
@@ -80,29 +80,6 @@ class ApprovedUserService {
     } catch (err) {
       return {
         message: err?.response?.data?.message || 'Failed to update designation',
-        error: true
-      };
-    }
-  }
-
-  // Update user office type
-  static async updateUserOfficeType({ userId, desTalukOfficeId, distOfficeId }) {
-    try {
-      const token = localStorage.getItem('token');
-      const payload = { userId };
-      if (desTalukOfficeId) payload.desTalukOfficeId = desTalukOfficeId;
-      if (distOfficeId) payload.distOfficeId = distOfficeId;
-
-      const response = await axios.post(`${ApprovedUserService.BASE_URL}/user-manage/update-office-type`, payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      return response.data;
-    } catch (err) {
-      return {
-        message: err?.response?.data?.message || 'Failed to update office type',
         error: true
       };
     }
@@ -157,25 +134,21 @@ class ApprovedUserService {
   }
 
   static async getRolesbySchemes(schemeId) {
-  try {
-    const token = localStorage.getItem('token'); // <-- Add this line
-    const response = await axios.get(
-      `${ApprovedUserService.BASE_URL}/user-access/api/schemes/${schemeId}/roles`,
-      {
+    try {
+      const token = localStorage.getItem('token'); // <-- Add this line
+      const response = await axios.get(`${ApprovedUserService.BASE_URL}/user-access/api/schemes/${schemeId}/roles`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
-      }
-    );
-    console.log('rolesbyscheme > ', response.data);
-    return response.data.payload || response.data;
-  } catch (err) {
-    console.error('Error fetching roles by scheme:', err);
-    throw err;
+      });
+      console.log('rolesbyscheme > ', response.data);
+      return response.data.payload || response.data;
+    } catch (err) {
+      console.error('Error fetching roles by scheme:', err);
+      throw err;
+    }
   }
-}
-
 
   // Update user schemes and roles
   static async updateUserRoleScheme({ userId, isActive, roleScheme }) {
@@ -218,6 +191,56 @@ class ApprovedUserService {
     } catch (err) {
       return {
         message: err.response?.data?.message || 'An error occurred while fetching taluks.'
+      };
+    }
+  }
+
+  // Set user active status
+  // Set user active/inactive status
+  static async setUserActiveStatus(userId, isActive) {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${this.BASE_URL}/user-access/api/user-manage/set-active/${userId}?isActive=${isActive}`,
+        {}, // Empty body as per backend
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      return response.data;
+    } catch (err) {
+      return {
+        message: err?.response?.data?.message || 'Failed to update user active status',
+        error: true
+      };
+    }
+  }
+
+  // In ApprovedUserService.js
+
+  static async updateUserOfficeType({ userId, officeType, distOfficeId, desTalukOfficeId }) {
+    try {
+      const token = localStorage.getItem('token');
+      let payload = { userId, officeType };
+      if (officeType === 'TALUK') {
+        payload.desTalukOfficeId = desTalukOfficeId;
+      } else if (officeType === 'DISTRICT' || officeType === 'DIRECTORATE') {
+        payload.distOfficeId = distOfficeId;
+      }
+      const response = await axios.post(`${this.BASE_URL}/user-access/api/user-manage/update-office-type`, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      return response.data;
+    } catch (err) {
+      return {
+        message: err?.response?.data?.message || 'Failed to update office type',
+        error: true
       };
     }
   }

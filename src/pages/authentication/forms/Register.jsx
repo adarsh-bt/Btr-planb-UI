@@ -551,7 +551,6 @@ const handleFullNameChange = (e) => {
         </Grid>
       </Grid>
 
-     {/* District Office selection */}
       <MuiFormControl fullWidth sx={{ mb: 2 }} error={!!errors.district}>
         <Autocomplete
           disablePortal
@@ -568,7 +567,6 @@ const handleFullNameChange = (e) => {
         {errors.district && <FormHelperText error>{errors.district}</FormHelperText>}
       </MuiFormControl>
 
-      {/* Taluk Office selection */}
       <MuiFormControl fullWidth sx={{ mb: 2 }} error={!!errors.office}>
         <Autocomplete
           disablePortal
