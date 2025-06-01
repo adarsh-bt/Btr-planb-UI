@@ -58,20 +58,27 @@ const columns = (handleEdit) => [
     )
   },
 
-  {
-    name: 'Action',
-    cell: (row) => (
-      
-   <Button
-  color="success" // Green color for the button
-  onClick={row.approvalStatus === "Approved" || authservice.getrole() !== "Taluk Level Approver"  ? null : () => handleEdit(row)} // Conditionally disable the click handler
->
-  {row.approvalStatus === "Approved" && authservice.getrole() !== "Taluk Level Approver" ? <VerifiedIcon /> : <ManageAccountsIcon />}
-</Button>
+{
+  name: 'Action',
+  cell: (row) => {
+    const isApproved = row.approvalStatus === "Approved";
+    const userRole = authservice.getrole();
+    const isTalukApprover = userRole === "Taluk Level Approver";
 
+    const shouldShowVerifiedIcon = isApproved && !isTalukApprover;
+    const shouldShowManageIcon = !shouldShowVerifiedIcon;
 
-    )
+    return (
+      <Button
+        color="success"
+        onClick={shouldShowManageIcon ? () => handleEdit(row) : null}
+      >
+        {shouldShowVerifiedIcon ? <VerifiedIcon /> : <ManageAccountsIcon />}
+      </Button>
+    );
   }
+}
+
 ];
 
 function CustomTabPanel(props) {
