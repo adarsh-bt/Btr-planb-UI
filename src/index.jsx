@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { PermissionsProvider } from 'contexts/auth-reducer/PermissionsContext';
+import PermissionsLoader from 'contexts/auth-reducer/PermissionsLoader';
 
 // scroll bar
 import 'simplebar-react/dist/simplebar.min.css';
@@ -35,7 +36,9 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
     <React.StrictMode>
     <PermissionsProvider>
+      <PermissionsLoader>
       <App />
+      </PermissionsLoader>
     </PermissionsProvider>
   </React.StrictMode>
 );

@@ -16,6 +16,11 @@ import { Link} from 'react-router-dom';
 import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
 
+import { useContext } from 'react';
+import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
+import { flattenPermissions } from 'contexts/auth-reducer/permissionHelpers';
+
+
 
 
 
@@ -23,6 +28,14 @@ import Breadcrumb from 'routes/Breadcrumb';
 
 function Schemas() {
   const theme = useTheme();
+  const { permissions, loading, error } = useContext(PermissionsContext);
+
+  // Flatten permissions for easy checking
+  const userPermissions = flattenPermissions(permissions);
+
+  // Check if user has "View BTR"
+  const canViewBTR = userPermissions.includes('View BTR');
+
   return (
   
         <Grid container spacing={3}>
@@ -32,6 +45,7 @@ function Schemas() {
             <MainCard title="">
              
               <Grid container spacing={4}>
+                {canViewBTR && (
                <Grid item xs={12} sm={4} md={3} lg={3}>               
                <Card component={Link} to="/schemes/earas"
         sx={{
@@ -83,7 +97,7 @@ function Schemas() {
           </CardContent>
         </Box>
       </Card>
-    </Grid>
+    </Grid>)}
 
     <Grid item xs={12} sm={4} md={3} lg={3}>             
     <Card

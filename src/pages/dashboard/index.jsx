@@ -1,4 +1,6 @@
 import React, { useContext } from 'react';
+import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
+import { hasAnyPermission, hasAllPermissions, hasPermission } from 'contexts/auth-reducer/permissionHelpers';
 // material-ui
 import Avatar from '@mui/material/Avatar';
 import AvatarGroup from '@mui/material/AvatarGroup';
@@ -40,8 +42,6 @@ import auth from 'contexts/auth-reducer/auth';
 import Breadcrumb from 'routes/Breadcrumb';
 import authservice from 'pages/authentication/services/authservice';
 
-
-import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
 // avatar style
 const avatarSX = {
   width: 36,
@@ -63,10 +63,29 @@ const { children } = tabmenus.items2[0];
 // ==============================|| DASHBOARD - DEFAULT ||============================== //
 
 export default function DashboardDefault() {
-  const isauth = auth.isAdmin();
+  const { permissions, loading, error } = useContext(PermissionsContext);
 
-const { permissions, loading, error } = useContext(PermissionsContext);
-console.log("User Permissions:", permissions);
+  if (loading) return <Typography>Loading permissions...</Typography>;
+  if (error) return <Typography color="error">{error}</Typography>;
+  if (!permissions) return <Typography>Loading permissions...</Typography>;
+
+  // Flatten permissions for easy checking
+  const userPermissions = permissions.schemes?.flatMap((scheme) => scheme.roles.flatMap((role) => role.permissions)) || [];
+
+  // Example: check for any of these permissions
+  const canViewDashboard = hasAnyPermission(userPermissions, [
+    'View BTR',
+    'View FMB',
+    'View Zone Details'
+  ]);
+
+  // Example: check for all of these permissions
+  const canDownloadAll = hasAllPermissions(userPermissions, [
+    'Download Work Allocation Report',
+    'Download Key Plot List'
+  ]);
+
+
 
   return (
     <Grid
@@ -289,7 +308,7 @@ console.log("User Permissions:", permissions);
         </Grid>
 
         <Grid item xs={12} sm={4} md={4} lg={4}>
-        <Card
+          <Card
             component={Link}
             to="/rolelist"
             sx={{
@@ -376,95 +395,95 @@ console.log("User Permissions:", permissions);
           </Card>
         </Grid>
 
-       {authservice.hasAllowedRole() && (
-        <Grid item xs={12} sm={4} md={4} lg={4}>
-          <Card
-            component={Link}
-            to="/approvals"
-            sx={{
-              textDecoration: 'none',
-              position: 'relative',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '2rem',
-              borderRadius: '1rem',
-              background: 'linear-gradient(135deg, rgba(255, 184, 97, 0.57), rgb(255, 189, 109))',
-              transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-              overflow: 'hidden', // Ensure circles don't overflow the card
-              '&:hover': {
-                transform: 'scale(1.05)',
-                boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
-              },
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                width: '200px',
-                height: '200px',
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.2)',
-                top: '-50px',
-                right: '-50px'
-              },
-              '&::after': {
-                content: '""',
-                position: 'absolute',
-                width: '150px',
-                height: '150px',
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.15)',
-                bottom: '-40px',
-                left: '-40px'
-              }
-            }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
-              -
-            </Typography>
-            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
-              Approvals
-            </Typography>
-            <Typography
-              variant="body2"
+        {authservice.hasAllowedRole() && (
+          <Grid item xs={12} sm={4} md={4} lg={4}>
+            <Card
+              component={Link}
+              to="/approvals"
               sx={{
-                color: '#f3f3f3',
-                fontWeight: 'lighter',
-                marginTop: '0.5rem',
-                textAlign: 'center',
-                marginBottom: '1.2rem'
-              }}
-            >
-              Main menus
-            </Typography>
-            <Box
-              sx={{
-                position: 'absolute',
-                top: '1rem',
-                right: '1rem',
-                background: 'rgba(255, 255, 255, 0.3)',
-                padding: '0.5rem',
-                borderRadius: '50%',
+                textDecoration: 'none',
+                position: 'relative',
                 display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
                 justifyContent: 'center',
-                alignItems: 'center'
+                padding: '2rem',
+                borderRadius: '1rem',
+                background: 'linear-gradient(135deg, rgba(255, 184, 97, 0.57), rgb(255, 189, 109))',
+                transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+                overflow: 'hidden', // Ensure circles don't overflow the card
+                '&:hover': {
+                  transform: 'scale(1.05)',
+                  boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
+                },
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  width: '200px',
+                  height: '200px',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  top: '-50px',
+                  right: '-50px'
+                },
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  width: '150px',
+                  height: '150px',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  bottom: '-40px',
+                  left: '-40px'
+                }
               }}
             >
-              <CardMedia
-                component="img"
+              <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
+                -
+              </Typography>
+              <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
+                Approvals
+              </Typography>
+              <Typography
+                variant="body2"
                 sx={{
-                  width: '3rem',
-                  height: '3rem',
-                  borderRadius: '50%'
+                  color: '#f3f3f3',
+                  fontWeight: 'lighter',
+                  marginTop: '0.5rem',
+                  textAlign: 'center',
+                  marginBottom: '1.2rem'
                 }}
-                image="https://www.creativefabrica.com/wp-content/uploads/2021/06/30/Search-Engine-Icon-Graphics-14065623-1-1-580x386.jpg"
-                alt="Chart Icon"
-              />
-            </Box>
-          </Card>
-        </Grid>
-)}
+              >
+                Main menus
+              </Typography>
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: '1rem',
+                  right: '1rem',
+                  background: 'rgba(255, 255, 255, 0.3)',
+                  padding: '0.5rem',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}
+              >
+                <CardMedia
+                  component="img"
+                  sx={{
+                    width: '3rem',
+                    height: '3rem',
+                    borderRadius: '50%'
+                  }}
+                  image="https://www.creativefabrica.com/wp-content/uploads/2021/06/30/Search-Engine-Icon-Graphics-14065623-1-1-580x386.jpg"
+                  alt="Chart Icon"
+                />
+              </Box>
+            </Card>
+          </Grid>
+        )}
         <Grid item xs={12} sm={4} md={4} lg={4}>
           <Card
             component={Link}

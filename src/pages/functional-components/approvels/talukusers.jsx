@@ -6,6 +6,7 @@ import DataTable from 'react-data-table-component';
 import Swal from 'sweetalert2';
 
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+import VerifiedIcon from '@mui/icons-material/Verified';
 
 import {
   Typography,
@@ -40,8 +41,8 @@ const columns = (handleEdit) => [
   { name: 'Email', selector: (row) => row.email, sortable: true },
   { name: 'Phone number', selector: (row) => row.mobileNumber, sortable: true },
   { name: 'DOJ', selector: (row) => row.dateOfJoining, sortable: true },
-  // { name: 'Applied', selector: (row) => new Date(row.createdAt).toLocaleDateString('en-GB'), sortable: true },
-  { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
+  { name: 'Applied', selector: (row) => new Date(row.createdAt).toLocaleDateString('en-GB'), sortable: true },
+  // { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
   {
     name: 'Status',
     selector: (row) => row.active,
@@ -60,12 +61,15 @@ const columns = (handleEdit) => [
   {
     name: 'Action',
     cell: (row) => (
-      <Button
-        color="success" // Green color for the button
-        onClick={() => handleEdit(row)} // Call edit function on click
-      >
-        <ManageAccountsIcon />
-      </Button>
+      
+   <Button
+  color="success" // Green color for the button
+  onClick={row.approvalStatus === "Approved" || authservice.getrole() !== "Taluk Level Approver"  ? null : () => handleEdit(row)} // Conditionally disable the click handler
+>
+  {row.approvalStatus === "Approved" && authservice.getrole() !== "Taluk Level Approver" ? <VerifiedIcon /> : <ManageAccountsIcon />}
+</Button>
+
+
     )
   }
 ];
@@ -777,8 +781,8 @@ useEffect(() => {
             <Button onClick={handleCloseModal} color="secondary" variant="outlined">
               Close
             </Button>
-            {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow && selectedRow.designation === "Deputy Director -Districts") || (
-      (admrole === "District Level Approver")
+  {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow && selectedRow.designation === "Deputy Director -Districts") || (
+      (admrole === "District Level Approver") || (selectedRow && selectedRow.designation === "Taluk Statistical Officer")
     )) && (
             <Button
               onClick={handleSaveChanges}
