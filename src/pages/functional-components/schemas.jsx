@@ -45,7 +45,7 @@ function Schemas() {
             <MainCard title="">
              
               <Grid container spacing={4}>
-                {canViewBTR && (
+                {/* {canViewBTR && ( */}
                <Grid item xs={12} sm={4} md={3} lg={3}>               
                <Card component={Link} to="/schemes/earas"
         sx={{
@@ -97,7 +97,8 @@ function Schemas() {
           </CardContent>
         </Box>
       </Card>
-    </Grid>)}
+    </Grid>
+    {/* )} */}
 
     <Grid item xs={12} sm={4} md={3} lg={3}>             
     <Card

@@ -29,7 +29,8 @@ class authservice {
       localStorage.setItem('token', responseData.payload.token);
       localStorage.setItem('user', responseData.payload.username);
 
-      return responseData;
+        console.log(">> >>>>> >>>>>> ",responseData)
+        return responseData;
     } catch (err) {
       if (err.response) {
         return {

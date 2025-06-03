@@ -139,7 +139,7 @@ const SignInSide = () => {
 
         {/* Dynamic Heading */}
         <Typography component="h1" variant="h5" sx={{ fontWeight: 'bold', color: '#333', mb: 3 }}>
-          {isForgotPassword ? '' : isRegister ? 'Register' : 'Sign In'}
+          {isForgotPassword ? '' : isRegister ? 'Registration' : 'Sign In'}
         </Typography>
 
         {isForgotPassword ? (

@@ -185,9 +185,11 @@ const KeyPlot = () => {
     };
 
     // --- Navigation and Dialog Logic ---
-    const handleViewClusterClick = (syNo) => {
-        navigate(`/schemes/earas/cluster?syNo=${encodeURIComponent(syNo)}`);
-    };
+  const handleViewClusterClick = (syNo, slno) => {
+    const encodedSyNo = encodeURIComponent(syNo);
+    const encodedSlno = encodeURIComponent(slno);
+    navigate(`/schemes/earas/cluster?No=${encodedSyNo}&slno=${encodedSlno}`);
+};
 
     const handleOpenRemoveDialog = (row) => {
         setSelectedRowToRemove(row);
@@ -250,9 +252,10 @@ const KeyPlot = () => {
                 reason: finalReason
             });
 
-            const newPlotPayload = response.data; // Assuming your backend returns the newly generated plot
+         
+            const newPlotPayload = response.data;
 
-            // Transform the new plot to match your frontend data structure
+          
             const transformedNewPlot = {
                 id: newPlotPayload.id,
                 plot_id : newPlotPayload["plot_id"],
@@ -429,7 +432,7 @@ const KeyPlot = () => {
                                                 '&:hover': { backgroundColor: '#e0f2f7' },
                                             }}
                                         >
-                                            <TableCell align="center">{page * rowsPerPage + index + 1}</TableCell>
+                                            <TableCell align="center">{ index + 1}</TableCell>
                                             <TableCell align="center">{row.syNo}</TableCell>
                                             <TableCell align="center">{row.panchayth}</TableCell>
                                             <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
@@ -439,7 +442,7 @@ const KeyPlot = () => {
                                                 <Button
                                                     size="small"
                                                     color="primary"
-                                                    onClick={() => handleViewClusterClick(row.plot_id)}
+                                                    onClick={() => handleViewClusterClick(row.plot_id,index+1)}
                                                     sx={{ minWidth: 'unset', px: 0.5 }}
                                                 >
                                                     <RemoveRedEyeIcon fontSize="small" />
