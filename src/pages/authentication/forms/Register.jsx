@@ -419,6 +419,7 @@
           value={fullName} onChange={handleFullNameChange}
           error={!!errors.fullName}
           helperText={errors.fullName}
+          
           // onChange={(e) => {
           //   const value = e.target.value;
           //   // Allow only alphabets, spaces, and periods, and limit length to 20
@@ -431,8 +432,15 @@
           sx={{
             mb: 2,
             '& .MuiOutlinedInput-root': {
-              borderRadius: '1rem' // Custom border-radius
-            }
+              top: '50%',
+              borderRadius: '0.5rem', // Custom border-radius
+              fontSize: '14px' // Apply font size here
+            },
+          '& .MuiOutlinedInput-root': {
+            borderRadius: '0.5rem',
+            fontSize: '14px',
+            paddingTop: '7.5px',  // Adjust if needed for better vertical space
+          }
           }}
         />
 
@@ -453,10 +461,16 @@
           helperText={errors.email}
           sx={{
             mb: 2,
-            alignItems: 'center',
             '& .MuiOutlinedInput-root': {
-              borderRadius: '1rem'
-            }
+              top: '50%',
+              borderRadius: '0.5rem', // Custom border-radius
+              fontSize: '14px' // Apply font size here
+            },
+          '& .MuiOutlinedInput-root': {
+            borderRadius: '0.5rem',
+            fontSize: '14px',
+            paddingTop: '7.5px',  // Adjust if needed for better vertical space
+          }
           }}
         />
 
@@ -482,8 +496,15 @@
           sx={{
             mb: 2,
             '& .MuiOutlinedInput-root': {
-              borderRadius: '1rem'
-            }
+              top: '50%',
+              borderRadius: '0.5rem', // Custom border-radius
+              fontSize: '14px' // Apply font size here
+            },
+          '& .MuiOutlinedInput-root': {
+            borderRadius: '0.5rem',
+            fontSize: '14px',
+            paddingTop: '7.5px',  // Adjust if needed for better vertical space
+          }
           }}
         />
 
@@ -503,7 +524,19 @@
             inputProps={{ maxLength: 10 }}
             error={!!errors.idNumber}
             helperText={errors.idNumber ? errors.idNumber : " "}
-            sx={{ mb: 2 }}
+            sx={{
+            mb: 2,
+            '& .MuiOutlinedInput-root': {
+              top: '50%',
+              borderRadius: '1rem', // Custom border-radius
+              fontSize: '14px' // Apply font size here
+            },
+          '& .MuiOutlinedInput-root': {
+            borderRadius: '1rem',
+            fontSize: '14px',
+            paddingTop: '7.5px',  // Adjust if needed for better vertical space
+          }
+          }}
           />
         
         ) : (
@@ -515,11 +548,32 @@
             inputProps={{ maxLength: 10 }}
             error={!!errors.idNumber}
             helperText={errors.idNumber ? errors.idNumber : " "}
-            sx={{ mb: 2 }}
+            sx={{
+            mb: 2,
+            '& .MuiOutlinedInput-root': {
+              top: '50%',
+              borderRadius: '0.5rem', // Custom border-radius
+              fontSize: '14px' // Apply font size here
+            },
+          '& .MuiOutlinedInput-root': {
+            borderRadius: '0.5rem',
+            fontSize: '14px',
+            paddingTop: '7.5px',  // Adjust if needed for better vertical space
+          }
+          }}
           />
         )}
 
-      <MuiFormControl fullWidth sx={{ mb: 2 }} error={!!errors.designation}>
+      <MuiFormControl fullWidth 
+      sx={{
+    mb: 2,
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '0.5rem',
+      fontSize: '14px',
+      paddingTop: '7.5px',
+    }
+  }}
+      error={!!errors.designation}>
           <InputLabel>
             Designation{' '}
             <Typography component="span" color="error">
@@ -533,7 +587,8 @@
               </MenuItem>
             ))}
           </Select>
-          {errors.designation && <FormHelperText error>{errors.designation}</FormHelperText>}
+          {errors.designation && <FormHelperText error>{errors.designation}</FormHelperText>
+          }
         </MuiFormControl>
 
 
@@ -618,7 +673,7 @@
               fullWidth
               variant="contained"
               color="primary"
-              sx={{ borderRadius: '20px' }}
+              sx={{ borderRadius: '20px', fontSize: '16px' }}
               onClick={handleRegisterSubmit}
               disabled={loading} // Disable the button while loading
             >
@@ -626,7 +681,7 @@
             </Button>
           </Grid>
           <Grid item xs={12}>
-            <Typography variant="body2" onClick={onBack} sx={{ color: 'blue', cursor: 'pointer' }} textAlign="center">
+            <Typography variant="body2" onClick={onBack} sx={{ fontSize: '15px', color: 'blue', cursor: 'pointer' }} textAlign="center">
               {'Back to Sign In'}
             </Typography>
           </Grid>

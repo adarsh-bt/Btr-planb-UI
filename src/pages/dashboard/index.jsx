@@ -395,7 +395,7 @@ export default function DashboardDefault() {
           </Card>
         </Grid>
 
-        {authservice.hasAllowedRole() && (
+     
           <Grid item xs={12} sm={4} md={4} lg={4}>
             <Card
               component={Link}
@@ -483,7 +483,6 @@ export default function DashboardDefault() {
               </Box>
             </Card>
           </Grid>
-        )}
         <Grid item xs={12} sm={4} md={4} lg={4}>
           <Card
             component={Link}

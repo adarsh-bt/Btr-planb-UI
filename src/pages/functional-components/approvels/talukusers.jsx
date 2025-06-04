@@ -418,7 +418,9 @@ useEffect(() => {
   //   )
   // ) : [];
   const filteredData = userList.filter((item) =>
-    Object.values(item).some((value) => value.toString().toLowerCase().includes(filterText.toLowerCase()))
+    Object.values(item).some((value) =>
+    String(value).toLowerCase().includes(filterText.toLowerCase())
+  )
   );
 
   return (

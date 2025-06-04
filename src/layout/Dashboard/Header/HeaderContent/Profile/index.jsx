@@ -101,7 +101,7 @@ console.log("user anme ", permissions);
         <Stack direction="row" spacing={1.25} alignItems="center" sx={{ p: 0.5 }}>
           <Avatar alt="profile user" src={avatar1} size="sm" />
           <Typography variant="subtitle1" sx={{ textTransform: 'capitalize',color:"white" }}>
-             {user}
+             {permissions.username}
           </Typography>
         </Stack>
       </ButtonBase>
@@ -134,7 +134,7 @@ console.log("user anme ", permissions);
                         <Stack direction="row" spacing={1.25} alignItems="center">
                           <Avatar alt="profile user" src={avatar1} sx={{ width: 32, height: 32 }} />
                           <Stack>
-                            <Typography variant="h6">{user}
+                            <Typography variant="h6">{permissions.username}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
                               {authservice.getrole()}

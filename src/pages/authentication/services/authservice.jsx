@@ -29,8 +29,8 @@ class authservice {
       localStorage.setItem('token', responseData.payload.token);
       localStorage.setItem('user', responseData.payload.username);
 
-        console.log(">> >>>>> >>>>>> ",responseData)
-        return responseData;
+      console.log('>> >>>>> >>>>>> ', responseData);
+      return responseData;
     } catch (err) {
       if (err.response) {
         return {
@@ -49,28 +49,21 @@ class authservice {
   }
 
   static async fetchPermissions(token) {
-  try {
-    const response = await axios.get(
-      `${authservice.BASE_URL}/user-access/user-state/userpremissions`,
-      {
+    try {
+      const response = await axios.get(`${authservice.BASE_URL}/user-access/user-state/userpremissions`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
-      }
-    );
-    // If your API returns encrypted data, decrypt here:
-    // const decryptedJson = decryptData(response.data);
-    // return JSON.parse(decryptedJson);
-    return response.data;
-  } catch (err) {
-    throw new Error(
-      (err.response && err.response.data && err.response.data.message) ||
-      'Failed to fetch permissions'
-    );
+      });
+      // If your API returns encrypted data, decrypt here:
+      // const decryptedJson = decryptData(response.data);
+      // return JSON.parse(decryptedJson);
+      return response.data;
+    } catch (err) {
+      throw new Error((err.response && err.response.data && err.response.data.message) || 'Failed to fetch permissions');
+    }
   }
-}
-
 
   static async registration(userData) {
     try {
@@ -104,6 +97,7 @@ class authservice {
       );
       const decryptedJson = decryptData(response.data);
       const responseData = JSON.parse(decryptedJson);
+      console.log('ok', responseData);
       return responseData;
     } catch (err) {
       return {
@@ -131,13 +125,16 @@ class authservice {
 
   static async password_reset(userData) {
     try {
-      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/password_reset`, userData, {
+      const encrypted = encryptData(JSON.stringify(userData));
+      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/password_reset`, encrypted, {
         headers: {
           'Content-Type': 'text/plain'
         }
       });
-
-      return response;
+      const decryptedJson = decryptData(response.data);
+      const responseData = JSON.parse(decryptedJson);
+      console.log('use data ');
+      return responseData;
     } catch (err) {
       throw err;
     }

@@ -73,39 +73,28 @@ const SignInSide = () => {
         }}
       >
         <div style={{ textAlign: 'center' }}>
-          <img className="logo_gov" src={logo} alt="Logo" />
+          <img className="logo_gov" src={logo} alt="Logo" style={{ marginBottom: '0.1rem' }} />
 
-          <Typography
-            className="deparment"
-            variant="h3"
-            sx={{
-              color: '#fff',
-              px: 4,
-              textAlign: 'center',
-              marginBottom: '1rem'
-            }}
-          >
-            Department of Economics & Statistics
-          </Typography>
+          <Box sx={{ color: '#fff', textAlign: 'center', px: 4 }}>
+            <Typography sx={{ fontSize: '1.6rem', fontWeight: 500, mt: 0, mb: 1 }}>
+              Department of Economics & Statistics
+            </Typography>
+            <Typography sx={{ fontSize: '1.6rem', fontWeight: 500, mt: 0, mb: 1 }}>
+              Government of Kerala
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: '1.6rem',
+                fontWeight: 'bold',
+                mt: 0,
+                mb: 1.5,
+                animation: `${fadeIn} 1.5s ease-out`
+              }}
+            >
+              Application for Intelligent Data Engineering and Analytics (AIDEA)
+            </Typography>
+          </Box>
 
-          <Typography variant="h3" className="deparment">
-            Government of Kerala
-          </Typography>
-
-          <Typography
-            variant="h3"
-            className="deparment"
-            sx={{
-              color: '#fff',
-              fontWeight: 'bold',
-              px: 4,
-              textAlign: 'center',
-              marginBottom: '3rem',
-              animation: `${fadeIn} 1.5s ease-out`
-            }}
-          >
-            Application for Intelligent Data Engineering and Analytics (AIDEA)
-          </Typography>
 
           <Typography className="duk_logo_typ">
             <img className="duk_logo" src={duklogo} alt="DUK Logo" />
@@ -138,7 +127,16 @@ const SignInSide = () => {
         <Avatar alt="User Login" src={loginimg} sx={{ width: 50, height: 50, marginBottom: '.5rem' }} />
 
         {/* Dynamic Heading */}
-        <Typography component="h1" variant="h5" sx={{ fontWeight: 'bold', color: '#333', mb: 3 }}>
+        <Typography
+          component="h1"
+          variant="h5"
+          sx={{
+            fontWeight: 'bold',
+            color: '#333',
+            mb: 3,
+            fontSize: '1.4rem' // Increase heading size
+          }}
+        >
           {isForgotPassword ? '' : isRegister ? 'Registration' : 'Sign In'}
         </Typography>
 
@@ -185,66 +183,76 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (username && password) {
-    const trimmedEmail = username.trim();
-    const trimmedPassword = password.trim();
-    try {
-      setIsLoading(true);
-      const userLogin = {
-        username: trimmedEmail,
-        password: trimmedPassword
-      };
-      const userData = await authservice.login(userLogin);
-      setIsLoading(false);
+    if (username && password) {
+      const trimmedEmail = username.trim();
+      const trimmedPassword = password.trim();
+      try {
+        setIsLoading(true);
+        const userLogin = {
+          username: trimmedEmail,
+          password: trimmedPassword
+        };
+        const userData = await authservice.login(userLogin);
+        setIsLoading(false);
 
-      if (userData.payload && userData.payload.token && typeof userData.payload.token === 'string') {
-        localStorage.setItem('token', userData.payload.token);
-        localStorage.setItem('user', userData.payload.username);
+        if (userData.payload && userData.payload.token && typeof userData.payload.token === 'string') {
+          localStorage.setItem('token', userData.payload.token);
+          localStorage.setItem('user', userData.payload.username);
 
-        // Save credentials if rememberMe is checked
-        if (rememberMe) {
-          localStorage.setItem('rememberedUsername', username);
-          localStorage.setItem('rememberedPassword', password);
-          localStorage.setItem('rememberMe', 'true');
+          // Save credentials if rememberMe is checked
+          if (rememberMe) {
+            localStorage.setItem('rememberedUsername', username);
+            localStorage.setItem('rememberedPassword', password);
+            localStorage.setItem('rememberMe', 'true');
+          } else {
+            localStorage.removeItem('rememberedUsername');
+            localStorage.removeItem('rememberedPassword');
+            localStorage.removeItem('rememberMe');
+          }
+
+          // --- FIX: Fetch permissions after login ---
+          setLoading(true);
+          try {
+            const permissionsData = await authservice.fetchPermissions(userData.payload.token);
+            setPermissions(permissionsData); // Update context and localStorage
+            setLoading(false);
+            navigate('/'); // Redirect to home/dashboard
+          } catch (permissionsError) {
+            setPermissionsError(permissionsError.message);
+            setLoading(false);
+            // Optionally navigate or show error
+          }
         } else {
-          localStorage.removeItem('rememberedUsername');
-          localStorage.removeItem('rememberedPassword');
-          localStorage.removeItem('rememberMe');
+          setError(userData.message || 'Login failed');
         }
-
-        // --- FIX: Fetch permissions after login ---
-        setLoading(true);
-        try {
-          const permissionsData = await authservice.fetchPermissions(userData.payload.token);
-          setPermissions(permissionsData); // Update context and localStorage
-          setLoading(false);
-          navigate('/'); // Redirect to home/dashboard
-        } catch (permissionsError) {
-          setPermissionsError(permissionsError.message);
-          setLoading(false);
-          // Optionally navigate or show error
-        }
-      } else {
-        setError(userData.message || 'Login failed');
+      } catch (error) {
+        console.error('Error during login:', error);
+        setError(error.message || 'An error occurred during login');
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Error during login:', error);
-      setError(error.message || 'An error occurred during login');
-      setIsLoading(false);
+    } else {
+      setError(username ? 'Enter your password' : 'Enter your email');
     }
-  } else {
-    setError(username ? 'Enter your password' : 'Enter your email');
-  }
-};
-
+  };
 
   return (
     <Box
       component="form"
       noValidate
-      sx={{ mt: 1, width: '100%', maxWidth: '400px', mx: 'auto' }}
+      sx={{
+    mt: 1,
+    width: '100%',
+    maxWidth: '400px',
+    mx: 'auto',
+    fontSize: '1.1rem', // <-- Set your desired font size here
+    '& .MuiFormLabel-root': { fontSize: '1.1rem' }, // Labels (like "Email Address")
+    '& .MuiInputBase-input': { fontSize: '1.1rem' }, // Input text
+    '& .MuiButton-root': { fontSize: '1.1rem' }, // Button text
+    '& .MuiTypography-root': { fontSize: '1.1rem' }, // Typography text (like links)
+    '& .MuiAlert-message': { fontSize: '1.1rem' } // Alert message font
+  }}
       onSubmit={handleSubmit} // Attach handleSubmit to form submit
     >
       {error && (
@@ -334,7 +342,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
       {/* Remember Me Checkbox */}
       <FormControlLabel
         control={<Checkbox value="remember" color="primary" checked={rememberMe} onChange={handleRememberMeChange} />}
-        label="Remember me"
+        label="Remember Me"
       />
       {/* Centered Sign In Button */}
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
@@ -362,13 +370,13 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
         <Grid container spacing={2}>
           <Grid item xs textAlign="left">
             <Typography variant="body2" onClick={onForgotPasswordClick} sx={{ color: 'blue', cursor: 'pointer' }}>
-              Forgot password?
+              Forgot Password?
             </Typography>
           </Grid>
 
           <Grid item textAlign="right">
             <Typography variant="body2" onClick={onRegisterClick} sx={{ color: 'blue', cursor: 'pointer' }}>
-              {'Register new User'}
+              {'Register New User'}
             </Typography>
           </Grid>
         </Grid>

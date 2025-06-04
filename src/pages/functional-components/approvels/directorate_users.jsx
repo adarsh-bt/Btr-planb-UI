@@ -480,8 +480,8 @@ console.log("User List currenly dir>>> ",userList);
 // ) : [];
 const filteredData = userList.filter((item) =>
   Object.values(item).some((value) =>
-    value.toString().toLowerCase().includes(filterText.toLowerCase())
-)
+    String(value).toLowerCase().includes(filterText.toLowerCase())
+  )
 );
 
 return (

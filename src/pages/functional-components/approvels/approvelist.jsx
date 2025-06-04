@@ -511,21 +511,21 @@ const handleFilterChange = (event) => {
 // Filtered data based on the filter text
 const filteredData = userList.filter((item) =>
   Object.values(item).some((value) =>
-    value.toString().toLowerCase().includes(filterText.toLowerCase())
+    String(value).toLowerCase().includes(filterText.toLowerCase())
   )
 );
 
 const filteredDataTalukforIT = userList2.filter((item) =>
   Object.values(item).some((value) =>
-    value.toString().toLowerCase().includes(filterText.toLowerCase())
+    String(value).toLowerCase().includes(filterText.toLowerCase())
   )
 );
 
 // console.log("dis uses")
 const filteredDataDis = userListDis.filter((item) =>
   Object.values(item).some((value) =>
-    value.toString().toLowerCase().includes(DisfilterText.toLowerCase())
-)
+    String(value).toLowerCase().includes(DisfilterText.toLowerCase())
+  )
 );
 // console.log("filtr",filterText.toLowerCase())
 return (
