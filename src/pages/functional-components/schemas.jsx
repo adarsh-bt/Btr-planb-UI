@@ -63,17 +63,18 @@ function Schemas() {
             // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
             boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)', // Stronger shadow on hover
           },
+          minHeight: '8rem', // fix height to keep consistent
         }}
       >
         <CardMedia
           component="img"
           sx={{
-            width: '5rem',
-            height: '4rem',
+            width: '6rem',
+            height: '5rem',
             borderRadius: '.5rem',
             marginRight: '1rem', // Space between image and text
           }}
-          image="https://icons.veryicon.com/png/o/miscellaneous/common-face-icons-continuously-updated/scan-business-card.png"
+          image="src\assets\images\logo\EARAS.png"
           alt="Dashboard Icon"
         />
 
@@ -87,12 +88,12 @@ function Schemas() {
               component="div"
               sx={{
                 color: '#f3f3f3',
-                fontStyle: 'italic',
+                // fontStyle: 'italic',
                 fontWeight: 'lighter',
-                marginTop: '0.5rem',
+                marginTop: '0.1rem',
               }}
             >
-              --- ----
+              Field Records
             </Typography>
           </CardContent>
         </Box>
@@ -108,14 +109,23 @@ function Schemas() {
           justifyContent: 'center',
           padding: '1rem',
           borderRadius: '1rem',
-          background: 'linear-gradient(135deg, rgba(79, 208, 170, 0.57), rgb(37, 187, 142))', // Gradient color
-          transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
-          '&:hover': {
-            transform: 'scale(1.05)', // Hover scale effect
-            // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
-            boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)', // Stronger shadow on hover
-          },
+
+          background: 'linear-gradient(135deg, #cfd8dc, #b0bec5)', // Muted gray gradient
+          opacity: 0.6, // Makes it look inactive
+          filter: 'grayscale(100%)', // Grays out the card
+          boxShadow: 'none', // No shadow
+          cursor: 'not-allowed', // Indicate non-clickable
+          pointerEvents: 'none', // Disable interaction (optional)
+
+
+          // background: 'linear-gradient(135deg, rgba(79, 208, 170, 0.57), rgb(37, 187, 142))', // Gradient color
+          // transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
+          // boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
+          // '&:hover': {
+          //   transform: 'scale(1.05)', // Hover scale effect
+          //   // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
+          //   boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)', // Stronger shadow on hover
+          // },
         }}
       >
         <CardMedia
@@ -160,14 +170,22 @@ function Schemas() {
           justifyContent: 'center',
           padding: '1rem',
           borderRadius: '1rem',
-          background: 'linear-gradient(135deg, rgba(255, 142, 142, 0.57), rgb(243, 85, 85))', // Gradient color
-          transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
-          '&:hover': {
-            transform: 'scale(1.05)', // Hover scale effect
-            // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
-            boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)', // Stronger shadow on hover
-          },
+
+          background: 'linear-gradient(135deg, #cfd8dc, #b0bec5)', // Muted gray gradient
+          opacity: 0.6, // Makes it look inactive
+          filter: 'grayscale(100%)', // Grays out the card
+          boxShadow: 'none', // No shadow
+          cursor: 'not-allowed', // Indicate non-clickable
+          pointerEvents: 'none', // Disable interaction (optional)
+          
+          // background: 'linear-gradient(135deg, rgba(255, 142, 142, 0.57), rgb(243, 85, 85))', // Gradient color
+          // transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
+          // boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
+          // '&:hover': {
+          //   transform: 'scale(1.05)', // Hover scale effect
+          //   // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
+          //   boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)', // Stronger shadow on hover
+          // },
         }}
       >
         <CardMedia
@@ -212,14 +230,23 @@ function Schemas() {
           justifyContent: 'center',
           padding: '1rem',
           borderRadius: '1rem',
-          background: 'linear-gradient(135deg, rgba(180, 146, 254, 0.57), rgb(132, 94, 247))', // Gradient color
-          transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
-          '&:hover': {
-            transform: 'scale(1.05)', // Hover scale effect
-            // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
-            boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)', // Stronger shadow on hover
-          },
+
+          background: 'linear-gradient(135deg, #cfd8dc, #b0bec5)', // Muted gray gradient
+          opacity: 0.6, // Makes it look inactive
+          filter: 'grayscale(100%)', // Grays out the card
+          boxShadow: 'none', // No shadow
+          cursor: 'not-allowed', // Indicate non-clickable
+          pointerEvents: 'none', // Disable interaction (optional)
+
+
+          // background: 'linear-gradient(135deg, rgba(180, 146, 254, 0.57), rgb(132, 94, 247))', // Gradient color
+          // transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
+          // boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
+          // '&:hover': {
+          //   transform: 'scale(1.05)', // Hover scale effect
+          //   // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
+          //   boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)', // Stronger shadow on hover
+          // },
         }}
       >
         <CardMedia

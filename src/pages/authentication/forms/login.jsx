@@ -96,7 +96,13 @@ const SignInSide = () => {
           </Box>
 
 
-          <Typography className="duk_logo_typ">
+          <Typography className="duk_logo_typ"
+          sx={{
+                fontSize: '1.6rem',
+                fontWeight: 'bold',
+                mt: 10,
+                animation: `${fadeIn} 1.5s ease-out`
+              }}>
             <img className="duk_logo" src={duklogo} alt="DUK Logo" />
             <img className="cdti_logo" src={cdtilogo} alt="CDTI Logo" />
           </Typography>

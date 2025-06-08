@@ -66,6 +66,7 @@ const Roles = () => {
   const [statusMessage, setStatusMessage] = useState('');
 
   const [innerTabValue, setInnerTabValue] = useState(0);
+  
 
   // Designation Change States
   const [isEditingDesignation, setIsEditingDesignation] = useState(false);
@@ -437,18 +438,30 @@ const Roles = () => {
 
   // --- Scheme and Role Handlers ---
   const handleEditSchemes = async () => {
-    setSchemesLoading(true);
-    try {
-      const schemes = await ApprovedUserService.getSchemes();
-      if (!schemes.error) {
-        setAllSchemes(schemes || []);
-      }
-      setIsEditingSchemes(true);
-    } catch (err) {
-      alert('Failed to fetch schemes');
+  setSchemesLoading(true);
+  try {
+    const schemes = await ApprovedUserService.getSchemes();
+    if (!schemes.error) {
+      setAllSchemes(schemes || []);
     }
-    setSchemesLoading(false);
-  };
+
+    // For each current scheme-role pair, fetch roles if not already loaded
+    for (const pair of schemeRolePairs) {
+      if (!rolesByScheme[pair.schemeId]) {
+        const roles = await ApprovedUserService.getRolesbySchemes(pair.schemeId);
+        setRolesByScheme((prev) => ({
+          ...prev,
+          [pair.schemeId]: roles.error ? [] : roles || []
+        }));
+      }
+    }
+
+    setIsEditingSchemes(true);
+  } catch (err) {
+    alert('Failed to fetch schemes');
+  }
+  setSchemesLoading(false);
+};
 
   const handleSchemeChange = async (idx, schemeId) => {
     // Update the selected scheme in the pair
@@ -605,7 +618,7 @@ const Roles = () => {
                         label: 'Status',
                         value: (
                           <Chip
-                            label={userData.active ? 'Activated' : 'Inactive'}
+                            label={userData.active ? 'Activ' : 'Inactive'}
                             color={userData.active ? 'success' : 'default'}
                             size="small"
                             sx={{ fontWeight: 'bold', color: '#fff' }}
@@ -700,11 +713,18 @@ const Roles = () => {
                                   </Select>
                                 </FormControl>
                               </Grid>
-                              <Grid item xs={2} sx={{ display: 'flex', alignItems: 'center' }}>
-                                <Button color="error" onClick={() => handleRemovePair(idx)}>
-                                  Remove
-                                </Button>
-                              </Grid>
+                              <Grid item xs={2} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <FormControl component="fieldset">
+                <RadioGroup
+                  row
+                  value={pair.active ? 'active' : 'inactive'}
+                  onChange={(e) => handleSchemeRoleActiveChange(idx, e.target.value)}
+                >
+                  <FormControlLabel value="active" control={<Radio color="primary" />} label="Active" />
+                  <FormControlLabel value="inactive" control={<Radio color="secondary" />} label="Inactive" />
+                </RadioGroup>
+              </FormControl>
+            </Grid>
                             </React.Fragment>
                           ))}
                           <Grid item xs={12}>
@@ -728,12 +748,25 @@ const Roles = () => {
                     <Grid container spacing={2} alignItems="center">
                       <Grid item xs={12} sm={6}>
                         <FormControl fullWidth size="small">
-                          <Typography variant="body2" sx={{ mb: 1 }}>
-                            Designation
+                          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                            <Typography variant="h6">Designation</Typography>
                             {!isEditingDesignation && (
-                              <EditIcon fontSize="small" sx={{ ml: 1, cursor: 'pointer' }} onClick={handleEditDesignation} />
+                              <IconButton
+                                aria-label="edit"
+                                onClick={handleEditDesignation}
+                                sx={{
+                                  color: 'primary.main',
+                                  backgroundColor: 'background.paper',
+                                  borderRadius: 1,
+                                  boxShadow: 1,
+                                  '&:hover': { backgroundColor: 'primary.light' }
+                                }}
+                              >
+                                <EditIcon />
+                              </IconButton>
                             )}
-                          </Typography>
+                          </Box>
+                          
                           {!isEditingDesignation ? (
                             <TextField value={userData.designation} variant="outlined" size="small" InputProps={{ readOnly: true }} />
                           ) : (
@@ -781,10 +814,25 @@ const Roles = () => {
                     <Grid container spacing={2} alignItems="center">
                       <Grid item xs={12} sm={6}>
                         <FormControl fullWidth size="small">
-                          <Typography variant="body2" sx={{ mb: 1 }}>
-                            Office Type
-                            {!isEditingOffice && <EditIcon fontSize="small" sx={{ ml: 1, cursor: 'pointer' }} onClick={handleEditOffice} />}
-                          </Typography>
+                          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                            <Typography variant="h6">Office Type</Typography>
+                            {!isEditingOffice && (
+                              <IconButton
+                                aria-label="edit"
+                                onClick={handleEditOffice}
+                                sx={{
+                                  color: 'primary.main',
+                                  backgroundColor: 'background.paper',
+                                  borderRadius: 1,
+                                  boxShadow: 1,
+                                  '&:hover': { backgroundColor: 'primary.light' }
+                                }}
+                              >
+                                <EditIcon />
+                              </IconButton>
+                            )}
+                          </Box>
+
                           {/* VIEW MODE */}
                           {!isEditingOffice ? (
                             <>
@@ -958,9 +1006,7 @@ const Roles = () => {
                   )}
 
                   <Box sx={{ mt: 3 }}>
-                    <Button variant="contained" color="primary" onClick={handleChangeSubmit}>
-                      Save Changes
-                    </Button>
+                    
                   </Box>
                 </Box>
               )}
