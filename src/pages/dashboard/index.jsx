@@ -42,6 +42,8 @@ import auth from 'contexts/auth-reducer/auth';
 import Breadcrumb from 'routes/Breadcrumb';
 import authservice from 'pages/authentication/services/authservice';
 
+
+// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
 // avatar style
 const avatarSX = {
   width: 36,
@@ -63,29 +65,10 @@ const { children } = tabmenus.items2[0];
 // ==============================|| DASHBOARD - DEFAULT ||============================== //
 
 export default function DashboardDefault() {
-  const { permissions, loading, error } = useContext(PermissionsContext);
+  const isauth = auth.isAdmin();
 
-  if (loading) return <Typography>Loading permissions...</Typography>;
-  if (error) return <Typography color="error">{error}</Typography>;
-  if (!permissions) return <Typography>Loading permissions...</Typography>;
-
-  // Flatten permissions for easy checking
-  const userPermissions = permissions.schemes?.flatMap((scheme) => scheme.roles.flatMap((role) => role.permissions)) || [];
-
-  // Example: check for any of these permissions
-  const canViewDashboard = hasAnyPermission(userPermissions, [
-    'View BTR',
-    'View FMB',
-    'View Zone Details'
-  ]);
-
-  // Example: check for all of these permissions
-  const canDownloadAll = hasAllPermissions(userPermissions, [
-    'Download Work Allocation Report',
-    'Download Key Plot List'
-  ]);
-
-
+// const { permissions, loading, error } = useContext(PermissionsContext);
+// console.log("User Permissions:", permissions);
 
   return (
     <Grid

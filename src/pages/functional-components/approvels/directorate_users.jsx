@@ -245,7 +245,6 @@ const payload = {
           //   id: selectedRow.approvalId,
           //   roleId: selectedRole
           // };
-
     
           // Call the API using the separate function
           let ser;
@@ -340,7 +339,6 @@ const handleRadioChange = (value) => {
     // setSchemeRolePairs([]); // Or your initial state
   }
 };
-
 
 
 

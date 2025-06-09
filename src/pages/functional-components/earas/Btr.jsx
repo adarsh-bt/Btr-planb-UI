@@ -32,8 +32,19 @@ const columns = (handleEdit,handleView) => [
   { name: 'Panchayth', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
   { name: 'Village', selector: (row) => row.villageName?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
   { name: 'Block', selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  { name: 'Re-Survey No', selector: (row) => row.resvno?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  { name: 'Sub Div No', selector: (row) => row.resbdno?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  {
+    name: 'Re-Survey No',
+    selector: (row) =>
+      row.resvno && row.resbdno
+        ? `${row.resvno} / ${row.resbdno}`
+        : row.resvno
+        ? `${row.resvno} / NA`
+        : row.resbdno
+        ? `NA / ${row.resbdno}`
+        : <span style={{ color: '#888' }}>NA</span>,
+  },
+  // { name: 'Re-Survey No', selector: (row) => row.resvno?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  // { name: 'Sub Div No', selector: (row) => row.resbdno?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
   // { name: 'Address', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
   // { name: 'Address', selector: (row) => row.lbcode, sortable: true },
  
@@ -156,7 +167,7 @@ const Btr = () => {
     const userId = authservice.userid(); // Get dynamically if needed
   
     try {
-      const response = await fetch(`http://localhost:8082/btr-service/btr-api/export?userId=${userId}`);
+      const response = await fetch(`http://localhost:8083/btr-service/btr-api/export?userId=${userId}`);
   
       if (!response.ok) {
         throw new Error('Failed to download file');
@@ -355,9 +366,6 @@ useEffect(() => {
     </Button>
   </DialogActions>
 </Dialog>
-
-
-    
     </Grid>
         </Grid>
   );

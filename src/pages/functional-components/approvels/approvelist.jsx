@@ -164,6 +164,7 @@ const[zoneVisble, setzoneVisble] = useState(false);
         updatedPairs[index].roleId = '';
         if (!rolesMap[value]) {
           try {
+            console.log("office type ",)
             // Fetch roles and zones in parallel
             const [rolesResponse, zonesResponse] = await Promise.all([
               approvalservice.allrolesBySchems(value),

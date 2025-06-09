@@ -187,7 +187,7 @@ const Register = ({ onBack }) => {
 
       case 'idNumber':
         if (idType === 'PEN') {
-          if (!penNumber) return 'PEN/TEN Number is required.';
+          if (!penNumber) return 'PEN Number is required.';
           return penNumber.length !== 10 ? 'PEN Number must be exactly 10 characters.' : null;
         }
         if (idType === 'TEN') {
@@ -213,7 +213,7 @@ const Register = ({ onBack }) => {
   };
 
   const handleEmailChange = (e) => {
-    if (e.target.value.length <= 30) {
+    if (e.target.value.length <= 256) {
       setEmail(e.target.value);
       setErrors((prevErrors) => ({ ...prevErrors, email: '' })); // Clear error
     }

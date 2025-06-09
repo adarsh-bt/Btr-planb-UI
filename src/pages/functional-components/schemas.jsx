@@ -47,58 +47,55 @@ function Schemas() {
               <Grid container spacing={4}>
                 {/* {canViewBTR && ( */}
                <Grid item xs={12} sm={4} md={3} lg={3}>               
-               <Card component={Link} to="/schemes/earas"
-        sx={{
-          textDecoration:'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '1rem',
-          borderRadius: '1rem',
-          background: 'linear-gradient(135deg, rgba(99, 155, 255, 0.57), rgb(51, 125, 253))', // Gradient color
-          transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
-          '&:hover': {
-            transform: 'scale(1.05)', // Hover scale effect
-            // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
-            boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)', // Stronger shadow on hover
-          },
-          minHeight: '8rem', // fix height to keep consistent
-        }}
-      >
-        <CardMedia
-          component="img"
-          sx={{
-            width: '6rem',
-            height: '5rem',
-            borderRadius: '.5rem',
-            marginRight: '1rem', // Space between image and text
-          }}
-          image="src\assets\images\logo\EARAS.png"
-          alt="Dashboard Icon"
-        />
+  <Card component={Link} to="/schemes/earas"
+    sx={{
+      textDecoration:'none',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '1rem',
+      borderRadius: '1rem',
+      background: 'linear-gradient(135deg, rgba(99, 155, 255, 0.57), rgb(51, 125, 253))',
+      transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out',
+      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+      '&:hover': {
+        transform: 'scale(1.05)',
+        boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)',
+      },
+      minHeight: '8rem',
+    }}
+  >
+    <CardMedia
+      component="img"
+      sx={{
+        width: '6rem',
+        height: '5rem',
+        borderRadius: '.5rem',
+        marginRight: '1rem',
+      }}
+      image="src/assets/images/logo/EARAS.png"
+      alt="Dashboard Icon"
+    />
 
-        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-          <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-            <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-              EARAS
-            </Typography>
-            <Typography
-              variant="subtitle1"
-              component="div"
-              sx={{
-                color: '#f3f3f3',
-                // fontStyle: 'italic',
-                fontWeight: 'lighter',
-                marginTop: '0.1rem',
-              }}
-            >
-              Field Records
-            </Typography>
-          </CardContent>
-        </Box>
-      </Card>
-    </Grid>
+    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+      <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
+        <Typography
+          component="div"
+          variant="h3" // Make it bigger, or use "h2" if desired
+          sx={{
+            fontWeight: 'bold',
+            color: '#fff',
+            fontSize: { xs: '1rem', sm: '1.5rem', md: '2rem' }, // Responsive sizing (optional)
+          }}
+        >
+          EARAS
+        </Typography>
+        {/* Subtitle removed */}
+      </CardContent>
+    </Box>
+  </Card>
+</Grid>
+
     {/* )} */}
 
     <Grid item xs={12} sm={4} md={3} lg={3}>             
