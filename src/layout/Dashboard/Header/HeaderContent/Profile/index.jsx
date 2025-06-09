@@ -24,7 +24,6 @@ import Avatar from 'components/@extended/Avatar';
 import MainCard from 'components/MainCard';
 import Transitions from 'components/@extended/Transitions';
 
-
 // assets
 import LogoutOutlined from '@ant-design/icons/LogoutOutlined';
 import SettingOutlined from '@ant-design/icons/SettingOutlined';
@@ -32,7 +31,7 @@ import UserOutlined from '@ant-design/icons/UserOutlined';
 import avatar1 from 'assets/images/users/avatar-1.png';
 
 import authservice from 'pages/authentication/services/authservice';
-import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
+// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
 // tab panel wrapper
 function TabPanel({ children, value, index, ...other }) {
   return (
@@ -54,8 +53,8 @@ function a11yProps(index) {
 export default function Profile() {
   const theme = useTheme();
 
-const { permissions, loading, error } = useContext(PermissionsContext);
-console.log("user anme ", permissions);
+// const { permissions, loading, error } = useContext(PermissionsContext);
+// console.log("user anme ", permissions);
 // const username = permissions.schemes?.[0]?.roles?.[0]?.permissions?.includes('View BTR');
   const navigate = useNavigate();
   const anchorRef = useRef(null);
@@ -78,7 +77,6 @@ console.log("user anme ", permissions);
   };
 
   
-
 
   const iconBackColorOpen = 'grey.100';
   const user = localStorage.getItem('user');

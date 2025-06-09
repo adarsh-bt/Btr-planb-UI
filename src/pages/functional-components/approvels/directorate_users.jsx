@@ -6,6 +6,7 @@ import DataTable from 'react-data-table-component';
 import Swal from "sweetalert2";
 
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+import VerifiedIcon from '@mui/icons-material/Verified';
 
 
 import {
@@ -41,8 +42,8 @@ const columns = (handleEdit) => [
     { name: 'Email', selector: (row) => row.email, sortable: true },
     { name: 'Phone number', selector: (row) => row.mobileNumber, sortable: true },
     { name: 'DOJ', selector: (row) => row.dateOfJoining, sortable: true },
-    // { name: 'Applied', selector: (row) => new Date(row.createdAt).toLocaleDateString('en-GB'), sortable: true },
-    { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
+    { name: 'Applied', selector: (row) => new Date(row.createdAt).toLocaleDateString('en-GB'), sortable: true },
+    // { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
     {
         name: "Status",
         selector: (row) => row.active,sortable: true,
@@ -66,14 +67,12 @@ const columns = (handleEdit) => [
     {
       name: 'Action',
       cell: (row) => (
-        <Button
-         
-          color="success" // Green color for the button
-         
-          onClick={() => handleEdit(row)} // Call edit function on click
-        >
-          <ManageAccountsIcon />
-        </Button>
+       <Button
+  color="success" // Green color for the button
+  onClick={row.approvalStatus === "Approved" ? null : () => handleEdit(row)} // Conditionally disable the click handler
+>
+  {row.approvalStatus === "Approved" ? <VerifiedIcon /> : <ManageAccountsIcon />}
+</Button>
       ),
     },
   ];
@@ -246,7 +245,6 @@ const payload = {
           //   id: selectedRow.approvalId,
           //   roleId: selectedRole
           // };
-
     
           // Call the API using the separate function
           let ser;
@@ -344,7 +342,6 @@ const handleRadioChange = (value) => {
 
 
 
-
 const handleSchemeChange = (event) => {
   setSchemesList(event.target.value);
 };
@@ -400,10 +397,11 @@ useEffect(() => {
     try {
       const userRole = authservice.getrole();
       console.log("len of data",data)
+      Array.isArray(data)
       if (!data || data.length === 0) {
         const response = await approvalservice.superadmin_approval();
         console.log("api response >> ", response.payload);
-        setUserList(response.payload || []);
+        setUserList(response.payload.directorateUsersy || []);
     
     
     }else{
@@ -471,7 +469,7 @@ const handleFilterChange = (event) => {
   console.log("evenet ?>>",event.target.value)
   setFilterText(event.target.value);
 };
-console.log("User List currenly >>> ",userList);
+console.log("User List currenly dir>>> ",userList);
 // // Filtered data based on the filter text
 // const filteredData = Array.isArray(userList) ? userList.filter((item) =>
 //   Object.values(item).some((value) =>
@@ -863,6 +861,7 @@ return (
     <Button onClick={handleCloseModal} color="secondary" variant="outlined">
       Close
     </Button>
+
     <Button
       onClick={handleSaveChanges}
       color="primary"

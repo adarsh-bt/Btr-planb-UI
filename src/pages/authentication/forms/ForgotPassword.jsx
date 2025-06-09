@@ -8,7 +8,8 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
 // Email validation function
-const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+const isValidEmail = (email) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
 
 // Password validation function
 function validatePassword(password) {
@@ -53,19 +54,22 @@ const ForgotPassword = ({ onBack }) => {
     e.preventDefault();
     setError('');
     setSuccess('');
-    if (!email) {
+   const trimmedEmail = email.trim();
+  
+    if (!trimmedEmail) {
       setError('Please enter your email address.');
       return;
     }
-    if (!isValidEmail(email)) {
+    if (!isValidEmail(trimmedEmail)) {
       setError('Please enter a valid email address.');
       return;
     }
     setIsLoading(true);
-    const userData = await authservice.email_verification(email);
+    
+    const userData = await authservice.email_verification(trimmedEmail);
     setIsLoading(false);
-    if (userData.status === 200) {
-      setEmail(userData.data.payload.id);
+    if (userData.payload && userData.payload.id) {
+      setEmail(userData.payload.id);
       setError('');
       setStep(2);
     } else {
@@ -100,7 +104,12 @@ const ForgotPassword = ({ onBack }) => {
     try {
       const otpValue = otp.join(''); // Join the OTP digits together
       if (otpValue.length === otp.length) {
-        const response = await authservice.verify_otp(email, otpValue);
+        
+        const userLogin = {
+                    userid : email,
+                    otp: otpValue,
+                };
+        const response = await authservice.verify_otp(userLogin);
         if (response.statusCode === 200) {
           setError('');
           setStep(3); // Proceed to next step if OTP is correct
@@ -131,8 +140,13 @@ const ForgotPassword = ({ onBack }) => {
       setError('Passwords do not match.');
       return;
     }
-
-    const response = await authservice.password_reset(email, newPassword);
+ 
+    const trimmedPassword = newPassword.trim();
+    const userLogin = {
+                     userid : email,
+                    password: trimmedPassword,
+                };
+    const response = await authservice.password_reset(userLogin);
     if (response.status === 200) {
       setSuccess('Password Successfully changed');
       setError('');

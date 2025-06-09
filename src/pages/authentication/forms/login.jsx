@@ -28,7 +28,7 @@ import duklogo from "../images/duk_icon.png"; // Import the DUK logo image
 import cdtilogo from "../images/cdti_icon.png"; // Import the CDTI logo image
 import { keyframes } from '@emotion/react';
 import '../login.css'
-import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext'
+// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext'
 import IconButton from '@mui/material/IconButton';
 import authservice from '../services/authservice';
 
@@ -176,7 +176,9 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
     const [error, setError] = useState('');
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false); // New state for loading
-    const { setPermissions, setLoading, setError: setPermissionsError } = useContext(PermissionsContext); // Access the context update functions
+    // const { setPermissions, setLoading, setError: setPermissionsError } = useContext(PermissionsContext); 
+    // const { setPermissions, setLoading, setError: setPermissionsError } = useContext(PermissionsContext); 
+    // Access the context update functions
     const [showPassword, setShowPassword] = useState(false); // State to toggle password visibility
 
     useEffect(() => {
@@ -199,12 +201,15 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+
         if (username && password) {
+             const trimmedEmail = username.trim();
+                const trimmedPassword = password.trim();
             try {
                 setIsLoading(true);
                 const userLogin = {
-                    username: username,
-                    password: password,
+                    username: trimmedEmail,
+                    password: trimmedPassword,
                 };
                 const userData = await authservice.login(userLogin);
                 setIsLoading(false);
@@ -225,9 +230,9 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     }
 
                     // After successful login, fetch the user's permissions
-                    setLoading(true); // Set loading state in PermissionsContext
+                    setIsLoading(true); // Set loading state in PermissionsContext
                     try {
-                        const permissionsResponse = await fetch('http://localhost:8081/user-access/user-state/userpremissions', {
+                        const permissionsResponse = await fetch('http://localhost:8081/user-accesss/user-state/userpremissions', {
                             headers: {
                                 'Authorization': `Bearer ${userData.payload.token}`, // If your API requires a token
                                 'Content-Type': 'application/json', // Adjust content type as needed
@@ -241,12 +246,12 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                         const permissionsData = await permissionsResponse.json();
                         console.log("premisio  ", permissionsData)
                         setPermissions(permissionsData); // Update the permissions in the context
-                        setLoading(false); // Reset loading state
+                       setIsLoading(false); // Reset loading state
                         navigate('/'); // Redirect to the home page
                     } catch (permissionsError) {
                         console.error('Error fetching permissions after login:', permissionsError);
                         setError(permissionsError); // Set error in PermissionsContext
-                        setLoading(false);
+                       setIsLoading(false);
                         navigate('/'); // Consider your navigation strategy here
                     }
                 } else {
@@ -289,7 +294,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                 name="email"
                 value={username} // Use username state for the email input
                 onChange={(e) => {
-                    if (e.target.value.length <= 255) {
+                    if (e.target.value.length <= 256) {
                         setUsername(e.target.value); // Update state if length is <= 255
                     }
                 }}

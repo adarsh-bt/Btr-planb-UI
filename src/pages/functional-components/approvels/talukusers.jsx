@@ -6,6 +6,7 @@ import DataTable from 'react-data-table-component';
 import Swal from 'sweetalert2';
 
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+import VerifiedIcon from '@mui/icons-material/Verified';
 
 import {
   Typography,
@@ -40,8 +41,8 @@ const columns = (handleEdit) => [
   { name: 'Email', selector: (row) => row.email, sortable: true },
   { name: 'Phone number', selector: (row) => row.mobileNumber, sortable: true },
   { name: 'DOJ', selector: (row) => row.dateOfJoining, sortable: true },
-  // { name: 'Applied', selector: (row) => new Date(row.createdAt).toLocaleDateString('en-GB'), sortable: true },
-  { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
+  { name: 'Applied', selector: (row) => new Date(row.createdAt).toLocaleDateString('en-GB'), sortable: true },
+  // { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
   {
     name: 'Status',
     selector: (row) => row.active,
@@ -57,17 +58,27 @@ const columns = (handleEdit) => [
     )
   },
 
-  {
-    name: 'Action',
-    cell: (row) => (
+{
+  name: 'Action',
+  cell: (row) => {
+    const isApproved = row.approvalStatus === "Approved";
+    const userRole = authservice.getrole();
+    const isTalukApprover = userRole === "Taluk Level Approver";
+
+    const shouldShowVerifiedIcon = isApproved && !isTalukApprover;
+    const shouldShowManageIcon = !shouldShowVerifiedIcon;
+
+    return (
       <Button
-        color="success" // Green color for the button
-        onClick={() => handleEdit(row)} // Call edit function on click
+        color="success"
+        onClick={shouldShowManageIcon ? () => handleEdit(row) : null}
       >
-        <ManageAccountsIcon />
+        {shouldShowVerifiedIcon ? <VerifiedIcon /> : <ManageAccountsIcon />}
       </Button>
-    )
+    );
   }
+}
+
 ];
 
 function CustomTabPanel(props) {
@@ -293,7 +304,6 @@ const [rolesMap, setRolesMap] = useState({});
   const [selectedRole, setSelectedRole] = useState('');
   const [Desiganation, setDesignation] = useState('');
   const [admrole, setAdmrole] = useState('');
-
 
 
   const handleRadioChange = (value) => {
@@ -777,8 +787,8 @@ useEffect(() => {
             <Button onClick={handleCloseModal} color="secondary" variant="outlined">
               Close
             </Button>
-            {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow && selectedRow.designation === "Deputy Director -Districts") || (
-      (admrole === "District Level Approver")
+  {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow && selectedRow.designation === "Deputy Director -Districts") || (
+      (admrole === "District Level Approver") || (selectedRow && selectedRow.designation === "Taluk Statistical Officer")
     )) && (
             <Button
               onClick={handleSaveChanges}

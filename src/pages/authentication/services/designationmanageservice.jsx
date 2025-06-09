@@ -1,11 +1,12 @@
 import axios from 'axios';
+import mainapi from 'api/mainapi';
 
 const DesignationManageService = {
-  BASE_URL: 'http://localhost:8081/user-access',
+  BASE_URL:  mainapi.USER_API,
 
   async getDesignations() {
     try {
-      const response = await axios.get(`${this.BASE_URL}/api/fetch-designations`);
+      const response = await axios.get(`${this.BASE_URL}/user-access/api/fetch-designations`);
       console.log("designations: ",response.designationName)
       return { payload: response.data.payload };
     } catch (err) {
@@ -18,7 +19,7 @@ const DesignationManageService = {
   async saveOrUpdateDesignation(userData) {
     const token = localStorage.getItem('token');
     try {
-      const response = await axios.post(`${this.BASE_URL}/api/save-designation`, userData, {
+      const response = await axios.post(`${this.BASE_URL}/user-access/api/save-designation`, userData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       return { payload: response.data.payload };
