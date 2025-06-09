@@ -114,7 +114,14 @@ const KeyPlot = () => {
         setDataVisible(false);
 
         try {
-            const res = await axios.get("http://localhost:8082/btr-service/key-plots/genrate/3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924");
+              const token = localStorage.getItem('token');
+            const res = await axios.get("http://localhost:8080/btr-service/key-plots/genrate/3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924",{
+                
+          headers: {
+            Authorization: `Bearer ${token}` // Ensure token is included
+          }
+        }
+            );
 
             const zones = res.data.payload || []; // Assuming res.data is directly the list of zones
 
@@ -185,9 +192,11 @@ const KeyPlot = () => {
     };
 
     // --- Navigation and Dialog Logic ---
-    const handleViewClusterClick = (syNo) => {
-        navigate(`/schemes/earas/cluster?syNo=${encodeURIComponent(syNo)}`);
-    };
+  const handleViewClusterClick = (syNo, slno) => {
+    const encodedSyNo = encodeURIComponent(syNo);
+    const encodedSlno = encodeURIComponent(slno);
+    navigate(`/schemes/earas/cluster?No=${encodedSyNo}&slno=${encodedSlno}`);
+};
 
     const handleOpenRemoveDialog = (row) => {
         setSelectedRowToRemove(row);
@@ -244,15 +253,27 @@ const KeyPlot = () => {
 
         setLoading(true); // Start loading when removal is initiated
         try {
+
             console.log("selected ", selectedRowToRemove)
+             const token = localStorage.getItem('token');
             // API call to reject the keyplot and get a new one
-            const response = await axios.post(`http://localhost:8082/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`, {
-                reason: finalReason
-            });
+           const response = await axios.post(
+  `http://localhost:8080/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`,
+  {
+    reason: finalReason
+  },
+  {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  }
+);
 
-            const newPlotPayload = response.data; // Assuming your backend returns the newly generated plot
 
-            // Transform the new plot to match your frontend data structure
+         
+            const newPlotPayload = response.data;
+
+          
             const transformedNewPlot = {
                 id: newPlotPayload.id,
                 plot_id : newPlotPayload["plot_id"],
@@ -429,7 +450,7 @@ const KeyPlot = () => {
                                                 '&:hover': { backgroundColor: '#e0f2f7' },
                                             }}
                                         >
-                                            <TableCell align="center">{page * rowsPerPage + index + 1}</TableCell>
+                                            <TableCell align="center">{ index + 1}</TableCell>
                                             <TableCell align="center">{row.syNo}</TableCell>
                                             <TableCell align="center">{row.panchayth}</TableCell>
                                             <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
@@ -439,7 +460,7 @@ const KeyPlot = () => {
                                                 <Button
                                                     size="small"
                                                     color="primary"
-                                                    onClick={() => handleViewClusterClick(row.plot_id)}
+                                                    onClick={() => handleViewClusterClick(row.plot_id,index+1)}
                                                     sx={{ minWidth: 'unset', px: 0.5 }}
                                                 >
                                                     <RemoveRedEyeIcon fontSize="small" />

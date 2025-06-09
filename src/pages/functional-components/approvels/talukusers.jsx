@@ -41,8 +41,8 @@ const columns = (handleEdit) => [
   { name: 'Email', selector: (row) => row.email, sortable: true },
   { name: 'Phone number', selector: (row) => row.mobileNumber, sortable: true },
   { name: 'DOJ', selector: (row) => row.dateOfJoining, sortable: true },
-  // { name: 'Applied', selector: (row) => new Date(row.createdAt).toLocaleDateString('en-GB'), sortable: true },
-  { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
+  { name: 'Applied', selector: (row) => new Date(row.createdAt).toLocaleDateString('en-GB'), sortable: true },
+  // { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
   {
     name: 'Status',
     selector: (row) => row.active,
@@ -58,17 +58,27 @@ const columns = (handleEdit) => [
     )
   },
 
-  {
-    name: 'Action',
-    cell: (row) => (
-   <Button
-  color="success" // Green color for the button
-  onClick={row.approvalStatus === "Approved" ? null : () => handleEdit(row)} // Conditionally disable the click handler
->
-  {row.approvalStatus === "Approved" ? <VerifiedIcon /> : <ManageAccountsIcon />}
-</Button>
-    )
+{
+  name: 'Action',
+  cell: (row) => {
+    const isApproved = row.approvalStatus === "Approved";
+    const userRole = authservice.getrole();
+    const isTalukApprover = userRole === "Taluk Level Approver";
+
+    const shouldShowVerifiedIcon = isApproved && !isTalukApprover;
+    const shouldShowManageIcon = !shouldShowVerifiedIcon;
+
+    return (
+      <Button
+        color="success"
+        onClick={shouldShowManageIcon ? () => handleEdit(row) : null}
+      >
+        {shouldShowVerifiedIcon ? <VerifiedIcon /> : <ManageAccountsIcon />}
+      </Button>
+    );
   }
+}
+
 ];
 
 function CustomTabPanel(props) {

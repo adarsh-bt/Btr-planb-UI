@@ -7,7 +7,7 @@ import mainapi from 'api/mainapi';
 
 class authservice {
 
-  static BASE_URL = mainapi.USER_API;
+  static BASE_URL = mainapi.BASE_URL;
 //   static BASE_URL = "https://9a89-103-149-159-190.ngrok-free.app";
 
 
@@ -29,6 +29,7 @@ class authservice {
         localStorage.setItem('token', responseData.payload.token);
         localStorage.setItem('user', responseData.payload.username);
 
+        console.log(">> >>>>> >>>>>> ",responseData)
         return responseData;
     } catch (err) {
         if (err.response) {
@@ -110,16 +111,18 @@ class authservice {
 
   static async password_reset(userData) {
     try {
-
-      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/password_reset`, userData,
+      const encrypted = encryptData(JSON.stringify(userData));
+      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/password_reset`, encrypted,
           {
                     headers: {
                     'Content-Type': 'text/plain',
                       },
                   }
       );
-      
-      return response;
+      const decryptedJson = decryptData(response.data);
+      const responseData = JSON.parse(decryptedJson);
+      console.log("use data ",)
+      return responseData;
     } catch (err) {
       throw err;
     }
