@@ -41,7 +41,7 @@ import Breadcrumb from 'routes/Breadcrumb';
 import authservice from 'pages/authentication/services/authservice';
 
 
-import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
+// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
 // avatar style
 const avatarSX = {
   width: 36,
@@ -65,8 +65,8 @@ const { children } = tabmenus.items2[0];
 export default function DashboardDefault() {
   const isauth = auth.isAdmin();
 
-const { permissions, loading, error } = useContext(PermissionsContext);
-console.log("User Permissions:", permissions);
+// const { permissions, loading, error } = useContext(PermissionsContext);
+// console.log("User Permissions:", permissions);
 
   return (
     <Grid
