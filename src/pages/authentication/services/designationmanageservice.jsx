@@ -5,7 +5,7 @@ const DesignationManageService = {
 
   async getDesignations() {
     try {
-      const response = await axios.get(`${this.BASE_URL}/api/designation`);
+      const response = await axios.get(`${this.BASE_URL}/api/fetch-designations`);
       console.log("designations: ",response.designationName)
       return { payload: response.data.payload };
     } catch (err) {
