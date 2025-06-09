@@ -136,6 +136,7 @@ const ClusterForm = () => {
 
         const fetchSvNoOptions = async (id) => {
             if (!id) return;
+            console.log("plot_id  ",id)
             try {
                 const response = await fetch(`http://localhost:8082/btr-service/cluster-api/${id}/resvnos`);
                 if (!response.ok) {
