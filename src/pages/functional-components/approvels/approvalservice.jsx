@@ -5,9 +5,11 @@ import mainapi from 'api/mainapi';
 
 class approvalservice {
   // static BASE_URL = "http://localhost:8080/useraccess"
-  static BASE_URL = mainapi.USER_API;
-  static BTR_URL = mainapi.BTR_API;
+  static BASE_URL = mainapi.BASE_URL;
+  // static BTR_URL = mainapi.BTR_API;
+  static BTR_URL = mainapi.BASE_URL;
 
+  static USER_URL = mainapi.USER_API;
   // adding header token is reamining
   static async superadmin_approval() {
     try {
@@ -114,7 +116,6 @@ class approvalservice {
   static async saveItadminApproval(payload) {
     try {
       const token = localStorage.getItem('token');
-
       const response = await axios.post(
         `${approvalservice.BASE_URL}/user-access/it-admin/save-approvals`,
         payload, // Send payload as the body
@@ -233,14 +234,14 @@ class approvalservice {
   static async zoneslist(officeType, officeId) {
     try {
       const token = localStorage.getItem('token');
-
+      console.log("office _id ",officeId,"office typr >>",officeId)
       const response = await axios.get(
         `${approvalservice.BTR_URL}/btr-service/btr-api/zones/${officeType}/${officeId}`
-        //   , {
-        //   headers: {
-        //     Authorization: `Bearer ${token}` // Ensure token is included
-        //   }
-        // }
+          , {
+          headers: {
+            Authorization: `Bearer ${token}` // Ensure token is included
+          }
+        }
       );
       console.log('aaa', response.data);
       return response.data; // Return response data on success

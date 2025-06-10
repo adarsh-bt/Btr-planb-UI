@@ -58,7 +58,7 @@ const Register = ({ onBack }) => {
     dateOfBirth: '',
     idNumber: '',
     district: '',
-    office: '',
+    office: ''
   });
 
   const today = new Date().toISOString().split('T')[0];
@@ -122,26 +122,37 @@ const Register = ({ onBack }) => {
     fetchTaluks();
   }, [selectedDistrict]);
 
+  const getAge = (dob) => {
+    const today = new Date();
+    const birthDate = new Date(dob);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
 
-
-
+  const isValidDate = (dateString) => {
+    const date = new Date(dateString);
+    // Check if date is valid
+    if (isNaN(date.getTime())) return false;
+    // Check year is in a reasonable range
+    const year = date.getFullYear();
+    if (year < 1900 || year > new Date().getFullYear()) return false;
+    return true;
+  };
 
   const filteredTaluks = selectedDistrict
     ? [
         { id: selectedDistrict.distId, label: selectedDistrict.distOfficeNameEn },
-        ...(selectedDistrict.distId === 1
-          ? [
-              { id: 1, label: 'Directorate Office' }
-            ]
-          : []),
+        ...(selectedDistrict.distId === 1 ? [{ id: 1, label: 'Directorate Office' }] : []),
         ...taluks.map((taluk) => ({
           id: taluk.desTalukId,
           label: taluk.talukOfficeNameEn
         }))
       ]
     : [];
-
-
 
   const validateField = (field) => {
     switch (field) {
@@ -156,18 +167,32 @@ const Register = ({ onBack }) => {
         return !/^\d{10}$/.test(phone) ? 'Phone Number must be exactly 10 digits.' : null;
       case 'designation':
         return !designation ? 'Designation is required.' : null;
-      case 'dateOfJoining':
-        return (!dateOfJoining || new Date(dateOfJoining) > new Date()) ? 'Date of Joining cannot be in the future.' : null;
       case 'dateOfBirth':
-        return (!dateOfBirth || new Date(dateOfBirth) > new Date()) ? 'Date of Birth cannot be in the future.' : null;
+        if (!dateOfBirth) return 'Date of Birth is required.';
+        if (!isValidDate(dateOfBirth)) return 'Please enter a valid date of birth.';
+        if (new Date(dateOfBirth) > new Date()) return 'Date of Birth cannot be in the future.';
+        if (getAge(dateOfBirth) < 18) return 'You must be at least 18 years old to register.';
+        return null;
+
+      case 'dateOfJoining':
+        if (!dateOfJoining) return 'Date of Joining is required.';
+        if (!isValidDate(dateOfJoining)) return 'Please enter a valid date of joining.';
+        if (new Date(dateOfJoining) > new Date()) return 'Date of Joining cannot be in the future.';
+        return null;
+
+        if (getAge(dateOfBirth) < 18) {
+          return 'You must be at least 18 years old to register.';
+        }
+        return null;
+
       case 'idNumber':
         if (idType === 'PEN') {
-          if (!penNumber) return 'PEN/TEN Number is required.';
+          if (!penNumber) return 'PEN Number is required.';
           return penNumber.length !== 10 ? 'PEN Number must be exactly 10 characters.' : null;
         }
         if (idType === 'TEN') {
           if (!tenNumber) return 'PEN/TEN Number is required.';
-          return (tenNumber.length < 6 || tenNumber.length > 10) ? 'TEN Number must be between 6 and 10 characters.' : null;
+          return tenNumber.length < 6 || tenNumber.length > 10 ? 'TEN Number must be between 6 and 10 characters.' : null;
         }
         return null;
       case 'district':
@@ -179,18 +204,18 @@ const Register = ({ onBack }) => {
     }
   };
 
-const handleFullNameChange = (e) => {
+  const handleFullNameChange = (e) => {
     const value = e.target.value;
     if (/^[A-Za-z\s.]*$/.test(value) && value.length <= 32) {
       setFullName(value);
-      setErrors(prevErrors => ({ ...prevErrors, fullName: '' })); // Clear error
+      setErrors((prevErrors) => ({ ...prevErrors, fullName: '' })); // Clear error
     }
   };
 
   const handleEmailChange = (e) => {
-    if (e.target.value.length <= 30) {
+    if (e.target.value.length <= 256) {
       setEmail(e.target.value);
-      setErrors(prevErrors => ({ ...prevErrors, email: '' })); // Clear error
+      setErrors((prevErrors) => ({ ...prevErrors, email: '' })); // Clear error
     }
   };
 
@@ -198,7 +223,7 @@ const handleFullNameChange = (e) => {
     const value = e.target.value;
     if (/^\d*$/.test(value) && value.length <= 10) {
       setPhone(value);
-      setErrors(prevErrors => ({ ...prevErrors, phone: '' })); // Clear error
+      setErrors((prevErrors) => ({ ...prevErrors, phone: '' })); // Clear error
     }
   };
 
@@ -206,7 +231,7 @@ const handleFullNameChange = (e) => {
     const value = e.target.value;
     if (/^\d*$/.test(value)) {
       setPenNumber(value);
-      setErrors(prevErrors => ({ ...prevErrors, idNumber: '' })); // Clear error
+      setErrors((prevErrors) => ({ ...prevErrors, idNumber: '' })); // Clear error
     }
   };
 
@@ -214,23 +239,23 @@ const handleFullNameChange = (e) => {
     const value = e.target.value;
     if (/^\d*$/.test(value)) {
       setTenNumber(value);
-      setErrors(prevErrors => ({ ...prevErrors, idNumber: '' })); // Clear error
+      setErrors((prevErrors) => ({ ...prevErrors, idNumber: '' })); // Clear error
     }
   };
 
   const handleDesignationChange = (e) => {
     setDesignation(e.target.value);
-    setErrors(prevErrors => ({ ...prevErrors, designation: '' })); // Clear error
+    setErrors((prevErrors) => ({ ...prevErrors, designation: '' })); // Clear error
   };
 
   const handleDateOfJoiningChange = (e) => {
     setDateOfJoining(e.target.value);
-    setErrors(prevErrors => ({ ...prevErrors, dateOfJoining: '' })); // Clear error
+    setErrors((prevErrors) => ({ ...prevErrors, dateOfJoining: '' })); // Clear error
   };
 
   const handleDateOfBirthChange = (e) => {
     setDateOfBirth(e.target.value);
-    setErrors(prevErrors => ({ ...prevErrors, dateOfBirth: '' })); // Clear error
+    setErrors((prevErrors) => ({ ...prevErrors, dateOfBirth: '' })); // Clear error
   };
 
   const handleDistrictChange = (event, newValue) => {
@@ -239,7 +264,7 @@ const handleFullNameChange = (e) => {
     setDistrictId(null);
     setTalukId(null);
     setOfficeType('');
-    setErrors(prevErrors => ({ ...prevErrors, district: '' })); // Clear error
+    setErrors((prevErrors) => ({ ...prevErrors, district: '' })); // Clear error
   };
 
   const handleTalukChange = (event, newValue) => {
@@ -261,15 +286,14 @@ const handleFullNameChange = (e) => {
         setTalukId(newValue.id);
         setDistrictId(null);
       }
-      setErrors(prevErrors => ({ ...prevErrors, office: '' })); // Clear error
+      setErrors((prevErrors) => ({ ...prevErrors, office: '' })); // Clear error
     } else {
       setOfficeType('');
       setDistrictId(null);
       setTalukId(null);
-      setErrors(prevErrors => ({ ...prevErrors, office: '' })); // Clear error
+      setErrors((prevErrors) => ({ ...prevErrors, office: '' })); // Clear error
     }
   };
-
 
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
@@ -384,7 +408,8 @@ const handleFullNameChange = (e) => {
             </Typography>
           </>
         }
-        value={fullName} onChange={handleFullNameChange}
+        value={fullName}
+        onChange={handleFullNameChange}
         error={!!errors.fullName}
         helperText={errors.fullName}
         // onChange={(e) => {
@@ -399,7 +424,10 @@ const handleFullNameChange = (e) => {
         sx={{
           mb: 2,
           '& .MuiOutlinedInput-root': {
-            borderRadius: '1rem' // Custom border-radius
+            top: '50%',
+            borderRadius: '0.5rem', // Custom border-radius
+            fontSize: '14px',
+            paddingTop: '7.5px'
           }
         }}
       />
@@ -416,13 +444,16 @@ const handleFullNameChange = (e) => {
           </>
         }
         value={email}
-       onChange={handleEmailChange}
+        onChange={handleEmailChange}
         error={!!errors.email}
         helperText={errors.email}
         sx={{
           mb: 2,
           '& .MuiOutlinedInput-root': {
-            borderRadius: '1rem'
+            top: '50%',
+            borderRadius: '0.5rem', // Custom border-radius
+            fontSize: '14px',
+            paddingTop: '7.5px'
           }
         }}
       />
@@ -439,7 +470,7 @@ const handleFullNameChange = (e) => {
           </>
         }
         value={phone}
-       onChange={handlePhoneChange}
+        onChange={handlePhoneChange}
         error={!!errors.phone}
         helperText={errors.phone}
         inputProps={{
@@ -449,7 +480,10 @@ const handleFullNameChange = (e) => {
         sx={{
           mb: 2,
           '& .MuiOutlinedInput-root': {
-            borderRadius: '1rem'
+            top: '50%',
+            borderRadius: '0.5rem', // Custom border-radius
+            fontSize: '14px',
+            paddingTop: '7.5px'
           }
         }}
       />
@@ -469,10 +503,17 @@ const handleFullNameChange = (e) => {
           onChange={handlePenChange}
           inputProps={{ maxLength: 10 }}
           error={!!errors.idNumber}
-          helperText={errors.idNumber ? errors.idNumber : " "}
-          sx={{ mb: 2 }}
+          helperText={errors.idNumber ? errors.idNumber : ' '}
+          sx={{
+            mb: 2,
+            '& .MuiOutlinedInput-root': {
+              top: '50%',
+              borderRadius: '1rem', // Custom border-radius
+              fontSize: '14px',
+              paddingTop: '7.5px'
+            }
+          }}
         />
-      
       ) : (
         <TextField
           variant="outlined"
@@ -481,12 +522,31 @@ const handleFullNameChange = (e) => {
           onChange={handleTenChange}
           inputProps={{ maxLength: 10 }}
           error={!!errors.idNumber}
-          helperText={errors.idNumber ? errors.idNumber : " "}
-          sx={{ mb: 2 }}
+          helperText={errors.idNumber ? errors.idNumber : ' '}
+          sx={{
+            mb: 2,
+            '& .MuiOutlinedInput-root': {
+              top: '50%',
+              borderRadius: '0.5rem', // Custom border-radius
+              fontSize: '14px',
+              paddingTop: '7.5px'
+            }
+          }}
         />
       )}
 
-     <MuiFormControl fullWidth sx={{ mb: 2 }} error={!!errors.designation}>
+      <MuiFormControl
+        fullWidth
+        sx={{
+          mb: 2,
+          '& .MuiOutlinedInput-root': {
+            borderRadius: '0.5rem',
+            fontSize: '14px',
+            paddingTop: '7.5px'
+          }
+        }}
+        error={!!errors.designation}
+      >
         <InputLabel>
           Designation{' '}
           <Typography component="span" color="error">
@@ -503,9 +563,8 @@ const handleFullNameChange = (e) => {
         {errors.designation && <FormHelperText error>{errors.designation}</FormHelperText>}
       </MuiFormControl>
 
-
       <Grid container spacing={2} sx={{ mb: 2 }}>
-              <Grid item xs={6}>
+        <Grid item xs={6}>
           <TextField
             fullWidth
             variant="outlined"
@@ -527,7 +586,7 @@ const handleFullNameChange = (e) => {
           />
         </Grid>
 
-      <Grid item xs={6}>
+        <Grid item xs={6}>
           <TextField
             fullWidth
             variant="outlined"
@@ -550,7 +609,6 @@ const handleFullNameChange = (e) => {
         </Grid>
       </Grid>
 
-     {/* District Office selection */}
       <MuiFormControl fullWidth sx={{ mb: 2 }} error={!!errors.district}>
         <Autocomplete
           disablePortal
@@ -562,12 +620,11 @@ const handleFullNameChange = (e) => {
           value={selectedDistrict}
           onChange={handleDistrictChange}
           isOptionEqualToValue={(option, value) => option?.distId === value?.distId}
-          renderInput={(params) => <TextField {...params} label="Districts" required variant="outlined" />}
+          renderInput={(params) => <TextField {...params} label="District" required variant="outlined" />}
         />
         {errors.district && <FormHelperText error>{errors.district}</FormHelperText>}
       </MuiFormControl>
 
-      {/* Taluk Office selection */}
       <MuiFormControl fullWidth sx={{ mb: 2 }} error={!!errors.office}>
         <Autocomplete
           disablePortal
@@ -587,7 +644,7 @@ const handleFullNameChange = (e) => {
             fullWidth
             variant="contained"
             color="primary"
-            sx={{ borderRadius: '20px' }}
+            sx={{ borderRadius: '20px', fontSize: '16px' }}
             onClick={handleRegisterSubmit}
             disabled={loading} // Disable the button while loading
           >
@@ -595,7 +652,7 @@ const handleFullNameChange = (e) => {
           </Button>
         </Grid>
         <Grid item xs={12}>
-          <Typography variant="body2" onClick={onBack} sx={{ color: 'blue', cursor: 'pointer' }} textAlign="center">
+          <Typography variant="body2" onClick={onBack} sx={{ fontSize: '15px', color: 'blue', cursor: 'pointer' }} textAlign="center">
             {'Back to Sign In'}
           </Typography>
         </Grid>

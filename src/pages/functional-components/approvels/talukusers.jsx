@@ -306,7 +306,6 @@ const [rolesMap, setRolesMap] = useState({});
   const [admrole, setAdmrole] = useState('');
 
 
-
   const handleRadioChange = (value) => {
     setRadioState(value);
   };
@@ -418,7 +417,9 @@ useEffect(() => {
   //   )
   // ) : [];
   const filteredData = userList.filter((item) =>
-    Object.values(item).some((value) => value.toString().toLowerCase().includes(filterText.toLowerCase()))
+    Object.values(item).some((value) =>
+    String(value).toLowerCase().includes(filterText.toLowerCase())
+  )
   );
 
   return (
