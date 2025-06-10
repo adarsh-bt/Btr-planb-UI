@@ -37,19 +37,20 @@ const utilities = {
   // title: 'Utilities',
   type: 'group',
   children: [
-    {
-      id: 'util-btr',
-      title: 'View E-BTR',
-      type: 'item',
-      url: '/schemes/earas/btr',
-      icon: icons.TableOutlined
-    },
+    
     {
       id: 'util-zone',
       title: 'Zone Details',
       type: 'item',
       url: '/schemes/earas/zone_details',
       icon: icons.EnvironmentOutlined
+    },
+    {
+      id: 'util-btr',
+      title: 'View e-BTR',
+      type: 'item',
+      url: '/schemes/earas/btr',
+      icon: icons.TableOutlined
     },
     {
       id: 'util-keyplot',
@@ -66,10 +67,10 @@ const utilities = {
       icon: icons.DeploymentUnitOutlined
     },
     {
-      id: 'util-typography',
+      id: 'util-workallocation',
       title: 'Work Allocation Report',
       type: 'item',
-      url: '/typography',
+      url: '/workallocation',
       icon: icons.FormOutlined
     }
   ]

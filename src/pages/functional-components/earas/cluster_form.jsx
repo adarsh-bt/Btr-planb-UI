@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import Breadcrumb from 'routes/Breadcrumb';
 import {
   Container,
   Typography,
@@ -914,177 +915,182 @@ const ClusterForm = () => {
   // --- Loading State (before JSX) ---
   if (loading) {
     return (
-      <Container maxWidth="xl" sx={{ mt: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
-        <CircularProgress />
-        <Typography variant="h6" sx={{ ml: 2 }}>
-          Loading cluster data...
-        </Typography>
-      </Container>
+      <Grid container spacing={3}>
+        <Breadcrumb></Breadcrumb>
+        <Container maxWidth="xl" sx={{ mt: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
+          <CircularProgress />
+          <Typography variant="h6" sx={{ ml: 2 }}>
+            Loading cluster data...
+          </Typography>
+        </Container>
+      </Grid>
     );
   }
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, bgcolor: '#f4f4f9', p: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-      <Typography variant="h4" align="center" gutterBottom color="primary">
-        Cluster Land Form
-      </Typography>
+    <Grid container spacing={3}>
+      <Breadcrumb></Breadcrumb>
+      <Container maxWidth="xl" sx={{ mt: 4, bgcolor: '#f4f4f9', p: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+        <Typography variant="h4" align="center" gutterBottom color="primary">
+          Cluster Land Form
+        </Typography>
 
-      <Box sx={{ bgcolor: '#3066c2', color: 'white', p: 1, borderRadius: 1, mb: 2, fontWeight: 'bold', textAlign: 'center' }}>
-        Cluster Info
-      </Box>
+        <Box sx={{ bgcolor: '#3066c2', color: 'white', p: 1, borderRadius: 1, mb: 2, fontWeight: 'bold', textAlign: 'center' }}>
+          Cluster Info
+        </Box>
 
-      <Grid container spacing={2} mb={2}>
-        <Grid item xs={12} sm={6} md={2}>
-          <TextField label="Cluster No." value={slNo || 'Not Available'} InputProps={{ readOnly: true }} fullWidth />
+        <Grid container spacing={2} mb={2}>
+          <Grid item xs={12} sm={6} md={2}>
+            <TextField label="Cluster No." value={slNo || 'Not Available'} InputProps={{ readOnly: true }} fullWidth />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField label="പഞ്ചായത്ത്" value={keyplotDetails.panchayath || ''} InputProps={{ readOnly: true }} fullWidth />
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <TextField label="വാർഡ് നമ്പർ" value={wardNumber} onChange={(e) => setWardNumber(e.target.value)} fullWidth />
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <TextField
+              label="Land Type"
+              value={keyplotDetails.landType || ''}
+              InputProps={{ readOnly: true }}
+              InputLabelProps={{ shrink: true }}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <TextField label="KEYPLOT" value={'K' || ''} InputProps={{ readOnly: true }} fullWidth />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField label="SY.No." value={keyplotDetails.syNo || ''} InputProps={{ readOnly: true }} fullWidth />
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <TextField label="AREA (Cent)" value={keyplotDetails.areaCents || ''} InputProps={{ readOnly: true }} fullWidth />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField label="BLOCK/VILLAGE" value={keyplotDetails.villageBlock || ''} InputProps={{ readOnly: true }} fullWidth />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              label="RESERVE KEYPLOT"
+              value={reserveKeyplot}
+              onChange={(e) => setReserveKeyplot(e.target.value)}
+              placeholder="-"
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField label="TOTAL ACTUAL AREA (Cent)" value={calculateOverallTotalActual()} InputProps={{ readOnly: true }} fullWidth />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField label="TOTAL AREA (Ares)" value={calculateOverallTotalArea()} InputProps={{ readOnly: true }} fullWidth />
+          </Grid>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <TextField label="പഞ്ചായത്ത്" value={keyplotDetails.panchayath || ''} InputProps={{ readOnly: true }} fullWidth />
-        </Grid>
-        <Grid item xs={12} sm={6} md={2}>
-          <TextField label="വാർഡ് നമ്പർ" value={wardNumber} onChange={(e) => setWardNumber(e.target.value)} fullWidth />
-        </Grid>
-        <Grid item xs={12} sm={6} md={2}>
-          <TextField
-            label="Land Type"
-            value={keyplotDetails.landType || ''}
-            InputProps={{ readOnly: true }}
-            InputLabelProps={{ shrink: true }}
-            fullWidth
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={2}>
-          <TextField label="KEYPLOT" value={'K' || ''} InputProps={{ readOnly: true }} fullWidth />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <TextField label="SY.No." value={keyplotDetails.syNo || ''} InputProps={{ readOnly: true }} fullWidth />
-        </Grid>
-        <Grid item xs={12} sm={6} md={2}>
-          <TextField label="AREA (Cent)" value={keyplotDetails.areaCents || ''} InputProps={{ readOnly: true }} fullWidth />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <TextField label="BLOCK/VILLAGE" value={keyplotDetails.villageBlock || ''} InputProps={{ readOnly: true }} fullWidth />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <TextField
-            label="RESERVE KEYPLOT"
-            value={reserveKeyplot}
-            onChange={(e) => setReserveKeyplot(e.target.value)}
-            placeholder="-"
-            fullWidth
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <TextField label="TOTAL ACTUAL AREA (Cent)" value={calculateOverallTotalActual()} InputProps={{ readOnly: true }} fullWidth />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <TextField label="TOTAL AREA (Ares)" value={calculateOverallTotalArea()} InputProps={{ readOnly: true }} fullWidth />
-        </Grid>
-      </Grid>
 
-      {keyplots.map((keyplot, index) => (
-        <Box key={keyplot.id} sx={{ mt: 3, border: '1px solid #ccc', borderRadius: 1, overflowX: 'auto', bgcolor: 'white', p: 2 }}>
-          <Box
-            sx={{
-              bgcolor: '#05307a',
-              color: 'white',
-              p: 1,
-              borderBottom: '1px solid #ccc',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
-              <Typography sx={{ mr: 1 }}>SIDE PLOT:</Typography>
-              <TextField
-                value={keyplot.label}
-                onChange={(e) => handleKeyplotLabelChange(e, index)}
-                inputProps={{ maxLength: 4, style: { color: 'white' } }}
-                size="small"
-                sx={{ bgcolor: 'transparent', border: 'none', color: 'white', fontWeight: 'bold', textAlign: 'center', width: '50px' }}
-              />
+        {keyplots.map((keyplot, index) => (
+          <Box key={keyplot.id} sx={{ mt: 3, border: '1px solid #ccc', borderRadius: 1, overflowX: 'auto', bgcolor: 'white', p: 2 }}>
+            <Box
+              sx={{
+                bgcolor: '#05307a',
+                color: 'white',
+                p: 1,
+                borderBottom: '1px solid #ccc',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
+                <Typography sx={{ mr: 1 }}>SIDE PLOT:</Typography>
+                <TextField
+                  value={keyplot.label}
+                  onChange={(e) => handleKeyplotLabelChange(e, index)}
+                  inputProps={{ maxLength: 4, style: { color: 'white' } }}
+                  size="small"
+                  sx={{ bgcolor: 'transparent', border: 'none', color: 'white', fontWeight: 'bold', textAlign: 'center', width: '50px' }}
+                />
+              </Box>
+              <Typography>Total Actual Area (Cent): {calculateTotalActual(keyplot.rows)}</Typography>
+              <Typography>Total Area (Ares): {calculateTotalArea(keyplot.rows)}</Typography>
             </Box>
-            <Typography>Total Actual Area (Cent): {calculateTotalActual(keyplot.rows)}</Typography>
-            <Typography>Total Area (Ares): {calculateTotalArea(keyplot.rows)}</Typography>
-          </Box>
-          <Grid container spacing={2} sx={{ p: 2 }} alignItems="center">
-            {/* Column Headers */}
-            <Grid item xs={2}>
-              {' '}
-              <Typography fontWeight="bold">Village</Typography>{' '}
-            </Grid>
-            <Grid item xs={2}>
-              {' '}
-              <Typography fontWeight="bold">Block</Typography>{' '}
-            </Grid>
-            <Grid item xs={2}>
-              {' '}
-              <Typography fontWeight="bold">SV.No / Sub</Typography>{' '}
-            </Grid>
-            <Grid item xs={3}>
-              {' '}
-              <Typography fontWeight="bold">Actual</Typography>{' '}
-            </Grid>
-            <Grid item xs={2}>
-              {' '}
-              <Typography fontWeight="bold">Area For Enumerated</Typography>{' '}
-            </Grid>
+            <Grid container spacing={2} sx={{ p: 2 }} alignItems="center">
+              {/* Column Headers */}
+              <Grid item xs={2}>
+                {' '}
+                <Typography fontWeight="bold">Village</Typography>{' '}
+              </Grid>
+              <Grid item xs={2}>
+                {' '}
+                <Typography fontWeight="bold">Block</Typography>{' '}
+              </Grid>
+              <Grid item xs={2}>
+                {' '}
+                <Typography fontWeight="bold">SV.No / Sub</Typography>{' '}
+              </Grid>
+              <Grid item xs={3}>
+                {' '}
+                <Typography fontWeight="bold">Actual</Typography>{' '}
+              </Grid>
+              <Grid item xs={2}>
+                {' '}
+                <Typography fontWeight="bold">Area For Enumerated</Typography>{' '}
+              </Grid>
 
-            {/* Dynamic Rows */}
-            {keyplot.rows.map((row, rowIndex) => (
-              <React.Fragment key={rowIndex}>
-                <Grid item xs={2}>
-                  <TextField value={row.villageName || ''} InputProps={{ readOnly: true }} fullWidth size="small" />
-                </Grid>
-                <Grid item xs={2}>
-                  <TextField value={row.block || ''} InputProps={{ readOnly: true }} fullWidth size="small" />
-                </Grid>
-                <Grid item xs={2}>
-                  <TextField value={`${row.svNo || ''} / ${row.sub || ''}`} InputProps={{ readOnly: true }} fullWidth size="small" />
-                </Grid>
-                <Grid item xs={2}>
-                  <TextField value={row.area || ''} InputProps={{ readOnly: true }} fullWidth size="small" />
-                </Grid>
-                <Grid item xs={2}>
-                  <TextField
-                    value={row.enumeratedArea || ''}
-                    onChange={(e) => handleEnumeratedAreaChange(e.target.value, index, rowIndex)}
-                    fullWidth
-                    size="small"
-                    type="number"
-                    inputProps={{ step: '0.01', min: '0' }}
-                    label="Area For Enumerated"
-                  />
-                </Grid>
+              {/* Dynamic Rows */}
+              {keyplot.rows.map((row, rowIndex) => (
+                <React.Fragment key={rowIndex}>
+                  <Grid item xs={2}>
+                    <TextField value={row.villageName || ''} InputProps={{ readOnly: true }} fullWidth size="small" />
+                  </Grid>
+                  <Grid item xs={2}>
+                    <TextField value={row.block || ''} InputProps={{ readOnly: true }} fullWidth size="small" />
+                  </Grid>
+                  <Grid item xs={2}>
+                    <TextField value={`${row.svNo || ''} / ${row.sub || ''}`} InputProps={{ readOnly: true }} fullWidth size="small" />
+                  </Grid>
+                  <Grid item xs={2}>
+                    <TextField value={row.area || ''} InputProps={{ readOnly: true }} fullWidth size="small" />
+                  </Grid>
+                  <Grid item xs={2}>
+                    <TextField
+                      value={row.enumeratedArea || ''}
+                      onChange={(e) => handleEnumeratedAreaChange(e.target.value, index, rowIndex)}
+                      fullWidth
+                      size="small"
+                      type="number"
+                      inputProps={{ step: '0.01', min: '0' }}
+                      label="Area For Enumerated"
+                    />
+                  </Grid>
 
-                <Grid item xs={1}>
-                  <Button
-                    startIcon={<RemoveCircleOutlineIcon />}
-                    onClick={() => removeKeyplotRow(index, rowIndex, row.id)} // Pass both indices
-                    size="small"
-                    variant="contained"
-                    color="error"
-                  ></Button>
-                </Grid>
-                <Grid item xs={1}>
-                  {row.isExisting && <Chip label="Saved" size="small" color="success" variant="outlined" />}
-                </Grid>
-              </React.Fragment>
-            ))}
+                  <Grid item xs={1}>
+                    <Button
+                      startIcon={<RemoveCircleOutlineIcon />}
+                      onClick={() => removeKeyplotRow(index, rowIndex, row.id)} // Pass both indices
+                      size="small"
+                      variant="contained"
+                      color="error"
+                    ></Button>
+                  </Grid>
+                  <Grid item xs={1}>
+                    {row.isExisting && <Chip label="Saved" size="small" color="success" variant="outlined" />}
+                  </Grid>
+                </React.Fragment>
+              ))}
 
-            {/* Action Buttons */}
-            <Grid item xs={12} sx={{ textAlign: 'right', mt: 1 }}>
-              <Button
-                startIcon={<AddCircleOutlineIcon />}
-                onClick={() => addKeyplotRow(index)}
-                size="small"
-                sx={{ mr: 1 }}
-                variant="contained"
-                color="success"
-              >
-                Add Row
-              </Button>
-              {/* <Button
+              {/* Action Buttons */}
+              <Grid item xs={12} sx={{ textAlign: 'right', mt: 1 }}>
+                <Button
+                  startIcon={<AddCircleOutlineIcon />}
+                  onClick={() => addKeyplotRow(index)}
+                  size="small"
+                  sx={{ mr: 1 }}
+                  variant="contained"
+                  color="success"
+                >
+                  Add Row
+                </Button>
+                {/* <Button
       startIcon={<RemoveCircleOutlineIcon />}
       onClick={() => removeKeyplotRow(index)}
       size="small"
@@ -1093,150 +1099,153 @@ const ClusterForm = () => {
     >
       Remove Last Row
     </Button> */}
+              </Grid>
             </Grid>
-          </Grid>
-        </Box>
-      ))}
+          </Box>
+        ))}
 
-      <Button
-        type="submit"
-        variant="contained"
-        color="primary"
-        sx={{ mt: 3, display: 'block', margin: '20px auto 0' }}
-        onClick={handleSubmit}
-      >
-        Submit
-      </Button>
-
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={3000}
-        onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <Alert onClose={handleSnackbarClose} severity="warning" sx={{ width: '100%' }}>
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
-
-      {/* --- Modal for adding a new row --- */}
-      <Modal open={modalOpen} onClose={closeModal} aria-labelledby="add-row-modal-title" aria-describedby="add-row-modal-description">
-        <Paper
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: { xs: '95%', sm: '90%', md: 600 },
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            bgcolor: 'background.paper',
-            boxShadow: 24,
-            p: 3,
-            borderRadius: 2
-          }}
+        <Button
+          type="submit"
+          variant="contained"
+          color="primary"
+          sx={{ mt: 3, display: 'block', margin: '20px auto 0' }}
+          onClick={handleSubmit}
         >
-          <Typography id="add-row-modal-title" variant="h6" component="h2" gutterBottom>
-            ➕ Add New Side Plot Row
-          </Typography>
+          Submit
+        </Button>
 
-          {/* SECTION 1: Plot Location */}
-          <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, fontWeight: 'bold', color: 'primary.main' }}>
-            📍 Plot Location
-          </Typography>
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={3000}
+          onClose={handleSnackbarClose}
+          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          <Alert onClose={handleSnackbarClose} severity="warning" sx={{ width: '100%' }}>
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>
 
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <Autocomplete
-                options={villageOptions}
-                getOptionLabel={(option) => option.village || ''}
-                value={modalRowData.village ? villageOptions.find((v) => v.villageId === modalRowData.village) : null}
-                onChange={(event, newValue) => handleModalInputChange(newValue ? newValue.villageId : null, 'village')}
-                renderInput={(params) => <TextField {...params} label="Village" variant="outlined" size="small" fullWidth />}
-              />
+        {/* --- Modal for adding a new row --- */}
+        <Modal open={modalOpen} onClose={closeModal} aria-labelledby="add-row-modal-title" aria-describedby="add-row-modal-description">
+          <Paper
+            sx={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: { xs: '95%', sm: '90%', md: 600 },
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              bgcolor: 'background.paper',
+              boxShadow: 24,
+              p: 3,
+              borderRadius: 2
+            }}
+          >
+            <Typography id="add-row-modal-title" variant="h6" component="h2" gutterBottom>
+              ➕ Add New Side Plot Row
+            </Typography>
+
+            {/* SECTION 1: Plot Location */}
+            <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, fontWeight: 'bold', color: 'primary.main' }}>
+              📍 Plot Location
+            </Typography>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <Autocomplete
+                  options={villageOptions}
+                  getOptionLabel={(option) => option.village || ''}
+                  value={modalRowData.village ? villageOptions.find((v) => v.villageId === modalRowData.village) : null}
+                  onChange={(event, newValue) => handleModalInputChange(newValue ? newValue.villageId : null, 'village')}
+                  renderInput={(params) => <TextField {...params} label="Village" variant="outlined" size="small" fullWidth />}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Autocomplete
+                  options={modalBlockOptions}
+                  getOptionLabel={(option) => String(option)}
+                  value={modalRowData.modalBlock}
+                  onChange={(event, newValue) => handleModalInputChange(newValue, 'modalBlock')}
+                  renderInput={(params) => <TextField {...params} label="Block" variant="outlined" size="small" fullWidth />}
+                  disabled={!modalRowData.village || modalBlockOptions.length === 0}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Autocomplete
+                  options={svNoOptions.map(String)}
+                  getOptionLabel={(option) => String(option)}
+                  value={modalRowData.svNo ? String(modalRowData.svNo) : null}
+                  onChange={(event, newValue) => handleModalInputChange(newValue, 'svNo')}
+                  renderInput={(params) => <TextField {...params} label="Survey No" variant="outlined" size="small" fullWidth />}
+                />
+              </Grid>
             </Grid>
 
-            <Grid item xs={12}>
-              <Autocomplete
-                options={modalBlockOptions}
-                getOptionLabel={(option) => String(option)}
-                value={modalRowData.modalBlock}
-                onChange={(event, newValue) => handleModalInputChange(newValue, 'modalBlock')}
-                renderInput={(params) => <TextField {...params} label="Block" variant="outlined" size="small" fullWidth />}
-                disabled={!modalRowData.village || modalBlockOptions.length === 0}
-              />
+            {/* SECTION 2: Reservation Selection */}
+            {svNoDetails.length > 0 && (
+              <>
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                  ✅ Reservation Sub Numbers
+                </Typography>
+
+                <FormGroup sx={{ ml: 1 }}>
+                  {svNoDetails.map((item) => (
+                    <FormControlLabel
+                      key={item.resbdno}
+                      control={
+                        <Checkbox checked={selectedSvNos.includes(item.resbdno)} onChange={() => handleSvNoSelection(item.resbdno)} />
+                      }
+                      label={`${modalRowData.svNo}/${item.resbdno} — ${item.area} cents`}
+                    />
+                  ))}
+                </FormGroup>
+              </>
+            )}
+
+            {/* Action Buttons */}
+            <Grid container justifyContent="flex-end" spacing={2} sx={{ mt: 3 }}>
+              <Grid item>
+                <Button variant="outlined" color="secondary" onClick={closeModal}>
+                  Cancel
+                </Button>
+              </Grid>
+              <Grid item>
+                <Button variant="contained" onClick={handleModalAddRow} disabled={isAddButtonDisabled()}>
+                  Add Row
+                </Button>
+              </Grid>
             </Grid>
+          </Paper>
+        </Modal>
+        <Dialog
+          open={openConfirmDialog}
+          onClose={handleCloseConfirmDialog}
+          aria-labelledby="alert-dialog-title"
+          aria-describedby="alert-dialog-description"
+        >
+          <DialogTitle id="alert-dialog-title">{'Confirm Deletion'}</DialogTitle>
+          <DialogContent>
+            <DialogContentText id="alert-dialog-description">
+              This row is already saved. Do you want to delete it permanently?
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseConfirmDialog} color="primary">
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmDelete} color="error" autoFocus>
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
 
-            <Grid item xs={12}>
-              <Autocomplete
-                options={svNoOptions.map(String)}
-                getOptionLabel={(option) => String(option)}
-                value={modalRowData.svNo ? String(modalRowData.svNo) : null}
-                onChange={(event, newValue) => handleModalInputChange(newValue, 'svNo')}
-                renderInput={(params) => <TextField {...params} label="Survey No" variant="outlined" size="small" fullWidth />}
-              />
-            </Grid>
-          </Grid>
-
-          {/* SECTION 2: Reservation Selection */}
-          {svNoDetails.length > 0 && (
-            <>
-              <Divider sx={{ my: 2 }} />
-              <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                ✅ Reservation Sub Numbers
-              </Typography>
-
-              <FormGroup sx={{ ml: 1 }}>
-                {svNoDetails.map((item) => (
-                  <FormControlLabel
-                    key={item.resbdno}
-                    control={<Checkbox checked={selectedSvNos.includes(item.resbdno)} onChange={() => handleSvNoSelection(item.resbdno)} />}
-                    label={`${modalRowData.svNo}/${item.resbdno} — ${item.area} cents`}
-                  />
-                ))}
-              </FormGroup>
-            </>
-          )}
-
-          {/* Action Buttons */}
-          <Grid container justifyContent="flex-end" spacing={2} sx={{ mt: 3 }}>
-            <Grid item>
-              <Button variant="outlined" color="secondary" onClick={closeModal}>
-                Cancel
-              </Button>
-            </Grid>
-            <Grid item>
-              <Button variant="contained" onClick={handleModalAddRow} disabled={isAddButtonDisabled()}>
-                Add Row
-              </Button>
-            </Grid>
-          </Grid>
-        </Paper>
-      </Modal>
-      <Dialog
-        open={openConfirmDialog}
-        onClose={handleCloseConfirmDialog}
-        aria-labelledby="alert-dialog-title"
-        aria-describedby="alert-dialog-description"
-      >
-        <DialogTitle id="alert-dialog-title">{'Confirm Deletion'}</DialogTitle>
-        <DialogContent>
-          <DialogContentText id="alert-dialog-description">
-            This row is already saved. Do you want to delete it permanently?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseConfirmDialog} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleConfirmDelete} color="error" autoFocus>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* --- End Modal --- */}
-    </Container>
+        {/* --- End Modal --- */}
+      </Container>
+    </Grid>
   );
 };
 
