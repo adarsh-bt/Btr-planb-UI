@@ -24,6 +24,7 @@ import Avatar from 'components/@extended/Avatar';
 import MainCard from 'components/MainCard';
 import Transitions from 'components/@extended/Transitions';
 
+
 // assets
 import LogoutOutlined from '@ant-design/icons/LogoutOutlined';
 import SettingOutlined from '@ant-design/icons/SettingOutlined';
@@ -78,6 +79,7 @@ export default function Profile() {
 
   
 
+
   const iconBackColorOpen = 'grey.100';
   const user = localStorage.getItem('user');
   return (
@@ -98,8 +100,9 @@ export default function Profile() {
       >
         <Stack direction="row" spacing={1.25} alignItems="center" sx={{ p: 0.5 }}>
           <Avatar alt="profile user" src={avatar1} size="sm" />
-          <Typography variant="subtitle1" sx={{ textTransform: 'capitalize',color:"white" }}>
-             {user}
+          <Typography variant="subtitle1" sx={{ color:"white" }}>
+          {authservice.getusername()}
+             {/* {permissions.username} */}
           </Typography>
         </Stack>
       </ButtonBase>
@@ -132,10 +135,10 @@ export default function Profile() {
                         <Stack direction="row" spacing={1.25} alignItems="center">
                           <Avatar alt="profile user" src={avatar1} sx={{ width: 32, height: 32 }} />
                           <Stack>
-                            <Typography variant="h6">{user}
+                            <Typography variant="h6">{authservice.getusername()}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                              {authservice.getrole()}
+                              {authservice.getusername()}
                             </Typography>
                           </Stack>
                         </Stack>

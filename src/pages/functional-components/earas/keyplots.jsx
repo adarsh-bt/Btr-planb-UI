@@ -1,38 +1,40 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import axios from "axios";
+import axios from 'axios';
 import {
-    Button,
-    CircularProgress,
-    Box,
-    Typography,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Paper,
-    TableSortLabel,
-    TablePagination,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    TextField,
-    InputAdornment,
-    FormControl,
-    FormLabel,
-    RadioGroup,
-    FormControlLabel,
-    Radio,
-    Chip, // Import Chip component
-} from "@mui/material";
+  Button,
+  CircularProgress,
+  Box,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  TableSortLabel,
+  TablePagination,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  InputAdornment,
+  FormControl,
+  FormLabel,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  Chip // Import Chip component
+} from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import RemoveRedEyeIcon from '@mui/icons-material/RemoveRedEye';
 import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
 import SearchIcon from '@mui/icons-material/Search';
-import auth from 'contexts/auth-reducer/auth';
+// import auth from 'contexts/auth-reducer/auth';
 import authservice from 'pages/authentication/services/authservice';
+// import auth from 'contexts/auth-reducer/auth';
+// import authservice from 'pages/authentication/services/authservice';
 
 const KeyPlot = () => {
     const [loading, setLoading] = useState(true); // Set to true initially to fetch existing data
@@ -40,12 +42,12 @@ const KeyPlot = () => {
     const [plotData, setPlotData] = useState([]);
     const [panchayathAreaSummary, setPanchayathAreaSummary] = useState([]);
 
-    const [order, setOrder] = useState('asc');
-    const [orderBy, setOrderBy] = useState('slNo');
-    const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [order, setOrder] = useState('asc');
+  const [orderBy, setOrderBy] = useState('slNo');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
 
-    const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
     // Dialog related states
     const [openRemoveDialog, setOpenRemoveDialog] = useState(false);
@@ -54,8 +56,8 @@ const KeyPlot = () => {
     const [selectedRowToRemove, setSelectedRowToRemove] = useState(null);
     const [reasonError, setReasonError] = useState(false);
 
-    const navigate = useNavigate();
-    const location = useLocation();
+  const navigate = useNavigate();
+  const location = useLocation();
 
     // Define your preset reasons here
     const presetReasons = [
@@ -90,16 +92,15 @@ const KeyPlot = () => {
             setLoading(true);
         
             try {
-                  const token = localStorage.getItem('token');
+             
                 // Replace with your actual userId
                 const userId = authservice.userid();
-         
-                const res = await axios.get(`http://localhost:8080/btr-service/key-plots/fetch-existing-keyplots/${userId}`,
-              {
-              headers: {
-                  'Authorization': `Bearer ${token}` // Add token in Authorization header
-              }
-                });
+         const token = localStorage.getItem('token');
+                const res = await axios.get(`http://localhost:8080/btr-service/key-plots/fetch-existing-keyplots/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}` // Add token in Authorization header
+        }
+      });
 
                 const zones = res.data.payload || [];
 
@@ -139,15 +140,14 @@ const KeyPlot = () => {
         setDataVisible(false); // Hide data while generating
 
         try {
-              const token = localStorage.getItem('token');
             // Replace with your actual userId
             const userId = authservice.userid();
-            const res = await axios.get(`http://localhost:8080/btr-service/key-plots/generate-keyplots/${userId}`,
-              {
-              headers: {
-                  'Authorization': `Bearer ${token}` // Add token in Authorization header
-              }
-                });
+            const token = localStorage.getItem('token');
+            const res = await axios.get(`http://localhost:8080/btr-service/key-plots/generate-keyplots/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}` // Add token in Authorization header
+        }
+      });
 
             const zones = res.data.payload || [];
 
@@ -184,22 +184,22 @@ const KeyPlot = () => {
         setPage(0);
     };
 
-    const createSortHandler = (property) => () => {
-        handleRequestSort(property);
-    };
+  const createSortHandler = (property) => () => {
+    handleRequestSort(property);
+  };
 
-    const descendingComparator = (a, b, orderBy) => {
-        if (typeof a[orderBy] === 'string' && typeof b[orderBy] === 'string') {
-            return b[orderBy].localeCompare(a[orderBy]);
-        }
-        if (b[orderBy] < a[orderBy]) {
-            return -1;
-        }
-        if (b[orderBy] > a[orderBy]) {
-            return 1;
-        }
-        return 0;
-    };
+  const descendingComparator = (a, b, orderBy) => {
+    if (typeof a[orderBy] === 'string' && typeof b[orderBy] === 'string') {
+      return b[orderBy].localeCompare(a[orderBy]);
+    }
+    if (b[orderBy] < a[orderBy]) {
+      return -1;
+    }
+    if (b[orderBy] > a[orderBy]) {
+      return 1;
+    }
+    return 0;
+  };
 
     const getComparator = (order, orderBy) => {
         return order === 'desc'
@@ -207,34 +207,32 @@ const KeyPlot = () => {
             : (a, b) => -descendingComparator(a, b, orderBy);
     };
 
-    // --- Memoized Data for Table (Filtering, Sorting, and Pagination) ---
-    const filteredSortedAndPaginatedData = useMemo(() => {
-        const filtered = plotData.filter(row =>
-            Object.values(row).some(value =>
-                String(value).toLowerCase().includes(searchTerm.toLowerCase())
-            )
-        );
+  // --- Memoized Data for Table (Filtering, Sorting, and Pagination) ---
+  const filteredSortedAndPaginatedData = useMemo(() => {
+    const filtered = plotData.filter((row) =>
+      Object.values(row).some((value) => String(value).toLowerCase().includes(searchTerm.toLowerCase()))
+    );
 
-        const sorted = [...filtered].sort(getComparator(order, orderBy));
+    const sorted = [...filtered].sort(getComparator(order, orderBy));
 
-        return sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-    }, [plotData, searchTerm, order, orderBy, page, rowsPerPage]);
+    return sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  }, [plotData, searchTerm, order, orderBy, page, rowsPerPage]);
 
-    // --- Pagination Handlers ---
-    const handleChangePage = (event, newPage) => {
-        setPage(newPage);
-    };
+  // --- Pagination Handlers ---
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
 
-    const handleChangeRowsPerPage = (event) => {
-        setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(0);
-    };
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
 
-    // --- Filter Search Handler ---
-    const handleSearchChange = (event) => {
-        setSearchTerm(event.target.value);
-        setPage(0);
-    };
+  // --- Filter Search Handler ---
+  const handleSearchChange = (event) => {
+    setSearchTerm(event.target.value);
+    setPage(0);
+  };
 
     // --- Navigation and Dialog Logic ---
     const handleViewClusterClick = (syNo, slno) => {
@@ -251,13 +249,13 @@ const KeyPlot = () => {
         setOpenRemoveDialog(true);
     };
 
-    const handleCloseRemoveDialog = () => {
-        setOpenRemoveDialog(false);
-        setSelectedRowToRemove(null);
-        setReason('');
-        setSelectedPresetReason('');
-        setReasonError(false);
-    };
+  const handleCloseRemoveDialog = () => {
+    setOpenRemoveDialog(false);
+    setSelectedRowToRemove(null);
+    setReason('');
+    setSelectedPresetReason('');
+    setReasonError(false);
+  };
 
     const handleReasonChange = (event) => {
         setReason(event.target.value);
@@ -275,38 +273,29 @@ const KeyPlot = () => {
         }
     };
 
-    const handleConfirmRemoval = async () => {
-        let finalReason = selectedPresetReason;
+  const handleConfirmRemoval = async () => {
+    let finalReason = selectedPresetReason;
 
-        if (selectedPresetReason === 'Other') {
-            finalReason = reason.trim();
-        }
+    if (selectedPresetReason === 'Other') {
+      finalReason = reason.trim();
+    }
 
-        if (finalReason === '') {
-            setReasonError(true);
-            return;
-        }
+    if (finalReason === '') {
+      setReasonError(true);
+      return;
+    }
 
-        if (!selectedRowToRemove || !selectedRowToRemove.id) {
-            console.error("No row selected for removal or row has no ID.");
-            handleCloseRemoveDialog();
-            return;
-        }
+    if (!selectedRowToRemove || !selectedRowToRemove.id) {
+      console.error('No row selected for removal or row has no ID.');
+      handleCloseRemoveDialog();
+      return;
+    }
 
         setLoading(true);
-       try {
-          const token = localStorage.getItem('token');
-    const response = await axios.post(
-        `http://localhost:8080/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`,
-        {
-            reason: finalReason
-        },
-        {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        }
-    );
+        try {
+            const response = await axios.post(`http://localhost:8080/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`, {
+                reason: finalReason
+            });
 
             const newPlotPayload = response.data;
 
@@ -369,141 +358,146 @@ const KeyPlot = () => {
                 </Box>
             )}
 
-            {!loading && dataVisible && (
-                <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
-                    <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        {panchayathAreaSummary.length > 0 && (
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, flexGrow: 1, maxWidth: 'calc(100% - 320px)' }}>
-                                {panchayathAreaSummary.map((item, index) => {
-                                    const colorIndex = index % chipColors.length;
-                                    const dynamicColor = chipColors[colorIndex];
-                                    return (
-                                        <Chip
-                                            key={index}
-                                            label={`${item.panchayath}: ${item.totalarea} Cents`}
-                                            sx={{
-                                                fontSize: '0.6rem',
-                                                fontWeight: 'bold',
-                                                backgroundColor: dynamicColor,
-                                                color: 'white',
-                                                border: `1px solid ${dynamicColor}`,
-                                                padding: '5px 6px',
-                                                height: 'auto',
-                                                borderRadius: '10px',
-                                            }}
-                                        />
-                                    );
-                                })}
-                            </Box>
-                        )}
+      {!loading && dataVisible && (
+        <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
+          {/* <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+           */}
+           <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            {panchayathAreaSummary.length > 0 && (
+              // <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, flexGrow: 1, maxWidth: 'calc(100% - 320px)' }}>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, flexGrow: 1, maxWidth: 'calc(100% - 320px)' }}>
+                {/* {panchayathAreaSummary.map((item, index) => {
+                  const colorIndex = index % chipColors.length;
+                  const dynamicColor = chipColors[colorIndex];
+                  return (
+                    <Chip
+                      key={index}
+                      label={`${item.panchayath}: ${item.totalarea} Cents`}
+                      sx={{
+                        fontSize: '0.6rem',
+                        fontWeight: 'bold',
+                        backgroundColor: dynamicColor,
+                        color: 'white',
+                        border: `1px solid ${dynamicColor}`,
+                        padding: '5px 6px',
+                        height: 'auto',
+                        borderRadius: '10px'
+                      }}
+                    />
+                  );
+                })} */}
+              </Box>
+            )}
 
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, ml: { xs: 0, sm: 2 }, mt: { xs: 2, sm: 0 } }}>
-                            <Chip label="2024 - 2025" variant="outlined" color="info" />
-                            <TextField
-                                label="Search Data"
-                                variant="outlined"
-                                size="small"
-                                value={searchTerm}
-                                onChange={handleSearchChange}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <SearchIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
-                                sx={{ width: '100%', maxWidth: '250px' }}
-                            />
-                        </Box>
-                    </Box>
+            {/* <Box sx={{ display: 'flex', gap: 2, ml: { xs: 0, sm: 2 }, mt: { xs: 2, sm: 0 } }}> */}
+            <Box sx={{ display: 'flex', gap: 2, ml: { xs: 0, sm: 2 }, mt: { xs: 2, sm: 0 } }}>
+              <Chip label="AY 2024 - 2025" variant="outlined" color="info" />
+              <TextField
+                label="Search Data"
+                variant="outlined"
+                size="small"
+                value={searchTerm}
+                onChange={handleSearchChange}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  )
+                }}
+                sx={{ width: '100%', maxWidth: '250px' }}
+              />
+            </Box>
+          </Box>
 
-                    <TableContainer component={Paper} sx={{ maxHeight: '50%', overflow: 'scroll', border: '1px solid #e0e0e0', borderRadius: 1 }}>
-                        <Table stickyHeader sx={{ tableLayout: 'fixed' }}>
-                            <TableHead>
-                                <TableRow>
-                                    {['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'reserveList'].map((col) => (
-                                        <TableCell key={col} align="center"
-                                            sx={{
-                                                bgcolor: '#05307a',
-                                                color: 'white',
-                                                fontWeight: 'bold',
-                                                '&:hover': { backgroundColor: '#032050' }
-                                            }}
-                                        >
-                                            <TableSortLabel
-                                                active={orderBy === col}
-                                                direction={orderBy === col ? order : 'asc'}
-                                                onClick={createSortHandler(col)}
-                                                sx={{
-                                                    color: 'white',
-                                                    '&.Mui-active': { color: '#a7ffeb' },
-                                                    '& .MuiTableSortLabel-icon': { color: 'white !important' },
-                                                    '& .MuiTableSortLabel-icon.Mui-active': { color: '#a7ffeb !important' },
-                                                }}
-                                            >
-                                                {col === 'area'
-                                                    ? 'Area (Cents)'
-                                                    : col.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
-                                            </TableSortLabel>
-                                        </TableCell>
-                                    ))}
-                                    <TableCell align="center"
-                                        sx={{
-                                            bgcolor: '#05307a',
-                                            color: 'white',
-                                            fontWeight: 'bold',
-                                            '&:hover': { backgroundColor: '#032050' }
-                                        }}
-                                    >
-                                        Action
-                                    </TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {filteredSortedAndPaginatedData.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={7} align="center" sx={{ py: 3, color: 'text.secondary' }}>
-                                            No data found for the current filter.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    filteredSortedAndPaginatedData.map((row, index) => (
-                                        <TableRow
-                                            key={`${row.syNo}-${index}`}
-                                            sx={{
-                                                '&:nth-of-type(odd)': { backgroundColor: '#f5f5f5' },
-                                                '&:hover': { backgroundColor: '#e0f2f7' },
-                                            }}
-                                        >
-                                            <TableCell align="center">{index + 1}</TableCell>
-                                            <TableCell align="center">{row.syNo}</TableCell>
-                                            <TableCell align="center">{row.panchayth}</TableCell>
-                                            <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
-                                            <TableCell align="center">{row.villageBlock}</TableCell>
-                                            <TableCell align="center">{row.reserveList}</TableCell>
-                                            <TableCell align="center">
-                                                <Button
-                                                    size="small"
-                                                    color="primary"
-                                                    onClick={() => handleViewClusterClick(row.plot_id, index + 1)}
-                                                    sx={{ minWidth: 'unset', px: 0.5 }}
-                                                >
-                                                    <RemoveRedEyeIcon fontSize="small" />
-                                                </Button>
-                                                <Button
-                                                    sx={{ color: 'error.main', minWidth: 'unset', px: 0.5 }}
-                                                    size="small"
-                                                    onClick={() => handleOpenRemoveDialog(row)}
-                                                >
-                                                    <RemoveCircleIcon fontSize="small" />
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+          <TableContainer component={Paper} sx={{ maxHeight: '50%', overflow: 'scroll', border: '1px solid #e0e0e0', borderRadius: 1 }}>
+            <Table stickyHeader sx={{ tableLayout: 'fixed' }}>
+              <TableHead>
+                <TableRow>
+                  {['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'reserveList'].map((col) => (
+                    <TableCell
+                      key={col}
+                      align="center"
+                      sx={{
+                        bgcolor: '#05307a',
+                        color: 'white',
+                        fontWeight: 'bold',
+                        '&:hover': { backgroundColor: '#032050' }
+                      }}
+                    >
+                      <TableSortLabel
+                        active={orderBy === col}
+                        direction={orderBy === col ? order : 'asc'}
+                        onClick={createSortHandler(col)}
+                        sx={{
+                          color: 'white',
+                          '&.Mui-active': { color: '#a7ffeb' },
+                          '& .MuiTableSortLabel-icon': { color: 'white !important' },
+                          '& .MuiTableSortLabel-icon.Mui-active': { color: '#a7ffeb !important' }
+                        }}
+                      >
+                        {col === 'area' ? 'Area (Cents)' : col.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
+                      </TableSortLabel>
+                    </TableCell>
+                  ))}
+                  <TableCell
+                    align="center"
+                    sx={{
+                      bgcolor: '#05307a',
+                      color: 'white',
+                      fontWeight: 'bold',
+                      '&:hover': { backgroundColor: '#032050' }
+                    }}
+                  >
+                    Action
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredSortedAndPaginatedData.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                      No data found for the current filter.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredSortedAndPaginatedData.map((row, index) => (
+                    <TableRow
+                      key={`${row.syNo}-${index}`}
+                      sx={{
+                        '&:nth-of-type(odd)': { backgroundColor: '#f5f5f5' },
+                        '&:hover': { backgroundColor: '#e0f2f7' }
+                      }}
+                    >
+                      <TableCell align="center">{index + 1}</TableCell>
+                      <TableCell align="center">{row.syNo}</TableCell>
+                      <TableCell align="center">{row.panchayth}</TableCell>
+                      <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
+                      <TableCell align="center">{row.villageBlock}</TableCell>
+                      <TableCell align="center">{row.reserveList}</TableCell>
+                      <TableCell align="center">
+                        <Button
+                          size="small"
+                          color="primary"
+                          onClick={() => handleViewClusterClick(row.plot_id, index + 1)}
+                          sx={{ minWidth: 'unset', px: 0.5 }}
+                        >
+                          <RemoveRedEyeIcon fontSize="small" />
+                        </Button>
+                        <Button
+                          sx={{ color: 'error.main', minWidth: 'unset', px: 0.5 }}
+                          size="small"
+                          onClick={() => handleOpenRemoveDialog(row)}
+                        >
+                          <RemoveCircleIcon fontSize="small" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
 
                     {plotData.length > 0 && (
                         <Box sx={{ mt: 2, pr: 2, display: 'flex', justifyContent: 'flex-end' }}>
@@ -530,37 +524,36 @@ const KeyPlot = () => {
                 </Paper>
             )}
 
-            {/* Removal Confirmation Dialog */}
-            <Dialog open={openRemoveDialog} onClose={handleCloseRemoveDialog} fullWidth maxWidth="sm">
-                <DialogTitle>Confirm Removal</DialogTitle>
-                <DialogContent dividers>
-                    <Typography variant="body1" sx={{ mb: 2 }}>
-                        You are about to remove Survey Number: <Typography component="span" fontWeight="bold" color="primary.main">{selectedRowToRemove?.syNo}</Typography>. Please provide a reason.
-                    </Typography>
+      {/* Removal Confirmation Dialog */}
+      <Dialog open={openRemoveDialog} onClose={handleCloseRemoveDialog} fullWidth maxWidth="sm">
+        <DialogTitle>Confirm Removal</DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            You are about to remove Survey Number:{' '}
+            <Typography component="span" fontWeight="bold" color="primary.main">
+              {selectedRowToRemove?.syNo}
+            </Typography>
+            . Please provide a reason.
+          </Typography>
 
-                    <FormControl component="fieldset" error={reasonError} sx={{ mt: 2, mb: 2, width: '100%' }}>
-                        <FormLabel component="legend">Reason for Removal</FormLabel>
-                        <RadioGroup
-                            aria-label="reason-for-removal"
-                            name="reason-for-removal-group"
-                            value={selectedPresetReason}
-                            onChange={handlePresetReasonChange}
-                        >
-                            {presetReasons.map((reasonOption) => (
-                                <FormControlLabel
-                                    key={reasonOption}
-                                    value={reasonOption}
-                                    control={<Radio />}
-                                    label={reasonOption}
-                                />
-                            ))}
-                        </RadioGroup>
-                        {reasonError && !selectedPresetReason && (
-                            <Typography variant="caption" color="error" sx={{ ml: 1 }}>
-                                Please select a reason or enter a custom one.
-                            </Typography>
-                        )}
-                    </FormControl>
+          <FormControl component="fieldset" error={reasonError} sx={{ mt: 2, mb: 2, width: '100%' }}>
+            <FormLabel component="legend">Reason for Removal</FormLabel>
+            <RadioGroup
+              aria-label="reason-for-removal"
+              name="reason-for-removal-group"
+              value={selectedPresetReason}
+              onChange={handlePresetReasonChange}
+            >
+              {presetReasons.map((reasonOption) => (
+                <FormControlLabel key={reasonOption} value={reasonOption} control={<Radio />} label={reasonOption} />
+              ))}
+            </RadioGroup>
+            {reasonError && !selectedPresetReason && (
+              <Typography variant="caption" color="error" sx={{ ml: 1 }}>
+                Please select a reason or enter a custom one.
+              </Typography>
+            )}
+          </FormControl>
 
                     {selectedPresetReason === 'Other' && (
                         <TextField

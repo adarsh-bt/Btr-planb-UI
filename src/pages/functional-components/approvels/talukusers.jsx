@@ -417,7 +417,9 @@ useEffect(() => {
   //   )
   // ) : [];
   const filteredData = userList.filter((item) =>
-    Object.values(item).some((value) => value.toString().toLowerCase().includes(filterText.toLowerCase()))
+    Object.values(item).some((value) =>
+    String(value).toLowerCase().includes(filterText.toLowerCase())
+  )
   );
 
   return (
@@ -425,7 +427,7 @@ useEffect(() => {
       <Paper elevation={3} style={{ padding: '10px' }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
-            Taluk User Request
+            Taluk User Requests
           </Typography>
           <TextField
             label="Filter"

@@ -478,24 +478,19 @@ console.log("User List currenly dir>>> ",userList);
 // ) : [];
 const filteredData = userList.filter((item) =>
   Object.values(item).some((value) =>
-    value.toString().toLowerCase().includes(filterText.toLowerCase())
-)
+    String(value).toLowerCase().includes(filterText.toLowerCase())
+  )
 );
 
 return (
 
  
    
-    <Box sx={{ width: '100%' }}>
-     
-   
-
-
-      
+    <Box sx={{ width: '100%' }}>   
       <Paper elevation={3} style={{  padding: '10px',}}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
-          Directorate User Request
+          Directorate User Requests
           </Typography>
           <TextField
             label="Filter"

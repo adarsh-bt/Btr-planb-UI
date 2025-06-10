@@ -17,14 +17,17 @@ import {
   Radio,
   RadioGroup,
   FormControlLabel,
+  Autocomplete,
   Button,
-  InputLabel
+  InputLabel,
+  IconButton
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
 import { useLocation } from 'react-router-dom';
 import ApprovedUserService from 'pages/functional-components/approvels/ApprovedUserService';
+import RegisterService from 'pages/authentication/services/registerservice';
 
 const Roles = () => {
   const location = useLocation();
@@ -45,10 +48,25 @@ const Roles = () => {
   const [schemesLoading, setSchemesLoading] = useState(false);
   const [rolesLoading, setRolesLoading] = useState(false);
 
+  const [activeTab, setActiveTab] = useState(0);
+  const [isEditingOffice, setIsEditingOffice] = useState(false);
+  // Office selection states (same as Register component)
+  const [districts, setDistricts] = useState([]);
+  const [selectedDistrict, setSelectedDistrict] = useState(null);
+  const [taluks, setTaluks] = useState([]);
+  const [selectedTaluk, setSelectedTaluk] = useState(null);
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+
+  const [districtId, setDistrictId] = useState(null);
+  const [talukId, setTalukId] = useState(null);
   const [office, setOffice] = useState('');
   const [officeType, setOfficeType] = useState('');
   const [userStatus, setUserStatus] = useState('active');
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
+
   const [innerTabValue, setInnerTabValue] = useState(0);
+  
 
   // Designation Change States
   const [isEditingDesignation, setIsEditingDesignation] = useState(false);
@@ -58,8 +76,216 @@ const Roles = () => {
   const [designationError, setDesignationError] = useState('');
 
   // zone State
-const [isAddZoneClicked, setIsAddZoneClicked] = useState(false);
-const [selectedNewZone, setSelectedNewZone] = useState('');
+  const [isAddZoneClicked, setIsAddZoneClicked] = useState(false);
+  const [selectedNewZone, setSelectedNewZone] = useState('');
+
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [errors, setErrors] = useState({ district: '', office: '' });
+
+  // Fetch districts on component mount
+  useEffect(() => {
+    const fetchDistricts = async () => {
+      setLoadingDistricts(true);
+      try {
+        const response = await RegisterService.getDistricts();
+        if (response.payload && Array.isArray(response.payload)) {
+          setDistricts(response.payload);
+        } else {
+          setErrorMessage(response.message || 'Failed to fetch districts: Invalid data format.');
+        }
+      } catch (err) {
+        setErrorMessage('Failed to fetch districts: ' + err.message);
+      } finally {
+        setLoadingDistricts(false);
+      }
+    };
+
+    fetchDistricts();
+  }, []);
+
+  // Fetch taluks when district changes
+  useEffect(() => {
+    const fetchTaluks = async () => {
+      if (selectedDistrict) {
+        try {
+          const response = await RegisterService.getTaluks(selectedDistrict.distId);
+          if (response.payload && Array.isArray(response.payload)) {
+            setTaluks(response.payload);
+          } else {
+            setErrorMessage(response.message || 'Failed to fetch taluks: Invalid data format.');
+          }
+        } catch (err) {
+          setErrorMessage('Failed to fetch taluks: ' + err.message);
+        }
+      } else {
+        setTaluks([]);
+        setSelectedTaluk(null);
+      }
+    };
+
+    fetchTaluks();
+  }, [selectedDistrict]);
+
+  // Same filteredTaluks logic as Register component
+  const filteredTaluks = selectedDistrict
+    ? [
+        { id: selectedDistrict.distId, label: selectedDistrict.distOfficeNameEn },
+        ...(selectedDistrict.distId === 1 ? [{ id: 1, label: 'Directorate Office' }] : []),
+        ...taluks.map((taluk) => ({
+          id: taluk.desTalukId,
+          label: taluk.talukOfficeNameEn
+        }))
+      ]
+    : [];
+
+  // Validation functions
+  const validateField = (field) => {
+    switch (field) {
+      case 'district':
+        return !selectedDistrict ? 'Please select a District.' : null;
+      case 'office':
+        return !selectedTaluk ? 'Please select an Office.' : null;
+      default:
+        return null;
+    }
+  };
+
+  // Event handlers (same logic as Register component)
+  const handleDistrictChange = (event, newValue) => {
+    setSelectedDistrict(newValue);
+    setSelectedTaluk(null);
+    setDistrictId(null);
+    setTalukId(null);
+    setOfficeType('');
+    setErrors((prevErrors) => ({ ...prevErrors, district: '' }));
+  };
+
+  const handleTalukChange = (event, newValue) => {
+    setSelectedTaluk(newValue);
+
+    if (newValue) {
+      const label = newValue.label;
+
+      if (label?.startsWith('District Office')) {
+        setOfficeType('DISTRICT');
+        setDistrictId(newValue.id);
+        setTalukId(null);
+      } else if (label === 'Directorate Office') {
+        setOfficeType('DIRECTORATE');
+        setDistrictId(1);
+        setTalukId(null);
+      } else if (label?.startsWith('Taluk Statistical Office')) {
+        setOfficeType('TALUK');
+        setTalukId(newValue.id);
+        setDistrictId(null);
+      }
+      setErrors((prevErrors) => ({ ...prevErrors, office: '' }));
+    } else {
+      setOfficeType('');
+      setDistrictId(null);
+      setTalukId(null);
+      setErrors((prevErrors) => ({ ...prevErrors, office: '' }));
+    }
+  };
+
+  const handleEditOffice = () => {
+    setIsEditingOffice(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+    // Optionally, pre-select current office info if available
+    if (userData?.distOfficeId) {
+      const dist = districts.find((d) => d.districtOfficeId === userData.distOfficeId);
+      setSelectedDistrict(dist || null);
+      setDistrictId(userData.distOfficeId);
+    }
+    if (userData?.desTalukOfficeId) {
+      const taluk = taluks.find((t) => t.desTalukOfficeId === userData.desTalukOfficeId);
+      setSelectedTaluk(taluk || null);
+      setTalukId(userData.desTalukOfficeId);
+    }
+    setOfficeType(userData?.officeType || '');
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingOffice(false);
+    setSelectedDistrict(null);
+    setSelectedTaluk(null);
+    setDistrictId(null);
+    setTalukId(null);
+    setOfficeType('');
+    setErrors({ district: '', office: '' });
+    setErrorMessage('');
+    setSuccessMessage('');
+  };
+
+  const handleSaveOfficeChange = async () => {
+    // Validation
+    let newErrors = {
+      district: !selectedDistrict ? 'Please select a District.' : '',
+      office: !selectedTaluk ? 'Please select an Office.' : ''
+    };
+    setErrors(newErrors);
+    if (newErrors.district || newErrors.office) return;
+
+    // Build payload
+    const payload = {
+      userId,
+      officeType,
+      ...(officeType === 'TALUK' && { desTalukOfficeId: talukId }),
+      ...((officeType === 'DISTRICT' || officeType === 'DIRECTORATE') && { distOfficeId: districtId })
+    };
+
+    setLoading(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+    try {
+      const response = await ApprovedUserService.updateUserOfficeType(payload);
+      setLoading(false);
+
+      if (response.error) {
+        setErrorMessage(response.message || 'Failed to update office type.');
+        setSuccessMessage('');
+      } else {
+        setSuccessMessage('Office type updated successfully.');
+        setErrorMessage('');
+        setIsEditingOffice(false);
+        // Optionally refresh user data
+        const updatedRes = await ApprovedUserService.fetchUserById(userId);
+        if (!updatedRes.error) {
+          setUserData(updatedRes.payload);
+          setOfficeType(updatedRes.payload.officeType || '');
+        }
+      }
+    } catch (err) {
+      setLoading(false);
+      setErrorMessage('Failed to update office type: ' + err.message);
+      setSuccessMessage('');
+    }
+  };
+
+  const handleUserStatusChange = async (e) => {
+    const newStatus = e.target.value;
+    setUserStatus(newStatus);
+    setStatusUpdating(true);
+    setStatusMessage('');
+    try {
+      const response = await ApprovedUserService.setUserActiveStatus(userId, newStatus === 'active');
+      if (!response.error) {
+        setStatusMessage(response.message || 'User status updated successfully');
+        // Optionally update userData to reflect new status
+        setUserData((prev) => ({ ...prev, active: newStatus === 'active' }));
+      } else {
+        setStatusMessage(response.message || 'Failed to update user status');
+        // Optionally revert UI if backend fails
+        setUserStatus(userData.active ? 'active' : 'inactive');
+      }
+    } catch (err) {
+      setStatusMessage('An error occurred while updating status.');
+      setUserStatus(userData.active ? 'active' : 'inactive');
+    }
+    setStatusUpdating(false);
+  };
 
   // Fetch user details on mount
   useEffect(() => {
@@ -114,7 +340,19 @@ const [selectedNewZone, setSelectedNewZone] = useState('');
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
+    setActiveTab(newValue);
+    // Reset states when switching tabs
+    setErrorMessage('');
+    setSuccessMessage('');
+    if (newValue !== 1) {
+      // If not on "Change Office Type" tab
+      setIsEditingOffice(false);
+    }
   };
+
+  const TabPanel = ({ children, value, index }) => (
+    <div hidden={value !== index}>{value === index && <Box sx={{ p: 3 }}>{children}</Box>}</div>
+  );
 
   const handleChangeSubmit = async () => {
     setLoading(true);
@@ -200,18 +438,30 @@ const [selectedNewZone, setSelectedNewZone] = useState('');
 
   // --- Scheme and Role Handlers ---
   const handleEditSchemes = async () => {
-    setSchemesLoading(true);
-    try {
-      const schemes = await ApprovedUserService.getSchemes();
-      if (!schemes.error) {
-        setAllSchemes(schemes || []);
-      }
-      setIsEditingSchemes(true);
-    } catch (err) {
-      alert('Failed to fetch schemes');
+  setSchemesLoading(true);
+  try {
+    const schemes = await ApprovedUserService.getSchemes();
+    if (!schemes.error) {
+      setAllSchemes(schemes || []);
     }
-    setSchemesLoading(false);
-  };
+
+    // For each current scheme-role pair, fetch roles if not already loaded
+    for (const pair of schemeRolePairs) {
+      if (!rolesByScheme[pair.schemeId]) {
+        const roles = await ApprovedUserService.getRolesbySchemes(pair.schemeId);
+        setRolesByScheme((prev) => ({
+          ...prev,
+          [pair.schemeId]: roles.error ? [] : roles || []
+        }));
+      }
+    }
+
+    setIsEditingSchemes(true);
+  } catch (err) {
+    alert('Failed to fetch schemes');
+  }
+  setSchemesLoading(false);
+};
 
   const handleSchemeChange = async (idx, schemeId) => {
     // Update the selected scheme in the pair
@@ -368,7 +618,7 @@ const [selectedNewZone, setSelectedNewZone] = useState('');
                         label: 'Status',
                         value: (
                           <Chip
-                            label={userData.active ? 'Activated' : 'Inactive'}
+                            label={userData.active ? 'Activ' : 'Inactive'}
                             color={userData.active ? 'success' : 'default'}
                             size="small"
                             sx={{ fontWeight: 'bold', color: '#fff' }}
@@ -463,11 +713,18 @@ const [selectedNewZone, setSelectedNewZone] = useState('');
                                   </Select>
                                 </FormControl>
                               </Grid>
-                              <Grid item xs={2} sx={{ display: 'flex', alignItems: 'center' }}>
-                                <Button color="error" onClick={() => handleRemovePair(idx)}>
-                                  Remove
-                                </Button>
-                              </Grid>
+                              <Grid item xs={2} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <FormControl component="fieldset">
+                <RadioGroup
+                  row
+                  value={pair.active ? 'active' : 'inactive'}
+                  onChange={(e) => handleSchemeRoleActiveChange(idx, e.target.value)}
+                >
+                  <FormControlLabel value="active" control={<Radio color="primary" />} label="Active" />
+                  <FormControlLabel value="inactive" control={<Radio color="secondary" />} label="Inactive" />
+                </RadioGroup>
+              </FormControl>
+            </Grid>
                             </React.Fragment>
                           ))}
                           <Grid item xs={12}>
@@ -491,12 +748,25 @@ const [selectedNewZone, setSelectedNewZone] = useState('');
                     <Grid container spacing={2} alignItems="center">
                       <Grid item xs={12} sm={6}>
                         <FormControl fullWidth size="small">
-                          <Typography variant="body2" sx={{ mb: 1 }}>
-                            Designation
+                          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                            <Typography variant="h6">Designation</Typography>
                             {!isEditingDesignation && (
-                              <EditIcon fontSize="small" sx={{ ml: 1, cursor: 'pointer' }} onClick={handleEditDesignation} />
+                              <IconButton
+                                aria-label="edit"
+                                onClick={handleEditDesignation}
+                                sx={{
+                                  color: 'primary.main',
+                                  backgroundColor: 'background.paper',
+                                  borderRadius: 1,
+                                  boxShadow: 1,
+                                  '&:hover': { backgroundColor: 'primary.light' }
+                                }}
+                              >
+                                <EditIcon />
+                              </IconButton>
                             )}
-                          </Typography>
+                          </Box>
+                          
                           {!isEditingDesignation ? (
                             <TextField value={userData.designation} variant="outlined" size="small" InputProps={{ readOnly: true }} />
                           ) : (
@@ -540,85 +810,180 @@ const [selectedNewZone, setSelectedNewZone] = useState('');
                     </Grid>
                   )}
 
-                  {/* Change Office Type */}
                   {innerTabValue === 2 && (
                     <Grid container spacing={2} alignItems="center">
                       <Grid item xs={12} sm={6}>
                         <FormControl fullWidth size="small">
-                          <Typography variant="body2" sx={{ mb: 1 }}>
-                            Office Type
-                          </Typography>
-                          <TextField value={officeType} onChange={(e) => setOfficeType(e.target.value)} variant="outlined" size="small" />
-                        </FormControl>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <FormControl fullWidth size="small">
-                          <Typography variant="body2" sx={{ mb: 1 }}>
-                            Office Location
-                          </Typography>
-                          <TextField value={office} onChange={(e) => setOffice(e.target.value)} variant="outlined" size="small" />
+                          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                            <Typography variant="h6">Office Type</Typography>
+                            {!isEditingOffice && (
+                              <IconButton
+                                aria-label="edit"
+                                onClick={handleEditOffice}
+                                sx={{
+                                  color: 'primary.main',
+                                  backgroundColor: 'background.paper',
+                                  borderRadius: 1,
+                                  boxShadow: 1,
+                                  '&:hover': { backgroundColor: 'primary.light' }
+                                }}
+                              >
+                                <EditIcon />
+                              </IconButton>
+                            )}
+                          </Box>
+
+                          {/* VIEW MODE */}
+                          {!isEditingOffice ? (
+                            <>
+                              <TextField
+                                value={officeType || 'Not set'}
+                                variant="outlined"
+                                size="small"
+                                InputProps={{ readOnly: true }}
+                                sx={{ mb: 2 }}
+                              />
+                              <TextField
+                                value={selectedTaluk?.label || office || 'Not selected'}
+                                variant="outlined"
+                                size="small"
+                                InputProps={{ readOnly: true }}
+                                label="Office"
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <Autocomplete
+                                disablePortal
+                                options={districts.map((district) => ({
+                                  distId: district.districtOfficeId,
+                                  distOfficeNameEn: district.districtOfficeNameEn
+                                }))}
+                                getOptionLabel={(option) => option?.distOfficeNameEn || ''}
+                                value={selectedDistrict}
+                                onChange={handleDistrictChange}
+                                isOptionEqualToValue={(option, value) => option?.distId === value?.distId}
+                                renderInput={(params) => (
+                                  <TextField
+                                    {...params}
+                                    label="Districts"
+                                    required
+                                    variant="outlined"
+                                    size="small"
+                                    sx={{ mb: 2 }}
+                                    error={!!errors.district}
+                                    helperText={errors.district}
+                                  />
+                                )}
+                              />
+                              <Autocomplete
+                                disablePortal
+                                options={filteredTaluks}
+                                getOptionLabel={(option) => option?.label || ''}
+                                value={selectedTaluk}
+                                onChange={handleTalukChange}
+                                isOptionEqualToValue={(option, value) => option?.id === value?.id}
+                                renderInput={(params) => (
+                                  <TextField
+                                    {...params}
+                                    label="Office"
+                                    required
+                                    variant="outlined"
+                                    size="small"
+                                    error={!!errors.office}
+                                    helperText={errors.office}
+                                  />
+                                )}
+                                sx={{ mb: 2 }}
+                              />
+                              <Box sx={{ mt: 2 }}>
+                                <Button
+                                  onClick={handleSaveOfficeChange}
+                                  variant="contained"
+                                  color="primary"
+                                  disabled={loading || !selectedDistrict || !selectedTaluk}
+                                  sx={{ mr: 1 }}
+                                >
+                                  {loading ? 'Saving...' : 'Save'}
+                                </Button>
+                                <Button onClick={handleCancelEdit} variant="outlined" disabled={loading}>
+                                  Cancel
+                                </Button>
+                              </Box>
+                              {errorMessage && (
+                                <Typography color="error" sx={{ mt: 1 }}>
+                                  {errorMessage}
+                                </Typography>
+                              )}
+                              {successMessage && (
+                                <Typography color="success.main" sx={{ mt: 1 }}>
+                                  {successMessage}
+                                </Typography>
+                              )}
+                            </>
+                          )}
                         </FormControl>
                       </Grid>
                     </Grid>
                   )}
 
-                       {innerTabValue === 3 && (
-                  <Grid container spacing={2} alignItems="center">
-  <Grid item xs={12} sm={6}>
-    <FormControl fullWidth size="small">
-      <Typography variant="body2" sx={{ mb: 1 }}>
-        Current Zone
-      </Typography>
-      <TextField
-        value={"Vellanad 2"}
-        variant="outlined"
-        size="small"
-        InputProps={{
-          readOnly: true,
-        }}
-      />
-    </FormControl>
-  </Grid>
-  <Grid item xs={12} sm={6}>
-    <FormControl component="fieldset">
-      <Typography variant="body2" sx={{ mb: 1 }}>
-        Zone Status
-      </Typography>
-      <RadioGroup row aria-label="zone-status" name="zone-status" defaultValue="active">
-        <FormControlLabel value="active" control={<Radio />} label="Active" />
-        <FormControlLabel value="inactive" control={<Radio />} label="Inactive" />
-      </RadioGroup>
-    </FormControl>
-  </Grid>
+                  {innerTabValue === 3 && (
+                    <Grid container spacing={2} alignItems="center">
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth size="small">
+                          <Typography variant="body2" sx={{ mb: 1 }}>
+                            Current Zone
+                          </Typography>
+                          <TextField
+                            value={'Vellanad 2'}
+                            variant="outlined"
+                            size="small"
+                            InputProps={{
+                              readOnly: true
+                            }}
+                          />
+                        </FormControl>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <FormControl component="fieldset">
+                          <Typography variant="body2" sx={{ mb: 1 }}>
+                            Zone Status
+                          </Typography>
+                          <RadioGroup row aria-label="zone-status" name="zone-status" defaultValue="active">
+                            <FormControlLabel value="active" control={<Radio />} label="Active" />
+                            <FormControlLabel value="inactive" control={<Radio />} label="Inactive" />
+                          </RadioGroup>
+                        </FormControl>
+                      </Grid>
 
-  <Grid item xs={12}>
-    <Box display="flex" justifyContent="flex-end">
-      <Button variant="contained" color="primary" onClick={() => setIsAddZoneClicked(true)}>
-        Add Zone
-      </Button>
-    </Box>
-  </Grid>
+                      <Grid item xs={12}>
+                        <Box display="flex" justifyContent="flex-end">
+                          <Button variant="contained" color="primary" onClick={() => setIsAddZoneClicked(true)}>
+                            Add Zone
+                          </Button>
+                        </Box>
+                      </Grid>
 
-  {/* Conditionally render the dropdown based on a state, for example: */}
-  {isAddZoneClicked && (
-    <Grid item xs={12}>
-      <FormControl fullWidth size="small">
-        <InputLabel id="select-zone-label">Select New Zone</InputLabel>
-        <Select
-          labelId="select-zone-label"
-          id="select-zone"
-          value={selectedNewZone}
-          label="Select New Zone"
-          onChange={(e) => setSelectedNewZone(e.target.value)}
-        >
-          <MenuItem value={"Zone A"}>Zone A</MenuItem>
-          <MenuItem value={"Zone B"}>Zone B</MenuItem>
-          <MenuItem value={"Zone C"}>Zone C</MenuItem>
-        </Select>
-      </FormControl>
-    </Grid>
-  )}
-</Grid>
+                      {/* Conditionally render the dropdown based on a state, for example: */}
+                      {isAddZoneClicked && (
+                        <Grid item xs={12}>
+                          <FormControl fullWidth size="small">
+                            <InputLabel id="select-zone-label">Select New Zone</InputLabel>
+                            <Select
+                              labelId="select-zone-label"
+                              id="select-zone"
+                              value={selectedNewZone}
+                              label="Select New Zone"
+                              onChange={(e) => setSelectedNewZone(e.target.value)}
+                            >
+                              <MenuItem value={'Zone A'}>Zone A</MenuItem>
+                              <MenuItem value={'Zone B'}>Zone B</MenuItem>
+                              <MenuItem value={'Zone C'}>Zone C</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                      )}
+                    </Grid>
                   )}
 
                   {/* Change user status */}
@@ -627,17 +992,21 @@ const [selectedNewZone, setSelectedNewZone] = useState('');
                       <Typography variant="body2" sx={{ mb: 1 }}>
                         User Status
                       </Typography>
-                      <RadioGroup row value={userStatus} onChange={(e) => setUserStatus(e.target.value)}>
+                      <RadioGroup row value={userStatus} onChange={handleUserStatusChange} disabled={statusUpdating}>
                         <FormControlLabel value="active" control={<Radio />} label="Active" />
                         <FormControlLabel value="inactive" control={<Radio />} label="Inactive" />
                       </RadioGroup>
+                      {statusUpdating && <Typography sx={{ mt: 1, color: 'primary.main' }}>Updating status...</Typography>}
+                      {statusMessage && (
+                        <Typography sx={{ mt: 1, color: statusMessage.toLowerCase().includes('success') ? 'green' : 'red' }}>
+                          {statusMessage}
+                        </Typography>
+                      )}
                     </FormControl>
                   )}
 
                   <Box sx={{ mt: 3 }}>
-                    <Button variant="contained" color="primary" onClick={handleChangeSubmit}>
-                      Save Changes
-                    </Button>
+                    
                   </Box>
                 </Box>
               )}
