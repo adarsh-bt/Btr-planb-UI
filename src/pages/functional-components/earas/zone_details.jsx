@@ -167,8 +167,12 @@ function ZoneDetails() {
                     {index + 1}
                   </TableCell>
                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.p_name}</TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.village || 'N/A'}</TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.block || 'N/A'}</TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                      {row.villages ? row.villages.join(', ') : 'N/A'}
+                      </TableCell>
+                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                    {row.blocks ? row.blocks.join(', ') : 'N/A'}
+                   </TableCell>
                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
                     {row.Wet_area || 0}
                   </TableCell>

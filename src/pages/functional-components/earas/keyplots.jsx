@@ -31,13 +31,14 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import RemoveRedEyeIcon from '@mui/icons-material/RemoveRedEye';
 import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
 import SearchIcon from '@mui/icons-material/Search';
+import auth from 'contexts/auth-reducer/auth';
+import authservice from 'pages/authentication/services/authservice';
 
 const KeyPlot = () => {
-
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true); // Set to true initially to fetch existing data
     const [dataVisible, setDataVisible] = useState(false);
     const [plotData, setPlotData] = useState([]);
-    const [panchayathAreaSummary, setPanchayathAreaSummary] = useState([]); // New state for panchayath areas
+    const [panchayathAreaSummary, setPanchayathAreaSummary] = useState([]);
 
     const [order, setOrder] = useState('asc');
     const [orderBy, setOrderBy] = useState('slNo');
@@ -48,8 +49,8 @@ const KeyPlot = () => {
 
     // Dialog related states
     const [openRemoveDialog, setOpenRemoveDialog] = useState(false);
-    const [reason, setReason] = useState(''); // For custom reason
-    const [selectedPresetReason, setSelectedPresetReason] = useState(''); // New state for preset reason
+    const [reason, setReason] = useState('');
+    const [selectedPresetReason, setSelectedPresetReason] = useState('');
     const [selectedRowToRemove, setSelectedRowToRemove] = useState(null);
     const [reasonError, setReasonError] = useState(false);
 
@@ -62,21 +63,108 @@ const KeyPlot = () => {
         'Incorrect Data',
         'Not Applicable',
         'Already Processed',
-        'Other' // Keep 'Other' to allow custom input
+        'Other'
     ];
 
-        const chipColors = [
-        '#8B33FF', // Purple
-        '#FF5733', // Orange-Red
-        '#FF8B33', // Dark Orange
-        '#3357FF', // Blue
-        '#33FF57', // Green
-        '#FF33F5', // Pink
-        '#33FFF5', // Cyan
-        '#F5FF33', // Yellow
-        '#33FF8B', // Light Green
-        '#8BFF33', // Lime Green
+    const chipColors = [
+        '#8B33FF', '#FF5733', '#FF8B33', '#3357FF', '#33FF57',
+        '#FF33F5', '#33FFF5', '#F5FF33', '#33FF8B', '#8BFF33',
     ];
+
+    // --- Utility Function to transform sample data ---
+    const transformSample = (sample, type) => ({
+        id: sample.id,
+        plot_id: sample["plot_id"],
+        slNo: sample["Sl.No"],
+        syNo: sample["Sy. No"],
+        panchayth: sample["panchayth"],
+        area: sample["Area (Cents)"],
+        villageBlock: sample["Village/Block"],
+        reserveList: type === "wet" ? "Wet" : "Dry",
+        action: "View Cluster"
+    });
+
+    // --- Data Fetching: Fetch Existing Keyplots on Mount ---
+    useEffect(() => {
+        const fetchInitialKeyplots = async () => {
+            setLoading(true);
+        
+            try {
+             
+                // Replace with your actual userId
+                const userId = authservice.userid();
+         
+                const res = await axios.get(`http://localhost:8082/btr-service/key-plots/fetch-existing-keyplots/${userId}`);
+
+                const zones = res.data.payload || [];
+
+                if (zones.length > 0) {
+                    const allWetSamples = zones.flatMap(zone => zone.wetSamples || []);
+                    const allDrySamples = zones.flatMap(zone => zone.drySamples || []);
+
+                    const panchayathAreas = zones.map(zone => ({
+                        panchayath: zone.panchayath,
+                        totalarea: zone.totalarea
+                    }));
+                    setPanchayathAreaSummary(panchayathAreas);
+
+                    const wetTransformed = allWetSamples.map(sample => transformSample(sample, "wet"));
+                    const dryTransformed = allDrySamples.map(sample => transformSample(sample, "dry"));
+
+                    setPlotData([...wetTransformed, ...dryTransformed]);
+                    setDataVisible(true);
+                } else {
+                    setDataVisible(false); // No existing data, show generate button
+                }
+
+            } catch (error) {
+                console.error("Failed to fetch existing keyplot data", error);
+                setDataVisible(false); // If error, assume no data or issue, show generate
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchInitialKeyplots();
+    }, []); // Empty dependency array means this runs once on mount
+
+    // --- Data Fetching: Generate New Keyplots ---
+    const handleGenerateKeyplot = async () => {
+        setLoading(true);
+        setDataVisible(false); // Hide data while generating
+
+        try {
+            // Replace with your actual userId
+            const userId = authservice.userid();
+            const res = await axios.get(`http://localhost:8082/btr-service/key-plots/generate-keyplots/${userId}`);
+
+            const zones = res.data.payload || [];
+
+            const allWetSamples = zones.flatMap(zone => zone.wetSamples || []);
+            const allDrySamples = zones.flatMap(zone => zone.drySamples || []);
+
+            const panchayathAreas = zones.map(zone => ({
+                panchayath: zone.panchayath,
+                totalarea: zone.totalarea
+            }));
+            setPanchayathAreaSummary(panchayathAreas);
+
+    
+            const wetTransformed = allWetSamples.map(sample => transformSample(sample, "wet"));
+            const dryTransformed = allDrySamples.map(sample => transformSample(sample, "dry"));
+
+            setPlotData([...wetTransformed, ...dryTransformed]);
+            setDataVisible(true);
+
+           
+        } catch (error) {
+            console.error("Failed to generate keyplot data", error);
+            // Optionally handle error, e.g., show an alert
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // --- Sorting Logic ---
     const handleRequestSort = (property) => {
         const isAsc = orderBy === property && order === 'asc';
@@ -106,53 +194,6 @@ const KeyPlot = () => {
         return order === 'desc'
             ? (a, b) => descendingComparator(a, b, orderBy)
             : (a, b) => -descendingComparator(a, b, orderBy);
-    };
-
-    // --- Data Fetching and Transformation ---
-    const handleGenerateKeyplot = async () => {
-        setLoading(true);
-        setDataVisible(false);
-
-        try {
-            const res = await axios.get("http://localhost:8082/btr-service/key-plots/genrate/3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924");
-
-            const zones = res.data.payload || []; // Assuming res.data is directly the list of zones
-
-            const allWetSamples = zones.flatMap(zone => zone.wetSamples || []);
-            const allDrySamples = zones.flatMap(zone => zone.drySamples || []);
-
-            const panchayathAreas = zones.map(zone => ({
-                panchayath: zone.panchayath,
-                totalarea: zone.totalarea
-            }));
-            console.log(zones)
-            setPanchayathAreaSummary(panchayathAreas); // Set the new state
-
-            const transformSample = (sample, type) => ({
-
-                id: sample.id, // Add id from backend for removal
-                plot_id : sample["plot_id"],
-                slNo: sample["Sl.No"],
-                syNo: sample["Sy. No"],
-                panchayth: sample["panchayth"],
-                area: sample["Area (Cents)"],
-                villageBlock: sample["Village/Block"],
-                reserveList: type === "wet" ? "Wet" : "Dry",
-                action: "View Cluster"
-            });
-
-            const wetTransformed = allWetSamples.map(sample => transformSample(sample, "wet"));
-            const dryTransformed = allDrySamples.map(sample => transformSample(sample, "dry"));
-
-            setPlotData([...wetTransformed, ...dryTransformed]);
-
-            setDataVisible(true);
-            setLoading(false);
-
-        } catch (error) {
-            console.error("Failed to fetch keyplot data", error);
-            setLoading(false);
-        }
     };
 
     // --- Memoized Data for Table (Filtering, Sorting, and Pagination) ---
@@ -185,16 +226,16 @@ const KeyPlot = () => {
     };
 
     // --- Navigation and Dialog Logic ---
-  const handleViewClusterClick = (syNo, slno) => {
-    const encodedSyNo = encodeURIComponent(syNo);
-    const encodedSlno = encodeURIComponent(slno);
-    navigate(`/schemes/earas/cluster?No=${encodedSyNo}&slno=${encodedSlno}`);
-};
+    const handleViewClusterClick = (syNo, slno) => {
+        const encodedSyNo = encodeURIComponent(syNo);
+        const encodedSlno = encodeURIComponent(slno);
+        navigate(`/schemes/earas/cluster?No=${encodedSyNo}&slno=${encodedSlno}`);
+    };
 
     const handleOpenRemoveDialog = (row) => {
         setSelectedRowToRemove(row);
-        setReason(''); // Clear custom reason
-        setSelectedPresetReason(''); // Clear selected preset
+        setReason('');
+        setSelectedPresetReason('');
         setReasonError(false);
         setOpenRemoveDialog(true);
     };
@@ -207,7 +248,6 @@ const KeyPlot = () => {
         setReasonError(false);
     };
 
-    // Handler for custom reason TextField
     const handleReasonChange = (event) => {
         setReason(event.target.value);
         if (event.target.value.trim() !== '') {
@@ -215,16 +255,14 @@ const KeyPlot = () => {
         }
     };
 
-    // Handler for preset reason RadioGroup
     const handlePresetReasonChange = (event) => {
         const value = event.target.value;
         setSelectedPresetReason(value);
-        setReasonError(false); // Clear error when a preset is selected
+        setReasonError(false);
         if (value !== 'Other') {
-            setReason(''); // Clear custom reason if not 'Other'
+            setReason('');
         }
     };
-
 
     const handleConfirmRemoval = async () => {
         let finalReason = selectedPresetReason;
@@ -244,31 +282,26 @@ const KeyPlot = () => {
             return;
         }
 
-        setLoading(true); // Start loading when removal is initiated
+        setLoading(true);
         try {
-            console.log("selected ", selectedRowToRemove)
-            // API call to reject the keyplot and get a new one
             const response = await axios.post(`http://localhost:8082/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`, {
                 reason: finalReason
             });
 
-         
             const newPlotPayload = response.data;
 
-          
             const transformedNewPlot = {
                 id: newPlotPayload.id,
-                plot_id : newPlotPayload["plot_id"],
-                slNo: newPlotPayload["Sl.No"], // Ensure these keys match your backend's response
+                plot_id: newPlotPayload["plot_id"],
+                slNo: newPlotPayload["Sl.No"],
                 syNo: newPlotPayload["Sy. No"],
                 panchayth: newPlotPayload["panchayth"],
                 area: newPlotPayload["Area (Cents)"],
                 villageBlock: newPlotPayload["Village/Block"],
-                reserveList: newPlotPayload["Land Type"], // Use "Land Type" from backend
+                reserveList: newPlotPayload["Land Type"],
                 action: "View Cluster"
             };
 
-            // Update plotData: remove the old one and add the new one
             setPlotData(prevData => {
                 const filtered = prevData.filter(item => item.id !== selectedRowToRemove.id);
                 return [...filtered, transformedNewPlot];
@@ -278,24 +311,28 @@ const KeyPlot = () => {
 
         } catch (error) {
             console.error("Error during keyplot removal and replacement:", error);
-            // Optionally show an error message to the user
         } finally {
-            setLoading(false); // End loading
+            setLoading(false);
             handleCloseRemoveDialog();
         }
     };
 
     const totalArea = plotData.reduce((sum, row) => sum + parseFloat(row.area || 0), 0).toFixed(2);
 
-
     return (
         <Box sx={{ p: 3, maxWidth: 1200, margin: '0 auto' }}>
-        
             <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
                 KeyPlot Details
             </Typography>
 
-            {!dataVisible && (
+            {loading && (
+                <Box display="flex" justifyContent="center" alignItems="center" height="200px" my={4}>
+                    <CircularProgress size={60} thickness={5} />
+                    <Typography variant="h6" sx={{ ml: 2, color: 'text.secondary' }}>Loading data...</Typography>
+                </Box>
+            )}
+
+            {!loading && !dataVisible && (
                 <Box display="flex" justifyContent="center" mb={4}>
                     <Button
                         variant="contained"
@@ -307,25 +344,16 @@ const KeyPlot = () => {
                             '&:hover': { bgcolor: '#115293' }
                         }}
                     >
-                        {loading ? <CircularProgress size={19} color="inherit" /> : 'Generate Keyplot Data'}
+                        Generate Keyplot Data
                     </Button>
                 </Box>
             )}
 
-            {loading && (
-                <Box display="flex" justifyContent="center" alignItems="center" height="200px" my={4}>
-                    <CircularProgress size={60} thickness={5} />
-                    <Typography variant="h6" sx={{ ml: 2, color: 'text.secondary' }}>Loading data...</Typography>
-                </Box>
-            )}
-
-            {dataVisible && (
+            {!loading && dataVisible && (
                 <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
-                    {/* Panchayath Area Summary (Badges) */}
-                     <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        {/* Panchayath Area Summary (Badges) - Left Top */}
+                    <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         {panchayathAreaSummary.length > 0 && (
-                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, flexGrow: 1, maxWidth: 'calc(100% - 320px)' }}>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, flexGrow: 1, maxWidth: 'calc(100% - 320px)' }}>
                                 {panchayathAreaSummary.map((item, index) => {
                                     const colorIndex = index % chipColors.length;
                                     const dynamicColor = chipColors[colorIndex];
@@ -337,13 +365,11 @@ const KeyPlot = () => {
                                                 fontSize: '0.6rem',
                                                 fontWeight: 'bold',
                                                 backgroundColor: dynamicColor,
-                                                color: 'white', // Text color for better contrast
+                                                color: 'white',
                                                 border: `1px solid ${dynamicColor}`,
-                                                
-                                               
-                                                padding: '5px 6px', // Add padding for a button-like feel
-                                                height: 'auto', // Allow height to adjust to content
-                                                borderRadius: '10px', // More rounded edges
+                                                padding: '5px 6px',
+                                                height: 'auto',
+                                                borderRadius: '10px',
                                             }}
                                         />
                                     );
@@ -351,9 +377,8 @@ const KeyPlot = () => {
                             </Box>
                         )}
 
-                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, ml: { xs: 0, sm: 2 }, mt: { xs: 2, sm: 0 } }}>
-                         <Chip label="2024 - 2025" variant="outlined"  color="info"/>
-                            {/* Filter Search Box - Right Top */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, ml: { xs: 0, sm: 2 }, mt: { xs: 2, sm: 0 } }}>
+                            <Chip label="2024 - 2025" variant="outlined" color="info" />
                             <TextField
                                 label="Search Data"
                                 variant="outlined"
@@ -365,15 +390,13 @@ const KeyPlot = () => {
                                         <InputAdornment position="start">
                                             <SearchIcon />
                                         </InputAdornment>
-                                ),
-                            }}
-                            sx={{ width: '100%', maxWidth: '250px' }} // Adjusted max width
-                        />
+                                    ),
+                                }}
+                                sx={{ width: '100%', maxWidth: '250px' }}
+                            />
                         </Box>
                     </Box>
-                  
 
-                    {/* Combined Table */}
                     <TableContainer component={Paper} sx={{ maxHeight: '50%', overflow: 'scroll', border: '1px solid #e0e0e0', borderRadius: 1 }}>
                         <Table stickyHeader sx={{ tableLayout: 'fixed' }}>
                             <TableHead>
@@ -432,7 +455,7 @@ const KeyPlot = () => {
                                                 '&:hover': { backgroundColor: '#e0f2f7' },
                                             }}
                                         >
-                                            <TableCell align="center">{ index + 1}</TableCell>
+                                            <TableCell align="center">{index + 1}</TableCell>
                                             <TableCell align="center">{row.syNo}</TableCell>
                                             <TableCell align="center">{row.panchayth}</TableCell>
                                             <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
@@ -442,7 +465,7 @@ const KeyPlot = () => {
                                                 <Button
                                                     size="small"
                                                     color="primary"
-                                                    onClick={() => handleViewClusterClick(row.plot_id,index+1)}
+                                                    onClick={() => handleViewClusterClick(row.plot_id, index + 1)}
                                                     sx={{ minWidth: 'unset', px: 0.5 }}
                                                 >
                                                     <RemoveRedEyeIcon fontSize="small" />
@@ -462,7 +485,6 @@ const KeyPlot = () => {
                         </Table>
                     </TableContainer>
 
-                    {/* Total Area Display */}
                     {plotData.length > 0 && (
                         <Box sx={{ mt: 2, pr: 2, display: 'flex', justifyContent: 'flex-end' }}>
                             <Typography variant="subtitle1" fontWeight="bold">
@@ -471,7 +493,6 @@ const KeyPlot = () => {
                         </Box>
                     )}
 
-                    {/* Pagination Controls */}
                     <TablePagination
                         component="div"
                         count={plotData.filter(row =>
@@ -486,20 +507,6 @@ const KeyPlot = () => {
                         rowsPerPageOptions={[5, 10, 25, { label: 'All', value: -1 }]}
                         sx={{ '.MuiTablePagination-toolbar': { justifyContent: 'center' } }}
                     />
-
-                    {/* Save KeyPlots Button */}
-                    {/* <Box display="flex" justifyContent="center" mt={3}>
-                        <Button
-                            variant="contained"
-                            sx={{
-                                fontSize: '.9rem',
-                                bgcolor: '#05307a',
-                                '&:hover': { bgcolor: '#032050' }
-                            }}
-                        >
-                            Save KeyPlots
-                        </Button>
-                    </Box> */}
                 </Paper>
             )}
 
@@ -535,7 +542,6 @@ const KeyPlot = () => {
                         )}
                     </FormControl>
 
-                    {/* Conditional TextField for 'Other' reason */}
                     {selectedPresetReason === 'Other' && (
                         <TextField
                             autoFocus
@@ -546,7 +552,7 @@ const KeyPlot = () => {
                             variant="outlined"
                             value={reason}
                             onChange={handleReasonChange}
-                            error={reasonError && reason.trim() === ''} // Only show error if 'Other' is selected but custom reason is empty
+                            error={reasonError && reason.trim() === ''}
                             helperText={reasonError && reason.trim() === '' ? 'Custom reason is required.' : ''}
                             multiline
                             rows={3}
@@ -563,7 +569,6 @@ const KeyPlot = () => {
                         onClick={handleConfirmRemoval}
                         color="error"
                         variant="contained"
-                        // Disable if no preset is selected OR if 'Other' is selected but custom reason is empty
                         disabled={!selectedPresetReason || (selectedPresetReason === 'Other' && reason.trim() === '')}
                     >
                         Remove Permanently
