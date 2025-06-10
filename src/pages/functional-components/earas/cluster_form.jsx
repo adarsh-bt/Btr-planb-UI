@@ -169,8 +169,13 @@ const[keyplotId,setKeyplotId] = useState('');
 
             try {
                 const userid = authservice.userid();
-             
-                const response = await fetch(`http://localhost:8082/btr-service/cluster-api/${userid}/villages`);
+                  const token = localStorage.getItem('token');
+                const response = await fetch(`http://localhost:8080/btr-service/cluster-api/${userid}/villages`,
+              {
+              headers: {
+                  'Authorization': `Bearer ${token}` // Add token in Authorization header
+              }
+                });
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -200,7 +205,13 @@ const handleSvNoSelection = (resbdno) => {
     const fetchSvNoOptions = async () => {
         if (modalRowData.village && modalRowData.modalBlock) {
             try {
-                const response = await fetch(`http://localhost:8082/btr-service/cluster-api/${keyplotId}/resvnos?villageId=${modalRowData.village}&blockCode=${modalRowData.modalBlock}`);
+                  const token = localStorage.getItem('token');
+                const response = await fetch(`http://localhost:8080/btr-service/cluster-api/${keyplotId}/resvnos?villageId=${modalRowData.village}&blockCode=${modalRowData.modalBlock}`,
+              {
+              headers: {
+                  'Authorization': `Bearer ${token}` // Add token in Authorization header
+              }
+                });
                 
                 if (!response.ok) {
                     throw new Error('Failed to fetch Sv.No options');
@@ -225,7 +236,13 @@ const handleSvNoSelection = (resbdno) => {
     if (!id) return;
 
     try {
-        const response = await fetch(`http://localhost:8082/btr-service/key-plots/get-keyplot/${id}`);
+          const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:8080/btr-service/key-plots/get-keyplot/${id}`,
+              {
+              headers: {
+                  'Authorization': `Bearer ${token}` // Add token in Authorization header
+              }
+                });
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -325,8 +342,14 @@ const closeModal = () => {
 
 const fetchResbdnos = async (villageId, blockCode, resvno) => {
   try {
+      const token = localStorage.getItem('token');
     const response = await fetch(
-      `http://localhost:8082/btr-service/cluster-api/${syNo}/resbdnos-by-village-block?villageId=${villageId}&blockCode=${blockCode}&resvno=${resvno}`
+      `http://localhost:8080/btr-service/cluster-api/${syNo}/resbdnos-by-village-block?villageId=${villageId}&blockCode=${blockCode}&resvno=${resvno}`,
+              {
+              headers: {
+                  'Authorization': `Bearer ${token}` // Add token in Authorization header
+              }
+                }
     );
     const data = await response.json();
     console.log("Btr >>>>>  ",data.resbdnoDetails)
@@ -456,22 +479,28 @@ else if (field === 'svNo') {
     newState = { ...newState, sub: '', block: '', area: '', actual: '', plot_id: '' };
  setSvNoDetails([]);
       setSelectedSvNos([]);
-    if (newState.village && newState.modalBlock && value) {
-        const kpId = keyplotId; // Replace with dynamic if needed
-        const url = `http://localhost:8082/btr-service/cluster-api/${kpId}/resbdnos-by-village-block?villageId=${newState.village}&blockCode=${newState.modalBlock}&resvno=${value}`;
-        
-        fetch(url)
-            .then((res) => res.json())
-            .then((data) => {
-                setSvNoDetails(data.resbdnoDetails || []);
-                console.log(" btr  >>> ",data.resbdnoDetails)
-                setSelectedSvNos([]); // Clear previous selection
-            })
-            .catch((error) => {
-                console.error("Error fetching resbdno details:", error);
-                setSvNoDetails([]);
-            });
-    }
+   if (newState.village && newState.modalBlock && value) {
+      const token = localStorage.getItem('token');
+    const kpId = keyplotId; // Replace with dynamic if needed
+    const url = `http://localhost:8080/btr-service/cluster-api/${kpId}/resbdnos-by-village-block?villageId=${newState.village}&blockCode=${newState.modalBlock}&resvno=${value}`;
+    
+    fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then((res) => res.json())
+    .then((data) => {
+        setSvNoDetails(data.resbdnoDetails || []);
+        console.log(" btr  >>> ", data.resbdnoDetails);
+        setSelectedSvNos([]); // Clear previous selection
+    })
+    .catch((error) => {
+        console.error("Error fetching resbdno details:", error);
+        setSvNoDetails([]);
+    });
+}
+
 }
 
 
@@ -564,13 +593,17 @@ const handleOpenConfirmDialog = (keyplotIndex, rowIndexToRemove) => {
 
     const { keyplotIndex, rowIndexToRemove, rowData } = rowToDelete;
 
-    try {
-      const response = await fetch(
-        `http://localhost:8082/btr-service/cluster-api/delete-sideplot/${rowData.b_id}`,
-        {
-          method: 'DELETE',
-        }
-      );
+   try {
+      const token = localStorage.getItem('token');
+  const response = await fetch(
+    `http://localhost:8080/btr-service/cluster-api/delete-sideplot/${rowData.b_id}`,
+    {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    }
+  );;
 
       if (!response.ok) throw new Error('Failed to delete row from server');
 
@@ -854,13 +887,15 @@ const isAddButtonDisabled = () => {
     console.log('Sending payload:', JSON.stringify(payload, null, 2));
 
     try {
-        const response = await fetch('http://localhost:8082/btr-service/cluster-api/save-cluster', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-        });
+          const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:8080/btr-service/cluster-api/save-cluster', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` // Add token here
+    },
+    body: JSON.stringify(payload),
+});
 
         if (!response.ok) {
             const errorData = await response.json();

@@ -12,7 +12,13 @@ function ClusterSeatMap() {
   const [selectedStatus, setSelectedStatus] = useState('All');
 
   useEffect(() => {
-    axios.get('http://localhost:8082/btr-service/cluster-api/user-cluster-summary/3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924')
+      const token = localStorage.getItem('token');
+    axios.get('http://localhost:8080/btr-service/cluster-api/user-cluster-summary/3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924',
+              {
+              headers: {
+                  'Authorization': `Bearer ${token}` // Add token in Authorization header
+              }
+                })
       .then(res => {
         setClusters(res.data.payload || []);
         setSummary({
