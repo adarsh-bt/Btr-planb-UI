@@ -5,7 +5,7 @@ import mainapi from 'api/mainapi';
 
 class approvalservice {
   // static BASE_URL = "http://localhost:8080/useraccess"
-  static BASE_URL = mainapi.BASE_URL;
+  static BASE_URL = mainapi.USER_API;
   // static BTR_URL = mainapi.BTR_API;
   static BTR_URL = mainapi.BASE_URL;
 

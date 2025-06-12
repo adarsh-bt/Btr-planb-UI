@@ -2,23 +2,23 @@ import React, { useEffect, useState } from 'react';
 import {
   Box,
   Button,
-  Checkbox,
-  FormControlLabel,
   Grid,
-  MenuItem,
-  Select,
   TextField,
-  Typography
+  Typography,
+  IconButton,
+  Paper
 } from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
 import DesignationManageService from 'pages/authentication/services/designationmanageservice';
 import Swal from 'sweetalert2';
 
 const DesignationManage = () => {
   const [designations, setDesignations] = useState([]);
   const [designationName, setDesignationName] = useState('');
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [editMode, setEditMode] = useState(false);
+  const [editId, setEditId] = useState(null);
 
   const fetchDesignations = async () => {
     setLoading(true);
@@ -36,7 +36,7 @@ const DesignationManage = () => {
     fetchDesignations();
   }, []);
 
-  const handleCreateDesignation = async () => {
+  const handleSaveOrUpdateDesignation = async () => {
     if (designationName.trim().length === 0) {
       Swal.fire({
         icon: 'warning',
@@ -47,27 +47,30 @@ const DesignationManage = () => {
     }
 
   const userData = {
-    designationName,
-  };
+      designationName,
+      id: editMode ? editId : null
+    };
 
   const result = await DesignationManageService.saveOrUpdateDesignation(userData);
   
   if (result?.message) {
-    Swal.fire({
-      icon: 'info',
-      title: 'Info',
-      text: result.message,
-    });
-  } else {
-    Swal.fire({
-      icon: 'success',
-      title: 'Success',
-      text: 'Designation successfully created!',
-    });
-    setDesignationName('');
-    fetchDesignations();
-  }
-};
+      Swal.fire({
+        icon: 'info',
+        title: 'Info',
+        text: result.message,
+      });
+    } else {
+      Swal.fire({
+        icon: 'success',
+        title: 'Success',
+        text: editMode ? 'Designation successfully updated!' : 'Designation successfully created!',
+      });
+      setDesignationName('');
+      setEditMode(false);
+      setEditId(null);
+      fetchDesignations();
+    }
+  };
 
   return (
     <Box
@@ -81,13 +84,13 @@ const DesignationManage = () => {
         mt: 4
       }}
     >
-      <Typography variant="h4" align="center" gutterBottom>
-        Create Designation
+      <Typography variant="h4" align="center" gutterBottom  sx={{ fontSize: '1.3rem', marginBottom: 3 }}>
+        {editMode ? 'Edit Designation' : 'Create Designation'}
       </Typography>
 
       <Grid container spacing={2}>
         <Grid item xs={12}>
-          <Typography variant="h6" sx={{ marginBottom: 1 }}>
+          <Typography variant="h6" sx={{ fontSize: '1.2rem', marginBottom: 1 }}>
             Existing Designations:
           </Typography>
 
@@ -96,50 +99,91 @@ const DesignationManage = () => {
           ) : error ? (
             <Typography color="error">{error}</Typography>
           ) : designations.length > 0 ? (
-            <Box sx={{ padding: 2, border: '1px solid #ddd', borderRadius: 1, backgroundColor: '#fff' }}>
-              <Grid container spacing={1}>
-                {designations
-                  .reduce((rows, designation, index) => {
-                    if (index % 2 === 0) {
-                      rows.push([designation]);
-                    } else {
-                      rows[rows.length - 1].push(designation);
-                    }
-                    return rows;
-                  }, [])
-                  .map((row, idx) => (
-                    <Grid container item spacing={1} key={idx}>
-                      {row.map((designation) => (
-                        <Grid item xs={6} key={designation.id}>
-                          <Typography>• {designation.designationName}</Typography>
-                        </Grid>
-                      ))}
-                    </Grid>
-                  ))}
-              </Grid>
+            <Box
+              sx={{
+                padding: 2,
+                borderRadius: 1,
+                backgroundColor: '#fff',
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 1,
+              }}
+            >
+              {designations.map((designation) => (
+                <Paper
+                  key={designation.id}
+                  elevation={1}
+                  sx={{
+                    padding: 1.5,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    borderRadius: 1,
+                  }}
+                >
+                  <Typography sx={{ fontSize: '15px' }}>
+                    {designation.designationName}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    onClick={() => {
+                      setDesignationName(designation.designationName);
+                      setEditMode(true);
+                      setEditId(designation.id);
+                    }}
+                  >
+                    <EditIcon />
+                  </IconButton>
+                </Paper>
+              ))}
             </Box>
           ) : (
             <Typography>No Designations available</Typography>
           )}
         </Grid>
-        <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Add Designaation Name"
-                    placeholder="Eg: Investigator, Taluk admin"
-                    variant="outlined"
-                    value={designationName}
-                    onChange={(e) => setDesignationName(e.target.value)}
-                  />
-                </Grid>
 
-      <Grid item xs={12}>
-                <Button fullWidth variant="contained" color="primary" onClick={handleCreateDesignation}>
-                  Create Designation
-                </Button>
-              </Grid>
+        <Grid item xs={12}>
+          <TextField
+            fullWidth
+            label="Designation Name"
+            placeholder="Eg: Investigator, Taluk Admin"
+            variant="outlined"
+            value={designationName}
+            onChange={(e) => setDesignationName(e.target.value)}
+          />
+        </Grid>
+
+        <Grid item xs={12}>
+          <Button
+            fullWidth
+            variant="contained"
+            color="primary"
+            onClick={handleSaveOrUpdateDesignation}
+          >
+            {editMode ? 'Update Designation' : 'Create Designation'}
+          </Button>
+        </Grid>
+
+        {editMode && (
+          <Grid item xs={12}>
+            <Button
+              fullWidth
+              variant="outlined"
+              color="secondary"
+              onClick={() => {
+                setDesignationName('');
+                setEditMode(false);
+                setEditId(null);
+              }}
+            >
+              Cancel Edit
+            </Button>
+          </Grid>
+        )}
       </Grid>
     </Box>
+
   );
 };
 
