@@ -24,33 +24,34 @@ import authservice from 'pages/authentication/services/authservice';
 
 
 // Define the columns for the data table
-const columns = (handleEdit,handleView) => [
-  { name: 'SL. NO', selector:(row, index) => index + 1 },
+const columns = (handleEdit, handleView) => [
+  { name: 'SL. NO', selector: (row, index) => index + 1 },
   // { name: 'District', selector: (row) => row.dcode, sortable: true },
   // { name: 'Taluk', selector: (row) => row.tcode, sortable: true },
   // { name: 'Village', selector: (row) => row.vcode, sortable: true },
-  { name: 'Panchayth', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  { name: 'Village', selector: (row) => row.villageName?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  { name: 'Block', selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'Panchayth', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  { name: 'Village', selector: (row) => row.villageName?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  { name: 'Block', selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span> },
   {
     name: 'Re-Survey No',
     selector: (row) =>
-      row.resvno && row.resbdno
-        ? `${row.resvno} / ${row.resbdno}`
-        : row.resvno
-        ? `${row.resvno} / NA`
-        : row.resbdno
-        ? `NA / ${row.resbdno}`
-        : <span style={{ color: '#888' }}>NA</span>,
+      row.resvno && row.resbdno ? (
+        `${row.resvno} / ${row.resbdno}`
+      ) : row.resvno ? (
+        `${row.resvno} / NA`
+      ) : row.resbdno ? (
+        `NA / ${row.resbdno}`
+      ) : (
+        <span style={{ color: '#888' }}>NA</span>
+      )
   },
-  // { name: 'Re-Survey No', selector: (row) => row.resvno?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  // { name: 'Sub Div No', selector: (row) => row.resbdno?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  // { name: 'Address', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  // { name: 'Re-Survey No', selector: (row) => row.resvno?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  // { name: 'Sub Div No', selector: (row) => row.resbdno?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  // { name: 'Address', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> },
   // { name: 'Address', selector: (row) => row.lbcode, sortable: true },
- 
-  { name: 'Land Type', selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  { name: 'Total area(cent)', selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
- 
+
+  { name: 'Land Type', selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  { name: 'Total area(cent)', selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span> },
 
   {
     name: 'View',
@@ -79,7 +80,8 @@ const Btr = () => {
   const [totalWetArea, setTotalWetArea] = useState(0);
   const [totalDryArea, setTotalDryArea] = useState(0);
   const [downloading, setDownloading] = useState(false);
-  const [loading, setLoading] = useState(false); // New state for data loading
+
+  const [loading, setLoading] = useState(false);
 
   // Function to handle filter change
   const handleFilterChange = (event) => {
@@ -98,9 +100,11 @@ const Btr = () => {
     setOpenEditModal(false);
     setOpenViewModal(false);
     setSelectedRow(null);
+    setSelectedRow(null);
   };
 
   const handlePageChange = (newPage) => {
+    setPage(newPage);
     setPage(newPage);
   };
 
@@ -150,7 +154,7 @@ const Btr = () => {
 
     try {
       // Ensure the URL is correct for your backend service
-      const response = await fetch(`http://localhost:8083/btr-service/btr-api/export?userId=${userId}`);
+      const response = await fetch(`http://localhost:8082/btr-service/btr-api/export?userId=${userId}`);
 
       if (!response.ok) {
         throw new Error('Failed to download file');
@@ -228,6 +232,7 @@ const Btr = () => {
             />
           </Stack>
         </Paper>
+
 
         <DataTable
           columns={columns(undefined, handleView)}

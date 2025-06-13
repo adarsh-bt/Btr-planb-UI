@@ -72,6 +72,16 @@ function ZoneDetails() {
           <Box className="bar-container">
             <Paper className="bar-paper">
               <Grid container spacing={2}>
+
+                 <Grid item xs={6} sm={3} className="bar-grid-item">
+                  <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
+                    Zone:
+                  </Typography>
+                  <Typography variant="body1" align="center" sx={{ color: '#00796b' }}>
+                    {result.zone_name}
+                  </Typography>
+                </Grid>
+
                 <Grid item xs={6} sm={3} className="bar-grid-item">
                   <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
                     District:
@@ -88,14 +98,9 @@ function ZoneDetails() {
                     {result.taluk}
                   </Typography>
                 </Grid>
-                <Grid item xs={6} sm={3} className="bar-grid-item">
-                  <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
-                    Zone:
-                  </Typography>
-                  <Typography variant="body1" align="center" sx={{ color: '#00796b' }}>
-                    {result.zone_name}
-                  </Typography>
-                </Grid>
+
+               
+
                 <Grid item xs={6} sm={3}>
                   <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
                     Local Body Type:
@@ -119,7 +124,7 @@ function ZoneDetails() {
                     SL
                   </TableCell>
                   <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>
-                    Name
+                    LocalBody Name
                   </TableCell>
                   <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>
                     Village
@@ -128,10 +133,10 @@ function ZoneDetails() {
                     Block
                   </TableCell>
                   <TableCell colSpan={3} align="center" sx={{ border: 1, borderColor: 'grey.300' }}>
-                    Area
+                    Area in cents
                   </TableCell>
                   <TableCell colSpan={3} align="center" sx={{ border: 1, borderColor: 'grey.300' }}>
-                    Plots
+                    Number of Plots
                   </TableCell>
                 </TableRow>
 

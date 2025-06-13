@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
+import Breadcrumb from 'routes/Breadcrumb';
 import {
   Button,
+  Grid,
   CircularProgress,
   Box,
   Typography,
@@ -319,11 +321,13 @@ const KeyPlot = () => {
 
     const totalArea = plotData.reduce((sum, row) => sum + parseFloat(row.area || 0), 0).toFixed(2);
 
-    return (
-        <Box sx={{ p: 3, maxWidth: 1200, margin: '0 auto' }}>
-            <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
-                KeyPlot Details
-            </Typography>
+  return (
+    <Grid container spacing={3}>
+          <Breadcrumb></Breadcrumb>
+    <Box sx={{ p: 3, maxWidth: 1200, margin: '0 auto' }}>
+      <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
+        KeyPlot Details
+      </Typography>
 
             {loading && (
                 <Box display="flex" justifyContent="center" alignItems="center" height="200px" my={4}>
@@ -580,6 +584,7 @@ const KeyPlot = () => {
                 </DialogActions>
             </Dialog>
         </Box>
+        </Grid>
     );
 };
 

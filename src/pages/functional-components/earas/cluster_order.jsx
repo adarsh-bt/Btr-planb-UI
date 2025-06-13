@@ -5,6 +5,8 @@ import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import { Box, Chip, Stack, Tooltip } from '@mui/material';
 import axios from 'axios';
+import Breadcrumb from 'routes/Breadcrumb';
+
 
 function ClusterSeatMap() {
   const [clusters, setClusters] = useState([]);
@@ -68,6 +70,8 @@ function ClusterSeatMap() {
   const statuses = ['All', 'Completed', 'On Going', 'Not Started'];
 
   return (
+    <Grid container spacing={3}>
+      <Breadcrumb></Breadcrumb>
  <Box
   sx={{
     padding: { xs: 3, sm: 4 },
@@ -213,6 +217,7 @@ function ClusterSeatMap() {
           })}
       </Grid>
     </Box>
+    </Grid>
   );
 }
 

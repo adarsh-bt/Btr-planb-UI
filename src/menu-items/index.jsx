@@ -5,7 +5,7 @@ import utilities from './utilities';
 // import support from './support';
 
 //import dashboard menus
-import dashtabmenu from './dashtabmenu'
+import dashtabmenu from './dashtabmenu';
 // ==============================|| MENU ITEMS ||============================== //
 
 const menuItems = {

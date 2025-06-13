@@ -1,5 +1,6 @@
 import React, { useState, useEffect,useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import Breadcrumb from 'routes/Breadcrumb';
 import {
     Container, Typography, Grid, FormControlLabel, List,
     ListItemText, ListItem, Button, Box, TextField, Snackbar, Alert,
@@ -919,62 +920,64 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
     }
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, bgcolor: '#f4f4f9', p: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-      <Typography variant="h4" align="center" gutterBottom color="primary">
-        Cluster Land Form
-      </Typography>
+    <Grid container spacing={3}>
+      <Breadcrumb></Breadcrumb>
+      <Container maxWidth="xl" sx={{ mt: 4, bgcolor: '#f4f4f9', p: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+        <Typography variant="h4" align="center" gutterBottom color="primary">
+          Cluster Land Form
+        </Typography>
 
-      <Box sx={{ bgcolor: '#3066c2', color: 'white', p: 1, borderRadius: 1, mb: 2, fontWeight: 'bold', textAlign: 'center' }}>
-        Cluster Info
-      </Box>
+        <Box sx={{ bgcolor: '#3066c2', color: 'white', p: 1, borderRadius: 1, mb: 2, fontWeight: 'bold', textAlign: 'center' }}>
+          Cluster Info
+        </Box>
 
-      <Grid container spacing={2} mb={2}>
-        <Grid item xs={12} sm={6} md={2}>
-          <TextField label="Cluster No." value={slNo || 'Not Available'} InputProps={{ readOnly: true }} fullWidth />
+        <Grid container spacing={2} mb={2}>
+          <Grid item xs={12} sm={6} md={2}>
+            <TextField label="Cluster No." value={slNo || 'Not Available'} InputProps={{ readOnly: true }} fullWidth />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField label="പഞ്ചായത്ത്" value={keyplotDetails.panchayath || ''} InputProps={{ readOnly: true }} fullWidth />
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <TextField label="വാർഡ് നമ്പർ" value={wardNumber} onChange={(e) => setWardNumber(e.target.value)} fullWidth />
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <TextField
+              label="Land Type"
+              value={keyplotDetails.landType || ''}
+              InputProps={{ readOnly: true }}
+              InputLabelProps={{ shrink: true }}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <TextField label="KEYPLOT" value={'K' || ''} InputProps={{ readOnly: true }} fullWidth />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField label="SY.No." value={keyplotDetails.syNo || ''} InputProps={{ readOnly: true }} fullWidth />
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <TextField label="AREA (Cent)" value={keyplotDetails.areaCents || ''} InputProps={{ readOnly: true }} fullWidth />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField label="BLOCK/VILLAGE" value={keyplotDetails.villageBlock || ''} InputProps={{ readOnly: true }} fullWidth />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              label="RESERVE KEYPLOT"
+              value={reserveKeyplot}
+              onChange={(e) => setReserveKeyplot(e.target.value)}
+              placeholder="-"
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField label="TOTAL ACTUAL AREA (Cent)" value={calculateOverallTotalActual()} InputProps={{ readOnly: true }} fullWidth />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField label="TOTAL AREA (Ares)" value={calculateOverallTotalArea()} InputProps={{ readOnly: true }} fullWidth />
+          </Grid>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <TextField label="പഞ്ചായത്ത്" value={keyplotDetails.panchayath || ''} InputProps={{ readOnly: true }} fullWidth />
-        </Grid>
-        <Grid item xs={12} sm={6} md={2}>
-          <TextField label="വാർഡ് നമ്പർ" value={wardNumber} onChange={(e) => setWardNumber(e.target.value)} fullWidth />
-        </Grid>
-        <Grid item xs={12} sm={6} md={2}>
-          <TextField
-            label="Land Type"
-            value={keyplotDetails.landType || ''}
-            InputProps={{ readOnly: true }}
-            InputLabelProps={{ shrink: true }}
-            fullWidth
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={2}>
-          <TextField label="KEYPLOT" value={'K' || ''} InputProps={{ readOnly: true }} fullWidth />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <TextField label="SY.No." value={keyplotDetails.syNo || ''} InputProps={{ readOnly: true }} fullWidth />
-        </Grid>
-        <Grid item xs={12} sm={6} md={2}>
-          <TextField label="AREA (Cent)" value={keyplotDetails.areaCents || ''} InputProps={{ readOnly: true }} fullWidth />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <TextField label="BLOCK/VILLAGE" value={keyplotDetails.villageBlock || ''} InputProps={{ readOnly: true }} fullWidth />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <TextField
-            label="RESERVE KEYPLOT"
-            value={reserveKeyplot}
-            onChange={(e) => setReserveKeyplot(e.target.value)}
-            placeholder="-"
-            fullWidth
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <TextField label="TOTAL ACTUAL AREA (Cent)" value={calculateOverallTotalActual()} InputProps={{ readOnly: true }} fullWidth />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <TextField label="TOTAL AREA (Ares)" value={calculateOverallTotalArea()} InputProps={{ readOnly: true }} fullWidth />
-        </Grid>
-      </Grid>
 
             {keyplots.map((keyplot, index) => (
                 <Box key={keyplot.id} sx={{ mt: 3, border: '1px solid #ccc', borderRadius: 1, overflowX: 'auto', bgcolor: 'white', p: 2 }}>
@@ -1079,26 +1082,26 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
                 </Box>
             ))}
 
-      <Button
-        type="submit"
-        variant="contained"
-        color="primary"
-        sx={{ mt: 3, display: 'block', margin: '20px auto 0' }}
-        onClick={handleSubmit}
-      >
-        Submit
-      </Button>
+        <Button
+          type="submit"
+          variant="contained"
+          color="primary"
+          sx={{ mt: 3, display: 'block', margin: '20px auto 0' }}
+          onClick={handleSubmit}
+        >
+          Submit
+        </Button>
 
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={3000}
-        onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <Alert onClose={handleSnackbarClose} severity="warning" sx={{ width: '100%' }}>
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={3000}
+          onClose={handleSnackbarClose}
+          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          <Alert onClose={handleSnackbarClose} severity="warning" sx={{ width: '100%' }}>
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>
 
             {/* --- Modal for adding a new row --- */}
           <Modal
@@ -1248,6 +1251,7 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
 
             {/* --- End Modal --- */}
         </Container>
+        </Grid>
     );
 };
 
