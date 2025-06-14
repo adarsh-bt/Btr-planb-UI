@@ -3,7 +3,7 @@ import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
-import { Box, Chip, Stack, Tooltip } from '@mui/material';
+import { Box, Chip, Stack, Tooltip } from '@mui/material'; // Corrected import statement
 import axios from 'axios';
 
 function ClusterSeatMap() {
@@ -12,9 +12,12 @@ function ClusterSeatMap() {
   const [selectedStatus, setSelectedStatus] = useState('All');
 
   useEffect(() => {
+    // Fetches cluster data from the API
     axios.get('http://localhost:8082/btr-service/cluster-api/user-cluster-summary/3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924')
       .then(res => {
+        // Sets the clusters data from the payload
         setClusters(res.data.payload || []);
+        // Updates the summary counts
         setSummary({
           completed: res.data.completed || 0,
           ongoing: res.data.ongoing || 0,
@@ -22,34 +25,33 @@ function ClusterSeatMap() {
         });
       })
       .catch(err => {
+        // Logs an error if data fetching fails and resets state
         console.error('Failed to fetch data:', err);
         setClusters([]);
         setSummary({ completed: 0, ongoing: 0, notStarted: 0 });
       });
-  }, []);
+  }, []); // Empty dependency array ensures this runs only once on mount
 
-  // Status is indicated by border color
+  // Determines the border color of the card based on cluster status
   const getStatusBorderColor = (status) => {
     switch (status) {
-      case 'Completed': return '#4caf50'; // Green
-      case 'Ongoing': return '#ffc107';   // Amber
-      case 'On Going': return '#ffc107';  // Amber
-      default: return '#9e9e9e';         // Grey for Not Started
+      case 'Completed': return '#4caf50'; // Green for completed
+      case 'Ongoing':
+      case 'On Going': return '#ffc107';   // Amber for ongoing statuses
+      default: return '#9e9e9e';         // Grey for not started
     }
   };
 
-  // Background gradient by cluster type
-  const getClusterTypeBackgroundGradient = (type) => {
+  // Determines the background color of the card based on cluster type (now solid colors)
+  const getClusterTypeBackgroundColor = (type) => {
     switch (type.toLowerCase()) {
-      case 'wet': return 'linear-gradient(135deg, #e8f5e9 0%, #a5d6a7 100%)'; // Light green to medium green
-      case 'dry': return 'linear-gradient(135deg, #ffebee 0%, #ef9a9a 100%)'; // Light red to medium red
-      default: return 'linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%)'; // Default light grey gradient
+      case 'wet': return '#DCEDC8'; // A very light pale green
+      case 'dry': return '#FFCDD2'; // A very light pale red
+      default: return '#F5F5F5'; // Default light grey
     }
   };
 
-  const cardContentTextColor = '#333'; // Dark text color for content on light gradients
-
-  // Animated border style for ongoing clusters
+  // Animated border style for 'Ongoing' clusters to make them stand out
   const ongoingBorderAnimation = {
     animation: 'borderPulse 2s infinite',
     '@keyframes borderPulse': {
@@ -65,24 +67,25 @@ function ClusterSeatMap() {
     },
   };
 
+  // Define the available statuses for filtering
   const statuses = ['All', 'Completed', 'On Going', 'Not Started'];
 
   return (
- <Box
-  sx={{
-    padding: { xs: 3, sm: 4 },
-    maxWidth: 'lg',
-    margin: 'auto',
-    backgroundColor: '#ECF0F1',
-    borderRadius: 3,
-    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-  }}
->
+    <Box
+      sx={{
+        padding: { xs: 3, sm: 4 },
+        maxWidth: 'lg',
+        margin: 'auto',
+        backgroundColor: '#ECF0F1', // Light grey background for the main container
+        borderRadius: 3,
+        boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+      }}
+    >
       <Typography variant="h3" component="h1" gutterBottom sx={{ textAlign: 'center', mb: 4, fontWeight: 'bold', color: '#3f51b5' }}>
         Cluster Operations Map
       </Typography>
 
-      {/* --- Status Tabs --- */}
+      {/* --- Status Filter Tabs --- */}
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         spacing={2}
@@ -95,116 +98,129 @@ function ClusterSeatMap() {
       >
         {statuses.map((status) => {
           let count = 0;
+          // Calculate count for each status tab
           if (status === 'All') {
             count = summary.completed + summary.ongoing + summary.notStarted;
           } else if (status === 'Completed') count = summary.completed;
           else if (status === 'On Going') count = summary.ongoing;
           else if (status === 'Not Started') count = summary.notStarted;
 
-          const isActive = selectedStatus === status;
+          const isActive = selectedStatus === status; // Check if the current tab is active
 
           return (
-           <Chip
-  key={status}
-  label={`${status}${status !== 'All' ? `: ${count}` : ''}`}
-  onClick={() => setSelectedStatus(status)}
-  sx={{
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '0.9rem',
-    padding: '6px 16px',
-    borderRadius: '20px', // Pill shape
-    backgroundColor: isActive ? '#2C3E50' : '#BDC3C7',
-    color: isActive ? 'white' : '#2C3E50',
-    boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
-    transition: 'all 0.2s ease',
-    '&:hover': {
-      backgroundColor: isActive ? '#1A252F' : '#AAB7B8',
-    },
-  }}
-/>
-
+            <Chip
+              key={status}
+              label={`${status}${status !== 'All' ? `: ${count}` : ''}`} // Display status and count (except for 'All')
+              onClick={() => setSelectedStatus(status)} // Set selected status on click
+              sx={{
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '0.9rem',
+                padding: '6px 16px',
+                borderRadius: '8px', // Slightly less rounded for a keycap look
+                // 3D effect styling
+                backgroundColor: isActive ? '#556B2F' : '#E0E0E0', // Darker green/grey for pressed/unpressed
+                color: isActive ? 'white' : '#333',
+                boxShadow: isActive
+                  ? 'inset 0 2px 5px rgba(0,0,0,0.3), 0 0 0px rgba(0,0,0,0)' // Pressed effect
+                  : '0 3px 0px #A0A0A0, 0 5px 10px rgba(0,0,0,0.2)', // Base 3D shadow
+                border: '1px solid #C0C0C0', // Slight border
+                transition: 'all 0.1s ease-out', // Faster transition for click feel
+                '&:hover': {
+                  // Subtle lift effect on hover
+                  transform: isActive ? 'none' : 'translateY(-1px)',
+                  boxShadow: isActive
+                    ? 'inset 0 2px 5px rgba(0,0,0,0.3), 0 0 0px rgba(0,0,0,0)'
+                    : '0 4px 0px #909090, 0 6px 12px rgba(0,0,0,0.3)',
+                },
+                '&:active': {
+                  transform: 'translateY(2px)', // Push down on active
+                  boxShadow: 'inset 0 2px 5px rgba(0,0,0,0.3), 0 0 0px rgba(0,0,0,0)',
+                },
+              }}
+            />
           );
         })}
       </Stack>
 
-      {/* --- Filtered Cluster Grid --- */}
+      {/* --- Filtered Cluster Grid Display --- */}
       <Grid container spacing={1.5} justifyContent="center">
         {clusters
-          .filter(cluster => selectedStatus === 'All' || cluster.status === selectedStatus)
+          .filter(cluster => selectedStatus === 'All' || cluster.status === selectedStatus) // Filter clusters based on selected status
           .map((cluster, index) => {
-            const cardBackgroundGradient = getClusterTypeBackgroundGradient(cluster.clusterType);
+            // Get background color and border color for the current cluster card
+            const cardBackgroundColor = getClusterTypeBackgroundColor(cluster.clusterType); // Changed to solid color
             const cardBorderColor = getStatusBorderColor(cluster.status);
 
             return (
               <Grid item xs={4} sm={3} md={2} lg={1} xl={1} key={cluster.keyplotId}>
                 <Tooltip
-                  title={
+                  title={ // Tooltip content to show detailed cluster information on hover
                     <Box>
                       <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.8rem' }}>
-                        ID: **{cluster.clusterId}**
+                        ID: <strong style={{ color: 'white' }}>{cluster.clusterId}</strong>
                       </Typography>
                       <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.8rem' }}>
-                        Type: **{cluster.clusterType.toUpperCase()}**
+                        Type: <strong style={{ color: 'white' }}>{cluster.clusterType.toUpperCase()}</strong>
                       </Typography>
                       <Typography variant="caption" sx={{ display: 'block', fontSize: '0.8rem' }}>
-                        Status: **{cluster.status}**
+                        Status: <strong style={{ color: 'white' }}>{cluster.status}</strong>
                       </Typography>
                     </Box>
                   }
-                  arrow
-                  placement="top"
+                  arrow // Adds an arrow to the tooltip
+                  placement="top" // Positions the tooltip above the element
                 >
-                 <Card
-  sx={{
-    background: '#FFFFFF',
-    border: `2px solid ${cardBorderColor}`,
-    borderRadius: 2,
-    textAlign: 'center',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease-in-out',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-    ...(cluster.status === 'Ongoing' || cluster.status === 'On Going' ? ongoingBorderAnimation : {}),
-    '&:hover': {
-      transform: 'translateY(-4px)',
-      boxShadow: '0 8px 16px rgba(0,0,0,0.1)',
-    },
-    minHeight: { xs: 70, sm: 80 },
-    p: 0.5,
-  }}
->
+                  <Card
+                    sx={{
+                      background: cardBackgroundColor, // Apply the determined solid background color
+                      border: `2px solid ${cardBorderColor}`, // Apply the determined border color
+                      borderRadius: 2, // Rounded corners for the card
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease-in-out', // Smooth transition for hover effects
+                      // Updated 3D box shadow for the cards
+                      boxShadow: '0 3px 0px rgba(0,0,0,0.1), 0 5px 10px rgba(0,0,0,0.15)',
+                      ...(cluster.status === 'Ongoing' || cluster.status === 'On Going' ? ongoingBorderAnimation : {}), // Apply animation for ongoing clusters
+                      '&:hover': {
+                        // Removed transform translateY, and kept the same boxShadow for normal look
+                        boxShadow: '0 3px 0px rgba(0,0,0,0.1), 0 5px 10px rgba(0,0,0,0.15)',
+                      },
+                      minHeight: { xs: 70, sm: 80 }, // Minimum height for responsiveness
+                      p: 0.5, // Padding around content
+                    }}
+                  >
                     <CardContent sx={{
                       padding: '4px',
-                      '&:last-child': { paddingBottom: '4px' },
+                      '&:last-child': { paddingBottom: '4px' }, // Fix for Material-UI's last child padding
                       width: '100%',
                     }}>
-                     <Typography
-  variant="h6"
-  component="div"
-  sx={{
-    fontWeight: 'bold',
-    color: '#2C3E50',
-    lineHeight: 1,
-  }}
->
-  {index + 1}
-</Typography>
-<Typography
-  variant="caption"
-  sx={{
-    display: 'block',
-    mt: 0.5,
-    color: '#7F8C8D',
-    borderRadius: '3px',
-    padding: '1px 4px',
-    fontSize: '0.7rem',
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-  }}
->
-  {cluster.clusterType}
-</Typography>
-
+                      <Typography
+                        variant="h6"
+                        component="div"
+                        sx={{
+                          fontWeight: 'bold',
+                          color: '#2C3E50', // Darker text color for the cluster number
+                          lineHeight: 1,
+                        }}
+                      >
+                        {index + 1} {/* Display cluster number (1-indexed) */}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          display: 'block',
+                          mt: 0.5,
+                          color: '#7F8C8D', // Muted text color for cluster type
+                          borderRadius: '3px',
+                          padding: '1px 4px',
+                          fontSize: '0.7rem',
+                          fontWeight: 'bold',
+                          textTransform: 'uppercase', // Uppercase for cluster type
+                        }}
+                      >
+                        {cluster.clusterType} {/* Display cluster type */}
+                      </Typography>
                     </CardContent>
                   </Card>
                 </Tooltip>
