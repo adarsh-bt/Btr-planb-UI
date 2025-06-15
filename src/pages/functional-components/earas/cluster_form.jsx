@@ -1,8 +1,9 @@
 import React, { useState, useEffect,useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import Breadcrumb from 'routes/Breadcrumb';
 import {
     Container, Typography, Grid, FormControlLabel, List,
-    ListItemText, ListItem, Button, Box, TextField, Snackbar, Alert,
+    ListItemText, ListItem, Button, Box, TextField, Snackbar, Alert,FormControl,InputLabel,Select ,MenuItem,
     CircularProgress, Modal, Paper,FormGroup,Checkbox,Divider,Chip,Dialog,
   DialogActions,
   DialogContent,
@@ -11,12 +12,16 @@ import {
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
+
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import Autocomplete from '@mui/material/Autocomplete';
 import PropTypes from 'prop-types'; // For ListboxComponent prop-types
-import { FixedSizeList } from 'react-window';
+
 import authservice from 'pages/authentication/services/authservice';
+
+import { FixedSizeList } from 'react-window';
+
 
 // Placeholder for ListboxComponent if it's not provided externally.
 const ListboxComponent = React.forwardRef(function ListboxComponent(props, ref) {
@@ -59,8 +64,8 @@ ListboxComponent.propTypes = {
 
 // --- ClusterForm Component Start ---
 const ClusterForm = () => {
-    const location = useLocation();
-    const navigate = useNavigate();
+  const location = useLocation();
+  const navigate = useNavigate();
 
     // --- Main Form States ---
     const [syNo, setSyNo] = useState('');
@@ -71,17 +76,26 @@ const [svNoDetails, setSvNoDetails] = useState([]); // For API data
 const [selectedSvNos, setSelectedSvNos] = useState([]); // For checkbox selection
 const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
   const [rowToDelete, setRowToDelete] = useState(null); // Stores { keyplotIndex, rowIndexToRemove, rowData }
+  const[defaultVillage, setDefaultVillage] = useState('');
+  const[defaultVillageId, setDefaultVillageId] = useState('');
+  const[defaultBlock, setDefaultBlock] = useState('');
 
-    const [keyplotDetails, setKeyplotDetails] = useState({
-        villageBlock: '',
-        panchayath: '',
-        syNo: '',
-        areaCents: '',
-        landType: '',
-    });
+  const [keyplotDetails, setKeyplotDetails] = useState({
+    villageBlock: '',
+    panchayath: '',
+    syNo: '',
+    areaCents: '',
+    landType: ''
+  });
 
+  // Inside your ClusterForm component, or as a constant outside if preferred
+const sidePlotLabelOptions = [
+  'N', 'E', 'S', 'W', 'N1', 'E1', 'S1', 'W1', 'N2', 'E2', 'S2', 'W2'
+  // Add more as needed
+];
     // Structure for storing side plot rows for each direction (N, E, S, W)
     const [keyplots, setKeyplots] = useState([
+        { id: 'K', label: 'K', rows: [] },
         { id: 'N', label: 'N', rows: [] }, // Initialize with empty rows
         { id: 'E', label: 'E', rows: [] },
         { id: 'S', label: 'S', rows: [] },
@@ -232,6 +246,12 @@ const handleSvNoSelection = (resbdno) => {
 
         const data = await response.json();
         console.log("get key plots ", data);
+        console.log("get key plots ", data.payload.kvillageId);
+        console.log("get key plots ", data.payload.kvillageName);
+        console.log("get key plots ", data.payload.villageBlock);
+        setDefaultBlock(data.payload.villageBlock);
+        setDefaultVillageId(data.payload.kvillageId);
+        setDefaultVillage(data.payload.kvillageName);
 
         if (data.payload) {
             setKeyplotDetails(data.payload);
@@ -262,7 +282,7 @@ const handleSvNoSelection = (resbdno) => {
             }
 
             // Ensure exactly N, E, S, W side plots exist (override if present)
-            const defaultDirections = ['N', 'E', 'S', 'W'];
+            const defaultDirections = ['K','N', 'E', 'S', 'W'];
             const mergedKeyplots = defaultDirections.map(dir => {
                 return existingSidePlots[dir] || {
                     id: dir,
@@ -365,11 +385,12 @@ const fetchResbdnos = async (villageId, blockCode, resvno) => {
     // --- Event Handlers and Functions ---
 
     // Handles changes in the main keyplot label (N, E, S, W)
-    const handleKeyplotLabelChange = (event, index) => {
-        const newKeyplots = [...keyplots];
-        newKeyplots[index].label = event.target.value.toUpperCase().slice(0, 4);
-        setKeyplots(newKeyplots);
-    };
+  const handleKeyplotLabelChange = (event, index) => { // Removed 'newValue' as it's not from Autocomplete
+    const newKeyplots = [...keyplots];
+    const newLabel = event.target.value; // Get value from event.target.value for Select
+    newKeyplots[index].label = newLabel;
+    setKeyplots(newKeyplots);
+};
 
     // This function is less relevant now as actual row data input happens in the modal.
     // It's kept for completeness but might be removed or refactored if direct row editing is not needed.
@@ -831,11 +852,13 @@ const isAddButtonDisabled = () => {
     }
 
     const payload = {
+        userId:authservice.userid(),
         keyplotId: syNo,
         clusterNo: parseInt(slNo, 10),
         sidePlots: sidePlotsToSubmit, // Use the validated and prepared sidePlotsToSubmit
     };
 
+    console.log('Sending payload:', JSON.stringify(payload, null, 2));
     console.log('Sending payload:', JSON.stringify(payload, null, 2));
 
     try {
@@ -913,67 +936,84 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
         );
     }
 
-    return (
-        <Container maxWidth="xl" sx={{ mt: 4, bgcolor: '#f4f4f9', p: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-            <Typography variant="h4" align="center" gutterBottom color="primary">
-                Cluster Land Form
-            </Typography>
+  return (
+    <Grid container spacing={3}>
+      <Breadcrumb></Breadcrumb>
+      <Container maxWidth="xl" sx={{ mt: 4, bgcolor: '#f4f4f9', p: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+        <Typography variant="h4" align="center" gutterBottom color="primary">
+          Cluster Land Form
+        </Typography>
 
-            <Box sx={{ bgcolor: '#3066c2', color: 'white', p: 1, borderRadius: 1, mb: 2, fontWeight: 'bold', textAlign: 'center' }}>
-                Cluster Info
-            </Box>
+        <Box sx={{ bgcolor: '#3066c2', color: 'white', p: 1, borderRadius: 1, mb: 2, fontWeight: 'bold', textAlign: 'center' }}>
+          Cluster Info
+        </Box>
 
-            <Grid container spacing={2} mb={2}>
-                <Grid item xs={12} sm={6} md={2}>
-                    <TextField label="Cluster No." value={slNo || 'Not Available'} InputProps={{ readOnly: true }} fullWidth />
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <TextField label="പഞ്ചായത്ത്" value={keyplotDetails.panchayath || ''} InputProps={{ readOnly: true }} fullWidth />
-                </Grid>
-                <Grid item xs={12} sm={6} md={2}>
-                    <TextField label="വാർഡ് നമ്പർ" value={wardNumber} onChange={(e) => setWardNumber(e.target.value)} fullWidth />
-                </Grid>
-                <Grid item xs={12} sm={6} md={2}>
-                    <TextField label="Land Type" value={keyplotDetails.landType || ''} InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} fullWidth />
-                </Grid>
-                <Grid item xs={12} sm={6} md={2}>
-                    <TextField label="KEYPLOT" value={"K" || ''} InputProps={{ readOnly: true }} fullWidth />
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <TextField label="SY.No." value={keyplotDetails.syNo || ''} InputProps={{ readOnly: true }} fullWidth />
-                </Grid>
-                <Grid item xs={12} sm={6} md={2}>
-                    <TextField label="AREA (Cent)" value={keyplotDetails.areaCents || ''} InputProps={{ readOnly: true }} fullWidth />
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <TextField label="BLOCK/VILLAGE" value={keyplotDetails.villageBlock || ''} InputProps={{ readOnly: true }} fullWidth />
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <TextField label="RESERVE KEYPLOT" value={reserveKeyplot} onChange={(e) => setReserveKeyplot(e.target.value)} placeholder="-" fullWidth />
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <TextField label="TOTAL ACTUAL AREA (Cent)" value={calculateOverallTotalActual()} InputProps={{ readOnly: true }} fullWidth />
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <TextField label="TOTAL AREA (Ares)" value={calculateOverallTotalArea()} InputProps={{ readOnly: true }} fullWidth />
-                </Grid>
-            </Grid>
+        <Grid container spacing={2} mb={2}>
+          <Grid item xs={12} sm={6} md={2}>
+            <TextField label="Cluster No." value={slNo || 'Not Available'} InputProps={{ readOnly: true }} fullWidth />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField label="LocalBody Name" value={keyplotDetails.panchayath || ''} InputProps={{ readOnly: true }} fullWidth />
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <TextField
+              label="Land Type"
+              value={keyplotDetails.landType || ''}
+              InputProps={{ readOnly: true }}
+              InputLabelProps={{ shrink: true }}
+              fullWidth
+            />
+          </Grid>
+         
+        
+         
+         
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField label="TOTAL ACTUAL AREA (Cent)" value={calculateOverallTotalActual()} InputProps={{ readOnly: true }} fullWidth />
+          </Grid>
+         
+        </Grid>
 
             {keyplots.map((keyplot, index) => (
                 <Box key={keyplot.id} sx={{ mt: 3, border: '1px solid #ccc', borderRadius: 1, overflowX: 'auto', bgcolor: 'white', p: 2 }}>
                     <Box sx={{ bgcolor: '#05307a', color: 'white', p: 1, borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
-                            <Typography sx={{ mr: 1 }}>SIDE PLOT:</Typography>
-                            <TextField
-                                value={keyplot.label}
-                                onChange={(e) => handleKeyplotLabelChange(e, index)}
-                                inputProps={{ maxLength: 4, style: { color: 'white' } }}
-                                size="small"
-                                sx={{ bgcolor: 'transparent', border: 'none', color: 'white', fontWeight: 'bold', textAlign: 'center', width: '50px' }}
-                            />
-                        </Box>
+    <Typography sx={{ mr: 1 }}>SIDE PLOT:</Typography>
+    {keyplot.id === 'K' ? (
+        <TextField
+            value={keyplot.label}
+            InputProps={{ readOnly: true }}
+            inputProps={{ maxLength: 4, style: { color: 'white' } }}
+            size="small"
+            sx={{ bgcolor: 'transparent', border: 'none', color: 'white', fontWeight: 'bold', textAlign: 'center', width: '50px' }}
+        />
+    ) : (
+        // --- NEW: Using Select Component ---
+        <FormControl variant="outlined" size="small" sx={{ width: '100px', bgcolor: 'transparent', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'white' } }}>
+            <InputLabel id={`side-plot-label-${keyplot.id}`} sx={{ color: 'white' }}>Label</InputLabel>
+            <Select
+                labelId={`side-plot-label-${keyplot.id}`}
+                value={keyplot.label}
+                label="Label"
+                onChange={(e) => handleKeyplotLabelChange(e, index)}
+                sx={{
+                    color: 'white',
+                    fontWeight: 'bold',
+                    '& .MuiSelect-icon': { color: 'white' } // Color of the dropdown arrow
+                }}
+            >
+                {sidePlotLabelOptions.map((option) => (
+                    <MenuItem key={option} value={option}>
+                        {option}
+                    </MenuItem>
+                ))}
+            </Select>
+        </FormControl>
+        // --- END NEW ---
+    )}
+</Box>
                         <Typography>Total Actual Area (Cent): {calculateTotalActual(keyplot.rows)}</Typography>
-                        <Typography>Total Area (Ares): {calculateTotalArea(keyplot.rows)}</Typography>
+                      
                     </Box>
                   <Grid container spacing={2} sx={{ p: 2 }} alignItems="center">
   {/* Column Headers */}
@@ -1017,6 +1057,7 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
 </Grid>
 
        <Grid item xs={1}>
+       {keyplot.label !== "K" && (
   <Button 
     startIcon={<RemoveCircleOutlineIcon />}
     onClick={() => removeKeyplotRow(index, rowIndex,row.id)}  // Pass both indices
@@ -1026,7 +1067,7 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
     
   >
   </Button>
-  
+  )}
 </Grid>
 <Grid item xs={1}>
 {row.isExisting && (
@@ -1037,6 +1078,7 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
 
   {/* Action Buttons */}
   <Grid item xs={12} sx={{ textAlign: 'right', mt: 1 }}>
+{keyplot.label !== "K" && (
     <Button
       startIcon={<AddCircleOutlineIcon />}
       onClick={() => addKeyplotRow(index)}
@@ -1047,6 +1089,7 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
     >
       Add Row
     </Button>
+    )}
     {/* <Button
       startIcon={<RemoveCircleOutlineIcon />}
       onClick={() => removeKeyplotRow(index)}
@@ -1062,15 +1105,26 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
                 </Box>
             ))}
 
-            <Button type="submit" variant="contained" color="primary" sx={{ mt: 3, display: 'block', margin: '20px auto 0' }} onClick={handleSubmit}>
-                Submit
-            </Button>
+        <Button
+          type="submit"
+          variant="contained"
+          color="primary"
+          sx={{ mt: 3, display: 'block', margin: '20px auto 0' }}
+          onClick={handleSubmit}
+        >
+          Submit
+        </Button>
 
-            <Snackbar open={snackbarOpen} autoHideDuration={3000} onClose={handleSnackbarClose} anchorOrigin={{ vertical: 'top', horizontal: 'right' }}>
-                <Alert onClose={handleSnackbarClose} severity="warning" sx={{ width: '100%' }}>
-                    {snackbarMessage}
-                </Alert>
-            </Snackbar>
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={3000}
+          onClose={handleSnackbarClose}
+          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          <Alert onClose={handleSnackbarClose} severity="warning" sx={{ width: '100%' }}>
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>
 
             {/* --- Modal for adding a new row --- */}
           <Modal
@@ -1220,6 +1274,7 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
 
             {/* --- End Modal --- */}
         </Container>
+        </Grid>
     );
 };
 

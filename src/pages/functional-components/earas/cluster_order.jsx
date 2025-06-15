@@ -5,10 +5,12 @@ import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import { Box, Chip, Stack, Tooltip } from '@mui/material'; // Corrected import statement
 import axios from 'axios';
+import Breadcrumb from 'routes/Breadcrumb';
+
 
 function ClusterSeatMap() {
   const [clusters, setClusters] = useState([]);
-  const [summary, setSummary] = useState({ completed: 0, ongoing: 0, notStarted: 0 });
+  const [summary, setSummary] = useState({ completed: 0, ongoing: 0, notStarted: 0 ,underreview:0});
   const [selectedStatus, setSelectedStatus] = useState('All');
 
   useEffect(() => {
@@ -22,13 +24,14 @@ function ClusterSeatMap() {
           completed: res.data.completed || 0,
           ongoing: res.data.ongoing || 0,
           notStarted: res.data.notStarted || 0,
+          underreview: res.data.underreview || 0,
         });
       })
       .catch(err => {
         // Logs an error if data fetching fails and resets state
         console.error('Failed to fetch data:', err);
         setClusters([]);
-        setSummary({ completed: 0, ongoing: 0, notStarted: 0 });
+        setSummary({ completed: 0, ongoing: 0, notStarted: 0,underreview:0 });
       });
   }, []); // Empty dependency array ensures this runs only once on mount
 
@@ -38,6 +41,7 @@ function ClusterSeatMap() {
       case 'Completed': return '#4caf50'; // Green for completed
       case 'Ongoing':
       case 'On Going': return '#ffc107';   // Amber for ongoing statuses
+      case 'Under Review': return '#ffc107';   // Amber for ongoing statuses
       default: return '#9e9e9e';         // Grey for not started
     }
   };
@@ -68,19 +72,21 @@ function ClusterSeatMap() {
   };
 
   // Define the available statuses for filtering
-  const statuses = ['All', 'Completed', 'On Going', 'Not Started'];
+  const statuses = ['All', 'Completed', 'On Going', 'Not Started','Under Review'];
 
   return (
-    <Box
-      sx={{
-        padding: { xs: 3, sm: 4 },
-        maxWidth: 'lg',
-        margin: 'auto',
-        backgroundColor: '#ECF0F1', // Light grey background for the main container
-        borderRadius: 3,
-        boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-      }}
-    >
+    <Grid container spacing={3}>
+      <Breadcrumb></Breadcrumb>
+ <Box
+  sx={{
+    padding: { xs: 3, sm: 4 },
+    maxWidth: 'lg',
+    margin: 'auto',
+    backgroundColor: '#ECF0F1',
+    borderRadius: 3,
+    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+  }}
+>
       <Typography variant="h3" component="h1" gutterBottom sx={{ textAlign: 'center', mb: 4, fontWeight: 'bold', color: '#3f51b5' }}>
         Cluster Operations Map
       </Typography>
@@ -100,10 +106,11 @@ function ClusterSeatMap() {
           let count = 0;
           // Calculate count for each status tab
           if (status === 'All') {
-            count = summary.completed + summary.ongoing + summary.notStarted;
+            count = summary.completed + summary.ongoing + summary.notStarted + summary.underreview;
           } else if (status === 'Completed') count = summary.completed;
           else if (status === 'On Going') count = summary.ongoing;
           else if (status === 'Not Started') count = summary.notStarted;
+          else if (status === 'Under Review') count = summary.underreview;
 
           const isActive = selectedStatus === status; // Check if the current tab is active
 
@@ -229,6 +236,7 @@ function ClusterSeatMap() {
           })}
       </Grid>
     </Box>
+    </Grid>
   );
 }
 

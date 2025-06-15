@@ -15,6 +15,7 @@ const StyledBreadcrumb = styled(Chip)(({ theme, isLast }) => {
     height: theme.spacing(3),
     color: isLast ? "#1e88e5" : theme.palette.text.primary,
     fontWeight: theme.typography.fontWeightMedium,
+    fontSize: theme.typography.pxToRem(16), // <-- Increase font size here
     '&:hover, &:focus': {
       backgroundColor: emphasize(backgroundColor, 0.1),
     },
@@ -30,7 +31,7 @@ const Breadcrumb = () => {
   const pathnames = location.pathname.split("/").filter((x) => x);
 
   return (
-    <Box sx={{ p: 1, backgroundColor: "#f9f9f9", borderRadius: 2 }}>
+    <Box sx={{ p: 1, backgroundColor: "#f9f9f9", borderRadius: 2, width:"100%" }}>
       <Paper elevation={0} sx={{ p: 1, backgroundColor: "#ffffff", borderRadius: 2 }}>
         <Breadcrumbs aria-label="breadcrumb">
           <StyledBreadcrumb

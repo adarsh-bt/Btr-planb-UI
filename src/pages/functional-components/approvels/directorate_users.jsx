@@ -245,7 +245,6 @@ const payload = {
           //   id: selectedRow.approvalId,
           //   roleId: selectedRole
           // };
-
     
           // Call the API using the separate function
           let ser;
@@ -340,7 +339,6 @@ const handleRadioChange = (value) => {
     // setSchemeRolePairs([]); // Or your initial state
   }
 };
-
 
 
 
@@ -480,8 +478,8 @@ console.log("User List currenly dir>>> ",userList);
 // ) : [];
 const filteredData = userList.filter((item) =>
   Object.values(item).some((value) =>
-    value.toString().toLowerCase().includes(filterText.toLowerCase())
-)
+    String(value).toLowerCase().includes(filterText.toLowerCase())
+  )
 );
 
 return (

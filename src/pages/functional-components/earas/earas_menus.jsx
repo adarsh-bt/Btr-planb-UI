@@ -14,126 +14,159 @@ import { Link } from 'react-router-dom';
 import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
 
+import { useContext } from 'react';
+// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
+// import { flattenPermissions } from 'contexts/auth-reducer/permissionHelpers';
+
+import cluster from 'assets/images/logo/cluster.png';
+import keyplot from 'assets/images/logo/keyplot.png';
+import zonedetails from 'assets/images/logo/zonedetails.png';
+import eBTR from 'assets/images/logo/eBTR.png';
+
+
 function Earas_menus() {
   const theme = useTheme();
+  // const { permissions, loading, error } = useContext(PermissionsContext);
+
+  // // Flatten permissions for easy checking
+  // const userPermissions = flattenPermissions(permissions);
+
+  // // Check if user has "View BTR"
+
+  // const canViewZoneDetails = userPermissions.includes('View Zone Details');
+  // const canViewBTR = userPermissions.includes('View BTR');
+  // const canViewKeyPlot = userPermissions.includes('Download Key Plot List');
+  // const canViewCluster = userPermissions.includes('Cluster View');
+  // const canViewReports = userPermissions.includes('View Progress Report');
+  // const canViewCCE = userPermissions.includes('Download CCE Report');
+  // const canViewFormI = userPermissions.includes('Download Form I');
+
   return (
     <Grid container spacing={3}>
       <Breadcrumb></Breadcrumb>
       <Grid item xs={12}>
         <Typography variant="h3" sx={{ marginBottom: 2 }}>
-          Schemes
+          EARAS
         </Typography>
         <MainCard title="">
           <Grid container spacing={4}>
-            <Grid item xs={12} sm={4} md={3} lg={3}>
-              <Card
-                component={Link}
-                to="/schemes/earas/zone_details"
-                sx={{
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '1rem',
-                  borderRadius: '1rem',
-                  background: 'linear-gradient(135deg, rgba(79, 208, 170, 0.45), rgb(98, 218, 182))', // Gradient color
-                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
-                  '&:hover': {
-                    transform: 'scale(1.05)', // Hover scale effect
-                    // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
-                  }
-                }}
-              >
-                <CardMedia
-                  component="img"
+
+            {/* {canViewZoneDetails && ( */}
+              <Grid item xs={12} sm={4} md={3} lg={3}>
+                <Card
+                  component={Link}
+                  to="/schemes/earas/zone_details"
                   sx={{
-                    width: '5rem',
-                    height: '4rem',
-                    borderRadius: '.5rem',
-                    marginRight: '1rem' // Space between image and text
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '1rem',
+                    borderRadius: '1rem',
+                    background: 'linear-gradient(135deg, rgba(79, 208, 170, 0.45), rgb(98, 218, 182))', // Gradient color
+                    transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
+                    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
+                    '&:hover': {
+                      transform: 'scale(1.05)', // Hover scale effect
+                      // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
+                      boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
+                    }
                   }}
-                  image="https://icons.veryicon.com/png/o/miscellaneous/common-face-icons-continuously-updated/scan-business-card.png"
-                  alt="Dashboard Icon"
-                />
+                >
+                  <CardMedia
+                    component="img"
+                    sx={{
+                      width: '5rem',
+                      height: '5rem',
+                      borderRadius: '.5rem',
+                      marginRight: '1rem' // Space between image and text
+                    }}
+                    image={zonedetails} // <-- Use the imported image here
+                    alt="zone details"
+                  />
 
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Zone Details
-                    </Typography>
-                    <Typography
-                      variant="subtitle1"
-                      component="div"
-                      sx={{
-                        color: '#f3f3f3',
-                        fontStyle: 'italic',
-                        fontWeight: 'lighter',
-                        marginTop: '0.5rem'
-                      }}
-                    >
-                      Investigator
-                    </Typography>
-                  </CardContent>
-                </Box>
-              </Card>
-            </Grid>
 
-            <Grid item xs={12} sm={4} md={3} lg={3}>
-              <Card
-                component={Link}
-                to="/schemes/earas/btr"
-                sx={{
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '1rem',
-                  borderRadius: '1rem',
-                  background: 'linear-gradient(135deg, rgba(180, 146, 254, 0.45), rgb(155, 120, 250))', // Gradient color
-                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
-                  '&:hover': {
-                    transform: 'scale(1.05)', // Hover scale effect
-                    // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
-                  }
-                }}
-              >
-                <CardMedia
-                  component="img"
+                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                    <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
+                      <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
+                        Zone Details
+                      </Typography>
+                      <Typography
+                        variant="subtitle1"
+                        component="div"
+                        sx={{
+                          color: '#f3f3f3',
+                          fontStyle: 'italic',
+                          fontWeight: 'lighter',
+                          marginTop: '0.5rem'
+                        }}
+                      >
+                        Investigator
+                      </Typography>
+                    </CardContent>
+                  </Box>
+                </Card>
+              </Grid>
+            {/* )} */}
+
+
+            {/* {canViewBTR && ( */}
+              <Grid item xs={12} sm={4} md={3} lg={3}>
+                <Card
+                  component={Link}
+                  to="/schemes/earas/btr"
                   sx={{
-                    width: '5rem',
-                    height: '5rem',
-                    borderRadius: '.5rem',
-                    marginRight: '1rem' // Space between image and text
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '1rem',
+                    borderRadius: '1rem',
+                    background: 'linear-gradient(135deg, rgba(180, 146, 254, 0.45), rgb(155, 120, 250))', // Gradient color
+                    transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
+                    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
+                    '&:hover': {
+                      transform: 'scale(1.05)', // Hover scale effect
+                      // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
+                      boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
+                    }
                   }}
-                  image="https://cdn4.iconfinder.com/data/icons/finance-373/25/Employee_ID-512.png"
-                  alt="Dashboard Icon"
-                />
+                >
+                  <CardMedia
+                    component="img"
+                    sx={{
+                      width: '5rem',
+                      height: '5rem',
+                      borderRadius: '.5rem',
+                      marginRight: '1rem' // Space between image and text
+                    }}
+                    image={eBTR} // <-- Use the imported image here
+                    alt="eBTR Logo"
+                  />
 
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      e-BTR
-                    </Typography>
-                    <Typography
-                      variant="subtitle1"
-                      component="div"
-                      sx={{
-                        color: '#f3f3f3',
-                        fontStyle: 'italic',
-                        fontWeight: 'lighter',
-                        marginTop: '0.5rem'
-                      }}
-                    >
-                      View
-                    </Typography>
-                  </CardContent>
-                </Box>
-              </Card>
-            </Grid>
+
+                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                    <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
+                      <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
+                        e-BTR
+                      </Typography>
+                      <Typography
+                        variant="subtitle1"
+                        component="div"
+                        sx={{
+                          color: '#f3f3f3',
+                          fontStyle: 'italic',
+                          fontWeight: 'lighter',
+                          marginTop: '0.5rem'
+                        }}
+                      >
+                        View
+                      </Typography>
+                    </CardContent>
+                  </Box>
+                </Card>
+              </Grid>
+        
 
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
@@ -164,14 +197,14 @@ function Earas_menus() {
                     borderRadius: '.5rem',
                     marginRight: '1rem' // Space between image and text
                   }}
-                  image="https://cdn-icons-png.flaticon.com/512/10584/10584957.png"
-                  alt="Dashboard Icon"
+                  image={keyplot} // <-- Use the imported image here
+                  alt="keyplot Logo"
                 />
 
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
                     <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                    KeyPlots
+                    Key Plots
                     </Typography>
                     <Typography
                       variant="subtitle1"
@@ -190,7 +223,7 @@ function Earas_menus() {
               </Card>
             </Grid>
 
-   <Grid item xs={12} sm={4} md={3} lg={3}>
+            <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                component={Link}
                 to="/schemes/earas/clusters"
@@ -219,8 +252,8 @@ function Earas_menus() {
                     borderRadius: '.5rem',
                     marginRight: '1rem' // Space between image and text
                   }}
-                  image="https://cdn-icons-png.flaticon.com/512/10584/10584957.png"
-                  alt="Dashboard Icon"
+                  image={cluster} // <-- Use the imported image here
+                  alt="Cluster Logo"
                 />
 
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
@@ -245,161 +278,194 @@ function Earas_menus() {
               </Card>
             </Grid>
 
-            <Grid item xs={12} sm={4} md={3} lg={3}>
-              <Card
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '1rem',
-                  borderRadius: '1rem',
-                  background: 'linear-gradient(135deg, rgba(160, 190, 120, 0.45), rgb(140, 180, 110))', // Gradient color
-                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
-                  '&:hover': {
-                    transform: 'scale(1.05)', // Hover scale effect
-                    // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
-                  }
-                }}
-              >
-                <CardMedia
-                  component="img"
+            {/* {canViewCCE && ( */}
+              <Grid item xs={12} sm={4} md={3} lg={3}>
+                <Card
                   sx={{
-                    width: '5rem',
-                    height: '5rem',
-                    borderRadius: '.5',
-                    marginRight: '1rem' // Space between image and text
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '1rem',
+                    borderRadius: '1rem',
+
+                    background: 'linear-gradient(135deg, #cfd8dc, #b0bec5)', // Muted gray gradient
+                    opacity: 0.6, // Makes it look inactive
+                    filter: 'grayscale(100%)', // Grays out the card
+                    boxShadow: 'none', // No shadow
+                    cursor: 'not-allowed', // Indicate non-clickable
+                    pointerEvents: 'none', // Disable interaction
+                    minHeight: '8rem', // Match others for consistency
+
+                    // background: 'linear-gradient(135deg, rgba(160, 190, 120, 0.45), rgb(140, 180, 110))', // Gradient color
+                    // transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
+                    // boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
+                    // '&:hover': {
+                    //   transform: 'scale(1.05)', // Hover scale effect
+                    //   // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
+                    //   boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
+                    // }
                   }}
-                  image="https://icons.veryicon.com/png/o/miscellaneous/common-face-icons-continuously-updated/scan-business-card.png"
-                  alt="Dashboard Icon"
-                />
+                >
+                  <CardMedia
+                    component="img"
+                    sx={{
+                      width: '5rem',
+                      height: '5rem',
+                      borderRadius: '.5',
+                      marginRight: '1rem' // Space between image and text
+                    }}
+                    image="https://icons.veryicon.com/png/o/miscellaneous/common-face-icons-continuously-updated/scan-business-card.png"
+                    alt="Dashboard Icon"
+                  />
 
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Crop Cutting
-                    </Typography>
-                    <Typography
-                      variant="subtitle1"
-                      component="div"
-                      sx={{
-                        color: '#f3f3f3',
-                        fontStyle: 'italic',
-                        fontWeight: 'lighter',
-                        marginTop: '0.5rem'
-                      }}
-                    >
-                      Experiment
-                    </Typography>
-                  </CardContent>
-                </Box>
-              </Card>
-            </Grid>
+                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                    <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
+                      <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
+                        Crop Cutting
+                      </Typography>
+                      <Typography
+                        variant="subtitle1"
+                        component="div"
+                        sx={{
+                          color: '#f3f3f3',
+                          fontStyle: 'italic',
+                          fontWeight: 'lighter',
+                          marginTop: '0.5rem'
+                        }}
+                      >
+                        Experiment
+                      </Typography>
+                    </CardContent>
+                  </Box>
+                </Card>
+              </Grid>
+            {/* )} */}
 
-            <Grid item xs={12} sm={4} md={3} lg={3}>
-              <Card
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '1rem',
-                  borderRadius: '1rem',
-                  background: 'linear-gradient(135deg, rgba(115, 140, 255, 0.45), rgb(105, 120, 250))', // Gradient color
-                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
-                  '&:hover': {
-                    transform: 'scale(1.05)', // Hover scale effect
-                    // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
-                  }
-                }}
-              >
-                <CardMedia
-                  component="img"
+            {/* {canViewFormI && ( */}
+              <Grid item xs={12} sm={4} md={3} lg={3}>
+                <Card
                   sx={{
-                    width: '5rem',
-                    height: '5rem',
-                    borderRadius: '.5rem',
-                    marginRight: '1rem' // Space between image and text
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '1rem',
+                    borderRadius: '1rem',
+
+                    background: 'linear-gradient(135deg, #cfd8dc, #b0bec5)', // Muted gray gradient
+                    opacity: 0.6, // Makes it look inactive
+                    filter: 'grayscale(100%)', // Grays out the card
+                    boxShadow: 'none', // No shadow
+                    cursor: 'not-allowed', // Indicate non-clickable
+                    pointerEvents: 'none', // Disable interaction
+                    minHeight: '8rem', // Match others for consistency
+                    
+                    // background: 'linear-gradient(135deg, rgba(255, 150, 89, 0.45), rgb(255, 174, 129))', // Gradient color
+                    // transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
+                    // boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
+                    // '&:hover': {
+                    //   transform: 'scale(1.05)', // Hover scale effect
+                    //   // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
+                    //   boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
+                    // }
                   }}
-                  image="https://cdn-icons-png.flaticon.com/512/977/977464.png"
-                  alt="Dashboard Icon"
-                />
+                >
+                  <CardMedia
+                    component="img"
+                    sx={{
+                      width: '5rem',
+                      height: '5rem',
+                      borderRadius: '.5rem',
+                      marginRight: '1rem' // Space between image and text
+                    }}
+                    image="https://icons.veryicon.com/png/o/miscellaneous/common-face-icons-continuously-updated/scan-business-card.png"
+                    alt="Dashboard Icon"
+                  />
 
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Reports
-                    </Typography>
-                    <Typography
-                      variant="subtitle1"
-                      component="div"
-                      sx={{
-                        color: '#f3f3f3',
-                        fontStyle: 'italic',
-                        fontWeight: 'lighter',
-                        marginTop: '0.5rem'
-                      }}
-                    >
-                      View
-                    </Typography>
-                  </CardContent>
-                </Box>
-              </Card>
-            </Grid>
+                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                    <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
+                      <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
+                        Form 1
+                      </Typography>
+                      <Typography
+                        variant="subtitle1"
+                        component="div"
+                        sx={{
+                          color: '#f3f3f3',
+                          fontStyle: 'italic',
+                          fontWeight: 'lighter',
+                          marginTop: '0.5rem'
+                        }}
+                      >
+                        Entry
+                      </Typography>
+                    </CardContent>
+                  </Box>
+                </Card>
+              </Grid>
+            {/* )} */}
 
-            <Grid item xs={12} sm={4} md={3} lg={3}>
-              <Card
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '1rem',
-                  borderRadius: '1rem',
-                  background: 'linear-gradient(135deg, rgba(255, 150, 89, 0.45), rgb(255, 174, 129))', // Gradient color
-                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
-                  '&:hover': {
-                    transform: 'scale(1.05)', // Hover scale effect
-                    // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
-                  }
-                }}
-              >
-                <CardMedia
-                  component="img"
+            {/* {canViewReports && ( */}
+              <Grid item xs={12} sm={4} md={3} lg={3}>
+                <Card
                   sx={{
-                    width: '5rem',
-                    height: '5rem',
-                    borderRadius: '.5rem',
-                    marginRight: '1rem' // Space between image and text
-                  }}
-                  image="https://icons.veryicon.com/png/o/miscellaneous/common-face-icons-continuously-updated/scan-business-card.png"
-                  alt="Dashboard Icon"
-                />
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '1rem',
+                    borderRadius: '1rem',
 
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Form 1
-                    </Typography>
-                    <Typography
-                      variant="subtitle1"
-                      component="div"
-                      sx={{
-                        color: '#f3f3f3',
-                        fontStyle: 'italic',
-                        fontWeight: 'lighter',
-                        marginTop: '0.5rem'
-                      }}
-                    >
-                      Entry
-                    </Typography>
-                  </CardContent>
-                </Box>
-              </Card>
-            </Grid>
+                    background: 'linear-gradient(135deg, #cfd8dc, #b0bec5)', // Muted gray gradient
+                    opacity: 0.6, // Makes it look inactive
+                    filter: 'grayscale(100%)', // Grays out the card
+                    boxShadow: 'none', // No shadow
+                    cursor: 'not-allowed', // Indicate non-clickable
+                    pointerEvents: 'none', // Disable interaction
+                    minHeight: '8rem', // Match others for consistency
+
+                    // background: 'linear-gradient(135deg, rgba(115, 140, 255, 0.45), rgb(105, 120, 250))', // Gradient color
+                    // transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
+                    // boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
+                    // '&:hover': {
+                    //   transform: 'scale(1.05)', // Hover scale effect
+                    //   // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
+                    //   boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
+                    // }
+                  }}
+                >
+                  <CardMedia
+                    component="img"
+                    sx={{
+                      width: '5rem',
+                      height: '5rem',
+                      borderRadius: '.5rem',
+                      marginRight: '1rem' // Space between image and text
+                    }}
+                    image="https://cdn-icons-png.flaticon.com/512/977/977464.png"
+                    alt="Dashboard Icon"
+                  />
+
+                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                    <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
+                      <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
+                        Reports
+                      </Typography>
+                      <Typography
+                        variant="subtitle1"
+                        component="div"
+                        sx={{
+                          color: '#f3f3f3',
+                          fontStyle: 'italic',
+                          fontWeight: 'lighter',
+                          marginTop: '0.5rem'
+                        }}
+                      >
+                        View
+                      </Typography>
+                    </CardContent>
+                  </Box>
+                </Card>
+              </Grid>
+            {/* )} */}
 
             {/* <Grid item xs={12} sm={4} md={3} lg={3}>              
     <Card

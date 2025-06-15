@@ -72,7 +72,13 @@ const SignInSide = () => {
                     justifyContent: "center",
                 }}
             >
-                <div style={{ textAlign: 'center' }}>
+                {/* Use a main Stack for overall vertical centering and spacing */}
+                <Stack
+                    spacing={3} // Increased spacing for a bit more overall vertical separation
+                    alignItems="center"
+                    justifyContent="center"
+                    sx={{ textAlign: 'center', width: '100%', maxWidth: '80%' }} // Added maxWidth for content confinement
+                >
                     <img
                         className='logo_gov'
                         src={logo}
@@ -86,7 +92,6 @@ const SignInSide = () => {
                             color: '#fff',
                             px: 4,
                             textAlign: "center",
-                            marginBottom: '1rem'
                         }}
                     >
                         Department of Economics & Statistics
@@ -98,31 +103,39 @@ const SignInSide = () => {
                         Government of Kerala
                     </Typography>
 
-                    <Typography variant="h3"
+                    <Typography
+                        variant="h3"
                         className='deparment'
                         sx={{
                             color: "#fff",
                             fontWeight: "bold",
                             px: 4,
                             textAlign: "center",
-                            marginBottom: '3rem',
                             animation: `${fadeIn} 1.5s ease-out`,
-                        }}>Application for Intelligent Data Engineering and Analytics (AIDEA)</Typography>
-
-                    <Typography className='duk_logo_typ'>
-                        <img
-                            className='duk_logo'
-                            src={duklogo}
-                            alt="DUK Logo"
-                        />
-                        <img
-                            className='cdti_logo'
-                            src={cdtilogo}
-                            alt="CDTI Logo"
-                        />
+                        }}
+                    >
+                        Application for Intelligent Data Engineering and Analytics (AIDEA)
                     </Typography>
-                    <Box className="copy_right" sx={{ color: 'text.disabled' }}>© 2025 AIDEA CDTI-DUK. All rights reserved.</Box>
-                </div>
+
+                    {/* Separate Stack for logos and copyright to control their internal spacing */}
+                    <Stack spacing={1} sx={{ mt: 5 }}> {/* Added mt for more space above logos */}
+                        <Typography className='duk_logo_typ'>
+                            <img
+                                className='duk_logo'
+                                src={duklogo}
+                                alt="DUK Logo"
+                            />
+                            <img
+                                className='cdti_logo'
+                                src={cdtilogo}
+                                alt="CDTI Logo"
+                            />
+                        </Typography>
+                        <Box className="copy_right" sx={{ color: 'text.disabled' }}> {/* Removed mt here, Stack's spacing handles it */}
+                            © 2025 AIDEA CDTI-DUK. All rights reserved.
+                        </Box>
+                    </Stack>
+                </Stack>
             </Grid>
             <Grid
                 item
@@ -294,7 +307,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                 name="email"
                 value={username} // Use username state for the email input
                 onChange={(e) => {
-                    if (e.target.value.length <= 255) {
+                    if (e.target.value.length <= 256) {
                         setUsername(e.target.value); // Update state if length is <= 255
                     }
                 }}

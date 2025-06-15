@@ -25,14 +25,43 @@ import authservice from 'pages/authentication/services/authservice';
 
 // Define the columns for the data table
 const columns = (handleEdit, handleView) => [
-  { name: 'SL. NO', selector: (row, index) => index + 1 + row.indexOffset }, // Adjusted for pagination
-  { name: 'Panchayth', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> },
-  { name: 'Village', selector: (row) => row.villageName?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  { name: 'SL. NO', selector: (row, index) => index + 1 },
+  // { name: 'District', selector: (row) => row.dcode, sortable: true },
+  // { name: 'Taluk', selector: (row) => row.tcode, sortable: true },
+  // { name: 'Village', selector: (row) => row.vcode, sortable: true },
+  { name: 'LocalBody Name', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> },
+ {
+  name: 'Village',
+  selector: (row) => {
+    const name = row.villageName?.toString();
+    return name
+      ? name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()
+      : <span style={{ color: '#888' }}>NA</span>;
+  }
+},
+
   { name: 'Block', selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span> },
-  { name: 'Re-Survey No', selector: (row) => row.resvno?.toString() || <span style={{ color: '#888' }}>NA</span> },
-  { name: 'Sub Div No', selector: (row) => row.resbdno?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  {
+    name: 'Re-Survey No',
+    selector: (row) =>
+      row.resvno && row.resbdno ? (
+        `${row.resvno} / ${row.resbdno}`
+      ) : row.resvno ? (
+        `${row.resvno} / NA`
+      ) : row.resbdno ? (
+        `NA / ${row.resbdno}`
+      ) : (
+        <span style={{ color: '#888' }}>NA</span>
+      )
+  },
+  // { name: 'Re-Survey No', selector: (row) => row.resvno?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  // { name: 'Sub Div No', selector: (row) => row.resbdno?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  // { name: 'Address', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  // { name: 'Address', selector: (row) => row.lbcode, sortable: true },
+
   { name: 'Land Type', selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span> },
   { name: 'Total area(cent)', selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span> },
+
   {
     name: 'View',
     cell: (row) => (
@@ -60,7 +89,8 @@ const Btr = () => {
   const [totalWetArea, setTotalWetArea] = useState(0);
   const [totalDryArea, setTotalDryArea] = useState(0);
   const [downloading, setDownloading] = useState(false);
-  const [loading, setLoading] = useState(false); // New state for data loading
+
+  const [loading, setLoading] = useState(false);
 
   // Function to handle filter change
   const handleFilterChange = (event) => {
@@ -79,9 +109,11 @@ const Btr = () => {
     setOpenEditModal(false);
     setOpenViewModal(false);
     setSelectedRow(null);
+    setSelectedRow(null);
   };
 
   const handlePageChange = (newPage) => {
+    setPage(newPage);
     setPage(newPage);
   };
 
@@ -209,6 +241,7 @@ const Btr = () => {
             />
           </Stack>
         </Paper>
+
 
         <DataTable
           columns={columns(undefined, handleView)}
