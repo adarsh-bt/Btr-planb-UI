@@ -29,8 +29,17 @@ const columns = (handleEdit, handleView) => [
   // { name: 'District', selector: (row) => row.dcode, sortable: true },
   // { name: 'Taluk', selector: (row) => row.tcode, sortable: true },
   // { name: 'Village', selector: (row) => row.vcode, sortable: true },
-  { name: 'Panchayth', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> },
-  { name: 'Village', selector: (row) => row.villageName?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  { name: 'LocalBody Name', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> },
+ {
+  name: 'Village',
+  selector: (row) => {
+    const name = row.villageName?.toString();
+    return name
+      ? name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()
+      : <span style={{ color: '#888' }}>NA</span>;
+  }
+},
+
   { name: 'Block', selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span> },
   {
     name: 'Re-Survey No',

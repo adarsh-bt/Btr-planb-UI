@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import Breadcrumb from 'routes/Breadcrumb';
 import {
     Container, Typography, Grid, FormControlLabel, List,
-    ListItemText, ListItem, Button, Box, TextField, Snackbar, Alert,
+    ListItemText, ListItem, Button, Box, TextField, Snackbar, Alert,FormControl,InputLabel,Select ,MenuItem,
     CircularProgress, Modal, Paper,FormGroup,Checkbox,Divider,Chip,Dialog,
   DialogActions,
   DialogContent,
@@ -76,6 +76,10 @@ const [svNoDetails, setSvNoDetails] = useState([]); // For API data
 const [selectedSvNos, setSelectedSvNos] = useState([]); // For checkbox selection
 const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
   const [rowToDelete, setRowToDelete] = useState(null); // Stores { keyplotIndex, rowIndexToRemove, rowData }
+const [defaultVillageId, setDefaultVillageId] = useState(null);
+const [defaultVillage, setDefaultVillage] = useState('');
+const [defaultBlock, setDefaultBlock] = useState('');
+
 
   const [keyplotDetails, setKeyplotDetails] = useState({
     villageBlock: '',
@@ -85,8 +89,14 @@ const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
     landType: ''
   });
 
+  // Inside your ClusterForm component, or as a constant outside if preferred
+const sidePlotLabelOptions = [
+  'N', 'E', 'S', 'W', 'N1', 'E1', 'S1', 'W1', 'N2', 'E2', 'S2', 'W2'
+  // Add more as needed
+];
     // Structure for storing side plot rows for each direction (N, E, S, W)
     const [keyplots, setKeyplots] = useState([
+        { id: 'K', label: 'K', rows: [] },
         { id: 'N', label: 'N', rows: [] }, // Initialize with empty rows
         { id: 'E', label: 'E', rows: [] },
         { id: 'S', label: 'S', rows: [] },
@@ -183,7 +193,7 @@ const[keyplotId,setKeyplotId] = useState('');
                 setAllVillageData(data); // Store the full data for filtering blocks
                setVillageOptions(data); // full objects, not just names
 
-                console.log(data)// Extract village names for Autocomplete
+                console.log("village datas   ",data)// Extract village names for Autocomplete
             } catch (error) {
                 console.error("Failed to fetch village data for modal:", error);
                 // Handle error (e.g., show a toast message)
@@ -237,6 +247,12 @@ const handleSvNoSelection = (resbdno) => {
 
         const data = await response.json();
         console.log("get key plots ", data);
+        console.log("get key plots ", data.payload.kvillageId);
+        console.log("get key plots ", data.payload.kvillageName);
+        console.log("get key plots ", data.payload.villageBlock);
+        setDefaultBlock(data.payload.villageBlock);
+        setDefaultVillageId(data.payload.kvillageId);
+        setDefaultVillage(data.payload.kvillageName);
 
         if (data.payload) {
             setKeyplotDetails(data.payload);
@@ -267,7 +283,7 @@ const handleSvNoSelection = (resbdno) => {
             }
 
             // Ensure exactly N, E, S, W side plots exist (override if present)
-            const defaultDirections = ['N', 'E', 'S', 'W'];
+            const defaultDirections = ['K','N', 'E', 'S', 'W'];
             const mergedKeyplots = defaultDirections.map(dir => {
                 return existingSidePlots[dir] || {
                     id: dir,
@@ -370,12 +386,35 @@ const fetchResbdnos = async (villageId, blockCode, resvno) => {
     // --- Event Handlers and Functions ---
 
     // Handles changes in the main keyplot label (N, E, S, W)
-    const handleKeyplotLabelChange = (event, index) => {
-        const newKeyplots = [...keyplots];
-        newKeyplots[index].label = event.target.value.toUpperCase().slice(0, 4);
-        setKeyplots(newKeyplots);
-    };
+  const handleKeyplotLabelChange = (event, index) => { // Removed 'newValue' as it's not from Autocomplete
+    const newKeyplots = [...keyplots];
+    const newLabel = event.target.value; // Get value from event.target.value for Select
+    newKeyplots[index].label = newLabel;
+    setKeyplots(newKeyplots);
+};
 
+useEffect(() => {
+  // 1. Check if a village is selected in modalRowData and if you have all village data loaded
+  if (modalRowData.village && allVillageData.length > 0) {
+    // 2. Find the selected village object from your `allVillageData`
+    const selectedVillage = allVillageData.find(
+      (v) => v.villageId === modalRowData.village
+    );
+
+    // 3. If the selected village is found and it has 'blocks' property
+    if (selectedVillage && selectedVillage.blocks) {
+      // 4. Map the 'blocks' array to get only the `blockCode` values
+      //    and set them as the options for the Block Autocomplete.
+      setModalBlockOptions(selectedVillage.blocks.map(b => b.blockCode));
+    } else {
+      // 5. If the village is not found or has no blocks, clear the block options.
+      setModalBlockOptions([]);
+    }
+  } else {
+    // 6. If no village is selected, clear the block options.
+    setModalBlockOptions([]);
+  }
+}, [modalRowData.village, allVillageData]);
     // This function is less relevant now as actual row data input happens in the modal.
     // It's kept for completeness but might be removed or refactored if direct row editing is not needed.
     const handleKeyplotRowChange = (newValue, keyplotIndex, rowIndex, field) => {
@@ -517,8 +556,9 @@ else if (field === 'svNo') {
         setSelectedKeyplotIndex(keyplotIndex);
         setCurrentKeyplotIndex(keyplotIndex); // Store which N, E, S, W section we're adding to
         setModalRowData({ // Reset modal data for a fresh entry
-            village: null,
-            modalBlock: null,
+            village: defaultVillageId, // Pre-set villageId
+            villageName: defaultVillage, // Pre-set villageName for display/internal use
+            modalBlock: defaultBlock, 
             svNo: null,
             sub: '',
             block: '',
@@ -836,6 +876,7 @@ const isAddButtonDisabled = () => {
     }
 
     const payload = {
+        userId:authservice.userid(),
         keyplotId: syNo,
         clusterNo: parseInt(slNo, 10),
         sidePlots: sidePlotsToSubmit, // Use the validated and prepared sidePlotsToSubmit
@@ -936,10 +977,7 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
             <TextField label="Cluster No." value={slNo || 'Not Available'} InputProps={{ readOnly: true }} fullWidth />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <TextField label="പഞ്ചായത്ത്" value={keyplotDetails.panchayath || ''} InputProps={{ readOnly: true }} fullWidth />
-          </Grid>
-          <Grid item xs={12} sm={6} md={2}>
-            <TextField label="വാർഡ് നമ്പർ" value={wardNumber} onChange={(e) => setWardNumber(e.target.value)} fullWidth />
+            <TextField label="LocalBody Name" value={keyplotDetails.panchayath || ''} InputProps={{ readOnly: true }} fullWidth />
           </Grid>
           <Grid item xs={12} sm={6} md={2}>
             <TextField
@@ -950,50 +988,56 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
               fullWidth
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={2}>
-            <TextField label="KEYPLOT" value={'K' || ''} InputProps={{ readOnly: true }} fullWidth />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField label="SY.No." value={keyplotDetails.syNo || ''} InputProps={{ readOnly: true }} fullWidth />
-          </Grid>
-          <Grid item xs={12} sm={6} md={2}>
-            <TextField label="AREA (Cent)" value={keyplotDetails.areaCents || ''} InputProps={{ readOnly: true }} fullWidth />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField label="BLOCK/VILLAGE" value={keyplotDetails.villageBlock || ''} InputProps={{ readOnly: true }} fullWidth />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              label="RESERVE KEYPLOT"
-              value={reserveKeyplot}
-              onChange={(e) => setReserveKeyplot(e.target.value)}
-              placeholder="-"
-              fullWidth
-            />
-          </Grid>
+         
+        
+         
+         
           <Grid item xs={12} sm={6} md={3}>
             <TextField label="TOTAL ACTUAL AREA (Cent)" value={calculateOverallTotalActual()} InputProps={{ readOnly: true }} fullWidth />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField label="TOTAL AREA (Ares)" value={calculateOverallTotalArea()} InputProps={{ readOnly: true }} fullWidth />
-          </Grid>
+         
         </Grid>
 
             {keyplots.map((keyplot, index) => (
                 <Box key={keyplot.id} sx={{ mt: 3, border: '1px solid #ccc', borderRadius: 1, overflowX: 'auto', bgcolor: 'white', p: 2 }}>
                     <Box sx={{ bgcolor: '#05307a', color: 'white', p: 1, borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
-                            <Typography sx={{ mr: 1 }}>SIDE PLOT:</Typography>
-                            <TextField
-                                value={keyplot.label}
-                                onChange={(e) => handleKeyplotLabelChange(e, index)}
-                                inputProps={{ maxLength: 4, style: { color: 'white' } }}
-                                size="small"
-                                sx={{ bgcolor: 'transparent', border: 'none', color: 'white', fontWeight: 'bold', textAlign: 'center', width: '50px' }}
-                            />
-                        </Box>
+    <Typography sx={{ mr: 1 }}>SIDE PLOT:</Typography>
+    {keyplot.id === 'K' ? (
+        <TextField
+            value={keyplot.label}
+            InputProps={{ readOnly: true }}
+            inputProps={{ maxLength: 4, style: { color: 'white' } }}
+            size="small"
+            sx={{ bgcolor: 'transparent', border: 'none', color: 'white', fontWeight: 'bold', textAlign: 'center', width: '50px' }}
+        />
+    ) : (
+        // --- NEW: Using Select Component ---
+        <FormControl variant="outlined" size="small" sx={{ width: '100px', bgcolor: 'transparent', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'white' } }}>
+            <InputLabel id={`side-plot-label-${keyplot.id}`} sx={{ color: 'white' }}>Label</InputLabel>
+            <Select
+                labelId={`side-plot-label-${keyplot.id}`}
+                value={keyplot.label}
+                label="Label"
+                onChange={(e) => handleKeyplotLabelChange(e, index)}
+                sx={{
+                    color: 'white',
+                    fontWeight: 'bold',
+                    '& .MuiSelect-icon': { color: 'white' } // Color of the dropdown arrow
+                }}
+            >
+                {sidePlotLabelOptions.map((option) => (
+                    <MenuItem key={option} value={option}>
+                        {option}
+                    </MenuItem>
+                ))}
+            </Select>
+        </FormControl>
+        // --- END NEW ---
+    )}
+</Box>
                         <Typography>Total Actual Area (Cent): {calculateTotalActual(keyplot.rows)}</Typography>
-                        <Typography>Total Area (Ares): {calculateTotalArea(keyplot.rows)}</Typography>
+                      
                     </Box>
                   <Grid container spacing={2} sx={{ p: 2 }} alignItems="center">
   {/* Column Headers */}
@@ -1033,10 +1077,10 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
   inputProps={{ step: "0.01", min: "0" }}
   label="Area For Enumerated"
 />
-
 </Grid>
 
        <Grid item xs={1}>
+       {keyplot.label !== "K" && (
   <Button 
     startIcon={<RemoveCircleOutlineIcon />}
     onClick={() => removeKeyplotRow(index, rowIndex,row.id)}  // Pass both indices
@@ -1046,7 +1090,7 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
     
   >
   </Button>
-  
+  )}
 </Grid>
 <Grid item xs={1}>
 {row.isExisting && (
@@ -1057,6 +1101,7 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
 
   {/* Action Buttons */}
   <Grid item xs={12} sx={{ textAlign: 'right', mt: 1 }}>
+{keyplot.label !== "K" && (
     <Button
       startIcon={<AddCircleOutlineIcon />}
       onClick={() => addKeyplotRow(index)}
@@ -1067,6 +1112,7 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
     >
       Add Row
     </Button>
+    )}
     {/* <Button
       startIcon={<RemoveCircleOutlineIcon />}
       onClick={() => removeKeyplotRow(index)}
@@ -1135,47 +1181,63 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
     </Typography>
 
     <Grid container spacing={2}>
+     <Grid item xs={12}>
+    <Autocomplete
+      options={villageOptions}
+      getOptionLabel={(option) => option.village || ""}
+      value={
+        modalRowData.village
+          ? villageOptions.find((v) => v.villageId === modalRowData.village)
+          : null
+      }
+      onChange={(event, newValue) => {
+        handleModalInputChange(newValue ? newValue.villageId : null, "village");
+        // When village changes, reset block and svNo
+        setModalRowData(prev => ({ ...prev, modalBlock: null, svNo: null }));
+        setModalBlockOptions([]); // Clear block options
+        setSvNoOptions([]); // Clear svNo options
+        setSvNoDetails([]); // Clear svNo details
+        setSelectedSvNos([]); // Clear selected svNos
+      }}
+      renderInput={(params) => (
+        <TextField {...params} label="Village" variant="outlined" size="small" fullWidth />
+      )}
+      // If you want to disable changing the village, you can add `disabled` here
+      // disabled={true} // Uncomment to disable village selection after pre-setting
+    />
+  </Grid>
       <Grid item xs={12}>
         <Autocomplete
-          options={villageOptions}
-          getOptionLabel={(option) => option.village || ""}
-          value={
-            modalRowData.village
-              ? villageOptions.find((v) => v.villageId === modalRowData.village)
-              : null
-          }
-          onChange={(event, newValue) =>
-            handleModalInputChange(newValue ? newValue.villageId : null, "village")
-          }
-          renderInput={(params) => (
-            <TextField {...params} label="Village" variant="outlined" size="small" fullWidth />
-          )}
-        />
+      options={modalBlockOptions}
+      getOptionLabel={(option) => String(option)}
+      value={modalRowData.modalBlock}
+      onChange={(event, newValue) => {
+        handleModalInputChange(newValue, "modalBlock");
+        // When block changes, reset svNo
+        setModalRowData(prev => ({ ...prev, svNo: null }));
+        setSvNoOptions([]); // Clear svNo options
+        setSvNoDetails([]); // Clear svNo details
+        setSelectedSvNos([]); // Clear selected svNos
+      }}
+      renderInput={(params) => (
+        <TextField {...params} label="Block" variant="outlined" size="small" fullWidth />
+      )}
+      disabled={!modalRowData.village || modalBlockOptions.length === 0}
+      // If you want to disable changing the block, you can add `disabled` here
+      // disabled={true} // Uncomment to disable block selection after pre-setting
+    />
       </Grid>
 
       <Grid item xs={12}>
         <Autocomplete
-          options={modalBlockOptions}
-          getOptionLabel={(option) => String(option)}
-          value={modalRowData.modalBlock}
-          onChange={(event, newValue) => handleModalInputChange(newValue, "modalBlock")}
-          renderInput={(params) => (
-            <TextField {...params} label="Block" variant="outlined" size="small" fullWidth />
-          )}
-          disabled={!modalRowData.village || modalBlockOptions.length === 0}
-        />
-      </Grid>
-
-      <Grid item xs={12}>
-        <Autocomplete
-          options={svNoOptions.map(String)}
-          getOptionLabel={(option) => String(option)}
-          value={modalRowData.svNo ? String(modalRowData.svNo) : null}
-          onChange={(event, newValue) => handleModalInputChange(newValue, "svNo")}
-          renderInput={(params) => (
-            <TextField {...params} label="Survey No" variant="outlined" size="small" fullWidth />
-          )}
-        />
+      options={svNoOptions.map(String)}
+      getOptionLabel={(option) => String(option)}
+      value={modalRowData.svNo ? String(modalRowData.svNo) : null}
+      onChange={(event, newValue) => handleModalInputChange(newValue, "svNo")}
+      renderInput={(params) => (
+        <TextField {...params} label="Survey No" variant="outlined" size="small" fullWidth />
+      )}
+    />
       </Grid>
     </Grid>
 

@@ -70,10 +70,7 @@ const KeyPlot = () => {
         'Other'
     ];
 
-    const chipColors = [
-        '#8B33FF', '#FF5733', '#FF8B33', '#3357FF', '#33FF57',
-        '#FF33F5', '#33FFF5', '#F5FF33', '#33FF8B', '#8BFF33',
-    ];
+   
 
     // --- Utility Function to transform sample data ---
     const transformSample = (sample, type) => ({
@@ -100,6 +97,7 @@ const KeyPlot = () => {
          
                 const res = await axios.get(`http://localhost:8082/btr-service/key-plots/fetch-existing-keyplots/${userId}`);
 
+                console.log(res.data)
                 const zones = res.data.payload || [];
 
                 if (zones.length > 0) {
@@ -287,7 +285,8 @@ const KeyPlot = () => {
         setLoading(true);
         try {
             const response = await axios.post(`http://localhost:8082/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`, {
-                reason: finalReason
+                reason: finalReason,
+                userid:authservice.userid()
             });
 
             const newPlotPayload = response.data;
