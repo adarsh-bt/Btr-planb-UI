@@ -79,7 +79,7 @@ const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
 const [defaultVillageId, setDefaultVillageId] = useState(null);
 const [defaultVillage, setDefaultVillage] = useState('');
 const [defaultBlock, setDefaultBlock] = useState('');
-
+ const [selectAllChecked, setSelectAllChecked] = useState(false);
 
   const [keyplotDetails, setKeyplotDetails] = useState({
     villageBlock: '',
@@ -950,6 +950,34 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
   );
 };
 
+ useEffect(() => {
+    if (svNoDetails.length > 0 && selectedSvNos.length === svNoDetails.length) {
+      setSelectAllChecked(true);
+    } else {
+      setSelectAllChecked(false);
+    }
+  }, [svNoDetails, selectedSvNos]);
+
+  const handleSelectAll = (event) => {
+    const checked = event.target.checked;
+    setSelectAllChecked(checked);
+    if (checked) {
+      // Select all svNos
+      const allResbdNos = svNoDetails.map((item) => item.resbdno);
+      setSelectedSvNos(allResbdNos);
+    } else {
+      // Deselect all svNos
+      setSelectedSvNos([]);
+    }
+  };
+
+  // const handleSvNoSelection = (resbdno) => {
+  //   setSelectedSvNos((prevSelected) =>
+  //     prevSelected.includes(resbdno)
+  //       ? prevSelected.filter((id) => id !== resbdno)
+  //       : [...prevSelected, resbdno]
+  //   );
+  // };
     // --- Loading State (before JSX) ---
     if (loading) {
         return (
@@ -1150,143 +1178,144 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
         </Snackbar>
 
             {/* --- Modal for adding a new row --- */}
-          <Modal
-  open={modalOpen}
-  onClose={closeModal}
-  aria-labelledby="add-row-modal-title"
-  aria-describedby="add-row-modal-description"
->
-  <Paper
-    sx={{
-      position: 'absolute',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      width: { xs: '95%', sm: '90%', md: 600 },
-      maxHeight: '90vh',
-      overflowY: 'auto',
-      bgcolor: 'background.paper',
-      boxShadow: 24,
-      p: 3,
-      borderRadius: 2,
-    }}
-  >
-    <Typography id="add-row-modal-title" variant="h6" component="h2" gutterBottom>
-      ➕ Add New Side Plot Row
-    </Typography>
-
-    {/* SECTION 1: Plot Location */}
-    <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, fontWeight: 'bold', color: 'primary.main' }}>
-      📍 Plot Location
-    </Typography>
-
-    <Grid container spacing={2}>
-     <Grid item xs={12}>
-    <Autocomplete
-      options={villageOptions}
-      getOptionLabel={(option) => option.village || ""}
-      value={
-        modalRowData.village
-          ? villageOptions.find((v) => v.villageId === modalRowData.village)
-          : null
-      }
-      onChange={(event, newValue) => {
-        handleModalInputChange(newValue ? newValue.villageId : null, "village");
-        // When village changes, reset block and svNo
-        setModalRowData(prev => ({ ...prev, modalBlock: null, svNo: null }));
-        setModalBlockOptions([]); // Clear block options
-        setSvNoOptions([]); // Clear svNo options
-        setSvNoDetails([]); // Clear svNo details
-        setSelectedSvNos([]); // Clear selected svNos
-      }}
-      renderInput={(params) => (
-        <TextField {...params} label="Village" variant="outlined" size="small" fullWidth />
-      )}
-      // If you want to disable changing the village, you can add `disabled` here
-      // disabled={true} // Uncomment to disable village selection after pre-setting
-    />
-  </Grid>
-      <Grid item xs={12}>
-        <Autocomplete
-      options={modalBlockOptions}
-      getOptionLabel={(option) => String(option)}
-      value={modalRowData.modalBlock}
-      onChange={(event, newValue) => {
-        handleModalInputChange(newValue, "modalBlock");
-        // When block changes, reset svNo
-        setModalRowData(prev => ({ ...prev, svNo: null }));
-        setSvNoOptions([]); // Clear svNo options
-        setSvNoDetails([]); // Clear svNo details
-        setSelectedSvNos([]); // Clear selected svNos
-      }}
-      renderInput={(params) => (
-        <TextField {...params} label="Block" variant="outlined" size="small" fullWidth />
-      )}
-      disabled={!modalRowData.village || modalBlockOptions.length === 0}
-      // If you want to disable changing the block, you can add `disabled` here
-      // disabled={true} // Uncomment to disable block selection after pre-setting
-    />
-      </Grid>
-
-      <Grid item xs={12}>
-        <Autocomplete
-      options={svNoOptions.map(String)}
-      getOptionLabel={(option) => String(option)}
-      value={modalRowData.svNo ? String(modalRowData.svNo) : null}
-      onChange={(event, newValue) => handleModalInputChange(newValue, "svNo")}
-      renderInput={(params) => (
-        <TextField {...params} label="Survey No" variant="outlined" size="small" fullWidth />
-      )}
-    />
-      </Grid>
-    </Grid>
-
-    {/* SECTION 2: Reservation Selection */}
-    {svNoDetails.length > 0 && (
-      <>
-        <Divider sx={{ my: 2 }} />
-        <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-          ✅ Reservation Sub Numbers
+       <Modal
+      open={modalOpen}
+      onClose={closeModal}
+      aria-labelledby="add-row-modal-title"
+      aria-describedby="add-row-modal-description"
+    >
+      <Paper
+        sx={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: { xs: '95%', sm: '90%', md: 600 },
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          bgcolor: 'background.paper',
+          boxShadow: 24,
+          p: 3,
+          borderRadius: 2,
+        }}
+      >
+        <Typography id="add-row-modal-title" variant="h6" component="h2" gutterBottom>
+          ➕ Add New Side Plot Row
         </Typography>
 
-        <FormGroup sx={{ ml: 1 }}>
-          {svNoDetails.map((item) => (
-            <FormControlLabel
-              key={item.resbdno}
-              control={
-                <Checkbox
-                  checked={selectedSvNos.includes(item.resbdno)}
-                  onChange={() => handleSvNoSelection(item.resbdno)}
-                />
+        {/* SECTION 1: Plot Location */}
+        <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, fontWeight: 'bold', color: 'primary.main' }}>
+          📍 Plot Location
+        </Typography>
+
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <Autocomplete
+              options={villageOptions}
+              getOptionLabel={(option) => option.village || ''}
+              value={
+                modalRowData.village
+                  ? villageOptions.find((v) => v.villageId === modalRowData.village)
+                  : null
               }
-              label={`${modalRowData.svNo}/${item.resbdno} — ${item.area} cents`}
+              onChange={(event, newValue) => {
+                handleModalInputChange(newValue ? newValue.villageId : null, 'village');
+                // When village changes, reset block and svNo
+                setModalRowData((prev) => ({ ...prev, modalBlock: null, svNo: null }));
+                setModalBlockOptions([]); // Clear block options
+                setSvNoOptions([]); // Clear svNo options
+                setSvNoDetails([]); // Clear svNo details
+                setSelectedSvNos([]); // Clear selected svNos
+              }}
+              renderInput={(params) => (
+                <TextField {...params} label="Village" variant="outlined" size="small" fullWidth />
+              )}
             />
-          ))}
-        </FormGroup>
-      </>
-    )}
+          </Grid>
+          <Grid item xs={12}>
+            <Autocomplete
+              options={modalBlockOptions}
+              getOptionLabel={(option) => String(option)}
+              value={modalRowData.modalBlock}
+              onChange={(event, newValue) => {
+                handleModalInputChange(newValue, 'modalBlock');
+                // When block changes, reset svNo
+                setModalRowData((prev) => ({ ...prev, svNo: null }));
+                setSvNoOptions([]); // Clear svNo options
+                setSvNoDetails([]); // Clear svNo details
+                setSelectedSvNos([]); // Clear selected svNos
+              }}
+              renderInput={(params) => (
+                <TextField {...params} label="Block" variant="outlined" size="small" fullWidth />
+              )}
+              disabled={!modalRowData.village || modalBlockOptions.length === 0}
+            />
+          </Grid>
 
- 
+          <Grid item xs={12}>
+            <Autocomplete
+              options={svNoOptions.map(String)}
+              getOptionLabel={(option) => String(option)}
+              value={modalRowData.svNo ? String(modalRowData.svNo) : null}
+              onChange={(event, newValue) => handleModalInputChange(newValue, 'svNo')}
+              renderInput={(params) => (
+                <TextField {...params} label="Survey No" variant="outlined" size="small" fullWidth />
+              )}
+            />
+          </Grid>
+        </Grid>
 
-    
+        {/* SECTION 2: Reservation Selection */}
+        {svNoDetails.length > 0 && (
+          <>
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+              ✅ Reservation Sub Numbers
+            </Typography>
 
-    {/* Action Buttons */}
-    <Grid container justifyContent="flex-end" spacing={2} sx={{ mt: 3 }}>
-      <Grid item>
-        <Button variant="outlined" color="secondary" onClick={closeModal}>
-  Cancel
-</Button>
+            <FormGroup sx={{ ml: 1 }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={selectAllChecked}
+                    onChange={handleSelectAll}
+                    // Disable "Select All" if there are no details to select
+                    disabled={svNoDetails.length === 0}
+                  />
+                }
+                label="Select All"
+              />
+              {svNoDetails.map((item) => (
+                <FormControlLabel
+                  key={item.resbdno}
+                  control={
+                    <Checkbox
+                      checked={selectedSvNos.includes(item.resbdno)}
+                      onChange={() => handleSvNoSelection(item.resbdno)}
+                    />
+                  }
+                  label={`${modalRowData.svNo}/${item.resbdno} — ${item.area} cents`}
+                />
+              ))}
+            </FormGroup>
+          </>
+        )}
 
-      </Grid>
-      <Grid item>
-        <Button variant="contained" onClick={handleModalAddRow} disabled={isAddButtonDisabled()}>
-  Add Row
-</Button>
-
-      </Grid>
-    </Grid>
-  </Paper>
-</Modal>
+        {/* Action Buttons */}
+        <Grid container justifyContent="flex-end" spacing={2} sx={{ mt: 3 }}>
+          <Grid item>
+            <Button variant="outlined" color="secondary" onClick={closeModal}>
+              Cancel
+            </Button>
+          </Grid>
+          <Grid item>
+            <Button variant="contained" onClick={handleModalAddRow} disabled={isAddButtonDisabled()}>
+              Add Row
+            </Button>
+          </Grid>
+        </Grid>
+      </Paper>
+    </Modal>
  <Dialog
         open={openConfirmDialog}
         onClose={handleCloseConfirmDialog}
