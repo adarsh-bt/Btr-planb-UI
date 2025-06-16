@@ -99,8 +99,6 @@ function ZoneDetails() {
                   </Typography>
                 </Grid>
 
-               
-
                 <Grid item xs={6} sm={3}>
                   <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
                     Local Body Type:
