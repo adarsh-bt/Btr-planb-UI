@@ -33,14 +33,16 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import RemoveRedEyeIcon from '@mui/icons-material/RemoveRedEye';
 import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
 import SearchIcon from '@mui/icons-material/Search';
-import auth from 'contexts/auth-reducer/auth';
+// import auth from 'contexts/auth-reducer/auth';
 import authservice from 'pages/authentication/services/authservice';
+// import auth from 'contexts/auth-reducer/auth';
+// import authservice from 'pages/authentication/services/authservice';
 
 const KeyPlot = () => {
-  const [loading, setLoading] = useState(true); // Set to true initially to fetch existing data
-  const [dataVisible, setDataVisible] = useState(false);
-  const [plotData, setPlotData] = useState([]);
-  const [panchayathAreaSummary, setPanchayathAreaSummary] = useState([]);
+    const [loading, setLoading] = useState(true); // Set to true initially to fetch existing data
+    const [dataVisible, setDataVisible] = useState(false);
+    const [plotData, setPlotData] = useState([]);
+    const [panchayathAreaSummary, setPanchayathAreaSummary] = useState([]);
 
   const [order, setOrder] = useState('asc');
   const [orderBy, setOrderBy] = useState('slNo');
@@ -49,127 +51,131 @@ const KeyPlot = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Dialog related states
-  const [openRemoveDialog, setOpenRemoveDialog] = useState(false);
-  const [reason, setReason] = useState('');
-  const [selectedPresetReason, setSelectedPresetReason] = useState('');
-  const [selectedRowToRemove, setSelectedRowToRemove] = useState(null);
-  const [reasonError, setReasonError] = useState(false);
+    // Dialog related states
+    const [openRemoveDialog, setOpenRemoveDialog] = useState(false);
+    const [reason, setReason] = useState('');
+    const [selectedPresetReason, setSelectedPresetReason] = useState('');
+    const [selectedRowToRemove, setSelectedRowToRemove] = useState(null);
+    const [reasonError, setReasonError] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Define your preset reasons here
-  const presetReasons = ['Duplicate Entry', 'Incorrect Data', 'Not Applicable', 'Already Processed', 'Other'];
+    // Define your preset reasons here
+    const presetReasons = [
+        'Duplicate Entry',
+        'Incorrect Data',
+        'Not Applicable',
+        'Already Processed',
+        'Other'
+    ];
 
-  const chipColors = ['#8B33FF', '#FF5733', '#FF8B33', '#3357FF', '#33FF57', '#FF33F5', '#33FFF5', '#F5FF33', '#33FF8B', '#8BFF33'];
+    const chipColors = [
+        '#8B33FF', '#FF5733', '#FF8B33', '#3357FF', '#33FF57',
+        '#FF33F5', '#33FFF5', '#F5FF33', '#33FF8B', '#8BFF33',
+    ];
 
-  // --- Utility Function to transform sample data ---
-  const transformSample = (sample, type) => ({
-    id: sample.id,
-    plot_id: sample['plot_id'],
-    slNo: sample['Sl.No'],
-    syNo: sample['Sy. No'],
-    panchayth: sample['panchayth'],
-    area: sample['Area (Cents)'],
-    villageBlock: sample['Village/Block'],
-    reserveList: type === 'wet' ? 'Wet' : 'Dry',
-    action: 'View Cluster'
-  });
+    // --- Utility Function to transform sample data ---
+    const transformSample = (sample, type) => ({
+        id: sample.id,
+        plot_id: sample["plot_id"],
+        slNo: sample["Sl.No"],
+        syNo: sample["Sy. No"],
+        panchayth: sample["panchayth"],
+        area: sample["Area (Cents)"],
+        villageBlock: sample["Village/Block"],
+        reserveList: type === "wet" ? "Wet" : "Dry",
+        action: "View Cluster"
+    });
 
-  // --- Data Fetching: Fetch Existing Keyplots on Mount ---
-  useEffect(() => {
-    const fetchInitialKeyplots = async () => {
-      setLoading(true);
+    // --- Data Fetching: Fetch Existing Keyplots on Mount ---
+    useEffect(() => {
+        const fetchInitialKeyplots = async () => {
+            setLoading(true);
+        
+            try {
+             
+                // Replace with your actual userId
+                const userId = authservice.userid();
+         
+                const res = await axios.get(`http://localhost:8083/btr-service/key-plots/fetch-existing-keyplots/${userId}`);
 
-      try {
-        const token = localStorage.getItem('token');
-        // Replace with your actual userId
-        const userId = authservice.userid();
+                const zones = res.data.payload || [];
 
-        const res = await axios.get(`http://localhost:8083/btr-service/key-plots/fetch-existing-keyplots/${userId}`, {
-          headers: {
-            Authorization: `Bearer ${token}` // Add token in Authorization header
-          }
-        });
+                if (zones.length > 0) {
+                    const allWetSamples = zones.flatMap(zone => zone.wetSamples || []);
+                    const allDrySamples = zones.flatMap(zone => zone.drySamples || []);
 
-        const zones = res.data.payload || [];
+                    const panchayathAreas = zones.map(zone => ({
+                        panchayath: zone.panchayath,
+                        totalarea: zone.totalarea
+                    }));
+                    setPanchayathAreaSummary(panchayathAreas);
 
-        if (zones.length > 0) {
-          const allWetSamples = zones.flatMap((zone) => zone.wetSamples || []);
-          const allDrySamples = zones.flatMap((zone) => zone.drySamples || []);
+                    const wetTransformed = allWetSamples.map(sample => transformSample(sample, "wet"));
+                    const dryTransformed = allDrySamples.map(sample => transformSample(sample, "dry"));
 
-          const panchayathAreas = zones.map((zone) => ({
-            panchayath: zone.panchayath,
-            totalarea: zone.totalarea
-          }));
-          setPanchayathAreaSummary(panchayathAreas);
+                    setPlotData([...wetTransformed, ...dryTransformed]);
+                    setDataVisible(true);
+                } else {
+                    setDataVisible(false); // No existing data, show generate button
+                }
 
-          const wetTransformed = allWetSamples.map((sample) => transformSample(sample, 'wet'));
-          const dryTransformed = allDrySamples.map((sample) => transformSample(sample, 'dry'));
+            } catch (error) {
+                console.error("Failed to fetch existing keyplot data", error);
+                setDataVisible(false); // If error, assume no data or issue, show generate
+            } finally {
+                setLoading(false);
+            }
+        };
 
-          setPlotData([...wetTransformed, ...dryTransformed]);
-          setDataVisible(true);
-        } else {
-          setDataVisible(false); // No existing data, show generate button
+        fetchInitialKeyplots();
+    }, []); // Empty dependency array means this runs once on mount
+
+    // --- Data Fetching: Generate New Keyplots ---
+    const handleGenerateKeyplot = async () => {
+        setLoading(true);
+        setDataVisible(false); // Hide data while generating
+
+        try {
+            // Replace with your actual userId
+            const userId = authservice.userid();
+            const res = await axios.get(`http://localhost:8083/btr-service/key-plots/generate-keyplots/${userId}`);
+
+            const zones = res.data.payload || [];
+
+            const allWetSamples = zones.flatMap(zone => zone.wetSamples || []);
+            const allDrySamples = zones.flatMap(zone => zone.drySamples || []);
+
+            const panchayathAreas = zones.map(zone => ({
+                panchayath: zone.panchayath,
+                totalarea: zone.totalarea
+            }));
+            setPanchayathAreaSummary(panchayathAreas);
+
+    
+            const wetTransformed = allWetSamples.map(sample => transformSample(sample, "wet"));
+            const dryTransformed = allDrySamples.map(sample => transformSample(sample, "dry"));
+
+            setPlotData([...wetTransformed, ...dryTransformed]);
+            setDataVisible(true);
+
+           
+        } catch (error) {
+            console.error("Failed to generate keyplot data", error);
+            // Optionally handle error, e.g., show an alert
+        } finally {
+            setLoading(false);
         }
-      } catch (error) {
-        console.error('Failed to fetch existing keyplot data', error);
-        setDataVisible(false); // If error, assume no data or issue, show generate
-      } finally {
-        setLoading(false);
-      }
     };
 
-    fetchInitialKeyplots();
-  }, []); // Empty dependency array means this runs once on mount
-
-  // --- Data Fetching: Generate New Keyplots ---
-  const handleGenerateKeyplot = async () => {
-    setLoading(true);
-    setDataVisible(false); // Hide data while generating
-
-    try {
-      const token = localStorage.getItem('token');
-      // Replace with your actual userId
-      const userId = authservice.userid();
-      const res = await axios.get(`http://localhost:8083/btr-service/key-plots/generate-keyplots/${userId}`, {
-        headers: {
-          Authorization: `Bearer ${token}` // Add token in Authorization header
-        }
-      });
-
-      const zones = res.data.payload || [];
-
-      const allWetSamples = zones.flatMap((zone) => zone.wetSamples || []);
-      const allDrySamples = zones.flatMap((zone) => zone.drySamples || []);
-
-      const panchayathAreas = zones.map((zone) => ({
-        panchayath: zone.panchayath,
-        totalarea: zone.totalarea
-      }));
-      setPanchayathAreaSummary(panchayathAreas);
-
-      const wetTransformed = allWetSamples.map((sample) => transformSample(sample, 'wet'));
-      const dryTransformed = allDrySamples.map((sample) => transformSample(sample, 'dry'));
-
-      setPlotData([...wetTransformed, ...dryTransformed]);
-      setDataVisible(true);
-    } catch (error) {
-      console.error('Failed to generate keyplot data', error);
-      // Optionally handle error, e.g., show an alert
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // --- Sorting Logic ---
-  const handleRequestSort = (property) => {
-    const isAsc = orderBy === property && order === 'asc';
-    setOrder(isAsc ? 'desc' : 'asc');
-    setOrderBy(property);
-    setPage(0);
-  };
+    // --- Sorting Logic ---
+    const handleRequestSort = (property) => {
+        const isAsc = orderBy === property && order === 'asc';
+        setOrder(isAsc ? 'desc' : 'asc');
+        setOrderBy(property);
+        setPage(0);
+    };
 
   const createSortHandler = (property) => () => {
     handleRequestSort(property);
@@ -188,9 +194,11 @@ const KeyPlot = () => {
     return 0;
   };
 
-  const getComparator = (order, orderBy) => {
-    return order === 'desc' ? (a, b) => descendingComparator(a, b, orderBy) : (a, b) => -descendingComparator(a, b, orderBy);
-  };
+    const getComparator = (order, orderBy) => {
+        return order === 'desc'
+            ? (a, b) => descendingComparator(a, b, orderBy)
+            : (a, b) => -descendingComparator(a, b, orderBy);
+    };
 
   // --- Memoized Data for Table (Filtering, Sorting, and Pagination) ---
   const filteredSortedAndPaginatedData = useMemo(() => {
@@ -219,20 +227,20 @@ const KeyPlot = () => {
     setPage(0);
   };
 
-  // --- Navigation and Dialog Logic ---
-  const handleViewClusterClick = (syNo, slno) => {
-    const encodedSyNo = encodeURIComponent(syNo);
-    const encodedSlno = encodeURIComponent(slno);
-    navigate(`/schemes/earas/cluster?No=${encodedSyNo}&slno=${encodedSlno}`);
-  };
+    // --- Navigation and Dialog Logic ---
+    const handleViewClusterClick = (syNo, slno) => {
+        const encodedSyNo = encodeURIComponent(syNo);
+        const encodedSlno = encodeURIComponent(slno);
+        navigate(`/schemes/earas/cluster?No=${encodedSyNo}&slno=${encodedSlno}`);
+    };
 
-  const handleOpenRemoveDialog = (row) => {
-    setSelectedRowToRemove(row);
-    setReason('');
-    setSelectedPresetReason('');
-    setReasonError(false);
-    setOpenRemoveDialog(true);
-  };
+    const handleOpenRemoveDialog = (row) => {
+        setSelectedRowToRemove(row);
+        setReason('');
+        setSelectedPresetReason('');
+        setReasonError(false);
+        setOpenRemoveDialog(true);
+    };
 
   const handleCloseRemoveDialog = () => {
     setOpenRemoveDialog(false);
@@ -242,21 +250,21 @@ const KeyPlot = () => {
     setReasonError(false);
   };
 
-  const handleReasonChange = (event) => {
-    setReason(event.target.value);
-    if (event.target.value.trim() !== '') {
-      setReasonError(false);
-    }
-  };
+    const handleReasonChange = (event) => {
+        setReason(event.target.value);
+        if (event.target.value.trim() !== '') {
+            setReasonError(false);
+        }
+    };
 
-  const handlePresetReasonChange = (event) => {
-    const value = event.target.value;
-    setSelectedPresetReason(value);
-    setReasonError(false);
-    if (value !== 'Other') {
-      setReason('');
-    }
-  };
+    const handlePresetReasonChange = (event) => {
+        const value = event.target.value;
+        setSelectedPresetReason(value);
+        setReasonError(false);
+        if (value !== 'Other') {
+            setReason('');
+        }
+    };
 
   const handleConfirmRemoval = async () => {
     let finalReason = selectedPresetReason;
@@ -276,53 +284,42 @@ const KeyPlot = () => {
       return;
     }
 
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(
-        `http://localhost:8083/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`,
-        {
-          reason: finalReason
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+        setLoading(true);
+        try {
+            const response = await axios.post(`http://localhost:8083/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`, {
+                reason: finalReason
+            });
+
+            const newPlotPayload = response.data;
+
+            const transformedNewPlot = {
+                id: newPlotPayload.id,
+                plot_id: newPlotPayload["plot_id"],
+                slNo: newPlotPayload["Sl.No"],
+                syNo: newPlotPayload["Sy. No"],
+                panchayth: newPlotPayload["panchayth"],
+                area: newPlotPayload["Area (Cents)"],
+                villageBlock: newPlotPayload["Village/Block"],
+                reserveList: newPlotPayload["Land Type"],
+                action: "View Cluster"
+            };
+
+            setPlotData(prevData => {
+                const filtered = prevData.filter(item => item.id !== selectedRowToRemove.id);
+                return [...filtered, transformedNewPlot];
+            });
+
+            console.log(`Removed Sy. No: ${selectedRowToRemove?.syNo} with reason: "${finalReason}". Replaced with new plot.`, transformedNewPlot);
+
+        } catch (error) {
+            console.error("Error during keyplot removal and replacement:", error);
+        } finally {
+            setLoading(false);
+            handleCloseRemoveDialog();
         }
-      );
+    };
 
-      const newPlotPayload = response.data;
-
-      const transformedNewPlot = {
-        id: newPlotPayload.id,
-        plot_id: newPlotPayload['plot_id'],
-        slNo: newPlotPayload['Sl.No'],
-        syNo: newPlotPayload['Sy. No'],
-        panchayth: newPlotPayload['panchayth'],
-        area: newPlotPayload['Area (Cents)'],
-        villageBlock: newPlotPayload['Village/Block'],
-        reserveList: newPlotPayload['Land Type'],
-        action: 'View Cluster'
-      };
-
-      setPlotData((prevData) => {
-        const filtered = prevData.filter((item) => item.id !== selectedRowToRemove.id);
-        return [...filtered, transformedNewPlot];
-      });
-
-      console.log(
-        `Removed Sy. No: ${selectedRowToRemove?.syNo} with reason: "${finalReason}". Replaced with new plot.`,
-        transformedNewPlot
-      );
-    } catch (error) {
-      console.error('Error during keyplot removal and replacement:', error);
-    } finally {
-      setLoading(false);
-      handleCloseRemoveDialog();
-    }
-  };
-
-  const totalArea = plotData.reduce((sum, row) => sum + parseFloat(row.area || 0), 0).toFixed(2);
+    const totalArea = plotData.reduce((sum, row) => sum + parseFloat(row.area || 0), 0).toFixed(2);
 
   return (
     <Grid container spacing={3}>
@@ -332,31 +329,29 @@ const KeyPlot = () => {
         KeyPlot Details
       </Typography>
 
-      {loading && (
-        <Box display="flex" justifyContent="center" alignItems="center" height="200px" my={4}>
-          <CircularProgress size={60} thickness={5} />
-          <Typography variant="h6" sx={{ ml: 2, color: 'text.secondary' }}>
-            Loading data...
-          </Typography>
-        </Box>
-      )}
+            {loading && (
+                <Box display="flex" justifyContent="center" alignItems="center" height="200px" my={4}>
+                    <CircularProgress size={60} thickness={5} />
+                    <Typography variant="h6" sx={{ ml: 2, color: 'text.secondary' }}>Loading data...</Typography>
+                </Box>
+            )}
 
-      {!loading && !dataVisible && (
-        <Box display="flex" justifyContent="center" mb={4}>
-          <Button
-            variant="contained"
-            onClick={handleGenerateKeyplot}
-            disabled={loading}
-            sx={{
-              fontSize: '.9rem',
-              bgcolor: '#1976d2',
-              '&:hover': { bgcolor: '#115293' }
-            }}
-          >
-            Generate Keyplot Data
-          </Button>
-        </Box>
-      )}
+            {!loading && !dataVisible && (
+                <Box display="flex" justifyContent="center" mb={4}>
+                    <Button
+                        variant="contained"
+                        onClick={handleGenerateKeyplot}
+                        disabled={loading}
+                        sx={{
+                            fontSize: '.9rem',
+                            bgcolor: '#1976d2',
+                            '&:hover': { bgcolor: '#115293' }
+                        }}
+                    >
+                        Generate Keyplot Data
+                    </Button>
+                </Box>
+            )}
 
       {!loading && dataVisible && (
         <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
@@ -499,29 +494,30 @@ const KeyPlot = () => {
             </Table>
           </TableContainer>
 
-          {plotData.length > 0 && (
-            <Box sx={{ mt: 2, pr: 2, display: 'flex', justifyContent: 'flex-end' }}>
-              <Typography variant="subtitle1" fontWeight="bold">
-                Total Area: <span style={{ color: '#05307a' }}>{totalArea} Cents</span>
-              </Typography>
-            </Box>
-          )}
+                    {plotData.length > 0 && (
+                        <Box sx={{ mt: 2, pr: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                            <Typography variant="subtitle1" fontWeight="bold">
+                                Total Area: <span style={{ color: '#05307a' }}>{totalArea} Cents</span>
+                            </Typography>
+                        </Box>
+                    )}
 
-          <TablePagination
-            component="div"
-            count={
-              plotData.filter((row) => Object.values(row).some((value) => String(value).toLowerCase().includes(searchTerm.toLowerCase())))
-                .length
-            }
-            page={page}
-            onPageChange={handleChangePage}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            rowsPerPageOptions={[5, 10, 25, { label: 'All', value: -1 }]}
-            sx={{ '.MuiTablePagination-toolbar': { justifyContent: 'center' } }}
-          />
-        </Paper>
-      )}
+                    <TablePagination
+                        component="div"
+                        count={plotData.filter(row =>
+                            Object.values(row).some(value =>
+                                String(value).toLowerCase().includes(searchTerm.toLowerCase())
+                            )
+                        ).length}
+                        page={page}
+                        onPageChange={handleChangePage}
+                        rowsPerPage={rowsPerPage}
+                        onRowsPerPageChange={handleChangeRowsPerPage}
+                        rowsPerPageOptions={[5, 10, 25, { label: 'All', value: -1 }]}
+                        sx={{ '.MuiTablePagination-toolbar': { justifyContent: 'center' } }}
+                    />
+                </Paper>
+            )}
 
       {/* Removal Confirmation Dialog */}
       <Dialog open={openRemoveDialog} onClose={handleCloseRemoveDialog} fullWidth maxWidth="sm">
@@ -534,7 +530,7 @@ const KeyPlot = () => {
             </Typography>
             . Please provide a reason.
           </Typography>
-
+            
           <FormControl component="fieldset" error={reasonError} sx={{ mt: 2, mb: 2, width: '100%' }}>
             <FormLabel component="legend">Reason for Removal</FormLabel>
             <RadioGroup
@@ -554,41 +550,42 @@ const KeyPlot = () => {
             )}
           </FormControl>
 
-          {selectedPresetReason === 'Other' && (
-            <TextField
-              autoFocus
-              margin="dense"
-              label="Enter Custom Reason"
-              type="text"
-              fullWidth
-              variant="outlined"
-              value={reason}
-              onChange={handleReasonChange}
-              error={reasonError && reason.trim() === ''}
-              helperText={reasonError && reason.trim() === '' ? 'Custom reason is required.' : ''}
-              multiline
-              rows={3}
-              sx={{ mt: 2 }}
-            />
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseRemoveDialog} color="secondary" variant="outlined">
-            Cancel
-          </Button>
-          <Button
-            onClick={handleConfirmRemoval}
-            color="error"
-            variant="contained"
-            disabled={!selectedPresetReason || (selectedPresetReason === 'Other' && reason.trim() === '')}
-          >
-            Remove Permanently
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
-    </Grid>
-  );
+                    {selectedPresetReason === 'Other' && (
+                        <TextField
+                            autoFocus
+                            margin="dense"
+                            label="Enter Custom Reason"
+                            type="text"
+                            fullWidth
+                            variant="outlined"
+                            value={reason}
+                            onChange={handleReasonChange}
+                            error={reasonError && reason.trim() === ''}
+                            helperText={reasonError && reason.trim() === '' ? 'Custom reason is required.' : ''}
+                            multiline
+                            rows={3}
+                            sx={{ mt: 2 }}
+                        />
+                    )}
+
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseRemoveDialog} color="secondary" variant="outlined">
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleConfirmRemoval}
+                        color="error"
+                        variant="contained"
+                        disabled={!selectedPresetReason || (selectedPresetReason === 'Other' && reason.trim() === '')}
+                    >
+                        Remove Permanently
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        </Box>
+        </Grid>
+    );
 };
 
 export default KeyPlot;

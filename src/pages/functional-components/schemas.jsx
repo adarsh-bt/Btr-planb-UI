@@ -17,8 +17,8 @@ import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
 
 import { useContext } from 'react';
-import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
-import { flattenPermissions } from 'contexts/auth-reducer/permissionHelpers';
+// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
+// import { flattenPermissions } from 'contexts/auth-reducer/permissionHelpers';
 
 
 
@@ -28,13 +28,13 @@ import { flattenPermissions } from 'contexts/auth-reducer/permissionHelpers';
 
 function Schemas() {
   const theme = useTheme();
-  const { permissions, loading, error } = useContext(PermissionsContext);
+  // const { permissions, loading, error } = useContext(PermissionsContext);
 
-  // Flatten permissions for easy checking
-  const userPermissions = flattenPermissions(permissions);
+  // // Flatten permissions for easy checking
+  // const userPermissions = flattenPermissions(permissions);
 
-  // Check if user has "View BTR"
-  const canViewBTR = userPermissions.includes('View BTR');
+  // // Check if user has "View BTR"
+  // const canViewBTR = userPermissions.includes('View BTR');
 
   return (
   

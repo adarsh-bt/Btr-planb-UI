@@ -1,6 +1,8 @@
+// // In PermissionsContext.js
+// import React, { createContext, useState } from 'react';
 import React, { createContext, useState, useEffect } from 'react';
 
-export const PermissionsContext = createContext();
+// export const PermissionsContext = createContext();
 
 export const PermissionsProvider = ({ children }) => {
   const [permissions, setPermissions] = useState(() => {

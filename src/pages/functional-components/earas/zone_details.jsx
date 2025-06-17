@@ -72,6 +72,16 @@ function ZoneDetails() {
           <Box className="bar-container">
             <Paper className="bar-paper">
               <Grid container spacing={2}>
+
+                 <Grid item xs={6} sm={3} className="bar-grid-item">
+                  <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
+                    Zone:
+                  </Typography>
+                  <Typography variant="body1" align="center" sx={{ color: '#00796b' }}>
+                    {result.zone_name}
+                  </Typography>
+                </Grid>
+
                 <Grid item xs={6} sm={3} className="bar-grid-item">
                   <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
                     District:
@@ -88,14 +98,9 @@ function ZoneDetails() {
                     {result.taluk}
                   </Typography>
                 </Grid>
-                <Grid item xs={6} sm={3} className="bar-grid-item">
-                  <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
-                    Zone:
-                  </Typography>
-                  <Typography variant="body1" align="center" sx={{ color: '#00796b' }}>
-                    {result.zone_name}
-                  </Typography>
-                </Grid>
+
+               
+
                 <Grid item xs={6} sm={3}>
                   <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
                     Local Body Type:
@@ -119,7 +124,7 @@ function ZoneDetails() {
                     SL
                   </TableCell>
                   <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>
-                    Name
+                    LocalBody Name
                   </TableCell>
                   <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>
                     Village
@@ -128,10 +133,10 @@ function ZoneDetails() {
                     Block
                   </TableCell>
                   <TableCell colSpan={3} align="center" sx={{ border: 1, borderColor: 'grey.300' }}>
-                    Area
+                    Area in cents
                   </TableCell>
                   <TableCell colSpan={3} align="center" sx={{ border: 1, borderColor: 'grey.300' }}>
-                    Plots
+                    Number of Plots
                   </TableCell>
                 </TableRow>
 
@@ -149,27 +154,45 @@ function ZoneDetails() {
                 </TableRow>
               </TableHead>
 
-              <TableBody>
-                {/* Loop over the fetched data */}
-                {data.map((row, index) => (
-                  <TableRow key={index}>
-                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{index + 1}</TableCell>
-                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.p_name}</TableCell>
-                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.village || 'N/A'}</TableCell>
-                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.block || 'N/A'}</TableCell>
-                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.Wet_area || 0}</TableCell>
-                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.Dry_area || 0}</TableCell>
-                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.Total_area || 0}</TableCell>
-                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.Wet_plot || 0}</TableCell>
-                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.dry_plot || 0}</TableCell>
-                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.t_plot || 0}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </MainCard>
-      </Grid>
+            <TableBody>
+              {/* Loop over the fetched data */}
+              {data.map((row, index) => (
+                <TableRow key={index}>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                    {index + 1}
+                  </TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.p_name}</TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                      {row.villages ? row.villages.join(', ') : 'N/A'}
+                      </TableCell>
+                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                    {row.blocks ? row.blocks.join(', ') : 'N/A'}
+                   </TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                    {row.Wet_area || 0}
+                  </TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                    {row.Dry_area || 0}
+                  </TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                    {row.Total_area || 0}
+                  </TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                    {row.Wet_plot || 0}
+                  </TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                    {row.dry_plot || 0}
+                  </TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                    {row.t_plot || 0}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </MainCard>
+    </Grid>
     </Grid>
   );
 }

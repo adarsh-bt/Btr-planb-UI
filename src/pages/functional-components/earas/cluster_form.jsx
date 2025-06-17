@@ -29,12 +29,15 @@ import {
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
+
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import Autocomplete from '@mui/material/Autocomplete';
 import PropTypes from 'prop-types'; // For ListboxComponent prop-types
-import { FixedSizeList } from 'react-window';
+
 import authservice from 'pages/authentication/services/authservice';
+
+import { FixedSizeList } from 'react-window';
 
 // Placeholder for ListboxComponent if it's not provided externally.
 const ListboxComponent = React.forwardRef(function ListboxComponent(props, ref) {
@@ -303,12 +306,7 @@ const ClusterForm = () => {
   const fetchSvNoOptions = async (id) => {
     if (!id) return;
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8083/btr-service/cluster-api/${id}/resvnos`, {
-        headers: {
-          Authorization: `Bearer ${token}` // Ensure token is included
-        }
-      });
+      const response = await fetch(`http://localhost:8083/btr-service/cluster-api/${id}/resvnos`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -355,18 +353,9 @@ const ClusterForm = () => {
       return;
     }
     try {
-      const token = localStorage.getItem('token');
-
       const response = await fetch(
-        `http://localhost:8083/btr-service/cluster-api/${currentSyNo}/plot-details?resvno=${resvno}&resbdno=${resbdno}`,
-        {
-          method: 'GET', // optional here since GET is default, but it's good practice to include
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
+        `http://localhost:8083/btr-service/cluster-api/${currentSyNo}/plot-details?resvno=${resvno}&resbdno=${resbdno}`
       );
-
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -846,6 +835,7 @@ const ClusterForm = () => {
     };
 
     console.log('Sending payload:', JSON.stringify(payload, null, 2));
+    console.log('Sending payload:', JSON.stringify(payload, null, 2));
 
     try {
       const response = await fetch('http://localhost:8083/btr-service/cluster-api/save-cluster', {
@@ -915,15 +905,12 @@ const ClusterForm = () => {
   // --- Loading State (before JSX) ---
   if (loading) {
     return (
-      <Grid container spacing={3}>
-        <Breadcrumb></Breadcrumb>
-        <Container maxWidth="xl" sx={{ mt: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
-          <CircularProgress />
-          <Typography variant="h6" sx={{ ml: 2 }}>
-            Loading cluster data...
-          </Typography>
-        </Container>
-      </Grid>
+      <Container maxWidth="xl" sx={{ mt: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
+        <CircularProgress />
+        <Typography variant="h6" sx={{ ml: 2 }}>
+          Loading cluster data...
+        </Typography>
+      </Container>
     );
   }
 
