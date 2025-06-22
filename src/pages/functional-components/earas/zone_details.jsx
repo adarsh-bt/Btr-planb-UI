@@ -27,7 +27,7 @@ function ZoneDetails() {
         const token = localStorage.getItem('token');
 
         const user_id = authservice.userid();
-        const response = await fetch(`http://localhost:8080/btr-service/btr-api/zone-details/${user_id}`, {
+        const response = await fetch(`http://10.10.32.45:8080/btr-service/btr-api/zone-details/${user_id}`, {
           headers: {
             Authorization: `Bearer ${token}` // Add token in Authorization header
           }
@@ -128,10 +128,10 @@ function ZoneDetails() {
                     Block
                   </TableCell>
                   <TableCell colSpan={3} align="center" sx={{ border: 1, borderColor: 'grey.300' }}>
-                    Area
+                    Area in cent
                   </TableCell>
                   <TableCell colSpan={3} align="center" sx={{ border: 1, borderColor: 'grey.300' }}>
-                    Plots
+                    Plots in number
                   </TableCell>
                 </TableRow>
 

@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 class btrservice {
   // static BASE_URL = "http://localhost:8080/useraccess"
-  static BASE_URL = 'http://localhost:8080/btr-service';
+  static BASE_URL = 'http://10.10.32.45:8080/btr-service';
 
   // adding header token is reamining
   static async btr_lists_data(userid, page = 0, size = 10, filter = '') {

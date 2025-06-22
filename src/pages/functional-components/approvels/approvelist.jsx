@@ -43,7 +43,7 @@ const columns = (handleEdit) => [
     { name: 'Designation', selector: (row) => row.designation, sortable: true },
     { name: 'Email', selector: (row) => row.email, sortable: true },
     { name: 'Phone number', selector: (row) => row.mobileNumber, sortable: true },
-    { name: 'DOJ', selector: (row) => row.dateOfJoining, sortable: true },
+    { name: 'DOJ', selector: (row) => new Date(row.dateOfJoining).toLocaleDateString('en-GB'), sortable: true },
     { name: 'Applied', selector: (row) => new Date(row.createdAt).toLocaleDateString('en-GB'), sortable: true },
     // { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
     {
@@ -164,7 +164,7 @@ const[zoneVisble, setzoneVisble] = useState(false);
         updatedPairs[index].roleId = '';
         if (!rolesMap[value]) {
           try {
-            console.log("office type ",)
+            console.log("office type ",selectedRow.officeType)
             // Fetch roles and zones in parallel
             const [rolesResponse, zonesResponse] = await Promise.all([
               approvalservice.allrolesBySchems(value),

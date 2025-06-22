@@ -236,7 +236,7 @@ class approvalservice {
       const token = localStorage.getItem('token');
       console.log("office _id ",officeId,"office typr >>",officeId)
       const response = await axios.get(
-        `${approvalservice.BTR_URL}/btr-service/btr-api/zones/${officeType}/${officeId}`
+        `${approvalservice.BASE_URL}/btr-service/btr-api/zones/${officeType}/${officeId}`
           , {
           headers: {
             Authorization: `Bearer ${token}` // Ensure token is included

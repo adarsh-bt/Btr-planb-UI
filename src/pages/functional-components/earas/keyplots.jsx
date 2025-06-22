@@ -35,6 +35,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import authservice from 'pages/authentication/services/authservice';
 // import auth from 'contexts/auth-reducer/auth';
 // import authservice from 'pages/authentication/services/authservice';
+import Breadcrumb from 'routes/Breadcrumb';
 
 const KeyPlot = () => {
     const [loading, setLoading] = useState(true); // Set to true initially to fetch existing data
@@ -96,7 +97,7 @@ const KeyPlot = () => {
                 // Replace with your actual userId
                 const userId = authservice.userid();
          const token = localStorage.getItem('token');
-                const res = await axios.get(`http://localhost:8080/btr-service/key-plots/fetch-existing-keyplots/${userId}`, {
+                const res = await axios.get(`http://10.10.32.45:8080/btr-service/key-plots/fetch-existing-keyplots/${userId}`, {
         headers: {
           Authorization: `Bearer ${token}` // Add token in Authorization header
         }
@@ -143,7 +144,7 @@ const KeyPlot = () => {
             // Replace with your actual userId
             const userId = authservice.userid();
             const token = localStorage.getItem('token');
-            const res = await axios.get(`http://localhost:8080/btr-service/key-plots/generate-keyplots/${userId}`, {
+            const res = await axios.get(`http://10.10.32.45:8080/btr-service/key-plots/generate-keyplots/${userId}`, {
         headers: {
           Authorization: `Bearer ${token}` // Add token in Authorization header
         }
@@ -293,7 +294,7 @@ const KeyPlot = () => {
 
         setLoading(true);
         try {
-            const response = await axios.post(`http://localhost:8080/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`, {
+            const response = await axios.post(`http://10.10.32.45:8080/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`, {
                 reason: finalReason
             });
 
@@ -329,7 +330,9 @@ const KeyPlot = () => {
     const totalArea = plotData.reduce((sum, row) => sum + parseFloat(row.area || 0), 0).toFixed(2);
 
     return (
+      
         <Box sx={{ p: 3, maxWidth: 1200, margin: '0 auto' }}>
+          <Breadcrumb></Breadcrumb>
             <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
                 KeyPlot Details
             </Typography>

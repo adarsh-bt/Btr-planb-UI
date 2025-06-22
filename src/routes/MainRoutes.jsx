@@ -6,7 +6,7 @@ import Dashboard from 'layout/Dashboard';
 import PrivateRoute from './PrivateRoute';
 
 const Color = Loadable(lazy(() => import('pages/component-overview/color')));
-const Typography = Loadable(lazy(() => import('pages/component-overview/typography')));
+const WorkAllocation = Loadable(lazy(() => import('pages/component-overview/WorkAllocationForm')));
 const Shadow = Loadable(lazy(() => import('pages/component-overview/shadows')));
 const DashboardDefault = Loadable(lazy(() => import('pages/dashboard/index')));
 
@@ -84,10 +84,10 @@ const MainRoutes = {
       )
     },
     {
-      path: 'typography',
+      path: 'workallocation',
       element: (
         <PrivateRoute>
-          <Typography />
+          <WorkAllocation />
         </PrivateRoute>
       )
     },

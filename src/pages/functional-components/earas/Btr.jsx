@@ -23,40 +23,43 @@ import btrservice from './btrservice';
 import authservice from 'pages/authentication/services/authservice';
 
 
+
 // Define the columns for the data table
-const columns = (handleEdit,handleView) => [
-  { name: 'SL. NO', selector:(row, index) => index + 1 },
+const columns = (handleEdit, handleView) => [
+  { name: 'SL. NO', selector: (row, index) => index + 1 },
   // { name: 'District', selector: (row) => row.dcode, sortable: true },
   // { name: 'Taluk', selector: (row) => row.tcode, sortable: true },
   // { name: 'Village', selector: (row) => row.vcode, sortable: true },
-  { name: 'Panchayth', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  { name: 'Village', selector: (row) => row.villageName?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  { name: 'Block', selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  { name: 'Panchayth', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  { name: 'Village', selector: (row) => row.villageName?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  { name: 'Block', selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span> },
   {
     name: 'Re-Survey No',
     selector: (row) =>
-      row.resvno && row.resbdno
-        ? `${row.resvno} / ${row.resbdno}`
-        : row.resvno
-        ? `${row.resvno} / NA`
-        : row.resbdno
-        ? `NA / ${row.resbdno}`
-        : <span style={{ color: '#888' }}>NA</span>,
+      row.resvno && row.resbdno ? (
+        `${row.resvno} / ${row.resbdno}`
+      ) : row.resvno ? (
+        `${row.resvno} / NA`
+      ) : row.resbdno ? (
+        `NA / ${row.resbdno}`
+      ) : (
+        <span style={{ color: '#888' }}>NA</span>
+      )
   },
-  // { name: 'Re-Survey No', selector: (row) => row.resvno?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  // { name: 'Sub Div No', selector: (row) => row.resbdno?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  // { name: 'Address', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
+  // { name: 'Re-Survey No', selector: (row) => row.resvno?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  // { name: 'Sub Div No', selector: (row) => row.resbdno?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  // { name: 'Address', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> },
   // { name: 'Address', selector: (row) => row.lbcode, sortable: true },
- 
-  { name: 'Land Type', selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
-  { name: 'Total area(cent)', selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span> }, 
- 
+
+  { name: 'Land Type', selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  { name: 'Total area(cent)', selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span> },
 
   {
     name: 'View',
     cell: (row) => (
       <Button color="success" onClick={() => handleView(row)}>
         <VisibilityIcon />
+     
       </Button>
     ),
     style: {
@@ -91,6 +94,8 @@ const Btr = () => {
   const handleView = (row) => {
     setSelectedRow(row);
     setOpenViewModal(true);
+    setSelectedRow(row);
+    setOpenViewModal(true);
   };
 
   // Function to close modals
@@ -98,9 +103,11 @@ const Btr = () => {
     setOpenEditModal(false);
     setOpenViewModal(false);
     setSelectedRow(null);
+    setSelectedRow(null);
   };
 
   const handlePageChange = (newPage) => {
+    setPage(newPage);
     setPage(newPage);
   };
 
@@ -149,12 +156,19 @@ const Btr = () => {
     const userId = authservice.userid();
 
     try {
+        const token = localStorage.getItem('token');
       // Ensure the URL is correct for your backend service
-      const response = await fetch(`http://localhost:8083/btr-service/btr-api/export?userId=${userId}`);
+      const response = await fetch(`http://10.10.32.45:8080/btr-service/btr-api/export?userId=${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}` // Add token in Authorization header
+        }
+      });
+
 
       if (!response.ok) {
         throw new Error('Failed to download file');
       }
+
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -229,6 +243,7 @@ const Btr = () => {
           </Stack>
         </Paper>
 
+
         <DataTable
           columns={columns(undefined, handleView)}
           data={data} // Use the fetched data
@@ -283,7 +298,7 @@ const Btr = () => {
               textAlign: 'center',
               borderBottom: '2px solid #f0f0f0',
               paddingBottom: '10px',
-              background: '#04255e',
+              background: '#04255e'
             }}
           >
             View BTR Details
@@ -301,45 +316,79 @@ const Btr = () => {
                     backgroundColor: '#fff',
                     padding: '20px',
                     borderRadius: '8px',
-                    boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)',
+                    boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)'
                   }}
                 >
-                  {Object.keys(selectedRow).filter((key) => key !== 'id' && key !== 'indexOffset').map((key) => {
-                    const value = selectedRow[key] || 'NA';
-                    return (
-                      <div
-                        key={key}
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'center',
-                          alignItems: 'flex-start',
-                        }}
-                      >
+                  {Object.keys(selectedRow)
+                   .filter((key) => key !== 'id' && key !== 'lbcode' && key !== 'resbdno' && key !== 'lbtype' && key !== 'indexOffset') // skip resbdno & lbtype
+                    .map((key) => {
+                      let label = key;
+                    let value = selectedRow[key] !== undefined && selectedRow[key] !== null ? selectedRow[key] : 'NA';
+
+
+                      if (key === 'villageName') {
+                        label = 'Village';
+                      }
+
+                      if (key === 'bcode') {
+                        label = 'Village Block';
+                      }
+
+                      // Custom rendering for resvno
+                      if (key === 'resvno') {
+                        const resvno = selectedRow.resvno ? selectedRow.resvno : 'NA';
+                        const resbdno = selectedRow.resbdno ? selectedRow.resbdno : 'NA';
+                        label = 'Re-survey No.';
+                        value = `${resvno} / ${resbdno}`;
+                      }
+                      // Custom rendering for lbname
+                      if (key === 'lbname') {
+                        const lbname = selectedRow.lbname ? selectedRow.lbname : 'NA';
+                        const lbtype = selectedRow.lbtype ? selectedRow.lbtype : 'NA';
+                        label = 'Local Body';
+                        value = `${lbname} ${lbtype}`;
+                      }
+                      if (key === 'ltype') {
+                        label = 'Land Type';
+                      }
+                      if (key === 'totalCent') {
+                        label = 'Total Area in Cent';
+                      }
+
+                      return (
                         <div
+                          key={key}
                           style={{
-                            fontWeight: 'bold',
-                            color: 'gray',
-                            marginBottom: '8px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'flex-start'
                           }}
                         >
-                          {key}:
+                          <div
+                            style={{
+                              fontWeight: 'bold',
+                              color: 'gray',
+                              marginBottom: '8px'
+                            }}
+                          >
+                            {label}
+                          </div>
+                          <div
+                            style={{
+                              backgroundColor: '#f9f9f9',
+                              padding: '8px 12px',
+                              borderRadius: '4px',
+                              boxShadow: 'inset 0 0 5px rgba(0, 0, 0, 0.1)',
+                              wordBreak: 'break-word',
+                              width: '100%'
+                            }}
+                          >
+                            {value}
+                          </div>
                         </div>
-                        <div
-                          style={{
-                            backgroundColor: '#f9f9f9',
-                            padding: '8px 12px',
-                            borderRadius: '4px',
-                            boxShadow: 'inset 0 0 5px rgba(0, 0, 0, 0.1)',
-                            wordBreak: 'break-word',
-                            width: '100%',
-                          }}
-                        >
-                          {value}
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                 </div>
               </DialogContentText>
             )}
@@ -350,8 +399,6 @@ const Btr = () => {
             </Button>
           </DialogActions>
         </Dialog>
-
-
       </Grid>
     </Grid>
   );

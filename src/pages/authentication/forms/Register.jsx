@@ -616,7 +616,7 @@ const Register = ({ onBack }) => {
             distId: district.districtOfficeId,
             distOfficeNameEn: district.districtOfficeNameEn
           }))}
-          getOptionLabel={(option) => (option ? option.distOfficeNameEn : '')}
+          getOptionLabel={(option) => (option ? option.distOfficeNameEn.slice(16) : '')}
           value={selectedDistrict}
           onChange={handleDistrictChange}
           isOptionEqualToValue={(option, value) => option?.distId === value?.distId}

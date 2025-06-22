@@ -17,6 +17,14 @@ import Breadcrumb from 'routes/Breadcrumb';
 import { useContext } from 'react';
 // import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
 // import { flattenPermissions } from 'contexts/auth-reducer/permissionHelpers';
+// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
+// import { flattenPermissions } from 'contexts/auth-reducer/permissionHelpers';
+
+import cluster from 'assets/images/logo/cluster.png';
+import keyplot from 'assets/images/logo/keyplot.png';
+import zonedetails from 'assets/images/logo/zonedetails.png';
+import eBTR from 'assets/images/logo/eBTR.png';
+
 
 function Earas_menus() {
   const theme = useTheme();
@@ -44,6 +52,67 @@ function Earas_menus() {
         </Typography>
         <MainCard title="">
           <Grid container spacing={4}>
+
+            {/* {canViewZoneDetails && ( */}
+
+              <Grid item xs={12} sm={4} md={3} lg={3}>
+                <Card
+                  component={Link}
+                  to="/schemes/earas/zone_details"
+                  sx={{
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '1rem',
+                    borderRadius: '1rem',
+                    background: 'linear-gradient(135deg, rgba(79, 208, 170, 0.45), rgb(98, 218, 182))', // Gradient color
+                    transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
+                    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
+                    '&:hover': {
+                      transform: 'scale(1.05)', // Hover scale effect
+                      // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
+                      boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
+                    }
+                  }}
+                >
+                  <CardMedia
+                    component="img"
+                    sx={{
+                      width: '5rem',
+                      height: '5rem',
+                      borderRadius: '.5rem',
+                      marginRight: '1rem' // Space between image and text
+                    }}
+                    image={zonedetails} // <-- Use the imported image here
+                    alt="zone details"
+                  />
+
+
+                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                    <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
+                      <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
+                        Zone Details
+                      </Typography>
+                      <Typography
+                        variant="subtitle1"
+                        component="div"
+                        sx={{
+                          color: '#f3f3f3',
+                          fontStyle: 'italic',
+                          fontWeight: 'lighter',
+                          marginTop: '0.5rem'
+                        }}
+                      >
+                        Investigator
+                      </Typography>
+                    </CardContent>
+                  </Box>
+                </Card>
+              </Grid>
+
+            {/* )} */}
+
 
             {/* {canViewBTR && ( */}
               <Grid item xs={12} sm={4} md={3} lg={3}>
@@ -102,62 +171,6 @@ function Earas_menus() {
               </Grid>
             {/* )} */}
 
-            {/* {canViewZoneDetails && ( */}
-              <Grid item xs={12} sm={4} md={3} lg={3}>
-                <Card
-                  component={Link}
-                  to="/schemes/earas/zone_details"
-                  sx={{
-                    textDecoration: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '1rem',
-                    borderRadius: '1rem',
-                    background: 'linear-gradient(135deg, rgba(79, 208, 170, 0.45), rgb(98, 218, 182))', // Gradient color
-                    transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-                    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
-                    '&:hover': {
-                      transform: 'scale(1.05)', // Hover scale effect
-                      // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
-                      boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
-                    }
-                  }}
-                >
-                  <CardMedia
-                    component="img"
-                    sx={{
-                      width: '5rem',
-                      height: '4rem',
-                      borderRadius: '.5rem',
-                      marginRight: '1rem' // Space between image and text
-                    }}
-                    image="https://icons.veryicon.com/png/o/miscellaneous/common-face-icons-continuously-updated/scan-business-card.png"
-                    alt="Dashboard Icon"
-                  />
-
-                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                    <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-                      <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                        Zone Details
-                      </Typography>
-                      <Typography
-                        variant="subtitle1"
-                        component="div"
-                        sx={{
-                          color: '#f3f3f3',
-                          fontStyle: 'italic',
-                          fontWeight: 'lighter',
-                          marginTop: '0.5rem'
-                        }}
-                      >
-                        Investigator
-                      </Typography>
-                    </CardContent>
-                  </Box>
-                </Card>
-              </Grid>
-            {/* )} */}
 
 
             <Grid item xs={12} sm={4} md={3} lg={3}>

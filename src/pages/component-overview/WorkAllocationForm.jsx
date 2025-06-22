@@ -17,6 +17,8 @@ import {
 } from '@mui/material';
 import { styled } from '@mui/system';
 import { makeStyles } from '@mui/styles';
+import Breadcrumb from 'routes/Breadcrumb';
+
 
 // Custom styles using MUI's styled API
 const FormHeader = styled('div')(({ theme }) => ({
@@ -232,6 +234,8 @@ function WorkAllocationForm() {
   );
 
   return (
+    <Grid container spacing={3}>
+      <Breadcrumb></Breadcrumb>
     <Container maxWidth="xl" sx={{ py: 8 }}>
       <Paper elevation={3} sx={{ p: 3 }}>
         <Typography variant="h6" gutterBottom align="center">
@@ -283,6 +287,7 @@ function WorkAllocationForm() {
         </Grid>
       </Paper>
     </Container>
+    </Grid>
   );
 }
 
