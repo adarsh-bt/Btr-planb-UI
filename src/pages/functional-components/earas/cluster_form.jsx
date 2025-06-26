@@ -970,15 +970,6 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
       setSelectedSvNos([]);
     }
   };
-
-  // const handleSvNoSelection = (resbdno) => {
-  //   setSelectedSvNos((prevSelected) =>
-  //     prevSelected.includes(resbdno)
-  //       ? prevSelected.filter((id) => id !== resbdno)
-  //       : [...prevSelected, resbdno]
-  //   );
-  // };
-    // --- Loading State (before JSX) ---
     if (loading) {
         return (
             <Container maxWidth="xl" sx={{ mt: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>

@@ -75,6 +75,7 @@ const KeyPlot = () => {
     // --- Utility Function to transform sample data ---
     const transformSample = (sample, type) => ({
         id: sample.id,
+        no:sample["no"],
         plot_id: sample["plot_id"],
         slNo: sample["Sl.No"],
         syNo: sample["Sy. No"],
@@ -97,7 +98,7 @@ const KeyPlot = () => {
          
                 const res = await axios.get(`http://localhost:8082/btr-service/key-plots/fetch-existing-keyplots/${userId}`);
 
-                console.log(res.data)
+                console.log(res.data.payload)
                 const zones = res.data.payload || [];
 
                 if (zones.length > 0) {
@@ -463,7 +464,7 @@ const KeyPlot = () => {
                         '&:hover': { backgroundColor: '#e0f2f7' }
                       }}
                     >
-                      <TableCell align="center">{index + 1}</TableCell>
+                      <TableCell align="center">{row.no}</TableCell>
                       <TableCell align="center">{row.syNo}</TableCell>
                       <TableCell align="center">{row.panchayth}</TableCell>
                       <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
