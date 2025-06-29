@@ -25,6 +25,7 @@ import {
   RadioGroup,
   FormControlLabel,
   Radio,
+  Grid,
   Chip // Import Chip component
 } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -69,10 +70,7 @@ const KeyPlot = () => {
         'Other'
     ];
 
-    const chipColors = [
-        '#8B33FF', '#FF5733', '#FF8B33', '#3357FF', '#33FF57',
-        '#FF33F5', '#33FFF5', '#F5FF33', '#33FF8B', '#8BFF33',
-    ];
+   
 
     // --- Utility Function to transform sample data ---
     const transformSample = (sample, type) => ({
@@ -96,13 +94,15 @@ const KeyPlot = () => {
              
                 // Replace with your actual userId
                 const userId = authservice.userid();
-         const token = localStorage.getItem('token');
-                const res = await axios.get(`http://10.10.32.45:8080/btr-service/key-plots/fetch-existing-keyplots/${userId}`, {
-        headers: {
-          Authorization: `Bearer ${token}` // Add token in Authorization header
-        }
-      });
+          const token = localStorage.getItem('token');
+                const res = await axios.get(`http://10.10.32.45:8080/btr-service/key-plots/fetch-existing-keyplots/${userId}`,
+              {
+              headers: {
+                  'Authorization': `Bearer ${token}` // Add token in Authorization header
+              }
+                });
 
+                console.log(res.data)
                 const zones = res.data.payload || [];
 
                 if (zones.length > 0) {
@@ -293,10 +293,18 @@ const KeyPlot = () => {
     }
 
         setLoading(true);
+         const token = localStorage.getItem('token');
         try {
-            const response = await axios.post(`http://10.10.32.45:8080/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`, {
-                reason: finalReason
-            });
+            const response = await axios.post(`http://10.10.32.45:8080/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`,{
+              reason: finalReason,
+          userid: authservice.userid()
+  },
+  {
+    headers: {
+      Authorization: `Bearer ${token}` // pass the token in headers
+    }
+  }
+);
 
             const newPlotPayload = response.data;
 
@@ -329,13 +337,13 @@ const KeyPlot = () => {
 
     const totalArea = plotData.reduce((sum, row) => sum + parseFloat(row.area || 0), 0).toFixed(2);
 
-    return (
-      
-        <Box sx={{ p: 3, maxWidth: 1200, margin: '0 auto' }}>
+  return (
+    <Grid container spacing={3}>
           <Breadcrumb></Breadcrumb>
-            <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
-                KeyPlot Details
-            </Typography>
+    <Box sx={{ p: 3, maxWidth: 1200, margin: '0 auto' }}>
+      <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
+        KeyPlot Details
+      </Typography>
 
             {loading && (
                 <Box display="flex" justifyContent="center" alignItems="center" height="200px" my={4}>
@@ -592,6 +600,7 @@ const KeyPlot = () => {
                 </DialogActions>
             </Dialog>
         </Box>
+        </Grid>
     );
 };
 

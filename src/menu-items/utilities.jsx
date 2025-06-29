@@ -63,7 +63,7 @@ const utilities = {
       id: 'util-cluster',
       title: 'Cluster Formation',
       type: 'item',
-      url: '/schemes/earas/cluster',
+      url: '/schemes/earas/clusters',
       icon: icons.DeploymentUnitOutlined
     },
     {

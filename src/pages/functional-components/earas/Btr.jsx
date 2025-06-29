@@ -23,15 +23,26 @@ import btrservice from './btrservice';
 import authservice from 'pages/authentication/services/authservice';
 
 
-
 // Define the columns for the data table
-const columns = (handleEdit, handleView) => [
-  { name: 'SL. NO', selector: (row, index) => index + 1 },
+const columns = (handleEdit, handleView,page,size) => [
+ {
+    name: 'SL. NO',
+    selector: (row, index) => (page - 1) * size + index + 1,
+  },
   // { name: 'District', selector: (row) => row.dcode, sortable: true },
   // { name: 'Taluk', selector: (row) => row.tcode, sortable: true },
   // { name: 'Village', selector: (row) => row.vcode, sortable: true },
-  { name: 'Panchayth', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> },
-  { name: 'Village', selector: (row) => row.villageName?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  { name: 'LocalBody Name', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> },
+ {
+  name: 'Village',
+  selector: (row) => {
+    const name = row.villageName?.toString();
+    return name
+      ? name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()
+      : <span style={{ color: '#888' }}>NA</span>;
+  }
+},
+
   { name: 'Block', selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span> },
   {
     name: 'Re-Survey No',
@@ -82,7 +93,8 @@ const Btr = () => {
   const [totalWetArea, setTotalWetArea] = useState(0);
   const [totalDryArea, setTotalDryArea] = useState(0);
   const [downloading, setDownloading] = useState(false);
-  const [loading, setLoading] = useState(false); // New state for data loading
+
+  const [loading, setLoading] = useState(false);
 
   // Function to handle filter change
   const handleFilterChange = (event) => {
@@ -203,9 +215,9 @@ const Btr = () => {
             <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
               Basic Tax Register
             </Typography>
-            <Typography variant="body1" component="p" sx={{ color: 'green' }}>Total Wet : {totalWetArea} Ac</Typography>
-            <Typography variant="body1" component="p" sx={{ color: 'red' }}>Total Dry : {totalDryArea} Ac</Typography>
-            <Typography variant="body1" component="p" sx={{ color: '#04255e' }}>Total Area : {totalArea} Ac</Typography>
+            <Typography variant="body1" component="p" sx={{ color: 'green' }}>Total Wet : {totalWetArea} Cents</Typography>
+            <Typography variant="body1" component="p" sx={{ color: 'red' }}>Total Dry : {totalDryArea} Cents</Typography>
+            <Typography variant="body1" component="p" sx={{ color: '#04255e' }}>Total Area : {totalArea} Cents</Typography>
 
 
             <Button
@@ -245,7 +257,7 @@ const Btr = () => {
 
 
         <DataTable
-          columns={columns(undefined, handleView)}
+          columns={columns(undefined, handleView, page, size)}
           data={data} // Use the fetched data
           progressPending={loading} // Show loading indicator
           progressComponent={<CircularProgress />} // Custom loading component
@@ -288,7 +300,7 @@ const Btr = () => {
         />
 
 
-        {/* Modal for viewing full details */}
+      {/* Modal for viewing full details */}
         <Dialog open={openViewModal} onClose={handleCloseModals} maxWidth="md" fullWidth>
           <DialogTitle
             variant="h4"
@@ -320,11 +332,10 @@ const Btr = () => {
                   }}
                 >
                   {Object.keys(selectedRow)
-                   .filter((key) => key !== 'id' && key !== 'lbcode' && key !== 'resbdno' && key !== 'lbtype' && key !== 'indexOffset') // skip resbdno & lbtype
+                    .filter((key) => key !== 'id' && key !== 'lbcode' && key !== 'resbdno' && key !== 'lbtype' && key !== 'indexOffset') // skip resbdno & lbtype
                     .map((key) => {
                       let label = key;
-                    let value = selectedRow[key] !== undefined && selectedRow[key] !== null ? selectedRow[key] : 'NA';
-
+                      let value = selectedRow[key] || 'NA';
 
                       if (key === 'villageName') {
                         label = 'Village';
@@ -346,7 +357,7 @@ const Btr = () => {
                         const lbname = selectedRow.lbname ? selectedRow.lbname : 'NA';
                         const lbtype = selectedRow.lbtype ? selectedRow.lbtype : 'NA';
                         label = 'Local Body';
-                        value = `${lbname} ${lbtype}`;
+                        value = `${lbname} `;
                       }
                       if (key === 'ltype') {
                         label = 'Land Type';
@@ -354,7 +365,6 @@ const Btr = () => {
                       if (key === 'totalCent') {
                         label = 'Total Area in Cent';
                       }
-
                       return (
                         <div
                           key={key}
@@ -372,7 +382,7 @@ const Btr = () => {
                               marginBottom: '8px'
                             }}
                           >
-                            {label}
+                            {key}:
                           </div>
                           <div
                             style={{
@@ -399,6 +409,8 @@ const Btr = () => {
             </Button>
           </DialogActions>
         </Dialog>
+
+
       </Grid>
     </Grid>
   );

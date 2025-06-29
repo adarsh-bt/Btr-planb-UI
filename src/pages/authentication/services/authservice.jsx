@@ -12,7 +12,7 @@ class authservice {
   static async login(userLogin) {
     try {
       const encrypted = encryptData(JSON.stringify(userLogin));
-
+console.log(encrypted)
       const response = await axios.post(`${authservice.BASE_URL}/user-access/api/login`, encrypted, {
         headers: {
           'Content-Type': 'text/plain'

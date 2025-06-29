@@ -245,25 +245,25 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     // After successful login, fetch the user's permissions
                     setIsLoading(true); // Set loading state in PermissionsContext
                     try {
-                        const permissionsResponse = await fetch('http://localhost:8081/user-accesss/user-state/userpremissions', {
-                            headers: {
-                                'Authorization': `Bearer ${userData.payload.token}`, // If your API requires a token
-                                'Content-Type': 'application/json', // Adjust content type as needed
-                            },
-                        });
+                    //     const permissionsResponse = await fetch('http://10.10.32.45:8080/user-accesss/user-state/userpremissions', {
+                    //         headers: {
+                    //             'Authorization': `Bearer ${userData.payload.token}`, 
+                    //             'Content-Type': 'application/json', 
+                    //         },
+                    //     });
 
-                        if (!permissionsResponse.ok) {
-                            throw new Error(`HTTP error! status: ${permissionsResponse.status}`);
-                        }
+                    //     if (!permissionsResponse.ok) {
+                    //         throw new Error(`HTTP error! status: ${permissionsResponse.status}`);
+                    //     }
 
-                        const permissionsData = await permissionsResponse.json();
-                        console.log("premisio  ", permissionsData)
-                        setPermissions(permissionsData); // Update the permissions in the context
-                       setIsLoading(false); // Reset loading state
+                    //     const permissionsData = await permissionsResponse.json();
+                    //     console.log("premisio  ", permissionsData)
+                    //     setPermissions(permissionsData); // Update the permissions in the context
+                    //    setIsLoading(false); // Reset loading state
                         navigate('/'); // Redirect to the home page
                     } catch (permissionsError) {
-                        console.error('Error fetching permissions after login:', permissionsError);
-                        setError(permissionsError); // Set error in PermissionsContext
+                        // console.error('Error fetching permissions after login:', permissionsError);
+                        // setError(permissionsError); // Set error in PermissionsContext
                        setIsLoading(false);
                         navigate('/'); // Consider your navigation strategy here
                     }

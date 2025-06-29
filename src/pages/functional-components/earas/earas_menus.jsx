@@ -54,7 +54,6 @@ function Earas_menus() {
           <Grid container spacing={4}>
 
             {/* {canViewZoneDetails && ( */}
-
               <Grid item xs={12} sm={4} md={3} lg={3}>
                 <Card
                   component={Link}
@@ -110,7 +109,6 @@ function Earas_menus() {
                   </Box>
                 </Card>
               </Grid>
-
             {/* )} */}
 
 
@@ -169,9 +167,7 @@ function Earas_menus() {
                   </Box>
                 </Card>
               </Grid>
-            {/* )} */}
-
-
+        
 
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
