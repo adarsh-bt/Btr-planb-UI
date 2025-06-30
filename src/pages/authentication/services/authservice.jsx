@@ -6,14 +6,13 @@ import { encryptData, decryptData } from './encryptionUtils';
 import mainapi from 'api/mainapi';
 
 class authservice {
-  static BASE_URL = mainapi.USER_API;
-  //   static BASE_URL = "https://9a89-103-149-159-190.ngrok-free.app";
+  static USER_URL = mainapi.USER_API;
 
   static async login(userLogin) {
     try {
       const encrypted = encryptData(JSON.stringify(userLogin));
 
-      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/login`, encrypted, {
+      const response = await axios.post(`${authservice.USER_URL}/user-access/api/login`, encrypted, {
         headers: {
           'Content-Type': 'text/plain'
         }
@@ -50,7 +49,7 @@ class authservice {
 
   static async fetchPermissions(token) {
     try {
-      const response = await axios.get(`${authservice.BASE_URL}/user-access/user-state/userpremissions`, {
+      const response = await axios.get(`${authservice.USER_URL}/user-access/user-state/userpremissions`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -68,7 +67,7 @@ class authservice {
   static async registration(userData) {
     try {
       console.log('userdataregister > ', userData);
-      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/user-registration/save-user`, userData, {
+      const response = await axios.post(`${authservice.USER_URL}/user-access/api/user-registration/save-user`, userData, {
         headers: {
           'Cache-Control': 'no-cache'
         }
@@ -87,7 +86,7 @@ class authservice {
     try {
       const encrypted = encryptData(JSON.stringify(username));
       const response = await axios.post(
-        `${authservice.BASE_URL}/user-access/api/email_verify`,
+        `${authservice.USER_URL}/user-access/api/email_verify`,
         encrypted, // assuming `encrypted` is a string or compatible payload
         {
           headers: {
@@ -109,7 +108,7 @@ class authservice {
   static async verify_otp(userData) {
     try {
       const encrypted = encryptData(JSON.stringify(userData));
-      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/validateOtp`, encrypted, {
+      const response = await axios.post(`${authservice.USER_URL}/user-access/api/validateOtp`, encrypted, {
         headers: {
           'Content-Type': 'text/plain'
         }
@@ -126,7 +125,7 @@ class authservice {
   static async password_reset(userData) {
     try {
       const encrypted = encryptData(JSON.stringify(userData));
-      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/password_reset`, encrypted, {
+      const response = await axios.post(`${authservice.USER_URL}/user-access/api/password_reset`, encrypted, {
         headers: {
           'Content-Type': 'text/plain'
         }

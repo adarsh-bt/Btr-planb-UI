@@ -2,10 +2,13 @@ import axios from 'axios';
 import { InvalidTokenError, jwtDecode } from 'jwt-decode';
 import authservice from 'pages/authentication/services/authservice';
 import { useNavigate } from 'react-router-dom';
+import mainapi from 'api/mainapi';
+
+
 
 class btrservice {
-  // static BASE_URL = "http://localhost:8080/useraccess"
-  static BASE_URL = 'http://localhost:8083/btr-service';
+  static BTR_URL = mainapi.BTR_API
+  // static BASE_URL = 'http://localhost:8083/btr-service';
 
   // adding header token is reamining
   static async btr_lists_data(userid, page = 0, size = 10, filter = '') {
@@ -13,7 +16,7 @@ class btrservice {
       const token = localStorage.getItem('token');
       var userid = authservice.userid();
       console.log('user id ', userid);
-      const response = await axios.get(`${btrservice.BASE_URL}/btr-api/btr-data/${userid}?page=${page}&size=${size}&filter=${filter}`, {
+      const response = await axios.get(`${btrservice.BTR_URL}/btr-service/btr-api/btr-data/${userid}?page=${page}&size=${size}&filter=${filter}`, {
         headers: {
           Authorization: `Bearer ${token}` // Add token in Authorization header
         }
@@ -32,7 +35,7 @@ class btrservice {
     // Existing functions like btr_lists_data...
 
     download_excel: (UserId) => {
-      return axios.get(`${btrservice.BASE_URL}/btr-api/exportExcel/${UserId}`, {
+      return axios.get(`${btrservice.BTR_URL}/btr-service/btr-api/exportExcel/${UserId}`, {
         responseType: 'arraybuffer'
       });
     }

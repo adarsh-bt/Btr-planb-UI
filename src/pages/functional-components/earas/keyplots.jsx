@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import Breadcrumb from 'routes/Breadcrumb';
+import mainapi from 'api/mainapi';
 import {
   Button,
   Grid,
@@ -37,6 +38,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import authservice from 'pages/authentication/services/authservice';
 // import auth from 'contexts/auth-reducer/auth';
 // import authservice from 'pages/authentication/services/authservice';
+
+const BTR_URL = mainapi.BTR_API;
 
 const KeyPlot = () => {
     const [loading, setLoading] = useState(true); // Set to true initially to fetch existing data
@@ -98,7 +101,7 @@ const KeyPlot = () => {
                 // Replace with your actual userId
                 const userId = authservice.userid();
          
-                const res = await axios.get(`http://localhost:8083/btr-service/key-plots/fetch-existing-keyplots/${userId}`);
+                const res = await axios.get(`${BTR_URL}/btr-service/key-plots/fetch-existing-keyplots/${userId}`);
 
                 const zones = res.data.payload || [];
 
@@ -140,7 +143,7 @@ const KeyPlot = () => {
         try {
             // Replace with your actual userId
             const userId = authservice.userid();
-            const res = await axios.get(`http://localhost:8083/btr-service/key-plots/generate-keyplots/${userId}`);
+            const res = await axios.get(`${BTR_URL}/btr-service/key-plots/generate-keyplots/${userId}`);
 
             const zones = res.data.payload || [];
 
@@ -286,7 +289,7 @@ const KeyPlot = () => {
 
         setLoading(true);
         try {
-            const response = await axios.post(`http://localhost:8083/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`, {
+            const response = await axios.post(`${BTR_URL}/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`, {
                 reason: finalReason
             });
 

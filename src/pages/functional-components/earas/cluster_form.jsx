@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Breadcrumb from 'routes/Breadcrumb';
+import mainapi from 'api/mainapi';
 import {
   Container,
   Typography,
@@ -41,6 +42,7 @@ import { FixedSizeList } from 'react-window';
 
 // Placeholder for ListboxComponent if it's not provided externally.
 const ListboxComponent = React.forwardRef(function ListboxComponent(props, ref) {
+  const BTR_URL = mainapi.BTR_API
   const { children, ...other } = props;
   const itemData = [];
   children &&
@@ -184,7 +186,7 @@ const ClusterForm = () => {
       try {
         const userid = authservice.userid();
 
-        const response = await fetch(`http://localhost:8083/btr-service/cluster-api/${userid}/villages`);
+        const response = await fetch(`${BTR_URL}/btr-service/cluster-api/${userid}/villages`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -213,7 +215,7 @@ const ClusterForm = () => {
       if (modalRowData.village && modalRowData.modalBlock) {
         try {
           const response = await fetch(
-            `http://localhost:8083/btr-service/cluster-api/${keyplotId}/resvnos?villageId=${modalRowData.village}&blockCode=${modalRowData.modalBlock}`
+            `${BTR_URL}/btr-service/cluster-api/${keyplotId}/resvnos?villageId=${modalRowData.village}&blockCode=${modalRowData.modalBlock}`
           );
 
           if (!response.ok) {
@@ -239,7 +241,7 @@ const ClusterForm = () => {
     if (!id) return;
 
     try {
-      const response = await fetch(`http://localhost:8083/btr-service/key-plots/get-keyplot/${id}`);
+      const response = await fetch(`${BTR_URL}/btr-service/key-plots/get-keyplot/${id}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -306,7 +308,7 @@ const ClusterForm = () => {
   const fetchSvNoOptions = async (id) => {
     if (!id) return;
     try {
-      const response = await fetch(`http://localhost:8083/btr-service/cluster-api/${id}/resvnos`);
+      const response = await fetch(`${BTR_URL}/btr-service/cluster-api/${id}/resvnos`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -336,7 +338,7 @@ const ClusterForm = () => {
   const fetchResbdnos = async (villageId, blockCode, resvno) => {
     try {
       const response = await fetch(
-        `http://localhost:8083/btr-service/cluster-api/${syNo}/resbdnos-by-village-block?villageId=${villageId}&blockCode=${blockCode}&resvno=${resvno}`
+        `${BTR_URL}/btr-service/cluster-api/${syNo}/resbdnos-by-village-block?villageId=${villageId}&blockCode=${blockCode}&resvno=${resvno}`
       );
       const data = await response.json();
       console.log('Btr >>>>>  ', data.resbdnoDetails);
@@ -354,7 +356,7 @@ const ClusterForm = () => {
     }
     try {
       const response = await fetch(
-        `http://localhost:8083/btr-service/cluster-api/${currentSyNo}/plot-details?resvno=${resvno}&resbdno=${resbdno}`
+        `${BTR_URL}/btr-service/cluster-api/${currentSyNo}/plot-details?resvno=${resvno}&resbdno=${resbdno}`
       );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -457,7 +459,7 @@ const ClusterForm = () => {
           setSelectedSvNos([]);
           if (newState.village && newState.modalBlock && value) {
             const kpId = keyplotId; // Replace with dynamic if needed
-            const url = `http://localhost:8083/btr-service/cluster-api/${kpId}/resbdnos-by-village-block?villageId=${newState.village}&blockCode=${newState.modalBlock}&resvno=${value}`;
+            const url = `${BTR_URL}/btr-service/cluster-api/${kpId}/resbdnos-by-village-block?villageId=${newState.village}&blockCode=${newState.modalBlock}&resvno=${value}`;
 
             fetch(url)
               .then((res) => res.json())
@@ -562,7 +564,7 @@ const ClusterForm = () => {
     const { keyplotIndex, rowIndexToRemove, rowData } = rowToDelete;
 
     try {
-      const response = await fetch(`http://localhost:8083/btr-service/cluster-api/delete-sideplot/${rowData.b_id}`, {
+      const response = await fetch(`${BTR_URL}/btr-service/cluster-api/delete-sideplot/${rowData.b_id}`, {
         method: 'DELETE'
       });
 
@@ -838,7 +840,7 @@ const ClusterForm = () => {
     console.log('Sending payload:', JSON.stringify(payload, null, 2));
 
     try {
-      const response = await fetch('http://localhost:8083/btr-service/cluster-api/save-cluster', {
+      const response = await fetch(`${BTR_URL}/btr-service/cluster-api/save-cluster`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

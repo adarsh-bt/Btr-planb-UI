@@ -9,8 +9,10 @@ import Breadcrumb from 'routes/Breadcrumb';
 import './earascss/zone_deta.css';
 import authservice from 'pages/authentication/services/authservice';
 import { Link } from 'react-router-dom';
+import mainapi from 'api/mainapi';
 
 function ZoneDetails() {
+  const BTR_URL = mainapi.BTR_API
   const theme = useTheme();
   const [data, setData] = useState([]); // State to store API data
   const [loading, setLoading] = useState(true); // State to manage loading state
@@ -23,28 +25,42 @@ function ZoneDetails() {
 
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const token = localStorage.getItem('token');
+  setLoading(true);
+  try {
+    const token   = localStorage.getItem('token');
+    const user_id = authservice.userid();
 
-        const user_id = authservice.userid();
-        const response = await fetch(`http://localhost:8083/btr-service/btr-api/zone-details/${user_id}`, {
-          headers: {
-            Authorization: `Bearer ${token}` // Add token in Authorization header
-          }
-        });
-        if (!response.ok) {
-          throw new Error('Failed to fetch data');
+    // ✅ Correct URL
+    const res = await fetch(
+      `${BTR_URL}/btr-service/btr-api/zone-details/${user_id}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
         }
-        const result = await response.json();
-        console.log('data', result.payload);
-        setResult(result.payload);
-        setData(result.payload.data); // Set the fetched data to state
-      } catch (error) {
-        setError(error.message); // Set error message if something goes wrong
-      } finally {
-        setLoading(false); // Set loading to false after the request completes
       }
-    };
+    );
+
+    if (!res.ok) {
+      // Grab the raw text so you can see the HTML / error message
+      const errorText = await res.text();
+      console.error(`Server error ${res.status}:`, errorText);
+      throw new Error(`Server responded ${res.status}`);
+    }
+
+    const { payload } = await res.json();   // <- will succeed only if JSON
+    console.log("payload", payload);
+
+    setResult(payload);
+    setData(payload.data || []);
+  } catch (err) {
+    console.error(err);
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
     fetchData();
   }, []);

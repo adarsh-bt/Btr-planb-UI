@@ -6,15 +6,17 @@ import Typography from '@mui/material/Typography';
 import { Box, Chip, Stack, Tooltip } from '@mui/material';
 import axios from 'axios';
 import Breadcrumb from 'routes/Breadcrumb';
+import mainapi from 'api/mainapi';
 
 
 function ClusterSeatMap() {
+  const BTR_URL = mainapi.BTR_API
   const [clusters, setClusters] = useState([]);
   const [summary, setSummary] = useState({ completed: 0, ongoing: 0, notStarted: 0 });
   const [selectedStatus, setSelectedStatus] = useState('All');
 
   useEffect(() => {
-    axios.get('http://localhost:8083/btr-service/cluster-api/user-cluster-summary/3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924')
+    axios.get(`${BTR_URL}/btr-service/cluster-api/user-cluster-summary/3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924`)
       .then(res => {
         setClusters(res.data.payload || []);
         setSummary({
