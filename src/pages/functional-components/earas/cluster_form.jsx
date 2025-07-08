@@ -110,9 +110,7 @@ const sidePlotLabelOptions = [
     const [keyplotMainSvNo, setKeyplotMainSvNo] = useState(''); // Main Sv.No of the keyplot itself
     const [keyplotSubNo, setKeyplotSubNo] = useState(''); // Sub No of the keyplot itself
     const [loading, setLoading] = useState(true);
-
     const [selectedKeyplotIndex, setSelectedKeyplotIndex] = useState(null);
-
     // --- Modal related states ---
     const [modalOpen, setModalOpen] = useState(false);
     const [currentKeyplotIndex, setCurrentKeyplotIndex] = useState(null); // Index of N, E, S, W keyplot being edited
@@ -212,27 +210,6 @@ const handleSvNoSelection = (uniqueId) => { // uniqueId will be like "20-1" or t
 };
 
     // Api for Svno
-//     useEffect(() => {
-//     const fetchSvNoOptions = async () => {
-//         if (modalRowData.village && modalRowData.modalBlock) {
-//             try {
-//                 const response = await fetch(`http://localhost:8082/btr-service/cluster-api/${keyplotId}/resvnos?villageId=${modalRowData.village}&blockCode=${modalRowData.modalBlock}`);
-                
-//                 if (!response.ok) {
-//                     throw new Error('Failed to fetch Sv.No options');
-//                 }
-
-//                 const data = await response.json();
-//                 setSvNoOptions(data); // e.g., [12, 14, 15, ...]
-//             } catch (error) {
-//                 console.error('Error fetching Sv.No options:', error);
-//                 setSvNoOptions([]);
-//             }
-//         }
-//     };
-
-//     fetchSvNoOptions();
-// }, [modalRowData.village, modalRowData.modalBlock]);
     // --- API Fetching Functions ---
     // Fetches details for the main keyplot (used in initial load)
     const fetchKeyplotDetails = async (id) => {
@@ -304,28 +281,6 @@ const handleSvNoSelection = (uniqueId) => { // uniqueId will be like "20-1" or t
     }
 };
 
-
-    // Fetches Sv.No options for the main form (not directly used by modal inputs)
-    // const fetchSvNoOptions = async (id) => {
-    //     if (!id) return;
-    //     try {
-    //         const response = await fetch(`http://localhost:8082/btr-service/cluster-api/${id}/resvnos`);
-    //         if (!response.ok) {
-    //             throw new Error(`HTTP error! status: ${response.status}`);
-    //         }
-    //         const data = await response.json();
-    //         if (data && data.resvnos) {
-    //             // Filter out the keyplot's own Sv.No from the list if it exists
-    //             const filteredOptions = data.resvnos.map(String).filter(option => option !== id);
-    //             setSvNoOptions(filteredOptions);
-    //         } else {
-    //             setSvNoOptions([]);
-    //         }
-    //     } catch (error) {
-    //         console.error("Error fetching Sv.No options:", error);
-    //         throw error; // Re-throw to be caught by fetchAllInitialData
-    //     }
-    // };
 const closeModal = () => {
   setModalOpen(false);
   setModalRowData({ /* reset fields */ });
@@ -333,21 +288,6 @@ const closeModal = () => {
   setSelectedSvNos([]);
   setSelectedKeyplotIndex(null);
 };
-
-// const fetchResbdnos = async (villageId, blockCode, resvno) => {
-//   try {
-//     const response = await fetch(
-//       `http://localhost:8082/btr-service/cluster-api/${syNo}/resbdnos-by-village-block?villageId=${villageId}&blockCode=${blockCode}&resvno=${resvno}`
-//     );
-//     const data = await response.json();
-//     console.log("Btr >>>>>  ",data.resbdnoDetails)
-//     setSvNoDetails(data.resbdnoDetails);
-//   } catch (error) {
-//     console.error("Error fetching Sv.No details:", error);
-//   }
-// };
-
-    // Fetches Plot Details (Block, Area, plot_id) for a given Sv.No and Sub (used by modal's Sub dropdown)
     const fetchPlotDetails = async (currentSyNo, resvno, resbdno) => {
         if (!currentSyNo || !resvno || !resbdno) {
             setModalRowData(prev => ({ ...prev, block: '', area: '', plot_id: '' }));
@@ -652,40 +592,53 @@ const handleOpenConfirmDialog = (keyplotIndex, rowIndexToRemove) => {
 
 
 const getRemainingArea = (villageId, blockCode, resvno, resbdno) => {
-  // Include ALL rows from ALL sideplots, keyplot, AND pending rows
-  const allRows = [
-    ...keyplots.flatMap(k => k.rows),
-    ...pendingRows
-  ];
-
+  // Find the plot details from the API response
+      console.log("vvv")
   const detail = svNoDetails.find(d => 
-    d.resvno.toString() === resvno && 
-    d.resbdno.toString() === resbdno
+    d.resvno.toString() === resvno.toString() && 
+    d.resbdno.toString() === resbdno.toString()
   );
   
   if (!detail) return 0;
 
-  const usedArea = allRows
-    .filter(row => 
-      row.village === villageId &&
-      row.block === blockCode &&
-      row.svNo === resvno &&
-      row.sub === resbdno
-    )
-    .reduce((sum, row) => sum + parseFloat(row.enumeratedArea || 0), 0);
+  // Get all rows that are using this plot from keyplots
+  const allRows = keyplots.flatMap(k => k.rows).filter(row => 
+    row.village === villageId && 
+    row.block === blockCode &&
+    row.svNo.toString() === resvno.toString() &&
+    row.sub.toString() === resbdno.toString()
+  );
 
-  return Math.max(0, detail.area - usedArea);
+  // Calculate total used area
+  const usedArea = allRows.reduce((sum, row) => sum + parseFloat(row.enumeratedArea || 0), 0);
+
+  // Calculate remaining area considering backend balance
+  let remaining;
+  
+  if (detail.balance && detail.balance > 0) {
+    // If there's a backend balance, add it to the remaining calculation
+    remaining = detail.balance - usedArea;
+    console.log("1st ",remaining)
+  } else {
+    // Otherwise just use the total area minus used area
+    remaining = detail.area - usedArea;
+        console.log("2nd ",remaining)
+  }
+
+  // Ensure we don't return negative values
+  return Math.max(0, remaining);
 };
+
+
     // Handler to add a new row from the modal to the main keyplots state
 const handleModalAddRow = () => {
   if (selectedKeyplotIndex === null) return;
 
   const villageName = villageOptions.find(v => v.villageId === modalRowData.village)?.village || '';
   const modalBlock = modalRowData.modalBlock;
-  const currentRows = keyplots[selectedKeyplotIndex].rows;
   const newRows = [];
 
- if (svNoDetails.length > 0 && selectedSvNos.length > 0) {
+  if (svNoDetails.length > 0 && selectedSvNos.length > 0) {
     selectedSvNos.forEach((selectedId) => {
       const [resvno, resbdno] = selectedId.split('-');
       const detail = svNoDetails.find(d => 
@@ -693,24 +646,14 @@ const handleModalAddRow = () => {
         d.resbdno.toString() === resbdno
       );
 
-      
       if (detail) {
-        console.log("deta ",detail)
-        // Find existing row if any
-   const existingRow = keyplots
-  .flatMap(k => k.rows)
-  .find(row => {
-   
+        const remainingArea = getRemainingArea(
+          modalRowData.village,
+          modalBlock,
+          resvno,
+          resbdno
+        );
 
-    return (
-      row.villageName === modalRowData.villageName &&
-      row.block === modalBlock &&
-      row.svNo.toString() === resvno &&
-      row.sub.toString() === resbdno
-    );
-  });
-        const usedArea = existingRow ? parseFloat(existingRow.enumeratedArea || 0) : 0;
-        const remainingArea = detail.area - usedArea;
         if (remainingArea > 0) {
           newRows.push({
             village: modalRowData.village,
@@ -719,9 +662,10 @@ const handleModalAddRow = () => {
             svNo: resvno,
             sub: resbdno,
             area: detail.area,
-            enumeratedArea: remainingArea.toFixed(2), // Default to remaining area
+            enumeratedArea: remainingArea.toFixed(2),
             plot_id: detail.plotId.toString(),
-            isExisting: false
+            isExisting: false,
+            isPending: true // Mark as pending
           });
         }
       }
@@ -737,11 +681,16 @@ const handleModalAddRow = () => {
     setSnackbarOpen(true);
     return;
   }
-setPendingRows(prev => [...prev, ...newRows]);
-  // Update state
-  const updatedKeyplots = [...keyplots];
-  updatedKeyplots[selectedKeyplotIndex].rows.push(...newRows);
-  setKeyplots(updatedKeyplots);
+
+  // Only update keyplots state
+  setKeyplots(prevKeyplots => {
+    const updated = [...prevKeyplots];
+    updated[selectedKeyplotIndex].rows = [
+      ...updated[selectedKeyplotIndex].rows,
+      ...newRows
+    ];
+    return updated;
+  });
 
   // Reset modal
   setModalRowData({
@@ -836,7 +785,7 @@ const handleSubmit = async (event) => {
     // 1. Validate total cluster area
     const overallTotalAreaAres = parseFloat(calculateOverallTotalArea());
     const maxAllowedAreaAres = 5.00;
-
+ const rowsToSubmit = keyplots.flatMap(k => k.rows).filter(row => !row.isPending);
     if (overallTotalAreaAres > maxAllowedAreaAres) {
         setSnackbarMessage(`Overall Total Area (${overallTotalAreaAres} ares) cannot exceed ${maxAllowedAreaAres} ares.`);
         setSnackbarOpen(true);
@@ -939,34 +888,31 @@ const handleSubmit = async (event) => {
 
     console.log('Submitting payload:', payload);
 
-    try {
-        const response = await fetch('http://localhost:8082/btr-service/cluster-api/save-cluster', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-        });
+  try {
+    const response = await fetch('http://localhost:8082/btr-service/cluster-api/save-cluster', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        setSnackbarMessage('Form submitted successfully!');
-        setSnackbarOpen1(true);
-         setPendingRows([]);
-        console.log('API response:', result);
-        
-        // Optionally refresh data after successful submission
-        // await fetchKeyplotDetails(syNo);
-        
-    } catch (error) {
-        console.error('Error submitting form:', error);
-        setSnackbarMessage(`Failed to submit form: ${error.message}`);
-        setSnackbarOpen(true);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
     }
+
+    const result = await response.json();
+    setSnackbarMessage('Form submitted successfully!');
+    setSnackbarOpen1(true);
+    setPendingRows([]); // Clear pending rows after successful submission
+    console.log('API response:', result);
+    
+  } catch (error) {
+    console.error('Error submitting form:', error);
+    setSnackbarMessage(`Failed to submit form: ${error.message}`);
+    setSnackbarOpen(true);
+  }
 };
 
     // Handles closing the Snackbar message
@@ -981,8 +927,8 @@ const handleSubmit = async (event) => {
 
 const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
   const row = keyplots[keyplotIndex].rows[rowIndex];
-  
-  // Allow empty value (user clearing the input)
+
+  // ✅ 1. Allow clearing the input
   if (value === '') {
     setKeyplots(prev => prev.map((k, idx) => 
       idx === keyplotIndex ? {
@@ -995,45 +941,42 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
     return;
   }
 
-  // Validate when there's a value
+  // ✅ 2. Validate numeric input
   const newArea = parseFloat(value);
-  
   if (isNaN(newArea)) {
     setSnackbarMessage("Please enter a valid number");
     setSnackbarOpen(true);
     return;
   }
-
   if (newArea < 0) {
     setSnackbarMessage("Negative values not allowed");
     setSnackbarOpen(true);
     return;
   }
 
-  // Calculate remaining area considering ALL sideplots
-  const totalUsedArea = keyplots
+  // ✅ 3. Calculate total used area except the current row
+  const totalUsedAreaExcludingCurrent = keyplots
     .flatMap(k => k.rows)
     .filter(r => 
-
-      r.villageName === row.villageName &&
+      r.village === row.village &&
       r.block === row.block &&
-      r.svNo.toString() === row.svNo &&
-      r.sub.toString() === row.sub &&
-      // Exclude current row if it's an existing row being edited
-      !(r.b_id && r.b_id === row.b_id)
+      r.svNo === row.svNo &&
+      r.sub === row.sub &&
+      r !== row &&  // exclude the current row by reference
+      (!r.b_id || r.b_id !== row.b_id) // also exclude if same id
     )
     .reduce((sum, r) => sum + parseFloat(r.enumeratedArea || 0), 0);
 
-    console.log("total used area ", totalUsedArea);
-  const remainingArea = parseFloat(row.area || 0) - totalUsedArea;
+  const totalAvailableArea = parseFloat(row.area || 0);
+  const maxAllowedForCurrent = totalAvailableArea - totalUsedAreaExcludingCurrent;
 
-  if (newArea > remainingArea + parseFloat(row.enumeratedArea || 0)) {
-    setSnackbarMessage(`Cannot exceed remaining area (${remainingArea.toFixed(2)} cents)`);
+  if (newArea > maxAllowedForCurrent) {
+    setSnackbarMessage(`Cannot exceed remaining area (${maxAllowedForCurrent.toFixed(2)} cents)`);
     setSnackbarOpen(true);
     return;
   }
 
-  // Update state
+  // ✅ 4. Update the state with new value
   setKeyplots(prev => prev.map((k, idx) => 
     idx === keyplotIndex ? {
       ...k,
@@ -1546,24 +1489,18 @@ const handleSelectAll = (event) => {
 
 {svNoDetails.map((item) => {
   const uniqueId = `${item.resvno}-${item.resbdno}`;
-
-  const existingRow = keyplots
-    .flatMap(k => k.rows)
-    .find(row => 
-      row.villageName === modalRowData.villageName &&
-      row.block === modalRowData.modalBlock && // ✅ Corrected this line
-      row.svNo === item.resvno &&
-      row.sub === item.resbdno
-    );
-
-  const usedArea = existingRow ? parseFloat(existingRow.enumeratedArea || 0) : 0;
-  const remainingArea = item.area - usedArea;
-
+  const remainingArea = getRemainingArea(
+    modalRowData.village,
+    modalRowData.modalBlock,
+    item.resvno,
+    item.resbdno
+  );
 
   // Skip if fully used
   if (remainingArea <= 0) return null;
 
   return (
+    
     <FormControlLabel
       key={uniqueId}
       control={
@@ -1577,7 +1514,11 @@ const handleSelectAll = (event) => {
     />
   );
 })}
-
+ {svNoDetails.length === 0 && modalRowData.resvnoStart && modalRowData.resvnoEnd && (
+    <Typography variant="body2" color="error" sx={{ ml: 2, mt: 1 }}>
+      ⚠️ No matching subplots found for the given Resvno range.
+    </Typography>
+  )}
 
             </FormGroup>
           </>

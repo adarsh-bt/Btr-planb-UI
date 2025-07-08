@@ -73,18 +73,19 @@ const KeyPlot = () => {
    
 
     // --- Utility Function to transform sample data ---
-    const transformSample = (sample, type) => ({
-        id: sample.id,
-        no:sample["no"],
-        plot_id: sample["plot_id"],
-        slNo: sample["Sl.No"],
-        syNo: sample["Sy. No"],
-        panchayth: sample["panchayth"],
-        area: sample["Area (Cents)"],
-        villageBlock: sample["Village/Block"],
-        reserveList: type === "wet" ? "Wet" : "Dry",
-        action: "View Cluster"
-    });
+const transformSample = (sample, type, index) => ({
+  id: sample.id,
+  no: index + 1, // <-- frontend-generated serial number
+  plot_id: sample["plot_id"],
+  slNo: index + 1, // <-- serial number generated here too
+  syNo: sample["Sy. No"],
+  panchayth: sample["panchayth"],
+  area: sample["Area (Cents)"],
+  villageBlock: sample["Village/Block"],
+  reserveList: type === "wet" ? "Wet" : "Dry",
+  action: "View Cluster"
+});
+
 
     // --- Data Fetching: Fetch Existing Keyplots on Mount ---
     useEffect(() => {
@@ -405,7 +406,7 @@ const KeyPlot = () => {
             </Box>
           </Box>
 
-          <TableContainer component={Paper} sx={{ maxHeight: '50%', overflow: 'scroll', border: '1px solid #e0e0e0', borderRadius: 1 }}>
+          <TableContainer component={Paper} sx={{ maxHeight: '50%', border: '1px solid #e0e0e0', borderRadius: 1 }}>
             <Table stickyHeader sx={{ tableLayout: 'fixed' }}>
               <TableHead>
                 <TableRow>
@@ -464,7 +465,9 @@ const KeyPlot = () => {
                         '&:hover': { backgroundColor: '#e0f2f7' }
                       }}
                     >
-                      <TableCell align="center">{row.no}</TableCell>
+                      {/* <TableCell align="center">{row.id}</TableCell> */}
+                      <TableCell align="center">{page * rowsPerPage + index + 1}</TableCell>
+
                       <TableCell align="center">{row.syNo}</TableCell>
                       <TableCell align="center">{row.panchayth}</TableCell>
                       <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
