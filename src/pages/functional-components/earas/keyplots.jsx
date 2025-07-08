@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
+import Breadcrumb from 'routes/Breadcrumb';
 import {
   Button,
+  Grid,
   CircularProgress,
   Box,
   Typography,
@@ -25,7 +27,6 @@ import {
   RadioGroup,
   FormControlLabel,
   Radio,
-  Grid,
   Chip // Import Chip component
 } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -36,7 +37,6 @@ import SearchIcon from '@mui/icons-material/Search';
 import authservice from 'pages/authentication/services/authservice';
 // import auth from 'contexts/auth-reducer/auth';
 // import authservice from 'pages/authentication/services/authservice';
-import Breadcrumb from 'routes/Breadcrumb';
 
 const KeyPlot = () => {
     const [loading, setLoading] = useState(true); // Set to true initially to fetch existing data
@@ -73,17 +73,19 @@ const KeyPlot = () => {
    
 
     // --- Utility Function to transform sample data ---
-    const transformSample = (sample, type) => ({
-        id: sample.id,
-        plot_id: sample["plot_id"],
-        slNo: sample["Sl.No"],
-        syNo: sample["Sy. No"],
-        panchayth: sample["panchayth"],
-        area: sample["Area (Cents)"],
-        villageBlock: sample["Village/Block"],
-        reserveList: type === "wet" ? "Wet" : "Dry",
-        action: "View Cluster"
-    });
+const transformSample = (sample, type, index) => ({
+  id: sample.id,
+  no: index + 1, // <-- frontend-generated serial number
+  plot_id: sample["plot_id"],
+  slNo: index + 1, // <-- serial number generated here too
+  syNo: sample["Sy. No"],
+  panchayth: sample["panchayth"],
+  area: sample["Area (Cents)"],
+  villageBlock: sample["Village/Block"],
+  reserveList: type === "wet" ? "Wet" : "Dry",
+  action: "View Cluster"
+});
+
 
     // --- Data Fetching: Fetch Existing Keyplots on Mount ---
     useEffect(() => {
@@ -94,15 +96,15 @@ const KeyPlot = () => {
              
                 // Replace with your actual userId
                 const userId = authservice.userid();
-          const token = localStorage.getItem('token');
-                const res = await axios.get(`http://10.10.32.45:8080/btr-service/key-plots/fetch-existing-keyplots/${userId}`,
+              const token = localStorage.getItem('token');
+                 const res = await axios.get(`http://10.10.32.45:8080/btr-service/key-plots/fetch-existing-keyplots/${userId}`,
               {
               headers: {
                   'Authorization': `Bearer ${token}` // Add token in Authorization header
               }
                 });
 
-                console.log(res.data)
+                console.log(res.data.payload)
                 const zones = res.data.payload || [];
 
                 if (zones.length > 0) {
@@ -143,8 +145,8 @@ const KeyPlot = () => {
         try {
             // Replace with your actual userId
             const userId = authservice.userid();
-            const token = localStorage.getItem('token');
-            const res = await axios.get(`http://10.10.32.45:8080/btr-service/key-plots/generate-keyplots/${userId}`, {
+             const token = localStorage.getItem('token');
+             const res = await axios.get(`http://10.10.32.45:8080/btr-service/key-plots/generate-keyplots/${userId}`, {
         headers: {
           Authorization: `Bearer ${token}` // Add token in Authorization header
         }
@@ -293,8 +295,8 @@ const KeyPlot = () => {
     }
 
         setLoading(true);
-         const token = localStorage.getItem('token');
-        try {
+              try {
+                 const token = localStorage.getItem('token');
             const response = await axios.post(`http://10.10.32.45:8080/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`,{
               reason: finalReason,
           userid: authservice.userid()
@@ -305,7 +307,6 @@ const KeyPlot = () => {
     }
   }
 );
-
             const newPlotPayload = response.data;
 
             const transformedNewPlot = {
@@ -480,7 +481,9 @@ const KeyPlot = () => {
                         '&:hover': { backgroundColor: '#e0f2f7' }
                       }}
                     >
-                      <TableCell align="center">{index + 1}</TableCell>
+                      {/* <TableCell align="center">{row.id}</TableCell> */}
+                      <TableCell align="center">{page * rowsPerPage + index + 1}</TableCell>
+
                       <TableCell align="center">{row.syNo}</TableCell>
                       <TableCell align="center">{row.panchayth}</TableCell>
                       <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>

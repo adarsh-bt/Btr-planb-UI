@@ -95,7 +95,7 @@ function ZoneDetails() {
                     Taluk:
                   </Typography>
                   <Typography variant="body1" align="center" sx={{ color: '#00796b' }}>
-                    {result.taluk}
+                    {result.taluk}:
                   </Typography>
                 </Grid>
 
@@ -126,9 +126,11 @@ function ZoneDetails() {
                   </TableCell>
                   <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>
                     Village Name
+                  
                   </TableCell>
                   <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>
                     Block Code
+                  
                   </TableCell>
                   <TableCell colSpan={3} align="center" sx={{ border: 1, borderColor: 'grey.300' }}>
                     Area in cents
