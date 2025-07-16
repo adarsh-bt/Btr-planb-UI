@@ -5,11 +5,17 @@ import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import { Box, Chip, Stack, Tooltip } from '@mui/material'; // Corrected import statement
 import axios from 'axios';
+import Breadcrumb from 'routes/Breadcrumb';
+import LocalFloristIcon from '@mui/icons-material/LocalFlorist';
+import LoadingScreen from 'utils/loadingscreen';
+
 
 function ClusterSeatMap() {
   const [clusters, setClusters] = useState([]);
   const [summary, setSummary] = useState({ completed: 0, ongoing: 0, notStarted: 0 ,underreview:0});
   const [selectedStatus, setSelectedStatus] = useState('All');
+  const [loading, setLoading] = useState(true);
+
 
   useEffect(() => {
       const token = localStorage.getItem('token');
@@ -22,6 +28,7 @@ function ClusterSeatMap() {
       .then(res => {
         // Sets the clusters data from the payload
         setClusters(res.data.payload || []);
+        console.log("cluster data  ",res.data.payload)
         // Updates the summary counts
         setSummary({
           completed: res.data.completed || 0,
@@ -29,12 +36,14 @@ function ClusterSeatMap() {
           notStarted: res.data.notStarted || 0,
           underreview: res.data.underreview || 0,
         });
+        setLoading(false);
       })
       .catch(err => {
         // Logs an error if data fetching fails and resets state
         console.error('Failed to fetch data:', err);
         setClusters([]);
         setSummary({ completed: 0, ongoing: 0, notStarted: 0,underreview:0 });
+         setLoading(false);
       });
   }, []); // Empty dependency array ensures this runs only once on mount
 
@@ -78,16 +87,32 @@ function ClusterSeatMap() {
   const statuses = ['All', 'Completed', 'On Going', 'Not Started','Under Review'];
 
   return (
-    <Box
-      sx={{
-        padding: { xs: 3, sm: 4 },
-        maxWidth: 'lg',
-        margin: 'auto',
-        backgroundColor: '#ECF0F1', // Light grey background for the main container
-        borderRadius: 3,
-        boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-      }}
-    >
+    <Grid container spacing={3}>
+      <Breadcrumb></Breadcrumb>
+        {loading ? (
+    <Grid item xs={12}>
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="300px"
+        width="100%"
+      >
+        <LoadingScreen message="Loading cluster data..." />
+      </Box>
+    </Grid>
+  ) : (
+    <>
+ <Box
+  sx={{
+    padding: { xs: 3, sm: 4 },
+    maxWidth: 'lg',
+    margin: 'auto',
+    backgroundColor: '#ECF0F1',
+    borderRadius: 3,
+    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+  }}
+>
       <Typography variant="h3" component="h1" gutterBottom sx={{ textAlign: 'center', mb: 4, fontWeight: 'bold', color: '#3f51b5' }}>
         Cluster Operations Map
       </Typography>
@@ -228,6 +253,10 @@ function ClusterSeatMap() {
                         }}
                       >
                         {cluster.clusterType} {/* Display cluster type */}
+                        <Typography>
+                         {cluster.cce ? <LocalFloristIcon/> : null}
+                        </Typography>
+
                       </Typography>
                     </CardContent>
                   </Card>
@@ -236,7 +265,11 @@ function ClusterSeatMap() {
             );
           })}
       </Grid>
+      
     </Box>
+     </>
+        )}
+    </Grid>
   );
 }
 

@@ -80,6 +80,10 @@ const [defaultVillageId, setDefaultVillageId] = useState(null);
 const [defaultVillage, setDefaultVillage] = useState('');
 const [defaultBlock, setDefaultBlock] = useState('');
  const [selectAllChecked, setSelectAllChecked] = useState(false);
+const [resvnoError, setResvnoError] = useState('');
+const [loadingResvno, setLoadingResvno] = useState(false);
+
+
 
   const [keyplotDetails, setKeyplotDetails] = useState({
     villageBlock: '',
@@ -264,7 +268,7 @@ const handleSvNoSelection = (uniqueId) => { // uniqueId will be like "20-1" or t
                     };
                 });
             }
-
+            console.log("existed plotss ",existingSidePlots)
             // Ensure exactly N, E, S, W side plots exist (override if present)
             const defaultDirections = ['K','N', 'E', 'S', 'W'];
             const mergedKeyplots = defaultDirections.map(dir => {
@@ -298,6 +302,7 @@ const closeModal = () => {
   setSvNoDetails([]);
   setSelectedSvNos([]);
   setSelectedKeyplotIndex(null);
+  setResvnoError('');
 };
     const fetchPlotDetails = async (currentSyNo, resvno, resbdno) => {
         if (!currentSyNo || !resvno || !resbdno) {
@@ -385,40 +390,43 @@ const handleModalInputChange = useCallback((value, field) => {
   setModalRowData(prev => {
     let newState = { ...prev, [field]: value };
 
-    if (field === 'village') {
-      const selectedVillage = allVillageData.find(v => v.villageId === value);
-      if (selectedVillage) {
-        setModalBlockOptions(selectedVillage.blocks.map(b => b.blockCode));
-        newState = {
-          ...newState,
-          modalBlock: null,
-          svNo: null,
-          sub: '',
-          block: '',
-          area: '',
-          actual: '',
-          plot_id: '',
-          subOptions: []
-        };
-      } else {
-        setModalBlockOptions([]);
-         setSvNoDetails([]);
-      setSelectedSvNos([]);
-        newState = {
-          ...newState,
-          modalBlock: null,
-          svNo: null,
-          sub: '',
-          block: '',
-          area: '',
-          actual: '',
-          plot_id: '',
-          subOptions: []
-        };
-         setSvNoDetails([]);
-      setSelectedSvNos([]);
-      }
-    }
+ if (field === 'village') {
+  const selectedVillage = allVillageData.find(v => v.villageId === value);
+  if (selectedVillage) {
+    setModalBlockOptions(selectedVillage.blocks.map(b => b.blockCode));
+    newState = {
+      ...newState,
+      modalBlock: null,
+      svNo: null,
+      sub: '',
+      block: '',
+      area: '',
+      actual: '',
+      plot_id: '',
+      subOptions: [],
+      resvnoStart: '',
+      resvnoEnd: ''
+    };
+  } else {
+    setModalBlockOptions([]);
+    setSvNoDetails([]);
+    setSelectedSvNos([]);
+    newState = {
+      ...newState,
+      modalBlock: null,
+      svNo: null,
+      sub: '',
+      block: '',
+      area: '',
+      actual: '',
+      plot_id: '',
+      subOptions: [],
+      resvnoStart: '',
+      resvnoEnd: ''
+    };
+  }
+}
+
 
     else if (field === 'modalBlock') {
       newState = {
@@ -444,29 +452,54 @@ else if (field === 'resvnoStart' || field === 'resvnoEnd') {
     [field]: value
   };
 
-if (newState.village && newState.modalBlock && updatedStart && updatedEnd) {
-  const token = localStorage.getItem('token'); // get the token
-  const kpId = keyplotId;
-  const url = `http://10.10.32.45:8080/btr-service/cluster-api/${kpId}/resbdnos-by-village-block?villageId=${newState.village}&blockCode=${newState.modalBlock}&resvnoStart=${updatedStart}&resvnoEnd=${updatedEnd}`;
+  const startNum = parseInt(updatedStart);
+  const endNum = parseInt(updatedEnd);
 
-  fetch(url, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}` // add token here
+  if (
+    updatedStart !== '' &&
+    updatedEnd !== '' &&
+    !isNaN(startNum) &&
+    !isNaN(endNum)
+  ) {
+    if (endNum <= startNum) {
+      setResvnoError("Resvno End must be greater than Resvno Start.");
+    } else {
+      setResvnoError(""); // Clear error
+      // ✅ Only call API when valid
+      const kpId = keyplotId;
+      const url = `http://localhost:8082/btr-service/cluster-api/${kpId}/resbdnos-by-village-block?villageId=${newState.village}&blockCode=${newState.modalBlock}&resvnoStart=${updatedStart}&resvnoEnd=${updatedEnd}`;
+
+    setLoadingResvno(true); // <== Start loader before fetch
+
+fetch(url)
+  .then((res) => res.json())
+  .then((data) => {
+    setSvNoDetails(data.resbdnoDetails || []);
+    setSelectedSvNos([]);
+
+    if (data.statusMessage && (!data.resbdnoDetails || data.resbdnoDetails.length === 0)) {
+      setResvnoError(data.statusMessage);
+    } else {
+      setResvnoError('');
     }
   })
-    .then((res) => res.json())
-    .then((data) => {
-      setSvNoDetails(data.resbdnoDetails || []);
-      setSelectedSvNos([]);
-    })
-    .catch((error) => {
-      console.error("Error fetching resbdno details:", error);
-      setSvNoDetails([]);
-    });
+  .catch((error) => {
+    console.error("Error fetching resbdno details:", error);
+    setSvNoDetails([]);
+    setResvnoError('Failed to fetch reservation data.');
+  })
+  .finally(() => {
+    setLoadingResvno(false); // <== Stop loader
+  });
+
+    }
+  } else {
+    setResvnoError('');
+  }
+
+  return newState;
 }
 
-}
 
 
 
@@ -535,6 +568,7 @@ if (newState.village && newState.modalBlock && updatedStart && updatedEnd) {
             isExisting: false
         });
         setModalOpen(true);
+        
          // Open the modal
     };
 
@@ -645,11 +679,11 @@ const getRemainingArea = (villageId, blockCode, resvno, resbdno) => {
   if (detail.balance && detail.balance > 0) {
     // If there's a backend balance, add it to the remaining calculation
     remaining = detail.balance - usedArea;
-    console.log("1st ",remaining)
+    
   } else {
     // Otherwise just use the total area minus used area
     remaining = detail.area - usedArea;
-        console.log("2nd ",remaining)
+       
   }
 
   // Ensure we don't return negative values
@@ -737,6 +771,7 @@ const handleModalAddRow = () => {
   setSelectedSvNos([]);
   setSelectAllChecked(false);
   setModalOpen(false);
+  setResvnoError('');
 };
 
 const isResbdnoAlreadyAdded = (itemResvno, itemResbdno) => { // Pass both parts
@@ -810,14 +845,26 @@ const handleSubmit = async (event) => {
     event.preventDefault();
 
     // 1. Validate total cluster area
-    const overallTotalAreaAres = parseFloat(calculateOverallTotalArea());
-    const maxAllowedAreaAres = 5.00;
- const rowsToSubmit = keyplots.flatMap(k => k.rows).filter(row => !row.isPending);
-    if (overallTotalAreaAres > maxAllowedAreaAres) {
-        setSnackbarMessage(`Overall Total Area (${overallTotalAreaAres} ares) cannot exceed ${maxAllowedAreaAres} ares.`);
-        setSnackbarOpen(true);
-        return;
-    }
+ const overallTotalAreaCents = parseFloat(calculateOverallTotalArea()); // in cents
+
+// This comes from admin or backend config (e.g., 5 acres)
+const adminDefinedAcres = 5;
+
+// Dynamically calculate limits
+const minAllowedCents = (adminDefinedAcres - 1) * 100;
+const maxAllowedCents = (adminDefinedAcres + 1) * 100;
+
+const rowsToSubmit = keyplots.flatMap(k => k.rows).filter(row => !row.isPending);
+
+if (overallTotalAreaCents < minAllowedCents || overallTotalAreaCents > maxAllowedCents) {
+    const totalAreaAcres = (overallTotalAreaCents / 100).toFixed(2);
+    setSnackbarMessage(
+        `Total area (${totalAreaAcres} acres) must be between ${adminDefinedAcres - 1} and ${adminDefinedAcres + 1} acres.`
+    );
+    setSnackbarOpen(true);
+    return;
+}
+
 
     const sidePlotsToSubmit = [];
     let hasValidationError = false;
@@ -957,33 +1004,46 @@ const handleSubmit = async (event) => {
 const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
   const row = keyplots[keyplotIndex].rows[rowIndex];
 
-  // ✅ 1. Allow clearing the input
+  // Allow clearing the input
   if (value === '') {
     setKeyplots(prev => prev.map((k, idx) => 
       idx === keyplotIndex ? {
         ...k,
         rows: k.rows.map((r, rIdx) => 
-          rIdx === rowIndex ? { ...r, enumeratedArea: '' } : r
+          rIdx === rowIndex ? { ...r, enumeratedArea: '', areaError: '' } : r
         )
       } : k
     ));
     return;
   }
 
-  // ✅ 2. Validate numeric input
+  // Validate numeric input
   const newArea = parseFloat(value);
   if (isNaN(newArea)) {
-    setSnackbarMessage("Please enter a valid number");
-    setSnackbarOpen(true);
-    return;
-  }
-  if (newArea < 0) {
-    setSnackbarMessage("Negative values not allowed");
-    setSnackbarOpen(true);
+    setKeyplots(prev => prev.map((k, idx) => 
+      idx === keyplotIndex ? {
+        ...k,
+        rows: k.rows.map((r, rIdx) => 
+          rIdx === rowIndex ? { ...r, enumeratedArea: '', areaError: 'Please enter a valid number' } : r
+        )
+      } : k
+    ));
     return;
   }
 
-  // ✅ 3. Calculate total used area except the current row
+  if (newArea <= 0) {
+    setKeyplots(prev => prev.map((k, idx) => 
+      idx === keyplotIndex ? {
+        ...k,
+        rows: k.rows.map((r, rIdx) => 
+          rIdx === rowIndex ? { ...r, enumeratedArea: '', areaError: 'Area must be greater than 0' } : r
+        )
+      } : k
+    ));
+    return;
+  }
+
+  // Calculate remaining area
   const totalUsedAreaExcludingCurrent = keyplots
     .flatMap(k => k.rows)
     .filter(r => 
@@ -991,31 +1051,43 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
       r.block === row.block &&
       r.svNo === row.svNo &&
       r.sub === row.sub &&
-      r !== row &&  // exclude the current row by reference
-      (!r.b_id || r.b_id !== row.b_id) // also exclude if same id
+      r !== row &&
+      (!r.b_id || r.b_id !== row.b_id)
     )
     .reduce((sum, r) => sum + parseFloat(r.enumeratedArea || 0), 0);
 
-  const totalAvailableArea = parseFloat(row.area || 0);
-  const maxAllowedForCurrent = totalAvailableArea - totalUsedAreaExcludingCurrent;
+  const maxAllowedForCurrent = parseFloat(row.area || 0) - totalUsedAreaExcludingCurrent;
 
   if (newArea > maxAllowedForCurrent) {
-    setSnackbarMessage(`Cannot exceed remaining area (${maxAllowedForCurrent.toFixed(2)} cents)`);
-    setSnackbarOpen(true);
-    return;
+    // Prevent exceeding by not updating the value
+    setKeyplots(prev => prev.map((k, idx) => 
+      idx === keyplotIndex ? {
+        ...k,
+        rows: k.rows.map((r, rIdx) => 
+          rIdx === rowIndex ? { 
+            ...r, 
+            // Keep existing value (don't update to invalid value)
+            areaError: `Cannot exceed ${maxAllowedForCurrent.toFixed(2)} cents` 
+          } : r
+        )
+      } : k
+    ));
+  } else {
+    // Valid input - update normally
+    setKeyplots(prev => prev.map((k, idx) => 
+      idx === keyplotIndex ? {
+        ...k,
+        rows: k.rows.map((r, rIdx) => 
+          rIdx === rowIndex ? { 
+            ...r, 
+            enumeratedArea: value, 
+            areaError: '' 
+          } : r
+        )
+      } : k
+    ));
   }
-
-  // ✅ 4. Update the state with new value
-  setKeyplots(prev => prev.map((k, idx) => 
-    idx === keyplotIndex ? {
-      ...k,
-      rows: k.rows.map((r, rIdx) => 
-        rIdx === rowIndex ? { ...r, enumeratedArea: value } : r
-      )
-    } : k
-  ));
 };
-
 const [showFloatingSummary, setShowFloatingSummary] = useState(false);
 const totalAreaRef = useRef(null);
 
@@ -1225,75 +1297,51 @@ const handleSelectAll = (event) => {
     const isError = currentArea > maxAllowed;
 
    return (
+
+
   <TextField
-  value={row.enumeratedArea || ''}
-  onChange={(e) => handleEnumeratedAreaChange(e.target.value, index, rowIndex)}
-  fullWidth
-  size="small"
-  type="number"
-  inputProps={{ 
-    step: "0.01",
-    min: "0",
-    max: row.area
-  }}
-  label={`Area (Remaining: ${(
-    parseFloat(row.area || 0) - 
-    keyplots
-      .flatMap(k => k.rows)
-      .filter(r => 
-        r.village === row.village &&
-        r.block === row.block &&
-        r.svNo === row.svNo &&
-        r.sub === row.sub &&
-        !(r.b_id && r.b_id === row.b_id)
-      )
-      .reduce((sum, r) => sum + parseFloat(r.enumeratedArea || 0), 0)
-  ).toFixed(2)} cents)`}
-  error={
-    parseFloat(row.enumeratedArea || 0) > 
-    (parseFloat(row.area || 0) - 
-      keyplots
-        .flatMap(k => k.rows)
-        .filter(r => 
-          r.village === row.village &&
-          r.block === row.block &&
-          r.svNo === row.svNo &&
-          r.sub === row.sub &&
-          !(r.b_id && r.b_id === row.b_id)
-        )
-        .reduce((sum, r) => sum + parseFloat(r.enumeratedArea || 0), 0)
-    )
-  }
-  helperText={
-    parseFloat(row.enumeratedArea || 0) > 
-    (parseFloat(row.area || 0) - 
-      keyplots
-        .flatMap(k => k.rows)
-        .filter(r => 
-          r.village === row.village &&
-          r.block === row.block &&
-          r.svNo === row.svNo &&
-          r.sub === row.sub &&
-          !(r.b_id && r.b_id === row.b_id)
-        )
-        .reduce((sum, r) => sum + parseFloat(r.enumeratedArea || 0), 0)
-    )
-      ? `Cannot exceed ${(
-          parseFloat(row.area || 0) - 
-          keyplots
-            .flatMap(k => k.rows)
-            .filter(r => 
-              r.village === row.village &&
-              r.block === row.block &&
-              r.svNo === row.svNo &&
-              r.sub === row.sub &&
-              !(r.b_id && r.b_id === row.b_id)
-            )
-            .reduce((sum, r) => sum + parseFloat(r.enumeratedArea || 0), 0)
-        ).toFixed(2)} cents`
-      : ""
-  }
-/>
+    value={row.enumeratedArea || ''}
+    onChange={(e) => handleEnumeratedAreaChange(e.target.value, index, rowIndex)}
+    fullWidth
+    size="small"
+    type="number"
+    inputProps={{ 
+      step: "0.01",
+      min: "0",
+      max: (parseFloat(row.area || 0) - 
+        keyplots
+          .flatMap(k => k.rows)
+          .filter(r => 
+            r.village === row.village &&
+            r.block === row.block &&
+            r.svNo === row.svNo &&
+            r.sub === row.sub &&
+            !(r.b_id && r.b_id === row.b_id)
+          )
+          .reduce((sum, r) => sum + parseFloat(r.enumeratedArea || 0), 0)
+      ).toFixed(2)
+    }}
+    label="Area (cents)"
+    error={!!row.areaError}
+    helperText={
+      row.areaError || 
+      `Remaining: ${(
+        parseFloat(row.area || 0) - 
+        keyplots
+          .flatMap(k => k.rows)
+          .filter(r => 
+            r.village === row.village &&
+            r.block === row.block &&
+            r.svNo === row.svNo &&
+            r.sub === row.sub &&
+            !(r.b_id && r.b_id === row.b_id)
+          )
+          .reduce((sum, r) => sum + parseFloat(r.enumeratedArea || 0), 0)
+      ).toFixed(2)} cents`
+    }
+  />
+
+
 );
 
   })()}
@@ -1321,7 +1369,7 @@ const handleSelectAll = (event) => {
   ))}
 
   {/* Action Buttons */}
-  <Grid item xs={12} sx={{ textAlign: 'right', mt: 1 }}>
+  <Grid item xs={12} sx={{ textAlign: 'center', mt: 1 }}>
 {keyplot.label !== "K" && (
     <Button
       startIcon={<AddCircleOutlineIcon />}
@@ -1471,14 +1519,17 @@ const handleSelectAll = (event) => {
 
 <Grid item xs={6}>
   <TextField
-    label="Resvno End"
-    variant="outlined"
-    size="small"
-    type="number"
-    fullWidth
-    value={modalRowData.resvnoEnd || ''}
-    onChange={(e) => handleModalInputChange(e.target.value, 'resvnoEnd')}
-  />
+  label="Resvno End"
+  variant="outlined"
+  size="small"
+  type="number"
+  fullWidth
+  value={modalRowData.resvnoEnd || ''}
+  onChange={(e) => handleModalInputChange(e.target.value, 'resvnoEnd')}
+  error={!!resvnoError}
+  helperText={resvnoError}
+/>
+
 </Grid>
 
           {/* <Grid item xs={12}>
@@ -1495,63 +1546,83 @@ const handleSelectAll = (event) => {
         </Grid>
 
         {/* SECTION 2: Reservation Selection */}
-        {svNoDetails.length > 0 && (
-          <>
-            <Divider sx={{ my: 2 }} />
-            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-              ✅ Reservation Sub Numbers
-            </Typography>
+<>
+  <Divider sx={{ my: 2 }} />
 
-            <FormGroup sx={{ ml: 1 }}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={selectAllChecked}
-                    onChange={handleSelectAll}
-                    // Disable "Select All" if there are no details to select
-                    disabled={svNoDetails.length === 0}
-                  />
-                }
-                label="Select All"
-              />
+  <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+    ✅ Reservation Sub Numbers
+  </Typography>
 
-
-{svNoDetails.map((item) => {
-  const uniqueId = `${item.resvno}-${item.resbdno}`;
-  const remainingArea = getRemainingArea(
-    modalRowData.village,
-    modalRowData.modalBlock,
-    item.resvno,
-    item.resbdno
-  );
-
-  // Skip if fully used
-  if (remainingArea <= 0) return null;
-
-  return (
-    
-    <FormControlLabel
-      key={uniqueId}
-      control={
-        <Checkbox
-          checked={selectedSvNos.includes(uniqueId)}
-          onChange={() => handleSvNoSelection(uniqueId)}
-          disabled={remainingArea <= 0}
+  <Box sx={{ minHeight: 150, px: 2, py: 1, border: '1px dashed #ccc', borderRadius: 2 }}>
+    {loadingResvno ? (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100px' }}>
+        <CircularProgress size={30} />
+      </Box>
+    ) : svNoDetails.length > 0 ? (
+      <FormGroup>
+        <FormControlLabel
+          control={<Checkbox checked={selectAllChecked} onChange={handleSelectAll} />}
+          label="Select All"
         />
-      }
-      label={`${item.resvno}/${item.resbdno} — ${item.area} cents (Remaining: ${remainingArea.toFixed(2)} cents)`}
-    />
-  );
-})}
- {svNoDetails.length === 0 && modalRowData.resvnoStart && modalRowData.resvnoEnd && (
-    <Typography variant="body2" color="error" sx={{ ml: 2, mt: 1 }}>
-      ⚠️ No matching subplots found for the given Resvno range.
-    </Typography>
-  )}
+        {svNoDetails.map((item) => {
+          const uniqueId = `${item.resvno}-${item.resbdno}`;
+          const remainingArea = getRemainingArea(
+            modalRowData.village,
+            modalRowData.modalBlock,
+            item.resvno,
+            item.resbdno
+          );
 
-            </FormGroup>
-          </>
-        )}
+          if (remainingArea <= 0) return null;
+
+          return (
+            <FormControlLabel
+              key={uniqueId}
+              control={
+                <Checkbox
+                  checked={selectedSvNos.includes(uniqueId)}
+                  onChange={() => handleSvNoSelection(uniqueId)}
+                  disabled={remainingArea <= 0}
+                />
+              }
+              label={`${item.resvno}/${item.resbdno} — ${item.area} cents (Remaining: ${remainingArea.toFixed(2)} cents)`}
+            />
+          );
+        })}
+      </FormGroup>
+    ) : resvnoError ? (
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '120px',
+          textAlign: 'center',
+          color: 'text.secondary',
+        }}
+      >
+        <img
+          src="https://cdn-icons-png.flaticon.com/512/6134/6134065.png"
+          alt="No Data"
+          width={50}
+          height={50}
+          style={{ marginBottom: 8, opacity: 0.6 }}
+        />
+        <Typography variant="body1" fontWeight="bold" color="error">
+          {resvnoError}
+        </Typography>
+        <Typography variant="body2">
+          Please adjust the Resvno range and try again.
+        </Typography>
+      </Box>
+    ) : null}
+  </Box>
+</>
+
+
+
+        
 
         {/* Action Buttons */}
         <Grid container justifyContent="flex-end" spacing={2} sx={{ mt: 3 }}>
