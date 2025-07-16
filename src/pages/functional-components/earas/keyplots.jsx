@@ -27,6 +27,8 @@ import {
   RadioGroup,
   FormControlLabel,
   Radio,
+  Snackbar,
+  Alert,
   Chip // Import Chip component
 } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -57,6 +59,11 @@ const KeyPlot = () => {
     const [selectedPresetReason, setSelectedPresetReason] = useState('');
     const [selectedRowToRemove, setSelectedRowToRemove] = useState(null);
     const [reasonError, setReasonError] = useState(false);
+    const [dialogLoading, setDialogLoading] = useState(false);
+    const [snackbarOpen, setSnackbarOpen] = useState(false);
+const [snackbarMessage, setSnackbarMessage] = useState('');
+
+
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -202,9 +209,14 @@ const transformSample = (sample, type, index) => ({
 
   // --- Memoized Data for Table (Filtering, Sorting, and Pagination) ---
   const filteredSortedAndPaginatedData = useMemo(() => {
-    const filtered = plotData.filter((row) =>
-      Object.values(row).some((value) => String(value).toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const visibleKeys = ['syNo', 'panchayth', 'area', 'villageBlock', 'reserveList'];
+
+const filtered = plotData.filter((row) =>
+  visibleKeys.some((key) =>
+    row[key] && String(row[key]).toLowerCase().includes(searchTerm.toLowerCase())
+  )
+);
+
 
     const sorted = [...filtered].sort(getComparator(order, orderBy));
 
@@ -266,59 +278,65 @@ const transformSample = (sample, type, index) => ({
         }
     };
 
-  const handleConfirmRemoval = async () => {
-    let finalReason = selectedPresetReason;
+ const handleConfirmRemoval = async () => {
+  let finalReason = selectedPresetReason;
 
-    if (selectedPresetReason === 'Other') {
-      finalReason = reason.trim();
-    }
+  if (selectedPresetReason === 'Other') {
+    finalReason = reason.trim();
+  }
 
-    if (finalReason === '') {
-      setReasonError(true);
-      return;
-    }
+  if (finalReason === '') {
+    setReasonError(true);
+    return;
+  }
 
-    if (!selectedRowToRemove || !selectedRowToRemove.id) {
-      console.error('No row selected for removal or row has no ID.');
-      handleCloseRemoveDialog();
-      return;
-    }
+  if (!selectedRowToRemove || !selectedRowToRemove.id) {
+    console.error('No row selected for removal or row has no ID.');
+    handleCloseRemoveDialog();
+    return;
+  }
 
-        setLoading(true);
-        try {
-            const response = await axios.post(`http://localhost:8082/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`, {
-                reason: finalReason,
-                userid:authservice.userid()
-            });
+  setDialogLoading(true); // ✅ Start loader inside dialog
 
-            const newPlotPayload = response.data;
+  try {
+    const response = await axios.post(
+      `http://localhost:8082/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`,
+      {
+        reason: finalReason,
+        userid: authservice.userid()
+      }
+    );
 
-            const transformedNewPlot = {
-                id: newPlotPayload.id,
-                plot_id: newPlotPayload["plot_id"],
-                slNo: newPlotPayload["Sl.No"],
-                syNo: newPlotPayload["Sy. No"],
-                panchayth: newPlotPayload["panchayth"],
-                area: newPlotPayload["Area (Cents)"],
-                villageBlock: newPlotPayload["Village/Block"],
-                reserveList: newPlotPayload["Land Type"],
-                action: "View Cluster"
-            };
-
-            setPlotData(prevData => {
-                const filtered = prevData.filter(item => item.id !== selectedRowToRemove.id);
-                return [...filtered, transformedNewPlot];
-            });
-
-            console.log(`Removed Sy. No: ${selectedRowToRemove?.syNo} with reason: "${finalReason}". Replaced with new plot.`, transformedNewPlot);
-
-        } catch (error) {
-            console.error("Error during keyplot removal and replacement:", error);
-        } finally {
-            setLoading(false);
-            handleCloseRemoveDialog();
-        }
+    const newPlotPayload = response.data;
+    const transformedNewPlot = {
+      id: newPlotPayload.id,
+      plot_id: newPlotPayload["plot_id"],
+      slNo: newPlotPayload["Sl.No"],
+      syNo: newPlotPayload["Sy. No"],
+      panchayth: newPlotPayload["panchayth"],
+      area: newPlotPayload["Area (Cents)"],
+      villageBlock: newPlotPayload["Village/Block"],
+      reserveList: newPlotPayload["Land Type"],
+      action: "View Cluster"
     };
+
+    setPlotData(prevData => {
+      const filtered = prevData.filter(item => item.id !== selectedRowToRemove.id);
+      return [...filtered, transformedNewPlot];
+    });
+
+    setSnackbarMessage(`Removed Sy.No: ${selectedRowToRemove?.syNo} successfully with reason: "${finalReason}"`);
+    setSnackbarOpen(true);
+  } catch (error) {
+    console.error("Error during keyplot removal and replacement:", error);
+    setSnackbarMessage("Failed to replace keyplot. Please try again.");
+    setSnackbarOpen(true);
+  } finally {
+    setDialogLoading(false);
+    handleCloseRemoveDialog();
+  }
+};
+
 
     const totalArea = plotData.reduce((sum, row) => sum + parseFloat(row.area || 0), 0).toFixed(2);
 
@@ -522,6 +540,22 @@ const transformSample = (sample, type, index) => ({
                 </Paper>
             )}
 
+
+<Snackbar
+  open={snackbarOpen}
+  autoHideDuration={4000}
+  onClose={() => setSnackbarOpen(false)}
+  anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+>
+  <Alert
+    onClose={() => setSnackbarOpen(false)}
+    severity={snackbarMessage.includes("successfully") ? "success" : "error"}
+    sx={{ width: '100%' }}
+  >
+    {snackbarMessage}
+  </Alert>
+</Snackbar>
+
       {/* Removal Confirmation Dialog */}
       <Dialog open={openRemoveDialog} onClose={handleCloseRemoveDialog} fullWidth maxWidth="sm">
         <DialogTitle>Confirm Removal</DialogTitle>
@@ -576,14 +610,15 @@ const transformSample = (sample, type, index) => ({
                     <Button onClick={handleCloseRemoveDialog} color="secondary" variant="outlined">
                         Cancel
                     </Button>
-                    <Button
+                   <Button
                         onClick={handleConfirmRemoval}
                         color="error"
                         variant="contained"
-                        disabled={!selectedPresetReason || (selectedPresetReason === 'Other' && reason.trim() === '')}
-                    >
-                        Remove Permanently
-                    </Button>
+                        disabled={dialogLoading || !selectedPresetReason || (selectedPresetReason === 'Other' && reason.trim() === '')}
+                        startIcon={dialogLoading ? <CircularProgress size={20} color="inherit" /> : null}>
+  {dialogLoading ? 'Processing...' : 'Remove Permanently'}
+</Button>
+
                 </DialogActions>
             </Dialog>
         </Box>
