@@ -21,7 +21,7 @@ import Breadcrumb from 'routes/Breadcrumb';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import btrservice from './btrservice';
 import authservice from 'pages/authentication/services/authservice';
-
+import LoadingScreen from 'utils/loadingscreen';
 
 // Define the columns for the data table
 const columns = (handleEdit, handleView, page, size) => [
@@ -197,7 +197,9 @@ const Btr = () => {
     <Grid container spacing={3}>
       <Breadcrumb></Breadcrumb>
       <Grid item xs={12}>
-
+       {loading ? (
+  <LoadingScreen message="Loading Basic Tax Register data..." />
+) : (<>
         <Paper elevation={3} style={{ marginBottom: '16px', padding: '10px' }}>
 
           <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -250,7 +252,6 @@ const Btr = () => {
           columns={columns(undefined, handleView, page, size)}
           data={data} // Use the fetched data
           progressPending={loading} // Show loading indicator
-          progressComponent={<CircularProgress />} // Custom loading component
           pagination
           paginationServer // Enable server-side pagination
           paginationTotalRows={totalRecords} // Total records from API
@@ -287,8 +288,8 @@ const Btr = () => {
               },
             },
           }}
-        />
-
+        /></>
+)}
 
         {/* Modal for viewing full details */}
         <Dialog open={openViewModal} onClose={handleCloseModals} maxWidth="md" fullWidth>

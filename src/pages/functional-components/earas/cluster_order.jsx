@@ -6,19 +6,25 @@ import Typography from '@mui/material/Typography';
 import { Box, Chip, Stack, Tooltip } from '@mui/material'; // Corrected import statement
 import axios from 'axios';
 import Breadcrumb from 'routes/Breadcrumb';
+import LocalFloristIcon from '@mui/icons-material/LocalFlorist';
+import LoadingScreen from 'utils/loadingscreen';
 
 
 function ClusterSeatMap() {
   const [clusters, setClusters] = useState([]);
   const [summary, setSummary] = useState({ completed: 0, ongoing: 0, notStarted: 0 ,underreview:0});
   const [selectedStatus, setSelectedStatus] = useState('All');
+  const [loading, setLoading] = useState(true);
+
 
   useEffect(() => {
     // Fetches cluster data from the API
+     setLoading(true);
     axios.get('http://localhost:8082/btr-service/cluster-api/user-cluster-summary/3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924')
       .then(res => {
         // Sets the clusters data from the payload
         setClusters(res.data.payload || []);
+        console.log("cluster data  ",res.data.payload)
         // Updates the summary counts
         setSummary({
           completed: res.data.completed || 0,
@@ -26,12 +32,14 @@ function ClusterSeatMap() {
           notStarted: res.data.notStarted || 0,
           underreview: res.data.underreview || 0,
         });
+        setLoading(false);
       })
       .catch(err => {
         // Logs an error if data fetching fails and resets state
         console.error('Failed to fetch data:', err);
         setClusters([]);
         setSummary({ completed: 0, ongoing: 0, notStarted: 0,underreview:0 });
+         setLoading(false);
       });
   }, []); // Empty dependency array ensures this runs only once on mount
 
@@ -77,6 +85,20 @@ function ClusterSeatMap() {
   return (
     <Grid container spacing={3}>
       <Breadcrumb></Breadcrumb>
+        {loading ? (
+    <Grid item xs={12}>
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="300px"
+        width="100%"
+      >
+        <LoadingScreen message="Loading cluster data..." />
+      </Box>
+    </Grid>
+  ) : (
+    <>
  <Box
   sx={{
     padding: { xs: 3, sm: 4 },
@@ -227,6 +249,10 @@ function ClusterSeatMap() {
                         }}
                       >
                         {cluster.clusterType} {/* Display cluster type */}
+                        <Typography>
+                         {cluster.cce ? <LocalFloristIcon/> : null}
+                        </Typography>
+
                       </Typography>
                     </CardContent>
                   </Card>
@@ -235,7 +261,10 @@ function ClusterSeatMap() {
             );
           })}
       </Grid>
+      
     </Box>
+     </>
+        )}
     </Grid>
   );
 }

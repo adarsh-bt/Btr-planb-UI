@@ -9,6 +9,7 @@ import Breadcrumb from 'routes/Breadcrumb';
 import './earascss/zone_deta.css';
 import authservice from 'pages/authentication/services/authservice';
 import { Link } from 'react-router-dom';
+import LoadingScreen from 'utils/loadingscreen';
 
 function ZoneDetails() {
   const theme = useTheme();
@@ -20,6 +21,37 @@ function ZoneDetails() {
   const [localtype, setLocalType] = useState(null);
   const [zone, setZone] = useState(null);
   const [result, setResult] = useState(null);
+
+const AnimatedErrorIcon = () => (
+  <svg
+    width="120"
+    height="120"
+    viewBox="0 0 24 24"
+    style={{ margin: 'auto', animation: 'pulse 1.5s infinite' }}
+  >
+    <defs>
+      <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#f44336" />
+        <stop offset="100%" stopColor="#ff7961" />
+      </linearGradient>
+    </defs>
+    <path
+      d="M1 21h22L12 2 1 21z"
+      fill="url(#grad)"
+    />
+    <line x1="12" y1="8" x2="12" y2="13" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+    <circle cx="12" cy="17" r="1" fill="#fff" />
+    <style>{`
+      @keyframes pulse {
+        0% { transform: scale(1); opacity: 0.9; }
+        50% { transform: scale(1.05); opacity: 1; }
+        100% { transform: scale(1); opacity: 0.9; }
+      }
+    `}</style>
+  </svg>
+);
+
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -49,13 +81,27 @@ function ZoneDetails() {
     fetchData();
   }, []);
 
-  if (loading) {
-    return <Typography>Loading...</Typography>; // Display loading message
-  }
+ if (loading) {
+  return <LoadingScreen message="Fetching zone details..." />;
+}
 
-  if (error) {
-    return <Typography color="error">Error: {error}</Typography>; // Display error message
-  }
+if (error) {
+  return (
+    <Box sx={{ textAlign: 'center', mt: 6 }}>
+      <AnimatedErrorIcon />
+      <Typography variant="h5" gutterBottom>
+        Oops! Something went wrong.
+      </Typography>
+      <Typography variant="body1" sx={{ mb: 2 }}>
+        {error} Please try refreshing the page.
+      </Typography>
+      <Button variant="contained" color="error" onClick={() => window.location.reload()}>
+        Retry
+      </Button>
+    </Box>
+  );
+}
+
 
   return (
     <Grid container spacing={3}>
@@ -159,7 +205,7 @@ function ZoneDetails() {
                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
                     {index + 1}
                   </TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.p_name}</TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.p_name} {row.localbodytype}</TableCell>
                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
                       {row.villages ? row.villages.join(', ') : 'N/A'}
                       </TableCell>
