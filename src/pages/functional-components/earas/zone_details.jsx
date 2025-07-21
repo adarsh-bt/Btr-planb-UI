@@ -10,7 +10,7 @@ import './earascss/zone_deta.css';
 import authservice from 'pages/authentication/services/authservice';
 import { Link } from 'react-router-dom';
 import LoadingScreen from 'utils/loadingscreen';
-
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 function ZoneDetails() {
   const theme = useTheme();
   const [data, setData] = useState([]); // State to store API data
@@ -22,34 +22,7 @@ function ZoneDetails() {
   const [zone, setZone] = useState(null);
   const [result, setResult] = useState(null);
 
-const AnimatedErrorIcon = () => (
-  <svg
-    width="120"
-    height="120"
-    viewBox="0 0 24 24"
-    style={{ margin: 'auto', animation: 'pulse 1.5s infinite' }}
-  >
-    <defs>
-      <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#f44336" />
-        <stop offset="100%" stopColor="#ff7961" />
-      </linearGradient>
-    </defs>
-    <path
-      d="M1 21h22L12 2 1 21z"
-      fill="url(#grad)"
-    />
-    <line x1="12" y1="8" x2="12" y2="13" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-    <circle cx="12" cy="17" r="1" fill="#fff" />
-    <style>{`
-      @keyframes pulse {
-        0% { transform: scale(1); opacity: 0.9; }
-        50% { transform: scale(1.05); opacity: 1; }
-        100% { transform: scale(1); opacity: 0.9; }
-      }
-    `}</style>
-  </svg>
-);
+
 
 
 
@@ -88,7 +61,21 @@ const AnimatedErrorIcon = () => (
 if (error) {
   return (
     <Box sx={{ textAlign: 'center', mt: 6 }}>
-      <AnimatedErrorIcon />
+      
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          mb: 2,
+        }}
+      >
+        <DotLottieReact
+          style={{ width: '50rem', maxWidth: '100%' }}
+          src="https://lottie.host/ae6ba3d5-ea79-454d-ae28-fbcb986a5f7b/9vhgZMKvHq.lottie"
+          loop
+          autoplay
+        />
+      </Box>
       <Typography variant="h5" gutterBottom>
         Oops! Something went wrong.
       </Typography>

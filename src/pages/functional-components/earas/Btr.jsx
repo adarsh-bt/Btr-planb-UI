@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect,useMemo } from 'react';
 import DataTable from 'react-data-table-component';
 import {
   Typography,
@@ -21,7 +21,6 @@ import Breadcrumb from 'routes/Breadcrumb';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import btrservice from './btrservice';
 import authservice from 'pages/authentication/services/authservice';
-import LoadingScreen from 'utils/loadingscreen';
 
 // Define the columns for the data table
 const columns = (handleEdit, handleView, page, size) => [
@@ -66,7 +65,7 @@ const columns = (handleEdit, handleView, page, size) => [
   { name: 'Total area(cent)', selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span> },
 
   {
-    name: 'View',
+    name: 'View Detail',
     cell: (row) => (
       <Button color="success" onClick={() => handleView(row)}>
         <VisibilityIcon />
@@ -117,7 +116,7 @@ const Btr = () => {
 
   const handlePageChange = (newPage) => {
     setPage(newPage);
-    setPage(newPage);
+
   };
 
   const handleRowsPerPageChange = (newSize) => {
@@ -188,6 +187,8 @@ const Btr = () => {
     }
   };
 
+  const columnDefs = useMemo(() => columns(undefined, handleView, page, size), [handleView, page, size]);
+
   // Effect hook to fetch data when page, size, or filterText changes
   useEffect(() => {
     fetchData();
@@ -197,9 +198,7 @@ const Btr = () => {
     <Grid container spacing={3}>
       <Breadcrumb></Breadcrumb>
       <Grid item xs={12}>
-       {loading ? (
-  <LoadingScreen message="Loading Basic Tax Register data..." />
-) : (<>
+ 
         <Paper elevation={3} style={{ marginBottom: '16px', padding: '10px' }}>
 
           <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -248,51 +247,71 @@ const Btr = () => {
         </Paper>
 
 
-        <DataTable
-          columns={columns(undefined, handleView, page, size)}
-          data={data} // Use the fetched data
-          progressPending={loading} // Show loading indicator
-          pagination
-          paginationServer // Enable server-side pagination
-          paginationTotalRows={totalRecords} // Total records from API
-          onChangeRowsPerPage={handleRowsPerPageChange}
-          onChangePage={handlePageChange}
-          paginationComponentOptions={{
-            rowsPerPageText: 'Rows per page',
-            rangeSeparatorText: 'of',
-            selectAllRowsItemText: 'All',
-            selectAllRowsItem: 'Select All',
-          }}
-          customStyles={{
-            headCells: {
-              style: {
-                fontSize: '.9rem',
-                backgroundColor: '#04255e',
-                color: '#fff',
-                fontWeight: 'bold',
-                borderBottom: '2px solid black',
-              },
-            },
-            cells: {
-              style: {
-                backgroundColor: '',
-                borderBottom: '1px solid white',
-                color: '#333',
-              },
-            },
-            pagination: {
-              style: {
-                color: '#04255e',
-                alignItems: 'center',
-                justifyContent: 'center',
-              },
-            },
-          }}
-        /></>
-)}
+   <DataTable
+  columns={columnDefs}
+  data={data} // Use the fetched data
+  progressPending={loading}
+  progressComponent={
+    <div
+      style={{
+        padding: '20px',
+        fontSize: '18px',
+        fontWeight: 'bold',
+        color: '#04255e',
+        textAlign: 'center',
+      }}
+    >
+      Loading BTR Data...
+    </div>
+  }
+  pagination
+  paginationServer // Enable server-side pagination
+  paginationTotalRows={totalRecords} // Total records from API
+  onChangeRowsPerPage={handleRowsPerPageChange}
+  onChangePage={handlePageChange}
+  paginationComponentOptions={{
+    rowsPerPageText: 'Rows per page',
+    rangeSeparatorText: 'of',
+  }}
+  customStyles={{
+    headCells: {
+      style: {
+        fontSize: '.9rem',
+        backgroundColor: '#04255e',
+        color: '#fff',
+        fontWeight: 'bold',
+        borderBottom: '2px solid black',
+        position: 'sticky',
+        top: 0, // Fix the header to the top
+        zIndex: 2, // Ensure it stays on top
+      },
+    },
+    cells: {
+      style: {
+        backgroundColor: '',
+        borderBottom: '1px solid white',
+        color: '#333',
+      },
+    },
+    pagination: {
+      style: {
+        color: '#04255e',
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
+    },
+    table: {
+      style: {
+        overflowY: 'auto', // Ensure the table body is scrollable
+        maxHeight: '50%', // Set a max height for the table
+      },
+    },
+  }}
+/>
+
 
         {/* Modal for viewing full details */}
-        <Dialog open={openViewModal} onClose={handleCloseModals} maxWidth="md" fullWidth>
+         <Dialog open={openViewModal} onClose={handleCloseModals} maxWidth="md" fullWidth>
           <DialogTitle
             variant="h4"
             style={{
@@ -301,7 +320,7 @@ const Btr = () => {
               textAlign: 'center',
               borderBottom: '2px solid #f0f0f0',
               paddingBottom: '10px',
-              background: '#04255e',
+              background: '#04255e'
             }}
           >
             View BTR Details
@@ -319,45 +338,77 @@ const Btr = () => {
                     backgroundColor: '#fff',
                     padding: '20px',
                     borderRadius: '8px',
-                    boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)',
+                    boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)'
                   }}
                 >
-                  {Object.keys(selectedRow).filter((key) => key !== 'id' && key !== 'indexOffset').map((key) => {
-                    const value = selectedRow[key] || 'NA';
-                    return (
-                      <div
-                        key={key}
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'center',
-                          alignItems: 'flex-start',
-                        }}
-                      >
+                  {Object.keys(selectedRow)
+                    .filter((key) => key !== 'id' && key !== 'lbcode' && key !== 'resbdno' && key !== 'lbtype' && key !== 'indexOffset') // skip resbdno & lbtype
+                    .map((key) => {
+                      let label = key;
+                      let value = selectedRow[key] || 'NA';
+
+                      if (key === 'villageName') {
+                        label = 'Village';
+                      }
+
+                      if (key === 'bcode') {
+                        label = 'Village Block';
+                      }
+
+                      // Custom rendering for resvno
+                      if (key === 'resvno') {
+                        const resvno = selectedRow.resvno ? selectedRow.resvno : 'NA';
+                        const resbdno = selectedRow.resbdno ? selectedRow.resbdno : 'NA';
+                        label = 'Re-survey No.';
+                        value = `${resvno} / ${resbdno}`;
+                      }
+                      // Custom rendering for lbname
+                      if (key === 'lbname') {
+                        const lbname = selectedRow.lbname ? selectedRow.lbname : 'NA';
+                        const lbtype = selectedRow.lbtype ? selectedRow.lbtype : 'NA';
+                        label = 'Local Body';
+                        value = `${lbname}`;
+                      }
+                      if (key === 'ltype') {
+                        label = 'Land Type';
+                      }
+                      if (key === 'totalCent') {
+                        label = 'Total Area in Cent';
+                      }
+                      return (
                         <div
+                          key={key}
                           style={{
-                            fontWeight: 'bold',
-                            color: 'gray',
-                            marginBottom: '8px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'flex-start'
                           }}
                         >
-                          {key}:
+                          <div
+                            style={{
+                              fontWeight: 'bold',
+                              color: 'gray',
+                              marginBottom: '8px'
+                            }}
+                          >
+                            {label}:
+                          </div>
+                          <div
+                            style={{
+                              backgroundColor: '#f9f9f9',
+                              padding: '8px 12px',
+                              borderRadius: '4px',
+                              boxShadow: 'inset 0 0 5px rgba(0, 0, 0, 0.1)',
+                              wordBreak: 'break-word',
+                              width: '100%'
+                            }}
+                          >
+                            {value}
+                          </div>
                         </div>
-                        <div
-                          style={{
-                            backgroundColor: '#f9f9f9',
-                            padding: '8px 12px',
-                            borderRadius: '4px',
-                            boxShadow: 'inset 0 0 5px rgba(0, 0, 0, 0.1)',
-                            wordBreak: 'break-word',
-                            width: '100%',
-                          }}
-                        >
-                          {value}
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                 </div>
               </DialogContentText>
             )}
