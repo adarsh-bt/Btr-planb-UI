@@ -24,8 +24,11 @@ import authservice from 'pages/authentication/services/authservice';
 
 
 // Define the columns for the data table
-const columns = (handleEdit, handleView) => [
-  { name: 'SL. NO', selector: (row, index) => index + 1 },
+const columns = (handleEdit, handleView, page, size) => [
+ {
+    name: 'SL. NO',
+    selector: (row, index) => (page - 1) * size + index + 1,
+  },
   // { name: 'District', selector: (row) => row.dcode, sortable: true },
   // { name: 'Taluk', selector: (row) => row.tcode, sortable: true },
   // { name: 'Village', selector: (row) => row.vcode, sortable: true },
@@ -244,7 +247,7 @@ const Btr = () => {
 
 
         <DataTable
-          columns={columns(undefined, handleView)}
+          columns={columns(undefined, handleView, page, size)}
           data={data} // Use the fetched data
           progressPending={loading} // Show loading indicator
           progressComponent={<CircularProgress />} // Custom loading component

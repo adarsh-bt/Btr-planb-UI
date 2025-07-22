@@ -1,4 +1,4 @@
-import React, { useState, useEffect,useCallback } from 'react';
+import React, { useState, useEffect,useCallback ,useRef} from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Breadcrumb from 'routes/Breadcrumb';
 import {
@@ -38,7 +38,7 @@ const ListboxComponent = React.forwardRef(function ListboxComponent(props, ref) 
 
     const itemCount = itemData.length;
     const itemSize = 48; // Adjust based on your MenuItem height
-
+ 
     return (
         <div ref={ref}>
             <FixedSizeList
@@ -104,6 +104,7 @@ const sidePlotLabelOptions = [
     ]);
 
     const [snackbarOpen, setSnackbarOpen] = useState(false);
+    const [snackbarOpen1, setSnackbarOpen1] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
     const [svNoOptions, setSvNoOptions] = useState([]); // For main form's Sv.No options
     const [keyplotMainSvNo, setKeyplotMainSvNo] = useState(''); // Main Sv.No of the keyplot itself
@@ -158,7 +159,7 @@ const[keyplotId,setKeyplotId] = useState('');
                 // Fetch keyplot details and Sv.No options concurrently
                 await Promise.all([
                     fetchKeyplotDetails(syNoFromURL),
-                    fetchSvNoOptions(syNoFromURL)
+                    // fetchSvNoOptions(syNoFromURL)
                 ]);
             } catch (error) {
                 console.error("Error fetching all initial data:", error);
@@ -181,6 +182,7 @@ const[keyplotId,setKeyplotId] = useState('');
     // This runs only once on component mount
     useEffect(() => {
         const fetchAllVillageDataForModal = async () => {
+            setLoading(true);
             try {
                 const userid = authservice.userid();
              
@@ -191,7 +193,7 @@ const[keyplotId,setKeyplotId] = useState('');
                 const data = await response.json();
                 setAllVillageData(data); // Store the full data for filtering blocks
                setVillageOptions(data); // full objects, not just names
-
+              setLoading(false);
                 console.log("village datas   ",data)// Extract village names for Autocomplete
             } catch (error) {
                 console.error("Failed to fetch village data for modal:", error);
@@ -235,7 +237,7 @@ const handleSvNoSelection = (uniqueId) => { // uniqueId will be like "20-1" or t
     // Fetches details for the main keyplot (used in initial load)
     const fetchKeyplotDetails = async (id) => {
     if (!id) return;
-
+ setLoading(true);
     try {
         const response = await fetch(`http://localhost:8082/btr-service/key-plots/get-keyplot/${id}`);
         if (!response.ok) {
@@ -287,7 +289,7 @@ const handleSvNoSelection = (uniqueId) => { // uniqueId will be like "20-1" or t
 
             setKeyplots(mergedKeyplots);
 
-           
+            setLoading(false);
             // Parse syNo like "385/4"
             const ssyNo = data.payload.syNo;
             if (ssyNo) {
@@ -953,7 +955,7 @@ const handleSubmit = async (event) => {
 
         const result = await response.json();
         setSnackbarMessage('Form submitted successfully!');
-        setSnackbarOpen(true);
+        setSnackbarOpen1(true);
          setPendingRows([]);
         console.log('API response:', result);
         
@@ -973,6 +975,7 @@ const handleSubmit = async (event) => {
             return;
         }
         setSnackbarOpen(false);
+        setSnackbarOpen1(false);
     };
 
 
@@ -1041,6 +1044,22 @@ const handleEnumeratedAreaChange = (value, keyplotIndex, rowIndex) => {
   ));
 };
 
+const [showFloatingSummary, setShowFloatingSummary] = useState(false);
+const totalAreaRef = useRef(null);
+
+useEffect(() => {
+  const handleScroll = () => {
+    if (totalAreaRef.current) {
+      const { top } = totalAreaRef.current.getBoundingClientRect();
+      setShowFloatingSummary(top < 0); // Show when the element is scrolled out of view
+    }
+  };
+
+  window.addEventListener('scroll', handleScroll);
+  return () => window.removeEventListener('scroll', handleScroll);
+}, []);
+
+
  useEffect(() => {
     if (svNoDetails.length > 0 && selectedSvNos.length === svNoDetails.length) {
       setSelectAllChecked(true);
@@ -1086,6 +1105,37 @@ const handleSelectAll = (event) => {
     <Grid container spacing={3}>
       <Breadcrumb></Breadcrumb>
       <Container maxWidth="xl" sx={{ mt: 4, bgcolor: '#f4f4f9', p: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+        {/* Floating Summary Bar - Add this right after opening Container */}
+{showFloatingSummary && (
+  <Box sx={{
+    position: 'fixed',
+    top: '15%',
+    right: 0,
+    zIndex: 1000,
+    borderRadius:'1rem 1rem',
+    backgroundColor: 'rgb(245, 194, 194)',
+    p: 1.5,
+    boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    mb: 2,
+    borderBottom: '1px solid #e0e0e0',
+    width: 'auto',
+    minWidth: '300px',
+    
+  }}>
+    <Typography variant="subtitle1" fontWeight="bold">
+      Cluster: {slNo || 'Not Available'} | {keyplotDetails.panchayath || ''}
+    </Typography>
+    <Box sx={{ display: 'flex', gap: 2 }}>
+      <Typography variant="subtitle1">
+        <strong>Total Area:</strong> {calculateOverallTotalActual()} Cent
+      </Typography>
+    </Box>
+  </Box>
+)}
+
         <Typography variant="h4" align="center" gutterBottom color="primary">
           Cluster Land Form
         </Typography>
@@ -1109,15 +1159,11 @@ const handleSelectAll = (event) => {
               InputLabelProps={{ shrink: true }}
               fullWidth
             />
+          </Grid> 
+         
+          <Grid item xs={12} sm={6} md={3} ref={totalAreaRef}>
+            <TextField label="TOTAL ACTUAL AREA (Cent)" value={calculateOverallTotalActual()} InputProps={{ readOnly: true }} fullWidth/>
           </Grid>
-         
-        
-         
-         
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField label="TOTAL ACTUAL AREA (Cent)" value={calculateOverallTotalActual()} InputProps={{ readOnly: true }} fullWidth />
-          </Grid>
-         
         </Grid>
 
             {keyplots.map((keyplot, index) => (
@@ -1346,8 +1392,20 @@ const handleSelectAll = (event) => {
           autoHideDuration={3000}
           onClose={handleSnackbarClose}
           anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+          
         >
           <Alert onClose={handleSnackbarClose} severity="warning" sx={{ width: '100%' }}>
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>
+
+             <Snackbar
+          open={snackbarOpen1}
+          autoHideDuration={3000}
+          onClose={handleSnackbarClose}
+          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          <Alert onClose={handleSnackbarClose} severity="success" sx={{ width: '100%' }}>
             {snackbarMessage}
           </Alert>
         </Snackbar>

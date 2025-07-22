@@ -95,16 +95,16 @@ function ZoneDetails() {
                     Taluk:
                   </Typography>
                   <Typography variant="body1" align="center" sx={{ color: '#00796b' }}>
-                    {result.taluk}
+                    {result.taluk}:
                   </Typography>
                 </Grid>
 
                 <Grid item xs={6} sm={3}>
                   <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
-                    Local Body Type:
+                  {result.localbodyType}
                   </Typography>
                   <Typography variant="body1" align="center" sx={{ color: '#00796b' }}>
-                    {result.local_type}
+                    {result.local_name}
                   </Typography>
                 </Grid>
               </Grid>
@@ -119,16 +119,16 @@ function ZoneDetails() {
                 {/* Main Header Row */}
                 <TableRow>
                   <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>
-                    SL
+                    SL.No
                   </TableCell>
                   <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>
                     LocalBody Name
                   </TableCell>
                   <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>
-                    Village
+                    Village Name
                   </TableCell>
                   <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>
-                    Block
+                    Block Code
                   </TableCell>
                   <TableCell colSpan={3} align="center" sx={{ border: 1, borderColor: 'grey.300' }}>
                     Area in cents
