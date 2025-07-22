@@ -219,7 +219,7 @@ const transformSample = (sample, type, index) => ({
 
   // --- Memoized Data for Table (Filtering, Sorting, and Pagination) ---
   const filteredSortedAndPaginatedData = useMemo(() => {
-    const visibleKeys = ['syNo', 'panchayth', 'area', 'villageBlock', 'reserveList'];
+    const visibleKeys = ['sl.no','syNo', 'panchayth', 'area', 'villageBlock', 'reserveList'];
 
 const filtered = plotData.filter((row) =>
   visibleKeys.some((key) =>
@@ -320,7 +320,7 @@ const filtered = plotData.filter((row) =>
   }
 );
             const newPlotPayload = response.data;
-
+console.log("resss ",response.data)
             const transformedNewPlot = {
                 id: newPlotPayload.id,
                 plot_id: newPlotPayload["plot_id"],
@@ -338,8 +338,9 @@ const filtered = plotData.filter((row) =>
       return [...filtered, transformedNewPlot];
     });
 
-    setSnackbarMessage(`Removed Sy.No: ${selectedRowToRemove?.syNo} successfully with reason: "${finalReason}"`);
+    setSnackbarMessage(`Removed Sy.No: ${selectedRowToRemove?.syNo} successfully with reason: "${finalReason}". Replaced ${transformedNewPlot.syNo}`);
     setSnackbarOpen(true);
+      setLoading(false);
   } catch (error) {
     console.error("Error during keyplot removal and replacement:", error);
     setSnackbarMessage("Failed to replace keyplot. Please try again.");
@@ -497,7 +498,7 @@ const filtered = plotData.filter((row) =>
                       }}
                     >
                       {/* <TableCell align="center">{row.id}</TableCell> */}
-                      <TableCell align="center">{page * rowsPerPage + index + 1}</TableCell>
+                     <TableCell align="center">{row.slNo}</TableCell>
 
                       <TableCell align="center">{row.syNo}</TableCell>
                       <TableCell align="center">{row.panchayth}</TableCell>
@@ -640,3 +641,4 @@ const filtered = plotData.filter((row) =>
 };
 
 export default KeyPlot;
+ 

@@ -4,6 +4,8 @@ class mainapi {
   // Main API
   static BASE_URL = 'http://10.10.32.45:8080';  
 
+  
+//  static BASE_URL = 'http://103.156.188.49:8080';
   // User API
   static USER_API = 'http://localhost:8081';
 
