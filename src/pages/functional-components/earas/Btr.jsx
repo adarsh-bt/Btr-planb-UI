@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect,useMemo } from 'react';
 import DataTable from 'react-data-table-component';
 import {
   Typography,
@@ -21,7 +21,6 @@ import Breadcrumb from 'routes/Breadcrumb';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import btrservice from './btrservice';
 import authservice from 'pages/authentication/services/authservice';
-
 
 // Define the columns for the data table
 const columns = (handleEdit, handleView, page, size) => [
@@ -66,7 +65,7 @@ const columns = (handleEdit, handleView, page, size) => [
   { name: 'Total area(cent)', selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span> },
 
   {
-    name: 'View',
+    name: 'View Detail',
     cell: (row) => (
       <Button color="success" onClick={() => handleView(row)}>
         <VisibilityIcon />
@@ -117,7 +116,7 @@ const Btr = () => {
 
   const handlePageChange = (newPage) => {
     setPage(newPage);
-    setPage(newPage);
+
   };
 
   const handleRowsPerPageChange = (newSize) => {
@@ -188,16 +187,18 @@ const Btr = () => {
     }
   };
 
+  const columnDefs = useMemo(() => columns(undefined, handleView, page, size), [handleView, page, size]);
+
   // Effect hook to fetch data when page, size, or filterText changes
   useEffect(() => {
     fetchData();
   }, [page, size, filterText]); // fetchData no longer needs to be passed filter, as it uses state
 
-  return (
+  return (    
     <Grid container spacing={3}>
       <Breadcrumb></Breadcrumb>
       <Grid item xs={12}>
-
+ 
         <Paper elevation={3} style={{ marginBottom: '16px', padding: '10px' }}>
 
           <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -246,53 +247,71 @@ const Btr = () => {
         </Paper>
 
 
-        <DataTable
-          columns={columns(undefined, handleView, page, size)}
-          data={data} // Use the fetched data
-          progressPending={loading} // Show loading indicator
-          progressComponent={<CircularProgress />} // Custom loading component
-          pagination
-          paginationServer // Enable server-side pagination
-          paginationTotalRows={totalRecords} // Total records from API
-          onChangeRowsPerPage={handleRowsPerPageChange}
-          onChangePage={handlePageChange}
-          paginationComponentOptions={{
-            rowsPerPageText: 'Rows per page',
-            rangeSeparatorText: 'of',
-            selectAllRowsItemText: 'All',
-            selectAllRowsItem: 'Select All',
-          }}
-          customStyles={{
-            headCells: {
-              style: {
-                fontSize: '.9rem',
-                backgroundColor: '#04255e',
-                color: '#fff',
-                fontWeight: 'bold',
-                borderBottom: '2px solid black',
-              },
-            },
-            cells: {
-              style: {
-                backgroundColor: '',
-                borderBottom: '1px solid white',
-                color: '#333',
-              },
-            },
-            pagination: {
-              style: {
-                color: '#04255e',
-                alignItems: 'center',
-                justifyContent: 'center',
-              },
-            },
-          }}
-        />
+   <DataTable
+  columns={columnDefs}
+  data={data} // Use the fetched data
+  progressPending={loading}
+  progressComponent={
+    <div
+      style={{
+        padding: '20px',
+        fontSize: '18px',
+        fontWeight: 'bold',
+        color: '#04255e',
+        textAlign: 'center',
+      }}
+    >
+      Loading BTR Data...
+    </div>
+  }
+  pagination
+  paginationServer // Enable server-side pagination
+  paginationTotalRows={totalRecords} // Total records from API
+  onChangeRowsPerPage={handleRowsPerPageChange}
+  onChangePage={handlePageChange}
+  paginationComponentOptions={{
+    rowsPerPageText: 'Rows per page',
+    rangeSeparatorText: 'of',
+  }}
+  customStyles={{
+    headCells: {
+      style: {
+        fontSize: '.9rem',
+        backgroundColor: '#04255e',
+        color: '#fff',
+        fontWeight: 'bold',
+        borderBottom: '2px solid black',
+        position: 'sticky',
+        top: 0, // Fix the header to the top
+        zIndex: 2, // Ensure it stays on top
+      },
+    },
+    cells: {
+      style: {
+        backgroundColor: '',
+        borderBottom: '1px solid white',
+        color: '#333',
+      },
+    },
+    pagination: {
+      style: {
+        color: '#04255e',
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
+    },
+    table: {
+      style: {
+        overflowY: 'auto', // Ensure the table body is scrollable
+        maxHeight: '50%', // Set a max height for the table
+      },
+    },
+  }}
+/>
 
 
         {/* Modal for viewing full details */}
-     {/* Modal for viewing full details */}
-        <Dialog open={openViewModal} onClose={handleCloseModals} maxWidth="md" fullWidth>
+         <Dialog open={openViewModal} onClose={handleCloseModals} maxWidth="md" fullWidth>
           <DialogTitle
             variant="h4"
             style={{
@@ -348,7 +367,7 @@ const Btr = () => {
                         const lbname = selectedRow.lbname ? selectedRow.lbname : 'NA';
                         const lbtype = selectedRow.lbtype ? selectedRow.lbtype : 'NA';
                         label = 'Local Body';
-                        value = `${lbname} `;
+                        value = `${lbname}`;
                       }
                       if (key === 'ltype') {
                         label = 'Land Type';
@@ -373,7 +392,7 @@ const Btr = () => {
                               marginBottom: '8px'
                             }}
                           >
-                            {key}:
+                            {label}:
                           </div>
                           <div
                             style={{

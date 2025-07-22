@@ -27,6 +27,8 @@ import {
   RadioGroup,
   FormControlLabel,
   Radio,
+  Snackbar,
+  Alert,
   Chip // Import Chip component
 } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -35,6 +37,8 @@ import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
 import SearchIcon from '@mui/icons-material/Search';
 // import auth from 'contexts/auth-reducer/auth';
 import authservice from 'pages/authentication/services/authservice';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+
 // import auth from 'contexts/auth-reducer/auth';
 // import authservice from 'pages/authentication/services/authservice';
 
@@ -57,6 +61,12 @@ const KeyPlot = () => {
     const [selectedPresetReason, setSelectedPresetReason] = useState('');
     const [selectedRowToRemove, setSelectedRowToRemove] = useState(null);
     const [reasonError, setReasonError] = useState(false);
+    const [dialogLoading, setDialogLoading] = useState(false);
+    const [snackbarOpen, setSnackbarOpen] = useState(false);
+const [snackbarMessage, setSnackbarMessage] = useState('');
+const [fetchError, setFetchError] = useState(null);
+
+
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -73,18 +83,19 @@ const KeyPlot = () => {
    
 
     // --- Utility Function to transform sample data ---
-    const transformSample = (sample, type) => ({
-        id: sample.id,
-        no:sample["no"],
-        plot_id: sample["plot_id"],
-        slNo: sample["Sl.No"],
-        syNo: sample["Sy. No"],
-        panchayth: sample["panchayth"],
-        area: sample["Area (Cents)"],
-        villageBlock: sample["Village/Block"],
-        reserveList: type === "wet" ? "Wet" : "Dry",
-        action: "View Cluster"
-    });
+const transformSample = (sample, type, index) => ({
+  id: sample.id,
+  plot_id: sample["plot_id"],
+  slNo: Number(sample.no),  // ✅ Use actual Sl.No from backend
+  syNo: sample["Sy. No"],
+  panchayth: sample["panchayth"],
+  area: sample["Area (Cents)"],
+  villageBlock: sample["Village/Block"],
+  reserveList: type === "wet" ? "Wet" : "Dry",
+  action: "View Cluster"
+});
+
+
 
     // --- Data Fetching: Fetch Existing Keyplots on Mount ---
     useEffect(() => {
@@ -122,7 +133,8 @@ const KeyPlot = () => {
 
             } catch (error) {
                 console.error("Failed to fetch existing keyplot data", error);
-                setDataVisible(false); // If error, assume no data or issue, show generate
+               setFetchError('Failed to fetch keyplot data. Please check your internet or try again.');
+               setDataVisible(false);
             } finally {
                 setLoading(false);
             }
@@ -201,9 +213,16 @@ const KeyPlot = () => {
 
   // --- Memoized Data for Table (Filtering, Sorting, and Pagination) ---
   const filteredSortedAndPaginatedData = useMemo(() => {
-    const filtered = plotData.filter((row) =>
-      Object.values(row).some((value) => String(value).toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+   const visibleKeys = ['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'reserveList'];
+
+
+const filtered = plotData.filter((row) =>
+  visibleKeys.some((key) =>
+    row[key] && String(row[key]).toLowerCase().includes(searchTerm.toLowerCase())
+  )
+);
+
+
 
     const sorted = [...filtered].sort(getComparator(order, orderBy));
 
@@ -265,59 +284,67 @@ const KeyPlot = () => {
         }
     };
 
-  const handleConfirmRemoval = async () => {
-    let finalReason = selectedPresetReason;
+ const handleConfirmRemoval = async () => {
+  let finalReason = selectedPresetReason;
 
-    if (selectedPresetReason === 'Other') {
-      finalReason = reason.trim();
-    }
+  if (selectedPresetReason === 'Other') {
+    finalReason = reason.trim();
+  }
 
-    if (finalReason === '') {
-      setReasonError(true);
-      return;
-    }
+  if (finalReason === '') {
+    setReasonError(true);
+    return;
+  }
 
-    if (!selectedRowToRemove || !selectedRowToRemove.id) {
-      console.error('No row selected for removal or row has no ID.');
-      handleCloseRemoveDialog();
-      return;
-    }
+  if (!selectedRowToRemove || !selectedRowToRemove.id) {
+    console.error('No row selected for removal or row has no ID.');
+    handleCloseRemoveDialog();
+    return;
+  }
 
-        setLoading(true);
-        try {
-            const response = await axios.post(`http://localhost:8082/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`, {
-                reason: finalReason,
-                userid:authservice.userid()
-            });
+  setDialogLoading(true); // ✅ Start loader inside dialog
 
-            const newPlotPayload = response.data;
+  try {
+    const response = await axios.post(
+      `http://localhost:8082/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`,
+      {
+        reason: finalReason,
+        userid: authservice.userid()
+      }
+    );
 
-            const transformedNewPlot = {
-                id: newPlotPayload.id,
-                plot_id: newPlotPayload["plot_id"],
-                slNo: newPlotPayload["Sl.No"],
-                syNo: newPlotPayload["Sy. No"],
-                panchayth: newPlotPayload["panchayth"],
-                area: newPlotPayload["Area (Cents)"],
-                villageBlock: newPlotPayload["Village/Block"],
-                reserveList: newPlotPayload["Land Type"],
-                action: "View Cluster"
-            };
-
-            setPlotData(prevData => {
-                const filtered = prevData.filter(item => item.id !== selectedRowToRemove.id);
-                return [...filtered, transformedNewPlot];
-            });
-
-            console.log(`Removed Sy. No: ${selectedRowToRemove?.syNo} with reason: "${finalReason}". Replaced with new plot.`, transformedNewPlot);
-
-        } catch (error) {
-            console.error("Error during keyplot removal and replacement:", error);
-        } finally {
-            setLoading(false);
-            handleCloseRemoveDialog();
-        }
+    const newPlotPayload = response.data;
+    const transformedNewPlot = {
+      id: newPlotPayload.id,
+      plot_id: newPlotPayload["plot_id"],
+      slNo: newPlotPayload["Sl.No"],
+      syNo: newPlotPayload["Sy. No"],
+      panchayth: newPlotPayload["panchayth"],
+      area: newPlotPayload["Area (Cents)"],
+      villageBlock: newPlotPayload["Village/Block"],
+      reserveList: newPlotPayload["Land Type"],
+      action: "View Cluster"
     };
+
+    setPlotData(prevData => {
+      const filtered = prevData.filter(item => item.id !== selectedRowToRemove.id);
+      return [...filtered, transformedNewPlot];
+    });
+
+    setSnackbarMessage(`Removed Sy.No: ${selectedRowToRemove?.syNo} successfully with reason: "${finalReason}". Replaced ${transformedNewPlot.syNo}`);
+    setSnackbarOpen(true);
+       setLoading(false);
+  } catch (error) {
+    console.error("Error during keyplot removal and replacement:", error);
+    setSnackbarMessage("Failed to replace keyplot. Please try again.");
+    setSnackbarOpen(true);
+    
+  } finally {
+    setDialogLoading(false);
+    handleCloseRemoveDialog();
+  }
+};
+
 
     const totalArea = plotData.reduce((sum, row) => sum + parseFloat(row.area || 0), 0).toFixed(2);
 
@@ -335,23 +362,58 @@ const KeyPlot = () => {
                     <Typography variant="h6" sx={{ ml: 2, color: 'text.secondary' }}>Loading data...</Typography>
                 </Box>
             )}
+{!loading && fetchError && (
+  <Box sx={{ textAlign: 'center', mt: 6 }}>
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        mb: 2,
+      }}
+    >
+      <DotLottieReact
+        style={{ width: '50rem', maxWidth: '100%' }}
+        src="https://lottie.host/ae6ba3d5-ea79-454d-ae28-fbcb986a5f7b/9vhgZMKvHq.lottie"
+        loop
+        autoplay
+      />
+    </Box>
+    <Typography variant="h5" gutterBottom>
+      Oops! Something went wrong.
+    </Typography>
+    <Typography variant="body1" sx={{ mb: 2 }}>
+      {fetchError}
+    </Typography>
+    <Button
+      variant="contained"
+      color="error"
+      onClick={() => {
+        setFetchError(null); // Reset error
+        fetchInitialKeyplots(); // Retry API call
+      }}
+    >
+      Retry
+    </Button>
+  </Box>
+)}
 
-            {!loading && !dataVisible && (
-                <Box display="flex" justifyContent="center" mb={4}>
-                    <Button
-                        variant="contained"
-                        onClick={handleGenerateKeyplot}
-                        disabled={loading}
-                        sx={{
-                            fontSize: '.9rem',
-                            bgcolor: '#1976d2',
-                            '&:hover': { bgcolor: '#115293' }
-                        }}
-                    >
-                        Generate Keyplot Data
-                    </Button>
-                </Box>
-            )}
+           {!loading && !dataVisible && !fetchError && (
+  <Box display="flex" justifyContent="center" mb={4}>
+    <Button
+      variant="contained"
+      onClick={handleGenerateKeyplot}
+      disabled={loading}
+      sx={{
+        fontSize: '.9rem',
+        bgcolor: '#1976d2',
+        '&:hover': { bgcolor: '#115293' }
+      }}
+    >
+      Generate Keyplot Data
+    </Button>
+  </Box>
+)}
+
 
       {!loading && dataVisible && (
         <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
@@ -405,7 +467,7 @@ const KeyPlot = () => {
             </Box>
           </Box>
 
-          <TableContainer component={Paper} sx={{ maxHeight: '50%', overflow: 'scroll', border: '1px solid #e0e0e0', borderRadius: 1 }}>
+          <TableContainer component={Paper} sx={{ maxHeight: '50%', border: '1px solid #e0e0e0', borderRadius: 1 }}>
             <Table stickyHeader sx={{ tableLayout: 'fixed' }}>
               <TableHead>
                 <TableRow>
@@ -464,7 +526,9 @@ const KeyPlot = () => {
                         '&:hover': { backgroundColor: '#e0f2f7' }
                       }}
                     >
-                      <TableCell align="center">{row.no}</TableCell>
+                      {/* <TableCell align="center">{row.id}</TableCell> */}
+                     <TableCell align="center">{row.slNo}</TableCell>
+
                       <TableCell align="center">{row.syNo}</TableCell>
                       <TableCell align="center">{row.panchayth}</TableCell>
                       <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
@@ -518,6 +582,22 @@ const KeyPlot = () => {
                     />
                 </Paper>
             )}
+
+
+<Snackbar
+  open={snackbarOpen}
+  autoHideDuration={4000}
+  onClose={() => setSnackbarOpen(false)}
+  anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+>
+  <Alert
+    onClose={() => setSnackbarOpen(false)}
+    severity={snackbarMessage.includes("successfully") ? "success" : "error"}
+    sx={{ width: '100%' }}
+  >
+    {snackbarMessage}
+  </Alert>
+</Snackbar>
 
       {/* Removal Confirmation Dialog */}
       <Dialog open={openRemoveDialog} onClose={handleCloseRemoveDialog} fullWidth maxWidth="sm">
@@ -573,14 +653,15 @@ const KeyPlot = () => {
                     <Button onClick={handleCloseRemoveDialog} color="secondary" variant="outlined">
                         Cancel
                     </Button>
-                    <Button
+                   <Button
                         onClick={handleConfirmRemoval}
                         color="error"
                         variant="contained"
-                        disabled={!selectedPresetReason || (selectedPresetReason === 'Other' && reason.trim() === '')}
-                    >
-                        Remove Permanently
-                    </Button>
+                        disabled={dialogLoading || !selectedPresetReason || (selectedPresetReason === 'Other' && reason.trim() === '')}
+                        startIcon={dialogLoading ? <CircularProgress size={20} color="inherit" /> : null}>
+  {dialogLoading ? 'Processing...' : 'Remove Permanently'}
+</Button>
+
                 </DialogActions>
             </Dialog>
         </Box>
