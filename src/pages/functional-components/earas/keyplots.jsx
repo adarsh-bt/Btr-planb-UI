@@ -37,6 +37,8 @@ import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
 import SearchIcon from '@mui/icons-material/Search';
 // import auth from 'contexts/auth-reducer/auth';
 import authservice from 'pages/authentication/services/authservice';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+
 // import auth from 'contexts/auth-reducer/auth';
 // import authservice from 'pages/authentication/services/authservice';
 
@@ -62,6 +64,7 @@ const KeyPlot = () => {
     const [dialogLoading, setDialogLoading] = useState(false);
     const [snackbarOpen, setSnackbarOpen] = useState(false);
 const [snackbarMessage, setSnackbarMessage] = useState('');
+const [fetchError, setFetchError] = useState(null);
 
 
 
@@ -82,16 +85,16 @@ const [snackbarMessage, setSnackbarMessage] = useState('');
     // --- Utility Function to transform sample data ---
 const transformSample = (sample, type, index) => ({
   id: sample.id,
-  no: index + 1, // <-- frontend-generated serial number
   plot_id: sample["plot_id"],
-  slNo: index + 1, // <-- serial number generated here too
+  slNo: Number(sample.no),  // ✅ Use actual Sl.No from backend
   syNo: sample["Sy. No"],
   panchayth: sample["panchayth"],
   area: sample["Area (Cents)"],
   villageBlock: sample["Village/Block"],
-  reserveList: type === "wet" ? "Wet" : "Dry",
+  landType: type === "wet" ? "Wet" : "Dry",
   action: "View Cluster"
 });
+
 
 
     // --- Data Fetching: Fetch Existing Keyplots on Mount ---
@@ -135,7 +138,8 @@ const transformSample = (sample, type, index) => ({
 
             } catch (error) {
                 console.error("Failed to fetch existing keyplot data", error);
-                setDataVisible(false); // If error, assume no data or issue, show generate
+               setFetchError('Failed to fetch keyplot data. Please check your internet or try again.');
+               setDataVisible(false);
             } finally {
                 setLoading(false);
             }
@@ -219,13 +223,15 @@ const transformSample = (sample, type, index) => ({
 
   // --- Memoized Data for Table (Filtering, Sorting, and Pagination) ---
   const filteredSortedAndPaginatedData = useMemo(() => {
-    const visibleKeys = ['sl.no','syNo', 'panchayth', 'area', 'villageBlock', 'reserveList'];
+   const visibleKeys = ['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'landType'];
+
 
 const filtered = plotData.filter((row) =>
   visibleKeys.some((key) =>
     row[key] && String(row[key]).toLowerCase().includes(searchTerm.toLowerCase())
   )
 );
+
 
 
     const sorted = [...filtered].sort(getComparator(order, orderBy));
@@ -329,7 +335,7 @@ console.log("resss ",response.data)
                 panchayth: newPlotPayload["panchayth"],
                 area: newPlotPayload["Area (Cents)"],
                 villageBlock: newPlotPayload["Village/Block"],
-                reserveList: newPlotPayload["Land Type"],
+                landType: newPlotPayload["Land Type"],
                 action: "View Cluster"
             };
 
@@ -340,11 +346,12 @@ console.log("resss ",response.data)
 
     setSnackbarMessage(`Removed Sy.No: ${selectedRowToRemove?.syNo} successfully with reason: "${finalReason}". Replaced ${transformedNewPlot.syNo}`);
     setSnackbarOpen(true);
-      setLoading(false);
+     setLoading(false);
   } catch (error) {
     console.error("Error during keyplot removal and replacement:", error);
     setSnackbarMessage("Failed to replace keyplot. Please try again.");
     setSnackbarOpen(true);
+    
   } finally {
     setDialogLoading(false);
     handleCloseRemoveDialog();
@@ -368,23 +375,58 @@ console.log("resss ",response.data)
                     <Typography variant="h6" sx={{ ml: 2, color: 'text.secondary' }}>Loading data...</Typography>
                 </Box>
             )}
+{!loading && fetchError && (
+  <Box sx={{ textAlign: 'center', mt: 6 }}>
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        mb: 2,
+      }}
+    >
+      <DotLottieReact
+        style={{ width: '50rem', maxWidth: '100%' }}
+        src="https://lottie.host/ae6ba3d5-ea79-454d-ae28-fbcb986a5f7b/9vhgZMKvHq.lottie"
+        loop
+        autoplay
+      />
+    </Box>
+    <Typography variant="h5" gutterBottom>
+      Oops! Something went wrong.
+    </Typography>
+    <Typography variant="body1" sx={{ mb: 2 }}>
+      {fetchError}
+    </Typography>
+    <Button
+      variant="contained"
+      color="error"
+      onClick={() => {
+        setFetchError(null); // Reset error
+        fetchInitialKeyplots(); // Retry API call
+      }}
+    >
+      Retry
+    </Button>
+  </Box>
+)}
 
-            {!loading && !dataVisible && (
-                <Box display="flex" justifyContent="center" mb={4}>
-                    <Button
-                        variant="contained"
-                        onClick={handleGenerateKeyplot}
-                        disabled={loading}
-                        sx={{
-                            fontSize: '.9rem',
-                            bgcolor: '#1976d2',
-                            '&:hover': { bgcolor: '#115293' }
-                        }}
-                    >
-                        Generate Keyplot Data
-                    </Button>
-                </Box>
-            )}
+           {!loading && !dataVisible && !fetchError && (
+  <Box display="flex" justifyContent="center" mb={4}>
+    <Button
+      variant="contained"
+      onClick={handleGenerateKeyplot}
+      disabled={loading}
+      sx={{
+        fontSize: '.9rem',
+        bgcolor: '#1976d2',
+        '&:hover': { bgcolor: '#115293' }
+      }}
+    >
+      Generate Keyplot Data
+    </Button>
+  </Box>
+)}
+
 
       {!loading && dataVisible && (
         <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
@@ -442,7 +484,7 @@ console.log("resss ",response.data)
             <Table stickyHeader sx={{ tableLayout: 'fixed' }}>
               <TableHead>
                 <TableRow>
-                  {['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'reserveList'].map((col) => (
+                  {['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'landType'].map((col) => (
                     <TableCell
                       key={col}
                       align="center"
@@ -504,7 +546,7 @@ console.log("resss ",response.data)
                       <TableCell align="center">{row.panchayth}</TableCell>
                       <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
                       <TableCell align="center">{row.villageBlock}</TableCell>
-                      <TableCell align="center">{row.reserveList}</TableCell>
+                      <TableCell align="center">{row.landType}</TableCell>
                       <TableCell align="center">
                         <Button
                           size="small"

@@ -467,11 +467,15 @@ else if (field === 'resvnoStart' || field === 'resvnoEnd') {
       setResvnoError(""); // Clear error
       // ✅ Only call API when valid
       const kpId = keyplotId;
-      const url = `http://localhost:8082/btr-service/cluster-api/${kpId}/resbdnos-by-village-block?villageId=${newState.village}&blockCode=${newState.modalBlock}&resvnoStart=${updatedStart}&resvnoEnd=${updatedEnd}`;
-
+      const url = `http://10.10.32.45:8080/btr-service/cluster-api/${kpId}/resbdnos-by-village-block?villageId=${newState.village}&blockCode=${newState.modalBlock}&resvnoStart=${updatedStart}&resvnoEnd=${updatedEnd}`;
+        const token = localStorage.getItem('token');
     setLoadingResvno(true); // <== Start loader before fetch
 
-fetch(url)
+fetch(url,{
+  headers: {
+    'Authorization': `Bearer ${token}` // Token added here
+  }
+})
   .then((res) => res.json())
   .then((data) => {
     setSvNoDetails(data.resbdnoDetails || []);
