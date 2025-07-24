@@ -154,7 +154,7 @@ const transformSample = (sample, type, index) => ({
             const res = await axios.get(`http://localhost:8082/btr-service/key-plots/generate-keyplots/${userId}`);
 
             const zones = res.data.payload || [];
-
+            console.log("gen data ",zones)
             const allWetSamples = zones.flatMap(zone => zone.wetSamples || []);
             const allDrySamples = zones.flatMap(zone => zone.drySamples || []);
 
