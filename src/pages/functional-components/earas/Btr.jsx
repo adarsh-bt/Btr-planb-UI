@@ -194,7 +194,7 @@ const Btr = () => {
     fetchData();
   }, [page, size, filterText]); // fetchData no longer needs to be passed filter, as it uses state
 
-  return (
+  return (    
     <Grid container spacing={3}>
       <Breadcrumb></Breadcrumb>
       <Grid item xs={12}>

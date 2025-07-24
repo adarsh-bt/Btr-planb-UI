@@ -91,7 +91,7 @@ const transformSample = (sample, type, index) => ({
   panchayth: sample["panchayth"],
   area: sample["Area (Cents)"],
   villageBlock: sample["Village/Block"],
-  reserveList: type === "wet" ? "Wet" : "Dry",
+  landType: type === "wet" ? "Wet" : "Dry",
   action: "View Cluster"
 });
 
@@ -213,7 +213,7 @@ const transformSample = (sample, type, index) => ({
 
   // --- Memoized Data for Table (Filtering, Sorting, and Pagination) ---
   const filteredSortedAndPaginatedData = useMemo(() => {
-   const visibleKeys = ['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'reserveList'];
+   const visibleKeys = ['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'landType'];
 
 
 const filtered = plotData.filter((row) =>
@@ -322,7 +322,7 @@ const filtered = plotData.filter((row) =>
       panchayth: newPlotPayload["panchayth"],
       area: newPlotPayload["Area (Cents)"],
       villageBlock: newPlotPayload["Village/Block"],
-      reserveList: newPlotPayload["Land Type"],
+      landType: newPlotPayload["Land Type"],
       action: "View Cluster"
     };
 
@@ -471,7 +471,7 @@ const filtered = plotData.filter((row) =>
             <Table stickyHeader sx={{ tableLayout: 'fixed' }}>
               <TableHead>
                 <TableRow>
-                  {['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'reserveList'].map((col) => (
+                  {['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'landType'].map((col) => (
                     <TableCell
                       key={col}
                       align="center"
@@ -533,7 +533,7 @@ const filtered = plotData.filter((row) =>
                       <TableCell align="center">{row.panchayth}</TableCell>
                       <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
                       <TableCell align="center">{row.villageBlock}</TableCell>
-                      <TableCell align="center">{row.reserveList}</TableCell>
+                      <TableCell align="center">{row.landType}</TableCell>
                       <TableCell align="center">
                         <Button
                           size="small"
