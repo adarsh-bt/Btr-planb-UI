@@ -860,11 +860,17 @@ const maxAllowedCents = (adminDefinedAcres + 1) * 100;
 
 const rowsToSubmit = keyplots.flatMap(k => k.rows).filter(row => !row.isPending);
 
-if (overallTotalAreaCents < minAllowedCents || overallTotalAreaCents > maxAllowedCents) {
-    const totalAreaAcres = (overallTotalAreaCents / 100).toFixed(2);
-    setSnackbarMessage(
-        `Total area (${totalAreaAcres} acres) must be between ${adminDefinedAcres - 1} and ${adminDefinedAcres + 1} acres.`
-    );
+// if (overallTotalAreaCents < minAllowedCents || overallTotalAreaCents > maxAllowedCents) {
+//     const totalAreaAcres = (overallTotalAreaCents / 100).toFixed(2);
+//     setSnackbarMessage(
+//         `Total area (${totalAreaAcres} acres) must be between ${adminDefinedAcres - 1} and ${adminDefinedAcres + 1} acres.`
+//     );
+//     setSnackbarOpen(true);
+//     return;
+// }
+const totalAreaAcres = (overallTotalAreaCents / 100).toFixed(2);
+if (overallTotalAreaCents > 600) { // 600 cents = 6 acres
+    setSnackbarMessage(`Total area (${totalAreaAcres} acres) must not exceed 6 acres.`);
     setSnackbarOpen(true);
     return;
 }
@@ -907,10 +913,29 @@ if (overallTotalAreaCents < minAllowedCents || overallTotalAreaCents > maxAllowe
 
             // Basic validations
             if (row.enumeratedArea === '' || isNaN(enumeratedArea)) {
-                setSnackbarMessage(`Please enter a valid 'Actual Area' for Sv.No: ${row.svNo}/${row.sub} in ${keyplot.label}.`);
-                setSnackbarOpen(true);
-                hasValidationError = true;
-                break;
+              setKeyplots(prevKeyplots =>
+  prevKeyplots.map((kp, kpIndex) => {
+    if (kpIndex !== keyplots.indexOf(keyplot)) return kp;
+
+    const updatedRows = kp.rows.map((r, rIdx) => {
+      if (
+        r.village === row.village &&
+        r.block === row.block &&
+        r.svNo === row.svNo &&
+        r.sub === row.sub
+      ) {
+        return { ...r, areaError: "Please enter a valid Actual Area" };
+      }
+      return r;
+    });
+
+    return { ...kp, rows: updatedRows };
+  })
+);
+setSnackbarMessage(`Please enter a valid 'Actual Area' for Sv.No: ${row.svNo}/${row.sub} in ${keyplot.label}.`);
+setSnackbarOpen(true);
+hasValidationError = true;
+break;
             }
 
             if (enumeratedArea <= 0) {
