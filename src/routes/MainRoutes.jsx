@@ -27,6 +27,8 @@ const ClusterForm = Loadable(lazy(() => import('pages/functional-components/eara
 const Keyplots = Loadable(lazy(() => import('pages/functional-components/earas/keyplots')));
 const Clusters = Loadable(lazy(() => import('pages/functional-components/earas/cluster_order')));
 
+const ZoneSettings = Loadable(lazy(() => import('pages/functional-components/earas/ZoneSettings')));
+
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
 
 const RoleList = Loadable(lazy(() => import('pages/usermanage/RoleList')));
@@ -37,6 +39,7 @@ const Approvel = Loadable(lazy(() => import('pages/functional-components/approve
 
 const CCE_menus = Loadable(lazy(() => import('pages/functional-components/earas/cce_menus')));
 const CCE_plotlist = Loadable(lazy(() => import('pages/functional-components/earas/cce_plotlist')));
+const AvailableCcePlots = Loadable(lazy(() => import('pages/functional-components/form1/AvailableCcePlotsTable')));
 
 // ==============================|| MAIN ROUTING ||============================== //
 
@@ -226,6 +229,22 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <CCE_plotlist />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/zonesettings',
+      element: (
+        <PrivateRoute>
+          <ZoneSettings />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/AvailableCcePlots',
+      element: (
+        <PrivateRoute>
+          <AvailableCcePlots />
         </PrivateRoute>
       )
     },

@@ -73,14 +73,12 @@ const KeyPlot = () => {
         'Other'
     ];
 
-    const chipColors = [
-        '#8B33FF', '#FF5733', '#FF8B33', '#3357FF', '#33FF57',
-        '#FF33F5', '#33FFF5', '#F5FF33', '#33FF8B', '#8BFF33',
-    ];
+   
 
     // --- Utility Function to transform sample data ---
     const transformSample = (sample, type) => ({
         id: sample.id,
+        no:sample["no"],
         plot_id: sample["plot_id"],
         slNo: sample["Sl.No"],
         syNo: sample["Sy. No"],
@@ -94,14 +92,23 @@ const KeyPlot = () => {
     // --- Data Fetching: Fetch Existing Keyplots on Mount ---
     useEffect(() => {
         const fetchInitialKeyplots = async () => {
-            setLoading(true);
-        
-            try {
-             
-                // Replace with your actual userId
-                const userId = authservice.userid();
-         
-                const res = await axios.get(`${BTR_URL}/btr-service/key-plots/fetch-existing-keyplots/${userId}`);
+                      setLoading(true);
+                  
+                      try {
+                      
+                          const token  = localStorage.getItem("token");   // if you need auth
+                          const userId = authservice.userid();            // your helper
+                  
+                          const res = await axios.post(
+                  `${BTR_URL}/btr-service/key-plots/fetch-existing-keyplots`,
+                  { userId },                                   // request body
+                  {
+                    headers: {
+                      "Content-Type": "application/json",
+                      ...(token && { Authorization: `Bearer ${token}` })
+                    }
+                  }
+                );
 
                 const zones = res.data.payload || [];
 
@@ -142,9 +149,19 @@ const KeyPlot = () => {
 
         try {
             // Replace with your actual userId
-            const userId = authservice.userid();
-            const res = await axios.get(`${BTR_URL}/btr-service/key-plots/generate-keyplots/${userId}`);
-
+            const token  = localStorage.getItem("token"); // if you need auth
+    const userId = authservice.userid();
+            const res = await axios.post(
+              `${BTR_URL}/btr-service/key-plots/generate-keyplots`,
+              { userId }
+              // ,                                 // request body
+              // {
+              //   headers: {
+              //     "Content-Type": "application/json",
+              //     ...(token && { Authorization: `Bearer ${token}` })
+              //   }
+              // }
+            );
             const zones = res.data.payload || [];
 
             const allWetSamples = zones.flatMap(zone => zone.wetSamples || []);
@@ -467,7 +484,7 @@ const KeyPlot = () => {
                         '&:hover': { backgroundColor: '#e0f2f7' }
                       }}
                     >
-                      <TableCell align="center">{index + 1}</TableCell>
+                      <TableCell align="center">{row.no}</TableCell>
                       <TableCell align="center">{row.syNo}</TableCell>
                       <TableCell align="center">{row.panchayth}</TableCell>
                       <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>

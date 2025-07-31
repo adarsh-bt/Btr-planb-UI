@@ -126,49 +126,6 @@ function CceMenus() {
               </Card>
             </Grid>
 
-            <Grid item xs={12} sm={4} md={3} lg={3}>
-              <Card
-                component={Link}
-                to="/schemes/earas/keyplots"
-                sx={{
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '1rem',
-                  borderRadius: '1rem',
-                  background: 'linear-gradient(135deg, rgba(0, 150, 136, 0.45), rgb(77, 182, 172))', // Gradient color
-                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
-                  height: '100%', // Ensure card takes full height of the grid item
-                  '&:hover': {
-                    transform: 'scale(1.05)', // Hover scale effect
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
-                  }
-                }}
-              >
-                <CardMedia
-                  component="img"
-                  sx={{
-                    width: '5rem',
-                    height: '5rem',
-                    borderRadius: '.5rem',
-                    marginRight: '1rem' // Space between image and text
-                  }}
-                  image={data_collection}
-                  alt="data collection logo"
-                />
-
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Data Collection
-                    </Typography>
-                    {/* Subtitle removed from here */}
-                  </CardContent>
-                </Box>
-              </Card>
-            </Grid>
 
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card

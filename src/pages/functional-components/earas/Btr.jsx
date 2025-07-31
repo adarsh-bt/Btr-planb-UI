@@ -13,25 +13,167 @@ import {
   DialogContentText,
   DialogTitle,
   CircularProgress,
-  Grid // Ensure Grid is imported
+  Grid,
+  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tooltip
 } from '@mui/material';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
-
 import Breadcrumb from 'routes/Breadcrumb';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import btrservice from './btrservice';
 import authservice from 'pages/authentication/services/authservice';
 
-// Define the columns for the data table
-const columns = (handleEdit, handleView) => [
-  { name: 'SL. NO', selector: (row, index) => (row.indexOffset || 0) + index + 1, sortable: true },
+// Expandable Edit Table Component
+const ExpandableEditTable = ({ onCancel }) => {
+  const [rows, setRows] = useState([
+    { falseSurveyNo: '', subNo: '', name: '', address: '', landType: '', area: '' }
+  ]);
 
-  // { name: 'District', selector: (row) => row.dcode, sortable: true },
-  // { name: 'Taluk', selector: (row) => row.tcode, sortable: true },
-  // { name: 'Village', selector: (row) => row.vcode, sortable: true },
-  { name: 'Panchayth', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span>, sortable: true },
-  { name: 'Village', selector: (row) => row.villageName?.toString() || <span style={{ color: '#888' }}>NA</span>, sortable: true },
-  { name: 'Block', selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span>, sortable: true },
+  const handleAddRow = () => {
+    setRows([
+      ...rows,
+      { falseSurveyNo: '', subNo: '', name: '', address: '', landType: '', area: '' }
+    ]);
+  };
+
+  const handleChange = (idx, field, value) => {
+    const updated = [...rows];
+    updated[idx][field] = value;
+    setRows(updated);
+  };
+
+  const handleSubmit = () => {
+    alert('Submit clicked! (UI only)');
+    if (onCancel) onCancel();
+  };
+
+  return (
+    <Box sx={{ padding: 2, background: '#f5f5f5', borderRadius: 2, margin: 1 }}>
+      <TableContainer component={Paper} elevation={0}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ fontWeight: 'bold' }}>SL.NO</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>False Survey Number</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Sub No</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Address</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Land Type</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Area</TableCell>
+              <TableCell align="right">
+                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                  <Tooltip title="Add Row">
+                    <IconButton color="primary" onClick={handleAddRow}>
+                      <AddCircleOutlineIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Submit">
+                    <IconButton color="success" onClick={handleSubmit}>
+                      <CheckCircleIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {rows.map((row, idx) => (
+              <TableRow key={idx}>
+                <TableCell>{idx + 1}</TableCell>
+                <TableCell>
+                  <TextField
+                    variant="outlined"
+                    size="small"
+                    value={row.falseSurveyNo}
+                    onChange={e => handleChange(idx, 'falseSurveyNo', e.target.value)}
+                  />
+                </TableCell>
+                <TableCell>
+                  <TextField
+                    variant="outlined"
+                    size="small"
+                    value={row.subNo}
+                    onChange={e => handleChange(idx, 'subNo', e.target.value)}
+                  />
+                </TableCell>
+                <TableCell>
+                  <TextField
+                    variant="outlined"
+                    size="small"
+                    value={row.name}
+                    onChange={e => handleChange(idx, 'name', e.target.value)}
+                  />
+                </TableCell>
+                <TableCell>
+                  <TextField
+                    variant="outlined"
+                    size="small"
+                    value={row.address}
+                    onChange={e => handleChange(idx, 'address', e.target.value)}
+                  />
+                </TableCell>
+                <TableCell>
+                  <TextField
+                    variant="outlined"
+                    size="small"
+                    value={row.landType}
+                    onChange={e => handleChange(idx, 'landType', e.target.value)}
+                  />
+                </TableCell>
+                <TableCell>
+                  <TextField
+                    variant="outlined"
+                    size="small"
+                    value={row.area}
+                    onChange={e => handleChange(idx, 'area', e.target.value)}
+                  />
+                </TableCell>
+                <TableCell /> {/* Empty cell for alignment */}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+        <Button variant="outlined" color="secondary" onClick={onCancel}>
+          Cancel
+        </Button>
+      </Box>
+    </Box>
+  );
+};
+
+// Columns definition with MC (Edit) column
+const columns = ({
+  handleEdit,
+  handleView,
+  page,
+  size
+}) => [
+  {
+    name: 'SL. NO',
+    selector: (row, index) => (page - 1) * size + index + 1,
+  },
+  { name: 'LocalBody Name', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  {
+    name: 'Village',
+    selector: (row) => {
+      const name = row.villageName?.toString();
+      return name
+        ? name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()
+        : <span style={{ color: '#888' }}>NA</span>;
+    }
+  },
+  { name: 'Block', selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span> },
   {
     name: 'Re-Survey No',
     selector: (row) =>
@@ -46,13 +188,31 @@ const columns = (handleEdit, handleView) => [
       ),
     sortable: true
   },
-  // { name: 'Re-Survey No', selector: (row) => row.resvno?.toString() || <span style={{ color: '#888' }}>NA</span> },
-  // { name: 'Sub Div No', selector: (row) => row.resbdno?.toString() || <span style={{ color: '#888' }}>NA</span> },
-  // { name: 'Address', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> },
-  // { name: 'Address', selector: (row) => row.lbcode, sortable: true },
-
   { name: 'Land Type', selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span>, sortable: true },
   { name: 'Total area(cent)', selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span>, sortable: true },
+  // --- MC column with Edit icon ---
+  {
+    name: (
+      <Box sx={{ width: '100%', textAlign: 'center' }}>
+        MC
+      </Box>
+    ),
+    cell: (row) => (
+      <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+        <IconButton
+          color="primary"
+          onClick={() => row.totalCent > 20 && row.handleEdit(row)}
+          disabled={!(row.totalCent > 20)}
+        >
+          <EditIcon />
+        </IconButton>
+      </Box>
+    ),
+    ignoreRowClick: true,
+    allowOverflow: true,
+    button: true
+  },
+  // --- View column ---
   {
     name: (
       <Box sx={{ width: '100%', textAlign: 'center' }}>
@@ -61,7 +221,7 @@ const columns = (handleEdit, handleView) => [
     ),
     cell: (row) => (
       <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-        <Button color="success" onClick={() => handleView(row)}>
+        <Button color="success" onClick={() => row.handleView(row)}>
           <VisibilityIcon />
         </Button>
       </Box>
@@ -71,65 +231,57 @@ const columns = (handleEdit, handleView) => [
 
 const Btr = () => {
   const [filterText, setFilterText] = useState('');
-  const [openEditModal, setOpenEditModal] = useState(false); // Not used in provided code, but kept
   const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
   const [data, setData] = useState([]);
-  const [page, setPage] = useState(1); // Start with page 1 (react-data-table-component is 1-based)
+  const [page, setPage] = useState(1);
   const [size, setSize] = useState(10);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalArea, setTotalArea] = useState(0);
   const [totalWetArea, setTotalWetArea] = useState(0);
   const [totalDryArea, setTotalDryArea] = useState(0);
   const [downloading, setDownloading] = useState(false);
-
   const [loading, setLoading] = useState(false);
 
-  // Function to handle filter change
+  // Expanded row state for editing
+  const [expandedRowId, setExpandedRowId] = useState(null);
+
+  // Handle filter change
   const handleFilterChange = (event) => {
     setFilterText(event.target.value);
-    setPage(1); // Reset page to 1 when filter changes
+    setPage(1);
   };
 
-  // Function to handle view action
+  // Handle view action
   const handleView = (row) => {
     setSelectedRow(row);
     setOpenViewModal(true);
   };
 
-  // Function to close modals
-  const handleCloseModals = () => {
-    setOpenEditModal(false);
-    setOpenViewModal(false);
-    setSelectedRow(null);
-    setSelectedRow(null);
+  // Handle edit action (expand row)
+  const handleEdit = (row) => {
+    setExpandedRowId(row.id); // Assuming each row has a unique 'id'
   };
 
-  const handlePageChange = (newPage) => {
-    setPage(newPage);
-    setPage(newPage);
+  // Collapse expanded row
+  const handleCollapseEdit = () => {
+    setExpandedRowId(null);
   };
 
-  const handleRowsPerPageChange = (newSize) => {
-    setSize(newSize);
-    setPage(1); // Reset to page 1 when rows per page changes
-  };
-
-  // Fetch the data from the API
+  // Fetch data from API (same as before)
   const fetchData = async () => {
-    setLoading(true); // Set loading to true
-    const userid = '1605'; // This seems to be hardcoded, consider making it dynamic if needed
-
+    setLoading(true);
+    const userid = '1605';
     try {
-      // Adjust page to 0-based if your API expects it
       const apiPage = page - 1;
       const response = await btrservice.btr_lists_data(userid, apiPage, size, filterText);
-
       if (response?.payload?.data) {
-        // Add an indexOffset to each row for correct SL. NO display
+        // Inject handlers for each row so MC/View buttons work
         const indexedData = response.payload.data.map((item, index) => ({
           ...item,
-          indexOffset: (page - 1) * size // Calculate offset for current page
+          indexOffset: (page - 1) * size,
+          handleEdit,
+          handleView
         }));
         setData(indexedData);
         setTotalRecords(response.payload.totalCount);
@@ -137,31 +289,23 @@ const Btr = () => {
         setTotalDryArea(response.payload.totalDryArea);
         setTotalArea(response.payload.totalArea);
       } else {
-        console.error('Failed to fetch data:', response.message);
-        setData([]); // Clear data on failure
-        setTotalRecords(0); // Reset total records
+        setData([]);
+        setTotalRecords(0);
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
       setData([]);
       setTotalRecords(0);
     } finally {
-      setLoading(false); // Set loading to false
+      setLoading(false);
     }
   };
 
   const handleDownloadExcel = async () => {
     setDownloading(true);
     const userId = authservice.userid();
-
     try {
-      // Ensure the URL is correct for your backend service
       const response = await fetch(`http://localhost:8083/btr-service/btr-api/export?userId=${userId}`);
-
-      if (!response.ok) {
-        throw new Error('Failed to download file');
-      }
-
+      if (!response.ok) throw new Error('Failed to download file');
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -171,17 +315,16 @@ const Btr = () => {
       link.click();
       link.remove();
     } catch (error) {
-      console.error('Download error:', error);
-      alert('Download failed.'); // Provide user feedback
+      alert('Download failed.');
     } finally {
       setDownloading(false);
     }
   };
 
-  // Effect hook to fetch data when page, size, or filterText changes
   useEffect(() => {
     fetchData();
-  }, [page, size, filterText]); // fetchData no longer needs to be passed filter, as it uses state
+    // eslint-disable-next-line
+  }, [page, size, filterText]);
 
   return (
     <Grid container spacing={3}>
@@ -190,7 +333,7 @@ const Btr = () => {
         <Paper
           elevation={3}
           sx={{
-            padding: '20px', // Overall padding inside the white box
+            padding: '20px',
             borderRadius: '8px',
             border: '1px solid #e0e0e0',
             backgroundColor: '#ffffff'
@@ -200,7 +343,7 @@ const Btr = () => {
             direction="row"
             justifyContent="space-between"
             alignItems="center"
-            sx={{ marginBottom: '20px' }} // Add space below this section
+            sx={{ marginBottom: '20px' }}
           >
             <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
               Basic Tax Register
@@ -214,7 +357,6 @@ const Btr = () => {
             <Typography variant="body1" component="p" sx={{ color: '#04255e' }}>
               Total Area : {totalArea} Ac
             </Typography>
-
             <Button
               variant="contained"
               color="primary"
@@ -234,7 +376,6 @@ const Btr = () => {
             >
               {downloading ? 'Downloading...' : 'Download'}
             </Button>
-
             <TextField
               label="Search"
               variant="outlined"
@@ -245,161 +386,159 @@ const Btr = () => {
             />
           </Stack>
 
+          {/* Custom Table with manual expandable rows */}
           <Box>
-            <DataTable
-              columns={columns(undefined, handleView)}
-              data={data} // Use the fetched data
-              progressPending={loading} // Show loading indicator
-              progressComponent={<CircularProgress />} // Custom loading component
-              pagination
-              paginationServer // Enable server-side pagination
-              paginationTotalRows={totalRecords} // Total records from API
-              onChangeRowsPerPage={handleRowsPerPageChange}
-              onChangePage={handlePageChange}
-              paginationComponentOptions={{
-                rowsPerPageText: 'Rows per page',
-                rangeSeparatorText: 'of',
-                selectAllRowsItemText: 'All',
-                selectAllRowsItem: 'Select All'
-              }}
-              customStyles={{
-                headCells: {
-                  style: {
-                    fontSize: '.9rem',
-                    backgroundColor: '#04255e',
-                    color: '#fff',
-                    fontWeight: 'bold',
-                    borderBottom: '2px solid black'
-                  }
-                },
-                cells: {
-                  style: {
-                    backgroundColor: '',
-                    borderBottom: '1px solid white',
-                    color: '#333'
-                  }
-                },
-                pagination: {
-                  style: {
-                    color: '#04255e',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }
-                }
-              }}
-            />
-          </Box>
-        </Paper>
-
-        {/* Modal for viewing full details */}
-        <Dialog open={openViewModal} onClose={handleCloseModals} maxWidth="md" fullWidth>
-          <DialogTitle
-            variant="h4"
-            style={{
-              color: '#fff',
-              fontWeight: 'bold',
-              textAlign: 'center',
-              borderBottom: '2px solid #f0f0f0',
-              paddingBottom: '10px',
-              background: '#04255e'
-            }}
-          >
-            View BTR Details
-          </DialogTitle>
-          <DialogContent style={{ padding: '20px', backgroundColor: '#fafafa' }}>
-            {selectedRow && (
-              <DialogContentText>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                    gap: '20px',
-                    fontSize: '14px',
-                    color: '#333',
-                    backgroundColor: '#fff',
-                    padding: '20px',
-                    borderRadius: '8px',
-                    boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)'
-                  }}
-                >
-                  {Object.keys(selectedRow)
-                    .filter((key) => key !== 'id' && key !== 'lbcode' && key !== 'resbdno' && key !== 'lbtype' && key !== 'indexOffset') // skip resbdno & lbtype
-                    .map((key) => {
-                      let label = key;
-                      let value = selectedRow[key] || 'NA';
-
-                      if (key === 'villageName') {
-                        label = 'Village';
-                      }
-
-                      if (key === 'bcode') {
-                        label = 'Village Block';
-                      }
-
-                      // Custom rendering for resvno
-                      if (key === 'resvno') {
-                        const resvno = selectedRow.resvno ? selectedRow.resvno : 'NA';
-                        const resbdno = selectedRow.resbdno ? selectedRow.resbdno : 'NA';
-                        label = 'Re-survey No.';
-                        value = `${resvno} / ${resbdno}`;
-                      }
-                      // Custom rendering for lbname
-                      if (key === 'lbname') {
-                        const lbname = selectedRow.lbname ? selectedRow.lbname : 'NA';
-                        const lbtype = selectedRow.lbtype ? selectedRow.lbtype : 'NA';
-                        label = 'Local Body';
-                        value = `${lbname} ${lbtype}`;
-                      }
-                      if (key === 'ltype') {
-                        label = 'Land Type';
-                      }
-                      if (key === 'totalCent') {
-                        label = 'Total Area in Cent';
-                      }
-                      return (
-                        <div
-                          key={key}
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            alignItems: 'flex-start'
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontWeight: 'bold',
-                              color: 'gray',
-                              marginBottom: '8px'
-                            }}
-                          >
-                            {key}:
-                          </div>
-                          <div
-                            style={{
-                              backgroundColor: '#f9f9f9',
-                              padding: '8px 12px',
-                              borderRadius: '4px',
-                              boxShadow: 'inset 0 0 5px rgba(0, 0, 0, 0.1)',
-                              wordBreak: 'break-word',
-                              width: '100%'
-                            }}
-                          >
-                            {value}
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </DialogContentText>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    {columns({ handleEdit, handleView, page, size }).map((col, idx) => (
+                      <TableCell key={idx} style={{ fontWeight: 'bold', background: '#04255e', color: '#fff' }}>
+                        {col.name}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {data.map((row, rowIdx) => (
+                    <React.Fragment key={row.id || rowIdx}>
+                      <TableRow>
+                        {columns({ handleEdit, handleView, page, size }).map((col, colIdx) => (
+                          <TableCell key={colIdx}>
+                            {typeof col.selector === 'function'
+                              ? col.selector(row, rowIdx)
+                              : col.cell
+                                ? col.cell(row)
+                                : null}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                      {/* Render expandable content below the row if expanded */}
+                      {expandedRowId === row.id && (
+                        <TableRow>
+                          <TableCell colSpan={columns({ handleEdit, handleView, page, size }).length}>
+                            <ExpandableEditTable onCancel={handleCollapseEdit} />
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            {loading && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
+                <CircularProgress />
+              </Box>
             )}
-          </DialogContent>
-          <DialogActions style={{ justifyContent: 'center' }}>
-            <Button onClick={handleCloseModals} color="secondary" variant="outlined">
-              Close
-            </Button>
-          </DialogActions>
-        </Dialog>
+          </Box>
+
+          {/* Modal for viewing full details */}
+          <Dialog open={openViewModal} onClose={() => setOpenViewModal(false)} maxWidth="md" fullWidth>
+            <DialogTitle
+              variant="h4"
+              style={{
+                color: '#fff',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                borderBottom: '2px solid #f0f0f0',
+                paddingBottom: '10px',
+                background: '#04255e'
+              }}
+            >
+              View BTR Details
+            </DialogTitle>
+            <DialogContent style={{ padding: '20px', backgroundColor: '#fafafa' }}>
+              {selectedRow && (
+                <DialogContentText>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                      gap: '20px',
+                      fontSize: '14px',
+                      color: '#333',
+                      backgroundColor: '#fff',
+                      padding: '20px',
+                      borderRadius: '8px',
+                      boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)'
+                    }}
+                  >
+                    {Object.keys(selectedRow)
+                      .filter((key) => key !== 'id' && key !== 'lbcode' && key !== 'resbdno' && key !== 'lbtype' && key !== 'indexOffset')
+                      .map((key) => {
+                        let label = key;
+                        let value = selectedRow[key] || 'NA';
+
+                        if (key === 'villageName') {
+                          label = 'Village';
+                        }
+                        if (key === 'bcode') {
+                          label = 'Village Block';
+                        }
+                        if (key === 'resvno') {
+                          const resvno = selectedRow.resvno ? selectedRow.resvno : 'NA';
+                          const resbdno = selectedRow.resbdno ? selectedRow.resbdno : 'NA';
+                          label = 'Re-survey No.';
+                          value = `${resvno} / ${resbdno}`;
+                        }
+                        if (key === 'lbname') {
+                          const lbname = selectedRow.lbname ? selectedRow.lbname : 'NA';
+                          const lbtype = selectedRow.lbtype ? selectedRow.lbtype : 'NA';
+                          label = 'Local Body';
+                          value = `${lbname} ${lbtype}`;
+                        }
+                        if (key === 'ltype') {
+                          label = 'Land Type';
+                        }
+                        if (key === 'totalCent') {
+                          label = 'Total Area in Cent';
+                        }
+                        return (
+                          <div
+                            key={key}
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              alignItems: 'flex-start'
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontWeight: 'bold',
+                                color: 'gray',
+                                marginBottom: '8px'
+                              }}
+                            >
+                              {label}:
+                            </div>
+                            <div
+                              style={{
+                                backgroundColor: '#f9f9f9',
+                                padding: '8px 12px',
+                                borderRadius: '4px',
+                                boxShadow: 'inset 0 0 5px rgba(0, 0, 0, 0.1)',
+                                wordBreak: 'break-word',
+                                width: '100%'
+                              }}
+                            >
+                              {value}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </DialogContentText>
+              )}
+            </DialogContent>
+            <DialogActions style={{ justifyContent: 'center' }}>
+              <Button onClick={() => setOpenViewModal(false)} color="secondary" variant="outlined">
+                Close
+              </Button>
+            </DialogActions>
+          </Dialog>
+        </Paper>
       </Grid>
     </Grid>
   );
