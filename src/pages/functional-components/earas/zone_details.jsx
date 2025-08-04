@@ -11,6 +11,7 @@ import authservice from 'pages/authentication/services/authservice';
 import { Link } from 'react-router-dom';
 import LoadingScreen from 'utils/loadingscreen';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import mainapi from 'api/mainapi';
 function ZoneDetails() {
   const theme = useTheme();
   const [data, setData] = useState([]); // State to store API data
@@ -22,7 +23,7 @@ function ZoneDetails() {
   const [zone, setZone] = useState(null);
   const [result, setResult] = useState(null);
 
-
+     const BASE_URL = mainapi.BTR_API;
 
 
 
@@ -32,7 +33,7 @@ function ZoneDetails() {
         const token = localStorage.getItem('token');
 
         const user_id = authservice.userid();
-        const response = await fetch(`http://localhost:8082/btr-service/btr-api/zone-details/${user_id}`, {
+        const response = await fetch(`${BASE_URL}/btr-service/btr-api/zone-details/${user_id}`, {
           headers: {
             Authorization: `Bearer ${token}` // Add token in Authorization header
           }

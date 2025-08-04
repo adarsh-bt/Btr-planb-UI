@@ -23,6 +23,7 @@ import LinearProgress from '@mui/material/LinearProgress';
 
 
 import { FixedSizeList } from 'react-window';
+import mainapi from 'api/mainapi';
 
 
 // Placeholder for ListboxComponent if it's not provided externally.
@@ -97,9 +98,10 @@ const [loadingResvno, setLoadingResvno] = useState(false);
 
   // Inside your ClusterForm component, or as a constant outside if preferred
 const sidePlotLabelOptions = [
-  'N', 'E', 'S', 'W', 'N1', 'E1', 'S1', 'W1', 'N2', 'E2', 'S2', 'W2'
+    'N','E','S','W', 'N1', 'E1', 'S1', 'W1', 'N2', 'E2', 'S2', 'W2'
   // Add more as needed
 ];
+   const BASE_URL = mainapi.BTR_API;
     // Structure for storing side plot rows for each direction (N, E, S, W)
     const [keyplots, setKeyplots] = useState([
         { id: 'K', label: 'K', rows: [] },
@@ -189,8 +191,8 @@ const[keyplotId,setKeyplotId] = useState('');
             setLoading(true);
             try {
                 const userid = authservice.userid();
-             
-                const response = await fetch(`http://localhost:8082/btr-service/cluster-api/${userid}/villages`);
+              
+                const response = await fetch(`${BASE_URL}/btr-service/cluster-api/${userid}/villages`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -222,7 +224,7 @@ const handleSvNoSelection = (uniqueId) => { // uniqueId will be like "20-1" or t
     if (!id) return;
  setLoading(true);
     try {
-        const response = await fetch(`http://localhost:8082/btr-service/key-plots/get-keyplot/${id}`);
+        const response = await fetch(`${BASE_URL}/btr-service/key-plots/get-keyplot/${id}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -302,7 +304,7 @@ const closeModal = () => {
         }
         try {
             const response = await fetch(
-                `http://localhost:8082/btr-service/cluster-api/${currentSyNo}/plot-details?resvno=${resvno}&resbdno=${resbdno}`
+                `${BASE_URL}/btr-service/cluster-api/${currentSyNo}/plot-details?resvno=${resvno}&resbdno=${resbdno}`
             );
             alert("ok")
             if (!response.ok) {
@@ -452,7 +454,7 @@ else if (field === 'resvnoStart' || field === 'resvnoEnd') {
       setResvnoError(""); // Clear error
       // ✅ Only call API when valid
       const kpId = keyplotId;
-      const url = `http://localhost:8082/btr-service/cluster-api/${kpId}/resbdnos-by-village-block?villageId=${newState.village}&blockCode=${newState.modalBlock}&resvnoStart=${updatedStart}&resvnoEnd=${updatedEnd}`;
+      const url = `${BASE_URL}/btr-service/cluster-api/${kpId}/resbdnos-by-village-block?villageId=${newState.village}&blockCode=${newState.modalBlock}&resvnoStart=${updatedStart}&resvnoEnd=${updatedEnd}`;
 
     setLoadingResvno(true); // <== Start loader before fetch
 
@@ -581,7 +583,7 @@ const handleOpenConfirmDialog = (keyplotIndex, rowIndexToRemove) => {
 
     try {
       const response = await fetch(
-        `http://localhost:8082/btr-service/cluster-api/delete-sideplot/${rowData.b_id}`,
+        `${BASE_URL}/btr-service/cluster-api/delete-sideplot/${rowData.b_id}`,
         {
           method: 'DELETE',
         }
@@ -969,7 +971,7 @@ break;
     console.log('Submitting payload:', payload);
 
   try {
-    const response = await fetch('http://localhost:8082/btr-service/cluster-api/save-cluster', {
+    const response = await fetch(`${BASE_URL}/btr-service/cluster-api/save-cluster`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

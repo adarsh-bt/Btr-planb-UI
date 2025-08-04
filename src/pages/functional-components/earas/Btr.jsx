@@ -162,10 +162,10 @@ const Btr = () => {
   const handleDownloadExcel = async () => {
     setDownloading(true);
     const userId = authservice.userid();
-
+    const BASE_URL = mainapi.USER_API;
     try {
       // Ensure the URL is correct for your backend service
-      const response = await fetch(`http://localhost:8082/btr-service/btr-api/export?userId=${userId}`);
+      const response = await fetch(`${this.BASE_URL}/btr-service/btr-api/export?userId=${userId}`);
 
       if (!response.ok) {
         throw new Error('Failed to download file');

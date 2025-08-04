@@ -12,6 +12,7 @@ class authservice {
   static async login(userLogin) {
     try {
       const encrypted = encryptData(JSON.stringify(userLogin));
+      console.log("user login ",encrypted)
 
       const response = await axios.post(`${authservice.BASE_URL}/user-access/api/login`, encrypted, {
         headers: {
@@ -32,20 +33,30 @@ class authservice {
       console.log('>> >>>>> >>>>>> ', responseData);
       return responseData;
     } catch (err) {
-      if (err.response) {
-        return {
-          message: err.response.data.message || 'Unknown error from backend'
-        };
-      } else if (err.request) {
-        return {
-          message: 'Sorry, Please try again later'
-        };
-      } else {
-        return {
-          message: err.message || 'An unknown error occurred'
-        };
-      }
-    }
+  if (err.response) {
+    let decryptedError = '';
+try {
+  const decrypted = decryptData(err.response.data);
+  decryptedError = JSON.parse(decrypted)?.message || decrypted;
+} catch (decryptionError) {
+  decryptedError = 'Unknown encrypted error from backend';
+}
+
+console.log("err ",decryptedError.message)
+    return {
+      message: decryptedError || err.response.data.message || 'Unknown error from backend'
+    };
+  } else if (err.request) {
+    return {
+      message: 'Sorry, Please try again later'
+    };
+  } else {
+    return {
+      message: err.message || 'An unknown error occurred'
+    };
+  }
+}
+
   }
 
   static async fetchPermissions(token) {
@@ -141,12 +152,37 @@ class authservice {
   }
 
   // Checker
-  static logout(navigate) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
 
+static async logout(navigate) {
+  try {
+    const token = localStorage.getItem('token');
+
+    const response = await axios.post(`${authservice.BASE_URL}/user-access/api/logout`, null, {
+      headers: {
+        'Authorization': `Bearer ${token}`, // or handled via cookie if not using token in header
+        'Content-Type': 'application/json'
+      },
+      withCredentials: true 
+    });
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');  
     navigate('/login');
+    return response.data;
+  } catch (error) {
+    if (error.response) {
+      return { message: error.response.data || 'Logout failed' };
+    } else {
+      return { message: error.message || 'Logout error' };
+    }
   }
+}
+
+  // static logout(navigate) {
+  //   localStorage.removeItem('token');
+  //   localStorage.removeItem('user');
+
+  //   navigate('/login');
+  // }
 
   static userid() {
     const token = localStorage.getItem('token');

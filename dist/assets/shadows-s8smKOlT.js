@@ -1,0 +1,1 @@
+import{u as a,j as r,G as t,M as e,P as s}from"./index-Ddles9lG.js";function n(){return a(),r.jsx(t,{container:!0,spacing:3,children:r.jsx(t,{item:!0,xs:12,children:r.jsx(e,{title:"Basic Shadow"})})})}s.string;s.string,s.string,s.string,s.string;export{n as default};

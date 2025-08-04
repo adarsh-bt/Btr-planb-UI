@@ -38,6 +38,7 @@ import SearchIcon from '@mui/icons-material/Search';
 // import auth from 'contexts/auth-reducer/auth';
 import authservice from 'pages/authentication/services/authservice';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import mainapi from 'api/mainapi';
 
 // import auth from 'contexts/auth-reducer/auth';
 // import authservice from 'pages/authentication/services/authservice';
@@ -66,7 +67,7 @@ const KeyPlot = () => {
 const [snackbarMessage, setSnackbarMessage] = useState('');
 const [fetchError, setFetchError] = useState(null);
 
-
+   const BASE_URL = mainapi.BTR_API;
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -106,8 +107,16 @@ const transformSample = (sample, type, index) => ({
              
                 // Replace with your actual userId
                 const userId = authservice.userid();
-         
-                const res = await axios.get(`http://localhost:8082/btr-service/key-plots/fetch-existing-keyplots/${userId}`);
+              const token = ""
+               const res = await axios.post(
+  `${BASE_URL}/btr-service/key-plots/fetch-existing-keyplots`,
+  {
+    userId: userId
+  }
+);
+
+console.log(res.data);
+
 
                 console.log(res.data.payload)
                 const zones = res.data.payload || [];
@@ -151,7 +160,7 @@ const transformSample = (sample, type, index) => ({
         try {
             // Replace with your actual userId
             const userId = authservice.userid();
-            const res = await axios.get(`http://localhost:8082/btr-service/key-plots/generate-keyplots/${userId}`);
+            const res = await axios.get(`${BASE_URL}/btr-service/key-plots/generate-keyplots/${userId}`);
 
             const zones = res.data.payload || [];
             console.log("gen data ",zones)
@@ -306,7 +315,7 @@ const filtered = plotData.filter((row) =>
 
   try {
     const response = await axios.post(
-      `http://localhost:8082/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`,
+      `${BASE_URL}/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`,
       {
         reason: finalReason,
         userid: authservice.userid()

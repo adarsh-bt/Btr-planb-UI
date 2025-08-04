@@ -16,6 +16,8 @@ import axios from 'axios';
 import Breadcrumb from 'routes/Breadcrumb';
 import LoadingScreen from 'utils/loadingscreen';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import authservice from 'pages/authentication/services/authservice';
+import mainapi from 'api/mainapi';
 
 
 function ClusterSeatMap() {
@@ -25,12 +27,13 @@ function ClusterSeatMap() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-
+   const BASE_URL = mainapi.BTR_API;
 
   useEffect(() => {
     // Fetches cluster data from the API
      setLoading(true);
-    axios.get('http://localhost:8082/btr-service/cluster-api/user-cluster-summary/3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924')
+     const user_id = authservice.userid()
+    axios.get(`${BASE_URL}/btr-service/cluster-api/user-cluster-summary/${user_id}`)
   .then(res => {
   setClusters(res.data.payload || []);
   setSummary({
@@ -39,7 +42,7 @@ function ClusterSeatMap() {
     notStarted: res.data.notStarted || 0,
     underreview: res.data.underreview || 0,
   });
-  console.log(setClusters)
+  console.log("data cluster ",res.data.payload)
   setError(null); // ✅ clear previous error if any
   setLoading(false);
 })
@@ -243,7 +246,7 @@ const handleClusterClick = (syNo, slNo) => {
                   title={ // Tooltip content to show detailed cluster information on hover
                     <Box>
                       <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.8rem' }}>
-                        ID: <strong style={{ color: 'white' }}>{cluster.clusterId}</strong>
+                        ID: <strong style={{ color: 'white' }}>{cluster.localbody}</strong>
                       </Typography>
                       <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.8rem' }}>
                         Type: <strong style={{ color: 'white' }}>{cluster.clusterType.toUpperCase()}</strong>
@@ -275,11 +278,15 @@ const handleClusterClick = (syNo, slNo) => {
                       p: 0.5, // Padding around content
                     }}
                   >
-                    <CardContent sx={{
-                      padding: '4px',
-                      '&:last-child': { paddingBottom: '4px' }, // Fix for Material-UI's last child padding
-                      width: '100%',
-                    }}>
+                  <CardContent
+                          sx={{
+                              padding: '4px',
+                              '&:last-child': { paddingBottom: '4px' },
+                              width: '100%',
+                              height: '50px', // Force uniform height
+                              boxSizing: 'border-box',
+                              }}>
+
                       <Typography
                         variant="h6"
                         component="div"
