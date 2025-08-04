@@ -107,7 +107,7 @@ const transformSample = (sample, type, index) => ({
                 // Replace with your actual userId
                 const userId = authservice.userid();
               const token = localStorage.getItem('token');
-                 const res = await axios.get(`http://10.10.32.45:8080/btr-service/key-plots/fetch-existing-keyplots/${userId}`,
+                 const res = await axios.get(`http://103.156.188.49:8080/btr-service/key-plots/fetch-existing-keyplots/${userId}`,
               {
               headers: {
                   'Authorization': `Bearer ${token}` // Add token in Authorization header
@@ -157,14 +157,14 @@ const transformSample = (sample, type, index) => ({
             // Replace with your actual userId
             const userId = authservice.userid();
              const token = localStorage.getItem('token');
-             const res = await axios.get(`http://10.10.32.45:8080/btr-service/key-plots/generate-keyplots/${userId}`, {
+             const res = await axios.get(`http://103.156.188.49:8080/btr-service/key-plots/generate-keyplots/${userId}`, {
         headers: {
           Authorization: `Bearer ${token}` // Add token in Authorization header
         }
       });
 
             const zones = res.data.payload || [];
-
+            console.log("gen data ",zones)
             const allWetSamples = zones.flatMap(zone => zone.wetSamples || []);
             const allDrySamples = zones.flatMap(zone => zone.drySamples || []);
 
@@ -315,7 +315,7 @@ const filtered = plotData.filter((row) =>
         setLoading(true);
               try {
                  const token = localStorage.getItem('token');
-            const response = await axios.post(`http://10.10.32.45:8080/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`,{
+            const response = await axios.post(`http://103.156.188.49:8080/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`,{
               reason: finalReason,
           userid: authservice.userid()
   },

@@ -19,6 +19,8 @@ import Autocomplete from '@mui/material/Autocomplete';
 import PropTypes from 'prop-types'; // For ListboxComponent prop-types
 
 import authservice from 'pages/authentication/services/authservice';
+import LinearProgress from '@mui/material/LinearProgress';
+
 
 import { FixedSizeList } from 'react-window';
 
@@ -188,7 +190,7 @@ const[keyplotId,setKeyplotId] = useState('');
             try {
                 const userid = authservice.userid();
                   const token = localStorage.getItem('token');
-                const response = await fetch(`http://10.10.32.45:8080/btr-service/cluster-api/${userid}/villages`,
+                const response = await fetch(`http://103.156.188.49:8080/btr-service/cluster-api/${userid}/villages`,
               {
               headers: {
                   'Authorization': `Bearer ${token}` // Add token in Authorization header
@@ -226,7 +228,7 @@ const handleSvNoSelection = (uniqueId) => { // uniqueId will be like "20-1" or t
  setLoading(true);
     try {
           const token = localStorage.getItem('token');
-        const response = await fetch(`http://10.10.32.45:8080/btr-service/key-plots/get-keyplot/${id}`,
+        const response = await fetch(`http://103.156.188.49:8080/btr-service/key-plots/get-keyplot/${id}`,
               {
               headers: {
                   'Authorization': `Bearer ${token}` // Add token in Authorization header
@@ -312,7 +314,7 @@ const closeModal = () => {
         try {
            const token = localStorage.getItem('token');
             const response = await fetch(
-                `http://10.10.32.45:8080/btr-service/cluster-api/${currentSyNo}/plot-details?resvno=${resvno}&resbdno=${resbdno}`,
+                `http://103.156.188.49:8080/btr-service/cluster-api/${currentSyNo}/plot-details?resvno=${resvno}&resbdno=${resbdno}`,
               {
               headers: {
                   'Authorization': `Bearer ${token}` // Add token in Authorization header
@@ -467,7 +469,7 @@ else if (field === 'resvnoStart' || field === 'resvnoEnd') {
       setResvnoError(""); // Clear error
       // ✅ Only call API when valid
       const kpId = keyplotId;
-      const url = `http://10.10.32.45:8080/btr-service/cluster-api/${kpId}/resbdnos-by-village-block?villageId=${newState.village}&blockCode=${newState.modalBlock}&resvnoStart=${updatedStart}&resvnoEnd=${updatedEnd}`;
+      const url = `http://103.156.188.49:8080/btr-service/cluster-api/${kpId}/resbdnos-by-village-block?villageId=${newState.village}&blockCode=${newState.modalBlock}&resvnoStart=${updatedStart}&resvnoEnd=${updatedEnd}`;
         const token = localStorage.getItem('token');
     setLoadingResvno(true); // <== Start loader before fetch
 
@@ -601,7 +603,7 @@ const handleOpenConfirmDialog = (keyplotIndex, rowIndexToRemove) => {
    try {
       const token = localStorage.getItem('token');
   const response = await fetch(
-    `http://10.10.32.45:8080/btr-service/cluster-api/delete-sideplot/${rowData.b_id}`,
+    `http://103.156.188.49:8080/btr-service/cluster-api/delete-sideplot/${rowData.b_id}`,
     {
       method: 'DELETE',
       headers: {
@@ -993,7 +995,7 @@ break;
 
     try {
           const token = localStorage.getItem('token');
-        const response = await fetch('http://10.10.32.45:8080/btr-service/cluster-api/save-cluster', {
+        const response = await fetch('http://103.156.188.49:8080/btr-service/cluster-api/save-cluster', {
     method: 'POST',
     headers: {
         'Content-Type': 'application/json',
@@ -1179,6 +1181,8 @@ const handleSelectAll = (event) => {
       <Breadcrumb></Breadcrumb>
       <Container maxWidth="xl" sx={{ mt: 4, bgcolor: '#f4f4f9', p: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
         {/* Floating Summary Bar - Add this right after opening Container */}
+
+
 {showFloatingSummary && (
   <Box sx={{
     position: 'fixed',
@@ -1186,28 +1190,54 @@ const handleSelectAll = (event) => {
     right: 0,
     zIndex: 1000,
     borderRadius:'1rem 1rem',
-    backgroundColor: 'rgb(245, 194, 194)',
+    backgroundColor: 'rgba(212, 228, 231, 0.8)', // This color might need adjustment for better contrast with progress bar
     p: 1.5,
     boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
     display: 'flex',
+    flexDirection: 'column', // Change to column to stack elements vertically
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start', // Align items to the start
     mb: 2,
     borderBottom: '1px solid #e0e0e0',
     width: 'auto',
     minWidth: '300px',
-    
   }}>
     <Typography variant="subtitle1" fontWeight="bold">
       Cluster: {slNo || 'Not Available'} | {keyplotDetails.panchayath || ''}
     </Typography>
-    <Box sx={{ display: 'flex', gap: 2 }}>
+    <Box sx={{ width: '100%', mt: 1 }}> {/* Added this Box to wrap the area info */}
       <Typography variant="subtitle1">
         <strong>Total Area:</strong> {calculateOverallTotalActual()} Cent
+      </Typography>
+      {/* Add LinearProgress here for the floating summary */}
+      <LinearProgress
+        variant="determinate"
+        value={(parseFloat(calculateOverallTotalActual()) / 600) * 100} // Assuming 600 cents is 6 acres
+        sx={{
+          height: 8, // Slightly smaller height for floating bar
+          borderRadius: 4,
+          mt: 0.5, // Margin top to separate from text
+          '& .MuiLinearProgress-bar': {
+            backgroundColor: () => {
+              const totalCents = parseFloat(calculateOverallTotalActual());
+              if (totalCents > 550) { // Warning when close to limit (e.g., over 5.5 acres)
+                return 'error.main'; // Red
+              } else if (totalCents > 450) { // Approaching limit (e.g., over 4.5 acres)
+                return 'warning.main'; // Orange/Yellow
+              }
+              return 'success.main'; // Green
+            },
+          },
+        }}
+      />
+      <Typography variant="caption" display="block" sx={{ mt: 0.5, textAlign: 'right', color: 'text.secondary' }}>
+        {parseFloat(calculateOverallTotalActual()).toFixed(2)} / 600 Cents
       </Typography>
     </Box>
   </Box>
 )}
+
+
 
         <Typography variant="h4" align="center" gutterBottom color="primary">
           Cluster Land Form
@@ -1236,6 +1266,31 @@ const handleSelectAll = (event) => {
          
           <Grid item xs={12} sm={6} md={3} ref={totalAreaRef}>
             <TextField label="TOTAL ACTUAL AREA (Cent)" value={calculateOverallTotalActual()} InputProps={{ readOnly: true }} fullWidth/>
+            {/* THIS IS WHERE THE NEW CODE FOR LinearProgress IS ADDED */}
+            <Box sx={{ width: '100%', mt: 1 }}>
+              <LinearProgress
+                variant="determinate"
+                value={(parseFloat(calculateOverallTotalActual()) / 600) * 100} // Assuming 600 cents is 6 acres
+                sx={{
+                  height: 10,
+                  borderRadius: 5,
+                  '& .MuiLinearProgress-bar': {
+                    backgroundColor: () => {
+                      const totalCents = parseFloat(calculateOverallTotalActual());
+                      if (totalCents > 550) { // Example: Warning when close to limit (e.g., over 5.5 acres)
+                        return 'error.main'; // Red
+                      } else if (totalCents > 450) { // Example: Approaching limit (e.g., over 4.5 acres)
+                        return 'warning.main'; // Orange/Yellow
+                      }
+                      return 'success.main'; // Green
+                    },
+                  },
+                }}
+              />
+              <Typography variant="caption" display="block" sx={{ mt: 0.5, textAlign: 'right', color: 'text.secondary' }}>
+                {parseFloat(calculateOverallTotalActual()).toFixed(2)} / 600 Cents (Max 6 Acres)
+              </Typography>
+            </Box>
           </Grid>
         </Grid>
 

@@ -30,7 +30,7 @@ function ClusterSeatMap() {
   useEffect(() => {
       const token = localStorage.getItem('token');
        setLoading(true);
-    axios.get('http://10.10.32.45:8080/btr-service/cluster-api/user-cluster-summary/3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924',
+    axios.get('http://103.156.188.49:8080/btr-service/cluster-api/user-cluster-summary/3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924',
               {
               headers: {
                   'Authorization': `Bearer ${token}` // Add token in Authorization header
