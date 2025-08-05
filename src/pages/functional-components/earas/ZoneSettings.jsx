@@ -65,7 +65,7 @@ const ZoneSettings = () => {
           </Typography>
           <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
             <Box sx={{ flex: 1 }}>
-              <label>Keyplot Limit Size</label>
+              <label>Keyplot Count Limit</label>
               <input
                 type="number"
                 value={keyplotSize}
