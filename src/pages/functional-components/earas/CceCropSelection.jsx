@@ -14,25 +14,37 @@ import {
   Checkbox,
   Divider,
   Snackbar,
-  Alert
+  Alert,
+  TableSortLabel,
+  InputAdornment
 } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
 
 const themeColor = "#05307a";
 
 const CceCropSelection = () => {
   const [majorCount, setMajorCount] = useState("");
   const [minorCount, setMinorCount] = useState("");
-  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "warning" });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [order, setOrder] = useState("asc");
+  const [orderBy, setOrderBy] = useState("id");
 
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "warning"
+  });
+
+  // Added "ccNumber" with random numbers
   const [tableData, setTableData] = useState([
-    { id: 1, name: "Crop A", frame: "Wet", major: false, minor: false },
-    { id: 2, name: "Crop B", frame: "Dry", major: false, minor: false },
-    { id: 3, name: "Crop C", frame: "Wet", major: false, minor: false },
-    { id: 4, name: "Crop D", frame: "Dry", major: false, minor: false },
-    { id: 5, name: "Crop E", frame: "Wet", major: false, minor: false },
-    { id: 6, name: "Crop F", frame: "Dry", major: false, minor: false },
-    { id: 7, name: "Crop G", frame: "Wet", major: false, minor: false },
-    { id: 8, name: "Crop H", frame: "Dry", major: false, minor: false },
+    { id: 1, name: "Crop A", frame: "Wet", ccNumber: Math.floor(Math.random() * 100), major: false, minor: false },
+    { id: 2, name: "Crop B", frame: "Dry", ccNumber: Math.floor(Math.random() * 100), major: false, minor: false },
+    { id: 3, name: "Crop C", frame: "Wet", ccNumber: Math.floor(Math.random() * 100), major: false, minor: false },
+    { id: 4, name: "Crop D", frame: "Dry", ccNumber: Math.floor(Math.random() * 100), major: false, minor: false },
+    { id: 5, name: "Crop E", frame: "Wet", ccNumber: Math.floor(Math.random() * 100), major: false, minor: false },
+    { id: 6, name: "Crop F", frame: "Dry", ccNumber: Math.floor(Math.random() * 100), major: false, minor: false },
+    { id: 7, name: "Crop G", frame: "Wet", ccNumber: Math.floor(Math.random() * 100), major: false, minor: false },
+    { id: 8, name: "Crop H", frame: "Dry", ccNumber: Math.floor(Math.random() * 100), major: false, minor: false }
   ]);
 
   const totalCount = (Number(majorCount) || 0) + (Number(minorCount) || 0);
@@ -64,7 +76,9 @@ const CceCropSelection = () => {
           const totalSelected =
             getSelectedCount("major") + getSelectedCount("minor");
           if (!row[type] && totalSelected >= totalCount) {
-            showSnackbar(`You can only select up to ${totalCount} crops in total.`);
+            showSnackbar(
+              `You can only select up to ${totalCount} crops in total.`
+            );
             return row;
           }
 
@@ -82,6 +96,35 @@ const CceCropSelection = () => {
     }
   };
 
+  // Sorting logic
+  const handleSort = (property) => {
+    const isAsc = orderBy === property && order === "asc";
+    setOrder(isAsc ? "desc" : "asc");
+    setOrderBy(property);
+  };
+
+  const sortedData = [...tableData].sort((a, b) => {
+    let valA = a[orderBy];
+    let valB = b[orderBy];
+
+    // For boolean columns (major/minor)
+    if (typeof valA === "boolean") {
+      valA = valA ? 1 : 0;
+      valB = valB ? 1 : 0;
+    }
+
+    if (valA < valB) return order === "asc" ? -1 : 1;
+    if (valA > valB) return order === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  // Search filter
+  const filteredData = sortedData.filter(
+    (row) =>
+      row.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      row.frame.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <Box p={4} sx={{ backgroundColor: "#f4f6f8", minHeight: "100vh" }}>
       {/* Snackbar */}
@@ -97,7 +140,7 @@ const CceCropSelection = () => {
           sx={{
             backgroundColor: themeColor,
             color: "white",
-            fontWeight: "bold",
+            fontWeight: "bold"
           }}
         >
           {snackbar.message}
@@ -112,7 +155,7 @@ const CceCropSelection = () => {
           boxShadow: 6,
           borderRadius: 3,
           backgroundColor: "#ffffff",
-          border: `1px solid ${themeColor}20`,
+          border: `1px solid ${themeColor}20`
         }}
       >
         <Typography
@@ -121,7 +164,7 @@ const CceCropSelection = () => {
           fontWeight="bold"
           sx={{
             color: themeColor,
-            textShadow: "0 1px 2px rgba(0,0,0,0.1)",
+            textShadow: "0 1px 2px rgba(0,0,0,0.1)"
           }}
         >
           🌱 CCE Major Minor Crop Listing
@@ -139,10 +182,7 @@ const CceCropSelection = () => {
               variant="outlined"
               inputProps={{ inputMode: "numeric" }}
               sx={{
-                "& .MuiInputLabel-root": {
-                  color: themeColor,
-                  fontWeight: "bold",
-                },
+                "& .MuiInputLabel-root": { color: themeColor, fontWeight: "bold" }
               }}
             />
           </Grid>
@@ -156,10 +196,7 @@ const CceCropSelection = () => {
               variant="outlined"
               inputProps={{ inputMode: "numeric" }}
               sx={{
-                "& .MuiInputLabel-root": {
-                  color: themeColor,
-                  fontWeight: "bold",
-                },
+                "& .MuiInputLabel-root": { color: themeColor, fontWeight: "bold" }
               }}
             />
           </Grid>
@@ -169,15 +206,10 @@ const CceCropSelection = () => {
               type="number"
               fullWidth
               value={totalCount}
-              InputProps={{
-                readOnly: true,
-              }}
+              InputProps={{ readOnly: true }}
               variant="outlined"
               sx={{
-                "& .MuiInputLabel-root": {
-                  color: themeColor,
-                  fontWeight: "bold",
-                },
+                "& .MuiInputLabel-root": { color: themeColor, fontWeight: "bold" }
               }}
             />
           </Grid>
@@ -190,59 +222,125 @@ const CceCropSelection = () => {
           p: 4,
           boxShadow: 4,
           borderRadius: 3,
-          backgroundColor: "#ffffff",
+          backgroundColor: "#ffffff"
         }}
       >
-        <Typography
-          variant="h6"
-          gutterBottom
-          sx={{ color: themeColor, fontWeight: "bold" }}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 2,
+            flexWrap: "wrap"
+          }}
         >
-          📋 Crop Selection Table
-        </Typography>
+          {/* Left Side - Table Title */}
+          <Typography
+            variant="h6"
+            gutterBottom
+            sx={{ color: themeColor, fontWeight: "bold", m: 0 }}
+          >
+            📋 Crop Selection Table
+          </Typography>
+
+          {/* Right Side - Search & Status */}
+          <Box
+            sx={{
+              display: "flex",
+              gap: 2,
+              alignItems: "center",
+              flexWrap: "wrap",
+              ml: "auto"
+            }}
+          >
+            {/* Status Row */}
+            <Box
+              sx={{
+                display: "flex",
+                gap: 3,
+                backgroundColor: "#e3eaf6",
+                borderRadius: 1,
+                p: 1.5
+              }}
+            >
+              <Typography variant="body2" fontWeight="bold" sx={{ color: themeColor }}>
+                ✅ Major: {getSelectedCount("major")} / {majorCount || 0}
+              </Typography>
+              <Typography variant="body2" fontWeight="bold" sx={{ color: themeColor }}>
+                ✅ Minor: {getSelectedCount("minor")} / {minorCount || 0}
+              </Typography>
+              <Typography variant="body2" fontWeight="bold" sx={{ color: themeColor }}>
+                🌾 Total: {getSelectedCount("major") + getSelectedCount("minor")} / {totalCount}
+              </Typography>
+            </Box>
+
+            {/* Search Box */}
+            <TextField
+              variant="outlined"
+              size="small"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{
+                minWidth: 220,
+                backgroundColor: "white",
+                borderRadius: 1
+              }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <SearchIcon sx={{ color: themeColor }} />
+                  </InputAdornment>
+                )
+              }}
+            />
+          </Box>
+        </Box>
+
         <TableContainer>
           <Table>
-            <TableHead sx={{ backgroundColor: "#05307a" }}>
+            <TableHead sx={{ backgroundColor: themeColor }}>
               <TableRow>
-                <TableCell sx={{ color: "white" }}>
-                  <strong>Sl.No</strong>
-                </TableCell>
-                <TableCell sx={{ color: "white" }}>
-                  <strong>Crop Name</strong>
-                </TableCell>
-                <TableCell sx={{ color: "white" }}>
-                  <strong>Frame (Wet/Dry)</strong>
-                </TableCell>
-                <TableCell sx={{ color: "white" }}>
-                  <strong>Major</strong>
-                </TableCell>
-                <TableCell sx={{ color: "white" }}>
-                  <strong>Minor</strong>
-                </TableCell>
+                {[
+                  { id: "id", label: "Sl.No" },
+                  { id: "name", label: "Crop Name" },
+                  { id: "frame", label: "Frame (Wet/Dry)" },
+                  { id: "ccNumber", label: "Number of CC" }, // new sortable column
+                  { id: "major", label: "Major" },
+                  { id: "minor", label: "Minor" }
+                ].map((col) => (
+                  <TableCell key={col.id} sx={{ color: "white" }}>
+                    <TableSortLabel
+                      active={orderBy === col.id}
+                      direction={orderBy === col.id ? order : "asc"}
+                      onClick={() => handleSort(col.id)}
+                      sx={{ color: "white" }}
+                    >
+                      <strong>{col.label}</strong>
+                    </TableSortLabel>
+                  </TableCell>
+                ))}
               </TableRow>
             </TableHead>
             <TableBody>
-              {tableData.map((row, index) => (
+              {filteredData.map((row, index) => (
                 <TableRow
                   key={row.id}
                   sx={{
-                    "&:hover": {
-                      backgroundColor: "#f1f4fa",
-                    },
+                    "&:hover": { backgroundColor: "#f1f4fa" }
                   }}
                 >
                   <TableCell>{index + 1}</TableCell>
                   <TableCell>{row.name}</TableCell>
                   <TableCell>{row.frame}</TableCell>
+                  <TableCell>{row.ccNumber}</TableCell>
                   <TableCell>
                     <Checkbox
                       checked={row.major}
                       onChange={() => handleCheckboxChange(row.id, "major")}
                       sx={{
                         color: themeColor,
-                        "&.Mui-checked": {
-                          color: themeColor,
-                        },
+                        "&.Mui-checked": { color: themeColor }
                       }}
                     />
                   </TableCell>
@@ -252,9 +350,7 @@ const CceCropSelection = () => {
                       onChange={() => handleCheckboxChange(row.id, "minor")}
                       sx={{
                         color: themeColor,
-                        "&.Mui-checked": {
-                          color: themeColor,
-                        },
+                        "&.Mui-checked": { color: themeColor }
                       }}
                     />
                   </TableCell>
@@ -263,27 +359,6 @@ const CceCropSelection = () => {
             </TableBody>
           </Table>
         </TableContainer>
-
-        {/* Status Section */}
-        <Box
-          mt={3}
-          p={2}
-          sx={{
-            backgroundColor: "#e3eaf6",
-            borderRadius: 2,
-            textAlign: "center",
-          }}
-        >
-          <Typography variant="body1" fontWeight="bold" sx={{ color: themeColor }}>
-            ✅ Major selected: {getSelectedCount("major")} / {majorCount || 0}
-          </Typography>
-          <Typography variant="body1" fontWeight="bold" sx={{ color: themeColor }}>
-            ✅ Minor selected: {getSelectedCount("minor")} / {minorCount || 0}
-          </Typography>
-          <Typography variant="body1" fontWeight="bold" sx={{ color: themeColor }}>
-            🌾 Total selected: {getSelectedCount("major") + getSelectedCount("minor")} / {totalCount}
-          </Typography>
-        </Box>
       </Paper>
     </Box>
   );

@@ -28,6 +28,7 @@ const Keyplots = Loadable(lazy(() => import('pages/functional-components/earas/k
 const Clusters = Loadable(lazy(() => import('pages/functional-components/earas/cluster_order')));
 
 const ZoneSettings = Loadable(lazy(() => import('pages/functional-components/earas/ZoneSettings')));
+const SettingsMenu = Loadable(lazy(() => import('pages/functional-components/earas/SettingsMenu')));
 const CCE_crop_selection = Loadable(lazy(() => import('pages/functional-components/earas/CceCropSelection')));
 
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
@@ -246,6 +247,14 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <ZoneSettings />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/settings_menu',
+      element: (
+        <PrivateRoute>
+          <SettingsMenu />
         </PrivateRoute>
       )
     },
