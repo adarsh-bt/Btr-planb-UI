@@ -1,13 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import Grid from '@mui/material/Grid';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import Typography from '@mui/material/Typography';
-import { Box, Chip, Stack, Tooltip } from '@mui/material'; // Corrected import statement
+import { useNavigate } from 'react-router-dom';
+import {
+  Grid,
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  Chip,
+  Stack,
+  Tooltip,
+  Button
+} from '@mui/material';
+import LocalFloristIcon from '@mui/icons-material/LocalFlorist';
 import axios from 'axios';
 import Breadcrumb from 'routes/Breadcrumb';
+import LoadingScreen from 'utils/loadingscreen';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import mainapi from 'api/mainapi';
-import authservice from 'pages/authentication/services/authservice';
 
 
 function ClusterSeatMap() {
@@ -15,29 +24,37 @@ function ClusterSeatMap() {
   const [clusters, setClusters] = useState([]);
   const [summary, setSummary] = useState({ completed: 0, ongoing: 0, notStarted: 0 ,underreview:0});
   const [selectedStatus, setSelectedStatus] = useState('All');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const user_id = authservice.userid();
-  axios.post(`${BTR_URL}/btr-service/cluster-api/user-cluster-summary`, {
-    userId: user_id
-  })
-    .then(res => {
-      setClusters(res.data.payload || []);
-      setSummary({
-        completed: res.data.completed || 0,
-        ongoing: res.data.ongoing || 0,
-        notStarted: res.data.notStarted || 0,
-        underreview: res.data.underreview || 0,
-      });
-    })
-    .catch(err => {
-      console.error('Failed to fetch data:', err);
-      setClusters([]);
-      setSummary({ completed: 0, ongoing: 0, notStarted: 0, underreview: 0 });
-    });
-}, []);
+    // Fetches cluster data from the API
+     setLoading(true);
+    axios.get('http://localhost:8082/btr-service/cluster-api/user-cluster-summary/3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924')
+  .then(res => {
+  setClusters(res.data.payload || []);
+  setSummary({
+    completed: res.data.completed || 0,
+    ongoing: res.data.ongoing || 0,
+    notStarted: res.data.notStarted || 0,
+    underreview: res.data.underreview || 0,
+  });
+  console.log(setClusters)
+  setError(null); // ✅ clear previous error if any
+  setLoading(false);
+})
 
+      .catch(err => {
+        // Logs an error if data fetching fails and resets state
+        console.error('Failed to fetch data:', err);
+         setClusters([]);
+  setSummary({ completed: 0, ongoing: 0, notStarted: 0, underreview: 0 });
+  setError('Failed to load cluster data. Please try again later.');
+  setLoading(false);
+      });
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   // Determines the border color of the card based on cluster status
   const getStatusBorderColor = (status) => {
@@ -59,6 +76,16 @@ function ClusterSeatMap() {
     }
   };
 
+
+  const navigate = useNavigate();
+
+const handleClusterClick = (syNo, slNo) => {
+  const encodedSyNo = encodeURIComponent(syNo);
+  const encodedSlNo = encodeURIComponent(slNo);
+  navigate(`/schemes/earas/cluster?No=${encodedSyNo}&slno=${encodedSlNo}`);
+};
+
+
   // Animated border style for 'Ongoing' clusters to make them stand out
   const ongoingBorderAnimation = {
     animation: 'borderPulse 2s infinite',
@@ -79,8 +106,56 @@ function ClusterSeatMap() {
   const statuses = ['All', 'Completed', 'On Going', 'Not Started','Under Review'];
 
   return (
+
+    
     <Grid container spacing={3}>
       <Breadcrumb></Breadcrumb>
+       {loading ? (
+  <Grid item xs={12}>
+    <Box
+      display="flex"
+      justifyContent="center"
+      alignItems="center"
+      minHeight="300px"
+      width="100%"
+    >
+      <LoadingScreen message="Loading cluster data..." />
+    </Box>
+  </Grid>
+) : error ? (
+  <Grid item xs={12}>
+    <Box
+      display="flex"
+      flexDirection="column"
+      justifyContent="center"
+      alignItems="center"
+      minHeight="300px"
+      textAlign="center"
+      width="100%"
+    >
+      <DotLottieReact
+              style={{ width: '50rem', maxWidth: '100%' }}
+              src="https://lottie.host/ae6ba3d5-ea79-454d-ae28-fbcb986a5f7b/9vhgZMKvHq.lottie"
+              loop
+              autoplay
+            />
+       <Typography variant="h5" gutterBottom>
+      Oops! Something went wrong.
+    </Typography>
+    <Typography variant="body1" sx={{ mb: 2 }}>
+      {error}
+    </Typography>
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={() => window.location.reload()} // or re-fetch via useEffect trigger
+      >
+        Retry
+      </Button>
+    </Box>
+  </Grid>
+) : (
+  <>
  <Box
   sx={{
     padding: { xs: 3, sm: 4 },
@@ -164,7 +239,8 @@ function ClusterSeatMap() {
             const cardBorderColor = getStatusBorderColor(cluster.status);
 
             return (
-              <Grid item xs={4} sm={3} md={2} lg={1} xl={1} key={cluster.keyplotId}>
+              <Grid item xs={4} sm={3} md={2} lg={1} xl={1} key={cluster.keyplotId}
+                onClick={() => handleClusterClick(cluster.keyplotId, index + 1)}>
                 <Tooltip
                   title={ // Tooltip content to show detailed cluster information on hover
                     <Box>
@@ -231,6 +307,10 @@ function ClusterSeatMap() {
                         }}
                       >
                         {cluster.clusterType} {/* Display cluster type */}
+                        <Typography>
+                         {cluster.cce ? <LocalFloristIcon/> : null}
+                        </Typography>
+
                       </Typography>
                     </CardContent>
                   </Card>
@@ -239,7 +319,10 @@ function ClusterSeatMap() {
             );
           })}
       </Grid>
+      
     </Box>
+     </>
+        )}
     </Grid>
   );
 }

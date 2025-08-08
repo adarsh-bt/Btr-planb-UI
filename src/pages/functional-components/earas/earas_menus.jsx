@@ -53,7 +53,7 @@ function Earas_menus() {
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                to="/schemes/earas/zone_details"
+                to="/schemes/earas/Zone_Details"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',
@@ -165,7 +165,7 @@ function Earas_menus() {
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                to="/schemes/earas/keyplots"
+                to="/schemes/earas/Key_Plots"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',
@@ -220,7 +220,7 @@ function Earas_menus() {
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                to="/schemes/earas/clusters"
+                to="/schemes/earas/Clusters"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',
@@ -276,7 +276,7 @@ function Earas_menus() {
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                to="/schemes/earas/CCEmenus"
+                to="/schemes/earas/CCE_Menus"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',

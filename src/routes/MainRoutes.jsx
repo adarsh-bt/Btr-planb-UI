@@ -28,6 +28,7 @@ const Keyplots = Loadable(lazy(() => import('pages/functional-components/earas/k
 const Clusters = Loadable(lazy(() => import('pages/functional-components/earas/cluster_order')));
 
 const ZoneSettings = Loadable(lazy(() => import('pages/functional-components/earas/ZoneSettings')));
+const CCE_crop_selection = Loadable(lazy(() => import('pages/functional-components/earas/CceCropSelection')));
 
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
 
@@ -107,7 +108,7 @@ const MainRoutes = {
     },
 
     {
-      path: 'usermanage',
+      path: 'User_Manage',
       element: (
         <PrivateRoute>
           <UserManage />
@@ -185,7 +186,7 @@ const MainRoutes = {
       )
     },
     {
-      path: '/schemes/earas/zone_details',
+      path: '/schemes/earas/Zone_Details',
       element: (
         <PrivateRoute>
           <Zone_Details />
@@ -201,7 +202,7 @@ const MainRoutes = {
       )
     },
     {
-      path: '/schemes/earas/keyplots',
+      path: '/schemes/earas/Key_plots',
       element: (
         <PrivateRoute>
           <Keyplots />
@@ -209,7 +210,7 @@ const MainRoutes = {
       )
     },
      {
-      path: '/schemes/earas/clusters',
+      path: '/schemes/earas/Clusters',
       element: (
         <PrivateRoute>
           <Clusters />
@@ -217,7 +218,15 @@ const MainRoutes = {
       )
     },
     {
-      path: '/schemes/earas/CCEmenus',
+      path: '/schemes/earas/CCE_crop_selection',
+      element: (
+        <PrivateRoute>
+          <CCE_crop_selection/>
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/CCE_Menus',
       element: (
         <PrivateRoute>
           <CCE_menus />
@@ -225,7 +234,7 @@ const MainRoutes = {
       )
     },
     {
-      path: '/schemes/earas/CCE_plotlist',
+      path: '/schemes/earas/CCE plotlist',
       element: (
         <PrivateRoute>
           <CCE_plotlist />

@@ -26,6 +26,20 @@ const StyledBreadcrumb = styled(Chip)(({ theme, isLast }) => {
   };
 });
 
+const capitalizeFirstLetter = (string) => {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+};
+
+const formatLabel = (string) => {
+  return string
+    .replace(/_/g, ' ')                     // Replace underscores with spaces
+    .split(' ')                             // Split into words
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize each
+    .join(' ');                             // Join back into a string
+};
+
+
+
 const Breadcrumb = () => {
   const location = useLocation();
   const pathnames = location.pathname.split("/").filter((x) => x);
@@ -41,21 +55,29 @@ const Breadcrumb = () => {
             icon={<HomeIcon fontSize="small" />}
           />
           {pathnames.map((value, index) => {
-            const to = `/${pathnames.slice(0, index + 1).join("/")}`;
-            const isLast = index === pathnames.length - 1;
+  const to = `/${pathnames.slice(0, index + 1).join("/")}`;
+  const isLast = index === pathnames.length - 1;
+  const label = formatLabel(value);
 
-            return isLast ? (
-              <StyledBreadcrumb
-                key={to}
-                label={value}
-                isLast={isLast}
-                deleteIcon={<ExpandMoreIcon />}
-                onDelete={() => {}}
-              />
-            ) : (
-              <StyledBreadcrumb key={to} component={Link} to={to} label={value} isLast={false} />
-            );
-          })}
+  return isLast ? (
+    <StyledBreadcrumb
+      key={to}
+      label={label}
+      isLast={isLast}
+      deleteIcon={<ExpandMoreIcon />}
+      onDelete={() => {}}
+    />
+  ) : (
+    <StyledBreadcrumb
+      key={to}
+      component={Link}
+      to={to}
+      label={label}
+      isLast={false}
+    />
+  );
+})}
+
         </Breadcrumbs>
       </Paper>
     </Box>

@@ -9,8 +9,9 @@ import Breadcrumb from 'routes/Breadcrumb';
 import './earascss/zone_deta.css';
 import authservice from 'pages/authentication/services/authservice';
 import { Link } from 'react-router-dom';
+import LoadingScreen from 'utils/loadingscreen';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import mainapi from 'api/mainapi';
-
 function ZoneDetails() {
   const BTR_URL = mainapi.BTR_API
   const theme = useTheme();
@@ -22,6 +23,10 @@ function ZoneDetails() {
   const [localtype, setLocalType] = useState(null);
   const [zone, setZone] = useState(null);
   const [result, setResult] = useState(null);
+
+
+
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -65,13 +70,41 @@ function ZoneDetails() {
     fetchData();
   }, []);
 
-  if (loading) {
-    return <Typography>Loading...</Typography>; // Display loading message
-  }
+ if (loading) {
+  return <LoadingScreen message="Fetching zone details..." />;
+}
 
-  if (error) {
-    return <Typography color="error">Error: {error}</Typography>; // Display error message
-  }
+if (error) {
+  return (
+    <Box sx={{ textAlign: 'center', mt: 6 }}>
+      
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          mb: 2,
+        }}
+      >
+        <DotLottieReact
+          style={{ width: '50rem', maxWidth: '100%' }}
+          src="https://lottie.host/ae6ba3d5-ea79-454d-ae28-fbcb986a5f7b/9vhgZMKvHq.lottie"
+          loop
+          autoplay
+        />
+      </Box>
+      <Typography variant="h5" gutterBottom>
+        Oops! Something went wrong.
+      </Typography>
+      <Typography variant="body1" sx={{ mb: 2 }}>
+        {error} Please try refreshing the page.
+      </Typography>
+      <Button variant="contained" color="error" onClick={() => window.location.reload()}>
+        Retry
+      </Button>
+    </Box>
+  );
+}
+
 
   return (
     <Grid container spacing={3}>
@@ -175,7 +208,7 @@ function ZoneDetails() {
                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
                     {index + 1}
                   </TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.p_name}</TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.p_name} {row.localbodytype}</TableCell>
                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
                       {row.villages ? row.villages.join(', ') : 'N/A'}
                       </TableCell>

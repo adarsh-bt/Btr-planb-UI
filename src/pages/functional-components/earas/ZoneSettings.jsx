@@ -1,45 +1,78 @@
 import React, { useState } from 'react';
-import { Box, Tabs, Tab, Typography, Paper } from '@mui/material';
+import {
+  Grid,
+  Box,
+  Tabs,
+  Tab,
+  Typography,
+  Paper,
+  Snackbar,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button
+} from '@mui/material';
 import Breadcrumb from 'routes/Breadcrumb';
 
 const ZoneSettings = () => {
   const [tabValue, setTabValue] = useState(0);
   const [keyplotSize, setKeyplotSize] = useState('');
   const [entries, setEntries] = useState([]);
-  const [clusterArea, setClusterArea] = useState('');
-  const [sideplotArea, setSideplotArea] = useState('');
+  const [minClusterArea, setMinClusterArea] = useState('');
+  const [maxClusterArea, setMaxClusterArea] = useState('');
+  const [minSideplotArea, setMinSideplotArea] = useState('');
+  const [maxSideplotArea, setMaxSideplotArea] = useState('');
   const [clusterEntries, setClusterEntries] = useState([]);
+
+  // Snackbar & Dialog states
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null); // store which form triggered
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!keyplotSize) return;
-    const currentYear = new Date().getFullYear();
-    const newEntry = {
-      keyplotSize,
-      academicYear: `AY ${currentYear} - ${currentYear + 1}`,
-      date: new Date().toLocaleDateString(),
-      user: 'Robin',
-    };
-    setEntries([...entries, newEntry]);
-    setKeyplotSize('');
+  // Show dialog instead of submitting directly
+  const requestConfirmation = (formType) => {
+    setPendingAction(formType);
+    setDialogOpen(true);
   };
 
-  const handleClusterSubmit = (e) => {
-    e.preventDefault();
-    if (!clusterArea || !sideplotArea) return;
-    const newClusterEntry = {
-      clusterArea,
-      sideplotArea,
-      date: new Date().toLocaleDateString(),
-      user: 'Robin',
-    };
-    setClusterEntries([...clusterEntries, newClusterEntry]);
-    setClusterArea('');
-    setSideplotArea('');
+  const confirmSubmission = () => {
+    if (pendingAction === 'keyplot') {
+      if (!keyplotSize) return;
+      const currentYear = new Date().getFullYear();
+      const newEntry = {
+        keyplotSize,
+        academicYear: `AY ${currentYear} - ${currentYear + 1}`,
+        date: new Date().toLocaleDateString(),
+        user: 'Robin',
+      };
+      setEntries((prev) => [...prev, newEntry]);
+      setKeyplotSize('');
+    } else if (pendingAction === 'cluster') {
+      if (!minClusterArea || !maxClusterArea || !minSideplotArea || !maxSideplotArea) return;
+      const newClusterEntry = {
+        minClusterArea,
+        maxClusterArea,
+        minSideplotArea,
+        maxSideplotArea,
+        date: new Date().toLocaleDateString(),
+        user: 'Robin',
+      };
+      setClusterEntries((prev) => [...prev, newClusterEntry]);
+      setMinClusterArea('');
+      setMaxClusterArea('');
+      setMinSideplotArea('');
+      setMaxSideplotArea('');
+    }
+
+    setDialogOpen(false);
+    setSnackbarOpen(true); // show success message
   };
 
   return (
@@ -58,12 +91,19 @@ const ZoneSettings = () => {
         <Tab label="Cluster Area Limit" sx={{ fontWeight: 'bold', fontSize: '1.1rem' }} />
       </Tabs>
 
+      {/* Key Plot Limit Tab */}
       {tabValue === 0 && (
         <Paper sx={{ p: 4 }} elevation={2}>
           <Typography variant="h6" color="primary" gutterBottom>
             Keyplot limit size needed:
           </Typography>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              requestConfirmation('keyplot');
+            }}
+            style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', marginBottom: '2rem' }}
+          >
             <Box sx={{ flex: 1 }}>
               <label>Keyplot Count Limit</label>
               <input
@@ -81,7 +121,16 @@ const ZoneSettings = () => {
               </Box>
             </Box>
             <Box sx={{ alignSelf: 'flex-end' }}>
-              <button type="submit" style={{ padding: '10px 20px', backgroundColor: '#2563eb', color: 'white', borderRadius: '4px' }}>
+              <button
+                type="submit"
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#05307a',
+                  color: 'white',
+                  borderRadius: '4px',
+                  border: 'none'
+                }}
+              >
                 Submit
               </button>
             </Box>
@@ -114,37 +163,96 @@ const ZoneSettings = () => {
         </Paper>
       )}
 
+      {/* Cluster Area Limit Tab */}
       {tabValue === 1 && (
         <Paper sx={{ p: 4 }} elevation={2}>
-          <Typography variant="h6" color="primary" gutterBottom>
-            Cluster Area limit needed
-          </Typography>
-          <form onSubmit={handleClusterSubmit} style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
-            <Box sx={{ flex: 1 }}>
-              <label>Cluster Area Limit</label>
-              <input
-                type="number"
-                value={clusterArea}
-                onChange={(e) => setClusterArea(e.target.value)}
-                required
-                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
-              />
-            </Box>
-            <Box sx={{ flex: 1 }}>
-              <label>Sideplot Area Limit</label>
-              <input
-                type="number"
-                value={sideplotArea}
-                onChange={(e) => setSideplotArea(e.target.value)}
-                required
-                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
-              />
-            </Box>
-            <Box sx={{ alignSelf: 'flex-end' }}>
-              <button type="submit" style={{ padding: '10px 20px', backgroundColor: '#2563eb', color: 'white', borderRadius: '4px' }}>
-                Submit
-              </button>
-            </Box>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              requestConfirmation('cluster');
+            }}
+            style={{ marginBottom: '2rem' }}
+          >
+            <Grid container spacing={3}>
+              {/* Cluster Area */}
+              <Grid item xs={12} md={6}>
+                <Paper sx={{ p: 2 }}>
+                  <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                    Cluster Area
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <label>Min Cluster Area</label>
+                      <input
+                        type="number"
+                        value={minClusterArea}
+                        onChange={(e) => setMinClusterArea(e.target.value)}
+                        required
+                        style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                      />
+                    </Grid>
+                    <Grid item xs={6}>
+                      <label>Max Cluster Area</label>
+                      <input
+                        type="number"
+                        value={maxClusterArea}
+                        onChange={(e) => setMaxClusterArea(e.target.value)}
+                        required
+                        style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                      />
+                    </Grid>
+                  </Grid>
+                </Paper>
+              </Grid>
+
+              {/* Sideplot Area */}
+              <Grid item xs={12} md={6}>
+                <Paper sx={{ p: 2 }}>
+                  <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                    Side plot Area
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <label>Min Sideplot Area</label>
+                      <input
+                        type="number"
+                        value={minSideplotArea}
+                        onChange={(e) => setMinSideplotArea(e.target.value)}
+                        required
+                        style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                      />
+                    </Grid>
+                    <Grid item xs={6}>
+                      <label>Max Sideplot Area</label>
+                      <input
+                        type="number"
+                        value={maxSideplotArea}
+                        onChange={(e) => setMaxSideplotArea(e.target.value)}
+                        required
+                        style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                      />
+                    </Grid>
+                  </Grid>
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Box sx={{ textAlign: 'right' }}>
+                  <button
+                    type="submit"
+                    style={{
+                      padding: '10px 30px',
+                      backgroundColor: '#05307a',
+                      color: 'white',
+                      borderRadius: '4px',
+                      border: 'none'
+                    }}
+                  >
+                    Submit
+                  </button>
+                </Box>
+              </Grid>
+            </Grid>
           </form>
 
           {clusterEntries.length > 0 && (
@@ -152,8 +260,10 @@ const ZoneSettings = () => {
               <thead style={{ backgroundColor: '#e0f2fe' }}>
                 <tr>
                   <th style={thStyle}>Sl. No.</th>
-                  <th style={thStyle}>Cluster Area Limit</th>
-                  <th style={thStyle}>Sideplot Area Limit</th>
+                  <th style={thStyle}>Min Cluster Area</th>
+                  <th style={thStyle}>Max Cluster Area</th>
+                  <th style={thStyle}>Min Sideplot Area</th>
+                  <th style={thStyle}>Max Sideplot Area</th>
                   <th style={thStyle}>Date</th>
                   <th style={thStyle}>User</th>
                 </tr>
@@ -162,8 +272,10 @@ const ZoneSettings = () => {
                 {clusterEntries.map((entry, index) => (
                   <tr key={index} style={{ backgroundColor: index % 2 ? '#f8fafc' : 'white' }}>
                     <td style={tdStyle}>{index + 1}</td>
-                    <td style={tdStyle}>{entry.clusterArea}</td>
-                    <td style={tdStyle}>{entry.sideplotArea}</td>
+                    <td style={tdStyle}>{entry.minClusterArea}</td>
+                    <td style={tdStyle}>{entry.maxClusterArea}</td>
+                    <td style={tdStyle}>{entry.minSideplotArea}</td>
+                    <td style={tdStyle}>{entry.maxSideplotArea}</td>
                     <td style={tdStyle}>{entry.date}</td>
                     <td style={tdStyle}>{entry.user}</td>
                   </tr>
@@ -173,6 +285,34 @@ const ZoneSettings = () => {
           )}
         </Paper>
       )}
+
+      {/* Confirmation Dialog */}
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
+        <DialogTitle>Confirm Submission</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to submit this entry?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+          <Button onClick={confirmSubmission} variant="contained" sx={{ backgroundColor: '#05307a' }}>
+            Yes, Submit
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity="success" sx={{ width: '100%' }}>
+          Entry submitted successfully!
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
