@@ -9,9 +9,10 @@
     "url": "https://codedthemes.com/"
   },
   "scripts": {
-    "start": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
+     "start": "vite --host",
+  "dev": "vite --host",
+  "build": "vite build",
+  "preview": "vite preview --host",
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint --fix \"src/**/*.{js,jsx,ts,tsx}\"",
     "prettier": "prettier --write \"src/**/*.{js,jsx,ts,tsx}\""
@@ -31,7 +32,7 @@
     "@mui/icons-material": "^5.15.12",
     "@mui/lab": "^5.0.0-alpha.167",
     "@mui/material": "^5.15.12",
-    "@mui/styles": "^6.4.8",
+    "@mui/styles": "^6.4.4",
     "@mui/system": "^5.15.12",
     "@svgr/webpack": "^8.1.0",
     "@vitejs/plugin-react": "^4.2.1",

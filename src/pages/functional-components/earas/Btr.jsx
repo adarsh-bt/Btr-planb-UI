@@ -21,9 +21,10 @@ import Breadcrumb from 'routes/Breadcrumb';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import btrservice from './btrservice';
 import authservice from 'pages/authentication/services/authservice';
+import mainapi from 'api/mainapi';
 
 // Define the columns for the data table
-const columns = (handleEdit, handleView, page, size) => [
+const columns = (handleEdit, handleView,page,size) => [
  {
     name: 'SL. NO',
     selector: (row, index) => (page - 1) * size + index + 1,
@@ -69,6 +70,7 @@ const columns = (handleEdit, handleView, page, size) => [
     cell: (row) => (
       <Button color="success" onClick={() => handleView(row)}>
         <VisibilityIcon />
+     
       </Button>
     ),
     style: {
@@ -102,6 +104,8 @@ const Btr = () => {
 
   // Function to handle view action
   const handleView = (row) => {
+    setSelectedRow(row);
+    setOpenViewModal(true);
     setSelectedRow(row);
     setOpenViewModal(true);
   };
@@ -164,12 +168,19 @@ const Btr = () => {
     const userId = authservice.userid();
     const BASE_URL = mainapi.USER_API;
     try {
+        const token = localStorage.getItem('token');
       // Ensure the URL is correct for your backend service
-      const response = await fetch(`${this.BASE_URL}/btr-service/btr-api/export?userId=${userId}`);
+      const response = await fetch(`${BASE_URL}/btr-service/btr-api/export?userId=${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}` // Add token in Authorization header
+        }
+      });
+
 
       if (!response.ok) {
         throw new Error('Failed to download file');
       }
+
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -206,9 +217,9 @@ const Btr = () => {
             <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
               Basic Tax Register
             </Typography>
-            <Typography variant="body1" component="p" sx={{ color: 'green' }}>Total Wet : {totalWetArea} Ac</Typography>
-            <Typography variant="body1" component="p" sx={{ color: 'red' }}>Total Dry : {totalDryArea} Ac</Typography>
-            <Typography variant="body1" component="p" sx={{ color: '#04255e' }}>Total Area : {totalArea} Ac</Typography>
+            <Typography variant="body1" component="p" sx={{ color: 'green' }}>Total Wet : {totalWetArea} Cents</Typography>
+            <Typography variant="body1" component="p" sx={{ color: 'red' }}>Total Dry : {totalDryArea} Cents</Typography>
+            <Typography variant="body1" component="p" sx={{ color: '#04255e' }}>Total Area : {totalArea} Cents</Typography>
 
 
             <Button

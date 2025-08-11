@@ -30,23 +30,28 @@ function ClusterSeatMap() {
    const BASE_URL = mainapi.BTR_API;
 
   useEffect(() => {
-    // Fetches cluster data from the API
-     setLoading(true);
-     const user_id = authservice.userid()
-    axios.get(`${BASE_URL}/btr-service/cluster-api/user-cluster-summary/${user_id}`)
-  .then(res => {
-  setClusters(res.data.payload || []);
-  setSummary({
-    completed: res.data.completed || 0,
-    ongoing: res.data.ongoing || 0,
-    notStarted: res.data.notStarted || 0,
-    underreview: res.data.underreview || 0,
-  });
-  console.log("data cluster ",res.data.payload)
-  setError(null); // ✅ clear previous error if any
-  setLoading(false);
-})
-
+      const token = localStorage.getItem('token');
+       setLoading(true);
+    axios.get(`${BASE_URL}/btr-service/cluster-api/user-cluster-summary/3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924`,
+              {
+              headers: {
+                  'Authorization': `Bearer ${token}` // Add token in Authorization header
+              }
+                })
+      .then(res => {
+        // Sets the clusters data from the payload
+        setClusters(res.data.payload || []);
+        console.log("cluster data  ",res.data.payload)
+        // Updates the summary counts
+        setSummary({
+          completed: res.data.completed || 0,
+          ongoing: res.data.ongoing || 0,
+          notStarted: res.data.notStarted || 0,
+          underreview: res.data.underreview || 0,
+        });
+        setLoading(false);
+          setError(null);
+      })
       .catch(err => {
         // Logs an error if data fetching fails and resets state
         console.error('Failed to fetch data:', err);

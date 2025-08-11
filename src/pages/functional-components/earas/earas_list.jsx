@@ -4,18 +4,18 @@ import { Box, Card, CardContent, CardMedia, Typography } from '@mui/material';
 import { Link } from 'react-router-dom';
 import Breadcrumb from 'routes/Breadcrumb';
 import { useContext } from 'react';
-import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
-import { flattenPermissions } from 'contexts/auth-reducer/permissionHelpers';
+// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
+// import { flattenPermissions } from 'contexts/auth-reducer/permissionHelpers';
 
 const earas_list = () => {
   const theme = useTheme();
-   const { permissions, loading, error } = useContext(PermissionsContext);
+  //  const { permissions, loading, error } = useContext(PermissionsContext);
   
-    // Flatten permissions for easy checking
-    const userPermissions = flattenPermissions(permissions);
+  //   // Flatten permissions for easy checking
+  //   const userPermissions = flattenPermissions(permissions);
   
-    // Check if user has "View BTR"
-    const canViewBTR = userPermissions.includes('View BTR');
+  //   // Check if user has "View BTR"
+  //   const canViewBTR = userPermissions.includes('View BTR');
 
   const cardData = [
     {
@@ -25,12 +25,15 @@ const earas_list = () => {
       url: ''
     },
     // Only show if user does NOT have "View BTR"
-    !canViewBTR ? {
+    // !canViewBTR ? 
+    {
       title: 'e-BTR',
       image: '...',
       gradient: '...',
       url: '/schemes/earas/btr'
-    } : null,
+    // } : null
+    }
+    ,
     {
       title: 'Cluster Formation',
       image: 'https://png.pngtree.com/png-vector/20230302/ourmid/pngtree-dashboard-line-icon-vector-png-image_6626604.png',

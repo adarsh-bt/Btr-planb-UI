@@ -40,7 +40,7 @@ const columns = (handleEdit) => [
   { name: 'Designation', selector: (row) => row.designation, sortable: true },
   { name: 'Email', selector: (row) => row.email, sortable: true },
   { name: 'Phone number', selector: (row) => row.mobileNumber, sortable: true },
-  { name: 'DOJ', selector: (row) => row.dateOfJoining, sortable: true },
+  { name: 'DOJ', selector: (row) => new Date(row.dateOfJoining).toLocaleDateString('en-GB'), sortable: true },
   { name: 'Applied', selector: (row) => new Date(row.createdAt).toLocaleDateString('en-GB'), sortable: true },
   // { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
   {
@@ -427,7 +427,7 @@ useEffect(() => {
       <Paper elevation={3} style={{ padding: '10px' }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
-            Taluk User Request
+            Taluk User Requests
           </Typography>
           <TextField
             label="Filter"

@@ -107,15 +107,18 @@ const transformSample = (sample, type, index) => ({
              
                 // Replace with your actual userId
                 const userId = authservice.userid();
-              const token = ""
-               const res = await axios.post(
-  `${BASE_URL}/btr-service/key-plots/fetch-existing-keyplots`,
+              const token = localStorage.getItem('token');
+              const res = await axios.post(`${BASE_URL}/btr-service/key-plots/fetch-existing-keyplots`,
   {
-    userId: userId
-  }
+    userId: userId  // Request body
+  },
+  {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  } 
 );
-
-console.log(res.data);
 
 
                 console.log(res.data.payload)
@@ -160,7 +163,12 @@ console.log(res.data);
         try {
             // Replace with your actual userId
             const userId = authservice.userid();
-            const res = await axios.get(`${BASE_URL}/btr-service/key-plots/generate-keyplots/${userId}`);
+             const token = localStorage.getItem('token');
+             const res = await axios.get(`${BASE_URL}/btr-service/key-plots/generate-keyplots/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}` // Add token in Authorization header
+        }
+      });
 
             const zones = res.data.payload || [];
             console.log("gen data ",zones)
@@ -311,29 +319,32 @@ const filtered = plotData.filter((row) =>
     return;
   }
 
-  setDialogLoading(true); // ✅ Start loader inside dialog
-
-  try {
-    const response = await axios.post(
-      `${BASE_URL}/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`,
-      {
-        reason: finalReason,
-        userid: authservice.userid()
-      }
-    );
-
-    const newPlotPayload = response.data;
-    const transformedNewPlot = {
-      id: newPlotPayload.id,
-      plot_id: newPlotPayload["plot_id"],
-      slNo: newPlotPayload["Sl.No"],
-      syNo: newPlotPayload["Sy. No"],
-      panchayth: newPlotPayload["panchayth"],
-      area: newPlotPayload["Area (Cents)"],
-      villageBlock: newPlotPayload["Village/Block"],
-      landType: newPlotPayload["Land Type"],
-      action: "View Cluster"
-    };
+        setLoading(true);
+              try {
+                 const token = localStorage.getItem('token');
+            const response = await axios.post(`${BASE_URL}/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`,{
+              reason: finalReason,
+          userid: authservice.userid()
+  },
+  {
+    headers: {
+      Authorization: `Bearer ${token}` // pass the token in headers
+    }
+  }
+);
+            const newPlotPayload = response.data;
+console.log("resss ",response.data)
+            const transformedNewPlot = {
+                id: newPlotPayload.id,
+                plot_id: newPlotPayload["plot_id"],
+                slNo: newPlotPayload["Sl.No"],
+                syNo: newPlotPayload["Sy. No"],
+                panchayth: newPlotPayload["panchayth"],
+                area: newPlotPayload["Area (Cents)"],
+                villageBlock: newPlotPayload["Village/Block"],
+                landType: newPlotPayload["Land Type"],
+                action: "View Cluster"
+            };
 
     setPlotData(prevData => {
       const filtered = prevData.filter(item => item.id !== selectedRowToRemove.id);
@@ -342,7 +353,7 @@ const filtered = plotData.filter((row) =>
 
     setSnackbarMessage(`Removed Sy.No: ${selectedRowToRemove?.syNo} successfully with reason: "${finalReason}". Replaced ${transformedNewPlot.syNo}`);
     setSnackbarOpen(true);
-       setLoading(false);
+     setLoading(false);
   } catch (error) {
     console.error("Error during keyplot removal and replacement:", error);
     setSnackbarMessage("Failed to replace keyplot. Please try again.");
@@ -679,3 +690,4 @@ const filtered = plotData.filter((row) =>
 };
 
 export default KeyPlot;
+ 

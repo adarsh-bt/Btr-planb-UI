@@ -191,8 +191,13 @@ const[keyplotId,setKeyplotId] = useState('');
             setLoading(true);
             try {
                 const userid = authservice.userid();
-              
-                const response = await fetch(`${BASE_URL}/btr-service/cluster-api/${userid}/villages`);
+                  const token = localStorage.getItem('token');
+                const response = await fetch(`${BASE_URL}/btr-service/cluster-api/${userid}/villages`,
+              {
+              headers: {
+                  'Authorization': `Bearer ${token}` // Add token in Authorization header
+              }
+                });
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -224,7 +229,13 @@ const handleSvNoSelection = (uniqueId) => { // uniqueId will be like "20-1" or t
     if (!id) return;
  setLoading(true);
     try {
-        const response = await fetch(`${BASE_URL}/btr-service/key-plots/get-keyplot/${id}`);
+          const token = localStorage.getItem('token');
+        const response = await fetch(`${BASE_URL}/btr-service/key-plots/get-keyplot/${id}`,
+              {
+              headers: {
+                  'Authorization': `Bearer ${token}` // Add token in Authorization header
+              }
+                });
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -303,9 +314,15 @@ const closeModal = () => {
             return;
         }
         try {
+           const token = localStorage.getItem('token');
             const response = await fetch(
-                `${BASE_URL}/btr-service/cluster-api/${currentSyNo}/plot-details?resvno=${resvno}&resbdno=${resbdno}`
-            );
+                `${BASE_URL}/btr-service/cluster-api/${currentSyNo}/plot-details?resvno=${resvno}&resbdno=${resbdno}`,
+              {
+              headers: {
+                  'Authorization': `Bearer ${token}` // Add token in Authorization header
+              }
+                });
+            
             alert("ok")
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -455,10 +472,14 @@ else if (field === 'resvnoStart' || field === 'resvnoEnd') {
       // ✅ Only call API when valid
       const kpId = keyplotId;
       const url = `${BASE_URL}/btr-service/cluster-api/${kpId}/resbdnos-by-village-block?villageId=${newState.village}&blockCode=${newState.modalBlock}&resvnoStart=${updatedStart}&resvnoEnd=${updatedEnd}`;
-
+        const token = localStorage.getItem('token');
     setLoadingResvno(true); // <== Start loader before fetch
 
-fetch(url)
+fetch(url,{
+  headers: {
+    'Authorization': `Bearer ${token}` // Token added here
+  }
+})
   .then((res) => res.json())
   .then((data) => {
     setSvNoDetails(data.resbdnoDetails || []);
@@ -581,13 +602,17 @@ const handleOpenConfirmDialog = (keyplotIndex, rowIndexToRemove) => {
 
     const { keyplotIndex, rowIndexToRemove, rowData } = rowToDelete;
 
-    try {
-      const response = await fetch(
-        `${BASE_URL}/btr-service/cluster-api/delete-sideplot/${rowData.b_id}`,
-        {
-          method: 'DELETE',
-        }
-      );
+   try {
+      const token = localStorage.getItem('token');
+  const response = await fetch(
+    `${BASE_URL}/btr-service/cluster-api/delete-sideplot/${rowData.b_id}`,
+    {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    }
+  );;
 
       if (!response.ok) throw new Error('Failed to delete row from server');
 
@@ -970,14 +995,16 @@ break;
 
     console.log('Submitting payload:', payload);
 
-  try {
-    const response = await fetch(`${BASE_URL}/btr-service/cluster-api/save-cluster`, {
-      method: 'POST',
-      headers: {
+    try {
+          const token = localStorage.getItem('token');
+        const response = await fetch('${BASE_URL}/btr-service/cluster-api/save-cluster', {
+    method: 'POST',
+    headers: {
         'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
+        'Authorization': `Bearer ${token}` // Add token here
+    },
+    body: JSON.stringify(payload),
+});
 
     if (!response.ok) {
       const errorData = await response.json();

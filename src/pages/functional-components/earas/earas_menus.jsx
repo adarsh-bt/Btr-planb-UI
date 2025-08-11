@@ -17,6 +17,8 @@ import Breadcrumb from 'routes/Breadcrumb';
 import { useContext } from 'react';
 // import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
 // import { flattenPermissions } from 'contexts/auth-reducer/permissionHelpers';
+// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
+// import { flattenPermissions } from 'contexts/auth-reducer/permissionHelpers';
 
 import cluster from 'assets/images/logo/cluster.png';
 import keyplot from 'assets/images/logo/keyplot.png';
@@ -46,7 +48,7 @@ function Earas_menus() {
       <Breadcrumb></Breadcrumb>
       <Grid item xs={12}>
         <Typography variant="h3" sx={{ marginBottom: 2 }}>
-          EARAS
+          Schemes
         </Typography>
         <MainCard title="">
           <Grid container spacing={4}>
@@ -140,10 +142,9 @@ function Earas_menus() {
                       borderRadius: '.5rem',
                       marginRight: '1rem' // Space between image and text
                     }}
-                    image={eBTR} // <-- Use the imported image here
-                    alt="eBTR Logo"
+                    image="https://cdn4.iconfinder.com/data/icons/finance-373/25/Employee_ID-512.png"
+                    alt="Dashboard Icon"
                   />
-
 
                   <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                     <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
@@ -197,14 +198,14 @@ function Earas_menus() {
                     borderRadius: '.5rem',
                     marginRight: '1rem' // Space between image and text
                   }}
-                  image={keyplot} // <-- Use the imported image here
-                  alt="keyplot Logo"
+                  image="https://cdn-icons-png.flaticon.com/512/10584/10584957.png"
+                  alt="Dashboard Icon"
                 />
 
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
                     <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                    Key Plots
+                    KeyPlots
                     </Typography>
                     <Typography
                       variant="subtitle1"
@@ -252,8 +253,8 @@ function Earas_menus() {
                     borderRadius: '.5rem',
                     marginRight: '1rem' // Space between image and text
                   }}
-                  image={cluster} // <-- Use the imported image here
-                  alt="Cluster Logo"
+                  image="https://cdn-icons-png.flaticon.com/512/10584/10584957.png"
+                  alt="Dashboard Icon"
                 />
 
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>

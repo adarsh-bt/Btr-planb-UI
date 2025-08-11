@@ -33,6 +33,7 @@ function ZoneDetails() {
         const token = localStorage.getItem('token');
 
         const user_id = authservice.userid();
+        console.log(token," ",user_id)
         const response = await fetch(`${BASE_URL}/btr-service/btr-api/zone-details/${user_id}`, {
           headers: {
             Authorization: `Bearer ${token}` // Add token in Authorization header
@@ -135,10 +136,10 @@ if (error) {
 
                 <Grid item xs={6} sm={3}>
                   <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
-                  {result.localbodyType}
+                   {result.localbodyType}:
                   </Typography>
                   <Typography variant="body1" align="center" sx={{ color: '#00796b' }}>
-                    {result.local_name}
+                     {result.local_name}
                   </Typography>
                 </Grid>
               </Grid>
@@ -153,16 +154,18 @@ if (error) {
                 {/* Main Header Row */}
                 <TableRow>
                   <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>
-                    SL.No
+                    Sl.No
                   </TableCell>
                   <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>
-                    LocalBody Name
+                    Local Body Name
                   </TableCell>
                   <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>
                     Village Name
+                  
                   </TableCell>
                   <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>
                     Block Code
+                  
                   </TableCell>
                   <TableCell colSpan={3} align="center" sx={{ border: 1, borderColor: 'grey.300' }}>
                     Area in cents

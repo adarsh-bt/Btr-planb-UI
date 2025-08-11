@@ -39,6 +39,7 @@ import '../login.css'
 // import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext'
 import IconButton from '@mui/material/IconButton';
 import authservice from '../services/authservice';
+import mainapi from 'api/mainapi';
 
 const fadeIn = keyframes`
 0% { opacity: 0; transform: translateY(50px); }
@@ -150,7 +151,7 @@ const SignInSide = () => {
                     sx={{ width: 50, height: 50, marginBottom: '.5rem' }}
                 />
                 <Typography component="h1" variant="h5" sx={{ fontWeight: 'bold', color: '#333', mb: 3 }}>
-                    {isForgotPassword ? '' : isRegister ? 'Register' : 'Sign In'}
+                    {isForgotPassword ? '' : isRegister ? 'Registration' : 'Sign In'}
                 </Typography>
                 {isForgotPassword ? (
                     <ForgotPassword onBack={handleBackToSignIn} />
@@ -227,8 +228,9 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
 
                     setIsLoading(true);
                     try {
+                        const BASE_URL = mainapi.USER_API;
                         const permissionsResponse = await fetch(
-                            'http://localhost:8081/user-accesss/user-state/userpremissions',
+                            `${BASE_URL}/user-accesss/user-state/userpremissions`,
                             {
                                 headers: {
                                     Authorization: `Bearer ${token}`,
@@ -237,9 +239,9 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                             }
                         );
 
-                        if (!permissionsResponse.ok) {
-                            throw new Error(`HTTP error! status: ${permissionsResponse.status}`);
-                        }
+                    //     if (!permissionsResponse.ok) {
+                    //         throw new Error(`HTTP error! status: ${permissionsResponse.status}`);
+                    //     }
 
                         const permissionsData = await permissionsResponse.json();
                         setPermissions(permissionsData);

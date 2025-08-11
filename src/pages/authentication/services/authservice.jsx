@@ -6,7 +6,7 @@ import { encryptData, decryptData } from './encryptionUtils';
 import mainapi from 'api/mainapi';
 
 class authservice {
-  static BASE_URL = mainapi.USER_API;
+  static BASE_URL = mainapi.BASE_URL;
   //   static BASE_URL = "https://9a89-103-149-159-190.ngrok-free.app";
 
   static async login(userLogin) {
@@ -157,16 +157,19 @@ static async logout(navigate) {
   try {
     const token = localStorage.getItem('token');
 
-    const response = await axios.post(`${authservice.BASE_URL}/user-access/api/logout`, null, {
+    const response = await axios.post(`${authservice.BASE_URL}/user-access/user-state/logout`, null, {
       headers: {
         'Authorization': `Bearer ${token}`, // or handled via cookie if not using token in header
         'Content-Type': 'application/json'
       },
       withCredentials: true 
     });
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');  
-    navigate('/login');
+    if (response.status === 200) {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  navigate('/login');
+}
+
     return response.data;
   } catch (error) {
     if (error.response) {
@@ -195,6 +198,12 @@ static async logout(navigate) {
     const decodedToken = jwtDecode(token);
 
     return decodedToken.roles;
+  }
+
+  static getusername() {
+    const user_name = localStorage.getItem('user');
+   
+    return user_name;
   }
 
   static gettoken() {
