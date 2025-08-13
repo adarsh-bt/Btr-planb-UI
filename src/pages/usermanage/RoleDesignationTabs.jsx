@@ -12,10 +12,23 @@ const RoleDesignationTabs = () => {
 
   return (
     <Box sx={{ width: '100%', mt: 4 }}>
-      <Tabs value={tabValue} onChange={handleTabChange} centered>
-        <Tab label="Role Management" />
-        <Tab label="Designation Management" />
+      <Tabs
+        value={tabValue}
+        onChange={handleTabChange}
+        centered
+        textColor="primary"
+        indicatorColor="primary"
+      >
+        <Tab
+          label="Role Management"
+          sx={{ fontSize: '1.2rem', fontWeight: 'bold' }}
+        />
+        <Tab
+          label="Designation Management"
+          sx={{ fontSize: '1.2rem', fontWeight: 'bold' }}
+        />
       </Tabs>
+
       <Box sx={{ mt: 3 }}>
         {tabValue === 0 && <RoleManage />}
         {tabValue === 1 && <DesignationManage />}

@@ -21,6 +21,7 @@ import mainapi from 'api/mainapi';
 
 
 function ClusterSeatMap() {
+  const BTR_URL = mainapi.BTR_API
   const [clusters, setClusters] = useState([]);
   const [summary, setSummary] = useState({ completed: 0, ongoing: 0, notStarted: 0 ,underreview:0});
   const [selectedStatus, setSelectedStatus] = useState('All');

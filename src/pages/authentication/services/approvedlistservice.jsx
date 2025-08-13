@@ -2,12 +2,12 @@ import axios from 'axios';
 import mainapi from 'api/mainapi';
 
 class ApprovedListService {
-  static BASE_URL = mainapi.USER_API;
+  static USER_URL = mainapi.USER_API;
 
   static async fetchApprovedUsersForDistrictAdmin() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${this.BASE_URL}/user-access/fetch-approved-users`, {
+      const response = await axios.get(`${this.USER_URL}/user-access/fetch-approved-users`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -23,7 +23,7 @@ class ApprovedListService {
   static async fetchApprovedUsersForItAdmin() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${this.BASE_URL}/user-access/it-admin/fetch-approved-users`, {
+      const response = await axios.get(`${this.USER_URL}/user-access/it-admin/fetch-approved-users`, {
         headers: {
           Authorization: `Bearer ${token}`
         }

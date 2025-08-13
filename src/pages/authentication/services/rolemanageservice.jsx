@@ -1,5 +1,9 @@
 import mainapi from 'api/mainapi';
 import axios from 'axios';
+import mainapi from 'api/mainapi';
+
+
+const USER_URL = mainapi.USER_API
 
 const BASE_URL = mainapi.USER_API;
 

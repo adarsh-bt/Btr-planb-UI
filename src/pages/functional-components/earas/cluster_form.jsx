@@ -8,7 +8,9 @@ import {
   DialogActions,
   DialogContent,
   DialogContentText,
-  DialogTitle, // Import Modal and Paper for the modal
+  DialogTitle,
+  RadioGroup,
+  Radio, // Import Modal and Paper for the modal
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
@@ -20,8 +22,8 @@ import PropTypes from 'prop-types'; // For ListboxComponent prop-types
 
 import authservice from 'pages/authentication/services/authservice';
 import LinearProgress from '@mui/material/LinearProgress';
-
-
+import MapIcon from '@mui/icons-material/Map';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { FixedSizeList } from 'react-window';
 import mainapi from 'api/mainapi';
 
@@ -38,6 +40,9 @@ const ListboxComponent = React.forwardRef(function ListboxComponent(props, ref) 
             });
         }
     });
+
+
+  
 
     const itemCount = itemData.length;
     const itemSize = 48; // Adjust based on your MenuItem height
@@ -86,6 +91,9 @@ const [defaultBlock, setDefaultBlock] = useState('');
 const [resvnoError, setResvnoError] = useState('');
 const [loadingResvno, setLoadingResvno] = useState(false);
 
+  const [openRejectDialog, setOpenRejectDialog] = useState(false);
+const [rejectReason, setRejectReason] = useState('');
+const [customReason, setCustomReason] = useState('');
 
 
   const [keyplotDetails, setKeyplotDetails] = useState({
@@ -212,8 +220,9 @@ const[keyplotId,setKeyplotId] = useState('');
             }
         };
 
-        fetchAllVillageDataForModal();
-    }, []); // Empty dependency array: runs only once on mount
+    fetchAllVillageDataForModal();
+}, []);
+ // Empty dependency array: runs only once on mount
 const handleSvNoSelection = (uniqueId) => { // uniqueId will be like "20-1" or the plotId
   setSelectedSvNos((prevSelected) =>
     prevSelected.includes(uniqueId)
@@ -598,9 +607,9 @@ const handleOpenConfirmDialog = (keyplotIndex, rowIndexToRemove) => {
 
   // Function to handle the actual deletion after confirmation
   const handleConfirmDelete = async () => {
-    if (!rowToDelete) return;
+  if (!rowToDelete) return;
 
-    const { keyplotIndex, rowIndexToRemove, rowData } = rowToDelete;
+  const { keyplotIndex, rowIndexToRemove, rowData } = rowToDelete;
 
    try {
       const token = localStorage.getItem('token');
@@ -614,27 +623,28 @@ const handleOpenConfirmDialog = (keyplotIndex, rowIndexToRemove) => {
     }
   );;
 
-      if (!response.ok) throw new Error('Failed to delete row from server');
+    if (!response.ok) throw new Error('Failed to delete row from server');
 
-      // Remove row from UI after successful deletion
-      setKeyplots((prevKeyplots) =>
-        prevKeyplots.map((keyplot, idx) => {
-          if (idx === keyplotIndex) {
-            const newRows = keyplot.rows.filter(
-              (_, rIdx) => rIdx !== rowIndexToRemove
-            );
-            return { ...keyplot, rows: newRows };
-          }
-          return keyplot;
-        })
-      );
-      handleCloseConfirmDialog(); // Close dialog after successful deletion
-    } catch (err) {
-      console.error('Error deleting row:', err);
-      alert('Failed to delete row. Try again.');
-      handleCloseConfirmDialog(); // Close dialog even on error
-    }
-  };
+    // Remove row from UI after successful deletion
+    setKeyplots((prevKeyplots) =>
+      prevKeyplots.map((keyplot, idx) => {
+        if (idx === keyplotIndex) {
+          const newRows = keyplot.rows.filter(
+            (_, rIdx) => rIdx !== rowIndexToRemove
+          );
+          return { ...keyplot, rows: newRows };
+        }
+        return keyplot;
+      })
+    );
+
+    handleCloseConfirmDialog(); // Close dialog after successful deletion
+  } catch (err) {
+    console.error('Error deleting row:', err);
+    alert('Failed to delete row. Try again.');
+    handleCloseConfirmDialog();
+  }
+};
 
   const removeKeyplotRow = async (keyplotIndex, rowIndexToRemove) => {
     const row = keyplots[keyplotIndex].rows[rowIndexToRemove];
@@ -997,7 +1007,7 @@ break;
 
     try {
           const token = localStorage.getItem('token');
-        const response = await fetch('${BASE_URL}/btr-service/cluster-api/save-cluster', {
+        const response = await fetch(`${BASE_URL}/btr-service/cluster-api/save-cluster`, {
     method: 'POST',
     headers: {
         'Content-Type': 'application/json',
@@ -1022,6 +1032,35 @@ break;
     setSnackbarMessage(`Failed to submit form: ${error.message}`);
     setSnackbarOpen(true);
   }
+};
+
+//rejection
+const handleOpenRejectDialog = () => {
+  setOpenRejectDialog(true);
+};
+
+const handleCloseRejectDialog = () => {
+  setOpenRejectDialog(false);
+  setRejectReason(''); // Reset reason on close
+  setCustomReason(''); // Reset custom reason on close
+};
+
+const handleRejectReasonChange = (event) => {
+  const newReason = event.target.value;
+  setRejectReason(newReason);
+  if (newReason !== 'other') {
+    setCustomReason(''); // Clear custom reason if another option is selected
+  }
+};
+
+const handleConfirmReject = () => {
+  // Logic to handle the rejection
+  const reasonToSubmit = rejectReason === 'other' ? customReason : rejectReason;
+  console.log('Rejecting cluster with reason:', reasonToSubmit);
+  // You would typically make an API call here to reject the cluster
+  // and then close the dialog and show a success/failure message.
+  
+  handleCloseRejectDialog(); // Close the dialog after action
 };
 
     // Handles closing the Snackbar message
@@ -1292,15 +1331,31 @@ const handleSelectAll = (event) => {
               <Typography variant="caption" display="block" sx={{ mt: 0.5, textAlign: 'right', color: 'text.secondary' }}>
                 {parseFloat(calculateOverallTotalActual()).toFixed(2)} / 600 Cents (Max 6 Acres)
               </Typography>
+          
             </Box>
           </Grid>
+
+ <Grid item xs={12} sm={6} md={2}>
+    <Button variant="contained" color="secondary"><MapIcon/> View FMB</Button>
+ </Grid>
+<Grid item xs={12} sm={12} md={12}>
+  <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+    <Button variant="contained" color="error" onClick={handleOpenRejectDialog}>
+     <WarningAmberIcon/> Reject Cluster
+    </Button>
+  </Box>
+</Grid>
+
         </Grid>
 
             {keyplots.map((keyplot, index) => (
                 <Box key={keyplot.id} sx={{ mt: 3, border: '1px solid #ccc', borderRadius: 1, overflowX: 'auto', bgcolor: 'white', p: 2 }}>
                     <Box sx={{ bgcolor: '#05307a', color: 'white', p: 1, borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
-    <Typography sx={{ mr: 1 }}>SIDE PLOT:</Typography>
+   <Typography sx={{ mr: 1 }}>
+  {keyplot.label === "K" ? "KEYPLOT" : "SIDEPLOT"}:
+</Typography>
+
     {keyplot.id === 'K' ? (
         <TextField
             value={keyplot.label}
@@ -1750,6 +1805,78 @@ const handleSelectAll = (event) => {
           </Button>
         </DialogActions>
       </Dialog>
+
+{/* rejection box */}
+<Dialog
+  open={openRejectDialog}
+  onClose={handleCloseRejectDialog}
+  aria-labelledby="reject-dialog-title"
+  fullWidth maxWidth="sm"
+>
+  <DialogTitle id="reject-dialog-title" sx={{backgroundColor:'#05307a',color:'white'}}>
+    {"Reject Cluster"}
+  </DialogTitle>
+  <DialogContent>
+    <DialogContentText sx={{pt:2}}>
+      Please select a reason for rejecting this cluster.
+    </DialogContentText>
+    <FormControl component="fieldset" sx={{ mt: 2 }}>
+      <RadioGroup
+        aria-label="rejection-reason"
+        name="rejection-reason-group"
+        value={rejectReason}
+        onChange={handleRejectReasonChange}
+      >
+        <FormControlLabel
+          value="Cluster area is less than minimum requirement"
+          control={<Radio />}
+          label="Cluster not meeting minimum area"
+        />
+        <FormControlLabel
+          value="Cluster area is more than maximum requirement"
+          control={<Radio />}
+          label="Cluster not meeting maximum area"
+        />
+        <FormControlLabel
+          value="Cluster data is incorrect or invalid"
+          control={<Radio />}
+          label="Cluster not in here"
+        />
+        <FormControlLabel
+          value="other"
+          control={<Radio />}
+          label="Other (Please specify)"
+        />
+      </RadioGroup>
+    </FormControl>
+    {rejectReason === 'other' && (
+      <TextField
+        autoFocus
+        margin="dense"
+        id="custom-reason"
+        label="Custom Reason"
+        type="text"
+        fullWidth
+        variant="outlined"
+        value={customReason}
+        onChange={(e) => setCustomReason(e.target.value)}
+      />
+    )}
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={handleCloseRejectDialog} color="primary">
+      Cancel
+    </Button>
+    <Button
+      onClick={handleConfirmReject}
+      color="error"
+      variant="contained"
+      disabled={!rejectReason || (rejectReason === 'other' && !customReason)}
+    >
+      Confirm Reject
+    </Button>
+  </DialogActions>
+</Dialog>
 
             {/* --- End Modal --- */}
         </Container>

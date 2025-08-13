@@ -27,6 +27,10 @@ const ClusterForm = Loadable(lazy(() => import('pages/functional-components/eara
 const Keyplots = Loadable(lazy(() => import('pages/functional-components/earas/keyplots')));
 const Clusters = Loadable(lazy(() => import('pages/functional-components/earas/cluster_order')));
 
+const ZoneSettings = Loadable(lazy(() => import('pages/functional-components/earas/ZoneSettings')));
+const SettingsMenu = Loadable(lazy(() => import('pages/functional-components/earas/SettingsMenu')));
+const CCE_crop_selection = Loadable(lazy(() => import('pages/functional-components/earas/CceCropSelection')));
+
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
 
 const RoleList = Loadable(lazy(() => import('pages/usermanage/RoleList')));
@@ -34,6 +38,10 @@ const RoleDetail = Loadable(lazy(() => import('pages/usermanage/Roles')));
 
 // Approvels
 const Approvel = Loadable(lazy(() => import('pages/functional-components/approvels/approvelist')));
+
+const CCE_menus = Loadable(lazy(() => import('pages/functional-components/earas/cce_menus')));
+const CCE_plotlist = Loadable(lazy(() => import('pages/functional-components/earas/cce_plotlist')));
+const AvailableCcePlots = Loadable(lazy(() => import('pages/functional-components/form1/AvailableCcePlotsTable')));
 
 // ==============================|| MAIN ROUTING ||============================== //
 
@@ -101,7 +109,7 @@ const MainRoutes = {
     },
 
     {
-      path: 'usermanage',
+      path: 'User_Manage',
       element: (
         <PrivateRoute>
           <UserManage />
@@ -179,7 +187,7 @@ const MainRoutes = {
       )
     },
     {
-      path: '/schemes/earas/zone_details',
+      path: '/schemes/earas/Zone_Details',
       element: (
         <PrivateRoute>
           <Zone_Details />
@@ -195,7 +203,7 @@ const MainRoutes = {
       )
     },
     {
-      path: '/schemes/earas/keyplots',
+      path: '/schemes/earas/Key_plots',
       element: (
         <PrivateRoute>
           <Keyplots />
@@ -203,10 +211,58 @@ const MainRoutes = {
       )
     },
      {
-      path: '/schemes/earas/clusters',
+      path: '/schemes/earas/Clusters',
       element: (
         <PrivateRoute>
           <Clusters />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/CCE_crop_selection',
+      element: (
+        <PrivateRoute>
+          <CCE_crop_selection/>
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/CCE_Menus',
+      element: (
+        <PrivateRoute>
+          <CCE_menus />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/CCE plotlist',
+      element: (
+        <PrivateRoute>
+          <CCE_plotlist />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/zonesettings',
+      element: (
+        <PrivateRoute>
+          <ZoneSettings />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/settings_menu',
+      element: (
+        <PrivateRoute>
+          <SettingsMenu />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/AvailableCcePlots',
+      element: (
+        <PrivateRoute>
+          <AvailableCcePlots />
         </PrivateRoute>
       )
     },

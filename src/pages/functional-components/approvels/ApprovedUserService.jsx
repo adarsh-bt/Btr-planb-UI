@@ -3,13 +3,13 @@ import mainapi from 'api/mainapi';
 
 // Create service class with proper export
 class ApprovedUserService {
-  static BASE_URL = mainapi.USER_API;
+  static USER_URL = mainapi.USER_API;
 
   // Fetch IT admin approved users
   static async fetchITAdminApprovedUsers() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${ApprovedUserService.BASE_URL}/user-access/it-admin/fetch-approved-users`, {
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/it-admin/fetch-approved-users`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -27,7 +27,7 @@ class ApprovedUserService {
   static async fetchDistrictAdminApprovedUsers() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${ApprovedUserService.BASE_URL}/user-access/district-admin/fetch-approved-users`, {
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/district-admin/fetch-approved-users`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -48,7 +48,7 @@ class ApprovedUserService {
       // const userId = '95a816d1-e16a-4fc5-8353-9be4d555bf8a';
       const token = localStorage.getItem('token');
       // const userId = "44b2a345-b9c5-429f-8f66-52830f1962c8"
-      const response = await axios.get(`${ApprovedUserService.BASE_URL}/user-access/api/user-manage/user/fetch-by-id/${userId}`, {
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/user-manage/user/fetch-by-id/${userId}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -67,7 +67,7 @@ class ApprovedUserService {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${ApprovedUserService.BASE_URL}/user-access/api/user-manage/update-designation`,
+        `${ApprovedUserService.USER_URL}/user-access/api/user-manage/update-designation`,
         { userId, designationId },
         {
           headers: {
@@ -89,7 +89,7 @@ class ApprovedUserService {
   static async getDesignations() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${ApprovedUserService.BASE_URL}/user-access/api/fetch-designations`, {
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/fetch-designations`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -107,7 +107,7 @@ class ApprovedUserService {
   static async updateUserRolesAndOffice(payload) {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${ApprovedUserService.BASE_URL}/user-access/api/user-manage/update-user-roles`, payload, {
+      const response = await axios.post(`${ApprovedUserService.USER_URL}/user-access/api/user-manage/update-user-roles`, payload, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -124,7 +124,7 @@ class ApprovedUserService {
 
   static async getSchemes() {
     try {
-      const response = await axios.get(`${ApprovedUserService.BASE_URL}/user-access/api/schemes`);
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/schemes`);
       console.log('schemes >>', response.data);
       return response.data.payload; // Add fallback for different response structures
     } catch (err) {
@@ -136,7 +136,7 @@ class ApprovedUserService {
   static async getRolesbySchemes(schemeId) {
     try {
       const token = localStorage.getItem('token'); // <-- Add this line
-      const response = await axios.get(`${ApprovedUserService.BASE_URL}/user-access/api/schemes/${schemeId}/roles`, {
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/schemes/${schemeId}/roles`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -155,7 +155,7 @@ class ApprovedUserService {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${ApprovedUserService.BASE_URL}/user-access/api/user-manage/update-role-scheme`,
+        `${ApprovedUserService.USER_URL}/user-access/api/user-manage/update-role-scheme`,
         { userId, isActive, roleScheme },
         {
           headers: {
@@ -175,7 +175,7 @@ class ApprovedUserService {
 
   static async getDistricts() {
     try {
-      const response = await axios.get(`${this.BASE_URL}/user-access/api/districts`);
+      const response = await axios.get(`${this.USER_URL}/user-access/api/districts`);
       return response.data;
     } catch (err) {
       return {
@@ -186,7 +186,7 @@ class ApprovedUserService {
 
   static async getTaluks(districtId) {
     try {
-      const response = await axios.get(`${this.BASE_URL}/user-access/api/districts/${districtId}/taluks`);
+      const response = await axios.get(`${this.USER_URL}/user-access/api/districts/${districtId}/taluks`);
       return response.data;
     } catch (err) {
       return {
@@ -201,7 +201,7 @@ class ApprovedUserService {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${this.BASE_URL}/user-access/api/user-manage/set-active/${userId}?isActive=${isActive}`,
+        `${this.USER_URL}/user-access/api/user-manage/set-active/${userId}?isActive=${isActive}`,
         {}, // Empty body as per backend
         {
           headers: {
@@ -230,7 +230,7 @@ class ApprovedUserService {
       } else if (officeType === 'DISTRICT' || officeType === 'DIRECTORATE') {
         payload.distOfficeId = distOfficeId;
       }
-      const response = await axios.post(`${this.BASE_URL}/user-access/api/user-manage/update-office-type`, payload, {
+      const response = await axios.post(`${this.USER_URL}/user-access/api/user-manage/update-office-type`, payload, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'

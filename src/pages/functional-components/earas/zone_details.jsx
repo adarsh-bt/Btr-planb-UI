@@ -12,7 +12,9 @@ import { Link } from 'react-router-dom';
 import LoadingScreen from 'utils/loadingscreen';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import mainapi from 'api/mainapi';
+
 function ZoneDetails() {
+  const BTR_URL = mainapi.BTR_API
   const theme = useTheme();
   const [data, setData] = useState([]); // State to store API data
   const [loading, setLoading] = useState(true); // State to manage loading state
