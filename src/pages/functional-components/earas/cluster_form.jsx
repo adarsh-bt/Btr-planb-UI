@@ -291,6 +291,9 @@ const handleSvNoSelection = (uniqueId) => { // uniqueId will be like "20-1" or t
                     rows: []
                 };
             });
+            const plotId = existingSidePlots?.['K']?.rows?.[0]?.plot_id || null;
+        
+
 
             setKeyplots(mergedKeyplots);
 
@@ -332,7 +335,7 @@ const closeModal = () => {
               }
                 });
             
-            alert("ok")
+        
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -1053,15 +1056,67 @@ const handleRejectReasonChange = (event) => {
   }
 };
 
-const handleConfirmReject = () => {
+const handleConfirmReject = async () => {
+  // Set loading to true to show the loading indicator
+  setLoading(true);
+
   // Logic to handle the rejection
   const reasonToSubmit = rejectReason === 'other' ? customReason : rejectReason;
   console.log('Rejecting cluster with reason:', reasonToSubmit);
-  // You would typically make an API call here to reject the cluster
-  // and then close the dialog and show a success/failure message.
-  
-  handleCloseRejectDialog(); // Close the dialog after action
+
+  try {
+    const token = localStorage.getItem('token');
+    const kPlotObj = keyplots.find(item => item.id === "K");
+    const plotId = kPlotObj?.rows?.[0]?.plot_id || null;
+    console.log("plot id ",plotId);
+
+    if (!plotId) {
+      throw new Error("Plot ID not found.");
+    }
+
+    const response = await fetch(`${BASE_URL}/btr-service/cluster-api/reject-cluster/${plotId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        reason_for_cluster: reasonToSubmit,
+        userid: authservice.userid(),
+        zone_id: '758',
+        reason: 'Cluster Rejected',
+      }),
+    });
+
+    const data = await response.json();
+    console.log("Response from backend in Rejected :", response.status, data);
+
+    // Check if the response was successful
+    if (response.ok) {
+      // Show success snackbar message
+      setSnackbarMessage('Cluster rejected successfully!');
+      setSnackbarOpen1(true);
+      // Navigate after a short delay to allow the user to see the snackbar
+      setTimeout(() => {
+        navigate('/schemes/earas/clusters');
+      }, 1500); // 1.5-second delay
+    } else {
+      // Handle non-2xx status codes
+      const errorMessage = data.statusMessage || `Failed to reject cluster: ${response.status}`;
+      throw new Error(errorMessage);
+    }
+  } catch (error) {
+    console.error("Error rejecting cluster:", error);
+    // Show error snackbar message
+    setSnackbarMessage(`Error: ${error.message}`);
+    setSnackbarOpen(true);
+  } finally {
+    // Set loading to false and close the dialog regardless of success or failure
+    setLoading(false);
+    handleCloseRejectDialog();
+  }
 };
+
 
     // Handles closing the Snackbar message
     const handleSnackbarClose = (event, reason) => {
@@ -1334,19 +1389,27 @@ const handleSelectAll = (event) => {
           
             </Box>
           </Grid>
-
- <Grid item xs={12} sm={6} md={2}>
-    <Button variant="contained" color="secondary"><MapIcon/> View FMB</Button>
- </Grid>
-<Grid item xs={12} sm={12} md={12}>
-  <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-    <Button variant="contained" color="error" onClick={handleOpenRejectDialog}>
-     <WarningAmberIcon/> Reject Cluster
-    </Button>
-  </Box>
-</Grid>
-
         </Grid>
+
+<Box sx={{ maxWidth: 800, margin: '0 auto' }}>
+  <Grid container spacing={2} alignItems="center">
+    <Grid item xs={6}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+        <Button variant="contained" color="secondary">
+          <MapIcon /> View FMB
+        </Button>
+      </Box>
+    </Grid>
+    <Grid item xs={6}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+        {/* <Button variant="contained" color="error" onClick={handleOpenRejectDialog}> */}
+        <Button variant="contained" color="error">
+          <WarningAmberIcon /> Reject Cluster
+        </Button>
+      </Box>
+    </Grid>
+  </Grid>
+</Box>
 
             {keyplots.map((keyplot, index) => (
                 <Box key={keyplot.id} sx={{ mt: 3, border: '1px solid #ccc', borderRadius: 1, overflowX: 'auto', bgcolor: 'white', p: 2 }}>
@@ -1572,214 +1635,236 @@ const handleSelectAll = (event) => {
         </Snackbar>
 
             {/* --- Modal for adding a new row --- */}
-       <Modal
-      open={modalOpen}
-      onClose={closeModal}
-      aria-labelledby="add-row-modal-title"
-      aria-describedby="add-row-modal-description"
-    >
-      <Paper
-        sx={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: { xs: '95%', sm: '90%', md: 600 },
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          bgcolor: 'background.paper',
-          boxShadow: 24,
-          p: 3,
-          borderRadius: 2,
-        }}
-      >
-        <Typography id="add-row-modal-title" variant="h6" component="h2" gutterBottom>
-          ➕ Add New Side Plot Row
-        </Typography>
+   <Modal
+  open={modalOpen}
+  onClose={closeModal}
+  aria-labelledby="add-row-modal-title"
+  aria-describedby="add-row-modal-description"
+>
+  <Paper
+    sx={{
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: { xs: '95%', sm: '90%', md: 600 },
+      maxHeight: '90vh',
+      overflowY: 'auto',
+      bgcolor: 'background.paper',
+      boxShadow: 24,
+      p: 3,
+      borderRadius: 2,
+    }}
+  >
+    <Typography id="add-row-modal-title" variant="h6" component="h2" gutterBottom>
+      ➕ Add New Side Plot Row
+    </Typography>
 
-        {/* SECTION 1: Plot Location */}
-        <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, fontWeight: 'bold', color: 'primary.main' }}>
-          📍 Plot Location
-        </Typography>
+    {/* SECTION 1: Plot Location */}
+    <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, fontWeight: 'bold', color: 'primary.main' }}>
+      📍 Plot Location
+    </Typography>
 
-        <Grid container spacing={2}>
-          <Grid item xs={12}>
-            <Autocomplete
-              options={villageOptions}
-              getOptionLabel={(option) => option.village || ''}
-              value={
-                modalRowData.village
-                  ? villageOptions.find((v) => v.villageId === modalRowData.village)
-                  : null
-              }
-              onChange={(event, newValue) => {
-                handleModalInputChange(newValue ? newValue.villageId : null, 'village');
-                // When village changes, reset block and svNo
-                setModalRowData((prev) => ({ ...prev, modalBlock: null, svNo: null }));
-                setModalBlockOptions([]); // Clear block options
-                setSvNoOptions([]); // Clear svNo options
-                setSvNoDetails([]); // Clear svNo details
-                setSelectedSvNos([]); // Clear selected svNos
+    <Grid container spacing={2}>
+      {/* Village Field */}
+      <Grid item xs={12}>
+        <Autocomplete
+          options={villageOptions}
+          getOptionLabel={(option) => option.village || ''}
+          value={
+            modalRowData.village
+              ? villageOptions.find((v) => v.villageId === modalRowData.village)
+              : null
+          }
+          onChange={(event, newValue) => {
+            handleModalInputChange(newValue ? newValue.villageId : null, 'village');
+            setModalRowData((prev) => ({ ...prev, modalBlock: null, svNo: null }));
+            setModalBlockOptions([]);
+            setSvNoOptions([]);
+            setSvNoDetails([]);
+            setSelectedSvNos([]);
+          }}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label="Village"
+              variant="outlined"
+              size="small"
+              fullWidth
+              inputProps={{
+                ...params.inputProps,
+                maxLength: 15, // Limit to 15 characters
               }}
-              renderInput={(params) => (
-                <TextField {...params} label="Village" variant="outlined" size="small" fullWidth />
-              )}
             />
-          </Grid>
-          <Grid item xs={12}>
-            <Autocomplete
-              options={modalBlockOptions}
-              getOptionLabel={(option) => String(option)}
-              value={modalRowData.modalBlock}
-              onChange={(event, newValue) => {
-                handleModalInputChange(newValue, 'modalBlock');
-                // When block changes, reset svNo
-                setModalRowData((prev) => ({ ...prev, svNo: null }));
-                setSvNoOptions([]); // Clear svNo options
-                setSvNoDetails([]); // Clear svNo details
-                setSelectedSvNos([]); // Clear selected svNos
+          )}
+        />
+      </Grid>
+
+      {/* Block Field */}
+      <Grid item xs={12}>
+        <Autocomplete
+          options={modalBlockOptions}
+          getOptionLabel={(option) => String(option)}
+          value={modalRowData.modalBlock}
+          onChange={(event, newValue) => {
+            handleModalInputChange(newValue, 'modalBlock');
+            setModalRowData((prev) => ({ ...prev, svNo: null }));
+            setSvNoOptions([]);
+            setSvNoDetails([]);
+            setSelectedSvNos([]);
+          }}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label="Block"
+              variant="outlined"
+              size="small"
+              fullWidth
+              inputProps={{
+                ...params.inputProps,
+                maxLength: 5, // Limit to 5 characters
               }}
-              renderInput={(params) => (
-                <TextField {...params} label="Block" variant="outlined" size="small" fullWidth />
-              )}
-              disabled={!modalRowData.village || modalBlockOptions.length === 0}
             />
-          </Grid>
+          )}
+          disabled={!modalRowData.village || modalBlockOptions.length === 0}
+        />
+      </Grid>
 
-<Grid item xs={6}>
-  <TextField
-    label="Resvno Start"
-    variant="outlined"
-    size="small"
-    type="number"
-    fullWidth
-    value={modalRowData.resvnoStart || ''}
-    onChange={(e) => handleModalInputChange(e.target.value, 'resvnoStart')}
-  />
-</Grid>
+      {/* Resvno Start */}
+      <Grid item xs={6}>
+       <TextField
+  label="Resvno Start"
+  variant="outlined"
+  size="small"
+  type="text"
+  inputMode="numeric"
+  fullWidth
+  value={modalRowData.resvnoStart || ''}
+  onChange={(e) => {
+    const value = e.target.value;
+    // Allow empty OR digits only, max 5 digits, no leading 0
+    if (value === '' || (/^[1-9][0-9]{0,4}$/.test(value))) {
+      handleModalInputChange(value, 'resvnoStart');
+    }
+  }}
+/>
 
-<Grid item xs={6}>
-  <TextField
+      </Grid>
+
+      {/* Resvno End */}
+      <Grid item xs={6}>
+       <TextField
   label="Resvno End"
   variant="outlined"
   size="small"
-  type="number"
+  type="text"
+  inputMode="numeric"
   fullWidth
   value={modalRowData.resvnoEnd || ''}
-  onChange={(e) => handleModalInputChange(e.target.value, 'resvnoEnd')}
+  onChange={(e) => {
+    const value = e.target.value;
+    if (value === '' || (/^[1-9][0-9]{0,4}$/.test(value))) {
+      handleModalInputChange(value, 'resvnoEnd');
+    }
+  }}
   error={!!resvnoError}
   helperText={resvnoError}
 />
 
-</Grid>
+      </Grid>
+    </Grid>
 
-          {/* <Grid item xs={12}>
-            <Autocomplete
-              options={svNoOptions.map(String)}
-              getOptionLabel={(option) => String(option)}
-              value={modalRowData.svNo ? String(modalRowData.svNo) : null}
-              onChange={(event, newValue) => handleModalInputChange(newValue, 'svNo')}
-              renderInput={(params) => (
-                <TextField {...params} label="Survey No" variant="outlined" size="small" fullWidth />
-              )}
-            />
-          </Grid> */}
-        </Grid>
+    {/* SECTION 2: Reservation Selection */}
+    <>
+      <Divider sx={{ my: 2 }} />
 
-        {/* SECTION 2: Reservation Selection */}
-<>
-  <Divider sx={{ my: 2 }} />
+      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+        ✅ Reservation Sub Numbers
+      </Typography>
 
-  <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-    ✅ Reservation Sub Numbers
-  </Typography>
-
-  <Box sx={{ minHeight: 150, px: 2, py: 1, border: '1px dashed #ccc', borderRadius: 2 }}>
-    {loadingResvno ? (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100px' }}>
-        <CircularProgress size={30} />
-      </Box>
-    ) : svNoDetails.length > 0 ? (
-      <FormGroup>
-        <FormControlLabel
-          control={<Checkbox checked={selectAllChecked} onChange={handleSelectAll} />}
-          label="Select All"
-        />
-        {svNoDetails.map((item) => {
-          const uniqueId = `${item.resvno}-${item.resbdno}`;
-          const remainingArea = getRemainingArea(
-            modalRowData.village,
-            modalRowData.modalBlock,
-            item.resvno,
-            item.resbdno
-          );
-
-          if (remainingArea <= 0) return null;
-
-          return (
+      <Box sx={{ minHeight: 150, px: 2, py: 1, border: '1px dashed #ccc', borderRadius: 2 }}>
+        {loadingResvno ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100px' }}>
+            <CircularProgress size={30} />
+          </Box>
+        ) : svNoDetails.length > 0 ? (
+          <FormGroup>
             <FormControlLabel
-              key={uniqueId}
-              control={
-                <Checkbox
-                  checked={selectedSvNos.includes(uniqueId)}
-                  onChange={() => handleSvNoSelection(uniqueId)}
-                  disabled={remainingArea <= 0}
-                />
-              }
-              label={`${item.resvno}/${item.resbdno} — ${item.area} cents (Remaining: ${remainingArea.toFixed(2)} cents)`}
+              control={<Checkbox checked={selectAllChecked} onChange={handleSelectAll} />}
+              label="Select All"
             />
-          );
-        })}
-      </FormGroup>
-    ) : resvnoError ? (
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '120px',
-          textAlign: 'center',
-          color: 'text.secondary',
-        }}
-      >
-        <img
-          src="https://cdn-icons-png.flaticon.com/512/6134/6134065.png"
-          alt="No Data"
-          width={50}
-          height={50}
-          style={{ marginBottom: 8, opacity: 0.6 }}
-        />
-        <Typography variant="body1" fontWeight="bold" color="error">
-          {resvnoError}
-        </Typography>
-        <Typography variant="body2">
-          Please adjust the Resvno range and try again.
-        </Typography>
+            {svNoDetails.map((item) => {
+              const uniqueId = `${item.resvno}-${item.resbdno}`;
+              const remainingArea = getRemainingArea(
+                modalRowData.village,
+                modalRowData.modalBlock,
+                item.resvno,
+                item.resbdno
+              );
+
+              if (remainingArea <= 0) return null;
+
+              return (
+                <FormControlLabel
+                  key={uniqueId}
+                  control={
+                    <Checkbox
+                      checked={selectedSvNos.includes(uniqueId)}
+                      onChange={() => handleSvNoSelection(uniqueId)}
+                      disabled={remainingArea <= 0}
+                    />
+                  }
+                  label={`${item.resvno}/${item.resbdno} — ${item.area} cents (Remaining: ${remainingArea.toFixed(2)} cents)`}
+                />
+              );
+            })}
+          </FormGroup>
+        ) : resvnoError ? (
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '120px',
+              textAlign: 'center',
+              color: 'text.secondary',
+            }}
+          >
+            <img
+              src="https://cdn-icons-png.flaticon.com/512/6134/6134065.png"
+              alt="No Data"
+              width={50}
+              height={50}
+              style={{ marginBottom: 8, opacity: 0.6 }}
+            />
+            <Typography variant="body1" fontWeight="bold" color="error">
+              {resvnoError}
+            </Typography>
+            <Typography variant="body2">
+              Please adjust the Resvno range and try again.
+            </Typography>
+          </Box>
+        ) : null}
       </Box>
-    ) : null}
-  </Box>
-</>
+    </>
 
+    {/* Action Buttons */}
+    <Grid container justifyContent="flex-end" spacing={2} sx={{ mt: 3 }}>
+      <Grid item>
+        <Button variant="outlined" color="secondary" onClick={closeModal}>
+          Cancel
+        </Button>
+      </Grid>
+      <Grid item>
+        <Button variant="contained" onClick={handleModalAddRow} disabled={isAddButtonDisabled()}>
+          Add Row
+        </Button>
+      </Grid>
+    </Grid>
+  </Paper>
+</Modal>
 
-
-        
-
-        {/* Action Buttons */}
-        <Grid container justifyContent="flex-end" spacing={2} sx={{ mt: 3 }}>
-          <Grid item>
-            <Button variant="outlined" color="secondary" onClick={closeModal}>
-              Cancel
-            </Button>
-          </Grid>
-          <Grid item>
-            <Button variant="contained" onClick={handleModalAddRow} disabled={isAddButtonDisabled()}>
-              Add Row
-            </Button>
-          </Grid>
-        </Grid>
-      </Paper>
-    </Modal>
 
     
  <Dialog

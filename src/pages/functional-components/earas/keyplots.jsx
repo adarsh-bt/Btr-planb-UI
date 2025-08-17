@@ -110,7 +110,8 @@ const transformSample = (sample, type, index) => ({
               const token = localStorage.getItem('token');
               const res = await axios.post(`${BASE_URL}/btr-service/key-plots/fetch-existing-keyplots`,
   {
-    userId: userId  // Request body
+    userId: userId,
+    zone_id:'758'  // Request body
   },
   {
     headers: {
@@ -324,8 +325,10 @@ const filtered = plotData.filter((row) =>
                 console.log("removed the row >>",selectedRowToRemove)
                  const token = localStorage.getItem('token');
             const response = await axios.post(`${BASE_URL}/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`,{
+              zone_id:'758',
               reason: finalReason,
-          userid: authservice.userid()
+          userid: authservice.userid(),
+          reason_for_cluster:"Keyplot Rejected",
   },
   {
     headers: {
@@ -622,119 +625,70 @@ console.log("resss ",response.data)
 </Snackbar>
 
       {/* Removal Confirmation Dialog */}
-     <Dialog open={openRemoveDialog} onClose={handleCloseRemoveDialog} fullWidth maxWidth="sm">
-  <DialogTitle sx={{ backgroundColor: '#05307a', color: 'white', fontSize: '1.25rem', fontWeight: 'bold' }}>
-    Confirm Removal
-  </DialogTitle>
+      <Dialog open={openRemoveDialog} onClose={handleCloseRemoveDialog} fullWidth maxWidth="sm">
+        <DialogTitle>Confirm Removal</DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            You are about to remove Survey Number:{' '}
+            <Typography component="span" fontWeight="bold" color="primary.main">
+              {selectedRowToRemove?.syNo}
+            </Typography>
+            . Please provide a reason.
+          </Typography>
 
-  <DialogContent dividers sx={{ backgroundColor: '#f5f7fa' }}>
-    <Typography variant="body1" sx={{ mb: 2, fontSize: '1.1rem' }}>
-      You are about to remove Survey Number:{' '}
-      <Typography
-        component="span"
-        fontWeight="bold"
-        color="primary"
-        sx={{ fontSize: '1.1rem' }}
-      >
-        {selectedRowToRemove?.syNo}
-      </Typography>
-      . Please provide a reason.
-    </Typography>
+          <FormControl component="fieldset" error={reasonError} sx={{ mt: 2, mb: 2, width: '100%' }}>
+            <FormLabel component="legend">Reason for Removal</FormLabel>
+            <RadioGroup
+              aria-label="reason-for-removal"
+              name="reason-for-removal-group"
+              value={selectedPresetReason}
+              onChange={handlePresetReasonChange}
+            >
+              {presetReasons.map((reasonOption) => (
+                <FormControlLabel key={reasonOption} value={reasonOption} control={<Radio />} label={reasonOption} />
+              ))}
+            </RadioGroup>
+            {reasonError && !selectedPresetReason && (
+              <Typography variant="caption" color="error" sx={{ ml: 1 }}>
+                Please select a reason or enter a custom one.
+              </Typography>
+            )}
+          </FormControl>
 
-    <FormControl
-      component="fieldset"
-      error={reasonError}
-      sx={{ mt: 2, mb: 2, width: '100%' }}
-    >
-      <FormLabel component="legend" sx={{ fontSize: '1rem', fontWeight: 500 }}>
-        Reason for Removal
-      </FormLabel>
-      <RadioGroup
-        aria-label="reason-for-removal"
-        name="reason-for-removal-group"
-        value={selectedPresetReason}
-        onChange={handlePresetReasonChange}
-      >
-        {presetReasons.map((reasonOption) => (
-          <FormControlLabel
-            key={reasonOption}
-            value={reasonOption}
-            control={<Radio />}
-            label={
-              <Typography sx={{ fontSize: '0.95rem' }}>{reasonOption}</Typography>
-            }
-          />
-        ))}
-      </RadioGroup>
-      {reasonError && !selectedPresetReason && (
-        <Typography
-          variant="caption"
-          color="error"
-          sx={{ ml: 1, fontSize: '0.9rem' }}
-        >
-          Please select a reason or enter a custom one.
-        </Typography>
-      )}
-    </FormControl>
+                    {selectedPresetReason === 'Other' && (
+                        <TextField
+                            autoFocus
+                            margin="dense"
+                            label="Enter Custom Reason"
+                            type="text"
+                            fullWidth
+                            variant="outlined"
+                            value={reason}
+                            onChange={handleReasonChange}
+                            error={reasonError && reason.trim() === ''}
+                            helperText={reasonError && reason.trim() === '' ? 'Custom reason is required.' : ''}
+                            multiline
+                            rows={3}
+                            sx={{ mt: 2 }}
+                        />
+                    )}
 
-    {selectedPresetReason === 'Other' && (
-      <TextField
-        autoFocus
-        margin="dense"
-        label="Enter Custom Reason"
-        type="text"
-        fullWidth
-        variant="outlined"
-        value={reason}
-        onChange={handleReasonChange}
-        error={reasonError && reason.trim() === ''}
-        helperText={
-          reasonError && reason.trim() === ''
-            ? 'Custom reason is required.'
-            : ''
-        }
-        multiline
-        rows={3}
-        sx={{ mt: 2 }}
-        InputProps={{
-          sx: { fontSize: '0.95rem' },
-        }}
-        InputLabelProps={{
-          sx: { fontSize: '0.95rem' },
-        }}
-      />
-    )}
-  </DialogContent>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseRemoveDialog} color="secondary" variant="outlined">
+                        Cancel
+                    </Button>
+                   <Button
+                        onClick={handleConfirmRemoval}
+                        color="error"
+                        variant="contained"
+                        disabled={dialogLoading || !selectedPresetReason || (selectedPresetReason === 'Other' && reason.trim() === '')}
+                        startIcon={dialogLoading ? <CircularProgress size={20} color="inherit" /> : null}>
+  {dialogLoading ? 'Processing...' : 'Remove Permanently'}
+</Button>
 
-  <DialogActions sx={{ backgroundColor: '#f5f7fa', px: 3, py: 2 }}>
-    <Button
-      onClick={handleCloseRemoveDialog}
-      color="secondary"
-      variant="outlined"
-      sx={{ fontSize: '0.95rem' }}
-    >
-      Cancel
-    </Button>
-
-    <Button
-      onClick={handleConfirmRemoval}
-      color="error"
-      variant="contained"
-      disabled={
-        dialogLoading ||
-        !selectedPresetReason ||
-        (selectedPresetReason === 'Other' && reason.trim() === '')
-      }
-      startIcon={
-        dialogLoading ? <CircularProgress size={20} color="inherit" /> : null
-      }
-      sx={{ fontSize: '0.95rem' }}
-    >
-      {dialogLoading ? 'Processing...' : 'Remove Permanently'}
-    </Button>
-  </DialogActions>
-</Dialog>
-
+                </DialogActions>
+            </Dialog>
         </Box>
         </Grid>
     );

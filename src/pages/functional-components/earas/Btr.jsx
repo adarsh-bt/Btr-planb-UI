@@ -32,7 +32,7 @@ const columns = (handleEdit, handleView,page,size) => [
   // { name: 'District', selector: (row) => row.dcode, sortable: true },
   // { name: 'Taluk', selector: (row) => row.tcode, sortable: true },
   // { name: 'Village', selector: (row) => row.vcode, sortable: true },
-  { name: 'LocalBody Name', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  { name: 'Local Body Name', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> },
  {
   name: 'Village',
   selector: (row) => {
@@ -43,7 +43,7 @@ const columns = (handleEdit, handleView,page,size) => [
   }
 },
 
-  { name: 'Block', selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  { name: 'Block No.', selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span> },
   {
     name: 'Re-Survey No',
     selector: (row) =>
@@ -63,7 +63,7 @@ const columns = (handleEdit, handleView,page,size) => [
   // { name: 'Address', selector: (row) => row.lbcode, sortable: true },
 
   { name: 'Land Type', selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span> },
-  { name: 'Total area(cent)', selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  { name: 'Total Area(in Cents)', selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span> },
 
   {
     name: 'View Detail',
@@ -359,32 +359,32 @@ const Btr = () => {
                       let value = selectedRow[key] || 'NA';
 
                       if (key === 'villageName') {
-                        label = 'Village';
+                        label = 'Village Name';
                       }
 
                       if (key === 'bcode') {
-                        label = 'Village Block';
+                        label = 'Block Code';
                       }
 
                       // Custom rendering for resvno
                       if (key === 'resvno') {
                         const resvno = selectedRow.resvno ? selectedRow.resvno : 'NA';
                         const resbdno = selectedRow.resbdno ? selectedRow.resbdno : 'NA';
-                        label = 'Re-survey No.';
+                        label = 'Re-Survey No.';
                         value = `${resvno} / ${resbdno}`;
                       }
                       // Custom rendering for lbname
                       if (key === 'lbname') {
                         const lbname = selectedRow.lbname ? selectedRow.lbname : 'NA';
                         const lbtype = selectedRow.lbtype ? selectedRow.lbtype : 'NA';
-                        label = 'Local Body';
+                        label = 'Local Body Name';
                         value = `${lbname}`;
                       }
                       if (key === 'ltype') {
                         label = 'Land Type';
                       }
                       if (key === 'totalCent') {
-                        label = 'Total Area in Cent';
+                        label = 'Total Area (in Cents)';
                       }
                       return (
                         <div

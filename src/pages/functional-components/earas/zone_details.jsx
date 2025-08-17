@@ -180,14 +180,14 @@ if (error) {
                 {/* Sub-header Row */}
                 <TableRow>
                   {/* Area Sub-columns */}
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Wet</TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Dry</TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Total</TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Wet Area</TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Dry Area</TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Total Area</TableCell>
 
                   {/* Plots Sub-columns */}
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Wet</TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Dry</TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Total</TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Wet Plots</TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Dry Plots</TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Total Plots</TableCell>
                 </TableRow>
               </TableHead>
 
