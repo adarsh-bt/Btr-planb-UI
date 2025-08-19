@@ -47,7 +47,7 @@ function Earas_menus() {
       <Breadcrumb></Breadcrumb>
       <Grid item xs={12}>
         <Typography variant="h3" sx={{ marginBottom: 2 }}>
-          Schemes
+          Earas
         </Typography>
         <MainCard title="">
           <Grid container spacing={4}>
@@ -275,7 +275,7 @@ function Earas_menus() {
             </Grid>
 
             {/* {canViewCCE && ( */}
-            <Grid item xs={12} sm={4} md={3} lg={3}>
+            {/* <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
                 to="/schemes/earas/CCE_Menus"
@@ -286,15 +286,15 @@ function Earas_menus() {
                   justifyContent: 'center',
                   padding: '1rem',
                   borderRadius: '1rem',
-                  // background: 'linear-gradient(135deg, #cfd8dc, #b0bec5)', // Muted gray gradient
+                  background: 'linear-gradient(135deg, #cfd8dc, #b0bec5)', // Muted gray gradient
                   // opacity: 0.6, // Makes it look inactive
                   // filter: 'grayscale(100%)', // Grays out the card
                   // boxShadow: 'none', // No shadow
-                  // cursor: 'not-allowed', // Indicate non-clickable
-                  // pointerEvents: 'none', // Disable interaction
+                  cursor: 'not-allowed', // Indicate non-clickable
+                  pointerEvents: 'none', // Disable interaction
                   // minHeight: '8rem', // Match others for consistency
 
-                  background: 'linear-gradient(135deg, rgba(160, 190, 120, 0.45), rgb(140, 180, 110))', // Gradient color
+                  // background: 'linear-gradient(135deg, rgba(160, 190, 120, 0.45), rgb(140, 180, 110))', // Gradient color
                   transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
                   boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
                   '&:hover': {
@@ -336,11 +336,11 @@ function Earas_menus() {
                   </CardContent>
                 </Box>
               </Card>
-            </Grid>
+            </Grid> */}
             {/* )} */}
 
             {/* {canViewFormI && ( */}
-            <Grid item xs={12} sm={4} md={3} lg={3}>
+            {/* <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 sx={{
                   display: 'flex',
@@ -399,11 +399,11 @@ function Earas_menus() {
                   </CardContent>
                 </Box>
               </Card>
-            </Grid>
+            </Grid> */}
             {/* )} */}
 
             {/* {canViewReports && ( */}
-            <Grid item xs={12} sm={4} md={3} lg={3}>
+            {/* <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 sx={{
                   display: 'flex',
@@ -462,12 +462,12 @@ function Earas_menus() {
                   </CardContent>
                 </Box>
               </Card>
-            </Grid>
+            </Grid> */}
             {/* )} */}
 
 
             {/* {canViewZoneSettings && ( */}
-            <Grid item xs={12} sm={4} md={3} lg={3}>
+            {/* <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
                 to="/schemes/earas/settings_menu"
@@ -477,8 +477,11 @@ function Earas_menus() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   padding: '1rem',
+                  cursor: 'not-allowed',
+                   pointerEvents: 'none',
                   borderRadius: '1rem',
-                  background: 'linear-gradient(135deg, rgba(79, 101, 94, 0.45), rgba(210, 197, 83, 1))', // Gradient color
+                   background: 'linear-gradient(135deg, #cfd8dc, #b0bec5)', 
+                  // background: 'linear-gradient(135deg, rgba(79, 101, 94, 0.45), rgba(210, 197, 83, 1))', // Gradient color
                   transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
                   boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
                   '&:hover': {
@@ -520,7 +523,7 @@ function Earas_menus() {
                   </CardContent>
                 </Box>
               </Card>
-            </Grid>
+            </Grid> */}
             {/* )} */}
 
             {/* <Grid item xs={12} sm={4} md={3} lg={3}>              

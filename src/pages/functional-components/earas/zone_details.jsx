@@ -25,7 +25,7 @@ function ZoneDetails() {
   const [zone, setZone] = useState(null);
   const [result, setResult] = useState(null);
 
-     const BASE_URL = mainapi.BTR_API;
+     const BASE_URL = mainapi.BASE_URL;
 
 
 

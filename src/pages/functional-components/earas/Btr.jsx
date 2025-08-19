@@ -258,9 +258,9 @@ const Btr = () => {
         </Paper>
 
 
-   <DataTable
+<DataTable
   columns={columnDefs}
-  data={data} // Use the fetched data
+  data={data}
   progressPending={loading}
   progressComponent={
     <div
@@ -276,14 +276,21 @@ const Btr = () => {
     </div>
   }
   pagination
-  paginationServer // Enable server-side pagination
-  paginationTotalRows={totalRecords} // Total records from API
+  paginationServer
+  paginationTotalRows={totalRecords}
   onChangeRowsPerPage={handleRowsPerPageChange}
   onChangePage={handlePageChange}
+  paginationPerPage={10}
+  paginationRowsPerPageOptions={[10, 25, 50, 100]}
   paginationComponentOptions={{
     rowsPerPageText: 'Rows per page',
     rangeSeparatorText: 'of',
   }}
+  // 🚩 KEY PROPS FOR ALWAYS-FROZEN HEADER:
+  fixedHeader
+  fixedHeaderScrollHeight="60vh"  // Makes the table body scrollable, header always in view
+
+  // 💡 Use clean customStyles, DO NOT add position/top/zIndex to headCells
   customStyles={{
     headCells: {
       style: {
@@ -292,14 +299,11 @@ const Btr = () => {
         color: '#fff',
         fontWeight: 'bold',
         borderBottom: '2px solid black',
-        position: 'sticky',
-        top: 0, // Fix the header to the top
-        zIndex: 2, // Ensure it stays on top
+        // No sticky positioning here!
       },
     },
     cells: {
       style: {
-        backgroundColor: '',
         borderBottom: '1px solid white',
         color: '#333',
       },
@@ -313,12 +317,13 @@ const Btr = () => {
     },
     table: {
       style: {
-        overflowY: 'auto', // Ensure the table body is scrollable
-        maxHeight: '50%', // Set a max height for the table
+        // No overflowY or maxHeight here—managed by DataTable's fixedHeaderScrollHeight
       },
     },
   }}
 />
+
+
 
 
         {/* Modal for viewing full details */}

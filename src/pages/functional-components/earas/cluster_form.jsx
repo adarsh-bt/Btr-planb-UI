@@ -106,17 +106,17 @@ const [customReason, setCustomReason] = useState('');
 
   // Inside your ClusterForm component, or as a constant outside if preferred
 const sidePlotLabelOptions = [
-    'N','E','S','W', 'N1', 'E1', 'S1', 'W1', 'N2', 'E2', 'S2', 'W2'
+     'N1', 'E1', 'S1', 'W1', 'N2', 'E2', 'S2', 'W2'
   // Add more as needed
 ];
    const BASE_URL = mainapi.BTR_API;
     // Structure for storing side plot rows for each direction (N, E, S, W)
     const [keyplots, setKeyplots] = useState([
         { id: 'K', label: 'K', rows: [] },
-        { id: 'N', label: 'N', rows: [] }, // Initialize with empty rows
-        { id: 'E', label: 'E', rows: [] },
-        { id: 'S', label: 'S', rows: [] },
-        { id: 'W', label: 'W', rows: [] },
+        { id: 'N1', label: 'N1', rows: [] }, // Initialize with empty rows
+        { id: 'E1', label: 'E1', rows: [] },
+        { id: 'S1', label: 'S1', rows: [] },
+        { id: 'W1', label: 'W1', rows: [] },
     ]);
 
     const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -283,7 +283,7 @@ const handleSvNoSelection = (uniqueId) => { // uniqueId will be like "20-1" or t
             }
             console.log("existed plotss ",existingSidePlots)
             // Ensure exactly N, E, S, W side plots exist (override if present)
-            const defaultDirections = ['K','N', 'E', 'S', 'W'];
+            const defaultDirections = ['K','N1', 'E1', 'S1', 'W1'];
             const mergedKeyplots = defaultDirections.map(dir => {
                 return existingSidePlots[dir] || {
                     id: dir,
@@ -1553,7 +1553,7 @@ const handleSelectAll = (event) => {
 
 
        <Grid item xs={1}>
-       {keyplot.label !== "K" && (
+      {!(keyplot.label === "K" && rowIndex === 0) && (
   <Button 
     startIcon={<RemoveCircleOutlineIcon />}
     onClick={() => removeKeyplotRow(index, rowIndex,row.id)}  // Pass both indices
@@ -1574,7 +1574,7 @@ const handleSelectAll = (event) => {
 
   {/* Action Buttons */}
   <Grid item xs={12} sx={{ textAlign: 'center', mt: 1 }}>
-{keyplot.label !== "K" && (
+
     <Button
       startIcon={<AddCircleOutlineIcon />}
       onClick={() => addKeyplotRow(index)}
@@ -1585,7 +1585,7 @@ const handleSelectAll = (event) => {
     >
       Add Row
     </Button>
-    )}
+   
     {/* <Button
       startIcon={<RemoveCircleOutlineIcon />}
       onClick={() => removeKeyplotRow(index)}
