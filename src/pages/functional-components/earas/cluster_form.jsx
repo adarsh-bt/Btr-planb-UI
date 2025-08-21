@@ -10,7 +10,7 @@ import {
   DialogContentText,
   DialogTitle,
   RadioGroup,
-  Radio, // Import Modal and Paper for the modal
+  Radio,Stack
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
@@ -19,6 +19,7 @@ import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import Autocomplete from '@mui/material/Autocomplete';
 import PropTypes from 'prop-types'; // For ListboxComponent prop-types
+import ReportProblemRoundedIcon from '@mui/icons-material/ReportProblemRounded';
 
 import authservice from 'pages/authentication/services/authservice';
 import LinearProgress from '@mui/material/LinearProgress';
@@ -87,6 +88,9 @@ const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
 const [defaultVillageId, setDefaultVillageId] = useState(null);
 const [defaultVillage, setDefaultVillage] = useState('');
 const [defaultBlock, setDefaultBlock] = useState('');
+const [defaultLbcode, setDefaultLbcode] = useState('');
+const [mincluster, setMinCluster] = useState('');
+const [maxcluster, setMaxCluster] = useState('');
  const [selectAllChecked, setSelectAllChecked] = useState(false);
 const [resvnoError, setResvnoError] = useState('');
 const [loadingResvno, setLoadingResvno] = useState(false);
@@ -94,6 +98,9 @@ const [loadingResvno, setLoadingResvno] = useState(false);
   const [openRejectDialog, setOpenRejectDialog] = useState(false);
 const [rejectReason, setRejectReason] = useState('');
 const [customReason, setCustomReason] = useState('');
+const [openLimitDialog, setOpenLimitDialog] = useState(false);
+const [limitMessage, setLimitMessage] = useState('');
+const [pendingSidePlots, setPendingSidePlots] = useState(null);
 
 
   const [keyplotDetails, setKeyplotDetails] = useState({
@@ -192,44 +199,8 @@ const[keyplotId,setKeyplotId] = useState('');
 
     }, [location.search]); // Depend on location.search to re-run if URL params change
 
-    // Effect 2: Fetch all village data for the modal's village/block dropdowns
-    // This runs only once on component mount
-    useEffect(() => {
-        const fetchAllVillageDataForModal = async () => {
-            setLoading(true);
-            try {
-                const userid = authservice.userid();
-                  const token = localStorage.getItem('token');
-                const response = await fetch(`${BASE_URL}/btr-service/cluster-api/${userid}/villages`,
-              {
-              headers: {
-                  'Authorization': `Bearer ${token}` // Add token in Authorization header
-              }
-                });
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
-                setAllVillageData(data); // Store the full data for filtering blocks
-               setVillageOptions(data); // full objects, not just names
-              setLoading(false);
-                console.log("village datas   ",data)// Extract village names for Autocomplete
-            } catch (error) {
-                console.error("Failed to fetch village data for modal:", error);
-                // Handle error (e.g., show a toast message)
-            }
-        };
 
-    fetchAllVillageDataForModal();
-}, []);
- // Empty dependency array: runs only once on mount
-const handleSvNoSelection = (uniqueId) => { // uniqueId will be like "20-1" or the plotId
-  setSelectedSvNos((prevSelected) =>
-    prevSelected.includes(uniqueId)
-      ? prevSelected.filter((id) => id !== uniqueId)
-      : [...prevSelected, uniqueId]
-  );
-};
+
 
     // Api for Svno
     // --- API Fetching Functions ---
@@ -250,6 +221,10 @@ const handleSvNoSelection = (uniqueId) => { // uniqueId will be like "20-1" or t
         }
 
         const data = await response.json();
+        console.log("keyplots ",data.payload)
+        setMinCluster(data.payload.clusterMin)
+        setMaxCluster(data.payload.clusterMax)
+        setDefaultLbcode(data.payload.lbcode)
         setDefaultBlock(data.payload.villageBlock);
         setDefaultVillageId(data.payload.kvillageId);
         setDefaultVillage(data.payload.kvillageName);
@@ -311,6 +286,49 @@ const handleSvNoSelection = (uniqueId) => { // uniqueId will be like "20-1" or t
         throw error;
     }
 };
+
+    // Effect 2: Fetch all village data for the modal's village/block dropdowns
+    // This runs only once on component mount
+  useEffect(() => {
+    const fetchAllVillageDataForModal = async () => {
+        if (!defaultLbcode) return; // prevent fetch if lbcode not set yet
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BASE_URL}/btr-service/cluster-api/${defaultLbcode}/villages`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log("Village data fetched: ", data);
+
+            setAllVillageData(data);
+            setVillageOptions(data);
+        } catch (error) {
+            console.error("Failed to fetch village data for modal:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    fetchAllVillageDataForModal();
+}, [defaultLbcode]); // 👈 Now it listens for changes to lbcode
+
+ // Empty dependency array: runs only once on mount
+const handleSvNoSelection = (uniqueId) => { // uniqueId will be like "20-1" or the plotId
+  setSelectedSvNos((prevSelected) =>
+    prevSelected.includes(uniqueId)
+      ? prevSelected.filter((id) => id !== uniqueId)
+      : [...prevSelected, uniqueId]
+  );
+};
+
+
 
 const closeModal = () => {
   setModalOpen(false);
@@ -479,6 +497,10 @@ else if (field === 'resvnoStart' || field === 'resvnoEnd') {
   ) {
     if (endNum <= startNum) {
       setResvnoError("Resvno End must be greater than Resvno Start.");
+ 
+   setSvNoDetails([]);       // Clear old results
+  setSelectedSvNos([]);     // Clear selections
+  
     } else {
       setResvnoError(""); // Clear error
       // ✅ Only call API when valid
@@ -515,6 +537,9 @@ fetch(url,{
     }
   } else {
     setResvnoError('');
+  setResvnoError('');
+   setSvNoDetails([]);       // Clear old results
+   setSelectedSvNos([]);     // Clear selections
   }
 
   return newState;
@@ -862,180 +887,360 @@ const isAddButtonDisabled = () => {
     };
 
     // Handles the form submission
-const handleSubmit = async (event) => {
-    event.preventDefault();
+// const handleSubmit = async (event) => {
+//     event.preventDefault();
 
-    // 1. Validate total cluster area
- const overallTotalAreaCents = parseFloat(calculateOverallTotalArea()); // in cents
+//     // 1. Validate total cluster area
+//  const overallTotalAreaCents = parseFloat(calculateOverallTotalArea()); // in cents
 
-// This comes from admin or backend config (e.g., 5 acres)
-const adminDefinedAcres = 5;
+// // This comes from admin or backend config (e.g., 5 acres)
 
-// Dynamically calculate limits
-const minAllowedCents = (adminDefinedAcres - 1) * 100;
-const maxAllowedCents = (adminDefinedAcres + 1) * 100;
 
-const rowsToSubmit = keyplots.flatMap(k => k.rows).filter(row => !row.isPending);
+// // Dynamically calculate limits
 
-// if (overallTotalAreaCents < minAllowedCents || overallTotalAreaCents > maxAllowedCents) {
-//     const totalAreaAcres = (overallTotalAreaCents / 100).toFixed(2);
+// // if (overallTotalAreaCents < minAllowedCents || overallTotalAreaCents > maxAllowedCents) {
+// //     const totalAreaAcres = (overallTotalAreaCents / 100).toFixed(2);
+// //     setSnackbarMessage(
+// //         `Total area (${totalAreaAcres} acres) must be between ${adminDefinedAcres - 1} and ${adminDefinedAcres + 1} acres.`
+// //     );
+// //     setSnackbarOpen(true);
+// //     return;
+// // }
+// const totalCents = parseFloat(calculateOverallTotalActual());
+//   const minCents = parseFloat(mincluster || 0); 
+//   const maxCents = parseFloat(maxcluster || 0);
+
+//   // ✅ Just show messages, don't block save
+//   if (minCents && totalCents < minCents) {
 //     setSnackbarMessage(
-//         `Total area (${totalAreaAcres} acres) must be between ${adminDefinedAcres - 1} and ${adminDefinedAcres + 1} acres.`
+//       `Total area (${totalCents.toFixed(2)} cents) is below minimum (${minCents} cents). Cluster not complete.`
 //     );
 //     setSnackbarOpen(true);
-//     return;
-// }
-const totalAreaAcres = (overallTotalAreaCents / 100).toFixed(2);
-if (overallTotalAreaCents > 600) { // 600 cents = 6 acres
-    setSnackbarMessage(`Total area (${totalAreaAcres} acres) must not exceed 6 acres.`);
+//   }
+
+//   if (maxCents && totalCents > maxCents) {
+//     setSnackbarMessage(
+//       `Total area (${totalCents.toFixed(2)} cents) exceeds maximum (${maxCents} cents). Cluster not complete.`
+//     );
+//     setSnackbarOpen(true);
+//   }
+
+
+
+//     const sidePlotsToSubmit = [];
+//     let hasValidationError = false;
+
+//     // Track total used area per plot (village+block+svNo+sub)
+//     const plotUsageMap = new Map();
+
+//     // First pass: Calculate total usage for each plot
+//     keyplots.forEach(keyplot => {
+//         keyplot.rows.forEach(row => {
+//             if (!row.plot_id) return;
+
+//             const plotKey = `${row.village}-${row.block}-${row.svNo}-${row.sub}`;
+//             const currentUsage = parseFloat(row.enumeratedArea || 0);
+            
+//             if (plotUsageMap.has(plotKey)) {
+//                 plotUsageMap.set(plotKey, plotUsageMap.get(plotKey) + currentUsage);
+//             } else {
+//                 plotUsageMap.set(plotKey, currentUsage);
+//             }
+//         });
+//     });
+
+//     // Second pass: Validate each row
+//     for (const keyplot of keyplots) {
+//         const filteredRows = [];
+        
+//         for (const row of keyplot.rows) {
+//             // Skip rows without plot_id
+//             if (!row.plot_id) continue;
+
+//             const enumeratedArea = parseFloat(row.enumeratedArea || 0);
+//             const plotKey = `${row.village}-${row.block}-${row.svNo}-${row.sub}`;
+//             const totalUsedArea = plotUsageMap.get(plotKey) || 0;
+//             const plotArea = parseFloat(row.area || 0);
+
+//             // Basic validations
+//             if (row.enumeratedArea === '' || isNaN(enumeratedArea)) {
+//               setKeyplots(prevKeyplots =>
+//   prevKeyplots.map((kp, kpIndex) => {
+//     if (kpIndex !== keyplots.indexOf(keyplot)) return kp;
+
+//     const updatedRows = kp.rows.map((r, rIdx) => {
+//       if (
+//         r.village === row.village &&
+//         r.block === row.block &&
+//         r.svNo === row.svNo &&
+//         r.sub === row.sub
+//       ) {
+//         return { ...r, areaError: "Please enter a valid Actual Area" };
+//       }
+//       return r;
+//     });
+
+//     return { ...kp, rows: updatedRows };
+//   })
+// );
+// setSnackbarMessage(`Please enter a valid 'Actual Area' for Sv.No: ${row.svNo}/${row.sub} in ${keyplot.label}.`);
+// setSnackbarOpen(true);
+// hasValidationError = true;
+// break;
+//             }
+
+//             if (enumeratedArea <= 0) {
+//                 setSnackbarMessage(`Area must be greater than 0 for Sv.No: ${row.svNo}/${row.sub}.`);
+//                 setSnackbarOpen(true);
+//                 hasValidationError = true;
+//                 break;
+//             }
+
+//             // Validate against total plot area
+//             if (totalUsedArea > plotArea) {
+//                 setSnackbarMessage(
+//                     `Total enumerated area (${totalUsedArea.toFixed(2)}) exceeds plot area (${plotArea.toFixed(2)}) ` +
+//                     `for ${row.svNo}/${row.sub}. Please reduce by ${(totalUsedArea - plotArea).toFixed(2)} cents.`
+//                 );
+//                 setSnackbarOpen(true);
+//                 hasValidationError = true;
+//                 break;
+//             }
+
+//             // If validation passes, add to submission
+//             filteredRows.push({
+//                 actual: enumeratedArea.toFixed(2),
+//                 plot_id: row.plot_id,
+//             });
+//         }
+
+//         if (hasValidationError) break;
+
+//         if (filteredRows.length > 0) {
+//             sidePlotsToSubmit.push({
+//                 label: keyplot.label,
+//                 rows: filteredRows,
+//             });
+//         }
+//     }
+
+//     if (hasValidationError) return;
+
+//     if (sidePlotsToSubmit.length === 0) {
+//         setSnackbarMessage('No valid side plots found to submit. Please ensure Sv.No, Sub, and Actual Area are filled for at least one row in a side plot.');
+//         setSnackbarOpen(true);
+//         return;
+//     }
+
+//     // Prepare payload
+//     const payload = {
+//         userId: authservice.userid(),
+//         keyplotId: syNo,
+//         clusterNo: parseInt(slNo, 10),
+//         sidePlots: sidePlotsToSubmit,
+//     };
+
+//     console.log('Submitting payload:', payload);
+
+//     try {
+//           const token = localStorage.getItem('token');
+//         const response = await fetch(`${BASE_URL}/btr-service/cluster-api/save-cluster`, {
+//     method: 'POST',
+//     headers: {
+//         'Content-Type': 'application/json',
+//         'Authorization': `Bearer ${token}` // Add token here
+//     },
+//     body: JSON.stringify(payload),
+// });
+
+//     if (!response.ok) {
+//       const errorData = await response.json();
+//       throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+//     }
+
+//     const result = await response.json();
+//     setSnackbarMessage('Form submitted successfully!');
+//     setSnackbarOpen1(true);
+//     setPendingRows([]); // Clear pending rows after successful submission
+//     console.log('API response:', result);
+    
+//   } catch (error) {
+//     console.error('Error submitting form:', error);
+//     setSnackbarMessage(`Failed to submit form: ${error.message}`);
+//     setSnackbarOpen(true);
+//   }
+// };
+
+const handleSubmit = async (event) => {
+  event.preventDefault();
+
+  // Step 1: Run validations first
+  const sidePlotsToSubmit = [];
+  let hasValidationError = false;
+  const plotUsageMap = new Map();
+
+  // First pass: calculate total usage
+  keyplots.forEach(keyplot => {
+    keyplot.rows.forEach(row => {
+      if (!row.plot_id) return;
+      const key = `${row.village}-${row.block}-${row.svNo}-${row.sub}`;
+      const area = parseFloat(row.enumeratedArea || 0);
+      plotUsageMap.set(key, (plotUsageMap.get(key) || 0) + area);
+    });
+  });
+
+  // Second pass: validate rows
+  for (const keyplot of keyplots) {
+    const validRows = [];
+
+    for (const row of keyplot.rows) {
+      if (!row.plot_id) continue;
+
+      const enumeratedArea = parseFloat(row.enumeratedArea || 0);
+      const key = `${row.village}-${row.block}-${row.svNo}-${row.sub}`;
+      const totalUsed = plotUsageMap.get(key) || 0;
+      const plotArea = parseFloat(row.area || 0);
+
+      if (row.enumeratedArea === '' || isNaN(enumeratedArea)) {
+        setKeyplots(prev => {
+          return prev.map((kp, idx) => {
+            if (idx !== keyplots.indexOf(keyplot)) return kp;
+            return {
+              ...kp,
+              rows: kp.rows.map(r => {
+                if (
+                  r.village === row.village &&
+                  r.block === row.block &&
+                  r.svNo === row.svNo &&
+                  r.sub === row.sub
+                ) {
+                  return { ...r, areaError: "Please enter a valid Actual Area" };
+                }
+                return r;
+              }),
+            };
+          });
+        });
+
+        setSnackbarMessage(`Please enter a valid 'Actual Area' for Sv.No: ${row.svNo}/${row.sub} in ${keyplot.label}.`);
+        setSnackbarOpen(true);
+        hasValidationError = true;
+        break;
+      }
+
+      if (enumeratedArea <= 0) {
+        setSnackbarMessage(`Area must be greater than 0 for Sv.No: ${row.svNo}/${row.sub}.`);
+        setSnackbarOpen(true);
+        hasValidationError = true;
+        break;
+      }
+
+      if (totalUsed > plotArea) {
+        setSnackbarMessage(
+          `Total enumerated area (${totalUsed.toFixed(2)}) exceeds plot area (${plotArea.toFixed(2)}) for ${row.svNo}/${row.sub}. Please reduce by ${(totalUsed - plotArea).toFixed(2)} cents.`
+        );
+        setSnackbarOpen(true);
+        hasValidationError = true;
+        break;
+      }
+
+      validRows.push({
+        actual: enumeratedArea.toFixed(2),
+        plot_id: row.plot_id,
+      });
+    }
+
+    if (hasValidationError) break;
+
+    if (validRows.length > 0) {
+      sidePlotsToSubmit.push({
+        label: keyplot.label,
+        rows: validRows,
+      });
+    }
+  }
+
+  if (hasValidationError) return;
+
+  if (sidePlotsToSubmit.length === 0) {
+    setSnackbarMessage('No valid side plots found to submit. Please ensure Sv.No, Sub, and Actual Area are filled for at least one row in a side plot.');
     setSnackbarOpen(true);
     return;
+  }
+
+  // Step 2: Now check total cluster area limits
+// ✅ Cluster area range checks
+const totalCents = parseFloat(calculateOverallTotalActual());
+const minCents = parseFloat(mincluster || 0);
+const maxCents = parseFloat(maxcluster || 0);
+
+if (maxCents && totalCents > maxCents) {
+  setSnackbarMessage(
+    `❌ Error: Cluster area (${totalCents.toFixed(2)} cents) exceeds the maximum allowed (${maxCents} cents).`
+  );
+  setSnackbarOpen(true);
+  return; // ❌ Don't save
 }
 
+if (minCents && totalCents < minCents) {
+  setLimitMessage(
+    `⚠️ Warning: Cluster area (${totalCents.toFixed(2)} cents) is below the minimum allowed (${minCents} cents). Saving anyway?`
+  );
+  setPendingSidePlots(sidePlotsToSubmit); // ✅ Store sidePlots for later
+  setOpenLimitDialog(true);
+  return; // ✅ Wait for confirmation
+} else {
+  // ✅ Area is within range
+  setSnackbarMessage(
+    `✅ Cluster area (${totalCents.toFixed(2)} cents) is within the allowed range (${minCents} - ${maxCents} cents).`
+  );
+  setSnackbarOpen(true);
+}
+setOpenLimitDialog(true);
+// ✅ Save regardless of warning
+doSubmit(pendingSidePlots);
+};
 
-    const sidePlotsToSubmit = [];
-    let hasValidationError = false;
 
-    // Track total used area per plot (village+block+svNo+sub)
-    const plotUsageMap = new Map();
+const doSubmit = async (sidePlotsToSubmit) => {
+  if (!sidePlotsToSubmit || sidePlotsToSubmit.length === 0) {
+    setSnackbarMessage('Nothing to submit.');
+    setSnackbarOpen(true);
+    return;
+  }
 
-    // First pass: Calculate total usage for each plot
-    keyplots.forEach(keyplot => {
-        keyplot.rows.forEach(row => {
-            if (!row.plot_id) return;
+  const payload = {
+    userId: authservice.userid(),
+    keyplotId: syNo,
+    clusterNo: parseInt(slNo, 10),
+    sidePlots: sidePlotsToSubmit,
+  };
 
-            const plotKey = `${row.village}-${row.block}-${row.svNo}-${row.sub}`;
-            const currentUsage = parseFloat(row.enumeratedArea || 0);
-            
-            if (plotUsageMap.has(plotKey)) {
-                plotUsageMap.set(plotKey, plotUsageMap.get(plotKey) + currentUsage);
-            } else {
-                plotUsageMap.set(plotKey, currentUsage);
-            }
-        });
-    });
-
-    // Second pass: Validate each row
-    for (const keyplot of keyplots) {
-        const filteredRows = [];
-        
-        for (const row of keyplot.rows) {
-            // Skip rows without plot_id
-            if (!row.plot_id) continue;
-
-            const enumeratedArea = parseFloat(row.enumeratedArea || 0);
-            const plotKey = `${row.village}-${row.block}-${row.svNo}-${row.sub}`;
-            const totalUsedArea = plotUsageMap.get(plotKey) || 0;
-            const plotArea = parseFloat(row.area || 0);
-
-            // Basic validations
-            if (row.enumeratedArea === '' || isNaN(enumeratedArea)) {
-              setKeyplots(prevKeyplots =>
-  prevKeyplots.map((kp, kpIndex) => {
-    if (kpIndex !== keyplots.indexOf(keyplot)) return kp;
-
-    const updatedRows = kp.rows.map((r, rIdx) => {
-      if (
-        r.village === row.village &&
-        r.block === row.block &&
-        r.svNo === row.svNo &&
-        r.sub === row.sub
-      ) {
-        return { ...r, areaError: "Please enter a valid Actual Area" };
-      }
-      return r;
-    });
-
-    return { ...kp, rows: updatedRows };
-  })
-);
-setSnackbarMessage(`Please enter a valid 'Actual Area' for Sv.No: ${row.svNo}/${row.sub} in ${keyplot.label}.`);
-setSnackbarOpen(true);
-hasValidationError = true;
-break;
-            }
-
-            if (enumeratedArea <= 0) {
-                setSnackbarMessage(`Area must be greater than 0 for Sv.No: ${row.svNo}/${row.sub}.`);
-                setSnackbarOpen(true);
-                hasValidationError = true;
-                break;
-            }
-
-            // Validate against total plot area
-            if (totalUsedArea > plotArea) {
-                setSnackbarMessage(
-                    `Total enumerated area (${totalUsedArea.toFixed(2)}) exceeds plot area (${plotArea.toFixed(2)}) ` +
-                    `for ${row.svNo}/${row.sub}. Please reduce by ${(totalUsedArea - plotArea).toFixed(2)} cents.`
-                );
-                setSnackbarOpen(true);
-                hasValidationError = true;
-                break;
-            }
-
-            // If validation passes, add to submission
-            filteredRows.push({
-                actual: enumeratedArea.toFixed(2),
-                plot_id: row.plot_id,
-            });
-        }
-
-        if (hasValidationError) break;
-
-        if (filteredRows.length > 0) {
-            sidePlotsToSubmit.push({
-                label: keyplot.label,
-                rows: filteredRows,
-            });
-        }
-    }
-
-    if (hasValidationError) return;
-
-    if (sidePlotsToSubmit.length === 0) {
-        setSnackbarMessage('No valid side plots found to submit. Please ensure Sv.No, Sub, and Actual Area are filled for at least one row in a side plot.');
-        setSnackbarOpen(true);
-        return;
-    }
-
-    // Prepare payload
-    const payload = {
-        userId: authservice.userid(),
-        keyplotId: syNo,
-        clusterNo: parseInt(slNo, 10),
-        sidePlots: sidePlotsToSubmit,
-    };
-
-    console.log('Submitting payload:', payload);
-
-    try {
-          const token = localStorage.getItem('token');
-        const response = await fetch(`${BASE_URL}/btr-service/cluster-api/save-cluster`, {
-    method: 'POST',
-    headers: {
+console.log("sss ",sidePlotsToSubmit)
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${BASE_URL}/btr-service/cluster-api/save-cluster`, {
+      method: 'POST',
+      headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` // Add token here
-    },
-    body: JSON.stringify(payload),
-});
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload),
+    });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
+    if (!response.ok) throw new Error('Save failed');
 
     const result = await response.json();
     setSnackbarMessage('Form submitted successfully!');
     setSnackbarOpen1(true);
-    setPendingRows([]); // Clear pending rows after successful submission
-    console.log('API response:', result);
-    
-  } catch (error) {
-    console.error('Error submitting form:', error);
-    setSnackbarMessage(`Failed to submit form: ${error.message}`);
+  } catch (err) {
+    setSnackbarMessage(`Failed to submit form: ${err.message}`);
     setSnackbarOpen(true);
   }
 };
+
+
+// savee
 
 //rejection
 const handleOpenRejectDialog = () => {
@@ -1316,9 +1521,9 @@ const handleSelectAll = (event) => {
           '& .MuiLinearProgress-bar': {
             backgroundColor: () => {
               const totalCents = parseFloat(calculateOverallTotalActual());
-              if (totalCents > 550) { // Warning when close to limit (e.g., over 5.5 acres)
+              if (totalCents > maxcluster) { // Warning when close to limit (e.g., over 5.5 acres)
                 return 'error.main'; // Red
-              } else if (totalCents > 450) { // Approaching limit (e.g., over 4.5 acres)
+              } else if (totalCents > mincluster) { // Approaching limit (e.g., over 4.5 acres)
                 return 'warning.main'; // Orange/Yellow
               }
               return 'success.main'; // Green
@@ -1327,7 +1532,7 @@ const handleSelectAll = (event) => {
         }}
       />
       <Typography variant="caption" display="block" sx={{ mt: 0.5, textAlign: 'right', color: 'text.secondary' }}>
-        {parseFloat(calculateOverallTotalActual()).toFixed(2)} / 600 Cents
+        {parseFloat(calculateOverallTotalActual()).toFixed(2)} / {maxcluster} Cents
       </Typography>
     </Box>
   </Box>
@@ -1402,8 +1607,9 @@ const handleSelectAll = (event) => {
     </Grid>
     <Grid item xs={6}>
       <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-        {/* <Button variant="contained" color="error" onClick={handleOpenRejectDialog}> */}
-        <Button variant="contained" color="error">
+        <Button variant="contained" color="error" onClick={handleOpenRejectDialog}>
+          
+        {/* <Button variant="contained" color="error"> */}
           <WarningAmberIcon /> Reject Cluster
         </Button>
       </Box>
@@ -1615,7 +1821,7 @@ const handleSelectAll = (event) => {
           open={snackbarOpen}
           autoHideDuration={3000}
           onClose={handleSnackbarClose}
-          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
           
         >
           <Alert onClose={handleSnackbarClose} severity="warning" sx={{ width: '100%' }}>
@@ -1627,7 +1833,7 @@ const handleSelectAll = (event) => {
           open={snackbarOpen1}
           autoHideDuration={3000}
           onClose={handleSnackbarClose}
-          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
         >
           <Alert onClose={handleSnackbarClose} severity="success" sx={{ width: '100%' }}>
             {snackbarMessage}
@@ -1964,6 +2170,40 @@ const handleSelectAll = (event) => {
 </Dialog>
 
             {/* --- End Modal --- */}
+
+ <Dialog
+      open={openLimitDialog}
+      onClose={() => setOpenLimitDialog(false)}
+      sx={{ '& .MuiDialog-paper': { borderRadius: '12px' } }}
+    >
+      <DialogTitle>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <ReportProblemRoundedIcon color="warning" />
+          <Typography variant="h6">Cluster Not Complete</Typography>
+        </Stack>
+      </DialogTitle>
+      <DialogContent dividers>
+        <DialogContentText color="text.secondary" sx={{ py: 1 }}>
+          {limitMessage || "Are you sure you want to proceed? The cluster is not fully configured."}
+        </DialogContentText>
+      </DialogContent>
+      <DialogActions sx={{ p: 2, justifyContent: 'flex-end' }}>
+        <Button onClick={() => setOpenLimitDialog(false)} color="inherit">
+          Cancel
+        </Button>
+        <Button
+          onClick={() => {
+            setOpenLimitDialog(false);
+            doSubmit(pendingSidePlots);
+          }}
+          color="warning"
+          variant="contained"
+        >
+          Save Anyway
+        </Button>
+      </DialogActions>
+    </Dialog>
+
         </Container>
         </Grid>
     );

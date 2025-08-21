@@ -381,7 +381,7 @@ export default function DashboardDefault() {
           </Card>
         </Grid> */}
 
-        <Grid item xs={12} sm={4} md={4} lg={4}>
+        {/* <Grid item xs={12} sm={4} md={4} lg={4}>
           <Card
             component={Link}
             to="/approvals"
@@ -467,8 +467,9 @@ export default function DashboardDefault() {
               />
             </Box>
           </Card>
-        </Grid>
-        <Grid item xs={12} sm={4} md={4} lg={4}>
+        </Grid> */}
+
+        {/* <Grid item xs={12} sm={4} md={4} lg={4}>
           <Card
             component={Link}
             to="/User_Manage"
@@ -554,7 +555,7 @@ export default function DashboardDefault() {
               />
             </Box>
           </Card>
-        </Grid>
+        </Grid> */}
       </Grid>
 
       <Grid item md={8} sx={{ display: { sm: 'none', md: 'block', lg: 'none' } }} />
