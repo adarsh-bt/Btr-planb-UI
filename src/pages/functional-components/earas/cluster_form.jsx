@@ -235,42 +235,50 @@ const[keyplotId,setKeyplotId] = useState('');
             // Prepare a map of existing side plots from the response
             const existingSidePlots = {};
             if (Array.isArray(data.payload.sidePlots)) {
-                data.payload.sidePlots.forEach(sp => {
-                    const directionKey = sp.label[0]; // e.g., 'N' from 'N2'
-                    existingSidePlots[directionKey] = {
-                        id: sp.label,
-                        label: sp.label,
-                        rows: (sp.rows || []).map(row => ({
-                            b_id: row.id,
-                            svNo: row.svNo || '',
-                            sub: row.subNo || '',
-                            block: row.bcode || '',
-                            villageName: row.village || '',
-                            enumeratedArea: row.actual || '',
-                            area: row.area || '',
-                            subOptions: [],
-                            plot_id: row.plot_id || '',
-                            isExisting: true
+               // ✅ Use full label instead of only first char
+data.payload.sidePlots.forEach(sp => {
+    const directionKey = sp.label;   // "N1", "E2", "S1", etc.
+    existingSidePlots[directionKey] = {
+        id: sp.label,
+        label: sp.label,
+        rows: (sp.rows || []).map(row => ({
+            b_id: row.id,
+            svNo: row.svNo || '',
+            sub: row.subNo || '',
+            block: row.bcode || '',
+            villageName: row.village || '',
+            enumeratedArea: row.actual || '',
+            area: row.area || '',
+            subOptions: [],
+            plot_id: row.plot_id || '',
+            isExisting: true
+        }))
+    };
+});
 
-                        }))
-                    };
-                });
             }
             console.log("existed plotss ",existingSidePlots)
             // Ensure exactly N, E, S, W side plots exist (override if present)
-            const defaultDirections = ['K','N1', 'E1', 'S1', 'W1'];
-            const mergedKeyplots = defaultDirections.map(dir => {
-                return existingSidePlots[dir] || {
-                    id: dir,
-                    label: dir,
-                    rows: []
-                };
-            });
-            const plotId = existingSidePlots?.['K']?.rows?.[0]?.plot_id || null;
-        
+           // include both defaults and existing labels
+             // Include both defaults and whatever backend actually returned
+// existing first, then defaults
+const allDirections = Array.from(new Set([
+  ...Object.keys(existingSidePlots),
+  'K','N1','E1','S1','W1'
+]));
 
 
-            setKeyplots(mergedKeyplots);
+// Build final keyplots array
+const mergedKeyplots = allDirections.map(dir => {
+  return existingSidePlots[dir] || {
+    id: dir,
+    label: dir,
+    rows: []
+  };
+});
+
+setKeyplots(mergedKeyplots);
+
 
             setLoading(false);
             // Parse syNo like "385/4"
@@ -700,7 +708,7 @@ const handleOpenConfirmDialog = (keyplotIndex, rowIndexToRemove) => {
 
 const getRemainingArea = (villageId, blockCode, resvno, resbdno) => {
   // Find the plot details from the API response
-      console.log("vvv")
+      console.log("vvv",svNoDetails)
   const detail = svNoDetails.find(d => 
     d.resvno.toString() === resvno.toString() && 
     d.resbdno.toString() === resbdno.toString()
@@ -1553,7 +1561,7 @@ const handleSelectAll = (event) => {
             <TextField label="Cluster No." value={slNo || 'Not Available'} InputProps={{ readOnly: true }} fullWidth />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <TextField label="LocalBody Name" value={keyplotDetails.panchayath || ''} InputProps={{ readOnly: true }} fullWidth />
+            <TextField label="Local Body" value={keyplotDetails.panchayath || ''} InputProps={{ readOnly: true }} fullWidth />
           </Grid>
           <Grid item xs={12} sm={6} md={2}>
             <TextField
@@ -1566,7 +1574,7 @@ const handleSelectAll = (event) => {
           </Grid> 
          
           <Grid item xs={12} sm={6} md={3} ref={totalAreaRef}>
-            <TextField label="TOTAL ACTUAL AREA (Cent)" value={calculateOverallTotalActual()} InputProps={{ readOnly: true }} fullWidth/>
+            <TextField label="Total Actual Area (in cents)" value={calculateOverallTotalActual()} InputProps={{ readOnly: true }} fullWidth/>
             {/* THIS IS WHERE THE NEW CODE FOR LinearProgress IS ADDED */}
             <Box sx={{ width: '100%', mt: 1 }}>
               <LinearProgress
@@ -1666,7 +1674,7 @@ const handleSelectAll = (event) => {
   <Grid item xs={2}> <Typography fontWeight="bold">Village</Typography> </Grid>
   <Grid item xs={2}> <Typography fontWeight="bold">Block</Typography> </Grid>
   <Grid item xs={2}> <Typography fontWeight="bold">SV.No / Sub</Typography> </Grid>
-  <Grid item xs={3}> <Typography fontWeight="bold">Total Area - Actual</Typography> </Grid>
+  <Grid item xs={3}> <Typography fontWeight="bold">Total Area Actual</Typography> </Grid>
   <Grid item xs={2}> <Typography fontWeight="bold">Total Area Enumerated</Typography> </Grid>
 
   {/* Dynamic Rows */}
