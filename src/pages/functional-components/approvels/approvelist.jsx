@@ -112,7 +112,7 @@ export default function BasicTabs() {
   const [value, setValue] = React.useState(0);
 
   const [admrole,setAdmrole] = useState('');
-  
+  const[error,setError] = useState('')
 
   const [schemeRolePairs, setSchemeRolePairs] = useState([{ schemeId: '', roleId: '' }]);
 const [rolesMap, setRolesMap] = useState({});

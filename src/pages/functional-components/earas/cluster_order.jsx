@@ -69,7 +69,7 @@ function ClusterSeatMap() {
       case 'Completed': return '#4caf50'; // Green for completed
       case 'Ongoing':
       case 'On Going': return '#ffc107';   // Amber for ongoing statuses
-      case 'Under Review': return '#ffc107';   // Amber for ongoing statuses
+      case 'Under Review': return '#076affff';   // Amber for ongoing statuses
       default: return '#9e9e9e';         // Grey for not started
     }
   };
@@ -252,7 +252,7 @@ const handleClusterClick = (syNo, slNo) => {
                   title={ // Tooltip content to show detailed cluster information on hover
                     <Box>
                       <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.8rem' }}>
-                        ID: <strong style={{ color: 'white' }}>{cluster.localbody}</strong>
+                        Local Body: <strong style={{ color: 'white' }}>{cluster.localbody}</strong>
                       </Typography>
                       <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.8rem' }}>
                         Type: <strong style={{ color: 'white' }}>{cluster.clusterType.toUpperCase()}</strong>

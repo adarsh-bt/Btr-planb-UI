@@ -152,12 +152,13 @@ const [rolesMap, setRolesMap] = useState({});
       updatedPairs[index].roleId = '';
       if (!rolesMap[value]) {
         try {
+          console.log("office id ",selectedRow)
           // Fetch roles and zones in parallel
           const [rolesResponse, zonesResponse] = await Promise.all([
             approvalservice.allrolesBySchems(value),
             approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
           ]);
-        
+        console.log("okkkkkk" ,zonesResponse)
           // Cache roles for the scheme
           setRolesMap((prev) => ({
             ...prev,
@@ -165,7 +166,7 @@ const [rolesMap, setRolesMap] = useState({});
           }));
         
           // Update zones list
-          setZonesList(zonesResponse.payload);
+          setZonesList(zonesResponse);
           setSelectedRole('');
           setZone('');
         } catch (error) {

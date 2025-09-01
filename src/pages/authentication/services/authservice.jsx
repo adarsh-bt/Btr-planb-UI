@@ -62,7 +62,7 @@ console.log("err ",decryptedError.message)
 
   static async fetchPermissions(token) {
     try {
-      const response = await axios.get(`${authservice.USER_URL}/user-access/user-state/userpremissions`, {
+      const response = await axios.get(`${authservice.BASE_URL}/user-access/user-state/userpremissions`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -80,7 +80,7 @@ console.log("err ",decryptedError.message)
   static async registration(userData) {
     try {
       console.log('userdataregister > ', userData);
-      const response = await axios.post(`${authservice.USER_URL}/user-access/api/user-registration/save-user`, userData, {
+      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/user-registration/save-user`, userData, {
         headers: {
           'Cache-Control': 'no-cache'
         }
@@ -158,7 +158,7 @@ static async logout(navigate) {
   try {
     const token = localStorage.getItem('token');
 
-    const response = await axios.post(`${authservice.BASE_URL}/user-access/user-state/logout`, null, {
+    const response = await axios.post(`${authservice.BASE_URL}/user-access/api/logout`, null, {
       headers: {
         'Authorization': `Bearer ${token}`, // or handled via cookie if not using token in header
         'Content-Type': 'application/json'

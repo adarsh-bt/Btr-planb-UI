@@ -5,7 +5,8 @@ import mainapi from 'api/mainapi';
 
 class approvalservice {
   static USER_URL = mainapi.USER_API;
-  static BTR_URL = mainapi.BASE_URL;
+  static BTR_URL = mainapi.BTR_API;
+  
 
   static async superadmin_approval() {
     try {
@@ -228,11 +229,12 @@ class approvalservice {
   // zone services
 
   static async zoneslist(officeType, officeId) {
+    console.log("okk")
     try {
       const token = localStorage.getItem('token');
       console.log("office _id ",officeId,"office typr >>",officeId)
       const response = await axios.get(
-        `${approvalservice.BASE_URL}/btr-service/btr-api/zones/${officeType}/${officeId}`
+        `${approvalservice.BTR_URL}/btr-service/btr-api/zones/${officeType}/${officeId}`
           , {
           headers: {
             Authorization: `Bearer ${token}` // Ensure token is included
