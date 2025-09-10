@@ -201,6 +201,15 @@ static async logout(navigate) {
     return decodedToken.roles;
   }
 
+  static getzone() {
+    try{
+      const zoneId = localStorage.getItem('activeZone');
+      return zoneId;
+    } catch (error) {
+      console.error('Error decoding token:', error);
+    }
+  }
+
   static getusername() {
     const user_name = localStorage.getItem('user');
    

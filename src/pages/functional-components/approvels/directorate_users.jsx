@@ -175,7 +175,7 @@ const[zoneVisble, setzoneVisble] = useState(false);
             }));
           
             // Update zones list
-            setZonesList(zonesResponse.payload);
+            setZonesList(zonesResponse);
             setSelectedRole('');
             setZone('');
           }catch (error) {

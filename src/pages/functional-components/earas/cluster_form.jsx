@@ -1,4 +1,4 @@
-import React, { useState, useEffect,useCallback ,useRef} from 'react';
+import React, { useState, useEffect,useCallback ,useRef,useMemo} from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Breadcrumb from 'routes/Breadcrumb';
 import {
@@ -385,6 +385,7 @@ const handleSvNoSelection = useCallback((id) => {
 
 
 
+
 const closeModal = () => {
   setModalOpen(false);
   setModalRowData({ /* reset fields */ });
@@ -755,7 +756,7 @@ const handleOpenConfirmDialog = (keyplotIndex, rowIndexToRemove) => {
 
 const getRemainingArea = (villageId, blockCode, resvno, resbdno) => {
   // Find the plot details from the API response
-console.log("result  ",svNoDetails)
+
 const normalize = (val) => (val != null ? val.toString() : "NA");
 
 const detail = svNoDetails.find(d =>
@@ -830,9 +831,10 @@ const handleModalAddRow = () => {
       resvno,
       resbdno
     ) || 0);
-
+console.log("ggg ",remainingArea)
     if (remainingArea > 0) {
       newRowsTotal += remainingArea;
+      console.log("totla  ",newRowsTotal)
       preparedRows.push({
         village: modalRowData.village,
         villageName: villageOptions.find(v => v.villageId === modalRowData.village)?.village || '',
@@ -891,6 +893,22 @@ const handleModalAddRow = () => {
   setModalOpen(false);
   setResvnoError('');
 };
+
+
+const totalSelectedArea = useMemo(() => {
+  return selectedSvNos.reduce((sum, id) => {
+    const [resvno, resbdno] = id.split("-");
+    const area = parseFloat(
+      getRemainingArea(
+        modalRowData.village,
+        modalRowData.modalBlock,
+        resvno,
+        resbdno
+      ) || 0
+    );
+    return sum + area;
+  }, 0);
+}, [selectedSvNos, modalRowData, getRemainingArea]);
 
 const isResbdnoAlreadyAdded = (itemResvno, itemResbdno) => { // Pass both parts
   if (selectedKeyplotIndex === null) return false;
@@ -1572,18 +1590,27 @@ useEffect(() => {
 }, []);
 
 
- useEffect(() => {
-    if (svNoDetails.length > 0 && selectedSvNos.length === svNoDetails.length) {
-      setSelectAllChecked(true);
-    } else {
-      setSelectAllChecked(false);
-    }
-  }, [svNoDetails, selectedSvNos]);
+useEffect(() => {
+  const eligibleIds = svNoDetails
+    .filter(item => {
+      const remaining = parseFloat(
+        getRemainingArea(
+          modalRowData.village,
+          modalRowData.modalBlock,
+          item.resvno?.toString(),
+          item.resbdno?.toString()
+        ) || 0
+      );
+      return remaining > 0;
+    })
+    .map(item => `${item.resvno}-${item.resbdno}`);
+
+  const selectedEligible = selectedSvNos.filter(id => eligibleIds.includes(id));
+  setSelectAllChecked(eligibleIds.length > 0 && selectedEligible.length === eligibleIds.length);
+}, [svNoDetails, selectedSvNos, modalRowData, getRemainingArea]);
+
 
 const handleSelectAll = useCallback(() => {
-  preserveScrollPosition();
-  
-  // Your existing select all logic
   if (selectAllChecked) {
     setSelectedSvNos([]);
   } else {
@@ -1593,7 +1620,7 @@ const handleSelectAll = useCallback(() => {
           modalRowData.village,
           modalRowData.modalBlock,
           item.resvno?.toString(),
-          item.resvno?.toString()
+          item.resbdno?.toString()
         ) || 0);
         return remaining > 0;
       })
@@ -1601,7 +1628,8 @@ const handleSelectAll = useCallback(() => {
     
     setSelectedSvNos(allSelectableIds);
   }
-}, [selectAllChecked, svNoDetails, modalRowData, preserveScrollPosition]);
+}, [selectAllChecked, svNoDetails, modalRowData, getRemainingArea]);
+
 
 const Row = useCallback(({ index, style }) => {
   const item = svNoDetails[index];
@@ -1617,7 +1645,15 @@ const Row = useCallback(({ index, style }) => {
 
   return (
     <div style={style} key={id}>
-      <ListItem disablePadding sx={{ px: 1 }}>
+      <ListItem
+        disableGutters
+        sx={{
+          px: 1,
+          height: VIRTUAL_ITEM_SIZE,          // <-- fixed, matches list itemSize
+          alignItems: 'center',
+          borderBottom: '1px solid #eee'      // <-- replaces <Divider />
+        }}
+      >
         <FormControlLabel
           control={
             <Checkbox
@@ -1629,28 +1665,36 @@ const Row = useCallback(({ index, style }) => {
           }
           label={
             <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-              <Box>
-                <Typography variant="body2"><strong>{item.resvno}/{item.resbdno}</strong></Typography>
-                <Typography variant="caption">Area: {item.area} | Balance: {remaining.toFixed(2)}c</Typography>
+              <Box sx={{ pr: 1, overflowY: 'hidden' }}>
+                <Typography variant="h6" noWrap>
+                  <strong>{item.resvno}/{item.resbdno}</strong>
+                </Typography>
+                <Typography variant="p" noWrap>
+                  Area: {item.area} cent
+                  {/* | Balance: {remaining.toFixed(2)}c */}
+                </Typography>
               </Box>
-              <Box sx={{ textAlign: 'right' }}>
-                {disabled ? 
-                  <Typography variant="caption" color="text.secondary">No remaining</Typography> : 
-                  <Typography variant="caption">Remaining {remaining.toFixed(2)}c</Typography>
-                }
+              <Box sx={{ textAlign: 'right', minWidth: 120 }}>
+                {disabled ? (
+                  <Typography variant="caption" color="text.secondary">No remaining</Typography>
+                ) : (
+                  <Typography variant="p">Remaining {remaining.toFixed(2)}c</Typography>
+                )}
               </Box>
             </Box>
           }
           sx={{ width: '100%' }}
         />
       </ListItem>
-      <Divider />
     </div>
   );
-}, [selectedSvNos, handleSvNoSelection, modalRowData]);
+}, [selectedSvNos, handleSvNoSelection, modalRowData, svNoDetails]);
+
+
+
 // === Performance & limit constants ===
 const MAX_ALLOWED_ROWS = maxcluster; // safety cap for number of rows selected at once. adjust if needed.
-const VIRTUAL_ITEM_SIZE = 56; // px height for each row in virtual list
+const VIRTUAL_ITEM_SIZE = 64; // px height for each row in virtual list
 const VIRTUAL_MAX_VISIBLE = 8; // show up to 8 items height in the modal before scrolling
 
 // Virtualized renderer for svNoDetails in modal
@@ -1677,108 +1721,118 @@ const SvNoVirtualList = React.memo(() => {
   );
 });
 
+
+const SvNoList = () => {
+  const itemSize = VIRTUAL_ITEM_SIZE;
+  const maxVisibleRows = 6;
+  const height = Math.min(svNoDetails.length, maxVisibleRows) * itemSize || itemSize;
+
+  if (!svNoDetails.length) {
+    return (
+      <Typography variant="body2" sx={{ mt: 1 }}>
+        No plots found for the selected range.
+      </Typography>
+    );
+  }
+
+  return (
+    <FixedSizeList
+      ref={listRef}           // <-- attach the ref you're using in preserveScrollPosition
+      height={height}
+      itemCount={svNoDetails.length}
+      itemSize={itemSize}
+      width="100%"
+      style={{ marginTop: 8 }}
+    >
+      {Row}
+    </FixedSizeList>
+  );
+};
+
+
+const combinedTotal = useMemo(() => {
+  const selectedTotal = selectedSvNos.reduce((sum, id) => {
+    const [resvno, resbdno] = id.split("-");
+    const area = parseFloat(
+      getRemainingArea(
+        modalRowData.village,
+        modalRowData.modalBlock,
+        resvno,
+        resbdno
+      ) || 0
+    );
+    return sum + area;
+  }, 0);
+
+  return parseFloat(calculateOverallTotalActual() || 0) + selectedTotal;
+}, [selectedSvNos, modalRowData, getRemainingArea, calculateOverallTotalActual]);
+
+
+
 // In your modal component, update the reservation selection section:
-<>
+{/* <>
   <Divider sx={{ my: 2 }} />
 
   <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main', mb: 1 }}>
     ✅ Reservation Sub Numbers
   </Typography>
 
-  <Box
-    sx={{
-      minHeight: 150,
-      maxHeight: 300,
-      px: 2,
-      py: 1,
-      border: '1px dashed #ccc',
-      borderRadius: 2,
-      backgroundColor: '#fafafa'
-    }}
-  >
-    {loadingResvno ? (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100px' }}>
-        <CircularProgress size={30} />
-      </Box>
-    ) : svNoDetails.length > 0 ? (
-      <>
-        {/* Header with select all and count */}
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between', 
-          mb: 1,
-          p: 1,
-          backgroundColor: 'rgba(0, 0, 0, 0.03)',
-          borderRadius: 1
-        }}>
-          <FormControlLabel
-            control={
-              <Checkbox 
-                checked={selectAllChecked} 
-                onChange={handleSelectAll} 
-                sx={{ mr: 1 }}
-              />
-            }
-            label={
-              <Typography variant="body2" fontWeight="medium">
-                Select All
-              </Typography>
-            }
-          />
-          <Typography variant="caption" color="text.secondary">
-            {svNoDetails.length} results
-          </Typography>
-        </Box>
-
-        {/* List of reservation items */}
-        <SvNoVirtualList />
-      </>
-    ) : resvnoError ? (
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '120px',
-          textAlign: 'center',
-          color: 'text.secondary',
-        }}
-      >
-        <img
-          src="https://cdn-icons-png.flaticon.com/512/6134/6134065.png"
-          alt="No Data"
-          width={50}
-          height={50}
-          style={{ marginBottom: 8, opacity: 0.6 }}
-        />
-        <Typography variant="body1" fontWeight="bold" color="error">
-          {resvnoError}
-        </Typography>
-        <Typography variant="body2">
-          Please adjust the Resvno range and try again.
-        </Typography>
-      </Box>
-    ) : (
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '120px',
-          textAlign: 'center',
-          color: 'text.secondary',
-        }}
-      >
-        <Typography variant="body2">
-          No reservation numbers found. Select a village and block first.
-        </Typography>
-      </Box>
-    )}
+<Box
+  sx={{
+    minHeight: 150,
+    maxHeight: 350,
+    px: 2,
+    py: 1,
+    border: '1px dashed #ccc',
+    borderRadius: 2,
+    backgroundColor: '#fafafa',
+  }}
+>
+  {loadingResvno ? (
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100px' }}>
+      <CircularProgress size={30} />
+    </Box>
+  ) : svNoDetails.length > 0 ? (
+    <>
+  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+    <FormControlLabel
+      control={<Checkbox checked={selectAllChecked} onChange={handleSelectAll} />}
+      label="Select all visible (only with remaining > 0)"
+    />
+    <Typography variant="caption" color="text.secondary">{svNoDetails.length} results</Typography>
   </Box>
+  <SvNoList />
 </>
+
+  ) : resvnoError ? (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '120px',
+        textAlign: 'center',
+        color: 'text.secondary',
+      }}
+    >
+      <img
+        src="https://cdn-icons-png.flaticon.com/512/6134/6134065.png"
+        alt="No Data"
+        width={50}
+        height={50}
+        style={{ marginBottom: 8, opacity: 0.6 }}
+      />
+      <Typography variant="body1" fontWeight="bold" color="error">
+        {resvnoError}
+      </Typography>
+      <Typography variant="body2">
+        Please adjust the Resvno range and try again.
+      </Typography>
+    </Box>
+  ) : null}
+</Box>
+</> */}
     // --- Loading State (before JSX) ---
     if (loading) {
         return (
@@ -1896,6 +1950,7 @@ const SvNoVirtualList = React.memo(() => {
             <TextField label="Total Actual Area (in cents)" value={calculateOverallTotalActual()} InputProps={{ readOnly: true }} fullWidth/>
             {/* THIS IS WHERE THE NEW CODE FOR LinearProgress IS ADDED */}
             <Box sx={{ width: '100%', mt: 1 }}>
+
               <LinearProgress
                 variant="determinate"
                 value={(parseFloat(calculateOverallTotalActual()) / 600) * 100} // Assuming 600 cents is 6 acres
@@ -2344,13 +2399,14 @@ const SvNoVirtualList = React.memo(() => {
 <Box
   sx={{
     minHeight: 150,
-    maxHeight: 250,
+    maxHeight: 450,
     px: 2,
     py: 1,
     border: '1px dashed #ccc',
     borderRadius: 2,
     backgroundColor: '#fafafa',
-    overflow: 'hidden', // Prevent container overflow
+     overflowY: 'auto',   // ✅ allow vertical scroll
+    overflowX: 'hidden', // Prevent container overflow
   }}
 >
   {loadingResvno ? (
@@ -2368,10 +2424,39 @@ const SvNoVirtualList = React.memo(() => {
         <Typography variant="caption" color="text.secondary">{svNoDetails.length} results</Typography>
       </Box>
 
+<Box sx={{ mb: 1 }}>
+  <LinearProgress
+    variant="determinate"
+    value={Math.min((combinedTotal / maxcluster) * 100, 100)}
+    sx={{
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: '#eee',
+      '& .MuiLinearProgress-bar': {
+        backgroundColor: combinedTotal > maxcluster ? 'error.main' : 'primary.main',
+      },
+    }}
+  />
+  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+    <Typography variant="caption">
+      {combinedTotal.toFixed(2)}c / {maxcluster}c
+    </Typography>
+    {combinedTotal > maxcluster && (
+      <Typography variant="caption" color="error">
+        Limit exceeded!
+      </Typography>
+    )}
+  </Box>
+</Box>
+
+
+
+
       {/* Virtualized list with fixed container */}
-      <Box sx={{ height: 'calc(100% - 40px)', overflow: 'auto' }}>
-        <SvNoVirtualList />
-      </Box>
+    <Box sx={{ flex: 1, minHeight: 150, maxHeight: 300 }}>
+  <SvNoVirtualList />
+</Box>
+
     </>
   ) : resvnoError ? (
     <Box
@@ -2412,7 +2497,7 @@ const SvNoVirtualList = React.memo(() => {
         </Button>
       </Grid>
       <Grid item>
-        <Button variant="contained" onClick={handleModalAddRow} disabled={isAddButtonDisabled()}>
+        <Button variant="contained" onClick={handleModalAddRow} disabled={combinedTotal === 0 || combinedTotal > maxcluster}>
           Add Row
         </Button>
       </Grid>

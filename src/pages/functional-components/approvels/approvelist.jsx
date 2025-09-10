@@ -169,7 +169,7 @@ const[zoneVisble, setzoneVisble] = useState(false);
               approvalservice.allrolesBySchems(value),
               approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
             ]);
-          
+           console.log("okkkkkk" ,zonesResponse)
             // Cache roles for the scheme
             setRolesMap((prev) => ({
               ...prev,
@@ -177,7 +177,7 @@ const[zoneVisble, setzoneVisble] = useState(false);
             }));
           
             // Update zones list
-            setZonesList(zonesResponse.payload);
+            setZonesList(zonesResponse);
             setSelectedRole('');
             setZone('');
           }catch (error) {

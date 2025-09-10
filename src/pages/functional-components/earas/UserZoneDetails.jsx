@@ -34,10 +34,9 @@ useEffect(() => {
     try {
       const token = localStorage.getItem('token');
       const user_id = authservice.userid();
+      const zone_id = authservice.getzone();
 
-      console.log(token, " ", user_id);
-
-      const response = await fetch(`${BASE_URL}/btr-service/btr-api/zone-details/${user_id}`, {
+      const response = await fetch(`${BASE_URL}/btr-service/btr-api/zone-details/${zone_id}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
