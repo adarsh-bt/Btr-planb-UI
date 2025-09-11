@@ -165,9 +165,11 @@ static async logout(navigate) {
       },
       withCredentials: true 
     });
+    console.log("api   ????? ",authservice.BASE_URL);
     if (response.status === 200) {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
+  localStorage.removeItem('activeZone');
   navigate('/login');
 }
 

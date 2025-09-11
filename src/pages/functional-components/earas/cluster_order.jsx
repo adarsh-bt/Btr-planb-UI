@@ -254,9 +254,10 @@ const handleClusterClick = (syNo, slNo) => {
                       <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.8rem' }}>
                         Local Body: <strong style={{ color: 'white' }}>{cluster.localbody}</strong>
                       </Typography>
-                      <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.8rem' }}>
-                        Type: <strong style={{ color: 'white' }}>{cluster.clusterType.toUpperCase()}</strong>
+                     <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.8rem' }}>
+                        Crops: <strong style={{ color: 'white' }}>{cluster.cceCrops?.join(', ') || 'N/A'}</strong>
                       </Typography>
+
                       <Typography variant="caption" sx={{ display: 'block', fontSize: '0.8rem' }}>
                         Status: <strong style={{ color: 'white' }}>{cluster.status}</strong>
                       </Typography>
