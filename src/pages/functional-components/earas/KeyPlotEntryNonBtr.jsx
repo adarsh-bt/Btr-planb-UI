@@ -21,23 +21,23 @@ import {
 import { AddCircle, Delete } from "@mui/icons-material";
 
 const landTypeOptions = ["Wet", "Dry"];
+const listTypeOptions = [
+  "House List",
+  "Cultivators List",
+  "Thandaper Number",
+  "Others",
+];
 const TOTAL_REQUIRED = 100;
 
-const KeyPlotEntry = () => {
+const KeyPlotEntryNonBtr = () => {
   const [activeTab, setActiveTab] = useState(0);
-
-  // Local bodies from API
   const [localBodies, setLocalBodies] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  // Rows per Local Body keyed by localBodyId
   const [localBodyData, setLocalBodyData] = useState({});
-
-  // Villages from API (each has revenueVillageId, revenueVillageName, blockCodes: string[])
+  const [listTypes, setListTypes] = useState({});
   const [villageOptions, setVillageOptions] = useState([]);
 
-  // Fast lookup: village name -> blockCodes[]
   const villageToBlocks = useMemo(() => {
     const map = {};
     (villageOptions || []).forEach((v) => {
@@ -46,24 +46,20 @@ const KeyPlotEntry = () => {
     return map;
   }, [villageOptions]);
 
-  // Sorting state
   const [order, setOrder] = useState("asc");
   const [orderBy, setOrderBy] = useState("slNo");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
 
-  // Read zone id from localStorage
   const zoneId =
     typeof window !== "undefined" ? localStorage.getItem("activeZone") : null;
 
-
-  /** 🔹 Fetch local bodies by zone */
   useEffect(() => {
-    let abort = false;
     const fetchLocalBodies = async () => {
       if (!zoneId) {
         setLocalBodies([]);
         setLocalBodyData({});
+        setListTypes({});
         return;
       }
       setLoading(true);
@@ -72,10 +68,17 @@ const KeyPlotEntry = () => {
         const res = await fetch(
           `http://localhost:8082/btr-service/localbodies/by-zone/${zoneId}`
         );
-        if (!res.ok) throw new Error(`Failed to load local bodies: ${res.status}`);
+        if (!res.ok)
+          throw new Error(`Failed to load local bodies: ${res.status}`);
         const data = await res.json();
-        if (abort) return;
         setLocalBodies(data || []);
+
+        const initialListTypes = {};
+        (data || []).forEach((lb) => {
+          initialListTypes[lb.id] = "House List";
+        });
+        setListTypes(initialListTypes);
+
         setLocalBodyData((prev) => {
           const next = { ...prev };
           (data || []).forEach((lb) => {
@@ -93,18 +96,14 @@ const KeyPlotEntry = () => {
           data && data.length > 0 ? Math.min(t, data.length - 1) : 0
         );
       } catch (err) {
-        if (!abort) setError(err.message || "Error fetching local bodies");
+        setError(err.message || "Error fetching local bodies");
       } finally {
-        if (!abort) setLoading(false);
+        setLoading(false);
       }
     };
     fetchLocalBodies();
-    return () => {
-      abort = true;
-    };
   }, [zoneId]);
 
-  /** 🔹 Fetch villages by zone (now includes blockCodes[]) */
   useEffect(() => {
     if (!zoneId) return;
     const fetchVillages = async () => {
@@ -127,25 +126,18 @@ const KeyPlotEntry = () => {
     0
   );
 
-  // Sorting helpers
-  const handleRequestSort = (property) => {
-    const isAsc = orderBy === property && order === "asc";
-    setOrder(isAsc ? "desc" : "asc");
-    setOrderBy(property);
-  };
   const descendingComparator = (a, b, orderBy) => {
-    if (typeof a[orderBy] === "string" && typeof b[orderBy] === "string") {
-      return b[orderBy].localeCompare(a[orderBy]);
-    }
     if (b[orderBy] < a[orderBy]) return -1;
     if (b[orderBy] > a[orderBy]) return 1;
     return 0;
   };
+
   const getComparator = (order, orderBy) => {
     return order === "desc"
       ? (a, b) => descendingComparator(a, b, orderBy)
       : (a, b) => -descendingComparator(a, b, orderBy);
   };
+
   const sortedByLocalBody = useMemo(() => {
     const out = {};
     localBodies.forEach((lb) => {
@@ -164,10 +156,9 @@ const KeyPlotEntry = () => {
     }));
   };
 
-  // When village changes, update village and its available block codes, and default villageBlock
   const handleVillageChange = (lbId, id, villageName) => {
     const blocks = villageToBlocks[villageName] || [];
-    const defaultBlock = blocks.length ? blocks : "";
+    const defaultBlock = blocks.length > 0 ? blocks[0] : "";
     setLocalBodyData((prev) => ({
       ...prev,
       [lbId]: prev[lbId].map((row) =>
@@ -187,8 +178,10 @@ const KeyPlotEntry = () => {
     if (totalKeyplots >= TOTAL_REQUIRED) return;
     setLocalBodyData((prev) => {
       const current = prev[lbId] || [];
-      const newId = current.length ? current[current.length - 1].id + 1 : 1;
-      const newSlNo = current.length ? current[current.length - 1].slNo + 1 : 1;
+      const newId =
+        current.length > 0 ? Math.max(...current.map((r) => r.id)) + 1 : 1;
+      const newSlNo =
+        current.length > 0 ? Math.max(...current.map((r) => r.slNo)) + 1 : 1;
       return {
         ...prev,
         [lbId]: [
@@ -198,7 +191,13 @@ const KeyPlotEntry = () => {
             slNo: newSlNo,
             village: "",
             villageBlock: "",
-            villageBlockOptions: [], // holds options for the selected village
+            villageBlockOptions: [],
+            name: "",
+            address: "",
+            houseNo: "",
+            thandaperNo: "",
+            mainNo: "",
+            subNo: "",
             surveyNo: "",
             subDivNo: "",
             area: "",
@@ -216,25 +215,75 @@ const KeyPlotEntry = () => {
     }));
   };
 
+  const handleListTypeChange = (lbId, value) => {
+    setListTypes((prev) => ({ ...prev, [lbId]: value }));
+  };
+
   const handleSaveAll = () => {
     const payload = {
       zoneId,
       keyplotsByLocalBody: Object.fromEntries(
-        Object.entries(localBodyData).map(([lbId, rows]) => [lbId, rows])
+        Object.entries(localBodyData).map(([lbId, rows]) => [
+          lbId,
+          {
+            listType: listTypes[lbId] || "House List",
+            keyplots: rows.map(
+              ({ villageBlockOptions, ...rest }) => rest
+            ),
+          },
+        ])
       ),
     };
     console.log("Final Data:", payload);
-    alert("All 100 Keyplots saved! Check console for details.");
+    alert("All Keyplots saved! Check console for details.");
+  };
+
+  const getTableHeaders = (lbId) => {
+    const baseHeaders = ["Sl. No", "Village", "Village Block"];
+    const houseListHeaders = ["Name", "Address", "House No."];
+    const cultivatorListHeaders = ["Name", "Address"];
+    const thandaperHeaders = ["Name", "Address", "Thandaper No."];
+    const othersHeaders = ["Name", "Address", "Main No.", "Sub No."];
+    const finalHeaders = [
+      "Survey No.",
+      "Sub Div No.",
+      "Area (Cents)",
+      "Land Type",
+      "Actions",
+    ];
+
+    const currentListType = listTypes[lbId];
+
+    if (currentListType === "House List") {
+      return [...baseHeaders, ...houseListHeaders, ...finalHeaders];
+    }
+    if (currentListType === "Cultivators List") {
+      return [...baseHeaders, ...cultivatorListHeaders, ...finalHeaders];
+    }
+    if (currentListType === "Thandaper Number") {
+      return [...baseHeaders, ...thandaperHeaders, ...finalHeaders];
+    }
+    if (currentListType === "Others") {
+      return [...baseHeaders, ...othersHeaders, ...finalHeaders];
+    }
+    return [...baseHeaders, ...finalHeaders];
   };
 
   return (
     <Grid container spacing={3}>
-      <Box sx={{ p: 3, maxWidth: 1400, margin: "0 auto", width: 1400, minHeight: 400 }}>
+      <Box
+        sx={{
+          p: 3,
+          maxWidth: 1600,
+          margin: "0 auto",
+          width: "100%",
+          minHeight: 400,
+        }}
+      >
         <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
           KeyPlot Entry (Total Required: {TOTAL_REQUIRED})
         </Typography>
 
-        {/* Tabs */}
         {localBodies.length > 0 && !loading && !error && (
           <Paper elevation={3} sx={{ mb: 2 }}>
             <Tabs
@@ -245,40 +294,73 @@ const KeyPlotEntry = () => {
               variant="scrollable"
               scrollButtons="auto"
             >
-              {localBodies.map((lb) => (
+              {localBodies.map((lb, idx) => (
                 <Tab
                   key={lb.id}
-                  label={`${lb.name} (${(localBodyData[lb.id] || []).length})`}
+                  label={
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 2,
+                        p: 1,
+                        textTransform: "none",
+                      }}
+                    >
+                      <Typography>
+                        {`${lb.name} (${(localBodyData[lb.id] || []).length})`}
+                      </Typography>
+                      {activeTab === idx && (
+                        <TextField
+                          select
+                          value={listTypes[lb.id] || "House List"}
+                          onChange={(e) =>
+                            handleListTypeChange(lb.id, e.target.value)
+                          }
+                          onClick={(e) => e.stopPropagation()}
+                          size="small"
+                          sx={{ minWidth: 180 }}
+                        >
+                          {listTypeOptions.map((option) => (
+                            <MenuItem key={option} value={option}>
+                              {option}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      )}
+                    </Box>
+                  }
                 />
               ))}
             </Tabs>
           </Paper>
         )}
 
-        {/* Tables */}
         {localBodies.map((lb, idx) => {
           const sortedRows = sortedByLocalBody[lb.id] || [];
+          const currentListType = listTypes[lb.id];
+          const headers = getTableHeaders(lb.id);
+          const colSpan = headers.length;
+
           return (
-            <div key={lb.id} style={{ display: activeTab === idx ? "block" : "none" }}>
+            <div
+              key={lb.id}
+              style={{ display: activeTab === idx ? "block" : "none" }}
+            >
               <Paper elevation={3} sx={{ p: 2, borderRadius: 2 }}>
                 <TableContainer component={Paper}>
                   <Table stickyHeader>
                     <TableHead>
                       <TableRow>
-                        {[
-                          "Sl. No",
-                          "Village",
-                          "Village Block",
-                          "Survey No.",
-                          "Sub Div No.",
-                          "Area (Cents)",
-                          "Land Type",
-                          "Actions",
-                        ].map((col, i) => (
+                        {headers.map((col) => (
                           <TableCell
-                            key={i}
+                            key={col}
                             align="center"
-                            sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}
+                            sx={{
+                              bgcolor: "#05307a",
+                              color: "white",
+                              fontWeight: "bold",
+                            }}
                           >
                             {col}
                           </TableCell>
@@ -287,18 +369,23 @@ const KeyPlotEntry = () => {
                     </TableHead>
                     <TableBody>
                       {sortedRows
-                        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                        .slice(
+                          page * rowsPerPage,
+                          page * rowsPerPage + rowsPerPage
+                        )
                         .map((row) => (
                           <TableRow key={row.id}>
                             <TableCell align="center">{row.slNo}</TableCell>
-
-                            {/* Village dropdown (from API, drives Village Block options) */}
                             <TableCell align="center">
                               <TextField
                                 select
                                 value={row.village}
                                 onChange={(e) =>
-                                  handleVillageChange(lb.id, row.id, e.target.value)
+                                  handleVillageChange(
+                                    lb.id,
+                                    row.id,
+                                    e.target.value
+                                  )
                                 }
                                 sx={{ minWidth: 160 }}
                               >
@@ -312,8 +399,6 @@ const KeyPlotEntry = () => {
                                 ))}
                               </TextField>
                             </TableCell>
-
-                            {/* Village Block (dropdown from selected village’s blockCodes) */}
                             <TableCell align="center">
                               <TextField
                                 select
@@ -326,7 +411,6 @@ const KeyPlotEntry = () => {
                                     e.target.value
                                   )
                                 }
-                                placeholder="Block Code"
                                 sx={{ minWidth: 140 }}
                                 disabled={!row.village}
                               >
@@ -338,12 +422,113 @@ const KeyPlotEntry = () => {
                               </TextField>
                             </TableCell>
 
-                            {/* Free text */}
+                            {(currentListType === "House List" ||
+                              currentListType === "Cultivators List" ||
+                              currentListType === "Thandaper Number" ||
+                              currentListType === "Others") && (
+                              <>
+                                <TableCell align="center">
+                                  <TextField
+                                    value={row.name}
+                                    onChange={(e) =>
+                                      handleChange(
+                                        lb.id,
+                                        row.id,
+                                        "name",
+                                        e.target.value
+                                      )
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell align="center">
+                                  <TextField
+                                    value={row.address}
+                                    onChange={(e) =>
+                                      handleChange(
+                                        lb.id,
+                                        row.id,
+                                        "address",
+                                        e.target.value
+                                      )
+                                    }
+                                  />
+                                </TableCell>
+                              </>
+                            )}
+
+                            {currentListType === "House List" && (
+                              <TableCell align="center">
+                                <TextField
+                                  value={row.houseNo}
+                                  onChange={(e) =>
+                                    handleChange(
+                                      lb.id,
+                                      row.id,
+                                      "houseNo",
+                                      e.target.value
+                                    )
+                                  }
+                                />
+                              </TableCell>
+                            )}
+
+                            {currentListType === "Thandaper Number" && (
+                              <TableCell align="center">
+                                <TextField
+                                  value={row.thandaperNo}
+                                  onChange={(e) =>
+                                    handleChange(
+                                      lb.id,
+                                      row.id,
+                                      "thandaperNo",
+                                      e.target.value
+                                    )
+                                  }
+                                />
+                              </TableCell>
+                            )}
+
+                            {currentListType === "Others" && (
+                              <>
+                                <TableCell align="center">
+                                  <TextField
+                                    value={row.mainNo}
+                                    onChange={(e) =>
+                                      handleChange(
+                                        lb.id,
+                                        row.id,
+                                        "mainNo",
+                                        e.target.value
+                                      )
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell align="center">
+                                  <TextField
+                                    value={row.subNo}
+                                    onChange={(e) =>
+                                      handleChange(
+                                        lb.id,
+                                        row.id,
+                                        "subNo",
+                                        e.target.value
+                                      )
+                                    }
+                                  />
+                                </TableCell>
+                              </>
+                            )}
+
                             <TableCell align="center">
                               <TextField
                                 value={row.surveyNo}
                                 onChange={(e) =>
-                                  handleChange(lb.id, row.id, "surveyNo", e.target.value)
+                                  handleChange(
+                                    lb.id,
+                                    row.id,
+                                    "surveyNo",
+                                    e.target.value
+                                  )
                                 }
                               />
                             </TableCell>
@@ -351,7 +536,12 @@ const KeyPlotEntry = () => {
                               <TextField
                                 value={row.subDivNo}
                                 onChange={(e) =>
-                                  handleChange(lb.id, row.id, "subDivNo", e.target.value)
+                                  handleChange(
+                                    lb.id,
+                                    row.id,
+                                    "subDivNo",
+                                    e.target.value
+                                  )
                                 }
                               />
                             </TableCell>
@@ -359,18 +549,26 @@ const KeyPlotEntry = () => {
                               <TextField
                                 value={row.area}
                                 onChange={(e) =>
-                                  handleChange(lb.id, row.id, "area", e.target.value)
+                                  handleChange(
+                                    lb.id,
+                                    row.id,
+                                    "area",
+                                    e.target.value
+                                  )
                                 }
                               />
                             </TableCell>
-
-                            {/* Land Type */}
                             <TableCell align="center">
                               <TextField
                                 select
                                 value={row.landType}
                                 onChange={(e) =>
-                                  handleChange(lb.id, row.id, "landType", e.target.value)
+                                  handleChange(
+                                    lb.id,
+                                    row.id,
+                                    "landType",
+                                    e.target.value
+                                  )
                                 }
                                 sx={{ minWidth: 90 }}
                               >
@@ -381,8 +579,6 @@ const KeyPlotEntry = () => {
                                 ))}
                               </TextField>
                             </TableCell>
-
-                            {/* Delete */}
                             <TableCell align="center">
                               <IconButton
                                 color="error"
@@ -394,7 +590,7 @@ const KeyPlotEntry = () => {
                           </TableRow>
                         ))}
                       <TableRow>
-                        <TableCell colSpan={9} align="right">
+                        <TableCell colSpan={colSpan} align="right">
                           <Button
                             startIcon={<AddCircle />}
                             variant="outlined"
@@ -409,7 +605,6 @@ const KeyPlotEntry = () => {
                     </TableBody>
                   </Table>
                 </TableContainer>
-
                 <TablePagination
                   component="div"
                   count={sortedRows.length}
@@ -426,7 +621,6 @@ const KeyPlotEntry = () => {
           );
         })}
 
-        {/* Save */}
         <Box display="flex" justifyContent="flex-end" mt={3}>
           <Button
             variant="contained"
@@ -442,4 +636,4 @@ const KeyPlotEntry = () => {
   );
 };
 
-export default KeyPlotEntry;
+export default KeyPlotEntryNonBtr;

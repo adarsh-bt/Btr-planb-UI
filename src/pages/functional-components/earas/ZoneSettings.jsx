@@ -26,6 +26,8 @@ const ZoneSettings = () => {
   const [entries, setEntries] = useState([]);
   const [minClusterArea, setMinClusterArea] = useState('');
   const [maxClusterArea, setMaxClusterArea] = useState('');
+  const [maxClusterAreaCents, setMaxClusterAreaCents] = useState('');
+  const [maxClusterAreaMargin, setMaxClusterAreaMargin] = useState('');
   const [tsoLimit, setTsoLimit] = useState('');
   const [clusterEntries, setClusterEntries] = useState([]);
 
@@ -45,7 +47,9 @@ const ZoneSettings = () => {
         );
         const formattedEntries = response.data.map((item) => ({
           keyplotSize: item.keyplotsLimit,
-          academicYear: `AY ${new Date(item.agriStartYear).getFullYear()} - ${new Date(item.agriEndYear).getFullYear()}`,
+          academicYear: `AY ${new Date(item.agriStartYear).getFullYear()} - ${new Date(
+            item.agriEndYear
+          ).getFullYear()}`,
           date: new Date(item.createdAt).toLocaleDateString(),
         }));
         setEntries(formattedEntries);
@@ -68,7 +72,9 @@ const ZoneSettings = () => {
           minClusterArea: item.clusterMin,
           maxClusterArea: item.clusterMax,
           tsoLimit: item.tsoApprovalLimit,
-          academicYear: `AY ${new Date(item.agriStartYear).getFullYear()} - ${new Date(item.agriEndYear).getFullYear()}`,
+          academicYear: `AY ${new Date(item.agriStartYear).getFullYear()} - ${new Date(
+            item.agriEndYear
+          ).getFullYear()}`,
           date: new Date(item.createdAt).toLocaleDateString(),
         }));
         setClusterEntries(formattedEntries);
@@ -79,6 +85,20 @@ const ZoneSettings = () => {
 
     fetchClusterLimits();
   }, []);
+
+  // Calculate Max Cluster Area from Cents and Margin
+  useEffect(() => {
+    const area = parseInt(maxClusterAreaCents, 10);
+    const margin = parseInt(maxClusterAreaMargin, 10);
+
+    if (!isNaN(area) && maxClusterAreaCents.trim() !== '') {
+      const marginValue = !isNaN(margin) ? margin : 0;
+      const calculatedMax = Math.floor(area + (area * marginValue) / 100);
+      setMaxClusterArea(calculatedMax.toString());
+    } else {
+      setMaxClusterArea('');
+    }
+  }, [maxClusterAreaCents, maxClusterAreaMargin]);
 
   const handleValidatedNumberInput = (setter) => (e) => {
     let value = e.target.value;
@@ -99,7 +119,7 @@ const ZoneSettings = () => {
   // Validation + duplicate check
   const requestConfirmation = (formType) => {
     if (formType === 'cluster') {
-      if (!minClusterArea || !maxClusterArea || !tsoLimit) {
+      if (!minClusterArea || !maxClusterAreaCents || !maxClusterAreaMargin || !tsoLimit) {
         setSnackbarMessage('All fields are required.');
         setSnackbarSeverity('error');
         setSnackbarOpen(true);
@@ -107,7 +127,7 @@ const ZoneSettings = () => {
       }
 
       const min = parseInt(minClusterArea);
-      const max = parseInt(maxClusterArea);
+      const max = parseInt(maxClusterArea); // Uses calculated value from state
       const tso = parseInt(tsoLimit);
 
       if (min >= max) {
@@ -213,7 +233,7 @@ const ZoneSettings = () => {
       }
       setSnackbarOpen(true);
     } else if (pendingAction === 'cluster') {
-      if (!minClusterArea || !maxClusterArea || !tsoLimit) return;
+      if (!minClusterArea || !maxClusterAreaCents || !maxClusterAreaMargin || !tsoLimit) return;
 
       const min = parseInt(minClusterArea);
       const max = parseInt(maxClusterArea);
@@ -236,7 +256,7 @@ const ZoneSettings = () => {
         if (response.data && response.data.id) {
           const newEntry = {
             minClusterArea,
-            maxClusterArea,
+            maxClusterArea: max.toString(), // Save the calculated value
             tsoLimit,
             academicYear: `AY ${new Date(response.data.agriStartYear).getFullYear()} - ${new Date(
               response.data.agriEndYear
@@ -246,6 +266,8 @@ const ZoneSettings = () => {
           setClusterEntries((prev) => [...prev, newEntry]);
           setMinClusterArea('');
           setMaxClusterArea('');
+          setMaxClusterAreaCents('');
+          setMaxClusterAreaMargin('');
           setTsoLimit('');
           setSnackbarMessage('Cluster entry submitted successfully!');
           setSnackbarSeverity('success');
@@ -363,8 +385,6 @@ const ZoneSettings = () => {
         </Paper>
       )}
 
-
-
       {/* Cluster Area Limit Tab */}
       {tabValue === 1 && (
         <Paper sx={{ p: 4 }} elevation={2}>
@@ -378,26 +398,25 @@ const ZoneSettings = () => {
             <Grid container spacing={3}>
               <Grid item xs={12}>
                 <Paper sx={{ p: 2 }}>
-                  <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                    Cluster Area & TSO Limit
-                  </Typography>
                   <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                      <label>Agricultural Year</label>
+                      <TextField
+                        value={
+                          clusterEntries.length > 0
+                            ? clusterEntries[clusterEntries.length - 1].academicYear
+                            : `AY ${new Date().getFullYear()} - ${new Date().getFullYear() + 1}`
+                        }
+                        fullWidth
+                        disabled
+                      />
+                    </Grid>
                     <Grid item xs={4}>
                       <label>Min Cluster Area</label>
                       <input
                         type="text"
                         value={minClusterArea}
                         onChange={handleValidatedNumberInput(setMinClusterArea)}
-                        required
-                        style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
-                      />
-                    </Grid>
-                    <Grid item xs={4}>
-                      <label>Max Cluster Area</label>
-                      <input
-                        type="text"
-                        value={maxClusterArea}
-                        onChange={handleValidatedNumberInput(setMaxClusterArea)}
                         required
                         style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
                       />
@@ -412,18 +431,53 @@ const ZoneSettings = () => {
                         style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
                       />
                     </Grid>
-                    <Grid item xs={12}>
-                      <label>Agricultural Year</label>
-                      <TextField
-                        value={
-                          clusterEntries.length > 0
-                            ? clusterEntries[clusterEntries.length - 1].academicYear
-                            : `AY ${new Date().getFullYear()} - ${new Date().getFullYear() + 1}`
-                        }
-                        fullWidth
-                        disabled
-                      />
+                    <Grid item xs={4}>
+                      <label>Max Cluster Area</label>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          border: '1px solid #ccc',
+                          borderRadius: '4px',
+                          alignItems: 'center',
+                          backgroundColor: '#fff',
+                        }}
+                      >
+                        <input
+                          type="text"
+                          placeholder="Area in cents"
+                          value={maxClusterAreaCents}
+                          onChange={handleValidatedNumberInput(setMaxClusterAreaCents)}
+                          required
+                          style={{
+                            width: '50%',
+                            padding: '10px',
+                            border: 'none',
+                            borderRadius: '4px 0 0 4px',
+                            backgroundColor: 'transparent',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                        <Box sx={{ borderLeft: '1px solid #ccc', height: '24px' }} />
+                        <input
+                          type="text"
+                          placeholder="Margin (%)"
+                          value={maxClusterAreaMargin}
+                          onChange={handleValidatedNumberInput(setMaxClusterAreaMargin)}
+                          required
+                          style={{
+                            width: '50%',
+                            padding: '10px',
+                            border: 'none',
+                            borderRadius: '0 4px 4px 0',
+                            backgroundColor: 'transparent',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                      </Box>
                     </Grid>
+                    
                   </Grid>
                 </Paper>
               </Grid>
@@ -454,8 +508,8 @@ const ZoneSettings = () => {
                   <th style={thStyle}>Sl. No.</th>
                   <th style={thStyle}>Agricultural Year</th>
                   <th style={thStyle}>Min Cluster Area</th>
-                  <th style={thStyle}>Max Cluster Area</th>
                   <th style={thStyle}>TSO Limit</th>
+                  <th style={thStyle}>Max Cluster Area</th>
                   <th style={thStyle}>Date</th>
                 </tr>
               </thead>
@@ -465,8 +519,8 @@ const ZoneSettings = () => {
                     <td style={tdStyle}>{index + 1}</td>
                     <td style={tdStyle}>{entry.academicYear}</td>
                     <td style={tdStyle}>{entry.minClusterArea}</td>
-                    <td style={tdStyle}>{entry.maxClusterArea}</td>
                     <td style={tdStyle}>{entry.tsoLimit}</td>
+                    <td style={tdStyle}>{entry.maxClusterArea}</td>
                     <td style={tdStyle}>{entry.date}</td>
                   </tr>
                 ))}

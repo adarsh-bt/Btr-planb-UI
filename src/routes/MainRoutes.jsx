@@ -26,6 +26,7 @@ const BTR = Loadable(lazy(() => import('pages/functional-components/earas/Btr'))
 const ClusterForm = Loadable(lazy(() => import('pages/functional-components/earas/cluster_form')));
 const Keyplots = Loadable(lazy(() => import('pages/functional-components/earas/keyplots')));
 const KeyPlotEntry = Loadable(lazy(() => import('pages/functional-components/earas/KeyPlotEntry')));
+const KeyPlotEntryNonBtr = Loadable(lazy(() => import('pages/functional-components/earas/KeyPlotEntryNonBtr')));
 
 const ClusterManualEntryList = Loadable(lazy(() => import('pages/functional-components/earas/ClusterManualEntryList')));
 
@@ -221,6 +222,14 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <KeyPlotEntry />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Non_BTR_Key_plot_entry',
+      element: (
+        <PrivateRoute>
+          <KeyPlotEntryNonBtr />
         </PrivateRoute>
       )
     },
