@@ -422,7 +422,7 @@ useEffect(() => {
 // Fetch initial data based on user type
 useEffect(() => {
   const fetchInitialData = async () => {
-    if (admrole === 'Super Admin') {
+    if (admrole === 'Super Admin' || admrole === "IT Admin") {
    
       // Fetch all roles for super admin
       const rolesResponse = await approvalservice.allroles();
@@ -651,7 +651,9 @@ return (
 {/* shcemes */}
 {/* Conditionally render Schemes dropdown only for District users */}
 
-{((admrole === 'Super Admin' || admrole === "IT Admin") && selectedRow.designation !== "Deputy Director -IT" ) && (
+{((admrole === 'Super Admin' || admrole === "IT Admin") && 
+  (selectedRow.designation !== "Deputy Director -IT" && selectedRow.designation !== "Deputy Director -Districts")
+) && (
   <Stack direction="column" spacing={2} alignItems="center">
     {schemeRolePairs.map((pair, index) => (
       <Box
@@ -728,7 +730,9 @@ return (
 )}
 
 {/* Always show Roles dropdown */}
-{(admrole === 'Super Admin' && selectedRow.designation === "Deputy Director -IT" ) && (
+{((admrole === 'Super Admin' || admrole === "IT Admin") &&
+  (selectedRow.designation === "Deputy Director -IT" || selectedRow.designation === "Deputy Director -Districts")
+) && (
 <Box style={{ width: '48%' }}>
   <strong>Role</strong><br />
   <TextField
@@ -798,7 +802,7 @@ return (
         disabled={selectedRow.approvalStatus === "Approved"} // Make "Approved" radio button read-only
       />
     }
-    label="Approved"
+    label="Approve"
   />
   <FormControlLabel
     sx={{ color: 'warning.main' }}
