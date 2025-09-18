@@ -9,9 +9,10 @@ import {
   FormOutlined,
   DeploymentUnitOutlined,
   ScissorOutlined,
-  TableOutlined  
+  TableOutlined,
+  EnvironmentOutlined,       // New icon for Zone Details
+  ClusterOutlined            // New icon for Key Plot Generation
 } from '@ant-design/icons';
-
 
 // icons
 const icons = {
@@ -23,45 +24,54 @@ const icons = {
   PartitionOutlined,
   FormOutlined,
   DeploymentUnitOutlined,
-  ScissorOutlined ,
-  TableOutlined
+  ScissorOutlined,
+  TableOutlined,
+  EnvironmentOutlined,
+  ClusterOutlined
 };
 
 // ==============================|| MENU ITEMS - UTILITIES ||============================== //
 
 const utilities = {
   id: 'utilities',
-  title: 'Utilities',
+  // title: 'Utilities',
   type: 'group',
   children: [
+    
     {
-      id: 'util-typography',
-      title: 'Work Allocation Report',
+      id: 'util-zone',
+      title: 'Zone Details',
       type: 'item',
-      url: '/typography',
-      icon: icons.FormOutlined 
+      url: '/schemes/earas/zone_details',
+      icon: icons.EnvironmentOutlined
     },
     {
-      id: 'util-color',
+      id: 'util-btr',
+      title: 'View e-BTR',
+      type: 'item',
+      url: '/schemes/earas/btr',
+      icon: icons.TableOutlined
+    },
+    {
+      id: 'util-keyplot',
+      title: 'Key Plot Generation',
+      type: 'item',
+      url: '/schemes/earas/Key_plots',
+      icon: icons.ClusterOutlined
+    },
+    {
+      id: 'util-cluster',
       title: 'Cluster Formation',
       type: 'item',
-      url: '/color',
+      url: '/schemes/earas/clusters',
       icon: icons.DeploymentUnitOutlined
     },
     {
-      id: 'util-shadow',
-      title: 'Crop Cutting Experiment',
+      id: 'util-workallocation',
+      title: 'Work Allocation Report',
       type: 'item',
-      url: '/shadow',
-      icon: icons.ScissorOutlined 
-    },
-
-    {
-      id: 'util-btr',
-      title: 'View E-Btr',
-      type: 'item',
-      url: '/schemes/earas/btr',
-      icon: icons.TableOutlined 
+      url: '/workallocation',
+      icon: icons.FormOutlined
     }
   ]
 };

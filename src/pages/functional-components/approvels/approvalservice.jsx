@@ -4,17 +4,15 @@ import { useNavigate } from 'react-router-dom';
 import mainapi from 'api/mainapi';
 
 class approvalservice {
-  // static BASE_URL = "http://localhost:9113"
-  static BASE_URL = mainapi.USER_API;
-  static BTR_URL = mainapi.BTR_API;
-
   static USER_URL = mainapi.USER_API;
-  // adding header token is reamining
+  static BTR_URL = mainapi.BTR_API;
+  
+
   static async superadmin_approval() {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `${approvalservice.BASE_URL}/user-access/super-admin/fetch-all`,
+        `${approvalservice.USER_URL}/user-access/super-admin/fetch-all`,
 
         {
           headers: {
@@ -35,7 +33,7 @@ class approvalservice {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `${approvalservice.BASE_URL}/user-access/it-admin/fetch-all`,
+        `${approvalservice.USER_URL}/user-access/it-admin/fetch-all`,
 
         {
           headers: {
@@ -55,7 +53,7 @@ class approvalservice {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `${approvalservice.BASE_URL}/user-access/district-admin/fetch-all`,
+        `${approvalservice.USER_URL}/user-access/district-admin/fetch-all`,
 
         {
           headers: {
@@ -63,6 +61,7 @@ class approvalservice {
           }
         }
       );
+      console.log("district admin",response.data)
       return response.data; // Return a consistent object on success
     } catch (err) {
       return {
@@ -75,7 +74,7 @@ class approvalservice {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `${approvalservice.BASE_URL}/user-access/tso-admin/fetch-all`,
+        `${approvalservice.USER_URL}/user-access/tso-admin/fetch-all`,
 
         {
           headers: {
@@ -95,7 +94,7 @@ class approvalservice {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${approvalservice.BASE_URL}/user-access/super-admin/save-approvals`,
+        `${approvalservice.USER_URL}/user-access/super-admin/save-approvals`,
         payload, // Send payload as the body
         {
           headers: {
@@ -116,7 +115,7 @@ class approvalservice {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${approvalservice.BASE_URL}/user-access/it-admin/save-approvals`,
+        `${approvalservice.USER_URL}/user-access/it-admin/save-approvals`,
         payload, // Send payload as the body
         {
           headers: {
@@ -137,7 +136,7 @@ class approvalservice {
       const token = localStorage.getItem('token');
       console.log('payload: ', payload);
       const response = await axios.post(
-        `${approvalservice.BASE_URL}/user-access/district-admin/save-approvals`,
+        `${approvalservice.USER_URL}/user-access/district-admin/save-approvals`,
         payload, // Send payload as the body
         {
           headers: {
@@ -158,7 +157,7 @@ class approvalservice {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${approvalservice.BASE_URL}/user-access/tso-admin/save-role-assign`,
+        `${approvalservice.USER_URL}/user-access/tso-admin/save-role-assign`,
         payload, // Send payload as the body
         {
           headers: {
@@ -180,7 +179,7 @@ class approvalservice {
   static async allroles() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/api/fetch/roles`, {
+      const response = await axios.get(`${approvalservice.USER_URL}/user-access/api/fetch/roles`, {
         headers: {
           Authorization: `Bearer ${token}` // Ensure token is included
         }
@@ -197,7 +196,8 @@ class approvalservice {
   static async allschmes() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/api/fetch/schemes`, {
+    
+      const response = await axios.get(`${approvalservice.USER_URL}/user-access/api/fetch/schemes`, {
         headers: {
           Authorization: `Bearer ${token}` // Ensure token is included
         }
@@ -213,7 +213,7 @@ class approvalservice {
   static async allrolesBySchems(schemeId) {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${approvalservice.BASE_URL}/user-access/api/fetch/schemes/${schemeId}/roles`, {
+      const response = await axios.get(`${approvalservice.USER_URL}/user-access/api/fetch/schemes/${schemeId}/roles`, {
         headers: {
           Authorization: `Bearer ${token}` // Ensure token is included
         }
@@ -231,6 +231,7 @@ class approvalservice {
   // zone services
 
   static async zoneslist(officeType, officeId) {
+    console.log("okk")
     try {
       const token = localStorage.getItem('token');
       console.log("office _id ",officeId,"office typr >>",officeId)

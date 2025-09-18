@@ -2,16 +2,17 @@
   "name": "aidea",
   "version": "1.3.0",
   "private": true,
-  "homepage": "https://mantisdashboard.io/free",
+  "homepage": "/",
   "author": {
     "name": "CodedThemes",
     "email": "codedthemes@gmail.com",
     "url": "https://codedthemes.com/"
   },
   "scripts": {
-    "start": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
+     "start": "vite --host",
+  "dev": "vite --host",
+  "build": "vite build",
+  "preview": "vite preview --host",
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint --fix \"src/**/*.{js,jsx,ts,tsx}\"",
     "prettier": "prettier --write \"src/**/*.{js,jsx,ts,tsx}\""
@@ -26,6 +27,7 @@
     "@fontsource/poppins": "^5.0.12",
     "@fontsource/public-sans": "^5.0.17",
     "@fontsource/roboto": "^5.0.12",
+    "@lottiefiles/dotlottie-react": "^0.14.3",
     "@mui/base": "^5.0.0-beta.38",
     "@mui/icons-material": "^5.15.12",
     "@mui/lab": "^5.0.0-alpha.167",

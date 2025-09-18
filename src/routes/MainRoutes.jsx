@@ -6,7 +6,7 @@ import Dashboard from 'layout/Dashboard';
 import PrivateRoute from './PrivateRoute';
 
 const Color = Loadable(lazy(() => import('pages/component-overview/color')));
-const Typography = Loadable(lazy(() => import('pages/component-overview/typography')));
+const WorkAllocation = Loadable(lazy(() => import('pages/component-overview/WorkAllocationForm')));
 const Shadow = Loadable(lazy(() => import('pages/component-overview/shadows')));
 const DashboardDefault = Loadable(lazy(() => import('pages/dashboard/index')));
 
@@ -21,11 +21,21 @@ const RoleDesignation = Loadable(lazy(() => import('pages/usermanage/RoleDesigna
 
 // const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_list')));
 const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_menus')));
-const Zone_Details = Loadable(lazy(() => import('pages/functional-components/earas/zone_details')));
-const BTR = Loadable(lazy(() => import('pages/functional-components/earas/Btr')));
+const Zone_Details = Loadable(lazy(() => import('pages/functional-components/earas/ZoneDetails/Zonecontrol')));
+const BTR = Loadable(lazy(() => import('pages/functional-components/earas/btr/Btr')));
+const BTRWrapper = Loadable(lazy(() => import('pages/functional-components/earas/btr/BTRWrapper')));
+const ZoneDetailsWrapper = Loadable(lazy(() => import('pages/functional-components/earas/ZoneDetails/ZoneDetailsWrapper')));
+
 const ClusterForm = Loadable(lazy(() => import('pages/functional-components/earas/cluster_form')));
-const Keyplots = Loadable(lazy(() => import('pages/functional-components/earas/keyplots')));
-const Clusters = Loadable(lazy(() => import('pages/functional-components/earas/cluster_order')));
+const Keyplots = Loadable(lazy(() => import('pages/functional-components/earas/keyplots/keyplots')));
+const KeyplotsWrapper = Loadable(lazy(() => import('pages/functional-components/earas/keyplots/keyplotsWrapper')));
+
+const Clusters = Loadable(lazy(() => import('pages/functional-components/earas/Cluster/cluster_order')));
+const ClustersWrapper = Loadable(lazy(() => import('pages/functional-components/earas/Cluster/clusterWrapper')));
+
+const ZoneSettings = Loadable(lazy(() => import('pages/functional-components/earas/ZoneDetails/ZoneSettings')));
+const SettingsMenu = Loadable(lazy(() => import('pages/functional-components/earas/SettingsMenu')));
+const CCE_crop_selection = Loadable(lazy(() => import('pages/functional-components/earas/CceCropSelection')));
 
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
 
@@ -34,6 +44,10 @@ const RoleDetail = Loadable(lazy(() => import('pages/usermanage/Roles')));
 
 // Approvels
 const Approvel = Loadable(lazy(() => import('pages/functional-components/approvels/approvelist')));
+
+const CCE_menus = Loadable(lazy(() => import('pages/functional-components/earas/cce_menus')));
+const CCE_plotlist = Loadable(lazy(() => import('pages/functional-components/earas/cce_plotlist')));
+const AvailableCcePlots = Loadable(lazy(() => import('pages/functional-components/form1/AvailableCcePlotsTable')));
 
 // ==============================|| MAIN ROUTING ||============================== //
 
@@ -84,10 +98,10 @@ const MainRoutes = {
       )
     },
     {
-      path: 'typography',
+      path: 'workallocation',
       element: (
         <PrivateRoute>
-          <Typography />
+          <WorkAllocation />
         </PrivateRoute>
       )
     },
@@ -101,7 +115,7 @@ const MainRoutes = {
     },
 
     {
-      path: 'usermanage',
+      path: 'User_Manage',
       element: (
         <PrivateRoute>
           <UserManage />
@@ -170,22 +184,43 @@ const MainRoutes = {
       )
     },
 
+ {
+  path: '/schemes/earas/btr',
+  element: (
+    <PrivateRoute>
+      <BTR routeOrigin="scheme" />
+    </PrivateRoute>
+  )
+},
+
     {
-      path: '/schemes/earas/btr',
+      path: '/schemes/earas/Zone_Details/btr/:zoneId',
       element: (
         <PrivateRoute>
-          <BTR />
+          <BTRWrapper />
         </PrivateRoute>
-      )
+        )
     },
+
+    
     {
-      path: '/schemes/earas/zone_details',
+      path: '/schemes/earas/Zone_Details',
       element: (
         <PrivateRoute>
           <Zone_Details />
         </PrivateRoute>
       )
     },
+
+   {
+      path: '/schemes/earas/Zone_Details/:zoneId',
+      element: (
+        <PrivateRoute>
+          <ZoneDetailsWrapper />
+        </PrivateRoute>
+        )
+    },
+  
     {
       path: '/schemes/earas/cluster',
       element: (
@@ -194,19 +229,87 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
+
+       {
+      path: '/schemes/earas/Zone_Details/Key_plots/:zoneId',
+      element: (
+        <PrivateRoute>
+          <KeyplotsWrapper />
+        </PrivateRoute>
+      )
+    },
     {
-      path: '/schemes/earas/keyplots',
+      path: '/schemes/earas/Key_plots',
       element: (
         <PrivateRoute>
           <Keyplots />
         </PrivateRoute>
       )
     },
+{
+      path: '/schemes/earas/Zone_Details/Clusters/:zoneId',
+      element: (
+        <PrivateRoute>
+          <ClustersWrapper />
+        </PrivateRoute>
+      )
+    },
+
      {
-      path: '/schemes/earas/clusters',
+      path: '/schemes/earas/Clusters',
       element: (
         <PrivateRoute>
           <Clusters />
+        </PrivateRoute>
+      )
+    },
+
+
+    {
+      path: '/schemes/earas/CCE_crop_selection',
+      element: (
+        <PrivateRoute>
+          <CCE_crop_selection/>
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/CCE_Menus',
+      element: (
+        <PrivateRoute>
+          <CCE_menus />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/CCE plotlist',
+      element: (
+        <PrivateRoute>
+          <CCE_plotlist />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/zonesettings',
+      element: (
+        <PrivateRoute>
+          <ZoneSettings />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/settings_menu',
+      element: (
+        <PrivateRoute>
+          <SettingsMenu />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/AvailableCcePlots',
+      element: (
+        <PrivateRoute>
+          <AvailableCcePlots />
         </PrivateRoute>
       )
     },

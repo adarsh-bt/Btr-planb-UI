@@ -9,6 +9,8 @@ import Search from './Search';
 import Profile from './Profile';
 import Notification from './Notification';
 import MobileSection from './MobileSection';
+import ZoneOptions from './ZoneOption';
+import authservice from 'pages/authentication/services/authservice';
 
 // project import
 // import { GithubOutlined } from '@ant-design/icons';
@@ -17,7 +19,7 @@ import MobileSection from './MobileSection';
 
 export default function HeaderContent() {
   const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
-
+ const role = authservice.getrole();
   return (
     <>
       {!downLG && <Search />}
@@ -33,6 +35,7 @@ export default function HeaderContent() {
       >
         <GithubOutlined />
       </IconButton> */}
+      {role === "Field Data Collector" && <ZoneOptions />}
 
       <Notification />
       {!downLG && <Profile />}

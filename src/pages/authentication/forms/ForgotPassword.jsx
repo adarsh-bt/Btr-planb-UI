@@ -11,17 +11,17 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
 const isValidEmail = (email) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
 
-// Password validation function
+// Password validation function - MODIFIED to return an object of booleans
 function validatePassword(password) {
-  const errors = [];
-  if (password.length < 8) errors.push('at least 8 characters');
-  if (password.length > 16) errors.push('no more than 16 characters');
-  if (!/[A-Z]/.test(password)) errors.push('an uppercase letter');
-  if (!/[a-z]/.test(password)) errors.push('a lowercase letter');
-  if (!/[0-9]/.test(password)) errors.push('a number');
-  if (!/[!@#$%^&*(),.?\":{}|<>]/.test(password)) errors.push('a special character');
-  if (/\s/.test(password)) errors.push('no spaces');
-  return errors;
+    const errors = {
+        length: password.length < 8 || password.length > 16,
+        uppercase: !/[A-Z]/.test(password),
+        lowercase: !/[a-z]/.test(password),
+        number: !/[0-9]/.test(password),
+        specialChar: !/[!@#$%^&*(),.?\":{}|<>]/.test(password),
+        noSpaces: /\s/.test(password),
+    };
+    return errors;
 }
 
 const ForgotPassword = ({ onBack }) => {
@@ -30,10 +30,11 @@ const ForgotPassword = ({ onBack }) => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']); // Array to hold each OTP digit
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
+  const [globalError, setGlobalError] = useState(''); // For general errors like email not found, OTP invalid
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
 
   // Central dynamic heading based on the step
   const getHeading = () => {
@@ -52,28 +53,28 @@ const ForgotPassword = ({ onBack }) => {
   // Email submit handler with validation
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setGlobalError('');
     setSuccess('');
-   const trimmedEmail = email.trim();
-  
+    const trimmedEmail = email.trim();
+
     if (!trimmedEmail) {
-      setError('Please enter your email address.');
+      setGlobalError('Please enter your email address.');
       return;
     }
     if (!isValidEmail(trimmedEmail)) {
-      setError('Please enter a valid email address.');
+      setGlobalError('Please enter a valid email address.');
       return;
     }
     setIsLoading(true);
-    
+
     const userData = await authservice.email_verification(trimmedEmail);
     setIsLoading(false);
     if (userData.payload && userData.payload.id) {
       setEmail(userData.payload.id);
-      setError('');
+      setGlobalError('');
       setStep(2);
     } else {
-      setError(userData.message);
+      setGlobalError(userData.message);
     }
   };
 
@@ -98,28 +99,28 @@ const ForgotPassword = ({ onBack }) => {
   const isOtpValid = otp.every((digit) => /^\d$/.test(digit));
   const handleOtpSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setGlobalError('');
     setSuccess('');
+    
 
     try {
       const otpValue = otp.join(''); // Join the OTP digits together
       if (otpValue.length === otp.length) {
-        
         const userLogin = {
-                    userid : email,
-                    otp: otpValue,
-                };
+          userid: email,
+          otp: otpValue
+        };
         const response = await authservice.verify_otp(userLogin);
         if (response.statusCode === 200) {
-          setError('');
+          setGlobalError('');
           setStep(3); // Proceed to next step if OTP is correct
         } else {
-          setError(response.message); // Show error message if OTP is invalid
+          setGlobalError(response.message); // Show error message if OTP is invalid
         }
       }
     } catch (error) {
       console.error('Error verifying OTP:', error);
-      setError('An error occurred while verifying OTP.');
+      setGlobalError('An error occurred while verifying OTP.');
     }
 
     console.log('OTP submitted:', otp.join(''));
@@ -127,60 +128,85 @@ const ForgotPassword = ({ onBack }) => {
   };
 
   // Password reset handler with validation
-  const handlePasswordResetSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    const validationErrors = validatePassword(newPassword);
-    if (validationErrors.length > 0) {
-      setError('Password must contain ' + validationErrors.join(', ') + '.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
- 
+    const handlePasswordResetSubmit = async (e) => {
+        e.preventDefault();
+        setGlobalError('');
+        setSuccess('');
+        setPasswordError(''); // Clear previous password errors
+
+        const validationResults = validatePassword(newPassword);
+
+        // Prioritize and set the first encountered password error
+        if (validationResults.length) {
+            setPasswordError('Password must be between 8 and 16 characters.');
+            return;
+        }
+        if (validationResults.uppercase) {
+            setPasswordError('Password must contain an uppercase letter.');
+            return;
+        }
+        if (validationResults.lowercase) {
+            setPasswordError('Password must contain a lowercase letter.');
+            return;
+        }
+        if (validationResults.number) {
+            setPasswordError('Password must contain a number.');
+            return;
+        }
+        if (validationResults.specialChar) {
+            setPasswordError('Password must contain a special character.');
+            return;
+        }
+        if (validationResults.noSpaces) {
+            setPasswordError('Password must not contain spaces.');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            setPasswordError('Passwords do not match.');
+            return;
+        }
+
     const trimmedPassword = newPassword.trim();
     const userLogin = {
-                     userid : email,
-                    password: trimmedPassword,
-                };
+      userid: email,
+      password: trimmedPassword
+    };
     const response = await authservice.password_reset(userLogin);
     if (response.status === 200) {
       setSuccess('Password Successfully changed');
-      setError('');
+      setGlobalError('');
     } else {
-      setError(response.message);
+      setGlobalError(response.message);
       setSuccess('');
     }
   };
 
   // Prevent spaces and max length in password fields
-  const handlePasswordChange = (setter) => (e) => {
-    let value = e.target.value.replace(/\s/g, '');
-    if (value.length <= 16) setter(value);
-  };
+    const handlePasswordChange = (setter) => (e) => {
+        let value = e.target.value.replace(/\s/g, '');
+        if (value.length <= 16) setter(value);
+    };
 
   return (
     <Box sx={{ width: '100%', maxWidth: '400px', mx: 'auto' }}>
       {' '}
       {/* Centering the box */}
       {/* Dynamic Main Heading */}
-      <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#333', mb: 4, textAlign: 'center' }}>
+      <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#333', mb: 4, textAlign: 'center' , fontSize: '2rem'}}>
         {getHeading()}
       </Typography>
       <Stack spacing={2} alignItems="center">
         {step === 1 && (
           <>
-            <Typography variant="body2" sx={{ color: '#666', textAlign: 'center' }}>
+            <Typography variant="body2" sx={{ color: '#666', textAlign: 'center', fontSize: '0.9rem' }}>
               Enter your registered email address to receive a One-Time Password (OTP).
             </Typography>
-            {error && (
+            {globalError && (
               <Stack sx={{ width: '100%', background: '#fff1f0' }} spacing={2}>
                 <center>
                   <Alert severity="error" sx={{ textAlign: 'center', width: 'max-content' }}>
-                    {error}
+                    {globalError}
                   </Alert>
                 </center>
               </Stack>
@@ -197,7 +223,7 @@ const ForgotPassword = ({ onBack }) => {
                 borderRadius: '10px',
                 mb: 2 // Add margin bottom for spacing
               }}
-              error={!!error}
+              error={!!globalError}
             />
             <Button
               fullWidth
@@ -214,7 +240,7 @@ const ForgotPassword = ({ onBack }) => {
               {isLoading ? <CircularProgress size={24} /> : 'Send OTP'}
             </Button>
 
-            <Typography variant="body2">
+            <Typography variant="body2"  sx={{ fontSize: '0.9rem' }}>
               <a href="/" style={{ textDecoration: 'none' }}>
                 Back to Login
               </a>
@@ -224,14 +250,14 @@ const ForgotPassword = ({ onBack }) => {
 
         {step === 2 && (
           <>
-            <Typography variant="body2" sx={{ color: '#666', textAlign: 'center' }}>
+            <Typography variant="body2" sx={{ color: '#666', textAlign: 'center', fontSize: '1rem'  }}>
               Enter the OTP sent to your email.
             </Typography>
-            {error && (
+            {globalError && (
               <Stack sx={{ width: '100%', background: '#fff1f0' }} spacing={2}>
                 <center>
-                  <Alert severity="error" sx={{ textAlign: 'center', width: 'max-content' }}>
-                    {error}
+                  <Alert severity="error" sx={{ textAlign: 'center', width: 'max-content', fontSize: '0.9rem' }}>
+                    {globalError}
                   </Alert>
                 </center>
               </Stack>
@@ -246,7 +272,7 @@ const ForgotPassword = ({ onBack }) => {
                     onChange={handleOtpChange(index)}
                     inputProps={{
                       maxLength: 1,
-                      style: { textAlign: 'center', width: '20px' }
+                      style: { textAlign: 'center', width: '20px', fontSize: '1.2rem'  }
                     }}
                     sx={{
                       borderRadius: '20px',
@@ -263,14 +289,15 @@ const ForgotPassword = ({ onBack }) => {
               sx={{
                 borderRadius: '20px',
                 maxWidth: '200px',
-                mx: 'auto' // Center the button with controlled width
+                mx: 'auto',
+                fontSize: '1rem'
               }}
               onClick={handleOtpSubmit}
               disabled={!isOtpValid} // Disable button if OTP is invalid
             >
               Verify OTP
             </Button>
-            <Typography variant="body2">
+            <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
               <a href="/" style={{ textDecoration: 'none' }}>
                 Back to Login
               </a>
@@ -280,25 +307,35 @@ const ForgotPassword = ({ onBack }) => {
 
         {step === 3 && (
           <>
-            <Typography variant="body2" sx={{ color: '#666', textAlign: 'center' }}>
+            <Typography variant="body2" sx={{ color: '#666', textAlign: 'center' , fontSize: '1rem'}}>
               Enter your new password.
             </Typography>
 
             {/* Display error message if passwords don't match */}
-            {error && (
+            {passwordError && (
               <Stack sx={{ width: '100%', background: '#fff1f0' }} spacing={2}>
                 <center>
-                  <Alert severity="error" sx={{ textAlign: 'center', width: 'max-content' }}>
-                    {error}
+                  <Alert severity="error" sx={{ textAlign: 'center', width: 'max-content' , fontSize: '0.9rem' }}>
+                    {passwordError}
                   </Alert>
                 </center>
               </Stack>
             )}
+            {/* Display general errors and success message */}
+                        {globalError && !passwordError && ( // Show global error only if no password specific error
+                            <Stack sx={{ width: '100%', background: '#fff1f0' }} spacing={2}>
+                                <center>
+                                    <Alert severity="error" sx={{ textAlign: 'center', width: 'max-content', fontSize: '0.9rem' }}>
+                                        {globalError}
+                                    </Alert>
+                                </center>
+                            </Stack>
+                        )}
             {success && (
               <Stack sx={{ width: '100%' }} spacing={2}>
                 <center>
                   {/* icon={<CheckIcon fontSize="inherit" />} */}
-                  <Alert severity="success" sx={{ textAlign: 'center', width: 'max-content' }}>
+                  <Alert severity="success" sx={{ textAlign: 'center', width: 'max-content' , fontSize: '0.9rem'}}>
                     {success}
                   </Alert>
                 </center>
@@ -311,14 +348,13 @@ const ForgotPassword = ({ onBack }) => {
               type={showPassword ? 'text' : 'password'}
               value={newPassword}
               onChange={(e) => {
-                if (e.target.value.length <= 16) {
-                  setNewPassword(e.target.value);
-                }
-              }}
+                                handlePasswordChange(setNewPassword)(e);
+                                setPasswordError(''); // Clear password errors when user types
+                            }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <LockIcon fontSize="small" />
+                    <LockIcon sx={{ fontSize: '1.2rem' }} />
                   </InputAdornment>
                 ),
                 endAdornment: (
@@ -329,9 +365,9 @@ const ForgotPassword = ({ onBack }) => {
                       aria-label="toggle password visibility"
                     >
                       {showPassword ? (
-                        <VisibilityOff sx={{ fontSize: '18px' }} /> // Smaller icon size
+                        <VisibilityOff sx={{ fontSize: '1.2rem' }} /> // Smaller icon size
                       ) : (
-                        <Visibility sx={{ fontSize: '18px' }} /> // Smaller icon size
+                        <Visibility sx={{ fontSize: '1.2rem' }} /> // Smaller icon size
                       )}
                     </IconButton>
                   </InputAdornment>
@@ -339,7 +375,9 @@ const ForgotPassword = ({ onBack }) => {
               }}
               sx={{
                 borderRadius: '20px',
-                mb: 2 // Add margin bottom for spacing
+                mb: 2, // Add margin bottom for spacing
+                '& .MuiInputBase-input': { fontSize: '1rem' }, // Input text size
+                '& .MuiInputLabel-root': { fontSize: '1rem' } // Label size
               }}
             />
 
@@ -350,21 +388,22 @@ const ForgotPassword = ({ onBack }) => {
               type={showPassword ? 'text' : 'password'}
               value={confirmPassword}
               onChange={(e) => {
-                if (e.target.value.length <= 16) {
-                  setConfirmPassword(e.target.value);
-                }
-              }}
+                                handlePasswordChange(setConfirmPassword)(e);
+                                setPasswordError(''); // Clear password errors when user types
+                            }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <LockIcon fontSize="small" />
+                    <LockIcon sx={{ fontSize: '1.2rem' }} />
                   </InputAdornment>
                 )
               }}
               sx={{
-                borderRadius: '20px',
-                mb: 2 // Add margin bottom for spacing
-              }}
+                                borderRadius: '20px',
+                                mb: 2, // Add margin bottom for spacing
+                                '& .MuiInputBase-input': { fontSize: '1rem' }, // Input text size
+                                '& .MuiInputLabel-root': { fontSize: '1rem' } // Label size
+                            }}
             />
 
             <Button
@@ -374,7 +413,8 @@ const ForgotPassword = ({ onBack }) => {
               sx={{
                 borderRadius: '20px',
                 maxWidth: '200px',
-                mx: 'auto'
+                mx: 'auto',
+                fontSize: '1rem' // Button text size
               }} // Center the button with controlled width
               onClick={handlePasswordResetSubmit}
             >

@@ -6,6 +6,8 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import IconButton from '@mui/material/IconButton';
+import MenuIcon from '@mui/icons-material/Menu';
+import MenuOpenIcon from '@mui/icons-material/MenuOpen';
 
 // project import
 import AppBarStyled from './AppBarStyled';
@@ -13,9 +15,7 @@ import HeaderContent from './HeaderContent';
 
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 
-// assets
-import MenuFoldOutlined from '@ant-design/icons/MenuFoldOutlined';
-import MenuUnfoldOutlined from '@ant-design/icons/MenuUnfoldOutlined';
+
 
 // ==============================|| MAIN LAYOUT - HEADER ||============================== //
 
@@ -44,7 +44,7 @@ export default function Header() {
         variant="light"
         sx={{ color: 'text.primary', bgcolor: drawerOpen ? iconBackColorOpen : iconBackColor, ml: { xs: 0, lg: -2 } }}
       >
-        {!drawerOpen ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+        {!drawerOpen ? <MenuIcon /> : <MenuOpenIcon />}
       </IconButton>
       {headerContent}
     </Toolbar>

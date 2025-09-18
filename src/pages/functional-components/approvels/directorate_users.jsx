@@ -41,7 +41,7 @@ const columns = (handleEdit) => [
     { name: 'Designation', selector: (row) => row.designation, sortable: true },
     { name: 'Email', selector: (row) => row.email, sortable: true },
     { name: 'Phone number', selector: (row) => row.mobileNumber, sortable: true },
-    { name: 'DOJ', selector: (row) => row.dateOfJoining, sortable: true },
+    { name: 'DOJ', selector: (row) => new Date(row.dateOfJoining).toLocaleDateString('en-GB'), sortable: true },
     { name: 'Applied', selector: (row) => new Date(row.createdAt).toLocaleDateString('en-GB'), sortable: true },
     // { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
     {
@@ -162,6 +162,7 @@ const[zoneVisble, setzoneVisble] = useState(false);
         if (!rolesMap[value]) {
           try {
             // Fetch roles and zones in parallel
+            
             const [rolesResponse, zonesResponse] = await Promise.all([
               approvalservice.allrolesBySchems(value),
               approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
@@ -174,7 +175,7 @@ const[zoneVisble, setzoneVisble] = useState(false);
             }));
           
             // Update zones list
-            setZonesList(zonesResponse.payload);
+            setZonesList(zonesResponse);
             setSelectedRole('');
             setZone('');
           }catch (error) {
@@ -478,24 +479,19 @@ console.log("User List currenly dir>>> ",userList);
 // ) : [];
 const filteredData = userList.filter((item) =>
   Object.values(item).some((value) =>
-    value.toString().toLowerCase().includes(filterText.toLowerCase())
-)
+    String(value).toLowerCase().includes(filterText.toLowerCase())
+  )
 );
 
 return (
 
  
    
-    <Box sx={{ width: '100%' }}>
-     
-   
-
-
-      
+    <Box sx={{ width: '100%' }}>   
       <Paper elevation={3} style={{  padding: '10px',}}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
-          Directorate User Request
+          Directorate User Requests
           </Typography>
           <TextField
             label="Filter"

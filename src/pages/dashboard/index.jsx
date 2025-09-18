@@ -1,4 +1,6 @@
 import React, { useContext } from 'react';
+// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
+// import { hasAnyPermission, hasAllPermissions, hasPermission } from 'contexts/auth-reducer/permissionHelpers';
 // material-ui
 import Avatar from '@mui/material/Avatar';
 import AvatarGroup from '@mui/material/AvatarGroup';
@@ -39,7 +41,10 @@ import tabmenus from './tabmenus/tabmenus';
 import auth from 'contexts/auth-reducer/auth';
 import Breadcrumb from 'routes/Breadcrumb';
 import authservice from 'pages/authentication/services/authservice';
-
+import tourdiary from 'assets/images/logo/tourdiary.png';
+import schemes from 'assets/images/logo/schemes.png';
+import approvals from 'assets/images/logo/approvals.png';
+import usermanage from 'assets/images/logo/usermanage.png';
 
 // import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
 // avatar style
@@ -65,8 +70,8 @@ const { children } = tabmenus.items2[0];
 export default function DashboardDefault() {
   const isauth = auth.isAdmin();
 
-// const { permissions, loading, error } = useContext(PermissionsContext);
-// console.log("User Permissions:", permissions);
+  // const { permissions, loading, error } = useContext(PermissionsContext);
+  // console.log("User Permissions:", permissions);
 
   return (
     <Grid
@@ -196,8 +201,8 @@ export default function DashboardDefault() {
                   height: '3rem',
                   borderRadius: '50%'
                 }}
-                image="https://www.creativefabrica.com/wp-content/uploads/2021/06/30/Search-Engine-Icon-Graphics-14065623-1-1-580x386.jpg"
-                alt="Chart Icon"
+                image={schemes} // <-- Use the imported image here
+                alt="Schemes Logo"
               />
             </Box>
           </Card>
@@ -281,15 +286,16 @@ export default function DashboardDefault() {
                   height: '3rem',
                   borderRadius: '50%'
                 }}
-                image="https://www.creativefabrica.com/wp-content/uploads/2021/03/08/job-search-icon-Graphics-9353222-1-1-580x386.jpg"
-                alt="Bookmark Icon"
+                image={tourdiary} // <-- Use the imported image here
+                alt="Cluster Logo"
               />
             </Box>
           </Card>
         </Grid>
-
+      
+{["Super Admin", "District Level Approver", "IT Admin",].includes(authservice.getrole()) && (
         <Grid item xs={12} sm={4} md={4} lg={4}>
-        <Card
+          <Card
             component={Link}
             to="/rolelist"
             sx={{
@@ -375,8 +381,9 @@ export default function DashboardDefault() {
             </Box>
           </Card>
         </Grid>
+)}
 
-       {authservice.hasAllowedRole() && (
+{["Super Admin", "District Level Approver", "IT Admin","Taluk Level Approver"].includes(authservice.getrole()) && (
         <Grid item xs={12} sm={4} md={4} lg={4}>
           <Card
             component={Link}
@@ -458,17 +465,19 @@ export default function DashboardDefault() {
                   height: '3rem',
                   borderRadius: '50%'
                 }}
-                image="https://www.creativefabrica.com/wp-content/uploads/2021/06/30/Search-Engine-Icon-Graphics-14065623-1-1-580x386.jpg"
-                alt="Chart Icon"
+                image={approvals} // <-- Use the imported image here
+                alt="Approvals Logo"
               />
             </Box>
           </Card>
         </Grid>
 )}
+
+{["Super Admin", "District Level Approver", "IT Admin"].includes(authservice.getrole()) && (
         <Grid item xs={12} sm={4} md={4} lg={4}>
           <Card
             component={Link}
-            to="/usermanage"
+            to="/User_Manage"
             sx={{
               textDecoration: 'none',
               position: 'relative',
@@ -546,12 +555,14 @@ export default function DashboardDefault() {
                   height: '3rem',
                   borderRadius: '50%'
                 }}
-                image="https://www.creativefabrica.com/wp-content/uploads/2021/06/30/Search-Engine-Icon-Graphics-14065623-1-1-580x386.jpg"
-                alt="Chart Icon"
+                image={usermanage} // <-- Use the imported image here
+                alt="User Manage Logo"
               />
             </Box>
           </Card>
         </Grid>
+
+              )}
       </Grid>
 
       <Grid item md={8} sx={{ display: { sm: 'none', md: 'block', lg: 'none' } }} />
@@ -560,7 +571,7 @@ export default function DashboardDefault() {
       <Grid item xs={12} md={7} lg={8}>
         <UniqueVisitorCard />
       </Grid>
-      <Grid item xs={12} md={5} lg={4}>
+      {/* <Grid item xs={12} md={5} lg={4}>
         <Grid container alignItems="center" justifyContent="space-between">
           <Grid item>
             <Typography variant="h5">Income Overview</Typography>
@@ -578,10 +589,10 @@ export default function DashboardDefault() {
           </Box>
           <MonthlyBarChart />
         </MainCard>
-      </Grid>
+      </Grid> */}
 
       {/* row 3 */}
-      <Grid item xs={12} md={7} lg={8}>
+      {/* <Grid item xs={12} md={7} lg={8}>
         <Grid container alignItems="center" justifyContent="space-between">
           <Grid item>
             <Typography variant="h5">Recent Orders</Typography>
@@ -591,9 +602,9 @@ export default function DashboardDefault() {
         <MainCard sx={{ mt: 2 }} content={false}>
           <OrdersTable />
         </MainCard>
-      </Grid>
+      </Grid> */}
 
-      <Grid item xs={12} md={5} lg={4}>
+      {/* <Grid item xs={12} md={5} lg={4}>
         <Grid container alignItems="center" justifyContent="space-between">
           <Grid item>
             <Typography variant="h5">Analytics Report</Typography>
@@ -617,14 +628,14 @@ export default function DashboardDefault() {
           </List>
           <ReportAreaChart />
         </MainCard>
-      </Grid>
+      </Grid> */}
 
       {/* row 4 */}
-      <Grid item xs={12} md={7} lg={8}>
+      {/* <Grid item xs={12} md={7} lg={8}>
         <SaleReportCard />
-      </Grid>
+      </Grid> */}
 
-      <Grid item xs={12} md={5} lg={4}>
+      {/* <Grid item xs={12} md={5} lg={4}>
         <Grid container alignItems="center" justifyContent="space-between">
           <Grid item>
             <Typography variant="h5">Transaction History</Typography>
@@ -727,7 +738,7 @@ export default function DashboardDefault() {
             </Button>
           </Stack>
         </MainCard>
-      </Grid>
+      </Grid> */}
     </Grid>
   );
 }

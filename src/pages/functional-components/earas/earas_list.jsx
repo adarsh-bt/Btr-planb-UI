@@ -3,9 +3,19 @@ import { useTheme } from '@mui/material/styles';
 import { Box, Card, CardContent, CardMedia, Typography } from '@mui/material';
 import { Link } from 'react-router-dom';
 import Breadcrumb from 'routes/Breadcrumb';
+import { useContext } from 'react';
+// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
+// import { flattenPermissions } from 'contexts/auth-reducer/permissionHelpers';
 
 const earas_list = () => {
   const theme = useTheme();
+  //  const { permissions, loading, error } = useContext(PermissionsContext);
+  
+  //   // Flatten permissions for easy checking
+  //   const userPermissions = flattenPermissions(permissions);
+  
+  //   // Check if user has "View BTR"
+  //   const canViewBTR = userPermissions.includes('View BTR');
 
   const cardData = [
     {
@@ -14,12 +24,16 @@ const earas_list = () => {
       gradient: 'linear-gradient(135deg, rgba(118, 184, 82, 0.45), rgb(143, 200, 123))', // Green
       url: ''
     },
+    // Only show if user does NOT have "View BTR"
+    // !canViewBTR ? 
     {
       title: 'e-BTR',
-      image: 'https://png.pngtree.com/png-vector/20230302/ourmid/pngtree-dashboard-line-icon-vector-png-image_6626604.png',
-      gradient: 'linear-gradient(135deg, rgba(141, 68, 173, 0.45), rgb(166, 135, 211))', // Purple-Blue
+      image: '...',
+      gradient: '...',
       url: '/schemes/earas/btr'
-    },
+    // } : null
+    }
+    ,
     {
       title: 'Cluster Formation',
       image: 'https://png.pngtree.com/png-vector/20230302/ourmid/pngtree-dashboard-line-icon-vector-png-image_6626604.png',
@@ -44,7 +58,7 @@ const earas_list = () => {
       gradient: 'linear-gradient(135deg, rgba(0, 200, 255, 0.45), rgb(102, 186, 255))', // Light Blue (Repeat for pattern)
       url: ''
     }
-  ];
+  ].filter(Boolean);
 
   return (
     <div>

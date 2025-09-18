@@ -40,7 +40,7 @@ const columns = (handleEdit) => [
   { name: 'Designation', selector: (row) => row.designation, sortable: true },
   { name: 'Email', selector: (row) => row.email, sortable: true },
   { name: 'Phone number', selector: (row) => row.mobileNumber, sortable: true },
-  { name: 'DOJ', selector: (row) => row.dateOfJoining, sortable: true },
+  { name: 'DOJ', selector: (row) => new Date(row.dateOfJoining).toLocaleDateString('en-GB'), sortable: true },
   { name: 'Applied', selector: (row) => new Date(row.createdAt).toLocaleDateString('en-GB'), sortable: true },
   // { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
   {
@@ -152,12 +152,13 @@ const [rolesMap, setRolesMap] = useState({});
       updatedPairs[index].roleId = '';
       if (!rolesMap[value]) {
         try {
+          console.log("office id ",selectedRow)
           // Fetch roles and zones in parallel
           const [rolesResponse, zonesResponse] = await Promise.all([
             approvalservice.allrolesBySchems(value),
             approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
           ]);
-        
+        console.log("okkkkkk" ,zonesResponse)
           // Cache roles for the scheme
           setRolesMap((prev) => ({
             ...prev,
@@ -165,7 +166,7 @@ const [rolesMap, setRolesMap] = useState({});
           }));
         
           // Update zones list
-          setZonesList(zonesResponse.payload);
+          setZonesList(zonesResponse);
           setSelectedRole('');
           setZone('');
         } catch (error) {
@@ -256,8 +257,9 @@ const [rolesMap, setRolesMap] = useState({});
 
               if (zone !== null && data.payload.loginId !== null) {
                 // Call the zone_save API with required parameters
+                console.log("zone", zone," user_idssssss   ", data.payload[0].loginId, " admin_id ", admin_id);
                 approvalservice
-                  .zone_save(zone, data.payload.loginId, admin_id)
+                  .zone_save(zone, data.payload[0].loginId, admin_id)
                   .then((zoneResponse) => {
                     // Optionally, handle zone save success, like showing a notification
                   })
@@ -417,7 +419,9 @@ useEffect(() => {
   //   )
   // ) : [];
   const filteredData = userList.filter((item) =>
-    Object.values(item).some((value) => value.toString().toLowerCase().includes(filterText.toLowerCase()))
+    Object.values(item).some((value) =>
+    String(value).toLowerCase().includes(filterText.toLowerCase())
+  )
   );
 
   return (
@@ -425,7 +429,7 @@ useEffect(() => {
       <Paper elevation={3} style={{ padding: '10px' }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
-            Taluk User Request
+            Taluk User Requests
           </Typography>
           <TextField
             label="Filter"
@@ -610,7 +614,7 @@ useEffect(() => {
                     </Box>
                   )} */}
 
-                  {selectedRow.designation === 'Taluk Statistical Officer' && (
+                  {/* {selectedRow.designation === 'Taluk Statistical Officer' && ( */}
 
  <Box
   style={{
@@ -696,9 +700,34 @@ useEffect(() => {
     </div>
   ))}
 </Box>
-)}
+{/* )} */}
 
                 </Box>
+                 { (zoneVisble === true) && (
+                  <Box style={{ width: '30%', margin: 'auto' }}>
+                    <center>
+                      <strong>Select Zone</strong>
+                    </center>
+                    <TextField
+                      select
+                      fullWidth
+                      value={zone}
+                      onChange={(e) => setZone(e.target.value)}
+                      variant="outlined"
+                      style={{ marginTop: '8px' }}
+                    >
+                      {zonesList && zonesList.length > 0 ? ( // Add this check
+                             zonesList.map((zone) => (
+                               <MenuItem key={zone.zoneId} value={zone.zoneId}>
+                                 {zone.zoneNameEn}
+                               </MenuItem>
+                             ))
+                           ) : (
+                             <MenuItem disabled>No zones available</MenuItem>
+                           )}
+                    </TextField>
+                  </Box>
+                )}
 
                 {/* Status Radio Buttons */}
                 <Box
@@ -787,9 +816,9 @@ useEffect(() => {
             <Button onClick={handleCloseModal} color="secondary" variant="outlined">
               Close
             </Button>
-  {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow && selectedRow.designation === "Deputy Director -Districts") || (
+  {/* {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow && selectedRow.designation === "Deputy Director -Districts") || (
       (admrole === "District Level Approver") || (selectedRow && selectedRow.designation === "Taluk Statistical Officer")
-    )) && (
+    )) && ( */}
             <Button
               onClick={handleSaveChanges}
               color="primary"
@@ -797,9 +826,9 @@ useEffect(() => {
               sx={{ background: '#04255e' }}
               disabled={!isSaveEnabled}
             >
-              Save Change
+              Save Changes
             </Button>
-            )}
+            {/* )} */}
           </DialogActions>
         </Dialog>
       )}

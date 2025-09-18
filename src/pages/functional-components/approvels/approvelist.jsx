@@ -31,7 +31,6 @@ import {
     Select,
     Radio,
   } from '@mui/material';
-import functionalservice from '../functionalservice';
 import approvalservice from './approvalservice';
 import auth from 'contexts/auth-reducer/auth';
 import authservice from 'pages/authentication/services/authservice';
@@ -43,7 +42,7 @@ const columns = (handleEdit) => [
     { name: 'Designation', selector: (row) => row.designation, sortable: true },
     { name: 'Email', selector: (row) => row.email, sortable: true },
     { name: 'Phone number', selector: (row) => row.mobileNumber, sortable: true },
-    { name: 'DOJ', selector: (row) => row.dateOfJoining, sortable: true },
+    { name: 'DOJ', selector: (row) => new Date(row.dateOfJoining).toLocaleDateString('en-GB'), sortable: true },
     { name: 'Applied', selector: (row) => new Date(row.createdAt).toLocaleDateString('en-GB'), sortable: true },
     // { name: 'Applied', selector: (row) => row.createdAt, sortable: true },
     {
@@ -113,7 +112,7 @@ export default function BasicTabs() {
   const [value, setValue] = React.useState(0);
 
   const [admrole,setAdmrole] = useState('');
-  
+  const[error,setError] = useState('')
 
   const [schemeRolePairs, setSchemeRolePairs] = useState([{ schemeId: '', roleId: '' }]);
 const [rolesMap, setRolesMap] = useState({});
@@ -164,13 +163,13 @@ const[zoneVisble, setzoneVisble] = useState(false);
         updatedPairs[index].roleId = '';
         if (!rolesMap[value]) {
           try {
-            console.log("office type ",)
+            console.log("office type ",selectedRow.officeType)
             // Fetch roles and zones in parallel
             const [rolesResponse, zonesResponse] = await Promise.all([
               approvalservice.allrolesBySchems(value),
               approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
             ]);
-          
+           console.log("okkkkkk" ,zonesResponse)
             // Cache roles for the scheme
             setRolesMap((prev) => ({
               ...prev,
@@ -178,7 +177,7 @@ const[zoneVisble, setzoneVisble] = useState(false);
             }));
           
             // Update zones list
-            setZonesList(zonesResponse.payload);
+            setZonesList(zonesResponse);
             setSelectedRole('');
             setZone('');
           }catch (error) {
@@ -420,6 +419,9 @@ useEffect(() => {
     if (admrole === 'IT Admin' || admrole === 'Super Admin') {
    
       // Fetch all roles for super admin
+      const schemesResponse = await approvalservice.allschmes();
+      console.log("schmre ",schemesResponse.payload)
+      setSchemesList(schemesResponse.payload);
       const rolesResponse = await approvalservice.allroles();
       console.log("role payload ",rolesResponse)
       setRolesList(rolesResponse.payload);
@@ -512,21 +514,21 @@ const handleFilterChange = (event) => {
 // Filtered data based on the filter text
 const filteredData = userList.filter((item) =>
   Object.values(item).some((value) =>
-    value.toString().toLowerCase().includes(filterText.toLowerCase())
+    String(value).toLowerCase().includes(filterText.toLowerCase())
   )
 );
 
 const filteredDataTalukforIT = userList2.filter((item) =>
   Object.values(item).some((value) =>
-    value.toString().toLowerCase().includes(filterText.toLowerCase())
+    String(value).toLowerCase().includes(filterText.toLowerCase())
   )
 );
 
 // console.log("dis uses")
 const filteredDataDis = userListDis.filter((item) =>
   Object.values(item).some((value) =>
-    value.toString().toLowerCase().includes(DisfilterText.toLowerCase())
-)
+    String(value).toLowerCase().includes(DisfilterText.toLowerCase())
+  )
 );
 // console.log("filtr",filterText.toLowerCase())
 return (
@@ -556,7 +558,7 @@ return (
     <Paper elevation={3} style={{  padding: '10px',}}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
-          Districts User Request
+          District User Requests
           </Typography>
           <TextField
             label="Filter"
@@ -788,7 +790,7 @@ return (
       background: '#04255e',
     }}
   >
-    New User Requestaaa
+    New User Request
   </DialogTitle>
   <DialogContent style={{ padding: "20px", backgroundColor: "#fafafa" }}>
     {selectedRow && (
@@ -895,7 +897,8 @@ return (
 
 
 {/* Dis Admin Case */}
-{(admrole !== 'IT Admin' && admrole !== 'Super Admin') && (
+{/* {(admrole === 'IT Admin' && admrole !== 'Super Admin') && ( */}
+{(selectedRow.designation !== 'Deputy Director -Districts') && (
 
   <Stack direction="column" spacing={2} alignItems="center">
     {schemeRolePairs.map((pair, index) => (
@@ -1086,7 +1089,8 @@ return (
     <Button onClick={handleCloseModal} color="secondary" variant="outlined">
       Close
     </Button>
-    {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow && selectedRow.designation === "Deputy Director -Districts") || (
+    {/* {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow && selectedRow.designation === "Deputy Director -Districts") || ( */}
+    {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow ) || (
       (admrole === "District Level Approver")
     )) && (
     <Button
