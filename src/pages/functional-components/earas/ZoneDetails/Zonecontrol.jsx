@@ -1,5 +1,5 @@
 import React from 'react';
-import UserZoneDetails from './userzonedetails';
+import UserZoneDetails from './UserZoneDetails';
 import AdminsZonelist from './AdminsZonelist';
 import authservice from 'pages/authentication/services/authservice';
 

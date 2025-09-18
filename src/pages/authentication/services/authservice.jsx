@@ -99,7 +99,7 @@ console.log("err ",decryptedError.message)
     try {
       const encrypted = encryptData(JSON.stringify(username));
       const response = await axios.post(
-        `${authservice.USER_URL}/user-access/api/email_verify`,
+        `${authservice.BASE_URL}/user-access/api/email_verify`,
         encrypted, // assuming `encrypted` is a string or compatible payload
         {
           headers: {
@@ -121,7 +121,7 @@ console.log("err ",decryptedError.message)
   static async verify_otp(userData) {
     try {
       const encrypted = encryptData(JSON.stringify(userData));
-      const response = await axios.post(`${authservice.USER_URL}/user-access/api/validateOtp`, encrypted, {
+      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/validateOtp`, encrypted, {
         headers: {
           'Content-Type': 'text/plain'
         }
@@ -138,7 +138,7 @@ console.log("err ",decryptedError.message)
   static async password_reset(userData) {
     try {
       const encrypted = encryptData(JSON.stringify(userData));
-      const response = await axios.post(`${authservice.USER_URL}/user-access/api/password_reset`, encrypted, {
+      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/password_reset`, encrypted, {
         headers: {
           'Content-Type': 'text/plain'
         }

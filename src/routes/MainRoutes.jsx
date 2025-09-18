@@ -21,13 +21,19 @@ const RoleDesignation = Loadable(lazy(() => import('pages/usermanage/RoleDesigna
 
 // const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_list')));
 const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_menus')));
-const Zone_Details = Loadable(lazy(() => import('pages/functional-components/earas/zone_details')));
-const BTR = Loadable(lazy(() => import('pages/functional-components/earas/Btr')));
-const ClusterForm = Loadable(lazy(() => import('pages/functional-components/earas/cluster_form')));
-const Keyplots = Loadable(lazy(() => import('pages/functional-components/earas/keyplots')));
-const Clusters = Loadable(lazy(() => import('pages/functional-components/earas/cluster_order')));
+const Zone_Details = Loadable(lazy(() => import('pages/functional-components/earas/ZoneDetails/Zonecontrol')));
+const BTR = Loadable(lazy(() => import('pages/functional-components/earas/btr/Btr')));
+const BTRWrapper = Loadable(lazy(() => import('pages/functional-components/earas/btr/BTRWrapper')));
+const ZoneDetailsWrapper = Loadable(lazy(() => import('pages/functional-components/earas/ZoneDetails/ZoneDetailsWrapper')));
 
-const ZoneSettings = Loadable(lazy(() => import('pages/functional-components/earas/ZoneSettings')));
+const ClusterForm = Loadable(lazy(() => import('pages/functional-components/earas/cluster_form')));
+const Keyplots = Loadable(lazy(() => import('pages/functional-components/earas/keyplots/keyplots')));
+const KeyplotsWrapper = Loadable(lazy(() => import('pages/functional-components/earas/keyplots/keyplotsWrapper')));
+
+const Clusters = Loadable(lazy(() => import('pages/functional-components/earas/Cluster/cluster_order')));
+const ClustersWrapper = Loadable(lazy(() => import('pages/functional-components/earas/Cluster/clusterWrapper')));
+
+const ZoneSettings = Loadable(lazy(() => import('pages/functional-components/earas/ZoneDetails/ZoneSettings')));
 const SettingsMenu = Loadable(lazy(() => import('pages/functional-components/earas/SettingsMenu')));
 const CCE_crop_selection = Loadable(lazy(() => import('pages/functional-components/earas/CceCropSelection')));
 
@@ -178,14 +184,25 @@ const MainRoutes = {
       )
     },
 
+ {
+  path: '/schemes/earas/btr',
+  element: (
+    <PrivateRoute>
+      <BTR routeOrigin="scheme" />
+    </PrivateRoute>
+  )
+},
+
     {
-      path: '/schemes/earas/btr',
+      path: '/schemes/earas/Zone_Details/btr/:zoneId',
       element: (
         <PrivateRoute>
-          <BTR />
+          <BTRWrapper />
         </PrivateRoute>
-      )
+        )
     },
+
+    
     {
       path: '/schemes/earas/Zone_Details',
       element: (
@@ -194,11 +211,30 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
+
+   {
+      path: '/schemes/earas/Zone_Details/:zoneId',
+      element: (
+        <PrivateRoute>
+          <ZoneDetailsWrapper />
+        </PrivateRoute>
+        )
+    },
+  
     {
       path: '/schemes/earas/cluster',
       element: (
         <PrivateRoute>
           <ClusterForm />
+        </PrivateRoute>
+      )
+    },
+
+       {
+      path: '/schemes/earas/Zone_Details/Key_plots/:zoneId',
+      element: (
+        <PrivateRoute>
+          <KeyplotsWrapper />
         </PrivateRoute>
       )
     },
@@ -210,6 +246,15 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
+{
+      path: '/schemes/earas/Zone_Details/Clusters/:zoneId',
+      element: (
+        <PrivateRoute>
+          <ClustersWrapper />
+        </PrivateRoute>
+      )
+    },
+
      {
       path: '/schemes/earas/Clusters',
       element: (
@@ -218,6 +263,8 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
+
+
     {
       path: '/schemes/earas/CCE_crop_selection',
       element: (

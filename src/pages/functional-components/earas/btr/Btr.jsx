@@ -80,7 +80,18 @@ const columns = (handleEdit, handleView,page,size) => [
   },
 ];
 
-const Btr = () => {
+const Btr = ({ zoneId }) => {
+ 
+  const [resolvedZoneId, setResolvedZoneId] = useState(() => {
+  const role = authservice.getrole(); // Get the role
+  return role === 'Field Data Collector'
+    ? authservice.getzone()  // For Field Data Collector
+    : zoneId;                         // For Admin or other roles
+});
+
+
+
+
   const [filterText, setFilterText] = useState('');
   const [openEditModal, setOpenEditModal] = useState(false); // Not used in provided code, but kept
   const [openViewModal, setOpenViewModal] = useState(false);
@@ -93,7 +104,7 @@ const Btr = () => {
   const [totalWetArea, setTotalWetArea] = useState(0);
   const [totalDryArea, setTotalDryArea] = useState(0);
   const [downloading, setDownloading] = useState(false);
-
+    // const [zoneId, setZoneId] = useState(() => propZoneId || localStorage.getItem('zoneId'));
   const [loading, setLoading] = useState(false);
 
   // Function to handle filter change
@@ -123,6 +134,16 @@ const Btr = () => {
 
   };
 
+  useEffect(() => {
+    if (!zoneId) {
+      console.warn("Zone ID is missing");
+      return;
+    }
+
+    fetchData(); // include zoneId in the API call
+  }, [zoneId, page, size, filterText]);
+
+
   const handleRowsPerPageChange = (newSize) => {
     setSize(newSize);
     setPage(1); // Reset to page 1 when rows per page changes
@@ -130,13 +151,18 @@ const Btr = () => {
 
   // Fetch the data from the API
   const fetchData = async () => {
+    if (!resolvedZoneId) {
+      console.warn("Missing zoneId");
+      return;
+    }
+
     setLoading(true); // Set loading to true
     const userid = '1605'; // This seems to be hardcoded, consider making it dynamic if needed
 
     try {
       // Adjust page to 0-based if your API expects it
       const apiPage = page - 1;
-      const response = await btrservice.btr_lists_data(userid, apiPage, size, filterText);
+      const response = await btrservice.btr_lists_data(apiPage, size, filterText,resolvedZoneId);
 
       if (response?.payload?.data) {
         // Add an indexOffset to each row for correct SL. NO display
@@ -200,10 +226,10 @@ const Btr = () => {
 
   const columnDefs = useMemo(() => columns(undefined, handleView, page, size), [handleView, page, size]);
 
-  // Effect hook to fetch data when page, size, or filterText changes
+
   useEffect(() => {
     fetchData();
-  }, [page, size, filterText]); // fetchData no longer needs to be passed filter, as it uses state
+  }, [page, size, filterText]); 
 
   return (    
     <Grid container spacing={3}>
@@ -327,114 +353,108 @@ const Btr = () => {
 
 
         {/* Modal for viewing full details */}
-         <Dialog open={openViewModal} onClose={handleCloseModals} maxWidth="md" fullWidth>
-          <DialogTitle
-            variant="h4"
-            style={{
-              color: '#fff',
-              fontWeight: 'bold',
-              textAlign: 'center',
-              borderBottom: '2px solid #f0f0f0',
-              paddingBottom: '10px',
-              background: '#04255e'
-            }}
-          >
-            View BTR Details
-          </DialogTitle>
-          <DialogContent style={{ padding: '20px', backgroundColor: '#fafafa' }}>
-            {selectedRow && (
-              <DialogContentText>
+      <Dialog open={openPlotModal} onClose={handleCloseModals} maxWidth="md" fullWidth>
+  <DialogTitle
+    variant="h4"
+    style={{
+      color: '#fff',
+      fontWeight: 'bold',
+      textAlign: 'center',
+      borderBottom: '2px solid #f0f0f0',
+      paddingBottom: '10px',
+      background: '#04255e'
+    }}
+  >
+    View Plot Details
+  </DialogTitle>
+
+  <DialogContent style={{ padding: '20px', backgroundColor: '#fafafa' }}>
+    {selectedPlotRow && (
+      <DialogContentText>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+            gap: '20px',
+            fontSize: '14px',
+            color: '#333',
+            backgroundColor: '#fff',
+            padding: '20px',
+            borderRadius: '8px',
+            boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)'
+          }}
+        >
+          {Object.keys(selectedPlotRow)
+            .filter((key) => key !== 'id' && key !== 'indexOffset') // skip irrelevant keys
+            .map((key) => {
+              let label = key;
+              let value = selectedPlotRow[key] || 'NA';
+
+              // Customize label/value as per your plot fields
+              if (key === 'plotNo') {
+                label = 'Plot Number';
+              }
+              if (key === 'ownerName') {
+                label = 'Owner Name';
+              }
+              if (key === 'areaSqFt') {
+                label = 'Area (Sq. Ft)';
+              }
+              if (key === 'location') {
+                label = 'Location';
+              }
+              if (key === 'surveyNo') {
+                label = 'Survey Number';
+              }
+              if (key === 'status') {
+                label = 'Status';
+              }
+
+              return (
                 <div
+                  key={key}
                   style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                    gap: '20px',
-                    fontSize: '14px',
-                    color: '#333',
-                    backgroundColor: '#fff',
-                    padding: '20px',
-                    borderRadius: '8px',
-                    boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)'
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'flex-start'
                   }}
                 >
-                  {Object.keys(selectedRow)
-                    .filter((key) => key !== 'id' && key !== 'lbcode' && key !== 'resbdno' && key !== 'lbtype' && key !== 'indexOffset') // skip resbdno & lbtype
-                    .map((key) => {
-                      let label = key;
-                      let value = selectedRow[key] || 'NA';
-
-                      if (key === 'villageName') {
-                        label = 'Village Name';
-                      }
-
-                      if (key === 'bcode') {
-                        label = 'Block Code';
-                      }
-
-                      // Custom rendering for resvno
-                      if (key === 'resvno') {
-                        const resvno = selectedRow.resvno ? selectedRow.resvno : 'NA';
-                        const resbdno = selectedRow.resbdno ? selectedRow.resbdno : 'NA';
-                        label = 'Re-Survey No.';
-                        value = `${resvno} / ${resbdno}`;
-                      }
-                      // Custom rendering for lbname
-                      if (key === 'lbname') {
-                        const lbname = selectedRow.lbname ? selectedRow.lbname : 'NA';
-                        const lbtype = selectedRow.lbtype ? selectedRow.lbtype : 'NA';
-                        label = 'Local Body Name';
-                        value = `${lbname}`;
-                      }
-                      if (key === 'ltype') {
-                        label = 'Land Type';
-                      }
-                      if (key === 'totalCent') {
-                        label = 'Total Area (in Cents)';
-                      }
-                      return (
-                        <div
-                          key={key}
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            alignItems: 'flex-start'
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontWeight: 'bold',
-                              color: 'gray',
-                              marginBottom: '8px'
-                            }}
-                          >
-                            {label}:
-                          </div>
-                          <div
-                            style={{
-                              backgroundColor: '#f9f9f9',
-                              padding: '8px 12px',
-                              borderRadius: '4px',
-                              boxShadow: 'inset 0 0 5px rgba(0, 0, 0, 0.1)',
-                              wordBreak: 'break-word',
-                              width: '100%'
-                            }}
-                          >
-                            {value}
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div
+                    style={{
+                      fontWeight: 'bold',
+                      color: 'gray',
+                      marginBottom: '8px'
+                    }}
+                  >
+                    {label}:
+                  </div>
+                  <div
+                    style={{
+                      backgroundColor: '#f9f9f9',
+                      padding: '8px 12px',
+                      borderRadius: '4px',
+                      boxShadow: 'inset 0 0 5px rgba(0, 0, 0, 0.1)',
+                      wordBreak: 'break-word',
+                      width: '100%'
+                    }}
+                  >
+                    {value}
+                  </div>
                 </div>
-              </DialogContentText>
-            )}
-          </DialogContent>
-          <DialogActions style={{ justifyContent: 'center' }}>
-            <Button onClick={handleCloseModals} color="secondary" variant="outlined">
-              Close
-            </Button>
-          </DialogActions>
-        </Dialog>
+              );
+            })}
+        </div>
+      </DialogContentText>
+    )}
+  </DialogContent>
+
+  <DialogActions style={{ justifyContent: 'center' }}>
+    <Button onClick={handleCloseModals} color="secondary" variant="outlined">
+      Close
+    </Button>
+  </DialogActions>
+</Dialog>
 
 
       </Grid>

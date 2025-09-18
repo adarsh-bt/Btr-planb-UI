@@ -419,6 +419,9 @@ useEffect(() => {
     if (admrole === 'IT Admin' || admrole === 'Super Admin') {
    
       // Fetch all roles for super admin
+      const schemesResponse = await approvalservice.allschmes();
+      console.log("schmre ",schemesResponse.payload)
+      setSchemesList(schemesResponse.payload);
       const rolesResponse = await approvalservice.allroles();
       console.log("role payload ",rolesResponse)
       setRolesList(rolesResponse.payload);
@@ -787,7 +790,7 @@ return (
       background: '#04255e',
     }}
   >
-    New User Requestaaa
+    New User Request
   </DialogTitle>
   <DialogContent style={{ padding: "20px", backgroundColor: "#fafafa" }}>
     {selectedRow && (
@@ -894,7 +897,8 @@ return (
 
 
 {/* Dis Admin Case */}
-{(admrole !== 'IT Admin' && admrole !== 'Super Admin') && (
+{/* {(admrole === 'IT Admin' && admrole !== 'Super Admin') && ( */}
+{(selectedRow.designation !== 'Deputy Director -Districts') && (
 
   <Stack direction="column" spacing={2} alignItems="center">
     {schemeRolePairs.map((pair, index) => (
@@ -1085,7 +1089,8 @@ return (
     <Button onClick={handleCloseModal} color="secondary" variant="outlined">
       Close
     </Button>
-    {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow && selectedRow.designation === "Deputy Director -Districts") || (
+    {/* {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow && selectedRow.designation === "Deputy Director -Districts") || ( */}
+    {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow ) || (
       (admrole === "District Level Approver")
     )) && (
     <Button

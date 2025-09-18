@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Grid,
   Typography,
@@ -21,6 +22,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import MapIcon from '@mui/icons-material/Map';
 import ApartmentIcon from '@mui/icons-material/Apartment';
 import KeyIcon from '@mui/icons-material/Key';
+import Breadcrumb from 'routes/Breadcrumb';
 
 function AdminsZonelistUI() {
   const theme = useTheme();
@@ -32,6 +34,7 @@ function AdminsZonelistUI() {
   // State for the dialog
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedZone, setSelectedZone] = useState(null);
+  const navigate = useNavigate();
 
   const handleBoxClick = (zone) => {
     setSelectedZone(zone);
@@ -45,8 +48,21 @@ function AdminsZonelistUI() {
 
   const handleMenuItemClick = (menuItem) => {
     console.log(`Clicked on ${menuItem} for Zone ID: ${selectedZone?.zoneId}`);
-    // Here you would add your navigation logic
-    // For example, navigate to a new page based on the selected zone ID and menu item
+     if (!selectedZone?.zoneId) return;
+
+  if (menuItem === 'view-btr') {
+    navigate(`/schemes/earas/Zone_Details/btr/${selectedZone.zoneId}`);
+  }
+  if (menuItem === 'view-zone-details') {
+    navigate(`/schemes/earas/Zone_Details/${selectedZone.zoneId}`);
+  }
+  if (menuItem === 'view-keyplots') {
+    navigate(`/schemes/earas/Zone_Details/Key_plots/${selectedZone.zoneId}`);
+  }
+    if (menuItem === 'view-clusters') {
+    navigate(`/schemes/earas/Zone_Details/clusters/${selectedZone.zoneId}`);
+  }
+    
     handleCloseDialog();
   };
 
@@ -55,7 +71,7 @@ function AdminsZonelistUI() {
       try {
         const token = localStorage.getItem('token');
         const response = await fetch(
-          `${BASE_URL}/user-access/zones/my`,
+          `${BASE_URL}/user-access/zones/zone_lists`,
           {
             headers: {
               Authorization: `Bearer ${token}`
@@ -124,6 +140,7 @@ function AdminsZonelistUI() {
   return (
     <Grid container spacing={3}>
       <Grid item xs={12}>
+         <Breadcrumb></Breadcrumb>
         <Typography variant="h3" sx={{ mb: 2 }}>
           Your Assigned Zones
         </Typography>
@@ -202,7 +219,34 @@ function AdminsZonelistUI() {
       Choose what you want to view in this zone:
     </Typography> */}
 
-    <Grid container spacing={3} sx={{marginTop:'1rem'}}>
+
+   <Grid container spacing={3} sx={{marginTop:'1rem'}}>
+      {/* View BTR */}
+      <Grid item xs={12} sm={4}>
+        <Paper
+          onClick={() => handleMenuItemClick('view-zone-details')}
+          sx={{
+            p: 2,
+            textAlign: 'center',
+            borderRadius: 2,
+            cursor: 'pointer',
+            transition: '0.3s',
+            '&:hover': {
+              backgroundColor: '#e3f2fd',
+              transform: 'translateY(-3px)',
+              boxShadow: 3
+            }
+          }}
+        >
+        
+           <LocationOnIcon sx={{ fontSize: 38, color: '#1a237e' }} />
+          <Typography variant="subtitle2" sx={{ mt: 1 }}>
+            View Zone Details
+          </Typography>
+        </Paper>
+      </Grid>
+
+
       {/* View BTR */}
       <Grid item xs={12} sm={4}>
         <Paper
@@ -220,7 +264,7 @@ function AdminsZonelistUI() {
             }
           }}
         >
-          <MapIcon color="primary" sx={{ fontSize: 38 }} />
+          <MapIcon color="primary" sx={{ fontSize: 38 ,color: '#1a237e'}} />
           <Typography variant="subtitle2" sx={{ mt: 1 }}>
             View BTR
           </Typography>
@@ -244,7 +288,7 @@ function AdminsZonelistUI() {
             }
           }}
         >
-          <KeyIcon color="primary" sx={{ fontSize: 38 }} />
+          <KeyIcon color="primary" sx={{ fontSize: 38,color: '#1a237e' }} />
           <Typography variant="subtitle2" sx={{ mt: 1 }}>
             View Keyplots
           </Typography>
@@ -254,7 +298,7 @@ function AdminsZonelistUI() {
        {/* View Cluster */}
       <Grid item xs={12} sm={4}>
         <Paper
-          onClick={() => handleMenuItemClick('view-cluster')}
+          onClick={() => handleMenuItemClick('view-clusters')}
           sx={{
             p: 2,
             textAlign: 'center',
@@ -268,7 +312,7 @@ function AdminsZonelistUI() {
             }
           }}
         >
-          <ApartmentIcon color="primary" sx={{ fontSize: 38 }} />
+          <ApartmentIcon color="primary" sx={{ fontSize: 38,color: '#1a237e' }} />
           <Typography variant="subtitle2" sx={{ mt: 1 }}>
             View Cluster
           </Typography>

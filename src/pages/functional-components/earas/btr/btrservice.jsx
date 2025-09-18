@@ -11,26 +11,28 @@ class btrservice {
   static BASE_URL = mainapi.BTR_API;
 
   // adding header token is reamining
-  static async btr_lists_data(userid, page = 0, size = 10, filter = '') {
-    try {
-      const token = localStorage.getItem('token');
-      // var userid = authservice.userid();
-      var zone_id = authservice.getzone();
-      console.log('user id ', userid);
-      const response = await axios.get(`${btrservice.BASE_URL}/btr-service/btr-api/btr-data/${zone_id}?page=${page}&size=${size}&filter=${filter}`, {
+static async btr_lists_data(page = 0, size = 10, filter = '', zoneId = null) {
+  try {
+    const token = localStorage.getItem('token');
+    // const zone_id = zoneId || authservice.getzone(); // fallback if zoneId not passed
+// alert("zone id in btr service"+zoneId);
+    const response = await axios.get(
+      `${btrservice.BASE_URL}/btr-service/btr-api/btr-data/${zoneId}?page=${page}&size=${size}&filter=${filter}`,
+      {
         headers: {
-          Authorization: `Bearer ${token}` 
+          Authorization: `Bearer ${token}`
         }
-      });
-      console.log(response.data);
-      return response.data; // Return a consistent object on success
-    } catch (err) {
-      console.log(respo);
-      return {
-        message: err.response.data.message
-      };
-    }
+      }
+    );
+
+    return response.data;
+  } catch (err) {
+    console.error('API Error:', err);
+    return {
+      message: err?.response?.data?.message || 'Unknown error'
+    };
   }
+}
 
   static btrservice_download = {
     // Existing functions like btr_lists_data...

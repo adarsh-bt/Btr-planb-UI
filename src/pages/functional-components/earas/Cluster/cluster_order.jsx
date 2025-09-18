@@ -20,7 +20,7 @@ import authservice from 'pages/authentication/services/authservice';
 import mainapi from 'api/mainapi';
 
 
-function ClusterSeatMap() {
+function ClusterSeatMap({zoneId}) {
   const BTR_URL = mainapi.BTR_API
   const [clusters, setClusters] = useState([]);
   const [summary, setSummary] = useState({ completed: 0, ongoing: 0, notStarted: 0 ,underreview:0});
@@ -28,12 +28,19 @@ function ClusterSeatMap() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+    const [resolvedZoneId, setResolvedZoneId] = useState(() => {
+    const role = authservice.getrole(); // Get the role
+    return role === 'Field Data Collector'
+      ? authservice.getzone()  // For Field Data Collector
+      : zoneId;                         // For Admin or other roles
+  });
+  
    const BASE_URL = mainapi.BTR_API;
 
   useEffect(() => {
       const token = localStorage.getItem('token');
        setLoading(true);
-    axios.get(`${BASE_URL}/btr-service/cluster-api/user-cluster-summary/3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924`,
+    axios.get(`${BASE_URL}/btr-service/cluster-api/user-cluster-summary/${resolvedZoneId}`,
               {
               headers: {
                   'Authorization': `Bearer ${token}` // Add token in Authorization header
@@ -303,7 +310,7 @@ const handleClusterClick = (syNo, slNo) => {
                           lineHeight: 1,
                         }}
                       >
-                        {index + 1} {/* Display cluster number (1-indexed) */}
+                        {cluster.clusterNo} {/* Display cluster number (1-indexed) */}
                       </Typography>
                       <Typography
                         variant="caption"

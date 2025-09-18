@@ -15,6 +15,7 @@ import {
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 
+
 import InfoIcon from '@mui/icons-material/Info';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
@@ -90,6 +91,8 @@ const ClusterForm = () => {
     // --- Main Form States ---
     const [syNo, setSyNo] = useState('');
     const [slNo, setSLNo] = useState('');
+
+
     const [wardNumber, setWardNumber] = useState(''); // Not directly used in the provided snippet, but keeping
     const [reserveKeyplot, setReserveKeyplot] = useState(''); // Not directly used, but keeping
 const [svNoDetails, setSvNoDetails] = useState([]); // For API data
@@ -97,6 +100,7 @@ const [selectedSvNos, setSelectedSvNos] = useState([]); // For checkbox selectio
 const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
   const [rowToDelete, setRowToDelete] = useState(null); // Stores { keyplotIndex, rowIndexToRemove, rowData }
 const [defaultVillageId, setDefaultVillageId] = useState(null);
+const [status, setStatus] = useState(null);
 const [defaultVillage, setDefaultVillage] = useState('');
 const [defaultBlock, setDefaultBlock] = useState('');
 const [defaultLbcode, setDefaultLbcode] = useState('');
@@ -120,7 +124,7 @@ const [dialogIcon, setDialogIcon] = useState(null);
 const [dialogIconColor, setDialogIconColor] = useState("inherit");
 
 const [pendingSidePlots, setPendingSidePlots] = useState(null);
-
+const [role, setRole] = useState(null);
 
   const [keyplotDetails, setKeyplotDetails] = useState({
     villageBlock: '',
@@ -144,6 +148,7 @@ const sidePlotLabelOptions = [
         { id: 'S1', label: 'S1', rows: [] },
         { id: 'W1', label: 'W1', rows: [] },
     ]);
+
 
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [snackbarOpen1, setSnackbarOpen1] = useState(false);
@@ -184,6 +189,7 @@ const[keyplotId,setKeyplotId] = useState('');
         const urlParams = new URLSearchParams(location.search);
         const syNoFromURL = urlParams.get('No');
         const slnoFromURL = urlParams.get('slno');
+      
         setKeyplotId(syNoFromURL)
         if (syNoFromURL) {
             setSyNo(decodeURIComponent(syNoFromURL));
@@ -193,9 +199,12 @@ const[keyplotId,setKeyplotId] = useState('');
             setKeyplotSubNo(decodeURIComponent(slnoFromURL));
         }
 
+
+        
         const fetchAllInitialData = async () => {
             setLoading(true);
             try {
+            
                 // Fetch keyplot details and Sv.No options concurrently
                 await Promise.all([
                     fetchKeyplotDetails(syNoFromURL),
@@ -228,6 +237,10 @@ const[keyplotId,setKeyplotId] = useState('');
     if (!id) return;
  setLoading(true);
     try {
+
+  const r = authservice.getrole(); 
+  setRole(r);
+
           const token = localStorage.getItem('token');
         const response = await fetch(`${BASE_URL}/btr-service/key-plots/get-keyplot/${id}`,
               {
@@ -236,11 +249,12 @@ const[keyplotId,setKeyplotId] = useState('');
               }
                 });
         if (!response.ok) {
+          alert("error in fetching keyplot details")
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
-      
+      console.log("keyplot details data",data)
         setMinCluster(data.payload.clusterMin)
         setMaxCluster(data.payload.clusterMax)
         setMeanCluster(data.payload.clusterMean)
@@ -248,6 +262,7 @@ const[keyplotId,setKeyplotId] = useState('');
         setDefaultBlock(data.payload.villageBlock);
         setDefaultVillageId(data.payload.kvillageId);
         setDefaultVillage(data.payload.kvillageName);
+        setStatus(data.payload.status);
 
         if (data.payload) {
             setKeyplotDetails(data.payload);
@@ -1872,6 +1887,9 @@ const combinedTotal = useMemo(() => {
     <Typography variant="subtitle1" fontWeight="bold">
       Cluster: {slNo || 'Not Available'} | {keyplotDetails.panchayath || ''}
     </Typography>
+    <Typography variant="subtitle1">
+      <Typography sx={{ color: 'primary.main' }}>{status || 'Not Available'}</Typography> 
+    </Typography>
     <Box sx={{ width: '100%', mt: 1 }}>
       <Typography variant="subtitle1">
         <strong>Total Area:</strong> {calculateOverallTotalActual()} Cent
@@ -1906,16 +1924,20 @@ const combinedTotal = useMemo(() => {
             <MapIcon />
           </Button>
         </Tooltip>
+         {role === 'Field Data Collector' && (
+          <>
         <Tooltip title="Reject Cluster">
-          <Button variant="contained" color="error" onClick={handleOpenRejectDialog}>
+          <Button variant="contained" color="error" onClick={handleOpenRejectDialog} disabled={status === 'Under Review'}>
             <WarningAmberIcon />
           </Button>
         </Tooltip>
         <Tooltip title="Submit">
-          <Button type="submit" variant="contained" color="primary" onClick={handleSubmit}>
+          <Button type="submit" variant="contained" color="primary" onClick={handleSubmit} disabled={status === 'Under Review'}>
             <SaveIcon />
           </Button>
         </Tooltip>
+        </>
+        )}
       </Box>
     </Box>
   </Box>
@@ -1976,6 +1998,16 @@ const combinedTotal = useMemo(() => {
           
             </Box>
           </Grid>
+
+           <Grid item xs={12} sm={6} md={2}>
+            <TextField
+              label="Status of Cluster"
+              value={status || ''}
+              InputProps={{ readOnly: true }}
+              InputLabelProps={{ shrink: true }}
+              fullWidth
+            />
+          </Grid> 
         </Grid>
 
 <Box sx={{ maxWidth: 800, margin: '0 auto' }}>
@@ -1989,13 +2021,18 @@ const combinedTotal = useMemo(() => {
     </Grid>
     <Grid item xs={6}>
       <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <Button variant="contained" color="error" onClick={handleOpenRejectDialog}>
+      {role === 'Field Data Collector' && (
+        <Button variant="contained" color="error" onClick={handleOpenRejectDialog} disabled={status === 'Under Review'}>
           
         {/* <Button variant="contained" color="error"> */}
           <DeleteForeverIcon /> Reject Cluster
         </Button>
+        )}
       </Box>
     </Grid>
+     {status === 'Under Review' && (
+    <Box sx={{ width: '100%', mt: 1, textAlign: 'center',color: 'warning.main' }}><WarningAmberIcon/>
+    <Typography >This Cluster is Under Review. after the Approval Edit is active</Typography></Box>  )}
   </Grid>
 </Box>
 
@@ -2061,7 +2098,7 @@ const combinedTotal = useMemo(() => {
         // --- END NEW ---
     )}
 </Box>
-                        <Typography>Total Actual Area (Cent): {calculateTotalActual(keyplot.rows)}</Typography>
+                        <Typography>Area enumerated (Cent): {calculateTotalActual(keyplot.rows)}</Typography>
                       
                     </Box>
                   <Grid container spacing={2} sx={{ p: 2 }} alignItems="center">
@@ -2161,6 +2198,7 @@ const combinedTotal = useMemo(() => {
 </Grid>
 
 
+        {role === 'Field Data Collector' && (
        <Grid item xs={1}>
       {!(keyplot.label === "K" && rowIndex === 0) && (
   <Button 
@@ -2169,11 +2207,12 @@ const combinedTotal = useMemo(() => {
     size="small"
     variant="contained"
     color="error"
-    
+    disabled={status === 'Under Review'}
   >
   </Button>
   )}
 </Grid>
+)}
 <Grid item xs={1}>
 {row.isExisting && (
   <Chip label="Saved" size="small" color="success" variant="outlined" />
@@ -2183,7 +2222,7 @@ const combinedTotal = useMemo(() => {
 
   {/* Action Buttons */}
   <Grid item xs={12} sx={{ textAlign: 'center', mt: 1 }}>
-
+ {role === 'Field Data Collector' && (
     <Button
       startIcon={<AddCircleOutlineIcon />}
       onClick={() => addKeyplotRow(index)}
@@ -2191,10 +2230,11 @@ const combinedTotal = useMemo(() => {
       sx={{ mr: 1 }}
       variant="contained"
       color="success"
+      disabled={status === 'Under Review'}
     >
       Add Row
     </Button>
-   
+   )}
     {/* <Button
       startIcon={<RemoveCircleOutlineIcon />}
       onClick={() => removeKeyplotRow(index)}
@@ -2216,10 +2256,23 @@ const combinedTotal = useMemo(() => {
           color="primary"
           sx={{ mt: 3, display: 'block', margin: '20px auto 0' }}
           onClick={handleSubmit}
+          disabled={status === 'Under Review'}
         >
           Submit
         </Button>
 
+{role === 'Taluk Level Approver'  && (
+         <Button
+          type="submit"
+          variant="contained"
+          color="primary"
+          sx={{ mt: 3, display: 'block', margin: '20px auto 0' }}
+          onClick={handleSubmit}
+          
+        >
+          Approved
+        </Button>
+)}
         <Snackbar
           open={snackbarOpen}
           autoHideDuration={3000}
@@ -2419,7 +2472,7 @@ const combinedTotal = useMemo(() => {
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
         <FormControlLabel
           control={<Checkbox checked={selectAllChecked} onChange={handleSelectAll} />}
-          label="Select all visible (only with remaining > 0)" 
+          label="Select all visible  " 
         />
         <Typography variant="caption" color="text.secondary">{svNoDetails.length} results</Typography>
       </Box>

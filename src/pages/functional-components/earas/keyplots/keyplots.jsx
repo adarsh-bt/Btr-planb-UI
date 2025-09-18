@@ -43,7 +43,8 @@ import mainapi from 'api/mainapi';
 // import auth from 'contexts/auth-reducer/auth';
 // import authservice from 'pages/authentication/services/authservice';
 
-const KeyPlot = () => {
+const KeyPlot = ({zoneId}) => {
+
     const [loading, setLoading] = useState(true); // Set to true initially to fetch existing data
     const [dataVisible, setDataVisible] = useState(false);
     const [plotData, setPlotData] = useState([]);
@@ -66,6 +67,14 @@ const KeyPlot = () => {
     const [snackbarOpen, setSnackbarOpen] = useState(false);
 const [snackbarMessage, setSnackbarMessage] = useState('');
 const [fetchError, setFetchError] = useState(null);
+
+  const [resolvedZoneId, setResolvedZoneId] = useState(() => {
+  const role = authservice.getrole(); // Get the role
+  return role === 'Field Data Collector'
+    ? authservice.getzone()  // For Field Data Collector
+    : zoneId;                         // For Admin or other roles
+});
+
 
    const BASE_URL = mainapi.BTR_API;
 
@@ -96,6 +105,8 @@ const transformSample = (sample, type, index) => ({
   action: "View Cluster"
 });
 
+const [viewModalOpen, setViewModalOpen] = useState(false);
+const [selectedPlotDetails, setSelectedPlotDetails] = useState(null);
 
 
     // --- Data Fetching: Fetch Existing Keyplots on Mount ---
@@ -111,7 +122,7 @@ const transformSample = (sample, type, index) => ({
               const res = await axios.post(`${BASE_URL}/btr-service/key-plots/fetch-existing-keyplots`,
   {
     userId: userId,
-    zone_id:'758'  // Request body
+    zone_id:resolvedZoneId  // Request body
   },
   {
     headers: {
@@ -239,6 +250,7 @@ const filtered = plotData.filter((row) =>
     row[key] && String(row[key]).toLowerCase().includes(searchTerm.toLowerCase())
   )
 );
+
 
 
 
@@ -423,7 +435,8 @@ console.log("resss ",response.data)
 )}
 
            {!loading && !dataVisible && !fetchError && (
-  <Box display="flex" justifyContent="center" mb={4}>
+<Box display="flex" justifyContent="center" mb={4}>
+  {authservice.getrole() === 'Field Data Collector' ? (
     <Button
       variant="contained"
       onClick={handleGenerateKeyplot}
@@ -436,7 +449,13 @@ console.log("resss ",response.data)
     >
       Generate Keyplot Data
     </Button>
-  </Box>
+  ) : (
+    <Typography variant="h5" sx={{ color: 'primary.main' }}>
+      This Zone never Generated Keyplots
+    </Typography>
+  )}
+</Box>
+
 )}
 
 
@@ -496,7 +515,7 @@ console.log("resss ",response.data)
             <Table stickyHeader sx={{ tableLayout: 'fixed' }}>
               <TableHead>
                 <TableRow>
-                  {['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'landType'].map((col) => (
+                  {['slNo', 'panchayth','villageBlock','syNo', 'area',  'landType'].map((col) => (
                     <TableCell
                       key={col}
                       align="center"
@@ -554,16 +573,22 @@ console.log("resss ",response.data)
                       {/* <TableCell align="center">{row.id}</TableCell> */}
                      <TableCell align="center">{row.slNo}</TableCell>
 
-                      <TableCell align="center">{row.syNo}</TableCell>
                       <TableCell align="center">{row.panchayth}</TableCell>
-                      <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
                       <TableCell align="center">{row.villageBlock}</TableCell>
+                      <TableCell align="center">{row.syNo}</TableCell>
+                      <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
                       <TableCell align="center">{row.landType}</TableCell>
                       <TableCell align="center">
                         <Button
                           size="small"
                           color="primary"
-                          onClick={() => handleViewClusterClick(row.plot_id, index + 1)}
+                          // onClick={() => handleViewClusterClick(row.plot_id, index + 1)}
+                        onClick={() => {
+  setSelectedPlotDetails(row);
+  setViewModalOpen(true);
+}}
+
+
                           sx={{ minWidth: 'unset', px: 0.5 }}
                         >
                           <RemoveRedEyeIcon fontSize="small" />
@@ -689,6 +714,68 @@ console.log("resss ",response.data)
 
                 </DialogActions>
             </Dialog>
+
+       <Dialog
+  open={viewModalOpen}
+  onClose={() => setViewModalOpen(false)}
+  fullWidth
+  maxWidth="md"
+  PaperProps={{
+    sx: {
+      borderRadius: 2,
+      p: 2,
+      backgroundColor: '#f9f9f9', // Light background for clarity
+    }
+  }}
+>
+  <DialogTitle
+    sx={{
+      backgroundColor: '#05307a',
+      color: '#ffffff',
+      fontWeight: 'bold',
+      fontSize: '1.2rem',
+      px: 3,
+      py: 2,
+      borderTopLeftRadius: 8,
+      borderTopRightRadius: 8
+    }}
+  >
+    Plot Details
+  </DialogTitle>
+
+  <DialogContent dividers sx={{ p: 3 }}>
+    {selectedPlotDetails ? (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Typography variant="body1"><strong>Sl No:</strong> {selectedPlotDetails.slNo}</Typography>
+        <Typography variant="body1"><strong>Panchayath:</strong> {selectedPlotDetails.panchayth}</Typography>
+        <Typography variant="body1"><strong>Village Block:</strong> {selectedPlotDetails.villageBlock}</Typography>
+        <Typography variant="body1"><strong>Survey No:</strong> {selectedPlotDetails.syNo}</Typography>
+        <Typography variant="body1"><strong>Area:</strong> {parseFloat(selectedPlotDetails.area).toFixed(2)} Cents</Typography>
+        <Typography variant="body1"><strong>Land Type:</strong> {selectedPlotDetails.landType}</Typography>
+      </Box>
+    ) : (
+      <Typography>Loading details...</Typography>
+    )}
+  </DialogContent>
+
+  <DialogActions sx={{ px: 3, pb: 2 }}>
+    <Button
+      onClick={() => setViewModalOpen(false)}
+      variant="contained"
+      color="primary"
+      sx={{
+        backgroundColor: '#05307a',
+        '&:hover': { backgroundColor: '#032050' },
+        fontWeight: 'bold',
+        textTransform: 'none'
+      }}
+    >
+      Close
+    </Button>
+  </DialogActions>
+</Dialog>
+
+
         </Box>
         </Grid>
     );

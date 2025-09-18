@@ -6,14 +6,14 @@ import DataTable from 'react-data-table-component';
 import { width } from '@mui/system';
 import { useTheme } from '@mui/material/styles';
 import Breadcrumb from 'routes/Breadcrumb';
-import './earascss/zone_deta.css';
+import '../earascss/zone_deta.css';
 import authservice from 'pages/authentication/services/authservice';
 import { Link } from 'react-router-dom';
 import LoadingScreen from 'utils/loadingscreen';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import mainapi from 'api/mainapi';
 
-function UserZoneDetails() {
+function UserZoneDetails({zoneId}) {
   const BTR_URL = mainapi.BTR_API
   const theme = useTheme();
   const [data, setData] = useState([]); // State to store API data
@@ -27,6 +27,12 @@ function UserZoneDetails() {
 
      const BASE_URL = mainapi.BASE_URL;
 
+  const [resolvedZoneId, setResolvedZoneId] = useState(() => {
+  const role = authservice.getrole(); // Get the role
+  return role === 'Field Data Collector'
+    ? authservice.getzone()  // For Field Data Collector
+    : zoneId;                         // For Admin or other roles
+});
 
 
 useEffect(() => {
@@ -34,9 +40,7 @@ useEffect(() => {
     try {
       const token = localStorage.getItem('token');
       const user_id = authservice.userid();
-      const zone_id = authservice.getzone();
-
-      const response = await fetch(`${BASE_URL}/btr-service/btr-api/zone-details/${zone_id}`, {
+      const response = await fetch(`${BASE_URL}/btr-service/btr-api/zone-details/${resolvedZoneId}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -120,15 +124,6 @@ if (error) {
             <Paper className="bar-paper">
               <Grid container spacing={2}>
 
-                 <Grid item xs={6} sm={3} className="bar-grid-item">
-                  <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
-                    Zone:
-                  </Typography>
-                  <Typography variant="body1" align="center" sx={{ color: '#00796b' }}>
-                    {result.zone_name}
-                  </Typography>
-                </Grid>
-
                 <Grid item xs={6} sm={3} className="bar-grid-item">
                   <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
                     District:
@@ -137,16 +132,9 @@ if (error) {
                     {result.district}
                   </Typography>
                 </Grid>
-                <Grid item xs={6} sm={3} className="bar-grid-item">
-                  <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
-                    Taluk:
-                  </Typography>
-                  <Typography variant="body1" align="center" sx={{ color: '#00796b' }}>
-                    {result.taluk}:
-                  </Typography>
-                </Grid>
 
-                <Grid item xs={6} sm={3}>
+
+                    <Grid item xs={6} sm={3} className="bar-grid-item">
                   <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
                    {result.localbodyType}:
                   </Typography>
@@ -154,6 +142,28 @@ if (error) {
                      {result.local_name}
                   </Typography>
                 </Grid>
+
+                 <Grid item xs={6} sm={3} className="bar-grid-item">
+                  <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
+                    Taluk:
+                  </Typography>
+                  <Typography variant="body1" align="center" sx={{ color: '#00796b' }}>
+                    {result.taluk}:
+                  </Typography>
+                </Grid>
+                 <Grid item xs={6} sm={3} >
+                  <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
+                    Zone:
+                  </Typography>
+                  <Typography variant="body1" align="center" sx={{ color: '#00796b' }}>
+                    {result.zone_name}
+                  </Typography>
+                </Grid>
+
+                
+               
+
+              
               </Grid>
             </Paper>
           </Box>
@@ -180,24 +190,25 @@ if (error) {
                   
                   </TableCell>
                   <TableCell colSpan={3} align="center" sx={{ border: 1, borderColor: 'grey.300' }}>
-                    Area in cents
+                     Number of Plots
                   </TableCell>
                   <TableCell colSpan={3} align="center" sx={{ border: 1, borderColor: 'grey.300' }}>
-                    Number of Plots
+                   Area in cents
                   </TableCell>
                 </TableRow>
 
                 {/* Sub-header Row */}
                 <TableRow>
-                  {/* Area Sub-columns */}
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Wet Area</TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Dry Area</TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Total Area</TableCell>
-
+              
                   {/* Plots Sub-columns */}
                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Wet Plots</TableCell>
                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Dry Plots</TableCell>
                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Total Plots</TableCell>
+
+                  {/* Area Sub-columns */}
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Wet Area</TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Dry Area</TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Total Area</TableCell>
                 </TableRow>
               </TableHead>
 
@@ -210,20 +221,12 @@ if (error) {
                   </TableCell>
                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.p_name} {row.localbodytype}</TableCell>
                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
-                      {row.villages ? row.villages.join(', ') : 'N/A'}
+                      {row.villages ? row.villages.map(village => village.charAt(0).toUpperCase() + village.slice(1).toLowerCase()).join(', ') : 'N/A'}
+
                       </TableCell>
                     <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
                     {row.blocks ? row.blocks.join(', ') : 'N/A'}
                    </TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
-                    {row.Wet_area || 0}
-                  </TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
-                    {row.Dry_area || 0}
-                  </TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
-                    {row.Total_area || 0}
-                  </TableCell>
                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
                     {row.Wet_plot || 0}
                   </TableCell>
@@ -232,6 +235,15 @@ if (error) {
                   </TableCell>
                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
                     {row.t_plot || 0}
+                  </TableCell>
+                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                    {row.Wet_area || 0}
+                  </TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                    {row.Dry_area || 0}
+                  </TableCell>
+                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                    {row.Total_area || 0}
                   </TableCell>
                 </TableRow>
               ))}
