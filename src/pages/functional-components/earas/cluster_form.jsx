@@ -352,6 +352,7 @@ setKeyplots(mergedKeyplots);
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
+            alert("default lbcode"+defaultLbcode)
             const response = await fetch(`${BASE_URL}/btr-service/cluster-api/${defaultLbcode}/villages`, {
                 headers: {
                     'Authorization': `Bearer ${token}`

@@ -353,108 +353,114 @@ const Btr = ({ zoneId }) => {
 
 
         {/* Modal for viewing full details */}
-      <Dialog open={openPlotModal} onClose={handleCloseModals} maxWidth="md" fullWidth>
-  <DialogTitle
-    variant="h4"
-    style={{
-      color: '#fff',
-      fontWeight: 'bold',
-      textAlign: 'center',
-      borderBottom: '2px solid #f0f0f0',
-      paddingBottom: '10px',
-      background: '#04255e'
-    }}
-  >
-    View Plot Details
-  </DialogTitle>
-
-  <DialogContent style={{ padding: '20px', backgroundColor: '#fafafa' }}>
-    {selectedPlotRow && (
-      <DialogContentText>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-            gap: '20px',
-            fontSize: '14px',
-            color: '#333',
-            backgroundColor: '#fff',
-            padding: '20px',
-            borderRadius: '8px',
-            boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)'
-          }}
-        >
-          {Object.keys(selectedPlotRow)
-            .filter((key) => key !== 'id' && key !== 'indexOffset') // skip irrelevant keys
-            .map((key) => {
-              let label = key;
-              let value = selectedPlotRow[key] || 'NA';
-
-              // Customize label/value as per your plot fields
-              if (key === 'plotNo') {
-                label = 'Plot Number';
-              }
-              if (key === 'ownerName') {
-                label = 'Owner Name';
-              }
-              if (key === 'areaSqFt') {
-                label = 'Area (Sq. Ft)';
-              }
-              if (key === 'location') {
-                label = 'Location';
-              }
-              if (key === 'surveyNo') {
-                label = 'Survey Number';
-              }
-              if (key === 'status') {
-                label = 'Status';
-              }
-
-              return (
+         <Dialog open={openViewModal} onClose={handleCloseModals} maxWidth="md" fullWidth>
+          <DialogTitle
+            variant="h4"
+            style={{
+              color: '#fff',
+              fontWeight: 'bold',
+              textAlign: 'center',
+              borderBottom: '2px solid #f0f0f0',
+              paddingBottom: '10px',
+              background: '#04255e'
+            }}
+          >
+            View BTR Details
+          </DialogTitle>
+          <DialogContent style={{ padding: '20px', backgroundColor: '#fafafa' }}>
+            {selectedRow && (
+              <DialogContentText>
                 <div
-                  key={key}
                   style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'flex-start'
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                    gap: '20px',
+                    fontSize: '14px',
+                    color: '#333',
+                    backgroundColor: '#fff',
+                    padding: '20px',
+                    borderRadius: '8px',
+                    boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)'
                   }}
                 >
-                  <div
-                    style={{
-                      fontWeight: 'bold',
-                      color: 'gray',
-                      marginBottom: '8px'
-                    }}
-                  >
-                    {label}:
-                  </div>
-                  <div
-                    style={{
-                      backgroundColor: '#f9f9f9',
-                      padding: '8px 12px',
-                      borderRadius: '4px',
-                      boxShadow: 'inset 0 0 5px rgba(0, 0, 0, 0.1)',
-                      wordBreak: 'break-word',
-                      width: '100%'
-                    }}
-                  >
-                    {value}
-                  </div>
-                </div>
-              );
-            })}
-        </div>
-      </DialogContentText>
-    )}
-  </DialogContent>
+                  {Object.keys(selectedRow)
+                    .filter((key) => key !== 'id' && key !== 'lbcode' && key !== 'resbdno' && key !== 'lbtype' && key !== 'indexOffset') // skip resbdno & lbtype
+                    .map((key) => {
+                      let label = key;
+                      let value = selectedRow[key] || 'NA';
 
-  <DialogActions style={{ justifyContent: 'center' }}>
-    <Button onClick={handleCloseModals} color="secondary" variant="outlined">
-      Close
-    </Button>
-  </DialogActions>
-</Dialog>
+                      if (key === 'villageName') {
+                        label = 'Village Name';
+                      }
+
+                      if (key === 'bcode') {
+                        label = 'Block Code';
+                      }
+
+                      // Custom rendering for resvno
+                      if (key === 'resvno') {
+                        const resvno = selectedRow.resvno ? selectedRow.resvno : 'NA';
+                        const resbdno = selectedRow.resbdno ? selectedRow.resbdno : 'NA';
+                        label = 'Re-Survey No.';
+                        value = `${resvno} / ${resbdno}`;
+                      }
+                      // Custom rendering for lbname
+                      if (key === 'lbname') {
+                        const lbname = selectedRow.lbname ? selectedRow.lbname : 'NA';
+                        const lbtype = selectedRow.lbtype ? selectedRow.lbtype : 'NA';
+                        label = 'Local Body Name';
+                        value = `${lbname}`;
+                      }
+                      if (key === 'ltype') {
+                        label = 'Land Type';
+                      }
+                      if (key === 'totalCent') {
+                        label = 'Total Area (in Cents)';
+                      }
+                      return (
+                        <div
+                          key={key}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'flex-start'
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontWeight: 'bold',
+                              color: 'gray',
+                              marginBottom: '8px'
+                            }}
+                          >
+                            {label}:
+                          </div>
+                          <div
+                            style={{
+                              backgroundColor: '#f9f9f9',
+                              padding: '8px 12px',
+                              borderRadius: '4px',
+                              boxShadow: 'inset 0 0 5px rgba(0, 0, 0, 0.1)',
+                              wordBreak: 'break-word',
+                              width: '100%'
+                            }}
+                          >
+                            {value}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </DialogContentText>
+            )}
+          </DialogContent>
+          <DialogActions style={{ justifyContent: 'center' }}>
+            <Button onClick={handleCloseModals} color="secondary" variant="outlined">
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
 
 
       </Grid>
