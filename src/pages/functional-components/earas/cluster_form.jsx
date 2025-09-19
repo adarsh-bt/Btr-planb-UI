@@ -234,7 +234,8 @@ const[keyplotId,setKeyplotId] = useState('');
               headers: {
                   'Authorization': `Bearer ${token}` // Add token in Authorization header
               }
-                });
+                }
+              );
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -337,6 +338,7 @@ setKeyplots(mergedKeyplots);
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
+            alert(defaultLbcode)
             const response = await fetch(`${BASE_URL}/btr-service/cluster-api/${defaultLbcode}/villages`, {
                 headers: {
                     'Authorization': `Bearer ${token}`

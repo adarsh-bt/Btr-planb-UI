@@ -338,7 +338,7 @@ function Earas_menus() {
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                to="/schemes/earas/cluster_manual_entry_List"
+                to="/schemes/earas/Clusters"
                 // /schemes/earas/cluster_manual_entry
                 sx={{
                   textDecoration: 'none',
@@ -372,7 +372,7 @@ function Earas_menus() {
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
                     <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Cluster Entry
+                      Cluster list
                     </Typography>
                     <Typography
                       variant="subtitle1"

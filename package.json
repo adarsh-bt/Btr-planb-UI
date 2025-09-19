@@ -9,10 +9,10 @@
     "url": "https://codedthemes.com/"
   },
   "scripts": {
-     "start": "vite --host",
-  "dev": "vite --host",
-  "build": "vite build",
-  "preview": "vite preview --host",
+    "start": "vite --host",
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host",
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint --fix \"src/**/*.{js,jsx,ts,tsx}\"",
     "prettier": "prettier --write \"src/**/*.{js,jsx,ts,tsx}\""
@@ -55,6 +55,7 @@
     "react-number-format": "^5.3.3",
     "react-router": "^6.22.3",
     "react-router-dom": "^6.22.3",
+    "react-toastify": "^11.0.5",
     "react-window": "^1.8.11",
     "simplebar-react": "^3.2.4",
     "slick-carousel": "^1.8.1",
