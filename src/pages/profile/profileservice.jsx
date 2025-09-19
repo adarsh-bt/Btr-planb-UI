@@ -14,6 +14,7 @@ const profileService = {
       const response = await axios.get(`${USER_URL}/user-access/api/user-registration/user/fetch-by-id/${userId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      console.log("response usersss",response)
       return response.data; // Return the entire response payload
     } catch (error) {
       console.error('Error fetching user by ID:', error);

@@ -46,7 +46,7 @@ class ApprovedUserService {
       const token = localStorage.getItem('token');
       console.log('userId in service:', userId);
       // const userId = "44b2a345-b9c5-429f-8f66-52830f1962c8"
-      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/user-manage/user/fetch-by-id/${userId}`, {
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/user-manage/fetch-by-id/${userId}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -86,7 +86,7 @@ class ApprovedUserService {
   static async getDesignations() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/fetch-designations`, {
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/user-registration/fetch-designations`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -119,7 +119,7 @@ class ApprovedUserService {
   }
   static async getSchemes() {
     try {
-      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/fetch/schemes`);
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/user-approval/fetch/schemes`);
       console.log('schemes >>', response.data);
       return response.data.payload; // Add fallback for different response structures
     } catch (err) {
@@ -130,7 +130,7 @@ class ApprovedUserService {
   static async getRolesbySchemes(schemeId) {
     try {
       const token = localStorage.getItem('token'); // <-- Add this line
-      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/fetch/schemes/${schemeId}/roles`, {
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/user-approval/fetch/schemes/${schemeId}/roles`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
