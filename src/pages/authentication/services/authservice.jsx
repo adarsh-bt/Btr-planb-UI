@@ -243,6 +243,62 @@ static async logout(navigate) {
       return false;
     }
   }
+  // ✅ NEW METHOD: Get user's specific role level for conditional logic
+  static getUserRole() {
+    try {
+      const roles = this.getrole();
+      if (!roles) return null;
+      
+      // Normalize to array
+      const roleArray = Array.isArray(roles) ? roles : [roles];
+      
+      // Return highest priority role
+      if (roleArray.includes('Super Admin')) return 'Super Admin';
+      if (roleArray.includes('State Level Approver')) return 'State Level Approver';
+      if (roleArray.includes('District Level Approver')) return 'District Level Approver';
+      if (roleArray.includes('Taluk Level Approver')) return 'Taluk Level Approver';
+      if (roleArray.includes('IT Admin')) return 'IT Admin';
+      
+      return roleArray[0]; // Return first role if none of the above
+    } catch (error) {
+      console.error('Error getting user role:', error);
+      return null;
+    }
+  }
+
+  // ✅ NEW METHOD: Clear all authentication data
+  static clearAuthData() {
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('activeZone');
+      // Add any other auth-related items you store in localStorage
+    } catch (error) {
+      console.error('Error clearing auth data:', error);
+    }
+  }
+
+  // ✅ NEW METHOD: Get token expiration info
+  static getTokenInfo() {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return null;
+      
+      const decoded = jwtDecode(token);
+      const currentTime = Date.now() / 1000;
+      const timeUntilExpiry = decoded.exp - currentTime;
+      
+      return {
+        isExpired: decoded.exp < currentTime,
+        expiresAt: new Date(decoded.exp * 1000),
+        timeUntilExpiry: timeUntilExpiry > 0 ? timeUntilExpiry : 0,
+        issuedAt: new Date(decoded.iat * 1000)
+      };
+    } catch (error) {
+      console.error('Error getting token info:', error);
+      return null;
+    }
+  }
 }
 
 export default authservice;

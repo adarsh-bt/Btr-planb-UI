@@ -11,6 +11,9 @@ class mainapi {
 
   // BTR API
   static BTR_API = 'http://localhost:8082';
+
+  //Form API
+  static FORM_API = 'http://localhost:9114';
 }
 
 export default mainapi;

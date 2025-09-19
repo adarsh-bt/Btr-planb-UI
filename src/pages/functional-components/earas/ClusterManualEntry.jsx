@@ -34,7 +34,7 @@ import mainapi from 'api/mainapi';
 import Autocomplete from '@mui/material/Autocomplete';
 import authservice from 'pages/authentication/services/authservice';
 
-const BASE_URL = mainapi.BASE_URL;
+const BASE_URL = mainapi.FORM_API;
 
 // --- Constant for Side Plot Dropdown ---
 const SIDE_PLOT_OPTIONS = ['N1', 'E1', 'S1', 'W1', 'N2', 'E2', 'S2', 'W2'];
@@ -72,6 +72,10 @@ const ClusterFormUI = () => {
     const [isCropsModalOpen, setCropsModalOpen] = useState(false);
     const [selectedCrops, setSelectedCrops] = useState({});
     const [savedCrops, setSavedCrops] = useState([]);
+
+    const [cceCropDetails, setCceCropDetails] = useState([]);
+    const [loadingCrops, setLoadingCrops] = useState(false);
+
     const [errors, setErrors] = useState({});
     const [villageOptions, setVillageOptions] = useState([]);
     const [blockOptions, setBlockOptions] = useState([]);
@@ -83,7 +87,7 @@ const ClusterFormUI = () => {
     const [loading, setLoading] = useState(true);
     const [loadingResvno, setLoadingResvno] = useState(false);
     
-    // ✅ NEW: Submit-related states
+    // ✅ Submit-related states
     const [submitting, setSubmitting] = useState(false);
     const [submitSuccess, setSubmitSuccess] = useState(false);
     const [submitError, setSubmitError] = useState('');
@@ -112,8 +116,39 @@ const ClusterFormUI = () => {
         areaCents: '',
         landType: ''
     });
-
     const [rowBlockOptions, setRowBlockOptions] = useState({});
+
+    // ✅ NEW: Function to fetch CCE crop details from API
+    const fetchCceCropDetails = async () => {
+        setLoadingCrops(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-crops`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log("CCE Crop Details:", data);
+            setCceCropDetails(data);
+            
+        } catch (error) {
+            console.error("Error fetching CCE crop details:", error);
+            setSnackbarMessage('Failed to load crop details.');
+            setSnackbarOpen(true);
+        } finally {
+            setLoadingCrops(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchCceCropDetails();
+    }, []);
 
     useEffect(() => {
         const urlParams = new URLSearchParams(location.search);
@@ -308,99 +343,199 @@ const ClusterFormUI = () => {
         setClusterInfo(prevInfo => ({ ...prevInfo, totalArea: newTotalArea }));
     }, [keyplotsData]);
 
-    // ✅ NEW: Submit functionality
-    const handleSubmit = async () => {
-        try {
-            setSubmitting(true);
-            setSubmitError('');
-            
-            // Get user info
-            const userInfo = authservice.getUserInfo();
-            const userId = userInfo?.userId;
-            
-            if (!userId) {
-                throw new Error('User information not found. Please login again.');
-            }
+    // ✅ WORKING: Submit functionality with proper API integration from paste.txt
+    // ✅ FIXED: Submit functionality with proper plot_id handling
+const handleSubmit = async () => {
+    try {
+        setSubmitting(true);
+        setSubmitError('');
 
-            // Validate that we have at least keyplot data
-            const keyplotData = keyplotsData.find(kp => kp.label === 'K');
-            if (!keyplotData || keyplotData.rows.length === 0) {
-                throw new Error('Keyplot data is required.');
-            }
+        // Get user info using existing authservice methods
+        const userId = authservice.userid();
+        const token = authservice.gettoken();
 
-            // Validate all rows have required data
-            for (const keyplot of keyplotsData) {
-                for (const row of keyplot.rows) {
-                    if (!row.villageName || !row.block || !row.svNo || !row.sub || !row.area || !row.enumeratedArea) {
-                        throw new Error(`Incomplete data in ${keyplot.label} plot. All fields are required.`);
-                    }
-                    if (!row.plot_id) {
-                        throw new Error(`Plot ID is missing for ${keyplot.label}. Please ensure all plots are properly linked.`);
-                    }
+        console.log('Debug - User ID:', userId);
+        console.log('Debug - Token exists:', !!token);
+        console.log('Debug - Keyplot ID:', keyplotId);
+
+        if (!userId) {
+            throw new Error('User information not found. Please login again.');
+        }
+
+        if (!token) {
+            throw new Error('Authentication token not found. Please login again.');
+        }
+
+        // Validate that we have at least keyplot data
+        const keyplotData = keyplotsData.find(kp => kp.label === 'K');
+        if (!keyplotData || keyplotData.rows.length === 0) {
+            throw new Error('Keyplot data is required.');
+        }
+
+        // ✅ UPDATED: Modified validation to handle missing plot_id for new rows
+        for (const keyplot of keyplotsData) {
+            for (const row of keyplot.rows) {
+                if (!row.villageName || !row.block || !row.svNo || !row.sub || !row.area || !row.enumeratedArea) {
+                    throw new Error(`Incomplete data in ${keyplot.label} plot. All fields are required.`);
+                }
+                // ✅ FIXED: Only validate plot_id for existing rows, not new ones
+                if (!row.isNew && !row.plot_id) {
+                    throw new Error(`Plot ID is missing for existing ${keyplot.label} plot. Please ensure all plots are properly linked.`);
                 }
             }
-
-            // Prepare request data according to backend DTO structure
-            const requestData = {
-                userId: userId,
-                keyplotId: keyplotId,
-                clusterNo: parseInt(clusterInfo.clusterNo) || 1,
-                sidePlots: keyplotsData
-                    .filter(keyplot => keyplot.rows.length > 0) // Only include keyplots with rows
-                    .map(keyplot => ({
-                        label: keyplot.label,
-                        rows: keyplot.rows.map(row => ({
-                            id: row.b_id || null, // For existing rows
-                            plot_id: parseInt(row.plot_id),
-                            actual: parseFloat(row.enumeratedArea),
-                            svNo: parseInt(row.svNo),
-                            subNo: row.sub,
-                            area: parseFloat(row.area),
-                            bcode: row.block,
-                            village: row.villageName
-                        }))
-                    }))
-            };
-
-            console.log('Submitting cluster data:', requestData);
-
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BASE_URL}/btr-service/cluster-api/save`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(requestData)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-            }
-
-            const result = await response.json();
-            console.log('Cluster saved successfully:', result);
-            
-            setSubmitSuccess(true);
-            setSnackbarMessage('Cluster data saved successfully!');
-            setSnackbarOpen(true);
-
-            // Optionally redirect or refresh data after successful save
-            // window.location.href = '/clusters'; // Uncomment if you want to redirect
-
-        } catch (error) {
-            console.error('Error submitting cluster data:', error);
-            setSubmitError(error.message);
-            setSnackbarMessage(`Error: ${error.message}`);
-            setSnackbarOpen(true);
-        } finally {
-            setSubmitting(false);
         }
+
+        // ✅ PREPARE: Request data with better validation and plot_id handling
+        const requestData = {
+            userId: userId,
+            keyplotId: keyplotId,
+            clusterNo: parseInt(clusterInfo.clusterNo) || 1,
+            sidePlots: keyplotsData
+                .filter(keyplot => keyplot.rows.length > 0) // Only include keyplots with rows
+                .map(keyplot => ({
+                    label: keyplot.label,
+                    rows: keyplot.rows.map(row => {
+                        // Ensure all numeric fields are properly converted
+                        const svNo = parseInt(row.svNo);
+                        const actual = parseFloat(row.enumeratedArea);
+                        const area = parseFloat(row.area);
+
+                        // Validate numeric conversions
+                        if (isNaN(svNo)) {
+                            throw new Error(`Invalid svNo for ${keyplot.label}: ${row.svNo}`);
+                        }
+                        if (isNaN(actual)) {
+                            throw new Error(`Invalid actual area for ${keyplot.label}: ${row.enumeratedArea}`);
+                        }
+                        if (isNaN(area)) {
+                            throw new Error(`Invalid area for ${keyplot.label}: ${row.area}`);
+                        }
+
+                        const rowData = {
+                            // Only include id for existing rows (when b_id exists)
+                            ...(row.b_id ? { id: row.b_id } : {}),
+                            actual: actual,
+                            svNo: svNo,
+                            subNo: row.sub, // Keep as string
+                            area: area,
+                            bcode: isNaN(parseInt(row.block)) ? row.block : parseInt(row.block),
+                            village: row.villageName
+                        };
+
+                        // ✅ FIXED: Handle plot_id for both existing and new rows
+                        if (row.plot_id && row.plot_id !== '') {
+                            // If plot_id exists, use it
+                            rowData.plot_id = parseInt(row.plot_id);
+                            
+                            if (isNaN(rowData.plot_id)) {
+                                throw new Error(`Invalid plot_id for ${keyplot.label}: ${row.plot_id}`);
+                            }
+                        } else if (row.isNew) {
+                            // For new rows without plot_id, you can either:
+                            // Option 1: Generate a temporary ID or use a default
+                            rowData.plot_id = 0; // Use 0 to indicate new plot
+                            
+                            // Option 2: Omit plot_id entirely for new rows
+                            // Don't include plot_id field at all
+                            // delete rowData.plot_id;
+                        }
+
+                        return rowData;
+                    })
+                }))
+        };
+
+        console.log('✅ Final request data being sent:', JSON.stringify(requestData, null, 2));
+
+        // ✅ ENHANCED: API call with better error handling
+        const response = await fetch(`${BASE_URL}/btr-service/cluster-api/save-cluster`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(requestData)
+        });
+
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+
+        // ✅ ENHANCED: Better error handling
+        if (!response.ok) {
+            let errorMessage = `HTTP error! status: ${response.status}`;
+            
+            try {
+                const errorText = await response.text();
+                console.log('Raw error response:', errorText);
+                
+                // Try to parse as JSON
+                try {
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.message || errorData.error || errorMessage;
+                    console.log('Parsed error data:', errorData);
+                } catch (jsonError) {
+                    // If not JSON, use the raw text
+                    errorMessage = errorText || errorMessage;
+                }
+            } catch (textError) {
+                console.log('Could not read error response:', textError);
+            }
+            
+            throw new Error(errorMessage);
+        }
+
+        const result = await response.json();
+        console.log('✅ Cluster saved successfully:', result);
+
+        setSubmitSuccess(true);
+        setSnackbarMessage('Cluster data saved successfully!');
+        setSnackbarOpen(true);
+
+        // Optionally redirect or refresh data after successful save
+        // window.location.href = '/clusters'; // Uncomment if you want to redirect
+
+    } catch (error) {
+        console.error('❌ Error submitting cluster data:', error);
+        setSubmitError(error.message);
+        setSnackbarMessage(`Error: ${error.message}`);
+        setSnackbarOpen(true);
+    } finally {
+        setSubmitting(false);
+    }
+};
+
+
+
+    // ✅ UPDATED: Handle opening crops modal
+    const handleOpenCropsModal = () => {
+        // Pre-populate selectedCrops based on savedCrops
+        const preSelected = {};
+        savedCrops.forEach(crop => {
+            if (crop.cropId) {
+                preSelected[crop.cropId] = true;
+            }
+        });
+        setSelectedCrops(preSelected);
+        setCropsModalOpen(true);
     };
 
-    const handleOpenCropsModal = () => setCropsModalOpen(true);
-    const handleCloseCropsModal = () => handleCropsModalSave();
+    // ✅ UPDATED: Handle closing crops modal and saving selected crops
+    const handleCloseCropsModal = () => {
+    const selectedCropIds = Object.keys(selectedCrops).filter(cropId => selectedCrops[cropId]);
+    const cropsToSave = selectedCropIds.map(cropId => {
+        const cropDetail = cceCropDetails.find(crop => crop.cropId === parseInt(cropId));
+        return {
+            cropId: parseInt(cropId),
+            cropName: cropDetail ? cropDetail.cropName : `Crop ${cropId}`,
+            noOfCce: cropDetail ? cropDetail.noOfCce : 0,
+            isActive: cropDetail ? cropDetail.isActive : false
+        };
+    });
+    
+    setSavedCrops(cropsToSave);
+    console.log("Saved crops:", cropsToSave);
+    setCropsModalOpen(false);
+};
 
     const handleCropsModalSave = () => {
         const cropsToSave = Object.keys(selectedCrops).filter(crop => selectedCrops[crop]);
@@ -409,8 +544,13 @@ const ClusterFormUI = () => {
         setCropsModalOpen(false);
     };
 
+    // ✅ UPDATED: Handle crop selection with crop ID
     const handleCropSelectionChange = (event) => {
-        setSelectedCrops({ ...selectedCrops, [event.target.name]: event.target.checked });
+        const cropId = parseInt(event.target.name);
+        setSelectedCrops({
+            ...selectedCrops,
+            [cropId]: event.target.checked
+        });
     };
 
     const validateAndSetData = (data) => {
@@ -587,7 +727,7 @@ const ClusterFormUI = () => {
 
     const hasAnyError = Object.values(errors).some(error => error !== null && error !== '');
 
-    // ✅ NEW: Validation for submit button
+    // ✅ Validation for submit button
     const isSubmitDisabled = () => {
         if (hasAnyError || submitting) return true;
         
@@ -623,7 +763,7 @@ const ClusterFormUI = () => {
 
     return (
         <Container maxWidth="xl" sx={{ mt: 4, bgcolor: '#f4f4f9', p: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-            {/* Floating Summary Bar */}
+            {/* Floating Summary Bar - ORIGINAL UI PRESERVED */}
             <Box sx={{ position: 'fixed', top: '15%', right: 0, zIndex: 1000, borderRadius: '1rem 0 0 1rem', backgroundColor: 'rgba(212, 228, 231, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
                 <Typography variant="subtitle1" fontWeight="bold">Cluster: {clusterInfo.clusterNo} | {clusterInfo.localBody}</Typography>
                 <Box sx={{ width: '100%', mt: 1 }}>
@@ -653,7 +793,7 @@ const ClusterFormUI = () => {
             <Typography variant="h4" align="center" gutterBottom color="primary">Cluster Land Form</Typography>
 
             <Box sx={{ maxWidth: '1400px', mx: 'auto' }}>
-                {/* Cluster Info Section */}
+                {/* Cluster Info Section - ORIGINAL UI PRESERVED */}
                 <Box sx={{ bgcolor: '#3066c2', color: 'white', p: 1, borderRadius: 1, mb: 2, fontWeight: 'bold', textAlign: 'center' }}>Cluster Info</Box>
                 <Grid container spacing={2} mb={2} alignItems="flex-start">
                     <Grid item xs={12} sm={6} md={3}><TextField label="Cluster No." value={clusterInfo.clusterNo} InputProps={{ readOnly: true }} fullWidth /></Grid>
@@ -661,7 +801,7 @@ const ClusterFormUI = () => {
                     <Grid item xs={12} sm={6} md={3}><TextField label="Land Type" value={clusterInfo.landType} InputProps={{ readOnly: true }} fullWidth /></Grid>
                 </Grid>
 
-                {/* CCE Crops Section */}
+                {/* CCE Crops Section - ORIGINAL UI PRESERVED */}
                 {savedCrops.length > 0 && (
                     <Paper elevation={2} sx={{ mt: 3, mb: 3, overflow: 'hidden', borderRadius: 1, border: '1px solid #ccc' }}>
                         <Box sx={{ bgcolor: '#3066c2', color: 'white', p: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
@@ -670,9 +810,17 @@ const ClusterFormUI = () => {
                         </Box>
                         <Box sx={{ p: 2 }}>
                             <Grid container spacing={1}>
-                                {savedCrops.map(crop => (
-                                    <Grid item key={crop}>
-                                        <Chip label={crop} color="primary" />
+                                {savedCrops.map((crop) => (
+                                    <Grid item key={crop.cropId || crop}>
+                                        <Chip 
+                                            label={
+                                                typeof crop === 'object' 
+                                                    ? `${crop.cropName} (${crop.noOfCce} CCE)` 
+                                                    : crop
+                                            }
+                                            color="primary"
+                                            sx={{ mb: 1 }}
+                                        />
                                     </Grid>
                                 ))}
                             </Grid>
@@ -689,7 +837,7 @@ const ClusterFormUI = () => {
                     </Grid>
                 </Box>
 
-                {/* Keyplot Sections */}
+                {/* Keyplot Sections - ORIGINAL UI PRESERVED */}
                 {keyplotsData.map((keyplot) => {
                     const isNewRowIncomplete = keyplot.rows.filter(r => r.isNew).some(r => !r.villageName || !r.block || !r.svNo || !r.sub || !r.area || !r.enumeratedArea);
                     const hasErrorInKeyplot = keyplot.rows.some(r => !!errors[`${keyplot.id}-${r.uniqueId}`]);
@@ -836,7 +984,7 @@ const ClusterFormUI = () => {
                     );
                 })}
 
-                {/* ✅ NEW: Main Submit Button */}
+                {/* ✅ Main Submit Button - ORIGINAL UI PRESERVED */}
                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2 }}>
                     <Button 
                         variant="contained" 
@@ -851,7 +999,7 @@ const ClusterFormUI = () => {
                     </Button>
                 </Box>
                 
-                {/* ✅ NEW: Submit Error Display */}
+                {/* ✅ Submit Error Display - ORIGINAL UI PRESERVED */}
                 {submitError && (
                     <Box sx={{ mt: 2, p: 2, bgcolor: 'error.light', borderRadius: 1, color: 'error.contrastText' }}>
                         <Typography variant="body2">
@@ -861,24 +1009,108 @@ const ClusterFormUI = () => {
                 )}
             </Box>
 
-            {/* CCE Crops Modal */}
-            <Dialog open={isCropsModalOpen} onClose={() => setCropsModalOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>Select CCE Crops</DialogTitle>
-                <DialogContent>
-                    <DialogContentText>Please select the crops for Crop Cutting Experiment (CCE).</DialogContentText>
-                    <Grid container spacing={1} sx={{ mt: 2 }}>
-                        {cropOptions.map((crop) => (
-                            <Grid item xs={6} sm={4} key={crop}><FormControlLabel control={<Checkbox checked={selectedCrops[crop] || false} onChange={handleCropSelectionChange} name={crop} />} label={crop} /></Grid>
-                        ))}
+            {/* CCE Crops Modal - ORIGINAL UI PRESERVED */}
+            {/* ✅ UPDATED: CCE Crops Modal with API integration */}
+            {/* ✅ CCE Crops Modal - FIXED */}
+        <Dialog open={isCropsModalOpen} onClose={() => setCropsModalOpen(false)} maxWidth="md" fullWidth>
+            <DialogTitle>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <GrassIcon />
+                    <Typography variant="h6">Select CCE Crops</Typography>
+                </Box>
+            </DialogTitle>
+            <DialogContent>
+                <DialogContentText sx={{ mb: 2 }}>
+                    Please select the crops for Crop Cutting Experiment (CCE). Only active crops are available for selection.
+                </DialogContentText>
+                
+                {loadingCrops ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                        <CircularProgress />
+                    </Box>
+                ) : (
+                    <Grid container spacing={2} sx={{ mt: 1 }}>
+                        {cceCropDetails
+                            .filter(crop => crop.isActive)
+                            .map((crop) => (
+                                <Grid item xs={12} sm={6} md={4} key={crop.cceId}>
+                                    <FormControlLabel
+                                        control={
+                                            <Checkbox
+                                                checked={selectedCrops[crop.cropId] || false}
+                                                onChange={handleCropSelectionChange}
+                                                name={crop.cropId.toString()}
+                                                color="primary"
+                                            />
+                                        }
+                                        label={
+                                            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                                    {crop.cropName}
+                                                </Typography>
+                                                <Typography variant="caption" color="textSecondary">
+                                                    ({crop.noOfCce} CCE) • {crop.cceCropType}
+                                                    {crop.frameMeasure && ` • ${crop.frameMeasure} ${crop.frameUnitName}`}
+                                                </Typography>
+                                            </Box>
+                                        }
+                                        sx={{ 
+                                            width: '100%', 
+                                            m: 0,
+                                            p: 1,
+                                            border: '1px solid #e0e0e0',
+                                            borderRadius: 1,
+                                            '&:hover': {
+                                                backgroundColor: '#f5f5f5'
+                                            }
+                                        }}
+                                    />
+                                </Grid>
+                            ))
+                        }
                     </Grid>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setCropsModalOpen(false)} color="primary">Cancel</Button>
-                    <Button onClick={handleCloseCropsModal} variant="contained" color="primary">Save</Button>
-                </DialogActions>
-            </Dialog>
+                )}
+                
+                {/* Show inactive crops section */}
+                {cceCropDetails.filter(crop => !crop.isActive).length > 0 && (
+                    <Box sx={{ mt: 3 }}>
+                        <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                            Inactive Crops (Not Available for Selection)
+                        </Typography>
+                        <Grid container spacing={1}>
+                            {cceCropDetails
+                                .filter(crop => !crop.isActive)
+                                .map((crop) => (
+                                    <Grid item key={crop.cceId}>
+                                        <Chip 
+                                            label={crop.cropName}
+                                            size="small"
+                                            disabled
+                                            sx={{ opacity: 0.6 }}
+                                        />
+                                    </Grid>
+                                ))
+                            }
+                        </Grid>
+                    </Box>
+                )}
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={() => setCropsModalOpen(false)} color="primary">
+                    Cancel
+                </Button>
+                <Button 
+                    onClick={handleCloseCropsModal} 
+                    variant="contained" 
+                    color="primary"
+                    disabled={loadingCrops}
+                >
+                    Save Selection
+                </Button>
+            </DialogActions>
+        </Dialog>
 
-            {/* ✅ NEW: Success/Error Snackbar */}
+            {/* ✅ Success/Error Snackbar - ORIGINAL UI PRESERVED */}
             <Snackbar
                 open={snackbarOpen}
                 autoHideDuration={6000}
