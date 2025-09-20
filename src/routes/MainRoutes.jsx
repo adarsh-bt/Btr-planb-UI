@@ -21,6 +21,7 @@ const RoleDesignation = Loadable(lazy(() => import('pages/usermanage/RoleDesigna
 
 // const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_list')));
 const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_menus')));
+const BtrListing = Loadable(lazy(() => import('pages/functional-components/earas/BtrListing')));
 const Zone_Details = Loadable(lazy(() => import('pages/functional-components/earas/zone_details')));
 const BTR = Loadable(lazy(() => import('pages/functional-components/earas/Btr')));
 const ClusterForm = Loadable(lazy(() => import('pages/functional-components/earas/cluster_form')));
@@ -129,6 +130,14 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <Earas />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/btr_list',
+      element: (
+        <PrivateRoute>
+          <BtrListing />
         </PrivateRoute>
       )
     },

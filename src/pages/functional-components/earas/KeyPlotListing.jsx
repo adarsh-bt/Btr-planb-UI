@@ -744,7 +744,7 @@ const KeyPlotListing = () => {
     py: 1.5
   }}>
     <Typography variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
-      Key Plot Details
+      KeyPlot Details
     </Typography>
     <IconButton 
       onClick={handleClosePlotDetailsModal} 
