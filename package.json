@@ -18,6 +18,9 @@
     "prettier": "prettier --write \"src/**/*.{js,jsx,ts,tsx}\""
   },
   "dependencies": {
+    "react-csv": "^2.2.2",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.6.0",
     "@ant-design/colors": "^7.0.2",
     "@ant-design/icons": "^5.3.1",
     "@emotion/cache": "^11.11.0",
@@ -41,6 +44,8 @@
     "crypto-js": "^4.2.0",
     "formik": "^2.4.5",
     "framer-motion": "^11.0.8",
+    "jspdf": "^3.0.3",
+    "jspdf-autotable": "^5.0.2",
     "jwt-decode": "^4.0.0",
     "lodash": "^4.17.21",
     "lucide-react": "^0.475.0",
@@ -49,6 +54,7 @@
     "react": "^18.2.0",
     "react-apexcharts": "^1.4.1",
     "react-copy-to-clipboard": "^5.1.0",
+    "react-csv": "^2.2.2",
     "react-data-table-component": "^7.6.2",
     "react-device-detect": "^2.2.3",
     "react-dom": "^18.2.0",

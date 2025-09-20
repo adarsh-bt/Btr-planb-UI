@@ -207,6 +207,7 @@ static async logout(navigate) {
       return zoneId;
     } catch (error) {
       console.error('Error decoding token:', error);
+      
     }
   }
 

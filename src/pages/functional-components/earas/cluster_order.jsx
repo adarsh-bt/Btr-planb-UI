@@ -28,48 +28,40 @@ function ClusterSeatMap({zoneId}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-    const [resolvedZoneId, setResolvedZoneId] = useState(() => {
-    const role = authservice.getrole(); // Get the role
-    return role === 'Field Data Collector'
-      ? authservice.getzone()  // For Field Data Collector
-      : zoneId;                         // For Admin or other roles
-  });
+  const BASE_URL = mainapi.BTR_API;
   
-   const BASE_URL = mainapi.BTR_API;
+    useEffect(() => {
+  const token = localStorage.getItem('token');
+  const zoneId = authservice.getrole() === 'Field Data Collector' 
+    ? authservice.getzone() 
+    : '3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924';
+    
+  setLoading(true);
+  axios.get(`${BASE_URL}/btr-service/cluster-api/user-cluster-summary/${zoneId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  })
+  .then(res => {
+    setClusters(res.data.payload || []);
+    setSummary({
+      completed: res.data.completed || 0,
+      ongoing: res.data.ongoing || 0,
+      notStarted: res.data.notStarted || 0,
+      underreview: res.data.underreview || 0,
+    });
+    setLoading(false);
+    setError(null);
+  })
+  .catch(err => {
+    console.error('Failed to fetch data:', err);
+    setClusters([]);
+    setSummary({ completed: 0, ongoing: 0, notStarted: 0, underreview: 0 });
+    setError('Failed to load cluster data. Please try again later.');
+    setLoading(false);
+  });
+}, []);
 
-  useEffect(() => {
-      const token = localStorage.getItem('token');
-       setLoading(true);
-    // axios.get(`${BASE_URL}/btr-service/cluster-api/user-cluster-summary/${resolvedZoneId}`,
-    axios.get(`${BASE_URL}/btr-service/cluster-api/user-cluster-summary/${758}`,
-              {
-              headers: {
-                  'Authorization': `Bearer ${token}` // Add token in Authorization header
-              }
-                })
-      .then(res => {
-        // Sets the clusters data from the payload
-        setClusters(res.data.payload || []);
-        console.log("cluster data  ",res.data.payload)
-        // Updates the summary counts
-        setSummary({
-          completed: res.data.completed || 0,
-          ongoing: res.data.ongoing || 0,
-          notStarted: res.data.notStarted || 0,
-          underreview: res.data.underreview || 0,
-        });
-        setLoading(false);
-          setError(null);
-      })
-      .catch(err => {
-        // Logs an error if data fetching fails and resets state
-        console.error('Failed to fetch data:', err);
-         setClusters([]);
-  setSummary({ completed: 0, ongoing: 0, notStarted: 0, underreview: 0 });
-  setError('Failed to load cluster data. Please try again later.');
-  setLoading(false);
-      });
-  }, []); // Empty dependency array ensures this runs only once on mount
 
   // Determines the border color of the card based on cluster status
   const getStatusBorderColor = (status) => {
@@ -260,14 +252,16 @@ const handleClusterClick = (syNo, slNo) => {
                   title={ // Tooltip content to show detailed cluster information on hover
                     <Box>
                       <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.8rem' }}>
-                        Local Body: <strong style={{ color: 'white' }}>{cluster.localbody}</strong>
+                        Local Body: <strong style={{ color: 'white' }}>{cluster.localbody || 'N/A'}</strong>
                       </Typography>
-                     <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.8rem' }}>
+                      <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.8rem' }}>
+                        Type: <strong style={{ color: 'white' }}>{(cluster.clusterType || 'Unknown').toUpperCase()}</strong>
+                      </Typography>
+                      <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.8rem' }}>
                         Crops: <strong style={{ color: 'white' }}>{cluster.cceCrops?.join(', ') || 'N/A'}</strong>
                       </Typography>
-
                       <Typography variant="caption" sx={{ display: 'block', fontSize: '0.8rem' }}>
-                        Status: <strong style={{ color: 'white' }}>{cluster.status}</strong>
+                        Status: <strong style={{ color: 'white' }}>{cluster.status || 'Unknown'}</strong>
                       </Typography>
                     </Box>
                   }
@@ -311,7 +305,7 @@ const handleClusterClick = (syNo, slNo) => {
                           lineHeight: 1,
                         }}
                       >
-                        {cluster.clusterNo} {/* Display cluster number (1-indexed) */}
+                        {index + 1} {/* Display cluster number (1-indexed) */}
                       </Typography>
                       <Typography
                         variant="caption"

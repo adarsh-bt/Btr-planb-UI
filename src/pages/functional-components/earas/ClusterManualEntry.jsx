@@ -34,7 +34,8 @@ import mainapi from 'api/mainapi';
 import Autocomplete from '@mui/material/Autocomplete';
 import authservice from 'pages/authentication/services/authservice';
 
-const BASE_URL = mainapi.FORM_API;
+const BASE_URL = mainapi.BASE_URL;
+const FORM_URL = mainapi.FORM_API;
 
 // --- Constant for Side Plot Dropdown ---
 const SIDE_PLOT_OPTIONS = ['N1', 'E1', 'S1', 'W1', 'N2', 'E2', 'S2', 'W2'];
@@ -123,7 +124,7 @@ const ClusterFormUI = () => {
         setLoadingCrops(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-crops`, {
+            const response = await fetch(`${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-crops`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }

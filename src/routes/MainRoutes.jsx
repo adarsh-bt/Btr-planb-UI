@@ -25,6 +25,7 @@ const Zone_Details = Loadable(lazy(() => import('pages/functional-components/ear
 const BTR = Loadable(lazy(() => import('pages/functional-components/earas/Btr')));
 const ClusterForm = Loadable(lazy(() => import('pages/functional-components/earas/cluster_form')));
 const Keyplots = Loadable(lazy(() => import('pages/functional-components/earas/keyplots')));
+const KeyplotListing = Loadable(lazy(() => import('pages/functional-components/earas/keyplotListing')));
 const KeyPlotEntry = Loadable(lazy(() => import('pages/functional-components/earas/KeyPlotEntry')));
 const KeyPlotEntryNonBtr = Loadable(lazy(() => import('pages/functional-components/earas/KeyPlotEntryNonBtr')));
 
@@ -214,6 +215,14 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <Keyplots />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Key_plot_Listing',
+      element: (
+        <PrivateRoute>
+          <KeyplotListing />
         </PrivateRoute>
       )
     },
