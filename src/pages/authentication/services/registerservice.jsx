@@ -19,6 +19,7 @@ const RegisterService = {
   async getTaluks(districtId) {
     try {
       const response = await axios.get(`${this.USER_URL}/user-access/api/districts/${districtId}/taluks`);
+      alert("success",response.data);
       return response.data;
     } catch (err) {
       return {

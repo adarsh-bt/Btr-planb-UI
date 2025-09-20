@@ -583,8 +583,8 @@ return (
             { label: "Email", value: selectedRow.email },
             { label: "Phone Number", value: selectedRow.mobileNumber },
             { label: "Date of Joining", value: selectedRow.dateOfJoining },
-            { label: "Pen", value: selectedRow.penNumber },
-            { label: "Office", value: selectedRow.officeType }
+            { label: "Emp ID", value: selectedRow.empNumber },
+            { label: "Office", value: selectedRow.officelocation}
           ].map((field, index) => (
             <Box
               key={index}

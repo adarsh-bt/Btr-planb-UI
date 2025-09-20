@@ -11,7 +11,7 @@ const profileService = {
     // const userId1 = "05041486-30f1-4620-ae6a-998c40881981"
     console.log(userId);
     try {
-      const response = await axios.get(`${USER_URL}/user-access/api/user-registration/user/fetch-by-id/${userId}`, {
+      const response = await axios.get(`${USER_URL}/user-access/user-profile/user/fetch-by-id/${userId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       console.log("response usersss",response)

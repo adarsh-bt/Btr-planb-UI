@@ -163,7 +163,7 @@ const[zoneVisble, setzoneVisble] = useState(false);
         updatedPairs[index].roleId = '';
         if (!rolesMap[value]) {
           try {
-            console.log("office type ",selectedRow.officeType)
+           
             // Fetch roles and zones in parallel
             const [rolesResponse, zonesResponse] = await Promise.all([
               approvalservice.allrolesBySchems(value),
@@ -480,8 +480,8 @@ useEffect(() => {
         setUserList(response.payload.directorateUsers); 
         setUserListDis(response.payload.districtUsers);
         setUserList2(response.payload.talukUsers);
-        // console.log("director IT ",response.payload.directorateUsers)
-        // console.log("distict IT ",response.payload.districtUsers)
+        console.log("director IT ",response.payload.directorateUsers)
+        console.log("distict IT ",response.payload.districtUsers)
       }
       else if(admrole === "District Level Approver"){
         // console.log("disttict admin set")
@@ -812,8 +812,8 @@ return (
             { label: "Email", value: selectedRow.email },
             { label: "Phone Number", value: selectedRow.mobileNumber },
             { label: "Date of Joining", value: selectedRow.dateOfJoining },
-            { label: "Pen", value: selectedRow.penNumber },
-            { label: "Office",value: selectedRow.officeType }
+            { label: "Emp ID", value: selectedRow.empNumber },
+            { label: "Office",value: selectedRow.officelocation } 
           ].map((field, index) => (
             <Box
               key={index}

@@ -179,7 +179,7 @@ class approvalservice {
   static async allroles() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${approvalservice.USER_URL}/user-access/api/fetch/roles`, {
+      const response = await axios.get(`${approvalservice.USER_URL}/user-access/api/user-approval/fetch/roles`, {
         headers: {
           Authorization: `Bearer ${token}` // Ensure token is included
         }
@@ -197,7 +197,7 @@ class approvalservice {
     try {
       const token = localStorage.getItem('token');
     
-      const response = await axios.get(`${approvalservice.USER_URL}/user-access/api/fetch/schemes`, {
+      const response = await axios.get(`${approvalservice.USER_URL}/user-access/api/user-approval/fetch/schemes`, {
         headers: {
           Authorization: `Bearer ${token}` // Ensure token is included
         }
@@ -213,7 +213,7 @@ class approvalservice {
   static async allrolesBySchems(schemeId) {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${approvalservice.USER_URL}/user-access/api/fetch/schemes/${schemeId}/roles`, {
+      const response = await axios.get(`${approvalservice.USER_URL}/user-access/api/user-approval/fetch/schemes/${schemeId}/roles`, {
         headers: {
           Authorization: `Bearer ${token}` // Ensure token is included
         }
