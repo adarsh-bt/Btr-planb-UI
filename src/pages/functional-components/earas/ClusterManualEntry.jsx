@@ -420,7 +420,7 @@ const handleSubmit = async () => {
                             subNo: row.sub, // Keep as string
                             area: area,
                             bcode: isNaN(parseInt(row.block)) ? row.block : parseInt(row.block),
-                            village: row.villageName
+                            village: row.villageId
                         };
 
                         // ✅ FIXED: Handle plot_id for both existing and new rows
@@ -601,7 +601,7 @@ const handleSubmit = async () => {
         const row = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
 
         const selectedVillage = allVillageData.find(v => v.villageId === newVillageId);
-        
+        alert(newVillageId)
         if (selectedVillage) {
             row.villageName = selectedVillage.village;
             row.villageId = newVillageId;

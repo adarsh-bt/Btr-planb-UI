@@ -22,10 +22,12 @@ const columns = (handleView, page, size) => [
   {
     name: 'SL. NO',
     selector: (row, index) => (page - 1) * size + index + 1,
+    width: '80px',
   },
   { 
     name: 'Local Body Name', 
-    selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> 
+    selector: (row) => row.localBodyName?.toString() || <span style={{ color: '#888' }}>NA</span>,
+    sortable: true,
   },
   {
     name: 'Village',
@@ -34,32 +36,38 @@ const columns = (handleView, page, size) => [
       return name
         ? name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()
         : <span style={{ color: '#888' }}>NA</span>;
-    }
+    },
+    sortable: true,
   },
   { 
     name: 'Block No.', 
-    selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span> 
+    selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span>,
+    width: '100px',
   },
   {
     name: 'Re-Survey No',
     selector: (row) =>
       row.resvno && row.resbdno ? (
-        `${row.resvno} / ${row.resbdno}`
+        `${row.resvno}/${row.resbdno}`
       ) : row.resvno ? (
-        `${row.resvno} / NA`
+        `${row.resvno}/NA`
       ) : row.resbdno ? (
-        `NA / ${row.resbdno}`
+        `NA/${row.resbdno}`
       ) : (
         <span style={{ color: '#888' }}>NA</span>
-      )
+      ),
+    width: '130px',
   },
   { 
     name: 'Land Type', 
-    selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span> 
+    selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span>,
+    width: '100px',
   },
   { 
-    name: 'Total Area(in Cents)', 
-    selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span> 
+    name: 'Total Area (in Cents)', 
+    selector: (row) => row.totCent ? row.totCent.toLocaleString() : <span style={{ color: '#888' }}>NA</span>,
+    sortable: true,
+    width: '150px',
   },
   {
     name: 'View Detail',
@@ -68,10 +76,8 @@ const columns = (handleView, page, size) => [
         <VisibilityIcon />
       </Button>
     ),
-    style: {
-      padding: '0px',
-      textAlign: 'center',
-    },
+    width: '120px',
+    center: true,
   },
 ];
 
@@ -81,6 +87,7 @@ const Btr = () => {
   const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
   const [data, setData] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
   const [page, setPage] = useState(1);
   const [size, setSize] = useState(10);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -89,78 +96,195 @@ const Btr = () => {
   const [totalDryArea, setTotalDryArea] = useState(0);
   const [downloading, setDownloading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
 
-  // TODO: Replace with your own API service
+  // Fetch data from your API
   const fetchData = async () => {
     setLoading(true);
     
     try {
-      // Replace this with your own API call
-      const response = await fetch(`/api/your-endpoint?page=${page-1}&size=${size}&search=${filterText}`);
+      const response = await fetch('http://localhost:8082/btr-service/api/fetch-btr/zone/758/data', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          // Add authorization header if needed
+          // 'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const result = await response.json();
       
-      if (result?.data) {
-        const indexedData = result.data.map((item, index) => ({
-          ...item,
-          indexOffset: (page - 1) * size,
-        }));
-        setData(indexedData);
-        setTotalRecords(result.totalCount || 0);
-        setTotalWetArea(result.totalWetArea || 0);
-        setTotalDryArea(result.totalDryArea || 0);
-        setTotalArea(result.totalArea || 0);
+      if (Array.isArray(result)) {
+        setData(result);
+        setFilteredData(result);
+        setTotalRecords(result.length);
+        
+        // Calculate totals
+        const totals = result.reduce(
+          (acc, item) => {
+            const area = parseFloat(item.totCent) || 0;
+            acc.totalArea += area;
+            
+            if (item.ltype === 'WET') {
+              acc.totalWetArea += area;
+            } else if (item.ltype === 'DRY') {
+              acc.totalDryArea += area;
+            }
+            
+            return acc;
+          },
+          { totalArea: 0, totalWetArea: 0, totalDryArea: 0 }
+        );
+        
+        setTotalArea(totals.totalArea);
+        setTotalWetArea(totals.totalWetArea);
+        setTotalDryArea(totals.totalDryArea);
       } else {
         setData([]);
+        setFilteredData([]);
         setTotalRecords(0);
+        setTotalArea(0);
+        setTotalWetArea(0);
+        setTotalDryArea(0);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
       setData([]);
+      setFilteredData([]);
       setTotalRecords(0);
+      setTotalArea(0);
+      setTotalWetArea(0);
+      setTotalDryArea(0);
     } finally {
       setLoading(false);
     }
   };
 
-  // TODO: Replace with your own download service
+  // CSV Download functionality
   const handleDownloadExcel = async () => {
     setDownloading(true);
     
     try {
-      const response = await fetch('/api/your-download-endpoint', {
-        headers: {
-          'Authorization': `Bearer YOUR_TOKEN_HERE`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to download file');
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      // Create CSV headers
+      const headers = [
+        'ID',
+        'Local Body Name',
+        'Village Name',
+        'Block Code',
+        'Re-Survey No',
+        'Land Type',
+        'Total Area (Cents)',
+        'District Code',
+        'Taluk Code',
+        'Village Code',
+        'LSG Code',
+        'Zone ID'
+      ];
+      
+      // Convert data to CSV format
+      const csvData = filteredData.map(row => [
+        row.id || '',
+        row.localBodyName || '',
+        row.villageName || '',
+        row.bcode || '',
+        row.resvno && row.resbdno ? `${row.resvno}/${row.resbdno}` : (row.resvno || row.resbdno || ''),
+        row.ltype || '',
+        row.totCent || '',
+        row.dcode || '',
+        row.tcode || '',
+        row.vcode || '',
+        row.lsgcode || '',
+        row.zoneId || ''
+      ]);
+      
+      // Create CSV string
+      const csvContent = [
+        headers.join(','),
+        ...csvData.map(row => 
+          row.map(cell => 
+            typeof cell === 'string' && cell.includes(',') 
+              ? `"${cell}"` 
+              : cell
+          ).join(',')
+        )
+      ].join('\n');
+      
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'btr_data.xlsx');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `btr_data_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
-      link.remove();
+      document.body.removeChild(link);
+      
     } catch (error) {
       console.error('Download error:', error);
-      alert('Download failed.');
+      alert('Download failed. Please try again.');
     } finally {
       setDownloading(false);
     }
   };
 
+  // Fetch individual record details
+  const fetchRecordDetails = async (id) => {
+    setDetailLoading(true);
+    try {
+      const response = await fetch(`http://localhost:8082/btr-service/api/fetch-btr/data/${id}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          // Add authorization header if needed
+          // 'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      setSelectedRow(result);
+    } catch (error) {
+      console.error("Error fetching record details:", error);
+      alert('Failed to load record details.');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
   // Event handlers
   const handleFilterChange = (event) => {
-    setFilterText(event.target.value);
+    const value = event.target.value.toLowerCase();
+    setFilterText(value);
     setPage(1);
+    
+    if (value === '') {
+      setFilteredData(data);
+      setTotalRecords(data.length);
+    } else {
+      const filtered = data.filter(item =>
+        (item.localBodyName || '').toLowerCase().includes(value) ||
+        (item.villageName || '').toLowerCase().includes(value) ||
+        (item.bcode || '').toLowerCase().includes(value) ||
+        (item.ltype || '').toLowerCase().includes(value) ||
+        (item.resvno || '').toString().toLowerCase().includes(value) ||
+        (item.resbdno || '').toString().toLowerCase().includes(value)
+      );
+      setFilteredData(filtered);
+      setTotalRecords(filtered.length);
+    }
   };
 
   const handleView = (row) => {
-    setSelectedRow(row);
+    // Fetch detailed information for the selected row
+    fetchRecordDetails(row.id);
     setOpenViewModal(true);
   };
 
@@ -179,70 +303,80 @@ const Btr = () => {
   };
 
   // Memoized columns
-  const columnDefs = useMemo(() => columns(handleView, page, size), [handleView, page, size]);
+  const columnDefs = useMemo(() => columns(handleView, page, size), [page, size]);
 
-  // Fetch data when dependencies change
+  // Paginated data
+  const paginatedData = useMemo(() => {
+    const startIndex = (page - 1) * size;
+    const endIndex = startIndex + size;
+    return filteredData.slice(startIndex, endIndex);
+  }, [filteredData, page, size]);
+
+  // Fetch data on component mount
   useEffect(() => {
     fetchData();
-  }, [page, size, filterText]);
+  }, []);
 
   return (
     <Grid container spacing={3}>
       <Grid item xs={12}>
-        <Paper elevation={3} style={{ marginBottom: '16px', padding: '10px' }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Paper elevation={3} style={{ marginBottom: '16px', padding: '16px' }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
             <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>
               Basic Tax Register
             </Typography>
             
-            <Typography variant="body1" component="p" sx={{ color: 'green' }}>
-              Total Wet : {totalWetArea} Cents
-            </Typography>
+            <Stack direction="row" spacing={3} alignItems="center">
+              <Typography variant="body1" component="p" sx={{ color: 'green', fontWeight: 'bold' }}>
+                Total Wet: {totalWetArea.toLocaleString()} Cents
+              </Typography>
+              
+              <Typography variant="body1" component="p" sx={{ color: 'red', fontWeight: 'bold' }}>
+                Total Dry: {totalDryArea.toLocaleString()} Cents
+              </Typography>
+              
+              <Typography variant="body1" component="p" sx={{ color: '#04255e', fontWeight: 'bold' }}>
+                Total Area: {totalArea.toLocaleString()} Cents
+              </Typography>
+            </Stack>
             
-            <Typography variant="body1" component="p" sx={{ color: 'red' }}>
-              Total Dry : {totalDryArea} Cents
-            </Typography>
-            
-            <Typography variant="body1" component="p" sx={{ color: '#04255e' }}>
-              Total Area : {totalArea} Cents
-            </Typography>
-
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleDownloadExcel}
-              disabled={downloading}
-              startIcon={
-                downloading ? <CircularProgress size={20} color="inherit" /> : <CloudDownloadIcon />
-              }
-              sx={{
-                backgroundColor: downloading ? '#1976d2' : undefined,
-                opacity: downloading ? 0.8 : 1,
-                pointerEvents: downloading ? 'none' : 'auto',
-                color: '#fff',
-                '&.Mui-disabled': {
-                  backgroundColor: '#1976d2',
-                  color: '#fff',
-                },
-              }}
-            >
-              {downloading ? 'Downloading...' : 'Download'}
-            </Button>
-
-            <TextField
-              label="Search"
-              variant="outlined"
-              value={filterText}
-              onChange={handleFilterChange}
-              size="small"
-              style={{ width: '200px' }}
-            />
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleDownloadExcel}
+                disabled={downloading || filteredData.length === 0}
+                startIcon={
+                  downloading ? <CircularProgress size={20} color="inherit" /> : <CloudDownloadIcon />
+                }
+                sx={{
+                  backgroundColor: downloading ? '#1976d2' : undefined,
+                  opacity: downloading ? 0.8 : 1,
+                  '&.Mui-disabled': {
+                    backgroundColor: '#ccc',
+                    color: '#666',
+                  },
+                }}
+              >
+                {downloading ? 'Downloading...' : 'Download CSV'}
+              </Button>
+              
+              <TextField
+                label="Search"
+                variant="outlined"
+                value={filterText}
+                onChange={handleFilterChange}
+                size="small"
+                style={{ width: '200px' }}
+                placeholder="Search records..."
+              />
+            </Stack>
           </Stack>
         </Paper>
 
         <DataTable
           columns={columnDefs}
-          data={data}
+          data={paginatedData}
           progressPending={loading}
           progressComponent={
             <div
@@ -258,14 +392,14 @@ const Btr = () => {
             </div>
           }
           pagination
-          paginationServer
+          paginationServer={false}
           paginationTotalRows={totalRecords}
           onChangeRowsPerPage={handleRowsPerPageChange}
           onChangePage={handlePageChange}
-          paginationPerPage={10}
+          paginationPerPage={size}
           paginationRowsPerPageOptions={[10, 25, 50, 100]}
           paginationComponentOptions={{
-            rowsPerPageText: 'Rows per page',
+            rowsPerPageText: 'Rows per page:',
             rangeSeparatorText: 'of',
           }}
           fixedHeader
@@ -282,8 +416,16 @@ const Btr = () => {
             },
             cells: {
               style: {
-                borderBottom: '1px solid white',
+                borderBottom: '1px solid #e0e0e0',
                 color: '#333',
+                fontSize: '.85rem',
+              },
+            },
+            rows: {
+              style: {
+                '&:hover': {
+                  backgroundColor: '#f5f5f5',
+                },
               },
             },
             pagination: {
@@ -294,6 +436,11 @@ const Btr = () => {
               },
             },
           }}
+          noDataComponent={
+            <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+              {filterText ? 'No records match your search criteria.' : 'No data available.'}
+            </div>
+          }
         />
 
         {/* View Modal */}
@@ -309,10 +456,17 @@ const Btr = () => {
               background: '#04255e'
             }}
           >
-            View BTR Details
+            BTR Record Details
           </DialogTitle>
           <DialogContent style={{ padding: '20px', backgroundColor: '#fafafa' }}>
-            {selectedRow && (
+            {detailLoading ? (
+              <div style={{ textAlign: 'center', padding: '20px' }}>
+                <CircularProgress />
+                <Typography variant="body1" style={{ marginTop: '10px' }}>
+                  Loading record details...
+                </Typography>
+              </div>
+            ) : selectedRow ? (
               <DialogContentText>
                 <div
                   style={{
@@ -324,73 +478,85 @@ const Btr = () => {
                     backgroundColor: '#fff',
                     padding: '20px',
                     borderRadius: '8px',
-                    boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)'
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
                   }}
                 >
-                  {Object.keys(selectedRow)
-                    .filter((key) => key !== 'id' && key !== 'lbcode' && key !== 'resbdno' && key !== 'lbtype' && key !== 'indexOffset')
-                    .map((key) => {
-                      let label = key;
-                      let value = selectedRow[key] || 'NA';
-
-                      // Custom label mappings
-                      if (key === 'villageName') label = 'Village Name';
-                      if (key === 'bcode') label = 'Block Code';
-                      if (key === 'ltype') label = 'Land Type';
-                      if (key === 'totalCent') label = 'Total Area (in Cents)';
-
-                      // Custom rendering for resvno
-                      if (key === 'resvno') {
-                        const resvno = selectedRow.resvno ? selectedRow.resvno : 'NA';
-                        const resbdno = selectedRow.resbdno ? selectedRow.resbdno : 'NA';
-                        label = 'Re-Survey No.';
-                        value = `${resvno} / ${resbdno}`;
-                      }
-
-                      if (key === 'lbname') {
-                        label = 'Local Body Name';
-                        value = selectedRow.lbname ? selectedRow.lbname : 'NA';
-                      }
-
-                      return (
+                  {[
+                    { key: 'id', label: 'ID' },
+                    { key: 'localBodyName', label: 'Local Body Name' },
+                    { key: 'villageName', label: 'Village Name' },
+                    { key: 'bcode', label: 'Block Code' },
+                    { key: 'resvno', label: 'Re-Survey No', format: (row) => 
+                        row.resvno && row.resbdno ? `${row.resvno}/${row.resbdno}` : (row.resvno || row.resbdno || 'NA')
+                    },
+                    { key: 'ltype', label: 'Land Type' },
+                    { key: 'totCent', label: 'Total Area (Cents)', format: (row) => 
+                        row.totCent ? row.totCent.toLocaleString() : 'NA'
+                    },
+                    { key: 'dcode', label: 'District Code' },
+                    { key: 'tcode', label: 'Taluk Code' },
+                    { key: 'vcode', label: 'Village Code' },
+                    { key: 'lsgcode', label: 'LSG Code' },
+                    { key: 'surveyNumber', label: 'Survey Number' },
+                    { key: 'zoneId', label: 'Zone ID' },
+                    { key: 'lbcode', label: 'LB Code' },
+                    { key: 'govpriv', label: 'Gov/Private' },
+                    { key: 'landuse', label: 'Land Use' },
+                    { key: 'nhect', label: 'N Hectares' },
+                    { key: 'nare', label: 'N Are' },
+                    { key: 'nsqm', label: 'N Square Meters' },
+                    { key: 'east', label: 'East Boundary' },
+                    { key: 'west', label: 'West Boundary' },
+                    { key: 'north', label: 'North Boundary' },
+                    { key: 'south', label: 'South Boundary' },
+                  ].map(({ key, label, format }) => {
+                    const value = format ? format(selectedRow) : (selectedRow[key] || 'NA');
+                    return (
+                      <div
+                        key={key}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'center',
+                          alignItems: 'flex-start'
+                        }}
+                      >
                         <div
-                          key={key}
                           style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            alignItems: 'flex-start'
+                            fontWeight: 'bold',
+                            color: '#555',
+                            marginBottom: '8px',
+                            fontSize: '13px'
                           }}
                         >
-                          <div
-                            style={{
-                              fontWeight: 'bold',
-                              color: 'gray',
-                              marginBottom: '8px'
-                            }}
-                          >
-                            {label}:
-                          </div>
-                          <div
-                            style={{
-                              backgroundColor: '#f9f9f9',
-                              padding: '8px 12px',
-                              borderRadius: '4px',
-                              boxShadow: 'inset 0 0 5px rgba(0, 0, 0, 0.1)',
-                              wordBreak: 'break-word',
-                              width: '100%'
-                            }}
-                          >
-                            {value}
-                          </div>
+                          {label}:
                         </div>
-                      );
-                    })}
+                        <div
+                          style={{
+                            backgroundColor: '#f9f9f9',
+                            padding: '10px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid #e0e0e0',
+                            wordBreak: 'break-word',
+                            width: '100%',
+                            minHeight: '20px',
+                            fontSize: '14px'
+                          }}
+                        >
+                          {value}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </DialogContentText>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                Failed to load record details.
+              </div>
             )}
           </DialogContent>
-          <DialogActions style={{ justifyContent: 'center' }}>
+          <DialogActions style={{ justifyContent: 'center', padding: '16px' }}>
             <Button onClick={handleCloseModals} color="secondary" variant="outlined">
               Close
             </Button>
