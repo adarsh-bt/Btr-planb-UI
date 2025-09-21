@@ -19,7 +19,6 @@ const RegisterService = {
   async getTaluks(districtId) {
     try {
       const response = await axios.get(`${this.USER_URL}/user-access/api/districts/${districtId}/taluks`);
-      alert("success",response.data);
       return response.data;
     } catch (err) {
       return {
@@ -31,7 +30,8 @@ const RegisterService = {
   async getDesignations() {
     try {
       const response = await axios.get(`${this.USER_URL}/user-access/api/fetch-designations`);
-      console.log('designations: ', response.data.payload);
+
+      console.log('designationss: ', response.data.payload);
       return response.data;
     } catch (err) {
       return {

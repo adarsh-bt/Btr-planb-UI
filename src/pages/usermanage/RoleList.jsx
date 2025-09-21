@@ -10,21 +10,7 @@ import ApprovedUserService from 'pages/functional-components/approvels/ApprovedU
 import authservice from 'pages/authentication/services/authservice';
 
 // Helper function to determine office location
-const getOfficeLocation = (row) => {
-  // Check if taluk exists and is not "NA"
-  if (row.taluk && row.taluk !== "NA") {
-    return row.taluk;
-  }
-  // Check if district exists and is not "NA" (note: API has typo 'distict')
-  if (row.distict && row.distict !== "NA") {
-    return row.distict;
-  }
-  // Fallback to officeType if available
-  if (row.officeType) {
-    return row.officeType;
-  }
-  return 'NA';
-};
+
 // Columns definition (update as per your API fields)
 const columns = (handleView) => [
   {
@@ -47,19 +33,19 @@ const columns = (handleView) => [
   },
   {
     name: 'PEN No',
-    selector: (row) => row.penNumber || row.penNo || <span style={{ color: '#888' }}>NA</span>,
+    selector: (row) => row.empNumber || row.penNo || <span style={{ color: '#888' }}>NA</span>,
     sortable: true,
     width: '270px'
   },
   {
     name: 'Designation',
-    selector: (row) => row.designations?.designationName || row.roles || <span style={{ color: '#888' }}>NA</span>,
+    selector: (row) => row.designation || row.roles || <span style={{ color: '#888' }}>NA</span>,
     sortable: true,
     width: '300px'
   },
   {
     name: 'Office Location',
-    selector: (row) => getOfficeLocation(row),
+    selector: (row) => row.officelocation || <span style={{ color: '#888' }}>NA</span>,
     sortable: true,
     width: '250px'
   },

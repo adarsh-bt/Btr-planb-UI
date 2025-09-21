@@ -3,6 +3,7 @@ import mainapi from 'api/mainapi';
 // Create service class with proper export
 class ApprovedUserService {
   static USER_URL = mainapi.USER_API;
+  static BTR_URL = mainapi.BTR_API;
   // Fetch IT admin approved users
   static async fetchITAdminApprovedUsers() {
     try {
@@ -185,6 +186,8 @@ class ApprovedUserService {
       };
     }
   }
+
+
   // Set user active status
   // Set user active/inactive status
   static async setUserActiveStatus(userId, isActive) {
@@ -232,6 +235,50 @@ class ApprovedUserService {
       };
     }
   }
+
+  
+
+
+    static async getZonesByUserId(userId) {
+    try {
+      const response = await axios.get(`${this.BTR_URL}/btr-service/btr-api/zones/assigned/${userId}`);
+      console.log("response in getZonesByUserId",response);
+      return response;
+    } catch (err) {
+      return {
+        message: err.response?.data?.message || 'An error occurred while fetching districts.'
+      };
+    }
+  }
+
+  // Inside class ApprovedUserService
+
+// Update zone assignment active status
+static async updateZoneAssignmentStatus(userdata) {
+
+  try {
+    const token = localStorage.getItem('token');
+
+   console.log("userdata in service",userdata)
+   alert("ooo")
+
+    const response = await axios.post(`${ApprovedUserService.BTR_URL}/btr-service/btr-api/zone-assignment/update-status`, userdata, {
+      // headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+    });
+    return {
+      error: false,
+      payload: response.data?.payload,
+      message: response.data?.message || 'Zone status updated successfully'
+    };
+  } catch (err) {
+    return {
+      error: true,
+      message: err?.response?.data?.message || 'Failed to update zone status'
+    };
+  }
+}
+
+
 }
 // Export as default
 export default ApprovedUserService;

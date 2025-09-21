@@ -35,6 +35,7 @@ import approvalservice from './approvalservice';
 import auth from 'contexts/auth-reducer/auth';
 import authservice from 'pages/authentication/services/authservice';
 import Taluk from './talukusers';
+import Breadcrumb from 'routes/Breadcrumb';
 
 const columns = (handleEdit) => [
     { name: 'SL. NO', selector:(row, index) => index + 1, sortable: true },
@@ -534,6 +535,7 @@ const filteredDataDis = userListDis.filter((item) =>
 return (
 
     <Box style={{background:'white'}}>
+    <Breadcrumb></Breadcrumb>
     <Typography variant='h4' p={1}>Approvals</Typography>
     <hr></hr>
     <Box sx={{ width: '100%' }}>
