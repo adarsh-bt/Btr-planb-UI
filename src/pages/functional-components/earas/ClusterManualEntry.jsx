@@ -120,36 +120,72 @@ const ClusterFormUI = () => {
     const [rowBlockOptions, setRowBlockOptions] = useState({});
 
     // ✅ NEW: Function to fetch CCE crop details from API
-    const fetchCceCropDetails = async () => {
-        setLoadingCrops(true);
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-crops`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+    // Updated function to fetch and filter CCE crop details based on land type
+const fetchCceCropDetails = async () => {
+    setLoadingCrops(true);
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
+        const data = await response.json();
+        console.log('CCE Crop Details:', data);
+        
+        // Ensure data is always an array
+        const cropData = Array.isArray(data) ? data : (data.crops || data.payload || []);
+        
+        // Filter crops based on cluster land type
+        const filteredCrops = filterCropsByLandType(cropData, clusterInfo.landType);
+        
+        setCceCropDetails(filteredCrops);
+    } catch (error) {
+        console.error('Error fetching CCE crop details:', error);
+        setCceCropDetails([]);
+        setSnackbarMessage('Failed to load crop details.');
+        setSnackbarOpen(true);
+    } finally {
+        setLoadingCrops(false);
+    }
+};
 
-            const data = await response.json();
-            console.log("CCE Crop Details:", data);
-            setCceCropDetails(data);
-            
-        } catch (error) {
-            console.error("Error fetching CCE crop details:", error);
-            setSnackbarMessage('Failed to load crop details.');
-            setSnackbarOpen(true);
-        } finally {
-            setLoadingCrops(false);
+// New function to filter crops based on land type
+const filterCropsByLandType = (crops, landType) => {
+    if (!landType || !Array.isArray(crops)) return crops;
+    
+    const normalizedLandType = landType.toUpperCase();
+    
+    return crops.filter(crop => {
+        if (!crop.frameName) return false;
+        
+        const frameName = crop.frameName.toUpperCase();
+        
+        // Filter logic based on frameName and landType
+        switch (frameName) {
+            case 'WET':
+                return normalizedLandType === 'WET';
+            case 'DRY':
+                return normalizedLandType === 'DRY';
+            case 'WET / DRY':
+                return normalizedLandType === 'WET' || normalizedLandType === 'DRY';
+            default:
+                return false;
         }
-    };
+    });
+};
 
-    useEffect(() => {
-        fetchCceCropDetails();
-    }, []);
+    
+useEffect(() => {
+    fetchCceCropDetails();
+}, [clusterInfo.landType]); // Add dependency on landType
+
+// Keep the original useEffect for initial load
+useEffect(() => {
+    fetchCceCropDetails();
+}, []);
+
 
     useEffect(() => {
         const urlParams = new URLSearchParams(location.search);
@@ -190,6 +226,8 @@ const ClusterFormUI = () => {
 
     const totalAreaProgress = clusterInfo.maxArea > 0 ? (clusterInfo.totalArea / clusterInfo.maxArea) * 100 : 0;
 
+
+    
     const fetchKeyplotDetails = async (id) => {
         if (!id) return;
         setLoading(true);
@@ -1013,103 +1051,101 @@ const handleSubmit = async () => {
             {/* CCE Crops Modal - ORIGINAL UI PRESERVED */}
             {/* ✅ UPDATED: CCE Crops Modal with API integration */}
             {/* ✅ CCE Crops Modal - FIXED */}
-        <Dialog open={isCropsModalOpen} onClose={() => setCropsModalOpen(false)} maxWidth="md" fullWidth>
-            <DialogTitle>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <GrassIcon />
-                    <Typography variant="h6">Select CCE Crops</Typography>
-                </Box>
-            </DialogTitle>
-            <DialogContent>
-                <DialogContentText sx={{ mb: 2 }}>
-                    Please select the crops for Crop Cutting Experiment (CCE). Only active crops are available for selection.
-                </DialogContentText>
-                
-                {loadingCrops ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-                        <CircularProgress />
-                    </Box>
-                ) : (
-                    <Grid container spacing={2} sx={{ mt: 1 }}>
-                        {cceCropDetails
-                            .filter(crop => crop.isActive)
-                            .map((crop) => (
-                                <Grid item xs={12} sm={6} md={4} key={crop.cceId}>
-                                    <FormControlLabel
-                                        control={
-                                            <Checkbox
-                                                checked={selectedCrops[crop.cropId] || false}
-                                                onChange={handleCropSelectionChange}
-                                                name={crop.cropId.toString()}
-                                                color="primary"
-                                            />
-                                        }
-                                        label={
-                                            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                                                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                                                    {crop.cropName}
-                                                </Typography>
-                                                <Typography variant="caption" color="textSecondary">
-                                                    ({crop.noOfCce} CCE) • {crop.cceCropType}
-                                                    {crop.frameMeasure && ` • ${crop.frameMeasure} ${crop.frameUnitName}`}
-                                                </Typography>
-                                            </Box>
-                                        }
-                                        sx={{ 
-                                            width: '100%', 
-                                            m: 0,
-                                            p: 1,
-                                            border: '1px solid #e0e0e0',
-                                            borderRadius: 1,
-                                            '&:hover': {
-                                                backgroundColor: '#f5f5f5'
-                                            }
-                                        }}
+        {/* CCE Crops Modal - UPDATED to handle API response without isActive field */}
+<Dialog open={isCropsModalOpen} onClose={() => setCropsModalOpen(false)} maxWidth="md" fullWidth>
+    <DialogTitle>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <GrassIcon />
+            <Typography variant="h6">Select CCE Crops</Typography>
+        </Box>
+    </DialogTitle>
+    <DialogContent>
+        <DialogContentText sx={{ mb: 2 }}>
+            Please select the crops for Crop Cutting Experiment (CCE). Only active crops are available for selection.
+        </DialogContentText>
+        
+        {loadingCrops ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress />
+            </Box>
+        ) : (
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+                {cceCropDetails
+                    .filter(crop => crop.cropId && crop.cropName) // Filter valid crops
+                    .map(crop => (
+                        <Grid item xs={12} sm={6} md={4} key={crop.cropId}>
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={selectedCrops[crop.cropId] || false}
+                                        onChange={handleCropSelectionChange}
+                                        name={crop.cropId.toString()}
+                                        color="primary"
                                     />
-                                </Grid>
-                            ))
-                        }
-                    </Grid>
-                )}
-                
-                {/* Show inactive crops section */}
-                {cceCropDetails.filter(crop => !crop.isActive).length > 0 && (
-                    <Box sx={{ mt: 3 }}>
-                        <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-                            Inactive Crops (Not Available for Selection)
-                        </Typography>
-                        <Grid container spacing={1}>
-                            {cceCropDetails
-                                .filter(crop => !crop.isActive)
-                                .map((crop) => (
-                                    <Grid item key={crop.cceId}>
-                                        <Chip 
-                                            label={crop.cropName}
-                                            size="small"
-                                            disabled
-                                            sx={{ opacity: 0.6 }}
-                                        />
-                                    </Grid>
-                                ))
-                            }
+                                }
+                                label={
+                                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                            {crop.cropName} ({crop.noOfCce})
+                                        </Typography>
+                                        <Typography variant="caption" color="textSecondary">
+                                            {crop.frameName} - {crop.noOfCce} CCE
+                                        </Typography>
+                                    </Box>
+                                }
+                                sx={{
+                                    width: '100%',
+                                    m: 0,
+                                    p: 1,
+                                    border: '1px solid #e0e0e0',
+                                    borderRadius: 1,
+                                    '&:hover': {
+                                        backgroundColor: '#f5f5f5'
+                                    }
+                                }}
+                            />
                         </Grid>
-                    </Box>
-                )}
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={() => setCropsModalOpen(false)} color="primary">
-                    Cancel
-                </Button>
-                <Button 
-                    onClick={handleCloseCropsModal} 
-                    variant="contained" 
-                    color="primary"
-                    disabled={loadingCrops}
-                >
-                    Save Selection
-                </Button>
-            </DialogActions>
-        </Dialog>
+                    ))
+                }
+            </Grid>
+        )}
+        
+        {/* Remove or comment out the inactive crops section since all crops should be active */}
+        {/* 
+        {cceCropDetails.filter(crop => !crop.isActive).length > 0 && (
+            <Box sx={{ mt: 3 }}>
+                <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                    Inactive Crops (Not Available for Selection)
+                </Typography>
+                <Grid container spacing={1}>
+                    {cceCropDetails
+                        .filter(crop => !crop.isActive)
+                        .map(crop => (
+                            <Grid item key={crop.cropId}>
+                                <Chip label={crop.cropName} size="small" disabled sx={{ opacity: 0.6 }} />
+                            </Grid>
+                        ))
+                    }
+                </Grid>
+            </Box>
+        )}
+        */}
+    </DialogContent>
+    <DialogActions>
+        <Button onClick={() => setCropsModalOpen(false)} color="primary">
+            Cancel
+        </Button>
+        <Button
+            onClick={handleCloseCropsModal}
+            variant="contained"
+            color="primary"
+            disabled={loadingCrops}
+        >
+            Save Selection
+        </Button>
+    </DialogActions>
+</Dialog>
+
 
             {/* ✅ Success/Error Snackbar - ORIGINAL UI PRESERVED */}
             <Snackbar
