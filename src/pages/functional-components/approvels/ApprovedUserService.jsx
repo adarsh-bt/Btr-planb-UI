@@ -25,7 +25,6 @@ class ApprovedUserService {
   static async fetchDistrictAdminApprovedUsers() {
     try {
       const token = localStorage.getItem('token');
-      alert('token', token);
       const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/district-admin/fetch-approved-users`, {
         headers: {
           Authorization: `Bearer ${token}`
