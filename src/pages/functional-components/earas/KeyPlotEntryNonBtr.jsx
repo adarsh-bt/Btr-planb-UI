@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Grid,
   Box,
@@ -17,13 +17,22 @@ import {
   MenuItem,
   Button,
   IconButton,
+  Popover,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  Select,
+  FormControl,
+  InputLabel,
+  Chip,
 } from "@mui/material";
-import { AddCircle, Delete } from "@mui/icons-material";
+import { AddCircle, Delete, ArrowDropDown, KeyboardArrowDown } from "@mui/icons-material";
 
 const landTypeOptions = ["Wet", "Dry"];
 const listTypeOptions = [
   "House List",
-  "Cultivators List",
+  "Cultivators List", 
   "Thandaper Number",
   "Others",
 ];
@@ -31,12 +40,18 @@ const TOTAL_REQUIRED = 100;
 
 const KeyPlotEntryNonBtr = () => {
   const [activeTab, setActiveTab] = useState(0);
+  const [activeVillageTab, setActiveVillageTab] = useState({});
   const [localBodies, setLocalBodies] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [localBodyData, setLocalBodyData] = useState({});
   const [listTypes, setListTypes] = useState({});
   const [villageOptions, setVillageOptions] = useState([]);
+  
+  // Popover state
+  const [popoverAnchorEl, setPopoverAnchorEl] = useState(null);
+  const [selectedVillage, setSelectedVillage] = useState(null);
+  const [selectedLocalBody, setSelectedLocalBody] = useState(null);
 
   const villageToBlocks = useMemo(() => {
     const map = {};
@@ -53,6 +68,25 @@ const KeyPlotEntryNonBtr = () => {
 
   const zoneId =
     typeof window !== "undefined" ? localStorage.getItem("activeZone") : null;
+
+  // Get villages for a specific local body
+  const getVillagesForLocalBody = (localBodyId) => {
+    return villageOptions.filter(v => 
+      v.revenueVillageName
+    );
+  };
+
+  // Get current village key for local body
+  const getCurrentVillageKey = (lbId) => {
+    const villages = getVillagesForLocalBody(lbId);
+    const currentIndex = activeVillageTab[lbId] || 0;
+    return villages[currentIndex]?.revenueVillageName || "";
+  };
+
+  // Get current list type for local body and village
+  const getCurrentListType = (lbId, villageName) => {
+    return listTypes[`${lbId}_${villageName}`] || "House List";
+  };
 
   useEffect(() => {
     const fetchLocalBodies = async () => {
@@ -73,16 +107,17 @@ const KeyPlotEntryNonBtr = () => {
         const data = await res.json();
         setLocalBodies(data || []);
 
-        const initialListTypes = {};
+        // Initialize active village tab for each local body
+        const initialVillageTabs = {};
         (data || []).forEach((lb) => {
-          initialListTypes[lb.id] = "House List";
+          initialVillageTabs[lb.id] = 0;
         });
-        setListTypes(initialListTypes);
+        setActiveVillageTab(initialVillageTabs);
 
         setLocalBodyData((prev) => {
           const next = { ...prev };
           (data || []).forEach((lb) => {
-            if (!next[lb.id]) next[lb.id] = [];
+            if (!next[lb.id]) next[lb.id] = {};
           });
           Object.keys(next).forEach((key) => {
             const exists = (data || []).some(
@@ -114,15 +149,25 @@ const KeyPlotEntryNonBtr = () => {
         if (!res.ok) throw new Error("Failed to load villages");
         const data = await res.json();
         setVillageOptions(data || []);
+        
+        // Initialize list types for all village-local body combinations
+        const initialListTypes = {};
+        localBodies.forEach(lb => {
+          (data || []).forEach(village => {
+            initialListTypes[`${lb.id}_${village.revenueVillageName}`] = "House List";
+          });
+        });
+        setListTypes(prev => ({ ...prev, ...initialListTypes }));
+        
       } catch (err) {
         console.error("Error fetching villages:", err);
       }
     };
     fetchVillages();
-  }, [zoneId]);
+  }, [zoneId, localBodies]);
 
   const totalKeyplots = Object.values(localBodyData).reduce(
-    (sum, rows) => sum + rows.length,
+    (sum, lbData) => sum + Object.values(lbData).reduce((villageSum, rows) => villageSum + (rows?.length || 0), 0),
     0
   );
 
@@ -138,99 +183,144 @@ const KeyPlotEntryNonBtr = () => {
       : (a, b) => -descendingComparator(a, b, orderBy);
   };
 
-  const sortedByLocalBody = useMemo(() => {
+  const sortedByLocalBodyAndVillage = useMemo(() => {
     const out = {};
     localBodies.forEach((lb) => {
-      const rows = localBodyData[lb.id] || [];
-      out[lb.id] = [...rows].sort(getComparator(order, orderBy));
+      out[lb.id] = {};
+      const villages = getVillagesForLocalBody(lb.id);
+      villages.forEach(village => {
+        const villageName = village.revenueVillageName;
+        const rows = localBodyData[lb.id]?.[villageName] || [];
+        out[lb.id][villageName] = [...rows].sort(getComparator(order, orderBy));
+      });
     });
     return out;
-  }, [localBodies, localBodyData, order, orderBy]);
+  }, [localBodies, localBodyData, order, orderBy, villageOptions]);
 
-  const handleChange = (lbId, id, field, value) => {
+  const handleChange = (lbId, villageName, id, field, value) => {
     setLocalBodyData((prev) => ({
       ...prev,
-      [lbId]: prev[lbId].map((row) =>
-        row.id === id ? { ...row, [field]: value } : row
-      ),
+      [lbId]: {
+        ...prev[lbId],
+        [villageName]: (prev[lbId]?.[villageName] || []).map((row) =>
+          row.id === id ? { ...row, [field]: value } : row
+        ),
+      },
     }));
   };
 
-  const handleVillageChange = (lbId, id, villageName) => {
-    const blocks = villageToBlocks[villageName] || [];
+  const handleVillageChange = (lbId, villageName, id, newVillageName) => {
+    const blocks = villageToBlocks[newVillageName] || [];
     const defaultBlock = blocks.length > 0 ? blocks[0] : "";
     setLocalBodyData((prev) => ({
       ...prev,
-      [lbId]: prev[lbId].map((row) =>
-        row.id === id
-          ? {
-              ...row,
-              village: villageName,
-              villageBlock: defaultBlock,
-              villageBlockOptions: blocks,
-            }
-          : row
-      ),
+      [lbId]: {
+        ...prev[lbId],
+        [villageName]: (prev[lbId]?.[villageName] || []).map((row) =>
+          row.id === id
+            ? {
+                ...row,
+                village: newVillageName,
+                villageBlock: defaultBlock,
+                villageBlockOptions: blocks,
+              }
+            : row
+        ),
+      },
     }));
   };
 
-  const handleAddRow = (lbId) => {
+  const handleAddRow = (lbId, villageName) => {
     if (totalKeyplots >= TOTAL_REQUIRED) return;
     setLocalBodyData((prev) => {
-      const current = prev[lbId] || [];
+      const current = prev[lbId]?.[villageName] || [];
       const newId =
         current.length > 0 ? Math.max(...current.map((r) => r.id)) + 1 : 1;
       const newSlNo =
         current.length > 0 ? Math.max(...current.map((r) => r.slNo)) + 1 : 1;
+      
+      // Get village blocks for the current village
+      const villageBlocks = villageToBlocks[villageName] || [];
+      const defaultBlock = villageBlocks.length > 0 ? villageBlocks[0] : "";
+      
       return {
         ...prev,
-        [lbId]: [
-          ...current,
-          {
-            id: newId,
-            slNo: newSlNo,
-            village: "",
-            villageBlock: "",
-            villageBlockOptions: [],
-            name: "",
-            address: "",
-            houseNo: "",
-            thandaperNo: "",
-            mainNo: "",
-            subNo: "",
-            surveyNo: "",
-            subDivNo: "",
-            area: "",
-            landType: "",
-          },
-        ],
+        [lbId]: {
+          ...prev[lbId],
+          [villageName]: [
+            ...current,
+            {
+              id: newId,
+              slNo: newSlNo,
+              village: villageName, // Set to current village tab
+              villageBlock: defaultBlock, // Set default block
+              villageBlockOptions: villageBlocks, // Set available blocks for this village
+              name: "",
+              address: "",
+              houseNo: "",
+              thandaperNo: "",
+              mainNo: "",
+              subNo: "",
+              surveyNo: "",
+              subDivNo: "",
+              area: "",
+              landType: "",
+            },
+          ],
+        },
       };
     });
   };
 
-  const handleDeleteRow = (lbId, id) => {
+  const handleDeleteRow = (lbId, villageName, id) => {
     setLocalBodyData((prev) => ({
       ...prev,
-      [lbId]: (prev[lbId] || []).filter((row) => row.id !== id),
+      [lbId]: {
+        ...prev[lbId],
+        [villageName]: (prev[lbId]?.[villageName] || []).filter((row) => row.id !== id),
+      },
     }));
   };
 
-  const handleListTypeChange = (lbId, value) => {
-    setListTypes((prev) => ({ ...prev, [lbId]: value }));
+  const handleVillageTabClick = (event, lbId, villageName) => {
+    setPopoverAnchorEl(event.currentTarget);
+    setSelectedVillage(villageName);
+    setSelectedLocalBody(lbId);
+  };
+
+  const handlePopoverClose = () => {
+    setPopoverAnchorEl(null);
+    setSelectedVillage(null);
+    setSelectedLocalBody(null);
+  };
+
+  const handleListTypeChange = (listType) => {
+    if (selectedLocalBody && selectedVillage) {
+      setListTypes((prev) => ({
+        ...prev,
+        [`${selectedLocalBody}_${selectedVillage}`]: listType,
+      }));
+      handlePopoverClose();
+    }
   };
 
   const handleSaveAll = () => {
     const payload = {
       zoneId,
-      keyplotsByLocalBody: Object.fromEntries(
-        Object.entries(localBodyData).map(([lbId, rows]) => [
+      keyplotsByLocalBodyAndVillage: Object.fromEntries(
+        Object.entries(localBodyData).map(([lbId, villageData]) => [
           lbId,
-          {
-            listType: listTypes[lbId] || "House List",
-            keyplots: rows.map(
-              ({ villageBlockOptions, ...rest }) => rest
-            ),
-          },
+          Object.fromEntries(
+            Object.entries(villageData || {}).map(([villageName, rows]) => [
+              villageName,
+              {
+                listType: getCurrentListType(lbId, villageName),
+                keyplots: rows.map(
+                  ({ villageBlockOptions, ...rest }) => rest
+                ),
+              },
+            ])
+          ),
         ])
       ),
     };
@@ -238,8 +328,8 @@ const KeyPlotEntryNonBtr = () => {
     alert("All Keyplots saved! Check console for details.");
   };
 
-  const getTableHeaders = (lbId) => {
-    const baseHeaders = ["Sl. No", "Village", "Village Block"];
+  const getTableHeaders = (lbId, villageName) => {
+    const baseHeaders = ["Sl. No", "Village Block"]; // Removed "Village" column
     const houseListHeaders = ["Name", "Address", "House No."];
     const cultivatorListHeaders = ["Name", "Address"];
     const thandaperHeaders = ["Name", "Address", "Thandaper No."];
@@ -252,7 +342,7 @@ const KeyPlotEntryNonBtr = () => {
       "Actions",
     ];
 
-    const currentListType = listTypes[lbId];
+    const currentListType = getCurrentListType(lbId, villageName);
 
     if (currentListType === "House List") {
       return [...baseHeaders, ...houseListHeaders, ...finalHeaders];
@@ -269,6 +359,17 @@ const KeyPlotEntryNonBtr = () => {
     return [...baseHeaders, ...finalHeaders];
   };
 
+  const getVillageRowCount = (lbId, villageName) => {
+    return localBodyData[lbId]?.[villageName]?.length || 0;
+  };
+
+  const getLocalBodyTotal = (lbId) => {
+    const villages = getVillagesForLocalBody(lbId);
+    return villages.reduce((sum, village) => {
+      return sum + getVillageRowCount(lbId, village.revenueVillageName);
+    }, 0);
+  };
+
   return (
     <Grid container spacing={3}>
       <Box
@@ -281,11 +382,13 @@ const KeyPlotEntryNonBtr = () => {
         }}
       >
         <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
-          KeyPlot Entry (Total Required: {TOTAL_REQUIRED})
+          Non-BTR KeyPlot Entry
+           {/* (Total Required: {TOTAL_REQUIRED}) */}
         </Typography>
 
+        {/* Top-level tabs for Local Bodies */}
         {localBodies.length > 0 && !loading && !error && (
-          <Paper elevation={3} sx={{ mb: 2 }}>
+          <Paper elevation={3} sx={{ mb: 0 }}>
             <Tabs
               value={activeTab}
               onChange={(e, newVal) => setActiveTab(newVal)}
@@ -297,49 +400,22 @@ const KeyPlotEntryNonBtr = () => {
               {localBodies.map((lb, idx) => (
                 <Tab
                   key={lb.id}
-                  label={
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 2,
-                        p: 1,
-                        textTransform: "none",
-                      }}
-                    >
-                      <Typography>
-                        {`${lb.name} (${(localBodyData[lb.id] || []).length})`}
-                      </Typography>
-                      {activeTab === idx && (
-                        <TextField
-                          select
-                          value={listTypes[lb.id] || "House List"}
-                          onChange={(e) =>
-                            handleListTypeChange(lb.id, e.target.value)
-                          }
-                          onClick={(e) => e.stopPropagation()}
-                          size="small"
-                          sx={{ minWidth: 180 }}
-                        >
-                          {listTypeOptions.map((option) => (
-                            <MenuItem key={option} value={option}>
-                              {option}
-                            </MenuItem>
-                          ))}
-                        </TextField>
-                      )}
-                    </Box>
-                  }
+                  label={`${lb.name} (${getLocalBodyTotal(lb.id)})`}
                 />
               ))}
             </Tabs>
           </Paper>
         )}
 
+        {/* Second-level tabs for Villages and Content */}
         {localBodies.map((lb, idx) => {
-          const sortedRows = sortedByLocalBody[lb.id] || [];
-          const currentListType = listTypes[lb.id];
-          const headers = getTableHeaders(lb.id);
+          const villages = getVillagesForLocalBody(lb.id);
+          const currentVillageIndex = activeVillageTab[lb.id] || 0;
+          const currentVillage = villages[currentVillageIndex];
+          const currentVillageName = currentVillage?.revenueVillageName || "";
+          const sortedRows = sortedByLocalBodyAndVillage[lb.id]?.[currentVillageName] || [];
+          const currentListType = getCurrentListType(lb.id, currentVillageName);
+          const headers = getTableHeaders(lb.id, currentVillageName);
           const colSpan = headers.length;
 
           return (
@@ -347,7 +423,118 @@ const KeyPlotEntryNonBtr = () => {
               key={lb.id}
               style={{ display: activeTab === idx ? "block" : "none" }}
             >
-              <Paper elevation={3} sx={{ p: 2, borderRadius: 2 }}>
+              {/* Village tabs with dropdown - Only show dropdown on active village tab */}
+              {villages.length > 0 && (
+                <Paper 
+                  elevation={1} 
+                  sx={{ 
+                    mb: 0,
+                    mt: 0,  
+                    borderTopLeftRadius: 0,
+                    borderTopRightRadius: 0,
+                  }}
+                >
+                  <Tabs
+                    value={activeVillageTab[lb.id] || 0}
+                    onChange={(e, newVal) =>
+                      setActiveVillageTab(prev => ({ ...prev, [lb.id]: newVal }))
+                    }
+                    indicatorColor="secondary"
+                    textColor="secondary"
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    sx={{
+                      minHeight: 'auto',
+                      '& .MuiTab-root': {
+                        minHeight: 'auto',
+                        py: 1,
+                        px: 2,
+                        fontSize: '0.875rem',
+                      },
+                      // Add this part for blue text color on selected village tab
+                      '& .MuiTab-root.Mui-selected': {
+                        color: '#1976d2', // This is the blue color
+                      },
+                      '& .MuiTabs-indicator': {
+                        backgroundColor: '#1976d2', // This makes the indicator blue too
+                      }
+                    }}
+                  >
+                    {villages.map((village, villageIdx) => {
+                      // Check if this village tab is currently active
+                      const isActiveVillageTab = (activeVillageTab[lb.id] || 0) === villageIdx;
+                      
+                      return (
+                        <Tab
+                          key={village.revenueVillageId}
+                          label={
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1,
+                                textTransform: "none",
+                              }}
+                            >
+                              <Typography variant="body2">
+                                {`${village.revenueVillageName} (${getVillageRowCount(lb.id, village.revenueVillageName)})`}
+                              </Typography>
+                              
+                              {/* Conditionally render dropdown only on active village tab */}
+                              {isActiveVillageTab && (
+                                <Box
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleVillageTabClick(e, lb.id, village.revenueVillageName);
+                                  }}
+                                  sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 0.5,
+                                    px: 1,
+                                    py: 0.5,
+                                    bgcolor: 'rgba(0, 0, 0, 0.08)',
+                                    borderRadius: 1,
+                                    cursor: 'pointer',
+                                    '&:hover': {
+                                      bgcolor: 'rgba(0, 0, 0, 0.12)',
+                                    },
+                                    minWidth: 120,
+                                    fontSize: '0.75rem',
+                                  }}
+                                >
+                                  <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
+                                    {getCurrentListType(lb.id, village.revenueVillageName)}
+                                  </Typography>
+                                  <KeyboardArrowDown fontSize="small" />
+                                </Box>
+                              )}
+                            </Box>
+                          }
+                        />
+                      );
+                    })}
+                  </Tabs>
+                </Paper>
+              )}
+
+              {/* Table content with added spacing from tabs */}
+              <Paper 
+                elevation={3} 
+                sx={{ 
+                  p: 2, 
+                  borderRadius: 2, 
+                  mt: 2,
+                  borderTopLeftRadius: villages.length > 0 ? 2 : 8,
+                  borderTopRightRadius: villages.length > 0 ? 2 : 8,
+                }}
+              >
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="h6" color="primary">
+                    {currentVillageName} - {currentListType}
+                  </Typography>
+                </Box>
+                
                 <TableContainer component={Paper}>
                   <Table stickyHeader>
                     <TableHead>
@@ -376,29 +563,8 @@ const KeyPlotEntryNonBtr = () => {
                         .map((row) => (
                           <TableRow key={row.id}>
                             <TableCell align="center">{row.slNo}</TableCell>
-                            <TableCell align="center">
-                              <TextField
-                                select
-                                value={row.village}
-                                onChange={(e) =>
-                                  handleVillageChange(
-                                    lb.id,
-                                    row.id,
-                                    e.target.value
-                                  )
-                                }
-                                sx={{ minWidth: 160 }}
-                              >
-                                {villageOptions.map((opt) => (
-                                  <MenuItem
-                                    key={opt.revenueVillageId}
-                                    value={opt.revenueVillageName}
-                                  >
-                                    {opt.revenueVillageName}
-                                  </MenuItem>
-                                ))}
-                              </TextField>
-                            </TableCell>
+                            
+                            {/* Removed Village column - Village Block is now the second column */}
                             <TableCell align="center">
                               <TextField
                                 select
@@ -406,15 +572,16 @@ const KeyPlotEntryNonBtr = () => {
                                 onChange={(e) =>
                                   handleChange(
                                     lb.id,
+                                    currentVillageName,
                                     row.id,
                                     "villageBlock",
                                     e.target.value
                                   )
                                 }
                                 sx={{ minWidth: 140 }}
-                                disabled={!row.village}
                               >
-                                {(row.villageBlockOptions || []).map((code) => (
+                                {/* Use blocks for the current village tab instead of row.villageBlockOptions */}
+                                {(villageToBlocks[currentVillageName] || []).map((code) => (
                                   <MenuItem key={code} value={code}>
                                     {code}
                                   </MenuItem>
@@ -422,6 +589,7 @@ const KeyPlotEntryNonBtr = () => {
                               </TextField>
                             </TableCell>
 
+                            {/* Dynamic columns based on list type */}
                             {(currentListType === "House List" ||
                               currentListType === "Cultivators List" ||
                               currentListType === "Thandaper Number" ||
@@ -433,6 +601,7 @@ const KeyPlotEntryNonBtr = () => {
                                     onChange={(e) =>
                                       handleChange(
                                         lb.id,
+                                        currentVillageName,
                                         row.id,
                                         "name",
                                         e.target.value
@@ -446,6 +615,7 @@ const KeyPlotEntryNonBtr = () => {
                                     onChange={(e) =>
                                       handleChange(
                                         lb.id,
+                                        currentVillageName,
                                         row.id,
                                         "address",
                                         e.target.value
@@ -463,6 +633,7 @@ const KeyPlotEntryNonBtr = () => {
                                   onChange={(e) =>
                                     handleChange(
                                       lb.id,
+                                      currentVillageName,
                                       row.id,
                                       "houseNo",
                                       e.target.value
@@ -479,6 +650,7 @@ const KeyPlotEntryNonBtr = () => {
                                   onChange={(e) =>
                                     handleChange(
                                       lb.id,
+                                      currentVillageName,
                                       row.id,
                                       "thandaperNo",
                                       e.target.value
@@ -496,6 +668,7 @@ const KeyPlotEntryNonBtr = () => {
                                     onChange={(e) =>
                                       handleChange(
                                         lb.id,
+                                        currentVillageName,
                                         row.id,
                                         "mainNo",
                                         e.target.value
@@ -509,6 +682,7 @@ const KeyPlotEntryNonBtr = () => {
                                     onChange={(e) =>
                                       handleChange(
                                         lb.id,
+                                        currentVillageName,
                                         row.id,
                                         "subNo",
                                         e.target.value
@@ -525,6 +699,7 @@ const KeyPlotEntryNonBtr = () => {
                                 onChange={(e) =>
                                   handleChange(
                                     lb.id,
+                                    currentVillageName,
                                     row.id,
                                     "surveyNo",
                                     e.target.value
@@ -538,6 +713,7 @@ const KeyPlotEntryNonBtr = () => {
                                 onChange={(e) =>
                                   handleChange(
                                     lb.id,
+                                    currentVillageName,
                                     row.id,
                                     "subDivNo",
                                     e.target.value
@@ -551,6 +727,7 @@ const KeyPlotEntryNonBtr = () => {
                                 onChange={(e) =>
                                   handleChange(
                                     lb.id,
+                                    currentVillageName,
                                     row.id,
                                     "area",
                                     e.target.value
@@ -565,6 +742,7 @@ const KeyPlotEntryNonBtr = () => {
                                 onChange={(e) =>
                                   handleChange(
                                     lb.id,
+                                    currentVillageName,
                                     row.id,
                                     "landType",
                                     e.target.value
@@ -582,7 +760,7 @@ const KeyPlotEntryNonBtr = () => {
                             <TableCell align="center">
                               <IconButton
                                 color="error"
-                                onClick={() => handleDeleteRow(lb.id, row.id)}
+                                onClick={() => handleDeleteRow(lb.id, currentVillageName, row.id)}
                               >
                                 <Delete />
                               </IconButton>
@@ -595,7 +773,7 @@ const KeyPlotEntryNonBtr = () => {
                             startIcon={<AddCircle />}
                             variant="outlined"
                             color="success"
-                            onClick={() => handleAddRow(lb.id)}
+                            onClick={() => handleAddRow(lb.id, currentVillageName)}
                             disabled={totalKeyplots >= TOTAL_REQUIRED}
                           >
                             Add Keyplot
@@ -620,6 +798,34 @@ const KeyPlotEntryNonBtr = () => {
             </div>
           );
         })}
+
+        {/* Popover for list type selection */}
+        <Popover
+          open={Boolean(popoverAnchorEl)}
+          anchorEl={popoverAnchorEl}
+          onClose={handlePopoverClose}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'left',
+          }}
+        >
+          <List sx={{ py: 0, minWidth: 180 }}>
+            {listTypeOptions.map((listType) => (
+              <ListItem key={listType} disablePadding>
+                <ListItemButton 
+                  onClick={() => handleListTypeChange(listType)}
+                  selected={selectedLocalBody && selectedVillage && getCurrentListType(selectedLocalBody, selectedVillage) === listType}
+                >
+                  <ListItemText primary={listType} />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        </Popover>
 
         <Box display="flex" justifyContent="flex-end" mt={3}>
           <Button

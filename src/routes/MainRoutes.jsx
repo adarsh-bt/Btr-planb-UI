@@ -21,6 +21,7 @@ const RoleDesignation = Loadable(lazy(() => import('pages/usermanage/RoleDesigna
 
 // const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_list')));
 const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_menus')));
+const LocalBodyToVillage = Loadable(lazy(() => import('pages/functional-components/earas/LocalBodyToVillage')));
 const BtrListing = Loadable(lazy(() => import('pages/functional-components/earas/BtrListing')));
 const Zone_Details = Loadable(lazy(() => import('pages/functional-components/earas/zone_details')));
 const BTR = Loadable(lazy(() => import('pages/functional-components/earas/Btr')));
@@ -130,6 +131,14 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <Earas />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'schemes/earas/Mapping',
+      element: (
+        <PrivateRoute>
+          <LocalBodyToVillage />
         </PrivateRoute>
       )
     },
