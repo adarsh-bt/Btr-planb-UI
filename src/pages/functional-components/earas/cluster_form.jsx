@@ -721,7 +721,7 @@ const handleOpenConfirmDialog = (keyplotIndex, rowIndexToRemove) => {
         'Authorization': `Bearer ${token}`
       }
     }
-  );;
+  );
 
     if (!response.ok) throw new Error('Failed to delete row from server');
 

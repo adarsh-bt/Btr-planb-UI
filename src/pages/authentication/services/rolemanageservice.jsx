@@ -8,9 +8,15 @@ const USER_URL = mainapi.USER_API
 const BASE_URL = mainapi.USER_API;
 
 const roleManageService = {
+  
   async getAllSchemes() {
+     const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${BASE_URL}/user-access/api/user-approval/fetch/schemes`);
+      const response = await axios.get(`${BASE_URL}/user-access/api/user-approval/fetch/schemes`,{
+        headers: {
+           Authorization: `Bearer ${token}`
+        } 
+      });
       return response.data.payload; // ✅ return only the payload array
     } catch (err) {
       return {

@@ -5,8 +5,13 @@ const DesignationManageService = {
   USER_URL:  mainapi.USER_API,
 
   async getDesignations() {
+    const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${this.USER_URL}/user-access/api/fetch-designations`);
+      const response = await axios.get(`${this.USER_URL}/user-access/api/fetch-designations`,{
+        headers: {
+           Authorization: `Bearer ${token}`
+        }
+      });
       console.log("designations: ",response.designationName)
       return { payload: response.data.payload };
     } catch (err) {

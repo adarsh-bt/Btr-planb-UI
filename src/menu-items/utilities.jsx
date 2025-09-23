@@ -38,7 +38,7 @@ const icons = {
 // ==============================|| MENU ITEMS - UTILITIES ||============================== //
 
 
-const role = authservice.getrole();
+// const role = authservice.getrole();
 
 
 const utilities = {
