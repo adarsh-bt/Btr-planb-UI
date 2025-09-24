@@ -12,23 +12,22 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TablePagination,
   TextField,
   MenuItem,
   Button,
   IconButton,
   CircularProgress,
+  Alert,
+  Chip,
 } from "@mui/material";
-import { AddCircle, Delete } from "@mui/icons-material";
+import { AddCircle, Delete, Error as ErrorIcon } from "@mui/icons-material";
 import { toast } from "react-toastify";
 
 const landTypeOptions = ["Wet", "Dry"];
-const TOTAL_REQUIRED = 3;
+const TOTAL_REQUIRED = 100;
 
 /**
  * A robust fetch wrapper that handles non-OK responses and non-JSON content.
- * @param {string} url - The URL to fetch.
- * @returns {Promise<any>} - The JSON response.
  */
 const robustFetch = async (url) => {
   const response = await fetch(url);
@@ -49,7 +48,6 @@ const robustFetch = async (url) => {
   throw new Error(`Expected JSON response, but received: '${responseText.substring(0, 100)}...'`);
 };
 
-
 const KeyPlotEntry = () => {
   const [activeTab, setActiveTab] = useState(0);
 
@@ -58,16 +56,18 @@ const KeyPlotEntry = () => {
   const [villageOptions, setVillageOptions] = useState([]);
   const [districtInfo, setDistrictInfo] = useState(null);
   const [talukInfo, setTalukInfo] = useState([]);
-  const [loading, setLoading] = useState(true); // Start with loading true
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  // Form data state, keyed by localBodyId
+  // Form data and validation states
   const [localBodyData, setLocalBodyData] = useState({});
-  
+  const [duplicateErrors, setDuplicateErrors] = useState({}); // For backend duplicate errors
+  const [fieldErrors, setFieldErrors] = useState({}); // For client-side field validation errors
+  const [clientDuplicateErrors, setClientDuplicateErrors] = useState({}); // For client-side duplicate validation
+
   /**
    * Safely parses user info from localStorage to prevent JSON parsing errors.
-   * @returns {object|null} The parsed user object or null if it fails.
    */
   const getUserInfo = () => {
     if (typeof window === "undefined") return null;
@@ -76,7 +76,6 @@ const KeyPlotEntry = () => {
       return userItem ? JSON.parse(userItem) : null;
     } catch (error) {
       console.error("Failed to parse user info from localStorage:", error);
-      // Optionally remove the corrupted item
       localStorage.removeItem("user");
       return null;
     }
@@ -85,22 +84,21 @@ const KeyPlotEntry = () => {
   // Read IDs from localStorage
   const zoneId = typeof window !== "undefined" ? localStorage.getItem("activeZone") : null;
   const userInfo = getUserInfo();
-  const userId = userInfo?.id || "3fa85f64-5717-4562-b3fc-2c963f66afa6"; // Fallback for testing
+  const userId = userInfo?.id || "3fa85f64-5717-4562-b3fc-2c963f66afa6";
 
   // --- Data Fetching ---
   useEffect(() => {
     if (!zoneId) {
-        setLoading(false);
-        setError("No active zone selected. Please select a zone first.");
-        toast.warn("No active zone found.");
-        return;
+      setLoading(false);
+      setError("No active zone selected. Please select a zone first.");
+      toast.warn("No active zone found.");
+      return;
     }
 
     const fetchData = async () => {
       setLoading(true);
       setError("");
       try {
-        // Fetch all initial data in parallel for efficiency
         const [lbData, villageData, distData, talukData] = await Promise.all([
           robustFetch(`http://localhost:8082/btr-service/localbodies/by-zone/${zoneId}`),
           robustFetch(`http://localhost:8082/btr-service/localbodies/revenue-villages/${zoneId}`),
@@ -134,7 +132,7 @@ const KeyPlotEntry = () => {
     fetchData();
   }, [zoneId]);
 
-  // --- Memoized Lookups for efficient data mapping ---
+  // --- Memoized Lookups ---
   const villageInfoMap = useMemo(() => {
     const map = new Map();
     villageOptions.forEach((v) => {
@@ -160,6 +158,83 @@ const KeyPlotEntry = () => {
     0
   );
 
+  // --- Client-side Duplicate Detection Logic ---
+  const checkForClientDuplicates = (allRows) => {
+    const duplicateErrors = {};
+    const combinationMap = new Map();
+
+    allRows.forEach((row) => {
+      // Only check rows that have all required fields filled
+      if (row.village && row.villageBlock && row.surveyNo && row.subDivNo) {
+        const key = `${row.village}_${row.villageBlock}_${row.surveyNo}_${row.subDivNo}`;
+        const rowIdentifier = `${row.lbId}_${row.id}`;
+
+        if (combinationMap.has(key)) {
+          // Found duplicate - mark both rows
+          const existingRowIdentifier = combinationMap.get(key);
+          duplicateErrors[existingRowIdentifier] = `Duplicate combination: Village "${row.village}", Block "${row.villageBlock}", Survey No. "${row.surveyNo}", Sub Div No. "${row.subDivNo}" already exists`;
+          duplicateErrors[rowIdentifier] = `Duplicate combination: Village "${row.village}", Block "${row.villageBlock}", Survey No. "${row.surveyNo}", Sub Div No. "${row.subDivNo}" already exists`;
+        } else {
+          combinationMap.set(key, rowIdentifier);
+        }
+      }
+    });
+
+    return duplicateErrors;
+  };
+
+  // Real-time duplicate checking effect
+  useEffect(() => {
+    const allRows = Object.entries(localBodyData).flatMap(([lbId, rows]) =>
+      rows.map(row => ({ ...row, lbId: parseInt(lbId, 10) }))
+    );
+
+    const clientDuplicates = checkForClientDuplicates(allRows);
+    setClientDuplicateErrors(clientDuplicates);
+  }, [localBodyData]);
+
+  // --- Validation Functions ---
+  const validateField = (field, value, rowData = {}) => {
+    switch (field) {
+      case 'village':
+        return !value ? 'Village is required' : null;
+      case 'villageBlock':
+        return !value ? 'Village Block is required' : null;
+      case 'surveyNo':
+        return !value ? 'Survey Number is required' : 
+               !/^\d+$/.test(value) ? 'Survey Number must be numeric' : null;
+      case 'subDivNo':
+        return !value ? 'Sub Division Number is required' : null;
+      case 'area':
+        return !value ? 'Area is required' : 
+               !/^\d*\.?\d+$/.test(value) ? 'Area must be a valid number' : null;
+      case 'landType':
+        return !value ? 'Land Type is required' : null;
+      default:
+        return null;
+    }
+  };
+
+  const validateRow = (rowData) => {
+    const errors = {};
+    const fields = ['village', 'villageBlock', 'surveyNo', 'subDivNo', 'area', 'landType'];
+    
+    fields.forEach(field => {
+      const error = validateField(field, rowData[field], rowData);
+      if (error) {
+        errors[field] = error;
+      }
+    });
+    
+    return errors;
+  };
+
+  const clearValidationErrors = () => {
+    setDuplicateErrors({});
+    setFieldErrors({});
+    setClientDuplicateErrors({});
+  };
+
   // --- Handlers ---
   const handleChange = (lbId, rowId, field, value) => {
     setLocalBodyData((prev) => ({
@@ -168,6 +243,37 @@ const KeyPlotEntry = () => {
         row.id === rowId ? { ...row, [field]: value } : row
       ),
     }));
+
+    // Clear field-specific error when user starts typing
+    const errorKey = `${lbId}_${rowId}_${field}`;
+    if (fieldErrors[errorKey]) {
+      setFieldErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[errorKey];
+        return newErrors;
+      });
+    }
+
+    // Clear backend duplicate error when user modifies survey no or sub div no
+    if (field === 'surveyNo' || field === 'subDivNo') {
+      const duplicateKey = `${lbId}_${rowId}`;
+      if (duplicateErrors[duplicateKey]) {
+        setDuplicateErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[duplicateKey];
+          return newErrors;
+        });
+      }
+    }
+
+    // Real-time validation
+    const error = validateField(field, value);
+    if (error) {
+      setFieldErrors(prev => ({
+        ...prev,
+        [errorKey]: error
+      }));
+    }
   };
 
   const handleVillageChange = (lbId, rowId, villageName) => {
@@ -188,17 +294,25 @@ const KeyPlotEntry = () => {
           : row
       ),
     }));
+
+    // Clear errors for village and villageBlock
+    const villageErrorKey = `${lbId}_${rowId}_village`;
+    const blockErrorKey = `${lbId}_${rowId}_villageBlock`;
+    
+    setFieldErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[villageErrorKey];
+      delete newErrors[blockErrorKey];
+      return newErrors;
+    });
   };
 
   const handleAddRow = (lbId) => {
     if (totalKeyplots >= TOTAL_REQUIRED) return;
     setLocalBodyData((prev) => {
       const currentRows = prev[lbId] || [];
-      const newId = Date.now(); // Unique ID for the new row
-      const newSlNo =
-        currentRows.length > 0
-          ? Math.max(...currentRows.map((r) => r.slNo)) + 1
-          : 1;
+      const newId = Date.now();
+      const newSlNo = currentRows.length > 0 ? Math.max(...currentRows.map((r) => r.slNo)) + 1 : 1;
       return {
         ...prev,
         [lbId]: [
@@ -212,7 +326,7 @@ const KeyPlotEntry = () => {
             surveyNo: "",
             subDivNo: "",
             area: "",
-            landType: "Wet", // Default value
+            landType: "Wet",
           },
         ],
       };
@@ -224,6 +338,27 @@ const KeyPlotEntry = () => {
       ...prev,
       [lbId]: (prev[lbId] || []).filter((row) => row.id !== rowId),
     }));
+
+    // Clear validation errors for deleted row
+    setFieldErrors(prev => {
+      const newErrors = { ...prev };
+      Object.keys(newErrors).forEach(key => {
+        if (key.includes(`${lbId}_${rowId}_`)) {
+          delete newErrors[key];
+        }
+      });
+      return newErrors;
+    });
+
+    // Clear duplicate errors for deleted row
+    const duplicateKey = `${lbId}_${rowId}`;
+    if (duplicateErrors[duplicateKey]) {
+      setDuplicateErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[duplicateKey];
+        return newErrors;
+      });
+    }
   };
 
   const handleSaveAll = async () => {
@@ -232,24 +367,55 @@ const KeyPlotEntry = () => {
       return;
     }
 
+    // Clear previous errors
+    clearValidationErrors();
+
     setIsSaving(true);
     
     const allKeyplots = Object.entries(localBodyData).flatMap(([lbId, rows]) =>
-        rows.map(row => ({ ...row, lbId: parseInt(lbId, 10) }))
+      rows.map(row => ({ ...row, lbId: parseInt(lbId, 10) }))
     );
+
+    // Check for client-side duplicates first
+    const clientDuplicates = checkForClientDuplicates(allKeyplots);
+    if (Object.keys(clientDuplicates).length > 0) {
+      setClientDuplicateErrors(clientDuplicates);
+      toast.error(`Found ${Object.keys(clientDuplicates).length} duplicate combination(s). Please fix before saving.`);
+      setIsSaving(false);
+      return;
+    }
+
+    // Client-side field validation
+    let hasValidationErrors = false;
+    const newFieldErrors = {};
+
+    allKeyplots.forEach((row) => {
+      const rowErrors = validateRow(row);
+      Object.keys(rowErrors).forEach(field => {
+        const errorKey = `${row.lbId}_${row.id}_${field}`;
+        newFieldErrors[errorKey] = rowErrors[field];
+        hasValidationErrors = true;
+      });
+    });
+
+    if (hasValidationErrors) {
+      setFieldErrors(newFieldErrors);
+      toast.error("Please fix all validation errors before saving.");
+      setIsSaving(false);
+      return;
+    }
 
     const payload = allKeyplots.map((row) => {
       const villageData = villageInfoMap.get(row.village);
       const localBodyData = localBodyInfoMap.get(row.lbId);
 
-      // Return null for invalid rows to filter them out later
       if (!villageData || !localBodyData || !row.surveyNo) {
         return null;
       }
       
       return {
         dcode: districtInfo.distId,
-        tcode: talukInfo[0].revenueTalukId, // Assuming one taluk per zone
+        tcode: talukInfo[0].revenueTalukId,
         vcode: villageData.vcode,
         lsgcode: villageData.lsgcode,
         lbcode: localBodyData.lbcode,
@@ -259,14 +425,14 @@ const KeyPlotEntry = () => {
         ltype: row.landType.toUpperCase(),
         resvno: parseInt(row.surveyNo, 10),
         resbdno: row.subDivNo,
-        totCent:row.area
+        totCent: row.area
       };
-    }).filter(Boolean); // Filter out any null entries from invalid rows
+    }).filter(Boolean);
 
     if (payload.length !== totalKeyplots) {
-        toast.error("Some rows have missing or invalid data. Please check all fields.");
-        setIsSaving(false);
-        return;
+      toast.error("Some rows have missing or invalid data. Please check all fields.");
+      setIsSaving(false);
+      return;
     }
 
     try {
@@ -279,22 +445,88 @@ const KeyPlotEntry = () => {
         }
       );
 
+      const result = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`API Error: ${response.status} - ${errorData}`);
+        // Handle different types of error responses from backend
+        if (result.status === "Validation Failed" && result.errors) {
+          // Backend validation errors - Map duplicate errors to specific rows
+          const backendDuplicateErrors = {};
+          result.errors.forEach((error) => {
+            // Find matching row and create error key
+            const matchingRow = allKeyplots.find(row => 
+              row.surveyNo === error.resvno?.toString() && 
+              row.subDivNo === error.resbdno
+            );
+            if (matchingRow) {
+              const duplicateKey = `${matchingRow.lbId}_${matchingRow.id}`;
+              backendDuplicateErrors[duplicateKey] = error.message;
+            }
+          });
+          
+          setDuplicateErrors(backendDuplicateErrors);
+          toast.error(`Validation failed: ${result.errors.length} duplicate error(s) found`);
+        } else {
+          // Other API errors
+          const errorMessage = result.message || `API Error: ${response.status}`;
+          toast.error(errorMessage);
+        }
+        setIsSaving(false);
+        return;
       }
 
-      const result = await response.json();
-      toast.success("All keyplots saved successfully!");
-      console.log("Save successful:", result);
-      // Optional: Reset form state after successful save
-      // setLocalBodyData({}); 
+      // Success response
+      if (result.status === "Success") {
+        toast.success(`All keyplots saved successfully! ${result.ids?.length || totalKeyplots} records saved.`);
+        console.log("Save successful:", result);
+        // Optional: Reset form state after successful save
+        // setLocalBodyData({});
+        clearValidationErrors();
+      } else {
+        toast.warning("Unexpected response format from server.");
+      }
+
     } catch (err) {
       console.error("Failed to save keyplots:", err);
-      toast.error(err.message);
+      toast.error(`Network error: ${err.message}`);
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Helper function to get field error (only for client-side validation)
+  const getFieldError = (lbId, rowId, field) => {
+    return fieldErrors[`${lbId}_${rowId}_${field}`];
+  };
+
+  // Helper function to check if field has error
+  const hasFieldError = (lbId, rowId, field) => {
+    return Boolean(getFieldError(lbId, rowId, field));
+  };
+
+  // Helper function to check if row has backend duplicate error
+  const hasDuplicateError = (lbId, rowId) => {
+    return Boolean(duplicateErrors[`${lbId}_${rowId}`]);
+  };
+
+  // Helper function to get backend duplicate error message
+  const getDuplicateError = (lbId, rowId) => {
+    return duplicateErrors[`${lbId}_${rowId}`];
+  };
+
+  // Helper function to check if row has client-side duplicate error
+  const hasClientDuplicateError = (lbId, rowId) => {
+    return Boolean(clientDuplicateErrors[`${lbId}_${rowId}`]);
+  };
+
+  // Helper function to get client-side duplicate error message
+  const getClientDuplicateError = (lbId, rowId) => {
+    return clientDuplicateErrors[`${lbId}_${rowId}`];
+  };
+
+  // Combined function to check for any duplicate error (backend or client-side)
+  const hasAnyDuplicateError = (lbId, rowId) => {
+    return hasDuplicateError(lbId, rowId) || hasClientDuplicateError(lbId, rowId);
   };
 
   // --- Render Logic ---
@@ -308,7 +540,12 @@ const KeyPlotEntry = () => {
   }
 
   if (error) {
-    return <Typography color="error" align="center" sx={{ p: 3 }}>Error: {error}</Typography>;
+    return (
+      <Alert severity="error" sx={{ m: 3 }}>
+        <Typography variant="h6">Error Loading Data</Typography>
+        <Typography>{error}</Typography>
+      </Alert>
+    );
   }
 
   return (
@@ -328,13 +565,25 @@ const KeyPlotEntry = () => {
               variant="scrollable"
               scrollButtons="auto"
             >
-              {localBodies.map((lb, index) => (
-                <Tab
-                  key={lb.id}
-                  label={`${lb.name} (${(localBodyData[lb.id] || []).length})`}
-                  id={`tab-${index}`}
-                />
-              ))}
+              {localBodies.map((lb, index) => {
+                const rowCount = (localBodyData[lb.id] || []).length;
+                const hasErrors = Object.keys(fieldErrors).some(key => key.startsWith(`${lb.id}_`)) ||
+                                 Object.keys(duplicateErrors).some(key => key.startsWith(`${lb.id}_`)) ||
+                                 Object.keys(clientDuplicateErrors).some(key => key.startsWith(`${lb.id}_`));
+                
+                return (
+                  <Tab
+                    key={lb.id}
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {`${lb.name} (${rowCount})`}
+                        {hasErrors && <ErrorIcon color="error" fontSize="small" />}
+                      </Box>
+                    }
+                    id={`tab-${index}`}
+                  />
+                );
+              })}
             </Tabs>
           </Paper>
         )}
@@ -354,7 +603,7 @@ const KeyPlotEntry = () => {
                     <Table stickyHeader>
                       <TableHead>
                         <TableRow>
-                          {[ "Sl. No", "Village", "Village Block", "Survey No.", "Sub Div No.", "Area (Cents)", "Land Type", "Actions" ].map((col) => (
+                          {["Sl. No", "Village", "Village Block", "Survey No.", "Sub Div No.", "Area (Cents)", "Land Type", "Actions"].map((col) => (
                             <TableCell key={col} align="center" sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}>
                               {col}
                             </TableCell>
@@ -363,10 +612,35 @@ const KeyPlotEntry = () => {
                       </TableHead>
                       <TableBody>
                         {rows.map((row) => (
-                          <TableRow key={row.id}>
-                            <TableCell align="center">{row.slNo}</TableCell>
+                          <TableRow 
+                            key={row.id}
+                            sx={{
+                              backgroundColor: hasAnyDuplicateError(lb.id, row.id) ? '#ffebee' : 'inherit'
+                            }}
+                          >
+                            <TableCell align="center">
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                                {row.slNo}
+                                {hasAnyDuplicateError(lb.id, row.id) && (
+                                  <Chip 
+                                    icon={<ErrorIcon />} 
+                                    label="Duplicate" 
+                                    color="error" 
+                                    size="small" 
+                                  />
+                                )}
+                              </Box>
+                            </TableCell>
                             <TableCell>
-                              <TextField select value={row.village} onChange={(e) => handleVillageChange(lb.id, row.id, e.target.value)} fullWidth>
+                              <TextField 
+                                select 
+                                value={row.village} 
+                                onChange={(e) => handleVillageChange(lb.id, row.id, e.target.value)} 
+                                fullWidth
+                                error={hasFieldError(lb.id, row.id, 'village')}
+                                helperText={getFieldError(lb.id, row.id, 'village')}
+                                size="small"
+                              >
                                 {villageOptions.map((opt) => (
                                   <MenuItem key={opt.revenueVillageId} value={opt.revenueVillageName}>
                                     {opt.revenueVillageName}
@@ -375,28 +649,82 @@ const KeyPlotEntry = () => {
                               </TextField>
                             </TableCell>
                             <TableCell>
-                              <TextField select value={row.villageBlock} onChange={(e) => handleChange(lb.id, row.id, "villageBlock", e.target.value)} fullWidth disabled={!row.village}>
+                              <TextField 
+                                select 
+                                value={row.villageBlock} 
+                                onChange={(e) => handleChange(lb.id, row.id, "villageBlock", e.target.value)} 
+                                fullWidth 
+                                disabled={!row.village}
+                                error={hasFieldError(lb.id, row.id, 'villageBlock')}
+                                helperText={getFieldError(lb.id, row.id, 'villageBlock')}
+                                size="small"
+                              >
                                 {(row.villageBlockOptions || []).map((code) => (
                                   <MenuItem key={code} value={code}>{code}</MenuItem>
                                 ))}
                               </TextField>
                             </TableCell>
-                            <TableCell><TextField value={row.surveyNo} onChange={(e) => handleChange(lb.id, row.id, "surveyNo", e.target.value)}/></TableCell>
-                            <TableCell><TextField value={row.subDivNo} onChange={(e) => handleChange(lb.id, row.id, "subDivNo", e.target.value)}/></TableCell>
-                            <TableCell><TextField value={row.area} onChange={(e) => handleChange(lb.id, row.id, "area", e.target.value)}/></TableCell>
                             <TableCell>
-                              <TextField select value={row.landType} onChange={(e) => handleChange(lb.id, row.id, "landType", e.target.value)}>
-                                {landTypeOptions.map((opt) => (<MenuItem key={opt} value={opt}>{opt}</MenuItem>))}
+                              <TextField 
+                                value={row.surveyNo} 
+                                onChange={(e) => handleChange(lb.id, row.id, "surveyNo", e.target.value)}
+                                error={hasFieldError(lb.id, row.id, 'surveyNo')}
+                                helperText={getFieldError(lb.id, row.id, 'surveyNo')}
+                                size="small"
+                                fullWidth
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <TextField 
+                                value={row.subDivNo} 
+                                onChange={(e) => handleChange(lb.id, row.id, "subDivNo", e.target.value)}
+                                error={hasFieldError(lb.id, row.id, 'subDivNo')}
+                                helperText={getFieldError(lb.id, row.id, 'subDivNo')}
+                                size="small"
+                                fullWidth
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <TextField 
+                                value={row.area} 
+                                onChange={(e) => handleChange(lb.id, row.id, "area", e.target.value)}
+                                error={hasFieldError(lb.id, row.id, 'area')}
+                                helperText={getFieldError(lb.id, row.id, 'area')}
+                                size="small"
+                                fullWidth
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <TextField 
+                                select 
+                                value={row.landType} 
+                                onChange={(e) => handleChange(lb.id, row.id, "landType", e.target.value)}
+                                error={hasFieldError(lb.id, row.id, 'landType')}
+                                helperText={getFieldError(lb.id, row.id, 'landType')}
+                                size="small"
+                                fullWidth
+                              >
+                                {landTypeOptions.map((opt) => (
+                                  <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                                ))}
                               </TextField>
                             </TableCell>
                             <TableCell align="center">
-                              <IconButton color="error" onClick={() => handleDeleteRow(lb.id, row.id)}><Delete /></IconButton>
+                              <IconButton color="error" onClick={() => handleDeleteRow(lb.id, row.id)}>
+                                <Delete />
+                              </IconButton>
                             </TableCell>
                           </TableRow>
                         ))}
                         <TableRow>
                           <TableCell colSpan={8} align="right">
-                            <Button startIcon={<AddCircle />} variant="outlined" color="success" onClick={() => handleAddRow(lb.id)} disabled={totalKeyplots >= TOTAL_REQUIRED}>
+                            <Button 
+                              startIcon={<AddCircle />} 
+                              variant="outlined" 
+                              color="success" 
+                              onClick={() => handleAddRow(lb.id)}
+                              disabled={totalKeyplots >= TOTAL_REQUIRED}
+                            >
                               Add Keyplot
                             </Button>
                           </TableCell>
@@ -404,6 +732,34 @@ const KeyPlotEntry = () => {
                       </TableBody>
                     </Table>
                   </TableContainer>
+
+                  {/* Show duplicate error details below the table */}
+                  {(Object.keys(duplicateErrors).some(key => key.startsWith(`${lb.id}_`)) ||
+                    Object.keys(clientDuplicateErrors).some(key => key.startsWith(`${lb.id}_`))) && (
+                    <Alert severity="warning" sx={{ mt: 2 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                        Duplicate Records Found:
+                      </Typography>
+                      
+                      {/* Backend duplicate errors */}
+                      {Object.entries(duplicateErrors)
+                        .filter(([key]) => key.startsWith(`${lb.id}_`))
+                        .map(([key, message]) => (
+                          <Typography key={key} variant="body2" sx={{ mt: 1 }}>
+                            • {message}
+                          </Typography>
+                        ))}
+                      
+                      {/* Client-side duplicate errors */}
+                      {Object.entries(clientDuplicateErrors)
+                        .filter(([key]) => key.startsWith(`${lb.id}_`))
+                        .map(([key, message]) => (
+                          <Typography key={key} variant="body2" sx={{ mt: 1, color: '#ff6b35' }}>
+                            • {message}
+                          </Typography>
+                        ))}
+                    </Alert>
+                  )}
                 </Paper>
               )}
             </div>
@@ -415,10 +771,10 @@ const KeyPlotEntry = () => {
             variant="contained"
             color="primary"
             onClick={handleSaveAll}
-            disabled={totalKeyplots !== TOTAL_REQUIRED || isSaving}
+            disabled={totalKeyplots === 0 || isSaving || Object.keys(clientDuplicateErrors).length > 0}
             startIcon={isSaving ? <CircularProgress size={20} /> : null}
           >
-            {isSaving ? "Saving..." : `Save All Keyplots (${totalKeyplots}/${TOTAL_REQUIRED})`}
+            {isSaving ? "Saving..." : `Save All Keyplots (${totalKeyplots})`}
           </Button>
         </Box>
       </Box>

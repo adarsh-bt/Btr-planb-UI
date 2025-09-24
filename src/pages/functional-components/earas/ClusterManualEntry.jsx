@@ -107,8 +107,11 @@ const ClusterFormUI = () => {
     const [allVillageData, setAllVillageData] = useState([]);
     const [defaultVillageId, setDefaultVillageId] = useState(null);
     const [defaultVillage, setDefaultVillage] = useState('');
+    const [clusterId, setClusterId] = useState('');
     const [defaultBlock, setDefaultBlock] = useState('');
     const [resvnoError, setResvnoError] = useState('');
+    const [savingCrops, setSavingCrops] = useState(false);
+
     
     const [keyplotDetails, setKeyplotDetails] = useState({
         villageBlock: '',
@@ -254,6 +257,7 @@ useEffect(() => {
             setDefaultBlock(data.payload.villageBlock);
             setDefaultVillageId(data.payload.kvillageId);
             setDefaultVillage(data.payload.kvillageName);
+            setClusterId(data.payload.clusterId);
 
             if (data.payload) {
                 setKeyplotDetails(data.payload);
@@ -345,6 +349,8 @@ useEffect(() => {
         }
     };
 
+    
+
     useEffect(() => {
         const fetchVillageData = async () => {
             try {
@@ -428,7 +434,7 @@ const handleSubmit = async () => {
         const requestData = {
             userId: userId,
             keyplotId: keyplotId,
-            clusterNo: parseInt(clusterInfo.clusterNo) || 1,
+            clusterNo: clusterId,
             sidePlots: keyplotsData
                 .filter(keyplot => keyplot.rows.length > 0) // Only include keyplots with rows
                 .map(keyplot => ({
@@ -558,30 +564,121 @@ const handleSubmit = async () => {
         setCropsModalOpen(true);
     };
 
-    // ✅ UPDATED: Handle closing crops modal and saving selected crops
-    const handleCloseCropsModal = () => {
-    const selectedCropIds = Object.keys(selectedCrops).filter(cropId => selectedCrops[cropId]);
-    const cropsToSave = selectedCropIds.map(cropId => {
-        const cropDetail = cceCropDetails.find(crop => crop.cropId === parseInt(cropId));
-        return {
-            cropId: parseInt(cropId),
-            cropName: cropDetail ? cropDetail.cropName : `Crop ${cropId}`,
-            noOfCce: cropDetail ? cropDetail.noOfCce : 0,
-            isActive: cropDetail ? cropDetail.isActive : false
-        };
-    });
-    
-    setSavedCrops(cropsToSave);
-    console.log("Saved crops:", cropsToSave);
-    setCropsModalOpen(false);
+    // ✅ CORRECTED: Handle closing crops modal and saving selected crops to API
+const handleCloseCropsModal = async () => {
+    try {
+        setSavingCrops(true);
+        const selectedCropIds = Object.keys(selectedCrops).filter(cropId => selectedCrops[cropId]);
+        
+        if (selectedCropIds.length === 0) {
+            setSnackbarMessage('Please select at least one crop before saving.');
+            setSnackbarOpen(true);
+            setCropsModalOpen(false);
+            return;
+        }
+
+        // Get required data with proper validation
+        const zoneId = localStorage.getItem("activeZone");
+        const token = localStorage.getItem('token');
+        
+        if (!zoneId) {
+            throw new Error('Zone ID not found. Please select an active zone.');
+        }
+
+        if (!token) {
+            throw new Error('Authentication token not found. Please login again.');
+        }
+
+        // Validate clusterId exists
+    if (!clusterId) {
+      throw new Error('Cluster ID not found. Please ensure cluster data is loaded.')
+    }
+
+        // Ensure clusterId is properly converted to integer
+        const clusterIdNumber = parseInt(clusterId)
+        if (isNaN(clusterId)) {
+            throw new Error('Invalid cluster number. Please check cluster information.');
+        }
+
+        // Prepare the crop assignment data with proper data types
+        const cropAssignments = selectedCropIds.map(cropId => {
+            return {
+                cropId: parseInt(cropId),
+                clusterId: clusterIdNumber,
+                keyplotId: keyplotId, // This should be the UUID from URL params
+                zoneId: parseInt(zoneId),
+                landType: clusterInfo.landType || "WET",
+                isLimitExceeded: false,
+                isCurrentAssignment: true,
+                rejectedBy: null,
+                rejectedAt: null,
+                assignedOn: new Date().toISOString().slice(0, 19) // Format: YYYY-MM-DDTHH:mm:ss
+            };
+        });
+
+        console.log('Saving crop assignments:', cropAssignments);
+
+        // Make the API call with proper error handling
+        const response = await fetch(`${BASE_URL}/btr-service/crop-assignment-trail/save`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(cropAssignments)
+        });
+
+        console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+            let errorMessage = `HTTP error! status: ${response.status}`;
+            try {
+                const errorText = await response.text();
+                console.log('Error response:', errorText);
+                
+                try {
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.message || errorData.error || errorMessage;
+                } catch (e) {
+                    errorMessage = errorText || errorMessage;
+                }
+            } catch (e) {
+                console.log('Could not read error response');
+            }
+            throw new Error(errorMessage);
+        }
+
+        const result = await response.json();
+        console.log('Crop assignments saved successfully:', result);
+
+        // Update local state
+        const cropsToSave = selectedCropIds.map(cropId => {
+            const cropDetail = cceCropDetails.find(crop => crop.cropId === parseInt(cropId));
+            return {
+                cropId: parseInt(cropId),
+                cropName: cropDetail ? cropDetail.cropName : `Crop ${cropId}`,
+                noOfCce: cropDetail ? cropDetail.noOfCce : 0,
+                isActive: cropDetail ? cropDetail.isActive : true
+            };
+        });
+        
+        setSavedCrops(cropsToSave);
+        setSnackbarMessage('CCE crops saved successfully!');
+        setSnackbarOpen(true);
+        setCropsModalOpen(false);
+
+    } catch (error) {
+        console.error('Error saving CCE crops:', error);
+        setSnackbarMessage(`Error saving crops: ${error.message}`);
+        setSnackbarOpen(true);
+    } finally {
+        setSavingCrops(false);
+    }
 };
 
-    const handleCropsModalSave = () => {
-        const cropsToSave = Object.keys(selectedCrops).filter(crop => selectedCrops[crop]);
-        setSavedCrops(cropsToSave);
-        console.log("Saved crops:", cropsToSave);
-        setCropsModalOpen(false);
-    };
+
+
+   
 
     // ✅ UPDATED: Handle crop selection with crop ID
     const handleCropSelectionChange = (event) => {
@@ -835,7 +932,7 @@ const handleSubmit = async () => {
                 {/* Cluster Info Section - ORIGINAL UI PRESERVED */}
                 <Box sx={{ bgcolor: '#3066c2', color: 'white', p: 1, borderRadius: 1, mb: 2, fontWeight: 'bold', textAlign: 'center' }}>Cluster Info</Box>
                 <Grid container spacing={2} mb={2} alignItems="flex-start">
-                    <Grid item xs={12} sm={6} md={3}><TextField label="Cluster No." value={clusterInfo.clusterNo} InputProps={{ readOnly: true }} fullWidth /></Grid>
+                    <Grid item xs={12} sm={6} md={3}><TextField label="Cluster No." value={slNo} InputProps={{ readOnly: true }} fullWidth /></Grid>
                     <Grid item xs={12} sm={6} md={4}><TextField label="Local Body" value={clusterInfo.localBody} InputProps={{ readOnly: true }} fullWidth /></Grid>
                     <Grid item xs={12} sm={6} md={3}><TextField label="Land Type" value={clusterInfo.landType} InputProps={{ readOnly: true }} fullWidth /></Grid>
                 </Grid>
@@ -1136,13 +1233,15 @@ const handleSubmit = async () => {
             Cancel
         </Button>
         <Button
-            onClick={handleCloseCropsModal}
-            variant="contained"
-            color="primary"
-            disabled={loadingCrops}
-        >
-            Save Selection
-        </Button>
+    onClick={handleCloseCropsModal}
+                variant="contained"
+                color="primary"
+                disabled={loadingCrops || savingCrops}
+                startIcon={savingCrops ? <CircularProgress size={20} /> : null}
+            >
+                {savingCrops ? 'Saving...' : 'Save Selection'}
+            </Button>
+
     </DialogActions>
 </Dialog>
 

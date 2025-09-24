@@ -54,9 +54,9 @@ const utilities = {
     },
     {
       id: 'util-keyplot',
-      title: 'Key Plot Generation',
+      title: 'Key Plot List',
       type: 'item',
-      url: '/schemes/earas/Key_plots',
+      url: '/schemes/earas/Key_plot_Listing',
       icon: icons.ClusterOutlined
     },
     {

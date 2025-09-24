@@ -115,7 +115,7 @@ function Earas_menus() {
             {/* )} */}
 
             {/* {LocalBody to Village Mapping && ( */}
-            <Grid item xs={12} sm={4} md={3} lg={3}>
+            {/* <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
                 to="schemes/earas/Mapping"
@@ -168,7 +168,7 @@ function Earas_menus() {
                   </CardContent>
                 </Box>
               </Card>
-            </Grid>
+            </Grid> */}
             {/* )} */}
 
             {/* {canViewBTR && ( */}
@@ -228,7 +228,7 @@ function Earas_menus() {
             </Grid>
 
             {/* {canViewBTR && ( */}
-            <Grid item xs={12} sm={4} md={3} lg={3}>
+            {/* <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
                 to="/schemes/earas/btr"
@@ -281,9 +281,9 @@ function Earas_menus() {
                   </CardContent>
                 </Box>
               </Card>
-            </Grid>
+            </Grid> */}
 
-            <Grid item xs={12} sm={4} md={3} lg={3}>
+            {/* <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
                 to="/schemes/earas/Key_Plots"
@@ -336,7 +336,7 @@ function Earas_menus() {
                   </CardContent>
                 </Box>
               </Card>
-            </Grid>
+            </Grid> */}
 
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
@@ -374,7 +374,7 @@ function Earas_menus() {
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
                     <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Key Plot Entry
+                      Key Plot
                     </Typography>
                     <Typography
                       variant="subtitle1"
@@ -386,7 +386,7 @@ function Earas_menus() {
                         marginTop: '0.5rem'
                       }}
                     >
-                      Manual Entry
+                      Entry
                     </Typography>
                   </CardContent>
                 </Box>
@@ -429,7 +429,7 @@ function Earas_menus() {
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
                     <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Key Plot Listings
+                      Key Plot
                     </Typography>
                     <Typography
                       variant="subtitle1"
@@ -441,7 +441,7 @@ function Earas_menus() {
                         marginTop: '0.5rem'
                       }}
                     >
-                      Entered Lists
+                      Lists
                     </Typography>
                   </CardContent>
                 </Box>
@@ -484,7 +484,7 @@ function Earas_menus() {
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
                     <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Non BTR Keyplot Entry
+                      Non BTR
                     </Typography>
                     <Typography
                       variant="subtitle1"
@@ -496,7 +496,7 @@ function Earas_menus() {
                         marginTop: '0.5rem'
                       }}
                     >
-                      Manual Entry
+                      Key plot Entry
                     </Typography>
                   </CardContent>
                 </Box>
@@ -540,7 +540,7 @@ function Earas_menus() {
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
                     <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Cluster list
+                      Cluster
                     </Typography>
                     <Typography
                       variant="subtitle1"
@@ -552,14 +552,14 @@ function Earas_menus() {
                         marginTop: '0.5rem'
                       }}
                     >
-                      Manual Entry
+                      Formation
                     </Typography>
                   </CardContent>
                 </Box>
               </Card>
             </Grid>
 
-            <Grid item xs={12} sm={4} md={3} lg={3}>
+            {/* <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
                 to="/schemes/earas/Clusters"
@@ -612,7 +612,7 @@ function Earas_menus() {
                   </CardContent>
                 </Box>
               </Card>
-            </Grid>
+            </Grid> */}
 
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
