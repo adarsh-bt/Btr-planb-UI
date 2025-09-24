@@ -7,7 +7,7 @@ class mainapi {
   static BASE_URL = 'http://localhost:8082';
 
   // User API
-  static USER_API = 'http://localhost:8080';
+  static USER_API = 'http://localhost:8081';
 
   // BTR API
   static BTR_API = 'http://localhost:8082';

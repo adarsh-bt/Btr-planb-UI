@@ -573,7 +573,7 @@ const handleCloseCropsModal = async () => {
         if (selectedCropIds.length === 0) {
             setSnackbarMessage('Please select at least one crop before saving.');
             setSnackbarOpen(true);
-            setCropsModalOpen(false);
+            // setCropsModalOpen(false);
             return;
         }
 
@@ -590,9 +590,9 @@ const handleCloseCropsModal = async () => {
         }
 
         // Validate clusterId exists
-    if (!clusterId) {
-      throw new Error('Cluster ID not found. Please ensure cluster data is loaded.')
-    }
+        if (!clusterId) {
+        throw new Error('Cluster ID not found. Please ensure cluster data is loaded.')
+        }
 
         // Ensure clusterId is properly converted to integer
         const clusterIdNumber = parseInt(clusterId)
@@ -663,9 +663,36 @@ const handleCloseCropsModal = async () => {
         });
         
         setSavedCrops(cropsToSave);
-        setSnackbarMessage('CCE crops saved successfully!');
+        // **UPDATE CCE CROP DETAILS TO REFLECT DECREASED noOfCce**
+    // Calculate how many crops were selected for each crop type
+    const cropUsageCount = {};
+    selectedCropIds.forEach(cropId => {
+      cropUsageCount[cropId] = (cropUsageCount[cropId] || 0) + 1;
+    });
+
+    // Update cceCropDetails to decrease noOfCce for selected crops
+    const updatedCceCropDetails = cceCropDetails.map(crop => {
+      const cropIdStr = crop.cropId.toString();
+      if (selectedCrops[cropIdStr]) {
+        // Decrease noOfCce by the number of times this crop was selected
+        const usageCount = cropUsageCount[cropIdStr] || 1;
+        return {
+          ...crop,
+          noOfCce: Math.max(0, crop.noOfCce - usageCount) // Ensure it doesn't go below 0
+        };
+      }
+      return crop;
+    });
+
+    // Update the state with new crop details
+    setCceCropDetails(updatedCceCropDetails);
+
+    // Clear selected crops for next selection
+    setSelectedCrops({});
+
+    setSnackbarMessage("CCE crops saved successfully!");
         setSnackbarOpen(true);
-        setCropsModalOpen(false);
+        // setCropsModalOpen(false);
 
     } catch (error) {
         console.error('Error saving CCE crops:', error);
@@ -1178,6 +1205,7 @@ const handleCloseCropsModal = async () => {
                                         onChange={handleCropSelectionChange}
                                         name={crop.cropId.toString()}
                                         color="primary"
+                                        disabled={crop.noOfCce <= 0}
                                     />
                                 }
                                 label={
@@ -1228,21 +1256,27 @@ const handleCloseCropsModal = async () => {
         )}
         */}
     </DialogContent>
-    <DialogActions>
-        <Button onClick={() => setCropsModalOpen(false)} color="primary">
-            Cancel
-        </Button>
-        <Button
+<DialogActions>
+  {/* <Button onClick={() => setCropsModalOpen(false)} color="secondary">
+    Close
+  </Button> */}
+  <Button 
+    onClick={() => setCropsModalOpen(false)} 
+    color="primary"
+  >
+    Cancel
+  </Button>
+  <Button
     onClick={handleCloseCropsModal}
-                variant="contained"
-                color="primary"
-                disabled={loadingCrops || savingCrops}
-                startIcon={savingCrops ? <CircularProgress size={20} /> : null}
-            >
-                {savingCrops ? 'Saving...' : 'Save Selection'}
-            </Button>
+    variant="contained"
+    color="primary"
+    disabled={loadingCrops || savingCrops}
+    startIcon={savingCrops ? <CircularProgress size={20} /> : null}
+  >
+    {savingCrops ? "Saving..." : "Save Selection"}
+  </Button>
+</DialogActions>
 
-    </DialogActions>
 </Dialog>
 
 
