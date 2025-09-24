@@ -272,7 +272,7 @@ const payload = {
     
       
               // Now, after saving the approval, check if zone needs to be saved
-              if (zone !== null && data.payload.loginId !== null) {
+              if (zone !== '' && data.payload.loginId !== null) {
               
                 // Call the zone_save API with required parameters
                 approvalservice.zone_save(zone, data.payload.loginId, admin_id)

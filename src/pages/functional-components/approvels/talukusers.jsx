@@ -225,7 +225,7 @@ const [rolesMap, setRolesMap] = useState({});
          
           // Call the API using the separate function
           
-          if(admrole !== "Taluk Level Approver" && admrole !== "IT Admin" && admrole !== "Super Admin"){
+          if(admrole === "District Level Approver"){
         
         var saveapi = approvalservice.saveDisApproval(payload)
           }
@@ -254,8 +254,8 @@ const [rolesMap, setRolesMap] = useState({});
                     : user
                 )
               );
-
-              if (zone !== null && data.payload.loginId !== null) {
+                
+              if (zone !== '' && data.payload.loginId !== null) {
                 // Call the zone_save API with required parameters
                 console.log("zone", zone," user_idssssss   ", data.payload[0].loginId, " admin_id ", admin_id);
                 approvalservice
@@ -615,7 +615,7 @@ useEffect(() => {
                   )} */}
 
                   {/* {selectedRow.designation === 'Taluk Statistical Officer' && ( */}
-
+{(selectedRow.designation === 'Taluk Statistical Officer' || admrole === 'IT Admin') && (
  <Box
   style={{
     display: "flex",
@@ -699,11 +699,11 @@ useEffect(() => {
       </div>
     </div>
   ))}
-</Box>
+</Box>)}
 {/* )} */}
 
                 </Box>
-                 { (zoneVisble === true) && (
+                 { (zoneVisble === true && selectedRow.designation !== 'Taluk Statistical Officer') && (
                   <Box style={{ width: '30%', margin: 'auto' }}>
                     <center>
                       <strong>Select Zone</strong>

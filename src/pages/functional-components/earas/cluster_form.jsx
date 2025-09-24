@@ -1444,11 +1444,14 @@ const handleConfirmReject = async () => {
     const token = localStorage.getItem('token');
     const kPlotObj = keyplots.find(item => item.id === "K");
     const plotId = kPlotObj?.rows?.[0]?.plot_id || null;
-
+alert(plotId)
     if (!plotId) {
       throw new Error("Plot ID not found.");
     }
-
+   const zone_id = authservice.getzone(); // Get zone_id from authservice
+    if (!zone_id) {
+      throw new Error("Zone ID not found.");
+    }
     const response = await fetch(`${BASE_URL}/btr-service/cluster-api/reject-cluster/${plotId}`, {
       method: 'POST',
       headers: {
@@ -1458,7 +1461,7 @@ const handleConfirmReject = async () => {
       body: JSON.stringify({
         reason_for_cluster: reasonToSubmit,
         userid: authservice.userid(),
-        zone_id: '758',
+        zone_id: zone_id,
         reason: 'Cluster Rejected',
       }),
     });

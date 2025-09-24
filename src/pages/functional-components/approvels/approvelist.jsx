@@ -282,7 +282,7 @@ const[zoneVisble, setzoneVisble] = useState(false);
                   console.log("admin ",admin_id)
                   console.log("admin ",zone)
                   console.log("userid ",data.payload.loginId)
-                   if (zone !== null && data.payload.loginId !== null) {
+                   if (zone !== '' && data.payload.loginId !== null) {
                                  // Call the zone_save API with required parameters
                       approvalservice.zone_save(zone, data.payload.loginId, admin_id)
                             .then((zoneResponse) => {
