@@ -26,8 +26,22 @@ import {
   FormControl,
   InputLabel,
   Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  CircularProgress,
 } from "@mui/material";
-import { AddCircle, Delete, ArrowDropDown, KeyboardArrowDown } from "@mui/icons-material";
+import { 
+  AddCircle, 
+  Delete, 
+  ArrowDropDown, 
+  KeyboardArrowDown,
+  CheckCircle,
+  Cancel
+} from "@mui/icons-material";
+import { toast } from "react-toastify";
 
 const landTypeOptions = ["Wet", "Dry"];
 const listTypeOptions = [
@@ -47,11 +61,48 @@ const KeyPlotEntryNonBtr = () => {
   const [localBodyData, setLocalBodyData] = useState({});
   const [listTypes, setListTypes] = useState({});
   const [villageOptions, setVillageOptions] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // Modal States
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [savedCount, setSavedCount] = useState(0);
   
   // Popover state
   const [popoverAnchorEl, setPopoverAnchorEl] = useState(null);
   const [selectedVillage, setSelectedVillage] = useState(null);
   const [selectedLocalBody, setSelectedLocalBody] = useState(null);
+
+  // Auto-close success modal after 3 seconds
+  useEffect(() => {
+    let timeoutId;
+    if (showSuccessModal) {
+      timeoutId = setTimeout(() => {
+        setShowSuccessModal(false);
+      }, 3000);
+    }
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [showSuccessModal]);
+
+  // Auto-close error modal after 4 seconds
+  useEffect(() => {
+    let timeoutId;
+    if (showErrorModal) {
+      timeoutId = setTimeout(() => {
+        setShowErrorModal(false);
+      }, 4000);
+    }
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [showErrorModal]);
 
   const villageToBlocks = useMemo(() => {
     const map = {};
@@ -304,28 +355,69 @@ const KeyPlotEntryNonBtr = () => {
     }
   };
 
-  const handleSaveAll = () => {
-    const payload = {
-      zoneId,
-      keyplotsByLocalBodyAndVillage: Object.fromEntries(
-        Object.entries(localBodyData).map(([lbId, villageData]) => [
-          lbId,
-          Object.fromEntries(
-            Object.entries(villageData || {}).map(([villageName, rows]) => [
-              villageName,
-              {
-                listType: getCurrentListType(lbId, villageName),
-                keyplots: rows.map(
-                  ({ villageBlockOptions, ...rest }) => rest
-                ),
-              },
-            ])
-          ),
-        ])
-      ),
-    };
-    console.log("Final Data:", payload);
-    alert("All Keyplots saved! Check console for details.");
+  // Save handlers with modals
+  const handleSaveButtonClick = () => {
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmSave = () => {
+    setShowConfirmModal(false);
+    handleActualSave();
+  };
+
+  const handleCancelSave = () => {
+    setShowConfirmModal(false);
+  };
+
+  const handleActualSave = async () => {
+    setIsSaving(true);
+    
+    try {
+      const payload = {
+        zoneId,
+        keyplotsByLocalBodyAndVillage: Object.fromEntries(
+          Object.entries(localBodyData).map(([lbId, villageData]) => [
+            lbId,
+            Object.fromEntries(
+              Object.entries(villageData || {}).map(([villageName, rows]) => [
+                villageName,
+                {
+                  listType: getCurrentListType(lbId, villageName),
+                  keyplots: rows.map(
+                    ({ villageBlockOptions, ...rest }) => rest
+                  ),
+                },
+              ])
+            ),
+          ])
+        ),
+      };
+
+      // Simulate API call
+      console.log("Final Data:", payload);
+      
+      // Simulate a delay for demonstration
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Simulate success/error based on some condition
+      const isSuccess = Math.random() > 0.2; // 80% success rate for demo
+      
+      if (isSuccess) {
+        setSavedCount(totalKeyplots);
+        setShowSuccessModal(true);
+        toast.success(`Successfully saved ${totalKeyplots} keyplots!`);
+      } else {
+        setShowErrorModal(true);
+        toast.error("Failed to save keyplots. Please try again.");
+      }
+      
+    } catch (error) {
+      console.error("Save error:", error);
+      setShowErrorModal(true);
+      toast.error(`Error saving keyplots: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const getTableHeaders = (lbId, villageName) => {
@@ -382,7 +474,7 @@ const KeyPlotEntryNonBtr = () => {
         }}
       >
         <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
-          Non-BTR KeyPlot Entry
+          Non-BTR Key Plot Entry
            {/* (Total Required: {TOTAL_REQUIRED}) */}
         </Typography>
 
@@ -827,16 +919,171 @@ const KeyPlotEntryNonBtr = () => {
           </List>
         </Popover>
 
+        {/* Confirmation Modal */}
+        <Dialog
+          open={showConfirmModal}
+          onClose={handleCancelSave}
+          aria-labelledby="confirm-dialog-title"
+          aria-describedby="confirm-dialog-description"
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle id="confirm-dialog-title">
+            Confirm Save Operation
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText id="confirm-dialog-description">
+              Are you sure you want to save {totalKeyplots} keyplot{totalKeyplots !== 1 ? 's' : ''}? 
+              This action will save all the entered data to the database.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCancelSave} color="secondary" variant="outlined">
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmSave} color="primary" variant="contained" autoFocus>
+              Confirm & Save
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Success Modal */}
+        <Dialog
+          open={showSuccessModal}
+          onClose={() => setShowSuccessModal(false)}
+          aria-labelledby="success-dialog-title"
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              textAlign: 'center',
+              py: 2
+            }
+          }}
+        >
+          <DialogTitle id="success-dialog-title" sx={{ pb: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <CheckCircle 
+                sx={{ 
+                  fontSize: 64, 
+                  color: '#4caf50',
+                  animation: 'pulse 1.5s infinite'
+                }} 
+              />
+              <Typography variant="h5" sx={{ color: '#4caf50', fontWeight: 'bold' }}>
+                Success!
+              </Typography>
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ textAlign: 'center', fontSize: '1.1rem' }}>
+              Successfully saved {savedCount} keyplot{savedCount !== 1 ? 's' : ''}!
+              <br />
+              All data has been saved to the database.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
+            <Button 
+              onClick={() => setShowSuccessModal(false)} 
+              variant="contained" 
+              color="success"
+              sx={{ minWidth: 100 }}
+            >
+              OK
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Error Modal */}
+        <Dialog
+          open={showErrorModal}
+          onClose={() => setShowErrorModal(false)}
+          aria-labelledby="error-dialog-title"
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              textAlign: 'center',
+              py: 2
+            }
+          }}
+        >
+          <DialogTitle id="error-dialog-title" sx={{ pb: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <Cancel 
+                sx={{ 
+                  fontSize: 64, 
+                  color: '#f44336',
+                  animation: 'shake 0.5s ease-in-out'
+                }} 
+              />
+              <Typography variant="h5" sx={{ color: '#f44336', fontWeight: 'bold' }}>
+                Error!
+              </Typography>
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ textAlign: 'center', fontSize: '1.1rem' }}>
+              Error saving keyplots!
+              <br />
+              Please check the form for errors and try again.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
+            <Button 
+              onClick={() => setShowErrorModal(false)} 
+              variant="contained" 
+              color="error"
+              sx={{ minWidth: 100 }}
+            >
+              OK
+            </Button>
+          </DialogActions>
+        </Dialog>
+
         <Box display="flex" justifyContent="flex-end" mt={3}>
           <Button
             variant="contained"
             color="primary"
-            onClick={handleSaveAll}
-            disabled={totalKeyplots !== TOTAL_REQUIRED}
+            onClick={handleSaveButtonClick}
+            disabled={totalKeyplots === 0 || isSaving}
+            startIcon={isSaving ? <CircularProgress size={20} /> : null}
           >
-            Save All Keyplots ({totalKeyplots}/{TOTAL_REQUIRED})
+            {isSaving ? "Saving..." : `Save All Keyplots (${totalKeyplots})`}
           </Button>
         </Box>
+
+        {/* Add CSS animations for the modal icons */}
+        <style jsx global>{`
+          @keyframes pulse {
+            0% {
+              transform: scale(1);
+              opacity: 1;
+            }
+            50% {
+              transform: scale(1.1);
+              opacity: 0.7;
+            }
+            100% {
+              transform: scale(1);
+              opacity: 1;
+            }
+          }
+
+          @keyframes shake {
+            0%, 100% {
+              transform: translateX(0);
+            }
+            25% {
+              transform: translateX(-5px);
+            }
+            75% {
+              transform: translateX(5px);
+            }
+          }
+        `}</style>
       </Box>
     </Grid>
   );

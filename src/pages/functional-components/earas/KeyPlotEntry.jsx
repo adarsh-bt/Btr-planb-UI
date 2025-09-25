@@ -19,38 +19,45 @@ import {
   CircularProgress,
   Alert,
   Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
-import { AddCircle, Delete, Error as ErrorIcon } from "@mui/icons-material";
+import { 
+  AddCircle, 
+  Delete, 
+  Error as ErrorIcon, 
+  CheckCircle,
+  Cancel
+} from "@mui/icons-material";
 import { toast } from "react-toastify";
+import mainapi from "api/mainapi";
 
 const landTypeOptions = ["Wet", "Dry"];
 const TOTAL_REQUIRED = 100;
+const BASE_URL = mainapi.BASE_URL;
 
-/**
- * A robust fetch wrapper that handles non-OK responses and non-JSON content.
- */
+/** * A robust fetch wrapper that handles non-OK responses and non-JSON content. */
 const robustFetch = async (url) => {
   const response = await fetch(url);
-
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(
       `Request failed with status ${response.status}: ${errorText || response.statusText}`
     );
   }
-
   const contentType = response.headers.get("content-type");
   if (contentType && contentType.includes("application/json")) {
     return response.json();
   }
-
   const responseText = await response.text();
   throw new Error(`Expected JSON response, but received: '${responseText.substring(0, 100)}...'`);
 };
 
 const KeyPlotEntry = () => {
   const [activeTab, setActiveTab] = useState(0);
-
   // API Data States
   const [localBodies, setLocalBodies] = useState([]);
   const [villageOptions, setVillageOptions] = useState([]);
@@ -60,6 +67,16 @@ const KeyPlotEntry = () => {
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
+  const BASE_URL = mainapi.BTR_API;
+  
+  // Confirmation Modal State
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  
+  // Success and Error Modal States
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [savedCount, setSavedCount] = useState(0);
+  
   // Form data and validation states
   const [localBodyData, setLocalBodyData] = useState({});
   const [duplicateErrors, setDuplicateErrors] = useState({}); // For backend duplicate errors
@@ -86,6 +103,36 @@ const KeyPlotEntry = () => {
   const userInfo = getUserInfo();
   const userId = userInfo?.id || "3fa85f64-5717-4562-b3fc-2c963f66afa6";
 
+  // Auto-close success modal after 3 seconds
+  useEffect(() => {
+    let timeoutId;
+    if (showSuccessModal) {
+      timeoutId = setTimeout(() => {
+        setShowSuccessModal(false);
+      }, 3000);
+    }
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [showSuccessModal]);
+
+  // Auto-close error modal after 4 seconds
+  useEffect(() => {
+    let timeoutId;
+    if (showErrorModal) {
+      timeoutId = setTimeout(() => {
+        setShowErrorModal(false);
+      }, 4000);
+    }
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [showErrorModal]);
+
   // --- Data Fetching ---
   useEffect(() => {
     if (!zoneId) {
@@ -94,23 +141,20 @@ const KeyPlotEntry = () => {
       toast.warn("No active zone found.");
       return;
     }
-
     const fetchData = async () => {
       setLoading(true);
       setError("");
       try {
         const [lbData, villageData, distData, talukData] = await Promise.all([
-          robustFetch(`http://localhost:8082/btr-service/localbodies/by-zone/${zoneId}`),
-          robustFetch(`http://localhost:8082/btr-service/localbodies/revenue-villages/${zoneId}`),
-          robustFetch(`http://localhost:8082/btr-service/localbodies/district/${zoneId}`),
-          robustFetch(`http://localhost:8082/btr-service/localbodies/revenue-taluks/${zoneId}`),
+          robustFetch(`${BASE_URL}/btr-service/localbodies/by-zone/${zoneId}`),
+          robustFetch(`${BASE_URL}/btr-service/localbodies/revenue-villages/${zoneId}`),
+          robustFetch(`${BASE_URL}/btr-service/localbodies/district/${zoneId}`),
+          robustFetch(`${BASE_URL}/btr-service/localbodies/revenue-taluks/${zoneId}`),
         ]);
-
         setLocalBodies(lbData || []);
         setVillageOptions(villageData || []);
         setDistrictInfo(distData);
         setTalukInfo(talukData || []);
-
         // Initialize localBodyData state for each fetched local body
         setLocalBodyData((prev) => {
           const next = { ...prev };
@@ -119,7 +163,6 @@ const KeyPlotEntry = () => {
           });
           return next;
         });
-
       } catch (err) {
         console.error("Data fetching error:", err);
         setError(err.message);
@@ -128,7 +171,6 @@ const KeyPlotEntry = () => {
         setLoading(false);
       }
     };
-
     fetchData();
   }, [zoneId]);
 
@@ -162,13 +204,11 @@ const KeyPlotEntry = () => {
   const checkForClientDuplicates = (allRows) => {
     const duplicateErrors = {};
     const combinationMap = new Map();
-
     allRows.forEach((row) => {
       // Only check rows that have all required fields filled
       if (row.village && row.villageBlock && row.surveyNo && row.subDivNo) {
         const key = `${row.village}_${row.villageBlock}_${row.surveyNo}_${row.subDivNo}`;
         const rowIdentifier = `${row.lbId}_${row.id}`;
-
         if (combinationMap.has(key)) {
           // Found duplicate - mark both rows
           const existingRowIdentifier = combinationMap.get(key);
@@ -179,7 +219,6 @@ const KeyPlotEntry = () => {
         }
       }
     });
-
     return duplicateErrors;
   };
 
@@ -188,7 +227,6 @@ const KeyPlotEntry = () => {
     const allRows = Object.entries(localBodyData).flatMap(([lbId, rows]) =>
       rows.map(row => ({ ...row, lbId: parseInt(lbId, 10) }))
     );
-
     const clientDuplicates = checkForClientDuplicates(allRows);
     setClientDuplicateErrors(clientDuplicates);
   }, [localBodyData]);
@@ -201,13 +239,13 @@ const KeyPlotEntry = () => {
       case 'villageBlock':
         return !value ? 'Village Block is required' : null;
       case 'surveyNo':
-        return !value ? 'Survey Number is required' : 
-               !/^\d+$/.test(value) ? 'Survey Number must be numeric' : null;
+        return !value ? 'Survey Number is required' :
+                !/^\d+$/.test(value) ? 'Survey Number must be numeric' : null;
       case 'subDivNo':
         return !value ? 'Sub Division Number is required' : null;
       case 'area':
-        return !value ? 'Area is required' : 
-               !/^\d*\.?\d+$/.test(value) ? 'Area must be a valid number' : null;
+        return !value ? 'Area is required' :
+                !/^\d*\.?\d+$/.test(value) ? 'Area must be a valid number' : null;
       case 'landType':
         return !value ? 'Land Type is required' : null;
       default:
@@ -218,14 +256,14 @@ const KeyPlotEntry = () => {
   const validateRow = (rowData) => {
     const errors = {};
     const fields = ['village', 'villageBlock', 'surveyNo', 'subDivNo', 'area', 'landType'];
-    
+        
     fields.forEach(field => {
       const error = validateField(field, rowData[field], rowData);
       if (error) {
         errors[field] = error;
       }
     });
-    
+        
     return errors;
   };
 
@@ -235,7 +273,154 @@ const KeyPlotEntry = () => {
     setClientDuplicateErrors({});
   };
 
-  // --- Handlers ---
+  // --- Save Handlers ---
+  const handleSaveButtonClick = () => {
+    // Show confirmation modal instead of directly saving
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmSave = () => {
+    setShowConfirmModal(false);
+    handleActualSave();
+  };
+
+  const handleCancelSave = () => {
+    setShowConfirmModal(false);
+  };
+
+  const handleActualSave = async () => {
+    if (!districtInfo || talukInfo.length === 0) {
+      toast.error("District or Taluk data is not yet loaded. Please wait.");
+      return;
+    }
+    // Clear previous errors
+    clearValidationErrors();
+    setIsSaving(true);
+        
+    const allKeyplots = Object.entries(localBodyData).flatMap(([lbId, rows]) =>
+      rows.map(row => ({ ...row, lbId: parseInt(lbId, 10) }))
+    );
+    // Check for client-side duplicates first
+    const clientDuplicates = checkForClientDuplicates(allKeyplots);
+    if (Object.keys(clientDuplicates).length > 0) {
+      setClientDuplicateErrors(clientDuplicates);
+      toast.error(`Found ${Object.keys(clientDuplicates).length} duplicate combination(s). Please fix before saving.`);
+      setIsSaving(false);
+      return;
+    }
+
+    // Client-side field validation
+    let hasValidationErrors = false;
+    const newFieldErrors = {};
+    allKeyplots.forEach((row) => {
+      const rowErrors = validateRow(row);
+      Object.keys(rowErrors).forEach(field => {
+        const errorKey = `${row.lbId}_${row.id}_${field}`;
+        newFieldErrors[errorKey] = rowErrors[field];
+        hasValidationErrors = true;
+      });
+    });
+    if (hasValidationErrors) {
+      setFieldErrors(newFieldErrors);
+      toast.error("Please fix all validation errors before saving.");
+      setIsSaving(false);
+      return;
+    }
+
+    const payload = allKeyplots.map((row) => {
+      const villageData = villageInfoMap.get(row.village);
+      const localBodyData = localBodyInfoMap.get(row.lbId);
+      if (!villageData || !localBodyData || !row.surveyNo) {
+        return null;
+      }
+            
+      return {
+        dcode: districtInfo.distId,
+        tcode: talukInfo[0].revenueTalukId,
+        vcode: villageData.vcode,
+        lsgcode: villageData.lsgcode,
+        lbcode: localBodyData.lbcode,
+        zoneId: parseInt(zoneId, 10),
+        user_id: userId,
+        bcode: parseInt(row.villageBlock, 10) || null,
+        ltype: row.landType.toUpperCase(),
+        resvno: parseInt(row.surveyNo, 10),
+        resbdno: row.subDivNo,
+        totCent: row.area
+      };
+    }).filter(Boolean);
+
+    if (payload.length !== totalKeyplots) {
+      toast.error("Some rows have missing or invalid data. Please check all fields.");
+      setIsSaving(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(
+          `${BASE_URL}/btr-service/api/btr-data/saveAll`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+      const result = await response.json();
+      if (!response.ok) {
+        // Handle different types of error responses from backend
+        if (result.status === "Validation Failed" && result.errors) {
+          // Backend validation errors - Map duplicate errors to specific rows
+          const backendDuplicateErrors = {};
+          result.errors.forEach((error) => {
+            // Find matching row and create error key
+            const matchingRow = allKeyplots.find(row => 
+              row.surveyNo === error.resvno?.toString() &&
+              row.subDivNo === error.resbdno
+            );
+            if (matchingRow) {
+              const duplicateKey = `${matchingRow.lbId}_${matchingRow.id}`;
+              backendDuplicateErrors[duplicateKey] = error.message;
+            }
+          });
+                    
+          setDuplicateErrors(backendDuplicateErrors);
+          toast.error(`Validation failed: ${result.errors.length} duplicate error(s) found`);
+          // Show error modal for duplicate errors
+          setShowErrorModal(true);
+        } else {
+          // Other API errors
+          const errorMessage = result.message || `API Error: ${response.status}`;
+          toast.error(errorMessage);
+          // Show error modal for other API errors
+          setShowErrorModal(true);
+        }
+        setIsSaving(false);
+        return;
+      }
+      // Success response
+      if (result.status === "Success") {
+        const savedKeyplotCount = result.ids?.length || totalKeyplots;
+        setSavedCount(savedKeyplotCount);
+        setShowSuccessModal(true);
+        toast.success(`Successfully saved! All ${savedKeyplotCount} keyplots have been saved successfully.`);
+        console.log("Save successful:", result);
+        // Optional: Reset form state after successful save
+        // setLocalBodyData({});
+        clearValidationErrors();
+      } else {
+        toast.warning("Unexpected response format from server.");
+        setShowErrorModal(true);
+      }
+    } catch (err) {
+      console.error("Failed to save keyplots:", err);
+      toast.error(`Network error: ${err.message}`);
+      setShowErrorModal(true);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // --- Other Handlers (unchanged) ---
   const handleChange = (lbId, rowId, field, value) => {
     setLocalBodyData((prev) => ({
       ...prev,
@@ -243,7 +428,6 @@ const KeyPlotEntry = () => {
         row.id === rowId ? { ...row, [field]: value } : row
       ),
     }));
-
     // Clear field-specific error when user starts typing
     const errorKey = `${lbId}_${rowId}_${field}`;
     if (fieldErrors[errorKey]) {
@@ -253,7 +437,6 @@ const KeyPlotEntry = () => {
         return newErrors;
       });
     }
-
     // Clear backend duplicate error when user modifies survey no or sub div no
     if (field === 'surveyNo' || field === 'subDivNo') {
       const duplicateKey = `${lbId}_${rowId}`;
@@ -265,7 +448,6 @@ const KeyPlotEntry = () => {
         });
       }
     }
-
     // Real-time validation
     const error = validateField(field, value);
     if (error) {
@@ -280,7 +462,6 @@ const KeyPlotEntry = () => {
     const villageData = villageInfoMap.get(villageName);
     const blocks = villageData ? villageData.blockCodes : [];
     const defaultBlock = blocks.length > 0 ? blocks[0] : "";
-
     setLocalBodyData((prev) => ({
       ...prev,
       [lbId]: prev[lbId].map((row) =>
@@ -294,11 +475,10 @@ const KeyPlotEntry = () => {
           : row
       ),
     }));
-
     // Clear errors for village and villageBlock
     const villageErrorKey = `${lbId}_${rowId}_village`;
     const blockErrorKey = `${lbId}_${rowId}_villageBlock`;
-    
+        
     setFieldErrors(prev => {
       const newErrors = { ...prev };
       delete newErrors[villageErrorKey];
@@ -338,7 +518,6 @@ const KeyPlotEntry = () => {
       ...prev,
       [lbId]: (prev[lbId] || []).filter((row) => row.id !== rowId),
     }));
-
     // Clear validation errors for deleted row
     setFieldErrors(prev => {
       const newErrors = { ...prev };
@@ -349,7 +528,6 @@ const KeyPlotEntry = () => {
       });
       return newErrors;
     });
-
     // Clear duplicate errors for deleted row
     const duplicateKey = `${lbId}_${rowId}`;
     if (duplicateErrors[duplicateKey]) {
@@ -358,139 +536,6 @@ const KeyPlotEntry = () => {
         delete newErrors[duplicateKey];
         return newErrors;
       });
-    }
-  };
-
-  const handleSaveAll = async () => {
-    if (!districtInfo || talukInfo.length === 0) {
-      toast.error("District or Taluk data is not yet loaded. Please wait.");
-      return;
-    }
-
-    // Clear previous errors
-    clearValidationErrors();
-
-    setIsSaving(true);
-    
-    const allKeyplots = Object.entries(localBodyData).flatMap(([lbId, rows]) =>
-      rows.map(row => ({ ...row, lbId: parseInt(lbId, 10) }))
-    );
-
-    // Check for client-side duplicates first
-    const clientDuplicates = checkForClientDuplicates(allKeyplots);
-    if (Object.keys(clientDuplicates).length > 0) {
-      setClientDuplicateErrors(clientDuplicates);
-      toast.error(`Found ${Object.keys(clientDuplicates).length} duplicate combination(s). Please fix before saving.`);
-      setIsSaving(false);
-      return;
-    }
-
-    // Client-side field validation
-    let hasValidationErrors = false;
-    const newFieldErrors = {};
-
-    allKeyplots.forEach((row) => {
-      const rowErrors = validateRow(row);
-      Object.keys(rowErrors).forEach(field => {
-        const errorKey = `${row.lbId}_${row.id}_${field}`;
-        newFieldErrors[errorKey] = rowErrors[field];
-        hasValidationErrors = true;
-      });
-    });
-
-    if (hasValidationErrors) {
-      setFieldErrors(newFieldErrors);
-      toast.error("Please fix all validation errors before saving.");
-      setIsSaving(false);
-      return;
-    }
-
-    const payload = allKeyplots.map((row) => {
-      const villageData = villageInfoMap.get(row.village);
-      const localBodyData = localBodyInfoMap.get(row.lbId);
-
-      if (!villageData || !localBodyData || !row.surveyNo) {
-        return null;
-      }
-      
-      return {
-        dcode: districtInfo.distId,
-        tcode: talukInfo[0].revenueTalukId,
-        vcode: villageData.vcode,
-        lsgcode: villageData.lsgcode,
-        lbcode: localBodyData.lbcode,
-        zoneId: parseInt(zoneId, 10),
-        user_id: userId,
-        bcode: parseInt(row.villageBlock, 10) || null,
-        ltype: row.landType.toUpperCase(),
-        resvno: parseInt(row.surveyNo, 10),
-        resbdno: row.subDivNo,
-        totCent: row.area
-      };
-    }).filter(Boolean);
-
-    if (payload.length !== totalKeyplots) {
-      toast.error("Some rows have missing or invalid data. Please check all fields.");
-      setIsSaving(false);
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        "http://localhost:8082/btr-service/api/btr-data/saveAll",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        // Handle different types of error responses from backend
-        if (result.status === "Validation Failed" && result.errors) {
-          // Backend validation errors - Map duplicate errors to specific rows
-          const backendDuplicateErrors = {};
-          result.errors.forEach((error) => {
-            // Find matching row and create error key
-            const matchingRow = allKeyplots.find(row => 
-              row.surveyNo === error.resvno?.toString() && 
-              row.subDivNo === error.resbdno
-            );
-            if (matchingRow) {
-              const duplicateKey = `${matchingRow.lbId}_${matchingRow.id}`;
-              backendDuplicateErrors[duplicateKey] = error.message;
-            }
-          });
-          
-          setDuplicateErrors(backendDuplicateErrors);
-          toast.error(`Validation failed: ${result.errors.length} duplicate error(s) found`);
-        } else {
-          // Other API errors
-          const errorMessage = result.message || `API Error: ${response.status}`;
-          toast.error(errorMessage);
-        }
-        setIsSaving(false);
-        return;
-      }
-
-      // Success response
-      if (result.status === "Success") {
-        toast.success(`All keyplots saved successfully! ${result.ids?.length || totalKeyplots} records saved.`);
-        console.log("Save successful:", result);
-        // Optional: Reset form state after successful save
-        // setLocalBodyData({});
-        clearValidationErrors();
-      } else {
-        toast.warning("Unexpected response format from server.");
-      }
-
-    } catch (err) {
-      console.error("Failed to save keyplots:", err);
-      toast.error(`Network error: ${err.message}`);
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -552,9 +597,9 @@ const KeyPlotEntry = () => {
     <Grid container spacing={3}>
       <Box sx={{ p: 3, maxWidth: 1400, margin: "0 auto", width: "100%" }}>
         <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
-          KeyPlot Entry (Total Required: {TOTAL_REQUIRED})
+          KeyPlot Entry 
+          {/* (Total Required: {TOTAL_REQUIRED}) */}
         </Typography>
-
         {localBodies.length > 0 && (
           <Paper elevation={3} sx={{ mb: 2 }}>
             <Tabs
@@ -570,7 +615,7 @@ const KeyPlotEntry = () => {
                 const hasErrors = Object.keys(fieldErrors).some(key => key.startsWith(`${lb.id}_`)) ||
                                  Object.keys(duplicateErrors).some(key => key.startsWith(`${lb.id}_`)) ||
                                  Object.keys(clientDuplicateErrors).some(key => key.startsWith(`${lb.id}_`));
-                
+                                
                 return (
                   <Tab
                     key={lb.id}
@@ -587,7 +632,6 @@ const KeyPlotEntry = () => {
             </Tabs>
           </Paper>
         )}
-
         {localBodies.map((lb, idx) => {
           const rows = localBodyData[lb.id] || [];
           return (
@@ -612,8 +656,8 @@ const KeyPlotEntry = () => {
                       </TableHead>
                       <TableBody>
                         {rows.map((row) => (
-                          <TableRow 
-                            key={row.id}
+                          <TableRow
+                             key={row.id}
                             sx={{
                               backgroundColor: hasAnyDuplicateError(lb.id, row.id) ? '#ffebee' : 'inherit'
                             }}
@@ -622,21 +666,21 @@ const KeyPlotEntry = () => {
                               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
                                 {row.slNo}
                                 {hasAnyDuplicateError(lb.id, row.id) && (
-                                  <Chip 
-                                    icon={<ErrorIcon />} 
-                                    label="Duplicate" 
-                                    color="error" 
-                                    size="small" 
-                                  />
+                                  <Chip
+                                     icon={<ErrorIcon />}
+                                     label="Duplicate"
+                                     color="error"
+                                     size="small"
+                                   />
                                 )}
                               </Box>
                             </TableCell>
                             <TableCell>
-                              <TextField 
-                                select 
-                                value={row.village} 
-                                onChange={(e) => handleVillageChange(lb.id, row.id, e.target.value)} 
-                                fullWidth
+                              <TextField
+                                 select
+                                 value={row.village}
+                                 onChange={(e) => handleVillageChange(lb.id, row.id, e.target.value)}
+                                 fullWidth
                                 error={hasFieldError(lb.id, row.id, 'village')}
                                 helperText={getFieldError(lb.id, row.id, 'village')}
                                 size="small"
@@ -649,12 +693,12 @@ const KeyPlotEntry = () => {
                               </TextField>
                             </TableCell>
                             <TableCell>
-                              <TextField 
-                                select 
-                                value={row.villageBlock} 
-                                onChange={(e) => handleChange(lb.id, row.id, "villageBlock", e.target.value)} 
-                                fullWidth 
-                                disabled={!row.village}
+                              <TextField
+                                 select
+                                 value={row.villageBlock}
+                                 onChange={(e) => handleChange(lb.id, row.id, "villageBlock", e.target.value)}
+                                 fullWidth
+                                 disabled={!row.village}
                                 error={hasFieldError(lb.id, row.id, 'villageBlock')}
                                 helperText={getFieldError(lb.id, row.id, 'villageBlock')}
                                 size="small"
@@ -665,9 +709,9 @@ const KeyPlotEntry = () => {
                               </TextField>
                             </TableCell>
                             <TableCell>
-                              <TextField 
-                                value={row.surveyNo} 
-                                onChange={(e) => handleChange(lb.id, row.id, "surveyNo", e.target.value)}
+                              <TextField
+                                 value={row.surveyNo}
+                                 onChange={(e) => handleChange(lb.id, row.id, "surveyNo", e.target.value)}
                                 error={hasFieldError(lb.id, row.id, 'surveyNo')}
                                 helperText={getFieldError(lb.id, row.id, 'surveyNo')}
                                 size="small"
@@ -675,9 +719,9 @@ const KeyPlotEntry = () => {
                               />
                             </TableCell>
                             <TableCell>
-                              <TextField 
-                                value={row.subDivNo} 
-                                onChange={(e) => handleChange(lb.id, row.id, "subDivNo", e.target.value)}
+                              <TextField
+                                 value={row.subDivNo}
+                                 onChange={(e) => handleChange(lb.id, row.id, "subDivNo", e.target.value)}
                                 error={hasFieldError(lb.id, row.id, 'subDivNo')}
                                 helperText={getFieldError(lb.id, row.id, 'subDivNo')}
                                 size="small"
@@ -685,9 +729,9 @@ const KeyPlotEntry = () => {
                               />
                             </TableCell>
                             <TableCell>
-                              <TextField 
-                                value={row.area} 
-                                onChange={(e) => handleChange(lb.id, row.id, "area", e.target.value)}
+                              <TextField
+                                 value={row.area}
+                                 onChange={(e) => handleChange(lb.id, row.id, "area", e.target.value)}
                                 error={hasFieldError(lb.id, row.id, 'area')}
                                 helperText={getFieldError(lb.id, row.id, 'area')}
                                 size="small"
@@ -695,10 +739,10 @@ const KeyPlotEntry = () => {
                               />
                             </TableCell>
                             <TableCell>
-                              <TextField 
-                                select 
-                                value={row.landType} 
-                                onChange={(e) => handleChange(lb.id, row.id, "landType", e.target.value)}
+                              <TextField
+                                 select
+                                 value={row.landType}
+                                 onChange={(e) => handleChange(lb.id, row.id, "landType", e.target.value)}
                                 error={hasFieldError(lb.id, row.id, 'landType')}
                                 helperText={getFieldError(lb.id, row.id, 'landType')}
                                 size="small"
@@ -718,11 +762,11 @@ const KeyPlotEntry = () => {
                         ))}
                         <TableRow>
                           <TableCell colSpan={8} align="right">
-                            <Button 
-                              startIcon={<AddCircle />} 
-                              variant="outlined" 
-                              color="success" 
-                              onClick={() => handleAddRow(lb.id)}
+                            <Button
+                               startIcon={<AddCircle />}
+                               variant="outlined"
+                               color="success"
+                               onClick={() => handleAddRow(lb.id)}
                               disabled={totalKeyplots >= TOTAL_REQUIRED}
                             >
                               Add Keyplot
@@ -732,7 +776,6 @@ const KeyPlotEntry = () => {
                       </TableBody>
                     </Table>
                   </TableContainer>
-
                   {/* Show duplicate error details below the table */}
                   {(Object.keys(duplicateErrors).some(key => key.startsWith(`${lb.id}_`)) ||
                     Object.keys(clientDuplicateErrors).some(key => key.startsWith(`${lb.id}_`))) && (
@@ -740,7 +783,7 @@ const KeyPlotEntry = () => {
                       <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
                         Duplicate Records Found:
                       </Typography>
-                      
+                                            
                       {/* Backend duplicate errors */}
                       {Object.entries(duplicateErrors)
                         .filter(([key]) => key.startsWith(`${lb.id}_`))
@@ -749,7 +792,7 @@ const KeyPlotEntry = () => {
                             • {message}
                           </Typography>
                         ))}
-                      
+                                            
                       {/* Client-side duplicate errors */}
                       {Object.entries(clientDuplicateErrors)
                         .filter(([key]) => key.startsWith(`${lb.id}_`))
@@ -766,17 +809,171 @@ const KeyPlotEntry = () => {
           );
         })}
 
+        {/* Confirmation Modal */}
+        <Dialog
+          open={showConfirmModal}
+          onClose={handleCancelSave}
+          aria-labelledby="confirm-dialog-title"
+          aria-describedby="confirm-dialog-description"
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle id="confirm-dialog-title">
+            Confirm Save Operation
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText id="confirm-dialog-description">
+              Are you sure you want to save {totalKeyplots} keyplot{totalKeyplots !== 1 ? 's' : ''}? 
+              This action will save all the entered data to the database.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCancelSave} color="secondary" variant="outlined">
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmSave} color="primary" variant="contained" autoFocus>
+              Confirm & Save
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Success Modal */}
+        <Dialog
+          open={showSuccessModal}
+          onClose={() => setShowSuccessModal(false)}
+          aria-labelledby="success-dialog-title"
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              textAlign: 'center',
+              py: 2
+            }
+          }}
+        >
+          <DialogTitle id="success-dialog-title" sx={{ pb: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <CheckCircle 
+                sx={{ 
+                  fontSize: 64, 
+                  color: '#4caf50',
+                  animation: 'pulse 1.5s infinite'
+                }} 
+              />
+              <Typography variant="h5" sx={{ color: '#4caf50', fontWeight: 'bold' }}>
+                Success!
+              </Typography>
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ textAlign: 'center', fontSize: '1.1rem' }}>
+              Successfully saved {savedCount} keyplot{savedCount !== 1 ? 's' : ''}!
+              <br />
+              All data has been saved to the database.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
+            <Button 
+              onClick={() => setShowSuccessModal(false)} 
+              variant="contained" 
+              color="success"
+              sx={{ minWidth: 100 }}
+            >
+              OK
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Error Modal */}
+        <Dialog
+          open={showErrorModal}
+          onClose={() => setShowErrorModal(false)}
+          aria-labelledby="error-dialog-title"
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              textAlign: 'center',
+              py: 2
+            }
+          }}
+        >
+          <DialogTitle id="error-dialog-title" sx={{ pb: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <Cancel 
+                sx={{ 
+                  fontSize: 64, 
+                  color: '#f44336',
+                  animation: 'shake 0.5s ease-in-out'
+                }} 
+              />
+              <Typography variant="h5" sx={{ color: '#f44336', fontWeight: 'bold' }}>
+                Error!
+              </Typography>
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ textAlign: 'center', fontSize: '1.1rem' }}>
+              Error saving keyplots!
+              <br />
+              Please check the form for errors and try again.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
+            <Button 
+              onClick={() => setShowErrorModal(false)} 
+              variant="contained" 
+              color="error"
+              sx={{ minWidth: 100 }}
+            >
+              OK
+            </Button>
+          </DialogActions>
+        </Dialog>
+
         <Box display="flex" justifyContent="flex-end" mt={3}>
           <Button
             variant="contained"
             color="primary"
-            onClick={handleSaveAll}
+            onClick={handleSaveButtonClick}
             disabled={totalKeyplots === 0 || isSaving || Object.keys(clientDuplicateErrors).length > 0}
             startIcon={isSaving ? <CircularProgress size={20} /> : null}
           >
             {isSaving ? "Saving..." : `Save All Keyplots (${totalKeyplots})`}
           </Button>
         </Box>
+
+        {/* Add CSS animations for the modal icons */}
+        <style jsx global>{`
+          @keyframes pulse {
+            0% {
+              transform: scale(1);
+              opacity: 1;
+            }
+            50% {
+              transform: scale(1.1);
+              opacity: 0.7;
+            }
+            100% {
+              transform: scale(1);
+              opacity: 1;
+            }
+          }
+
+          @keyframes shake {
+            0%, 100% {
+              transform: translateX(0);
+            }
+            25% {
+              transform: translateX(-5px);
+            }
+            75% {
+              transform: translateX(5px);
+            }
+          }
+        `}</style>
       </Box>
     </Grid>
   );

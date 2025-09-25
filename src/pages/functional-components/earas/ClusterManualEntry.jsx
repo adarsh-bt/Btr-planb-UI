@@ -112,6 +112,9 @@ const ClusterFormUI = () => {
     const [resvnoError, setResvnoError] = useState('');
     const [savingCrops, setSavingCrops] = useState(false);
 
+    const [apiCropsData, setApiCropsData] = useState(null);
+    const [loadingApiCrops, setLoadingApiCrops] = useState(false);
+
     
     const [keyplotDetails, setKeyplotDetails] = useState({
         villageBlock: '',
@@ -153,6 +156,66 @@ const fetchCceCropDetails = async () => {
         setLoadingCrops(false);
     }
 };
+
+// Add this function to your ClusterFormUI component
+// Add this function to fetch CCE crops from your API
+const fetchApiCceCrops = useCallback(async () => {
+    if (!clusterId) return;
+    
+    setLoadingApiCrops(true);
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(
+            `${BASE_URL}/btr-service/crop-assignment-trail/${clusterId}/cce-crops`,
+            {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }
+        );
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        setApiCropsData(data);
+        
+    } catch (error) {
+        console.error('Error fetching API CCE crops:', error);
+    } finally {
+        setLoadingApiCrops(false);
+    }
+}, [clusterId, BASE_URL]);
+
+
+// Add this useEffect after your existing useEffects
+// Add this useEffect after your existing useEffects
+useEffect(() => {
+    if (clusterId) {
+        fetchApiCceCrops();
+    }
+}, [clusterId, fetchApiCceCrops]);
+
+// Helper function to get all currently selected crop names
+const getSelectedCropNames = () => {
+    const selectedCropNames = new Set();
+    
+    // Add saved crops
+    savedCrops.forEach(crop => {
+        const cropName = typeof crop === 'object' ? crop.cropName : crop;
+        selectedCropNames.add(cropName);
+    });
+    
+    // Add API crops
+    if (apiCropsData && apiCropsData.crops) {
+        apiCropsData.crops.forEach(crop => {
+            selectedCropNames.add(crop.cropName);
+        });
+    }
+    
+    return selectedCropNames;
+};
+
 
 // New function to filter crops based on land type
 const filterCropsByLandType = (crops, landType) => {
@@ -717,45 +780,50 @@ const handleCloseCropsModal = async () => {
     };
 
     const validateAndSetData = (data) => {
-        const newErrors = {};
-        const plotUsage = new Map();
+  const newErrors = {};
+  const plotUsage = new Map();
 
-        data.forEach(kp => {
-            kp.rows.forEach(r => {
-                if (r.villageName && r.block && r.svNo && r.sub) {
-                    const plotId = `${r.villageName}-${r.block}-${r.svNo}-${r.sub}`;
-                    if (!plotUsage.has(plotId)) {
-                        plotUsage.set(plotId, { rows: [], totalArea: 0 });
-                    }
-                    plotUsage.get(plotId).rows.push(r);
-                }
-            });
-        });
+  data.forEach(kp => {
+    kp.rows.forEach(r => {
+      if (r.villageName && r.block && r.svNo && r.sub) {
+        const plotId = `${r.villageName}-${r.block}-${r.svNo}-${r.sub}`;
+        if (!plotUsage.has(plotId)) {
+          plotUsage.set(plotId, { rows: [], totalArea: 0 });
+        }
+        plotUsage.get(plotId).rows.push(r);
+      }
+    });
+  });
 
-        plotUsage.forEach((plotInfo) => {
-            const firstInstance = plotInfo.rows[0];
-            const masterArea = parseFloat(firstInstance.area) || 0;
+  plotUsage.forEach(plotInfo => {
+    const firstInstance = plotInfo.rows[0];
+    // Convert to number for calculations but preserve string in UI
+    const masterArea = parseFloat(firstInstance.area) || 0;
+    
+    plotInfo.rows.forEach(row => {
+      row.area = masterArea > 0 ? masterArea.toString() : row.area;
+    });
 
-            plotInfo.rows.forEach(row => {
-                row.area = masterArea.toFixed(2);
-            });
+    let cumulativeEnumerated = 0;
+    plotInfo.rows.forEach(row => {
+      // Convert to number for validation
+      const enumerated = parseFloat(row.enumeratedArea) || 0;
+      const remainingArea = masterArea - cumulativeEnumerated;
+      
+      const errorKey = `${data.find(kp => kp.rows.some(r => r.uniqueId === row.uniqueId)).id}-${row.uniqueId}`;
+      
+      if (enumerated > remainingArea && masterArea > 0) {
+        newErrors[errorKey] = `Exceeds remaining plot area of ${remainingArea.toFixed(2)}`;
+      }
+      
+      cumulativeEnumerated += enumerated;
+    });
+  });
 
-            let cumulativeEnumerated = 0;
-            plotInfo.rows.forEach(row => {
-                const enumerated = parseFloat(row.enumeratedArea) || 0;
-                const remainingArea = masterArea - cumulativeEnumerated;
+  setErrors(newErrors);
+  setKeyplotsData(data);
+};
 
-                const errorKey = `${data.find(kp => kp.rows.some(r => r.uniqueId === row.uniqueId)).id}-${row.uniqueId}`;
-                if (enumerated > remainingArea) {
-                    newErrors[errorKey] = `Exceeds remaining plot area of ${remainingArea.toFixed(2)}`;
-                }
-                cumulativeEnumerated += enumerated;
-            });
-        });
-
-        setErrors(newErrors);
-        setKeyplotsData(data);
-    };
 
     const handleVillageChange = (newVillageId, keyplotId, rowUniqueId) => {
         const newData = JSON.parse(JSON.stringify(keyplotsData));
@@ -763,7 +831,6 @@ const handleCloseCropsModal = async () => {
         const row = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
 
         const selectedVillage = allVillageData.find(v => v.villageId === newVillageId);
-        alert(newVillageId)
         if (selectedVillage) {
             row.villageName = selectedVillage.village;
             row.villageId = newVillageId;
@@ -798,49 +865,70 @@ const handleCloseCropsModal = async () => {
     };
 
     const handleInputChange = (e, keyplotId, rowUniqueId, field) => {
-        const { value } = e.target;
-        const newData = JSON.parse(JSON.stringify(keyplotsData));
-        const keyplot = newData.find(k => k.id === keyplotId);
-        const row = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
+  const value = e.target.value;
+  const newData = JSON.parse(JSON.stringify(keyplotsData));
+  const keyplot = newData.find(k => k.id === keyplotId);
+  const row = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
 
-        let processedValue = value;
-        if ((field === 'area' || field === 'enumeratedArea') && parseFloat(value) < 0 && value !== '') {
-            processedValue = '';
+  let processedValue = value;
+
+  // Special handling for area fields to preserve decimal input
+  if (field === 'area' || field === 'enumeratedArea') {
+    // Allow empty string or valid decimal input
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      processedValue = value; // Keep as string to preserve decimal input
+    } else {
+      return; // Don't update if invalid format
+    }
+  }
+
+  row[field] = processedValue;
+
+  // Existing logic for syncing related fields...
+  if (['villageName', 'block', 'svNo', 'sub'].includes(field)) {
+    const allRows = newData.flatMap(kp => kp.rows);
+    const masterRow = allRows.find(r => isSamePlot(r, row) && r.uniqueId !== row.uniqueId);
+    
+    if (masterRow) {
+      row.area = masterRow.area;
+    }
+
+    if (field === 'area') {
+      const allRows = newData.flatMap(kp => kp.rows);
+      allRows.forEach(otherRow => {
+        if (isSamePlot(otherRow, row)) {
+          otherRow.area = processedValue;
         }
+      });
+    }
 
-        row[field] = processedValue;
+    // Clear dependent fields when parent fields change
+    if (row.isNew) {
+      switch (field) {
+        case 'block':
+          row.svNo = '';
+          row.sub = '';
+          row.area = '';
+          row.enumeratedArea = '';
+          break;
+        case 'svNo':
+          row.sub = '';
+          row.area = '';
+          row.enumeratedArea = '';
+          break;
+        case 'sub':
+          row.area = '';
+          row.enumeratedArea = '';
+          break;
+        default:
+          break;
+      }
+    }
+  }
 
-        if (['villageName', 'block', 'svNo', 'sub'].includes(field)) {
-            const allRows = newData.flatMap(kp => kp.rows);
-            const masterRow = allRows.find(r => isSamePlot(r, row) && r.uniqueId !== row.uniqueId);
-            if (masterRow) {
-                row.area = masterRow.area;
-            }
-        }
+  validateAndSetData(newData);
+};
 
-        if (field === 'area') {
-            const allRows = newData.flatMap(kp => kp.rows);
-            allRows.forEach(otherRow => {
-                if (isSamePlot(otherRow, row)) {
-                    otherRow.area = processedValue;
-                }
-            });
-        }
-        
-        if (row.isNew) {
-            switch (field) {
-                case 'block':
-                    row.svNo = ''; row.sub = ''; row.area = ''; row.enumeratedArea = ''; break;
-                case 'svNo':
-                    row.sub = ''; row.area = ''; row.enumeratedArea = ''; break;
-                case 'sub':
-                    row.area = ''; row.enumeratedArea = ''; break;
-                default: break;
-            }
-        }
-
-        validateAndSetData(newData);
-    };
 
     const handleInputBlur = (e, keyplotId, rowUniqueId, field) => {
         // This can be used for additional validation if needed
@@ -965,31 +1053,59 @@ const handleCloseCropsModal = async () => {
                 </Grid>
 
                 {/* CCE Crops Section - ORIGINAL UI PRESERVED */}
-                {savedCrops.length > 0 && (
-                    <Paper elevation={2} sx={{ mt: 3, mb: 3, overflow: 'hidden', borderRadius: 1, border: '1px solid #ccc' }}>
-                        <Box sx={{ bgcolor: '#3066c2', color: 'white', p: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                            <GrassIcon />
-                            <Typography variant="h6" fontWeight="bold">Selected CCE Crops</Typography>
-                        </Box>
-                        <Box sx={{ p: 2 }}>
-                            <Grid container spacing={1}>
-                                {savedCrops.map((crop) => (
-                                    <Grid item key={crop.cropId || crop}>
-                                        <Chip 
-                                            label={
-                                                typeof crop === 'object' 
-                                                    ? `${crop.cropName} (${crop.noOfCce} CCE)` 
-                                                    : crop
-                                            }
-                                            color="primary"
-                                            sx={{ mb: 1 }}
-                                        />
-                                    </Grid>
-                                ))}
-                            </Grid>
-                        </Box>
-                    </Paper>
-                )}
+                {/* Updated section that combines both savedCrops and API crops */}
+                {(savedCrops.length > 0 || (apiCropsData && apiCropsData.crops && apiCropsData.crops.length > 0)) && (
+    <Paper elevation={2} sx={{ mt: 3, mb: 3, overflow: 'hidden', borderRadius: 1, border: '1px solid #ccc' }}>
+        <Box sx={{ bgcolor: '#3066c2', color: 'white', p: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+            <GrassIcon />
+            <Typography variant="h6" fontWeight="bold">Selected CCE Crops</Typography>
+            {loadingApiCrops && <CircularProgress size={16} sx={{ color: 'white', ml: 1 }} />}
+        </Box>
+        <Box sx={{ p: 2 }}>
+            <Grid container spacing={1}>
+                {/* Combine and group all crops */}
+                {(() => {
+                    // Combine both saved crops and API crops
+                    const allCrops = [];
+                    
+                    // Add saved crops
+                    savedCrops.forEach(crop => {
+                        const cropName = typeof crop === 'object' ? crop.cropName : crop;
+                        allCrops.push(cropName);
+                    });
+                    
+                    // Add API crops
+                    if (apiCropsData && apiCropsData.crops) {
+                        apiCropsData.crops.forEach(crop => {
+                            allCrops.push(crop.cropName);
+                        });
+                    }
+                    
+                    // Count occurrences of each crop
+                    const cropCounts = {};
+                    allCrops.forEach(cropName => {
+                        cropCounts[cropName] = (cropCounts[cropName] || 0) + 1;
+                    });
+                    
+                    // Render unique crops with counts
+                    return Object.entries(cropCounts).map(([cropName, count]) => (
+                        <Grid item key={cropName}>
+                            <Chip 
+                                label={count > 1 ? `${cropName} (${count})` : cropName}
+                                color="primary"
+                                sx={{ mb: 1 }}
+                            />
+                        </Grid>
+                    ));
+                })()}
+            </Grid>
+        </Box>
+    </Paper>
+)}
+
+
+
+
 
                 {/* Action Buttons */}
                 <Box sx={{ maxWidth: 900, margin: '0 auto', mb: 3 }}>
@@ -1058,8 +1174,8 @@ const handleCloseCropsModal = async () => {
                                 <Grid item xs={1.5}><Typography fontWeight="bold">Block</Typography></Grid>
                                 <Grid item xs={1.5}><Typography fontWeight="bold">Survey No.</Typography></Grid>
                                 <Grid item xs={1}><Typography fontWeight="bold">Sub Div No.</Typography></Grid>
-                                <Grid item xs={2}><Typography fontWeight="bold">Total Area (Actual)</Typography></Grid>
-                                <Grid item xs={2}><Typography fontWeight="bold">Total Area (Enumerated)</Typography></Grid>
+                                <Grid item xs={2}><Typography fontWeight="bold">Actual Area</Typography></Grid>
+                                <Grid item xs={2}><Typography fontWeight="bold">Enumerated Area</Typography></Grid>
                                 <Grid item xs={2} />
 
                                 {keyplot.rows.length === 0 && <Grid item xs={12} sx={{ textAlign: 'center', color: 'text.secondary', p: 2 }}>No rows added.</Grid>}
@@ -1194,45 +1310,68 @@ const handleCloseCropsModal = async () => {
             </Box>
         ) : (
             <Grid container spacing={2} sx={{ mt: 1 }}>
-                {cceCropDetails
-                    .filter(crop => crop.cropId && crop.cropName) // Filter valid crops
-                    .map(crop => (
-                        <Grid item xs={12} sm={6} md={4} key={crop.cropId}>
-                            <FormControlLabel
-                                control={
-                                    <Checkbox
-                                        checked={selectedCrops[crop.cropId] || false}
-                                        onChange={handleCropSelectionChange}
-                                        name={crop.cropId.toString()}
-                                        color="primary"
-                                        disabled={crop.noOfCce <= 0}
-                                    />
-                                }
-                                label={
-                                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                                        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                                            {crop.cropName} ({crop.noOfCce})
-                                        </Typography>
-                                        <Typography variant="caption" color="textSecondary">
-                                            {crop.frameName} - {crop.noOfCce} CCE
-                                        </Typography>
-                                    </Box>
-                                }
-                                sx={{
-                                    width: '100%',
-                                    m: 0,
-                                    p: 1,
-                                    border: '1px solid #e0e0e0',
-                                    borderRadius: 1,
-                                    '&:hover': {
-                                        backgroundColor: '#f5f5f5'
-                                    }
-                                }}
+    {cceCropDetails
+        .filter(crop => crop.cropId && crop.cropName) // Filter valid crops
+        .map(crop => {
+            const selectedCropNames = getSelectedCropNames();
+            const isCropAlreadySelected = selectedCropNames.has(crop.cropName);
+            const isDisabled = crop.noOfCce <= 0 || isCropAlreadySelected;
+            
+            return (
+                <Grid item xs={12} sm={6} md={4} key={crop.cropId}>
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={selectedCrops[crop.cropId] || false}
+                                onChange={handleCropSelectionChange}
+                                name={crop.cropId.toString()}
+                                color="primary"
+                                disabled={isDisabled}
                             />
-                        </Grid>
-                    ))
-                }
-            </Grid>
+                        }
+                        label={
+                            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                <Typography 
+                                    variant="body2" 
+                                    sx={{ 
+                                        fontWeight: 'bold',
+                                        color: isCropAlreadySelected ? 'text.disabled' : 'text.primary'
+                                    }}
+                                >
+                                    {crop.cropName} ({crop.noOfCce})
+                                    {isCropAlreadySelected && (
+                                        <Typography component="span" variant="caption" sx={{ ml: 1, color: 'warning.main' }}>
+                                            - Already Selected
+                                        </Typography>
+                                    )}
+                                </Typography>
+                                <Typography 
+                                    variant="caption" 
+                                    color={isCropAlreadySelected ? 'text.disabled' : 'textSecondary'}
+                                >
+                                    {crop.frameName} - {crop.noOfCce} CCE
+                                </Typography>
+                            </Box>
+                        }
+                        sx={{
+                            width: '100%',
+                            m: 0,
+                            p: 1,
+                            border: '1px solid #e0e0e0',
+                            borderRadius: 1,
+                            backgroundColor: isCropAlreadySelected ? '#f5f5f5' : 'white',
+                            opacity: isCropAlreadySelected ? 0.7 : 1,
+                            '&:hover': {
+                                backgroundColor: isCropAlreadySelected ? '#f5f5f5' : '#f5f5f5'
+                            }
+                        }}
+                    />
+                </Grid>
+            );
+        })
+    }
+</Grid>
+
         )}
         
         {/* Remove or comment out the inactive crops section since all crops should be active */}
@@ -1264,7 +1403,7 @@ const handleCloseCropsModal = async () => {
     onClick={() => setCropsModalOpen(false)} 
     color="primary"
   >
-    Cancel
+    Close
   </Button>
   <Button
     onClick={handleCloseCropsModal}
