@@ -61,6 +61,7 @@ class approvalservice {
           }
         }
       );
+      console.log("district admin",response.data)
       return response.data; // Return a consistent object on success
     } catch (err) {
       return {
@@ -178,7 +179,7 @@ class approvalservice {
   static async allroles() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${approvalservice.USER_URL}/user-access/api/fetch/roles`, {
+      const response = await axios.get(`${approvalservice.USER_URL}/user-access/api/user-approval/fetch/roles`, {
         headers: {
           Authorization: `Bearer ${token}` // Ensure token is included
         }
@@ -195,7 +196,8 @@ class approvalservice {
   static async allschmes() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${approvalservice.USER_URL}/user-access/api/fetch/schemes`, {
+    
+      const response = await axios.get(`${approvalservice.USER_URL}/user-access/api/user-approval/fetch/schemes`, {
         headers: {
           Authorization: `Bearer ${token}` // Ensure token is included
         }
@@ -211,7 +213,7 @@ class approvalservice {
   static async allrolesBySchems(schemeId) {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${approvalservice.USER_URL}/user-access/api/fetch/schemes/${schemeId}/roles`, {
+      const response = await axios.get(`${approvalservice.USER_URL}/user-access/api/user-approval/fetch/schemes/${schemeId}/roles`, {
         headers: {
           Authorization: `Bearer ${token}` // Ensure token is included
         }
@@ -234,7 +236,7 @@ class approvalservice {
       const token = localStorage.getItem('token');
       console.log("office _id ",officeId,"office typr >>",officeId)
       const response = await axios.get(
-        `${approvalservice.BASE_URL}/btr-service/btr-api/zones/${officeType}/${officeId}`
+        `${approvalservice.BTR_URL}/btr-service/btr-api/zones/${officeType}/${officeId}`
           , {
           headers: {
             Authorization: `Bearer ${token}` // Ensure token is included

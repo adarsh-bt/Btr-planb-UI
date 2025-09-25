@@ -30,7 +30,12 @@ const RegisterService = {
   async getDesignations() {
     try {
       const response = await axios.get(`${this.USER_URL}/user-access/api/fetch-designations`);
+<<<<<<< HEAD
       console.log('designations: ', response.data.payload);
+=======
+
+      console.log('designationss: ', response.data.payload);
+>>>>>>> fdf45dc99ee5525b3c893c71a1c75f07f82d54cd
       return response.data;
     } catch (err) {
       return {

@@ -8,9 +8,15 @@ const USER_URL = mainapi.USER_API
 const BASE_URL = mainapi.USER_API;
 
 const roleManageService = {
+  
   async getAllSchemes() {
+     const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${BASE_URL}/user-access/api/schemes`);
+      const response = await axios.get(`${BASE_URL}/user-access/api/user-approval/fetch/schemes`,{
+        headers: {
+           Authorization: `Bearer ${token}`
+        } 
+      });
       return response.data.payload; // ✅ return only the payload array
     } catch (err) {
       return {
@@ -23,7 +29,7 @@ const roleManageService = {
     const token = localStorage.getItem('token');
     console.log('token', token);
     try {
-      const response = await axios.get(`${BASE_URL}/user-access/api/schemes/${schemeId}/roles`, {
+      const response = await axios.get(`${BASE_URL}/user-access/api/user-approval/fetch/schemes/${schemeId}/roles`, {
         headers: {
           Authorization: `Bearer ${token}` // Add token in Authorization header
         }
@@ -40,7 +46,7 @@ const roleManageService = {
     const token = localStorage.getItem('token');
     console.log('token', token);
     try {
-      const response = await axios.get(`${BASE_URL}/user-access/api/permissions/${schemeId}`, {
+      const response = await axios.get(`${BASE_URL}/user-access/api/user-approval/fetch/permissions/${schemeId}`, {
         headers: {
           Authorization: `Bearer ${token}` // Add token in Authorization header
         }
@@ -56,7 +62,7 @@ const roleManageService = {
   async saveOrUpdateRole(userData) {
     const token = localStorage.getItem('token');
     try {
-      const response = await axios.post(`${BASE_URL}/user-access/api/save-role-permissions`, userData, {
+      const response = await axios.post(`${BASE_URL}/user-access/api/user-approval/save-role-permissions`, userData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       return response.data;

@@ -21,7 +21,7 @@ export default function ZoneOptions() {
   const [pendingZone, setPendingZone] = useState('');
   const BASE_URL = mainapi.BTR_API;
   const user_id = authservice.userid();
-
+  
   // Fetch zones and restore last selected zone
   useEffect(() => {
     axios

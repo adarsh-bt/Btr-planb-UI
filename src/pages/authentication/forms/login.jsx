@@ -283,8 +283,8 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
             setIsLoading(true);
             let userData = await authservice.login(userLogin);
             setIsLoading(false);
-
             if (userData.message === "User already logged in elsewhere") {
+               
                 setLoginAttemptData(userLogin);
                 setOpenConfirmDialog(true);
                 return;

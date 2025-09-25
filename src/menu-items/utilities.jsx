@@ -11,8 +11,12 @@ import {
   ScissorOutlined,
   TableOutlined,
   EnvironmentOutlined,       // New icon for Zone Details
-  ClusterOutlined            // New icon for Key Plot Generation
+  ClusterOutlined ,    
+   UsergroupAddOutlined,
+  UserSwitchOutlined        // New icon for Key Plot Generation
+ 
 } from '@ant-design/icons';
+import authservice from 'pages/authentication/services/authservice';
 
 // icons
 const icons = {
@@ -27,10 +31,16 @@ const icons = {
   ScissorOutlined,
   TableOutlined,
   EnvironmentOutlined,
-  ClusterOutlined
+  ClusterOutlined,
+   UsergroupAddOutlined,
+  UserSwitchOutlined 
 };
 
 // ==============================|| MENU ITEMS - UTILITIES ||============================== //
+
+
+// const role = authservice.getrole();
+
 
 const utilities = {
   id: 'utilities',
@@ -38,6 +48,21 @@ const utilities = {
   type: 'group',
   children: [
     
+
+    {
+      id: 'util-userapproval',
+      title: 'User Approval',
+      type: 'item',
+      url: '/approvals',
+      icon: icons.UsergroupAddOutlined
+    },
+    {
+      id: 'util-usermanagement',
+      title: 'User Management',
+      type: 'item',
+      url: '/rolelist',
+      icon: icons.UserSwitchOutlined 
+    },
     {
       id: 'util-zone',
       title: 'Zone Details',
@@ -57,6 +82,9 @@ const utilities = {
       title: 'Key Plot List',
       type: 'item',
       url: '/schemes/earas/Key_plot_Listing',
+      // title: 'Key Plot Generation',
+      // type: 'item',
+      // url: '/schemes/earas/Key_plots',
       icon: icons.ClusterOutlined
     },
     {
