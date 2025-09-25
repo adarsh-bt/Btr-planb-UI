@@ -1443,8 +1443,8 @@ const handleConfirmReject = async () => {
   try {
     const token = localStorage.getItem('token');
     const kPlotObj = keyplots.find(item => item.id === "K");
-    const plotId = kPlotObj?.rows?.[0]?.plot_id || null;
-alert(plotId)
+    const plotId = syNo || null;
+
     if (!plotId) {
       throw new Error("Plot ID not found.");
     }

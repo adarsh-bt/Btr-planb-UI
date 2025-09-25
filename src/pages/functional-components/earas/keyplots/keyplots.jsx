@@ -39,6 +39,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import authservice from 'pages/authentication/services/authservice';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import mainapi from 'api/mainapi';
+import auth from 'contexts/auth-reducer/auth';
 
 // import auth from 'contexts/auth-reducer/auth';
 // import authservice from 'pages/authentication/services/authservice';
@@ -334,10 +335,12 @@ const filtered = plotData.filter((row) =>
 
         setLoading(true);
               try {
+                const zone_id = authservice.getzone();
                 console.log("removed the row >>",selectedRowToRemove)
+                alert("Removed the row >>"+selectedRowToRemove.plot_id)
                  const token = localStorage.getItem('token');
-            const response = await axios.post(`${BASE_URL}/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`,{
-              zone_id:'758',
+            const response = await axios.post(`${BASE_URL}/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.plot_id}`,{
+              zone_id:zone_id,
               reason: finalReason,
           userid: authservice.userid(),
           reason_for_cluster:"Keyplot Rejected",

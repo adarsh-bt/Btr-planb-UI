@@ -201,119 +201,217 @@ const[zoneVisble, setzoneVisble] = useState(false);
 
 
   const [remarks, setRemarks] = useState("");
-    const handleSaveChanges = () => {
-      // Close the modal first
-      handleCloseModal();
+
+
+    // const handleSaveChanges = () => {
+    //   // Close the modal first
+    //   handleCloseModal();
     
-      // SweetAlert2 confirmation dialog
-      Swal.fire({
-        title: "Are you sure?",
-        text: "You are about to save changes. Do you want to proceed?",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonText: "Yes, save changes",
-        cancelButtonText: "No, cancel",
-      }).then((result) => {
-        if (result.isConfirmed) {
+    //   // SweetAlert2 confirmation dialog
+    //   Swal.fire({
+    //     title: "Are you sure?",
+    //     text: "You are about to save changes. Do you want to proceed?",
+    //     icon: "warning",
+    //     showCancelButton: true,
+    //     confirmButtonText: "Yes, save changes",
+    //     cancelButtonText: "No, cancel",
+    //   }).then((result) => {
+    //     if (result.isConfirmed) {
           
-          // Prepare data for the API call
+    //       // Prepare data for the API call
       
-           const admin_id = authservice.userid();
+    //        const admin_id = authservice.userid();
         
-          const approvalStatus = radioState;  // The status ("approved", "marked", "rejected")
-        const filteredPairs = schemeRolePairs.filter(pair => pair.schemeId && pair.roleId);
-          const payload = {
-            approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "pending" : "Rejected",
-            approvalDate: new Date().toISOString().split('T')[0],
-            remarks: remarks,
-            isApproved: approvalStatus === "approved", 
-            adminId: admin_id, 
-            userId: selectedRow ? selectedRow.userId : "", 
-            id:selectedRow.approvalId,
-            // roleId:selectedRole
-     roleSchemes: selectedRole
-    ? [
-        {
-          roleId: selectedRole,
-          schemeId: null
-        }
-      ]
-    : filteredPairs.map(pair => ({
-        roleId: pair.roleId,
-        schemeId: pair.schemeId
-      }))
-    };
+    //       const approvalStatus = radioState;  // The status ("approved", "marked", "rejected")
+    //     const filteredPairs = schemeRolePairs.filter(pair => pair.schemeId && pair.roleId);
+    //       const payload = {
+    //         approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "pending" : "Rejected",
+    //         approvalDate: new Date().toISOString().split('T')[0],
+    //         remarks: remarks,
+    //         isApproved: approvalStatus === "approved", 
+    //         adminId: admin_id, 
+    //         userId: selectedRow ? selectedRow.userId : "", 
+    //         id:selectedRow.approvalId,
+    //         // roleId:selectedRole
+    //  roleSchemes: selectedRole
+    // ? [
+    //     {
+    //       roleId: selectedRole,
+    //       schemeId: null
+    //     }
+    //   ]
+    // : filteredPairs.map(pair => ({
+    //     roleId: pair.roleId,
+    //     schemeId: pair.schemeId
+    //   }))
+    // };
     
-         if(admrole === "IT Admin"){
-          console.log("IT Dis ",payload)
-          var apicall = approvalservice.saveItadminApproval(payload)
+    //      if(admrole === "IT Admin"){
+    //       console.log("IT Dis ",payload)
+    //       var apicall = approvalservice.saveItadminApproval(payload)
           
-          console.log("zone saved")
+    //       console.log("zone saved")
 
-         }else if(admrole === "Super Admin") {
-          var apicall = approvalservice.saveSuperadminApproval(payload)
+    //      }else if(admrole === "Super Admin") {
+    //       var apicall = approvalservice.saveSuperadminApproval(payload)
 
-         }else if(admrole === "District Level Approver"){
+    //      }else if(admrole === "District Level Approver"){
          
          
-          var apicall = approvalservice.saveDisApproval(payload)
-         }
+    //       var apicall = approvalservice.saveDisApproval(payload)
+    //      }
          
-            apicall.then((data) => {
-              // console.log("data >>",data)
-              if (data.payload) {
-                Swal.fire("Saved!", "Your changes have been saved.", "success");
-                // setUserList((prevUserList) => 
-                //   prevUserList.map((user) =>
-                //     // Update only the selected user, keep the rest of the users unchanged
-                //     user.userId === selectedRow.userId
-                //       ? { ...user, approvalStatus: data.payload.approvalStatus,approvalId:data.payload.id }
-                //       : user
-                //   )
-                // );
-                if (value === 0) { // District Level Users tab
-                  setUserListDis(prev => 
-                    prev.map(user => 
-                      user.userId === selectedRow.userId
-                        ? { ...user, approvalStatus: data.payload.approvalStatus, approvalId: data.payload.id }
-                        : user
-                    )
-                  );
-                  console.log("admin ",admin_id)
-                  console.log("admin ",zone)
-                  console.log("userid ",data.payload.loginId)
-                   if (zone !== '' && data.payload.loginId !== null) {
-                                 // Call the zone_save API with required parameters
-                      approvalservice.zone_save(zone, data.payload.loginId, admin_id)
-                            .then((zoneResponse) => {
-                            }).catch((zoneError) => {
-                             Swal.fire("Error", "Failed to save zone information. Please try again later.", "error");
-                  });
-              }
-                } else if (value === 2) { // Directorate Users tab
-                  setUserList(prev => 
-                    prev.map(user => 
-                      user.userId === selectedRow.userId
-                        ? { ...user, approvalStatus: data.payload.approvalStatus, approvalId: data.payload.id }
-                        : user
-                    )
-                  );
-                }
-              } else {
-                Swal.fire("Error", data.message || "Something went wrong, please try again.", "error");
-              }
-            })
-            .catch((error) => {
-              Swal.fire("Error", "Failed to save changes. Please try again later.", "error");
-            });
-        } else {
-          Swal.fire("Cancelled", "Your changes have not been saved.", "error");
+    //         apicall.then((data) => {
+    //           // console.log("data >>",data)
+    //           if (data.payload) {
+    //             Swal.fire("Saved!", "Your changes have been saved.", "success");
+    //             // setUserList((prevUserList) => 
+    //             //   prevUserList.map((user) =>
+    //             //     // Update only the selected user, keep the rest of the users unchanged
+    //             //     user.userId === selectedRow.userId
+    //             //       ? { ...user, approvalStatus: data.payload.approvalStatus,approvalId:data.payload.id }
+    //             //       : user
+    //             //   )
+    //             // );
+    //             if (value === 0) { // District Level Users tab
+    //               setUserListDis(prev => 
+    //                 prev.map(user => 
+    //                   user.userId === selectedRow.userId
+    //                     ? { ...user, approvalStatus: data.payload.approvalStatus, approvalId: data.payload.id }
+    //                     : user
+    //                 )
+    //               );
+    //               console.log("admin ",admin_id)
+    //               console.log("admin ",zone)
+    //               console.log("userid ",data.payload.loginId)
+    //                if (zone !== '' && data.payload.loginId !== null) {
+    //                              // Call the zone_save API with required parameters
+    //                   approvalservice.zone_save(zone, data.payload.loginId, admin_id)
+    //                         .then((zoneResponse) => {
+    //                         }).catch((zoneError) => {
+    //                          Swal.fire("Error", "Failed to save zone information. Please try again later.", "error");
+    //               });
+    //           }
+    //             } else if (value === 2) { // Directorate Users tab
+    //               setUserList(prev => 
+    //                 prev.map(user => 
+    //                   user.userId === selectedRow.userId
+    //                     ? { ...user, approvalStatus: data.payload.approvalStatus, approvalId: data.payload.id }
+    //                     : user
+    //                 )
+    //               );
+    //             }
+    //           } else {
+    //             Swal.fire("Error", data.message || "Something went wrong, please try again.", "error");
+    //           }
+    //         })
+    //         .catch((error) => {
+    //           Swal.fire("Error", "Failed to save changes. Please try again later.", "error");
+    //         });
+    //     } else {
+    //       Swal.fire("Cancelled", "Your changes have not been saved.", "error");
+    //     }
+    //   });
+    // };
+    const handleSaveChanges = () => {
+  // Close the modal first
+  handleCloseModal();
+
+  // SweetAlert2 confirmation dialog
+  Swal.fire({
+    title: "Are you sure?",
+    text: "You are about to save changes. Do you want to proceed?",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes, save changes",
+    cancelButtonText: "No, cancel",
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const admin_id = authservice.userid();
+      const approvalStatus = radioState;
+      const filteredPairs = schemeRolePairs.filter(pair => pair.schemeId && pair.roleId);
+
+      const payload = {
+        approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "pending" : "Rejected",
+        approvalDate: new Date().toISOString().split('T')[0],
+        remarks: remarks,
+        isApproved: approvalStatus === "approved", 
+        adminId: admin_id, 
+        userId: selectedRow ? selectedRow.userId : "", 
+        id: selectedRow.approvalId,
+        roleSchemes: selectedRole
+          ? [{ roleId: selectedRole, schemeId: null }]
+          : filteredPairs.map(pair => ({
+              roleId: pair.roleId,
+              schemeId: pair.schemeId
+            }))
+      };
+
+      let apicall;
+      if (admrole === "IT Admin") {
+        apicall = approvalservice.saveItadminApproval(payload);
+      } else if (admrole === "Super Admin") {
+        apicall = approvalservice.saveSuperadminApproval(payload);
+      } else if (admrole === "District Level Approver") {
+        apicall = approvalservice.saveDisApproval(payload);
+      }
+
+      // 🔹 Loader Swal
+      Swal.fire({
+        title: "Saving...",
+        text: "Please wait while we save your changes.",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
         }
       });
-    };
-    
-  
 
+      apicall
+        .then((data) => {
+          Swal.close(); // 🔹 close loader
+
+          if (data.payload) {
+            Swal.fire("Saved!", "Your changes have been saved.", "success");
+
+            if (value === 0) { // District Level Users tab
+              setUserListDis(prev => 
+                prev.map(user => 
+                  user.userId === selectedRow.userId
+                    ? { ...user, approvalStatus: data.payload.approvalStatus, approvalId: data.payload.id }
+                    : user
+                )
+              );
+
+              if (zone !== '' && data.payload.loginId !== null) {
+                approvalservice.zone_save(zone, data.payload.loginId, admin_id)
+                  .catch(() => {
+                    Swal.fire("Error", "Failed to save zone information. Please try again later.", "error");
+                  });
+              }
+            } else if (value === 2) { // Directorate Users tab
+              setUserList(prev => 
+                prev.map(user => 
+                  user.userId === selectedRow.userId
+                    ? { ...user, approvalStatus: data.payload.approvalStatus, approvalId: data.payload.id }
+                    : user
+                )
+              );
+            }
+          } else {
+            Swal.fire("Error", data.message || "Something went wrong, please try again.", "error");
+          }
+        })
+        .catch(() => {
+          Swal.close();
+          Swal.fire("Error", "Failed to save changes. Please try again later.", "error");
+        });
+    } else {
+      Swal.fire("Cancelled", "Your changes have not been saved.", "error");
+    }
+  });
+};
+
+  
     const handleChange = (event, newValue) => {
       setValue(newValue);
     };

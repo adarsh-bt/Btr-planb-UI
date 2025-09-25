@@ -29,7 +29,9 @@ import { useLocation } from 'react-router-dom';
 import ApprovedUserService from 'pages/functional-components/approvels/ApprovedUserService';
 import RegisterService from 'pages/authentication/services/registerservice';
 import authservice from 'pages/authentication/services/authservice';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import { set } from 'lodash';
+import approvalservice from 'pages/functional-components/approvels/approvalservice';
 
 const Roles = () => {
   const location = useLocation();
@@ -68,7 +70,11 @@ const Roles = () => {
 
 const [modalOpen, setModalOpen] = useState(false);
 
-
+const [isAddZoneOpen, setIsAddZoneOpen] = useState(false);
+const [selectedZoneIdToAdd, setSelectedZoneIdToAdd] = useState('');
+const [addZoneSaving, setAddZoneSaving] = useState(false);
+const [addZoneError, setAddZoneError] = useState('');
+const [availableZones, setAvailableZones] = useState([]);
 
   const [districtId, setDistrictId] = useState(null);
   const [talukId, setTalukId] = useState(null);
@@ -322,16 +328,17 @@ const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
     } else {
       const payload = res.payload;
       setUserData(payload);
-      console.log("res.payload.logid >>> ", payload.logid);
+     
 
       const logid = payload.logid || '';
       setLoginId(logid); // still store it in state if needed elsewhere
 
       // 🔥 Call getZonesByUserId immediately
+      
       ApprovedUserService.getZonesByUserId(logid)
         .then((response) => {
-          const data = response.data;
-          console.log("zones", data);
+          const data = Array.isArray(response.data) ? response.data : [];
+          
           setZones(data);
 
           if (data.length > 0) {
@@ -445,6 +452,79 @@ const handleSaveZoneStatus = async () => {
   }
 };
 
+useEffect(() => {
+  if (isAddZoneOpen) {
+    const fetchZones = async () => {
+      try {
+        const response = await approvalservice.zoneslist(userData.officeType, 1);
+        if (response) {
+          setAvailableZones(response);
+          
+        } else {
+          setAddZoneError('No zones found.');
+          setAvailableZones([]);
+        }
+      } catch (error) {
+        console.error("Fetch zones failed:", error); // ✅ Log the error
+        setAddZoneError('Failed to fetch zones');
+        setAvailableZones([]);
+      }
+    };
+
+    fetchZones();
+  }
+}, [isAddZoneOpen, userData]);  // ✅ Correct dependency
+
+
+
+
+const handleSaveAddZone = async () => {
+  if (!selectedZoneIdToAdd) {
+    setAddZoneError('Please select a zone');
+    return;
+  }
+
+  try {
+    setAddZoneSaving(true);
+    setAddZoneError('');
+console.log("selectedZoneIdToAdd", selectedZoneIdToAdd);
+    // Find the selected zone
+    const addedZone = availableZones.find(zone => zone.zoneId === selectedZoneIdToAdd);
+
+    if (!addedZone) {
+      setAddZoneError('Zone not found.');
+      return;
+    }
+   
+    
+    const admin_id = authservice.userid(); // You must have this value available in scope
+    // ✅ Call the API to save the zone
+    await approvalservice.zone_save(
+      selectedZoneIdToAdd,                     // Pass entire zone object (or zone.zoneId if API expects just ID)
+      userData.logid,              // Assuming you have userData with loginId
+      admin_id                       // You must have this value available in scope
+    );
+
+    // ✅ Update local state so UI reflects the new zone
+    setZones(prev => [
+      ...prev,
+      {
+        zoneId: selectedZoneIdToAdd,
+        zoneName: addedZone.zoneNameEn,
+        status: 'active',
+      },
+    ]);
+
+    // ✅ Reset form & close modal
+    setIsAddZoneOpen(false);
+    setSelectedZoneIdToAdd('');
+  } catch (error) {
+    console.error("Zone save failed:", error);
+    setAddZoneError('Failed to add zone. Try again.');
+  } finally {
+    setAddZoneSaving(false);
+  }
+};
 
 
 
@@ -745,7 +825,7 @@ const handleSaveZoneStatus = async () => {
                   </Grid>
                 </Box>
               )}
-
+                
               {/* Actions Tab */}
               {tabValue === 1 && (
                 <Box sx={{ mt: 3 }}>
@@ -758,6 +838,7 @@ const handleSaveZoneStatus = async () => {
                   </Tabs>
 
                   {/* Change Schemes & Roles */}
+                  <hr></hr>
                   {innerTabValue === 0 && (
                     <Grid container spacing={2}>
                       {!isEditingSchemes ? (
@@ -1026,7 +1107,17 @@ const handleSaveZoneStatus = async () => {
                   )}
 
                   {innerTabValue === 3 && (
+                    
                       <Grid container spacing={2}>
+                        <Grid item xs={12} >
+                          <Box display="flex" alignItems="center" justifyContent="center" sx={{ mb: 2 }}>
+  
+  <Button variant="contained" sx={{padding:1}} onClick={() => setIsAddZoneOpen(true)}>
+    <AddCircleOutlineIcon /> Add Zone 
+  </Button>
+</Box>
+<hr></hr>
+                        </Grid>
                           {zones.length === 0 ? (
                             <Grid item xs={12}>
                               <Typography variant="body2">No zones assigned</Typography>
@@ -1106,6 +1197,7 @@ const handleSaveZoneStatus = async () => {
           </Grid>
         </MainCard>
       </Grid>
+      {/* zone active */}
     <Dialog open={isZoneModalOpen} onClose={() => setIsZoneModalOpen(false)} maxWidth="sm" fullWidth>
   <DialogTitle>Zone Settings</DialogTitle>
   <DialogContent>
@@ -1142,6 +1234,44 @@ const handleSaveZoneStatus = async () => {
   </DialogActions>
 </Dialog>
 
+{/* multiple zone selection */}
+  <Dialog open={isAddZoneOpen} onClose={() => setIsAddZoneOpen(false)} maxWidth="xs" fullWidth>
+    <DialogTitle sx={{backgroundColor: '#05307a',color:'white' }} variant='h5' align='center'>Add Zone</DialogTitle>
+    <DialogContent>
+      <FormControl fullWidth size="small" sx={{ mt: 1 }}>
+        <Typography variant="h6" sx={{ mb: 1 }} align='center'>Select Zone</Typography>
+        <Select
+          value={selectedZoneIdToAdd}
+          onChange={(e) => setSelectedZoneIdToAdd(Number(e.target.value))}
+          displayEmpty
+        >
+          <MenuItem value="">
+            <em>Select a zone</em>
+          </MenuItem>
+          {availableZones.map((zone) => (
+            <MenuItem key={zone.zoneId} value={zone.zoneId}>
+              {zone.zoneNameEn}
+            </MenuItem>
+          ))}
+        </Select>
+        {addZoneError && (
+          <Typography color="error" sx={{ mt: 1 }}>
+            {addZoneError}
+          </Typography>
+        )}
+      </FormControl>
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={() => setIsAddZoneOpen(false)}>Cancel</Button>
+      <Button
+        variant="contained"
+        disabled={addZoneSaving || !selectedZoneIdToAdd}
+        onClick={handleSaveAddZone}
+      >
+        {addZoneSaving ? 'Saving…' : 'Save'}
+      </Button>
+    </DialogActions>
+  </Dialog>
 
     </Grid>
   );

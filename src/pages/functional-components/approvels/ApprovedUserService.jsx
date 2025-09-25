@@ -234,10 +234,6 @@ class ApprovedUserService {
       };
     }
   }
-
-  
-
-
     static async getZonesByUserId(userId) {
     try {
       const response = await axios.get(`${this.BTR_URL}/btr-service/btr-api/zones/assigned/${userId}`);
@@ -249,7 +245,6 @@ class ApprovedUserService {
       };
     }
   }
-
   // Inside class ApprovedUserService
 
 // Update zone assignment active status
