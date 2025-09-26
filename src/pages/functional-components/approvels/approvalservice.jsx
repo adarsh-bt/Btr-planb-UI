@@ -257,11 +257,11 @@ class approvalservice {
       const token = localStorage.getItem('token');
       const response = await axios.post(
         `${approvalservice.BTR_URL}/btr-service/btr-api/assigned-zone-save`,
-        { user_id, zoneId, assigner_id }
-        // {
-        //   headers: {
-        //       'Authorization': `Bearer ${token}` // Ensure token is included
-        //   }}
+        { user_id, zoneId, assigner_id },
+        {
+          headers: {
+              'Authorization': `Bearer ${token}` // Ensure token is included
+          }}
       );
       return response.data; // Return response data on success
     } catch (err) {

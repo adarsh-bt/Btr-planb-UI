@@ -23,28 +23,37 @@ export default function ZoneOptions() {
   const user_id = authservice.userid();
   
   // Fetch zones and restore last selected zone
-  useEffect(() => {
-    axios
-      .get(`${BASE_URL}/btr-service/btr-api/zones/assigned/${user_id}`)
-      .then((response) => {
-        const data = response.data;
-        setZones(data);
+useEffect(() => {
+  const token = localStorage.getItem('token');  // Assuming the token is stored in localStorage
 
-        if (data.length > 0) {
-          const savedZone = localStorage.getItem('activeZone');
-          if (savedZone && data.some((z) => z.zoneId.toString() === savedZone)) {
-            setZone(savedZone);
-          } else {
-            const firstZone = data[0].zoneId.toString();
-            setZone(firstZone);
-            localStorage.setItem('activeZone', firstZone);
-          }
+  axios
+    .get(`${BASE_URL}/btr-service/btr-api/zones/assigned/${user_id}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,  // Adding the token to the request headers
+      }
+    })
+    .then((response) => {
+      const data = response.data;
+      setZones(data);
+
+      if (data.length > 0) {
+        const savedZone = localStorage.getItem('activeZone');
+        if (savedZone && data.some((z) => z.zoneId.toString() === savedZone)) {
+          setZone(savedZone);
+        } else {
+          const firstZone = data[0].zoneId.toString();
+          setZone(firstZone);
+          localStorage.setItem('activeZone', firstZone);
         }
-      })
-      .catch((error) => {
-        console.error('Error fetching zones:', error);
-      });
-  }, [BASE_URL, user_id]);
+      }
+    })
+    .catch((error) => {
+      console.error('Error fetching zones:', error);
+    });
+}, [BASE_URL, user_id]);
+
+
+
 
   const handleOpenDialog = (event) => {
     const newZone = event.target.value;

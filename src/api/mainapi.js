@@ -4,16 +4,16 @@ class mainapi {
   // Main API
 
     // static BASE_URL = 'http://65.2.110.20:8080';
-  static BASE_URL = 'http://localhost:8082';
+  static BASE_URL = 'http://localhost:8080';
 
   // User API
-  static USER_API = 'http://localhost:8081';
+  static USER_API = 'http://localhost:8080';
 
   // BTR API
-  static BTR_API = 'http://localhost:8082';
+  static BTR_API = 'http://localhost:8080';
 
   //Form API
-  static FORM_API = 'http://localhost:9114';
+  static FORM_API = 'http://localhost:8080';
 }
 
 export default mainapi;

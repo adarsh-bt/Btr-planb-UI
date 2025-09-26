@@ -49,20 +49,20 @@ const utilities = {
   children: [
     
 
-    {
-      id: 'util-userapproval',
-      title: 'User Approval',
-      type: 'item',
-      url: '/approvals',
-      icon: icons.UsergroupAddOutlined
-    },
-    {
-      id: 'util-usermanagement',
-      title: 'User Management',
-      type: 'item',
-      url: '/rolelist',
-      icon: icons.UserSwitchOutlined 
-    },
+    // {
+    //   id: 'util-userapproval',
+    //   title: 'User Approval',
+    //   type: 'item',
+    //   url: '/approvals',
+    //   icon: icons.UsergroupAddOutlined
+    // },
+    // {
+    //   id: 'util-usermanagement',
+    //   title: 'User Management',
+    //   type: 'item',
+    //   url: '/rolelist',
+    //   icon: icons.UserSwitchOutlined 
+    // },
     {
       id: 'util-zone',
       title: 'Zone Details',

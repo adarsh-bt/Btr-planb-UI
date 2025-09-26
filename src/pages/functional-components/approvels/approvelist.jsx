@@ -383,6 +383,7 @@ const[zoneVisble, setzoneVisble] = useState(false);
               );
 
               if (zone !== '' && data.payload.loginId !== null) {
+                 console.log("zone  ",zone,"   >>> ",data.payload.loginId)
                 approvalservice.zone_save(zone, data.payload.loginId, admin_id)
                   .catch(() => {
                     Swal.fire("Error", "Failed to save zone information. Please try again later.", "error");

@@ -3,10 +3,12 @@ import mainapi from 'api/mainapi';
 
 const RegisterService = {
   USER_URL: mainapi.USER_API,
+  
   // BASE_URL: 'http://localhost:8081/user-access',
 
   async getDistricts() {
     try {
+      alert(this.USER_URL)
       const response = await axios.get(`${this.USER_URL}/user-access/api/districts`);
       return response.data;
     } catch (err) {

@@ -96,7 +96,7 @@ function ClusterSeatMap({zoneId}) {
 const handleClusterClick = (syNo, slNo) => {
   const encodedSyNo = encodeURIComponent(syNo);
   const encodedSlNo = encodeURIComponent(slNo);
-  navigate(`/schemes/earas/cluster?No=${encodedSyNo}&slno=${encodedSlNo}`);
+   navigate(`/schemes/earas/cluster_manual_entry?No=${encodedSyNo}&slno=${encodedSlNo}`);
 };
 
 

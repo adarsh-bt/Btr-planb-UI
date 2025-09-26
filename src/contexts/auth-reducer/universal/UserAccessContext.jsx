@@ -1,6 +1,7 @@
 // src/context/UserAccessContext.jsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import axios from "axios";
+import mainapi from "api/mainapi";
 
 const UserAccessContext = createContext(null);
 
@@ -13,7 +14,8 @@ export const UserAccessProvider = ({ children }) => {
   const fetchUserAccess = async () => {
     try {
       setLoading(true);
-      const res = await axios.get("http://localhost:8081/user-access/user-state/userpremissions", {
+      const BASE_URL = mainapi.BASE_URL;
+      const res = await axios.get(`${BASE_URL}/user-access/user-state/userpremissions`, {
         withCredentials: true, // if using cookies
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`, // if using JWT

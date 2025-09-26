@@ -49,6 +49,7 @@ import {
   FilterList as FilterIcon,
   Close as CloseIcon
 } from '@mui/icons-material';
+import mainapi from 'api/mainapi';
 
 const KeyPlotListing = () => {
   // State management
@@ -121,7 +122,13 @@ const KeyPlotListing = () => {
     setFetchError(null);
     
     try {
-      const response = await fetch('http://localhost:8082/btr-service/key-plots/get-all');
+      const BASE_URL = mainapi.BASE_URL;
+      const token = localStorage.getItem('token')
+      const response = await fetch(`${BASE_URL}/btr-service/key-plots/get-all`, {
+  headers: {
+    'Authorization': `Bearer ${token}`,
+  }
+});
       
       if (!response.ok) {
         throw new Error(`Failed to fetch data (${response.status})`);
@@ -174,7 +181,14 @@ const KeyPlotListing = () => {
     setPlotDetailsError(null);
     
     try {
-      const response = await fetch(`http://localhost:8082/btr-service/key-plots/get-keyplot/${plotId}`);
+      const token = localStorage.getItem('token')
+      const response = await fetch(`http://localhost:8082/btr-service/key-plots/get-keyplot/${plotId}`,{
+         headers: {
+          Authorization: `Bearer ${token}` // Add token in Authorization header
+        }
+      }
+        
+      );
       
       if (!response.ok) {
         throw new Error(`Failed to fetch plot details (${response.status})`);

@@ -14,22 +14,34 @@ class btrservice {
 static async btr_lists_data(page = 0, size = 10, filter = '', zoneId = null) {
   try {
     const token = localStorage.getItem('token');
-    // const zone_id = zoneId || authservice.getzone(); // fallback if zoneId not passed
-// alert("zone id in btr service"+zoneId);
-    const response = await axios.get(
-      `${btrservice.BASE_URL}/btr-service/btr-api/btr-data/${zoneId}?page=${page}&size=${size}&filter=${filter}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+    if (!token) {
+      throw new Error('Authorization token missing');
+    }
+
+    const zone = zoneId || authservice.getzone();
+    if (!zone) {
+      throw new Error('Zone ID missing');
+    }
+
+    console.log("Zone ID in btr service:", zone);
+
+    const url = `http://localhost:8082/btr-service/api/fetch-btr/zone/${zone}/data?page=${page}&size=${size}&filter=${encodeURIComponent(filter)}`;
+
+    const response = await axios.get(url, {
+      headers: {
+        Authorization: `Bearer ${token}`
       }
-    );
+    });
 
     return response.data;
   } catch (err) {
     console.error('API Error:', err);
     return {
+<<<<<<< HEAD
       message: err?.response?.data?.message || 'Unknown error'
+=======
+      message: err?.response?.data?.message || err.message || 'Unknown error'
+>>>>>>> origin/local-server
     };
   }
 }

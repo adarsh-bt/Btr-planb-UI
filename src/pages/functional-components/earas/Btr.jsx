@@ -130,12 +130,14 @@ const Btr = () => {
 
   // Fetch the data from the API
   const fetchData = async () => {
+    alert("ok")
     setLoading(true); // Set loading to true
     const userid = '1605'; // This seems to be hardcoded, consider making it dynamic if needed
 
     try {
       // Adjust page to 0-based if your API expects it
       const apiPage = page - 1;
+      
       const response = await btrservice.btr_lists_data(userid, apiPage, size, filterText);
 
       if (response?.payload?.data) {

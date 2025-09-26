@@ -34,10 +34,11 @@ import {
 } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import mainapi from "api/mainapi";
+import authservice from "pages/authentication/services/authservice";
 
 const landTypeOptions = ["Wet", "Dry"];
 const TOTAL_REQUIRED = 100;
-const BASE_URL = mainapi.BASE_URL;
+
 
 /** * A robust fetch wrapper that handles non-OK responses and non-JSON content. */
 const robustFetch = async (url) => {
@@ -67,7 +68,7 @@ const KeyPlotEntry = () => {
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  const BASE_URL = mainapi.BTR_API;
+  const BASE_URL = mainapi.BASE_URL;
   
   // Confirmation Modal State
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -101,7 +102,7 @@ const KeyPlotEntry = () => {
   // Read IDs from localStorage
   const zoneId = typeof window !== "undefined" ? localStorage.getItem("activeZone") : null;
   const userInfo = getUserInfo();
-  const userId = userInfo?.id || "3fa85f64-5717-4562-b3fc-2c963f66afa6";
+  const userId = authservice.userid();
 
   // Auto-close success modal after 3 seconds
   useEffect(() => {
@@ -134,45 +135,72 @@ const KeyPlotEntry = () => {
   }, [showErrorModal]);
 
   // --- Data Fetching ---
-  useEffect(() => {
-    if (!zoneId) {
-      setLoading(false);
-      setError("No active zone selected. Please select a zone first.");
-      toast.warn("No active zone found.");
-      return;
-    }
-    const fetchData = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const [lbData, villageData, distData, talukData] = await Promise.all([
-          robustFetch(`${BASE_URL}/btr-service/localbodies/by-zone/${zoneId}`),
-          robustFetch(`${BASE_URL}/btr-service/localbodies/revenue-villages/${zoneId}`),
-          robustFetch(`${BASE_URL}/btr-service/localbodies/district/${zoneId}`),
-          robustFetch(`${BASE_URL}/btr-service/localbodies/revenue-taluks/${zoneId}`),
-        ]);
-        setLocalBodies(lbData || []);
-        setVillageOptions(villageData || []);
-        setDistrictInfo(distData);
-        setTalukInfo(talukData || []);
-        // Initialize localBodyData state for each fetched local body
-        setLocalBodyData((prev) => {
-          const next = { ...prev };
-          (lbData || []).forEach((lb) => {
-            if (!next[lb.id]) next[lb.id] = [];
-          });
-          return next;
-        });
-      } catch (err) {
-        console.error("Data fetching error:", err);
-        setError(err.message);
-        toast.error(`Data loading failed: ${err.message}`);
-      } finally {
-        setLoading(false);
+useEffect(() => {
+  if (!zoneId) {
+    setLoading(false);
+    setError("No active zone selected. Please select a zone first.");
+    toast.warn("No active zone found.");
+    return;
+  }
+
+  const fetchData = async () => {
+    setLoading(true);
+    setError("");
+    const BASE_URL = mainapi.BASE_URL;
+    const urls = [
+      `${BASE_URL}/btr-service/localbodies/by-zone/${zoneId}`,
+      `${BASE_URL}/btr-service/localbodies/revenue-villages/${zoneId}`,
+      `${BASE_URL}/btr-service/localbodies/district/${zoneId}`,
+      `${BASE_URL}/btr-service/localbodies/revenue-taluks/${zoneId}`,
+    ];
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error("No token found, please log in again.");
       }
-    };
-    fetchData();
-  }, [zoneId]);
+
+      const requests = urls.map(url =>
+        fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          }
+        }).then(res => {
+          if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.statusText}`);
+          return res.json();
+        })
+      );
+
+      const [lbData, villageData, distData, talukData] = await Promise.all(requests);
+
+      setLocalBodies(lbData || []);
+      setVillageOptions(villageData || []);
+      setDistrictInfo(distData);
+      setTalukInfo(talukData || []);
+
+      setLocalBodyData(prev => {
+        const next = { ...prev };
+        (lbData || []).forEach(lb => {
+          if (!next[lb.id]) next[lb.id] = [];
+        });
+        return next;
+      });
+
+    } catch (err) {
+      console.error("Data fetching error:", err);
+      setError(err.message);
+      toast.error(`Data loading failed: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchData();
+
+}, [zoneId]);
+
+
 
   // --- Memoized Lookups ---
   const villageInfoMap = useMemo(() => {
@@ -327,6 +355,7 @@ const KeyPlotEntry = () => {
       return;
     }
 
+    const zoneId = authservice.getzone();
     const payload = allKeyplots.map((row) => {
       const villageData = villageInfoMap.get(row.village);
       const localBodyData = localBodyInfoMap.get(row.lbId);
@@ -357,14 +386,20 @@ const KeyPlotEntry = () => {
     }
 
     try {
-      const response = await fetch(
-          `${BASE_URL}/btr-service/api/btr-data/saveAll`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
+      const token = localStorage.getItem('token');
+
+  const response = await fetch(
+    `${BASE_URL}/btr-service/api/btr-data/saveAll`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
       const result = await response.json();
       if (!response.ok) {
         // Handle different types of error responses from backend
