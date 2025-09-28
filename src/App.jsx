@@ -6,7 +6,9 @@ import ThemeCustomization from 'themes';
 
 import ScrollTop from 'components/ScrollTop';
 
-import { UserAccessProvider } from 'contexts/auth-reducer/universal/UserAccessContext';
+import { UserAccessProvider } from './contexts/auth-reducer/universal/UserAccessContext';
+
+
 
 // ==============================|| APP - THEME, ROUTER, LOCAL ||============================== //
 

@@ -15,38 +15,32 @@ import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
 
 import { useContext } from 'react';
-// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
-// import { flattenPermissions } from 'contexts/auth-reducer/permissionHelpers';
-// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
-// import { flattenPermissions } from 'contexts/auth-reducer/permissionHelpers';
 
-//permissions
-import { useUserAccess } from 'contexts/auth-reducer/universal/UserAccessContext';
 
 import cluster from 'assets/images/logo/cluster.png';
 import keyplot from 'assets/images/logo/keyplot.png';
 import zonedetails from 'assets/images/logo/zonedetails.png';
 import eBTR from 'assets/images/logo/eBTR.png';
 
+ //for permissions line
+import { useUserAccess, PermissionGate } from 'contexts/auth-reducer/universal/UserAccessContext';
+
+
 function Earas_menus() {
-  //permissions
-  const { userAccess, loading } = useUserAccess();
-  const theme = useTheme();
-  // const { permissions, loading, error } = useContext(PermissionsContext);
 
-  // // Flatten permissions for easy checking
-  // const userPermissions = flattenPermissions(permissions);
+    //for permissions line
+  const { userAccessData, loading, hasPermission, hasPermissionByName } = useUserAccess();
 
-  // // Check if user has "View BTR"
+  console.log('Dashboard Debug:');
+  console.log('Loading:', loading);
+  console.log('UserAccessData:', userAccessData);
+  console.log('HasPermission function:', hasPermission);
+  console.log('Permission 11 result:', hasPermission && hasPermission(11));
 
-  // const canViewZoneDetails = userPermissions.includes('View Zone Details');
-  // const canViewBTR = userPermissions.includes('View BTR');
-  // const canViewKeyPlot = userPermissions.includes('Download Key Plot List');
-  // const canViewCluster = userPermissions.includes('Cluster View');
-  // const canViewReports = userPermissions.includes('View Progress Report');
-  // const canViewCCE = userPermissions.includes('Download CCE Report');
-  // const canViewFormI = userPermissions.includes('Download Form I');
-
+  if (loading) {
+    return <div>Loading permissions...</div>;
+  }
+  
   return (
     
     <Grid container spacing={3}>
@@ -55,6 +49,10 @@ function Earas_menus() {
         <Typography variant="h3" sx={{ marginBottom: 2 }}>
           Earas
         </Typography>
+        {/* Check by permission ID */}
+      {hasPermission(11) && (
+        <button>Cluster Formation</button>
+      )}
         <MainCard title="">
           <Grid container spacing={4}>
             {/* {canViewZoneDetails && ( */}
