@@ -307,8 +307,9 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
 
                 setIsLoading(true);
                 try {
+                    const BASE_URL = mainapi.USER_API;
                     const permissionsResponse = await fetch(
-                        'http://localhost:8081/user-accesss/user-state/userpremissions',
+                        `${BASE_URL}/user-accesss/user-state/userpremissions`,
                         {
                             headers: {
                                 Authorization: `Bearer ${token}`,

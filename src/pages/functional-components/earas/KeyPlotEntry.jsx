@@ -433,6 +433,7 @@ useEffect(() => {
         return;
       }
       // Success response
+      console.log("API save response:", result);
       if (result.status === "Success") {
         const savedKeyplotCount = result.ids?.length || totalKeyplots;
         setSavedCount(savedKeyplotCount);

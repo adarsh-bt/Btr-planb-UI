@@ -181,8 +181,9 @@ const KeyPlotListing = () => {
     setPlotDetailsError(null);
     
     try {
+      const BASE_URL = mainapi.BASE_URL;
       const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:8082/btr-service/key-plots/get-keyplot/${plotId}`,{
+      const response = await fetch(`${BASE_URL}/btr-service/key-plots/get-keyplot/${plotId}`,{
          headers: {
           Authorization: `Bearer ${token}` // Add token in Authorization header
         }

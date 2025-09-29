@@ -16,6 +16,8 @@ import {
 } from '@mui/material';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import mainapi from 'api/mainapi';
+import authservice from 'pages/authentication/services/authservice';
 
 // Define the columns for the data table
 const columns = (handleView, page, size) => [
@@ -103,12 +105,14 @@ const Btr = () => {
     setLoading(true);
     
     try {
-      const response = await fetch('http://localhost:8082/btr-service/api/fetch-btr/zone/758/data', {
+      const zoneId = authservice.getzoneId();
+      const BASE_URL = mainapi.BASE_URL;
+      const response = await fetch(`${BASE_URL}/btr-service/api/fetch-btr/zone/${zoneId}/data`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           // Add authorization header if needed
-          // 'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
       });
       
@@ -236,12 +240,13 @@ const Btr = () => {
   const fetchRecordDetails = async (id) => {
     setDetailLoading(true);
     try {
-      const response = await fetch(`http://localhost:8082/btr-service/api/fetch-btr/data/${id}`, {
+      const BASE_URL = mainapi.BASE_URL;
+      const response = await fetch(`${BASE_URL}/btr-service/api/fetch-btr/data/${id}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           // Add authorization header if needed
-          // 'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
       });
       

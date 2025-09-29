@@ -102,14 +102,14 @@ const Btr = () => {
     setLoading(true);
     try {
       // const BASE_URL = mainapi.BASE_URL;
-      const BASE_URL = "http://localhost:8082";
+      const BASE_URL = mainapi.BASE_URL;
       const zoneid = authservice.getzone();
       const response = await fetch(`${BASE_URL}/btr-service/api/fetch-btr/zone/${zoneid}/data`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           // Add authorization header if needed
-          // 'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
       });
       if (!response.ok) {
@@ -224,13 +224,13 @@ const Btr = () => {
     setDetailLoading(true);
     try {
       // const BASE_URL = mainapi.BASE_URL;
-      const BASE_URL = "http://localhost:8082";
+      const BASE_URL = mainapi.BASE_URL;
       const response = await fetch(`${BASE_URL}/btr-service/api/fetch-btr/data/${id}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           // Add authorization header if needed
-          // 'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
       });
       if (!response.ok) {

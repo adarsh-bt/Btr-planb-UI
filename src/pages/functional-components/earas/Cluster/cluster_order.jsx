@@ -21,7 +21,7 @@ import mainapi from 'api/mainapi';
 
 
 function ClusterSeatMap({zoneId}) {
-  const BTR_URL = mainapi.BTR_API
+  const BTR_URL = mainapi.BASE_URL;
   const [clusters, setClusters] = useState([]);
   const [summary, setSummary] = useState({ completed: 0, ongoing: 0, notStarted: 0 ,underreview:0});
   const [selectedStatus, setSelectedStatus] = useState('All');
@@ -35,12 +35,16 @@ function ClusterSeatMap({zoneId}) {
       : zoneId;                         // For Admin or other roles
   });
   
-   const BASE_URL = mainapi.BTR_API;
+   const BASE_URL = mainapi.BASE_URL;
 
   useEffect(() => {
       const token = localStorage.getItem('token');
+     
+      const zoneId = authservice.getzone();
+
+      
        setLoading(true);
-    axios.get(`${BASE_URL}/btr-service/cluster-api/user-cluster-summary/${resolvedZoneId}`,
+    axios.get(`${BASE_URL}/btr-service/cluster-api/user-cluster-summary/${zoneId}`,
               {
               headers: {
                   'Authorization': `Bearer ${token}` // Add token in Authorization header

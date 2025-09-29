@@ -16,7 +16,7 @@ class authservice {
           'Content-Type': 'text/plain'
         }
       });
-     
+     console.log("response ",response)
       // Decrypt the response here
       const decryptedJson = decryptData(response.data);
       const responseData = JSON.parse(decryptedJson);

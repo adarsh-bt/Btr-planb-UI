@@ -24,8 +24,8 @@ static async btr_lists_data(page = 0, size = 10, filter = '', zoneId = null) {
     }
 
     console.log("Zone ID in btr service:", zone);
-
-    const url = `http://localhost:8082/btr-service/api/fetch-btr/zone/${zone}/data?page=${page}&size=${size}&filter=${encodeURIComponent(filter)}`;
+    const BASE_URL = mainapi.BASE_URL;
+    const url = `${BASE_URL}/btr-service/api/fetch-btr/zone/${zone}/data?page=${page}&size=${size}&filter=${encodeURIComponent(filter)}`;
 
     const response = await axios.get(url, {
       headers: {
@@ -37,11 +37,7 @@ static async btr_lists_data(page = 0, size = 10, filter = '', zoneId = null) {
   } catch (err) {
     console.error('API Error:', err);
     return {
-<<<<<<< HEAD
-      message: err?.response?.data?.message || 'Unknown error'
-=======
       message: err?.response?.data?.message || err.message || 'Unknown error'
->>>>>>> origin/local-server
     };
   }
 }

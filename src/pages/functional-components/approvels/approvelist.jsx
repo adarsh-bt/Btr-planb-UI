@@ -590,7 +590,7 @@ useEffect(() => {
         setUserListDis(response.payload.districtUsers);
         setUserList(response.payload.talukUsers); 
       }else if(admrole == "Taluk Level Approver"){
-        alert(ok)
+        
         var response = await approvalservice.tsoadmin_roleassign();
         setUserList(response.payload); 
       }

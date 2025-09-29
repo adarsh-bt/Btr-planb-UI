@@ -53,7 +53,7 @@ const AvailableCcePlots = Loadable(lazy(() => import('pages/functional-component
 // planB
  const KeyPlotEntry = Loadable(lazy(() => import('pages/functional-components/earas/KeyPlotEntry')));
 const KeyplotListing = Loadable(lazy(() => import('pages/functional-components/earas/keyplotListing')));
-const ClusterManualEntryList = Loadable(lazy(() => import('pages/functional-components/earas/ClusterManualEntryList')));
+// const ClusterManualEntryList = Loadable(lazy(() => import('pages/functional-components/earas/ClusterManualEntryList')));
 
 const ClusterManualEntry = Loadable(lazy(() => import('pages/functional-components/earas/ClusterManualEntry')));
 // ==============================|| MAIN ROUTING ||============================== //
@@ -296,14 +296,14 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-    {
-      path: '/schemes/earas/cluster_manual_entry_List',
-      element: (
-        <PrivateRoute>
-          <ClusterManualEntryList />
-        </PrivateRoute>
-      )
-    },
+    // {
+    //   path: '/schemes/earas/cluster_manual_entry_List',
+    //   element: (
+    //     <PrivateRoute>
+    //       <ClusterManualEntryList />
+    //     </PrivateRoute>
+    //   )
+    // },
 
     {
       path: '/schemes/earas/CCE_crop_selection',

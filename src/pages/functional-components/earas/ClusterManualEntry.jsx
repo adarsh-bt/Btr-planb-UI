@@ -68,7 +68,7 @@ const ClusterFormUI = () => {
         localBody: '',
         landType: '',
         totalArea: 0,
-        maxArea: 600
+        maxArea: 1010
     });
     const [isCropsModalOpen, setCropsModalOpen] = useState(false);
     const [selectedCrops, setSelectedCrops] = useState({});
@@ -330,7 +330,7 @@ useEffect(() => {
                     clusterNo: data.payload.clusterNo || '1',
                     localBody: data.payload.kvillageName || 'N/A',
                     landType: data.payload.landType || 'Wet',
-                    maxArea: data.payload.clusterMax || 600,
+                    maxArea: data.payload.clusterMax || 1010,
                 }));
 
                 if (data.payload.cceCrops && Array.isArray(data.payload.cceCrops)) {

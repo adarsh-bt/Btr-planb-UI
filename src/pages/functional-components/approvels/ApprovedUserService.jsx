@@ -254,7 +254,7 @@ static async updateZoneAssignmentStatus(userdata) {
     const token = localStorage.getItem('token');
 
    console.log("userdata in service",userdata)
-   alert("ooo")
+
 
     const response = await axios.post(`${ApprovedUserService.BTR_URL}/btr-service/btr-api/zone-assignment/update-status`, userdata, {
       // headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
