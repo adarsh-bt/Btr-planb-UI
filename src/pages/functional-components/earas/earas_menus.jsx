@@ -49,10 +49,10 @@ function Earas_menus() {
         <Typography variant="h3" sx={{ marginBottom: 2 }}>
           Earas
         </Typography>
-        {/* Check by permission ID */}
+        {/* Check by permission ID
       {hasPermission(11) && (
         <button>Cluster Formation</button>
-      )}
+      )} */}
         <MainCard title="">
           <Grid container spacing={4}>
             {/* {canViewZoneDetails && ( */}
@@ -611,7 +611,7 @@ function Earas_menus() {
                 </Box>
               </Card>
             </Grid> */}
-
+{/* 
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
@@ -665,7 +665,7 @@ function Earas_menus() {
                   </CardContent>
                 </Box>
               </Card>
-            </Grid>
+            </Grid> */}
 
             {/* {canViewCCE && ( */}
             {/* <Grid item xs={12} sm={4} md={3} lg={3}>

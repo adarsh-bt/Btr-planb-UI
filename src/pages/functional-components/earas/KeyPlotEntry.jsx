@@ -342,7 +342,7 @@ const KeyPlotEntry = () => {
         lbcode: localBodyData.lbcode,
         zoneId: parseInt(zoneId, 10),
         user_id: userId,
-        bcode: parseInt(row.villageBlock, 10) || null,
+        bcode: row.villageBlock,
         ltype: row.landType.toUpperCase(),
         resvno: parseInt(row.surveyNo, 10),
         resbdno: row.subDivNo,
@@ -513,6 +513,24 @@ const KeyPlotEntry = () => {
     });
   };
 
+  // Add this function after your existing helper functions, around line 280
+const areAllFieldsFilled = (lbId) => {
+  const rows = localBodyData[lbId] || [];
+  if (rows.length === 0) return true; // Allow adding first row
+  
+  return rows.every((row) => {
+    return (
+      row.village &&
+      row.villageBlock &&
+      row.surveyNo &&
+      row.subDivNo &&
+      row.area &&
+      row.landType
+    );
+  });
+};
+
+
   const handleDeleteRow = (lbId, rowId) => {
     setLocalBodyData((prev) => ({
       ...prev,
@@ -601,7 +619,64 @@ const KeyPlotEntry = () => {
           {/* (Total Required: {TOTAL_REQUIRED}) */}
         </Typography>
         {localBodies.length > 0 && (
+  <Paper elevation={3} sx={{ mb: 2 }}>
+    <Box sx={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      px: 2, 
+      pt: 2, 
+      pb: 1,
+      gap: 2 
+    }}>
+      <Typography 
+        variant="h6" 
+        sx={{ 
+          fontWeight: 'bold', 
+          color: '#05307a',
+          minWidth: 'max-content',
+          flexShrink: 0
+        }}
+      >
+        Local Body:
+      </Typography>
+      <Tabs
+        value={activeTab}
+        onChange={(e, newVal) => setActiveTab(newVal)}
+        indicatorColor="primary"
+        textColor="primary"
+        variant="scrollable"
+        scrollButtons="auto"
+        sx={{ flex: 1 }}
+      >
+        {localBodies.map((lb, index) => {
+          const rowCount = (localBodyData[lb.id] || []).length;
+          const hasErrors = Object.keys(fieldErrors).some(key => key.startsWith(`${lb.id}_`)) ||
+                           Object.keys(duplicateErrors).some(key => key.startsWith(`${lb.id}_`)) ||
+                           Object.keys(clientDuplicateErrors).some(key => key.startsWith(`${lb.id}_`));
+                          
+          return (
+            <Tab
+              key={lb.id}
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {`${lb.name} (${rowCount})`}
+                  {hasErrors && <ErrorIcon color="error" fontSize="small" />}
+                </Box>
+              }
+              id={`tab-${index}`}
+            />
+          );
+        })}
+      </Tabs>
+    </Box>
+  </Paper>
+)}
+
+
+
+        {/* {localBodies.length > 0 && (
           <Paper elevation={3} sx={{ mb: 2 }}>
+            
             <Tabs
               value={activeTab}
               onChange={(e, newVal) => setActiveTab(newVal)}
@@ -631,7 +706,7 @@ const KeyPlotEntry = () => {
               })}
             </Tabs>
           </Paper>
-        )}
+        )} */}
         {localBodies.map((lb, idx) => {
           const rows = localBodyData[lb.id] || [];
           return (
@@ -763,16 +838,20 @@ const KeyPlotEntry = () => {
                         <TableRow>
                           <TableCell colSpan={8} align="right">
                             <Button
-                               startIcon={<AddCircle />}
-                               variant="outlined"
-                               color="success"
-                               onClick={() => handleAddRow(lb.id)}
-                              disabled={totalKeyplots >= TOTAL_REQUIRED}
+                              startIcon={<AddCircle />}
+                              variant="outlined"
+                              color="success"
+                              onClick={() => handleAddRow(lb.id)}
+                              disabled={
+                                totalKeyplots >= TOTAL_REQUIRED || 
+                                !areAllFieldsFilled(lb.id)
+                              }
                             >
                               Add Keyplot
                             </Button>
                           </TableCell>
                         </TableRow>
+
                       </TableBody>
                     </Table>
                   </TableContainer>

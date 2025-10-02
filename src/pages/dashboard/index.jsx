@@ -96,10 +96,10 @@ export default function DashboardDefault() {
       <Grid item xs={12}>
         <Typography variant="h4" align="center" sx={{ mb: 3 }}>
           Dashboard
-          {/* Check by permission ID */}
+          {/* Check by permission ID
       {hasPermission(11) && (
         <button>Cluster Formation</button>
-      )}
+      )} */}
         </Typography>
       </Grid>
 
