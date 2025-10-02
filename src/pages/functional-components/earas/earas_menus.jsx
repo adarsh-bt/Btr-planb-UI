@@ -94,7 +94,7 @@ function Earas_menus() {
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
                     <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Zone Details
+                      Zone
                     </Typography>
                     <Typography
                       variant="subtitle1"
@@ -106,7 +106,7 @@ function Earas_menus() {
                         marginTop: '0.5rem'
                       }}
                     >
-                      Investigator
+                     Details
                     </Typography>
                   </CardContent>
                 </Box>
@@ -175,7 +175,8 @@ function Earas_menus() {
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                to="/schemes/earas/btr_list"
+                // to="/schemes/earas/btr_list"
+                to="/schemes/earas/btr"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',
@@ -448,7 +449,7 @@ function Earas_menus() {
               </Card>
             </Grid>
 
-            <Grid item xs={12} sm={4} md={3} lg={3}>
+            {/* <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
                 to="/schemes/earas/Non_BTR_Key_plot_entry"
@@ -501,7 +502,7 @@ function Earas_menus() {
                   </CardContent>
                 </Box>
               </Card>
-            </Grid>
+            </Grid> */}
 
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
@@ -614,7 +615,7 @@ function Earas_menus() {
               </Card>
             </Grid> */}
 
-            <Grid item xs={12} sm={4} md={3} lg={3}>
+            {/* <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
                 to="/schemes/earas/zonesettings"
@@ -667,7 +668,7 @@ function Earas_menus() {
                   </CardContent>
                 </Box>
               </Card>
-            </Grid>
+            </Grid> */}
 
             {/* {canViewCCE && ( */}
             {/* <Grid item xs={12} sm={4} md={3} lg={3}>

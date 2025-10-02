@@ -73,7 +73,7 @@ function Schemas() {
         borderRadius: '.5rem',
         marginRight: '1rem',
       }}
-      image="src/assets/images/logo/EARAS.png"
+      image="https://static.thenounproject.com/png/agriculture-icon-1080128-512.png"
       alt="Dashboard Icon"
     />
 

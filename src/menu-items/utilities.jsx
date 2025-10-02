@@ -94,13 +94,13 @@ const utilities = {
       url: '/schemes/earas/clusters',
       icon: icons.DeploymentUnitOutlined
     },
-    {
-      id: 'util-workallocation',
-      title: 'Work Allocation Report',
-      type: 'item',
-      url: '/workallocation',
-      icon: icons.FormOutlined
-    }
+    // {
+    //   id: 'util-workallocation',
+    //   title: 'Work Allocation Report',
+    //   type: 'item',
+    //   url: '/workallocation',
+    //   icon: icons.FormOutlined
+    // }
   ]
 };
 

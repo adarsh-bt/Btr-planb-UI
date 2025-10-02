@@ -493,7 +493,7 @@ const KeyPlotListing = () => {
 
         {!loading && !dataVisible && !fetchError && (
           <Box display="flex" justifyContent="center" mb={4}>
-            <Button
+            {/* <Button
               variant="contained"
               onClick={handleGenerateKeyplot}
               disabled={loading}
@@ -504,7 +504,10 @@ const KeyPlotListing = () => {
               }}
             >
               Generate Keyplot Data
-            </Button>
+            </Button> */}
+            <Typography variant="h6" color="text.secondary">
+              No Keyplot Data Available
+            </Typography>
           </Box>
         )}
 

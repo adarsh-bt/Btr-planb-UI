@@ -35,6 +35,7 @@ import {
 import { toast } from "react-toastify";
 import mainapi from "api/mainapi";
 import authservice from "pages/authentication/services/authservice";
+import Breadcrumb from "routes/Breadcrumb";
 
 const landTypeOptions = ["Wet", "Dry"];
 const TOTAL_REQUIRED = 100;
@@ -362,7 +363,7 @@ useEffect(() => {
       if (!villageData || !localBodyData || !row.surveyNo) {
         return null;
       }
-            
+    
       return {
         dcode: districtInfo.distId,
         tcode: talukInfo[0].revenueTalukId,
@@ -371,7 +372,7 @@ useEffect(() => {
         lbcode: localBodyData.lbcode,
         zoneId: parseInt(zoneId, 10),
         user_id: userId,
-        bcode: parseInt(row.villageBlock, 10) || null,
+        bcode: row.villageBlock || null,
         ltype: row.landType.toUpperCase(),
         resvno: parseInt(row.surveyNo, 10),
         resbdno: row.subDivNo,
@@ -631,6 +632,7 @@ useEffect(() => {
 
   return (
     <Grid container spacing={3}>
+    <Breadcrumb> </Breadcrumb> 
       <Box sx={{ p: 3, maxWidth: 1400, margin: "0 auto", width: "100%" }}>
         <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
           KeyPlot Entry 

@@ -30,6 +30,7 @@ const earas_list = () => {
       title: 'e-BTR',
       image: '...',
       gradient: '...',
+      // url: '/schemes/earas/btr'
       url: '/schemes/earas/btr'
     // } : null
     }

@@ -157,8 +157,6 @@ const Btr = ({ zoneId }) => {
     }
 
     setLoading(true); // Set loading to true
-    const userid = '1605'; // This seems to be hardcoded, consider making it dynamic if needed
-
     try {
       // Adjust page to 0-based if your API expects it
       const apiPage = page - 1;
