@@ -50,6 +50,7 @@ import {
   Close as CloseIcon
 } from '@mui/icons-material';
 import mainapi from 'api/mainapi';
+import authservice from 'pages/authentication/services/authservice';
 
 const KeyPlotListing = () => {
   // State management
@@ -124,7 +125,8 @@ const KeyPlotListing = () => {
     try {
       const BASE_URL = mainapi.BASE_URL;
       const token = localStorage.getItem('token')
-      const response = await fetch(`${BASE_URL}/btr-service/key-plots/get-all`, {
+      const zoneid = authservice.getzone();
+      const response = await fetch(`${BASE_URL}/btr-service/key-plots/get-all/${zoneid}`, {
   headers: {
     'Authorization': `Bearer ${token}`,
   }

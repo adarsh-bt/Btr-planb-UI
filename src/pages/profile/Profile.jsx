@@ -60,6 +60,10 @@ const Profile = () => {
           {userData ? (
             <Box>
               <Typography>
+                <strong>FullName : </strong> {userData.name}
+              </Typography>
+              <Divider sx={{ my: 2 }} />
+              <Typography>
                 <strong>Emp Number : </strong> {userData.penNumber}
               </Typography>
               <Divider sx={{ my: 2 }} />
@@ -72,7 +76,7 @@ const Profile = () => {
               </Typography>
               <Divider sx={{ my: 2 }} />
               <Typography>
-                <strong>Office of Joining : </strong> {userData.officeToJoining}
+                <strong>Office of Joining : </strong> {userData.officelocation}
               </Typography>
               <Divider sx={{ my: 2 }} />
               <Typography>

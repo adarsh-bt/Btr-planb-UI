@@ -119,7 +119,13 @@ class ApprovedUserService {
   }
   static async getSchemes() {
     try {
-      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/user-approval/fetch/schemes`);
+       const token = localStorage.getItem('token');
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/user-approval/fetch/schemes`,{
+         headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+    });
       console.log('schemes >>', response.data);
       return response.data.payload; // Add fallback for different response structures
     } catch (err) {
@@ -236,7 +242,13 @@ class ApprovedUserService {
   }
     static async getZonesByUserId(userId) {
     try {
-      const response = await axios.get(`${this.BTR_URL}/btr-service/btr-api/zones/assigned/${userId}`);
+       const token = localStorage.getItem('token');
+      const response = await axios.get(`${this.BTR_URL}/btr-service/btr-api/zones/assigned/${userId}`,{
+         headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       console.log("response in getZonesByUserId",response);
       return response;
     } catch (err) {
@@ -257,7 +269,7 @@ static async updateZoneAssignmentStatus(userdata) {
 
 
     const response = await axios.post(`${ApprovedUserService.BTR_URL}/btr-service/btr-api/zone-assignment/update-status`, userdata, {
-      // headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
     });
     return {
       error: false,

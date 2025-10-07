@@ -20,7 +20,8 @@ import {
   Autocomplete,
   Button,
   InputLabel,
-  IconButton,Dialog,DialogTitle,DialogContent ,DialogActions,FormLabel 
+  IconButton,Dialog,DialogTitle,DialogContent ,DialogActions,FormLabel ,
+  FormHelperText
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import MainCard from 'components/MainCard';
@@ -410,7 +411,8 @@ const handleSaveZoneStatus = async () => {
 
   try {
     setZoneSaving(true);
-
+    
+    console.log("user id   ",loginId)
     const zoneId = selectedZoneForModal.zoneId;
     const user_id = loginId;
     const assigner_id = authservice.userid();
@@ -456,10 +458,10 @@ useEffect(() => {
   if (isAddZoneOpen) {
     const fetchZones = async () => {
       try {
-        const response = await approvalservice.zoneslist(userData.officeType, 1);
+        const response = await approvalservice.zoneslist(userData.officeType, userData.officeId);
         if (response) {
           setAvailableZones(response);
-          
+          console.log("usess  ",userData)
         } else {
           setAddZoneError('No zones found.');
           setAvailableZones([]);
@@ -496,8 +498,9 @@ console.log("selectedZoneIdToAdd", selectedZoneIdToAdd);
       return;
     }
    
-    
     const admin_id = authservice.userid(); // You must have this value available in scope
+    console.log("user id >> "+userData.logid)
+    console.log("admin id >> "+admin_id)
     // ✅ Call the API to save the zone
     await approvalservice.zone_save(
       selectedZoneIdToAdd,                     // Pass entire zone object (or zone.zoneId if API expects just ID)
@@ -1238,28 +1241,53 @@ console.log("selectedZoneIdToAdd", selectedZoneIdToAdd);
   <Dialog open={isAddZoneOpen} onClose={() => setIsAddZoneOpen(false)} maxWidth="xs" fullWidth>
     <DialogTitle sx={{backgroundColor: '#05307a',color:'white' }} variant='h5' align='center'>Add Zone</DialogTitle>
     <DialogContent>
-      <FormControl fullWidth size="small" sx={{ mt: 1 }}>
-        <Typography variant="h6" sx={{ mb: 1 }} align='center'>Select Zone</Typography>
-        <Select
-          value={selectedZoneIdToAdd}
-          onChange={(e) => setSelectedZoneIdToAdd(Number(e.target.value))}
-          displayEmpty
-        >
-          <MenuItem value="">
-            <em>Select a zone</em>
-          </MenuItem>
-          {availableZones.map((zone) => (
-            <MenuItem key={zone.zoneId} value={zone.zoneId}>
-              {zone.zoneNameEn}
-            </MenuItem>
-          ))}
-        </Select>
-        {addZoneError && (
-          <Typography color="error" sx={{ mt: 1 }}>
-            {addZoneError}
-          </Typography>
+ <FormControl
+      fullWidth
+      size="small"
+      sx={{
+        mt: 2,
+        backgroundColor: 'background.paper',
+        borderRadius: 1,
+        boxShadow: 1,
+        p: 2,
+      }}
+    >
+      <Typography
+        variant="h6"
+        align="center"
+        sx={{ mb: 2, fontWeight: 'bold', color: 'text.primary' }}
+      >
+        Select Zone
+      </Typography>
+
+      <Autocomplete
+        fullWidth
+        size="small"
+        options={availableZones}
+        getOptionLabel={(option) => option.zoneNameEn}
+        value={availableZones.find((z) => z.zoneId === selectedZoneIdToAdd) || null}
+        onChange={(event, newValue) => {
+          if (newValue) {
+            setSelectedZoneIdToAdd(newValue.zoneId);
+            setAddZoneError('');
+          } else {
+            setSelectedZoneIdToAdd('');
+          }
+        }}
+        isOptionEqualToValue={(option, value) => option.zoneId === value.zoneId}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label="Zone"
+            error={Boolean(addZoneError)}
+            helperText={addZoneError || 'Start typing to search'}
+          />
         )}
-      </FormControl>
+        noOptionsText="No matching zones"
+        clearOnEscape
+      />
+    </FormControl>
+
     </DialogContent>
     <DialogActions>
       <Button onClick={() => setIsAddZoneOpen(false)}>Cancel</Button>

@@ -15,7 +15,7 @@ export const UserAccessProvider = ({ children }) => {
     try {
       setLoading(true);
       const BASE_URL = mainapi.BASE_URL;
-      const res = await axios.get(`${BASE_URL}/user-access/user-state/userpremissions`, {
+      const res = await axios.get(`${BASE_URL}/user-access/user-state//user-permissions`, {
         withCredentials: true, // if using cookies
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`, // if using JWT

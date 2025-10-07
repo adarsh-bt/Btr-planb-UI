@@ -51,6 +51,9 @@ console.log("err ",decryptedError.message)
   }
 }
   }
+
+
+  
   static async fetchPermissions(token) {
     try {
       const response = await axios.get(`${authservice.BASE_URL}/user-access/user-state/userpremissions`, {
@@ -154,6 +157,7 @@ static async logout(navigate) {
   localStorage.removeItem('user');
   localStorage.removeItem('activeZone');
   navigate('/login');
+
 }
     return response.data;
   } catch (error) {
@@ -175,9 +179,13 @@ static async logout(navigate) {
     return decodedToken.sub;
   }
   static getrole() {
+    try{
     const token = localStorage.getItem('token');
     const decodedToken = jwtDecode(token);
-    return decodedToken.roles;
+    return decodedToken.roles;}
+    catch{
+      return null
+    }
   }
   static getzone() {
     try{

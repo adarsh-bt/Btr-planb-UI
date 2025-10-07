@@ -246,12 +246,14 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                         const permissionsData = await permissionsResponse.json();
                         setPermissions(permissionsData);
                         setIsLoading(false);
-                        navigate('/');
+                        // navigate('/');
+                          window.location.href = '/';
                     } catch (permissionsError) {
                         console.error('Error fetching permissions:', permissionsError);
                         setError(permissionsError.message || 'Failed to load permissions');
                         setIsLoading(false);
-                        navigate('/');
+                        // navigate('/');
+                          window.location.href = '/';
                     }
                 } else {
                     setError(userData.message || 'Login failed after forced login attempt');
@@ -325,12 +327,15 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     const permissionsData = await permissionsResponse.json();
                     setPermissions(permissionsData);
                     setIsLoading(false);
-                    navigate('/');
+                    // navigate('/');
+                     window.location.href = '/';
+
                 } catch (permissionsError) {
                     console.error('Error fetching permissions:', permissionsError);
-                    setError(permissionsError.message || 'Failed to load permissions');
+                    // setError(permissionsError.message || 'Failed to load permissions');
                     setIsLoading(false);
-                    navigate('/');
+                    // navigate('/');
+                     window.location.href = '/';
                 }
             } else {
                 setError(userData.message || 'Login failed');
