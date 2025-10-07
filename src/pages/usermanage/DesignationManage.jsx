@@ -127,6 +127,7 @@ const DesignationManage = () => {
                   <IconButton
                     size="small"
                     color="primary"
+                    disabled={true}
                     onClick={() => {
                       setDesignationName(designation.designationName);
                       setEditMode(true);

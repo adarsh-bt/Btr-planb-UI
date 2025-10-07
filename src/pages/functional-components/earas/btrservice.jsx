@@ -14,6 +14,7 @@ class btrservice {
   static async btr_lists_data(userid, page = 0, size = 10, filter = '') {
     try {
       const token = localStorage.getItem('token');
+      alert("llll")
       // var userid = authservice.userid();
       var zone_id = authservice.getzone();
       console.log('user id ', userid);

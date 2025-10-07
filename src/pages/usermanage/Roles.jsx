@@ -20,7 +20,7 @@ import {
   Autocomplete,
   Button,
   InputLabel,
-  IconButton
+  IconButton,Dialog,DialogTitle,DialogContent ,DialogActions,FormLabel 
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import MainCard from 'components/MainCard';
@@ -28,6 +28,10 @@ import Breadcrumb from 'routes/Breadcrumb';
 import { useLocation } from 'react-router-dom';
 import ApprovedUserService from 'pages/functional-components/approvels/ApprovedUserService';
 import RegisterService from 'pages/authentication/services/registerservice';
+import authservice from 'pages/authentication/services/authservice';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import { set } from 'lodash';
+import approvalservice from 'pages/functional-components/approvels/approvalservice';
 
 const Roles = () => {
   const location = useLocation();
@@ -37,6 +41,7 @@ const Roles = () => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [loginId, setLoginId] = useState('');
 
   // UI States
   const [tabValue, setTabValue] = useState(0);
@@ -56,6 +61,20 @@ const Roles = () => {
   const [taluks, setTaluks] = useState([]);
   const [selectedTaluk, setSelectedTaluk] = useState(null);
   const [loadingDistricts, setLoadingDistricts] = useState(false);
+
+ const [zones, setZones] = useState([]);
+  const [zone, setZone] = useState('');
+  const [zoneSaving, setZoneSaving] = useState(false);
+  const [savedZone, setSavedZone] = useState(false);
+  
+
+const [modalOpen, setModalOpen] = useState(false);
+
+const [isAddZoneOpen, setIsAddZoneOpen] = useState(false);
+const [selectedZoneIdToAdd, setSelectedZoneIdToAdd] = useState('');
+const [addZoneSaving, setAddZoneSaving] = useState(false);
+const [addZoneError, setAddZoneError] = useState('');
+const [availableZones, setAvailableZones] = useState([]);
 
   const [districtId, setDistrictId] = useState(null);
   const [talukId, setTalukId] = useState(null);
@@ -78,6 +97,10 @@ const Roles = () => {
   // zone State
   const [isAddZoneClicked, setIsAddZoneClicked] = useState(false);
   const [selectedNewZone, setSelectedNewZone] = useState('');
+  const [selectedZoneForModal, setSelectedZoneForModal] = useState(null);
+const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
+
+
 
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -287,6 +310,8 @@ const Roles = () => {
     setStatusUpdating(false);
   };
 
+
+
   // Fetch user details on mount
   useEffect(() => {
     if (!userId) {
@@ -295,32 +320,62 @@ const Roles = () => {
       return;
     }
     setLoading(true);
-    ApprovedUserService.fetchUserById(userId)
-      .then((res) => {
-        if (res.error) {
-          setError(res.message || 'Failed to fetch user');
-          setUserData(null);
-        } else {
-          setUserData(res.payload);
-          setSchemeRolePairs(
-            (res.payload.roleSchemeResponses || []).map((r) => ({
-              schemeId: r.schemeId,
-              schemeName: r.schemeName,
-              roleId: r.roleId,
-              roleName: r.roleName
-            }))
-          );
-          setOffice(res.payload.officeLocation || '');
-          setOfficeType(res.payload.officeType || '');
-          setUserStatus(res.payload.active ? 'active' : 'inactive');
-          setError('');
-        }
-      })
-      .catch(() => {
-        setError('Failed to fetch user');
-        setUserData(null);
-      })
-      .finally(() => setLoading(false));
+   ApprovedUserService.fetchUserById(userId)
+  .then((res) => {
+    if (res.error) {
+      setError(res.message || 'Failed to fetch user');
+      setUserData(null);
+    } else {
+      const payload = res.payload;
+      setUserData(payload);
+     
+
+      const logid = payload.logid || '';
+      setLoginId(logid); // still store it in state if needed elsewhere
+
+      // 🔥 Call getZonesByUserId immediately
+      
+      ApprovedUserService.getZonesByUserId(logid)
+        .then((response) => {
+          const data = Array.isArray(response.data) ? response.data : [];
+          
+          setZones(data);
+
+          if (data.length > 0) {
+   
+            if (savedZone && data.some((z) => z.zoneId.toString() === savedZone)) {
+              setZone(savedZone);
+            } else {
+              setZone('');
+            
+              console.warn('No zones assigned to this user.');
+            }
+          }
+        })
+        .catch((error) => {
+          console.error('Error fetching zones:', error);
+        });
+
+      // Other state updates...
+      setSchemeRolePairs(
+        (payload.roleSchemeResponses || []).map((r) => ({
+          schemeId: r.schemeId,
+          schemeName: r.schemeName,
+          roleId: r.roleId,
+          roleName: r.roleName
+        }))
+      );
+      setOffice(payload.officeLocation || '');
+      setOfficeType(payload.officeType || '');
+      setUserStatus(payload.active ? 'active' : 'inactive');
+      setError('');
+    }
+  })
+  .catch(() => {
+    setError('Failed to fetch user');
+    setUserData(null);
+  })
+  .finally(() => setLoading(false));
   }, [userId]);
 
   // Load available schemes on mount
@@ -349,6 +404,129 @@ const Roles = () => {
       setIsEditingOffice(false);
     }
   };
+
+const handleSaveZoneStatus = async () => {
+  if (!selectedZoneForModal) return;
+
+  try {
+    setZoneSaving(true);
+
+    const zoneId = selectedZoneForModal.zoneId;
+    const user_id = loginId;
+    const assigner_id = authservice.userid();
+    const is_active = selectedZoneForModal.status === 'active';
+
+    const userData = {
+      zoneId: parseInt(zoneId, 10),
+      user_id: user_id,
+      assigner_id: assigner_id,
+      is_active: is_active,
+    };
+
+    // Pass userData directly, not wrapped inside an object
+    const res = await ApprovedUserService.updateZoneAssignmentStatus(userData);
+
+    if (res.error) {
+      setErrorMessage?.(res.message || 'Failed to update zone status');
+      return;
+    }
+
+    setSuccessMessage?.(res.message || 'Zone status updated successfully');
+
+    try {
+      const refreshed = await ApprovedUserService.getZonesByUserId(loginId);
+      setZones(refreshed?.data || []);
+    } catch {
+      setZones((prev = []) =>
+        prev.map((z) =>
+          z.zoneId === zoneId ? { ...z, status: is_active ? 'Active' : 'Inactive' } : z
+        )
+      );
+    }
+
+    setIsZoneModalOpen(false);
+  } catch (e) {
+    setErrorMessage?.(e.message || 'Unexpected error while updating zone status');
+  } finally {
+    setZoneSaving(false);
+  }
+};
+
+useEffect(() => {
+  if (isAddZoneOpen) {
+    const fetchZones = async () => {
+      try {
+        const response = await approvalservice.zoneslist(userData.officeType, 1);
+        if (response) {
+          setAvailableZones(response);
+          
+        } else {
+          setAddZoneError('No zones found.');
+          setAvailableZones([]);
+        }
+      } catch (error) {
+        console.error("Fetch zones failed:", error); // ✅ Log the error
+        setAddZoneError('Failed to fetch zones');
+        setAvailableZones([]);
+      }
+    };
+
+    fetchZones();
+  }
+}, [isAddZoneOpen, userData]);  // ✅ Correct dependency
+
+
+
+
+const handleSaveAddZone = async () => {
+  if (!selectedZoneIdToAdd) {
+    setAddZoneError('Please select a zone');
+    return;
+  }
+
+  try {
+    setAddZoneSaving(true);
+    setAddZoneError('');
+console.log("selectedZoneIdToAdd", selectedZoneIdToAdd);
+    // Find the selected zone
+    const addedZone = availableZones.find(zone => zone.zoneId === selectedZoneIdToAdd);
+
+    if (!addedZone) {
+      setAddZoneError('Zone not found.');
+      return;
+    }
+   
+    
+    const admin_id = authservice.userid(); // You must have this value available in scope
+    // ✅ Call the API to save the zone
+    await approvalservice.zone_save(
+      selectedZoneIdToAdd,                     // Pass entire zone object (or zone.zoneId if API expects just ID)
+      userData.logid,              // Assuming you have userData with loginId
+      admin_id                       // You must have this value available in scope
+    );
+
+    // ✅ Update local state so UI reflects the new zone
+    setZones(prev => [
+      ...prev,
+      {
+        zoneId: selectedZoneIdToAdd,
+        zoneName: addedZone.zoneNameEn,
+        status: 'active',
+      },
+    ]);
+
+    // ✅ Reset form & close modal
+    setIsAddZoneOpen(false);
+    setSelectedZoneIdToAdd('');
+  } catch (error) {
+    console.error("Zone save failed:", error);
+    setAddZoneError('Failed to add zone. Try again.');
+  } finally {
+    setAddZoneSaving(false);
+  }
+};
+
+
 
   const TabPanel = ({ children, value, index }) => (
     <div hidden={value !== index}>{value === index && <Box sx={{ p: 3 }}>{children}</Box>}</div>
@@ -647,7 +825,7 @@ const Roles = () => {
                   </Grid>
                 </Box>
               )}
-
+                
               {/* Actions Tab */}
               {tabValue === 1 && (
                 <Box sx={{ mt: 3 }}>
@@ -660,6 +838,7 @@ const Roles = () => {
                   </Tabs>
 
                   {/* Change Schemes & Roles */}
+                  <hr></hr>
                   {innerTabValue === 0 && (
                     <Grid container spacing={2}>
                       {!isEditingSchemes ? (
@@ -928,62 +1107,66 @@ const Roles = () => {
                   )}
 
                   {innerTabValue === 3 && (
-                    <Grid container spacing={2} alignItems="center">
-                      <Grid item xs={12} sm={6}>
-                        <FormControl fullWidth size="small">
-                          <Typography variant="body2" sx={{ mb: 1 }}>
-                            Current Zone
-                          </Typography>
-                          <TextField
-                            value={'Vellanad 2'}
-                            variant="outlined"
-                            size="small"
-                            InputProps={{
-                              readOnly: true
-                            }}
-                          />
-                        </FormControl>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <FormControl component="fieldset">
-                          <Typography variant="body2" sx={{ mb: 1 }}>
-                            Zone Status
-                          </Typography>
-                          <RadioGroup row aria-label="zone-status" name="zone-status" defaultValue="active">
-                            <FormControlLabel value="active" control={<Radio />} label="Active" />
-                            <FormControlLabel value="inactive" control={<Radio />} label="Inactive" />
-                          </RadioGroup>
-                        </FormControl>
-                      </Grid>
-
-                      <Grid item xs={12}>
-                        <Box display="flex" justifyContent="flex-end">
-                          <Button variant="contained" color="primary" onClick={() => setIsAddZoneClicked(true)}>
-                            Add Zone
-                          </Button>
-                        </Box>
-                      </Grid>
-
-                      {/* Conditionally render the dropdown based on a state, for example: */}
-                      {isAddZoneClicked && (
-                        <Grid item xs={12}>
-                          <FormControl fullWidth size="small">
-                            <InputLabel id="select-zone-label">Select New Zone</InputLabel>
-                            <Select
-                              labelId="select-zone-label"
-                              id="select-zone"
-                              value={selectedNewZone}
-                              label="Select New Zone"
-                              onChange={(e) => setSelectedNewZone(e.target.value)}
-                            >
-                              <MenuItem value={'Zone A'}>Zone A</MenuItem>
-                              <MenuItem value={'Zone B'}>Zone B</MenuItem>
-                              <MenuItem value={'Zone C'}>Zone C</MenuItem>
-                            </Select>
-                          </FormControl>
+                    
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} >
+                          <Box display="flex" alignItems="center" justifyContent="center" sx={{ mb: 2 }}>
+  
+  <Button variant="contained" sx={{padding:1}} onClick={() => setIsAddZoneOpen(true)}>
+    <AddCircleOutlineIcon /> Add Zone 
+  </Button>
+</Box>
+<hr></hr>
                         </Grid>
-                      )}
-                    </Grid>
+                          {zones.length === 0 ? (
+                            <Grid item xs={12}>
+                              <Typography variant="body2">No zones assigned</Typography>
+                            </Grid>
+                          ) : (
+                            zones.map((z) => (
+                              <Grid item xs={12} sm={6} md={4} key={z.zoneId}>
+                                <Box
+                                  role="button"
+                                  tabIndex={0}
+                                  sx={{
+                                    border: '1px solid #ccc',
+                                    borderRadius: '8px',
+                                    padding: 2,
+                                    cursor: 'pointer',
+                                    backgroundColor: '#f9f9f9',
+                                    '&:hover': {
+                                      backgroundColor: '#e6f7ff',
+                                    },
+                                    outline: 'none',
+                                    '&:focus-visible': {
+                                      outline: '2px solid #1890ff',
+                                    },
+                                  }}
+                                  onClick={() => {
+                                    setSelectedZoneForModal(z);
+                                    setIsZoneModalOpen(true);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      setSelectedZoneForModal(z);
+                                      setIsZoneModalOpen(true);
+                                    }
+                                  }}
+                                >
+                                  <Typography variant="subtitle1" fontWeight="bold">
+                                    {z.zoneName}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">
+                                    {/* Status: {z.status || 'Inactive'} */}
+                                    Status: {'Active'}
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                            ))
+                          )}
+                          </Grid>
+
+
                   )}
 
                   {/* Change user status */}
@@ -1014,6 +1197,82 @@ const Roles = () => {
           </Grid>
         </MainCard>
       </Grid>
+      {/* zone active */}
+    <Dialog open={isZoneModalOpen} onClose={() => setIsZoneModalOpen(false)} maxWidth="sm" fullWidth>
+  <DialogTitle>Zone Settings</DialogTitle>
+  <DialogContent>
+    {selectedZoneForModal && (
+      <>
+        <Typography variant="subtitle1" gutterBottom>
+          {selectedZoneForModal.zoneName}
+        </Typography>
+        <FormControl component="fieldset">
+          <FormLabel component="legend">Zone Status</FormLabel>
+          <RadioGroup
+            row
+            value={selectedZoneForModal.status || 'active'}
+            onChange={(e) =>
+              setSelectedZoneForModal({
+                ...selectedZoneForModal,
+                status: e.target.value
+              })
+            }
+          >
+            <FormControlLabel value="active" control={<Radio />} label="Active" />
+            <FormControlLabel value="inactive" control={<Radio />} label="Inactive" />
+          </RadioGroup>
+        </FormControl>
+      </>
+    )}
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setIsZoneModalOpen(false)}>Cancel</Button>
+    <Button variant="contained" disabled={zoneSaving || !selectedZoneForModal} onClick={handleSaveZoneStatus}>
+  {zoneSaving ? 'Saving…' : 'Save'}
+</Button>
+
+  </DialogActions>
+</Dialog>
+
+{/* multiple zone selection */}
+  <Dialog open={isAddZoneOpen} onClose={() => setIsAddZoneOpen(false)} maxWidth="xs" fullWidth>
+    <DialogTitle sx={{backgroundColor: '#05307a',color:'white' }} variant='h5' align='center'>Add Zone</DialogTitle>
+    <DialogContent>
+      <FormControl fullWidth size="small" sx={{ mt: 1 }}>
+        <Typography variant="h6" sx={{ mb: 1 }} align='center'>Select Zone</Typography>
+        <Select
+          value={selectedZoneIdToAdd}
+          onChange={(e) => setSelectedZoneIdToAdd(Number(e.target.value))}
+          displayEmpty
+        >
+          <MenuItem value="">
+            <em>Select a zone</em>
+          </MenuItem>
+          {availableZones.map((zone) => (
+            <MenuItem key={zone.zoneId} value={zone.zoneId}>
+              {zone.zoneNameEn}
+            </MenuItem>
+          ))}
+        </Select>
+        {addZoneError && (
+          <Typography color="error" sx={{ mt: 1 }}>
+            {addZoneError}
+          </Typography>
+        )}
+      </FormControl>
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={() => setIsAddZoneOpen(false)}>Cancel</Button>
+      <Button
+        variant="contained"
+        disabled={addZoneSaving || !selectedZoneIdToAdd}
+        onClick={handleSaveAddZone}
+      >
+        {addZoneSaving ? 'Saving…' : 'Save'}
+      </Button>
+    </DialogActions>
+  </Dialog>
+
     </Grid>
   );
 };

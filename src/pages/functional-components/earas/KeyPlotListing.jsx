@@ -240,7 +240,7 @@ const KeyPlotListing = () => {
 
   // Filter and sort data
   const filteredSortedAndPaginatedData = useMemo(() => {
-    const visibleKeys = ['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'landType', 'kvillageName'];
+    const visibleKeys = ['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'landType'];
 
     let filtered = plotData.filter((row) => {
       const matchesSearch = !searchTerm || 
@@ -260,7 +260,7 @@ const KeyPlotListing = () => {
 
   // Get filtered count for pagination
   const filteredCount = useMemo(() => {
-    const visibleKeys = ['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'landType', 'kvillageName'];
+    const visibleKeys = ['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'landType'];
     
     return plotData.filter((row) => {
       const matchesSearch = !searchTerm || 
@@ -438,14 +438,6 @@ const KeyPlotListing = () => {
     }
   };
 
-  const toTitleCase = (str) => {
-  if (!str) return str;
-  return str.toLowerCase().replace(/\w\S*/g, (txt) => 
-    txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase()
-  );
-};
-
-
   const totalArea = plotData.reduce((sum, row) => sum + parseFloat(row.area || 0), 0).toFixed(2);
 
   return (
@@ -507,7 +499,7 @@ const KeyPlotListing = () => {
             <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               {panchayathAreaSummary.length > 0 && (
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, flexGrow: 1, maxWidth: 'calc(100% - 320px)' }}>
-                  {/* {panchayathAreaSummary.map((item, index) => (
+                  {panchayathAreaSummary.map((item, index) => (
                     <Chip
                       key={index}
                       label={`${item.panchayath}: ${item.totalarea.toFixed(2)} Cents`}
@@ -515,7 +507,7 @@ const KeyPlotListing = () => {
                       color="primary"
                       size="small"
                     />
-                  ))} */}
+                  ))}
                 </Box>
               )}
 
@@ -576,14 +568,14 @@ const KeyPlotListing = () => {
 
                 <Grid item xs={12} md={8}>
                   <Stack direction="row" spacing={1} sx={{ justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
-                    {/* <Button
+                    <Button
                       startIcon={<RefreshIcon />}
                       onClick={fetchKeyPlots}
                       variant="outlined"
                       size="small"
                     >
                       Refresh
-                    </Button> */}
+                    </Button>
                     <Button
                       startIcon={<FilterIcon />}
                       onClick={clearFilters}
@@ -592,7 +584,7 @@ const KeyPlotListing = () => {
                     >
                       Clear Filters
                     </Button>
-                    {/* <Button
+                    <Button
                       startIcon={<ExportIcon />}
                       onClick={exportToCSV}
                       variant="contained"
@@ -600,7 +592,7 @@ const KeyPlotListing = () => {
                       disabled={plotData.length === 0}
                     >
                       Export CSV
-                    </Button> */}
+                    </Button>
                   </Stack>
                 </Grid>
               </Grid>
@@ -613,7 +605,7 @@ const KeyPlotListing = () => {
               <Table stickyHeader sx={{ tableLayout: 'fixed' }}>
                 <TableHead>
                   <TableRow>
-                    {['slNo', 'syNo', 'Village', 'area', 'villageBlock', 'landType'].map((col) => (
+                    {['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'landType'].map((col) => (
                       <TableCell
                         key={col}
                         align="center"
@@ -670,7 +662,7 @@ const KeyPlotListing = () => {
                       >
                         <TableCell align="center">{row.slNo}</TableCell>
                         <TableCell align="center">{row.syNo}</TableCell>
-                        <TableCell align="center">{toTitleCase(row.kvillageName)}</TableCell>
+                        <TableCell align="center">{row.kvillageName}</TableCell>
                         <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
                         <TableCell align="center">{row.villageBlock}</TableCell>
                         <TableCell align="center">{row.landType}</TableCell>
@@ -799,9 +791,7 @@ const KeyPlotListing = () => {
             </Grid>
             <Grid item xs={6}>
               <Typography variant="body2" color="text.secondary">Village:</Typography>
-              <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
-                {toTitleCase(plotDetailsData.kvillageName)}
-              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>{plotDetailsData.kvillageName}</Typography>
             </Grid>
             <Grid item xs={6}>
               <Typography variant="body2" color="text.secondary">Village Block:</Typography>

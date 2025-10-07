@@ -32,6 +32,7 @@ import {
   DialogContentText,
   DialogActions,
   CircularProgress,
+  Alert,
 } from "@mui/material";
 import { 
   AddCircle, 
@@ -39,17 +40,14 @@ import {
   ArrowDropDown, 
   KeyboardArrowDown,
   CheckCircle,
-  Cancel
+  Cancel,
+  Error as ErrorIcon
 } from "@mui/icons-material";
 import { toast } from "react-toastify";
+import mainapi from "api/mainapi";
+import authservice from "pages/authentication/services/authservice";
 
 const landTypeOptions = ["Wet", "Dry"];
-const listTypeOptions = [
-  "House List",
-  "Cultivators List", 
-  "Thandaper Number",
-  "Others",
-];
 const TOTAL_REQUIRED = 100;
 
 const KeyPlotEntryNonBtr = () => {
@@ -61,18 +59,124 @@ const KeyPlotEntryNonBtr = () => {
   const [localBodyData, setLocalBodyData] = useState({});
   const [listTypes, setListTypes] = useState({});
   const [villageOptions, setVillageOptions] = useState([]);
+  const [districtInfo, setDistrictInfo] = useState(null);
+  const [talukInfo, setTalukInfo] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // BTypes API integration states
+  const [activeBTypes, setActiveBTypes] = useState([]);
+  const [listTypeOptions, setListTypeOptions] = useState([]);
+  const [nonBtrTypeMapping, setNonBtrTypeMapping] = useState({});
+  const [btypesLoading, setBtypesLoading] = useState(false);
   
   // Modal States
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [savedCount, setSavedCount] = useState(0);
+  const [validationErrors, setValidationErrors] = useState([]);
   
   // Popover state
   const [popoverAnchorEl, setPopoverAnchorEl] = useState(null);
   const [selectedVillage, setSelectedVillage] = useState(null);
   const [selectedLocalBody, setSelectedLocalBody] = useState(null);
+
+  const BASE_URL = mainapi.BASE_URL;
+  const zoneId = typeof window !== "undefined" ? localStorage.getItem("activeZone") : null;
+
+  /**
+   * Safely parses user info from localStorage to prevent JSON parsing errors.
+   */
+  const getUserInfo = () => {
+    if (typeof window === "undefined") return null;
+    try {
+      const userItem = localStorage.getItem("user");
+      return userItem ? JSON.parse(userItem) : null;
+    } catch (error) {
+      console.error("Failed to parse user info from localStorage:", error);
+      localStorage.removeItem("user");
+      return null;
+    }
+  };
+
+  const userInfo = getUserInfo();
+  const userId = authservice.userid();
+
+  // Fetch active btypes from API
+  useEffect(() => {
+    const fetchActiveBTypes = async () => {
+      setBtypesLoading(true);
+      try {
+        const response = await fetch(
+          'http://localhost:8082/btr-service/api/btr-data/btypes/active',
+          {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            },
+          }
+        );
+        
+        if (response.ok) {
+          const btypeData = await response.json();
+          setActiveBTypes(btypeData);
+          
+          // Filter out BTR (btypeId = 1) and create options
+          const nonBtrOptions = btypeData
+            .filter(btype => btype.btypeId !== 1)
+            .map(btype => btype.btypeName);
+          
+          setListTypeOptions(nonBtrOptions);
+          
+          // Create dynamic mapping
+          const mapping = {};
+          btypeData.forEach(btype => {
+            mapping[btype.btypeName] = btype.btypeId;
+          });
+          setNonBtrTypeMapping(mapping);
+          
+          console.log('Active BTypes loaded:', btypeData);
+          console.log('Dynamic mapping created:', mapping);
+          
+        } else {
+          throw new Error(`Failed to fetch btypes: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Error fetching active btypes:', error);
+        toast.error('Failed to load btypes');
+
+        // NO FALLBACK - Keep states empty
+      setListTypeOptions([]);
+      setNonBtrTypeMapping({});
+    } finally {
+      setBtypesLoading(false);
+    }
+  };
+  
+  fetchActiveBTypes();
+}, []);
+        
+  //       // Fallback to hardcoded mapping if API fails
+  //       setListTypeOptions([
+  //         "House List",
+  //         "Cultivators List", 
+  //         "Thandaper Number",
+  //         "Others"
+  //       ]);
+  //       setNonBtrTypeMapping({
+  //         "House List": 2,
+  //         "Cultivators List": 3,
+  //         "Thandaper Number": 4,
+  //         "Others": 5
+  //       });
+  //     } finally {
+  //       setBtypesLoading(false);
+  //     }
+  //   };
+    
+  //   fetchActiveBTypes();
+  // }, []);
 
   // Auto-close success modal after 3 seconds
   useEffect(() => {
@@ -104,6 +208,27 @@ const KeyPlotEntryNonBtr = () => {
     };
   }, [showErrorModal]);
 
+  // Memoized Lookups
+  const villageInfoMap = useMemo(() => {
+    const map = new Map();
+    villageOptions.forEach((v) => {
+      map.set(v.revenueVillageName, {
+        vcode: v.revenueVillageId,
+        lsgcode: v.lsgCode,
+        blockCodes: v.blockCodes || [],
+      });
+    });
+    return map;
+  }, [villageOptions]);
+
+  const localBodyInfoMap = useMemo(() => {
+    const map = new Map();
+    localBodies.forEach((lb) => {
+      map.set(lb.id, { lbcode: lb.code });
+    });
+    return map;
+  }, [localBodies]);
+
   const villageToBlocks = useMemo(() => {
     const map = {};
     (villageOptions || []).forEach((v) => {
@@ -116,9 +241,6 @@ const KeyPlotEntryNonBtr = () => {
   const [orderBy, setOrderBy] = useState("slNo");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
-
-  const zoneId =
-    typeof window !== "undefined" ? localStorage.getItem("activeZone") : null;
 
   // Get villages for a specific local body
   const getVillagesForLocalBody = (localBodyId) => {
@@ -136,86 +258,103 @@ const KeyPlotEntryNonBtr = () => {
 
   // Get current list type for local body and village
   const getCurrentListType = (lbId, villageName) => {
-    return listTypes[`${lbId}_${villageName}`] || "House List";
+    return listTypes[`${lbId}_${villageName}`] || (listTypeOptions[0] || "House List");
   };
 
+  // Data Fetching
   useEffect(() => {
-    const fetchLocalBodies = async () => {
-      if (!zoneId) {
-        setLocalBodies([]);
-        setLocalBodyData({});
-        setListTypes({});
-        return;
-      }
+    if (!zoneId) {
+      setLocalBodies([]);
+      setLocalBodyData({});
+      setListTypes({});
+      return;
+    }
+    
+    const fetchData = async () => {
       setLoading(true);
       setError("");
+      
+      const urls = [
+        `${BASE_URL}/btr-service/localbodies/by-zone/${zoneId}`,
+        `${BASE_URL}/btr-service/localbodies/revenue-villages/${zoneId}`,
+        `${BASE_URL}/btr-service/localbodies/district/${zoneId}`,
+        `${BASE_URL}/btr-service/localbodies/revenue-taluks/${zoneId}`,
+      ];
+
       try {
-        const res = await fetch(
-          `http://localhost:8082/btr-service/localbodies/by-zone/${zoneId}`
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error("No token found, please log in again.");
+        }
+
+        const requests = urls.map(url =>
+          fetch(url, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            }
+          }).then(res => {
+            if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.statusText}`);
+            return res.json();
+          })
         );
-        if (!res.ok)
-          throw new Error(`Failed to load local bodies: ${res.status}`);
-        const data = await res.json();
-        setLocalBodies(data || []);
+
+        const [lbData, villageData, distData, talukData] = await Promise.all(requests);
+
+        setLocalBodies(lbData || []);
+        setVillageOptions(villageData || []);
+        setDistrictInfo(distData);
+        setTalukInfo(talukData || []);
 
         // Initialize active village tab for each local body
         const initialVillageTabs = {};
-        (data || []).forEach((lb) => {
+        (lbData || []).forEach((lb) => {
           initialVillageTabs[lb.id] = 0;
         });
         setActiveVillageTab(initialVillageTabs);
 
         setLocalBodyData((prev) => {
           const next = { ...prev };
-          (data || []).forEach((lb) => {
+          (lbData || []).forEach((lb) => {
             if (!next[lb.id]) next[lb.id] = {};
           });
           Object.keys(next).forEach((key) => {
-            const exists = (data || []).some(
+            const exists = (lbData || []).some(
               (lb) => String(lb.id) === String(key)
             );
             if (!exists) delete next[key];
           });
           return next;
         });
+        
         setActiveTab((t) =>
-          data && data.length > 0 ? Math.min(t, data.length - 1) : 0
+          lbData && lbData.length > 0 ? Math.min(t, lbData.length - 1) : 0
         );
+
       } catch (err) {
-        setError(err.message || "Error fetching local bodies");
+        console.error("Data fetching error:", err);
+        setError(err.message);
+        toast.error(`Data loading failed: ${err.message}`);
       } finally {
         setLoading(false);
       }
     };
-    fetchLocalBodies();
-  }, [zoneId]);
+
+    fetchData();
+  }, [zoneId, BASE_URL]);
 
   useEffect(() => {
-    if (!zoneId) return;
-    const fetchVillages = async () => {
-      try {
-        const res = await fetch(
-          `http://localhost:8082/btr-service/localbodies/revenue-villages/${zoneId}`
-        );
-        if (!res.ok) throw new Error("Failed to load villages");
-        const data = await res.json();
-        setVillageOptions(data || []);
-        
-        // Initialize list types for all village-local body combinations
-        const initialListTypes = {};
-        localBodies.forEach(lb => {
-          (data || []).forEach(village => {
-            initialListTypes[`${lb.id}_${village.revenueVillageName}`] = "House List";
-          });
-        });
-        setListTypes(prev => ({ ...prev, ...initialListTypes }));
-        
-      } catch (err) {
-        console.error("Error fetching villages:", err);
-      }
-    };
-    fetchVillages();
-  }, [zoneId, localBodies]);
+    if (!zoneId || !listTypeOptions.length) return;
+    
+    // Initialize list types for all village-local body combinations
+    const initialListTypes = {};
+    localBodies.forEach(lb => {
+      villageOptions.forEach(village => {
+        initialListTypes[`${lb.id}_${village.revenueVillageName}`] = listTypeOptions[0] || "House List";
+      });
+    });
+    setListTypes(prev => ({ ...prev, ...initialListTypes }));
+  }, [zoneId, localBodies, villageOptions, listTypeOptions]);
 
   const totalKeyplots = Object.values(localBodyData).reduce(
     (sum, lbData) => sum + Object.values(lbData).reduce((villageSum, rows) => villageSum + (rows?.length || 0), 0),
@@ -303,9 +442,13 @@ const KeyPlotEntryNonBtr = () => {
             {
               id: newId,
               slNo: newSlNo,
-              village: villageName, // Set to current village tab
-              villageBlock: defaultBlock, // Set default block
-              villageBlockOptions: villageBlocks, // Set available blocks for this village
+              village: villageName,
+              villageBlock: defaultBlock,
+              villageBlockOptions: villageBlocks,
+              // Required fields for backend
+              dcode: null,
+              tcode: null,
+              vcode: null,
               name: "",
               address: "",
               houseNo: "",
@@ -369,46 +512,113 @@ const KeyPlotEntryNonBtr = () => {
     setShowConfirmModal(false);
   };
 
+  // Updated handleActualSave with backend integration and district/taluk data
   const handleActualSave = async () => {
+    // Check if required reference data is loaded
+    if (!districtInfo || talukInfo.length === 0) {
+      toast.error("District or Taluk data is not yet loaded. Please wait.");
+      return;
+    }
+
     setIsSaving(true);
     
     try {
-      const payload = {
-        zoneId,
-        keyplotsByLocalBodyAndVillage: Object.fromEntries(
-          Object.entries(localBodyData).map(([lbId, villageData]) => [
-            lbId,
-            Object.fromEntries(
-              Object.entries(villageData || {}).map(([villageName, rows]) => [
-                villageName,
-                {
-                  listType: getCurrentListType(lbId, villageName),
-                  keyplots: rows.map(
-                    ({ villageBlockOptions, ...rest }) => rest
-                  ),
-                },
-              ])
-            ),
-          ])
-        ),
-      };
+      // Transform data to match TblBtrDataDTO structure
+      const dtoList = [];
+      
+      Object.entries(localBodyData).forEach(([lbId, villageData]) => {
+        Object.entries(villageData || {}).forEach(([villageName, rows]) => {
+          const currentListType = getCurrentListType(lbId, villageName);
+          const btrTypeId = nonBtrTypeMapping[currentListType];
+          
+          rows.forEach(row => {
+            // Get village data for vcode
+            const villageData = villageInfoMap.get(row.village || villageName);
+            const localBodyData = localBodyInfoMap.get(parseInt(lbId));
+            
+            if (!villageData || !localBodyData) {
+              console.warn(`Missing data for village: ${row.village || villageName} or local body: ${lbId}`);
+              return;
+            }
 
-      // Simulate API call
-      console.log("Final Data:", payload);
+            const dto = {
+              dcode: districtInfo.distId, // From district API
+              tcode: talukInfo[0].revenueTalukId, // From taluk API (assuming first taluk)
+              vcode: villageData.vcode, // From village lookup
+              bcode: row.villageBlock || "",
+              lbcode: localBodyData.lbcode,
+              ltype: row.landType || "",
+              resvno: row.surveyNo ? parseInt(row.surveyNo) : null,
+              resbdno: row.subDivNo || "",
+              lsgcode: villageData.lsgcode,
+              zoneId: parseInt(zoneId),
+              user_id: userId,
+              totCent: row.area ? parseFloat(row.area) : 0.0,
+              btrtype: btrTypeId,
+              // Conditional fields based on btrtype
+              ...(btrTypeId === 2 && {
+                ownername: row.name || "",
+                address: row.address || "",
+                houseno: row.houseNo ? parseInt(row.houseNo) : null
+              }),
+              ...(btrTypeId === 3 && {
+                ownername: row.name || "",
+                address: row.address || ""
+              }),
+              ...(btrTypeId === 4 && {
+                ownername: row.name || "",
+                address: row.address || "",
+                tpno: row.thandaperNo ? parseInt(row.thandaperNo) : null,
+                tbsubdivisionno: row.subDivNo ? parseInt(row.subDivNo) : null
+              }),
+              ...(btrTypeId === 5 && {
+                ownername: row.name || "",
+                address: row.address || "",
+                mainno: row.mainNo ? parseInt(row.mainNo) : null,
+                subno: row.subNo || ""
+              })
+            };
+            
+            dtoList.push(dto);
+          });
+        });
+      });
+
+      console.log("Final DTO List for POST:", dtoList);
+
+      // Make POST request to saveAll endpoint
+      const response = await fetch(
+        'http://localhost:8082/btr-service/api/btr-data/saveAll',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify(dtoList),
+        }
+      );
+
+      const result = await response.json();
       
-      // Simulate a delay for demonstration
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Simulate success/error based on some condition
-      const isSuccess = Math.random() > 0.2; // 80% success rate for demo
-      
-      if (isSuccess) {
-        setSavedCount(totalKeyplots);
+      if (response.ok && result.status === 'Success') {
+        setSavedCount(result.ids?.length || totalKeyplots);
         setShowSuccessModal(true);
-        toast.success(`Successfully saved ${totalKeyplots} keyplots!`);
+        toast.success(`Successfully saved ${result.ids?.length || totalKeyplots} keyplots!`);
+        
+        // Optional: Clear the form data after successful save
+        // setLocalBodyData({});
+        // setListTypes({});
+        
+      } else if (result.status === 'Validation Failed') {
+        setValidationErrors(result.errors || []);
+        setShowErrorModal(true);
+        console.error("Validation errors:", result.errors);
+        toast.error(`Validation failed: ${result.errors?.length || 0} errors found`);
       } else {
         setShowErrorModal(true);
-        toast.error("Failed to save keyplots. Please try again.");
+        toast.error(result.message || "Failed to save keyplots. Please try again.");
+        console.error("Save error:", result);
       }
       
     } catch (error) {
@@ -421,7 +631,7 @@ const KeyPlotEntryNonBtr = () => {
   };
 
   const getTableHeaders = (lbId, villageName) => {
-    const baseHeaders = ["Sl. No", "Village Block"]; // Removed "Village" column
+    const baseHeaders = ["Sl. No", "Village Block"];
     const houseListHeaders = ["Name", "Address", "House No."];
     const cultivatorListHeaders = ["Name", "Address"];
     const thandaperHeaders = ["Name", "Address", "Thandaper No."];
@@ -462,6 +672,25 @@ const KeyPlotEntryNonBtr = () => {
     }, 0);
   };
 
+  // Render Logic
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+        <CircularProgress />
+        <Typography sx={{ ml: 2 }}>Loading Zone Data...</Typography>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error" sx={{ m: 3 }}>
+        <Typography variant="h6">Error Loading Data</Typography>
+        <Typography>{error}</Typography>
+      </Alert>
+    );
+  }
+
   return (
     <Grid container spacing={3}>
       <Box
@@ -475,8 +704,15 @@ const KeyPlotEntryNonBtr = () => {
       >
         <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
           Non-BTR Key Plot Entry
-           {/* (Total Required: {TOTAL_REQUIRED}) */}
         </Typography>
+
+        {/* Loading state for btypes */}
+        {btypesLoading && (
+          <Box display="flex" justifyContent="center" mt={2}>
+            <CircularProgress />
+            <Typography ml={2}>Loading btypes...</Typography>
+          </Box>
+        )}
 
         {/* Top-level tabs for Local Bodies */}
         {localBodies.length > 0 && !loading && !error && (
@@ -515,7 +751,7 @@ const KeyPlotEntryNonBtr = () => {
               key={lb.id}
               style={{ display: activeTab === idx ? "block" : "none" }}
             >
-              {/* Village tabs with dropdown - Only show dropdown on active village tab */}
+              {/* Village tabs with dropdown */}
               {villages.length > 0 && (
                 <Paper 
                   elevation={1} 
@@ -543,17 +779,15 @@ const KeyPlotEntryNonBtr = () => {
                         px: 2,
                         fontSize: '0.875rem',
                       },
-                      // Add this part for blue text color on selected village tab
                       '& .MuiTab-root.Mui-selected': {
-                        color: '#1976d2', // This is the blue color
+                        color: '#1976d2',
                       },
                       '& .MuiTabs-indicator': {
-                        backgroundColor: '#1976d2', // This makes the indicator blue too
+                        backgroundColor: '#1976d2',
                       }
                     }}
                   >
                     {villages.map((village, villageIdx) => {
-                      // Check if this village tab is currently active
                       const isActiveVillageTab = (activeVillageTab[lb.id] || 0) === villageIdx;
                       
                       return (
@@ -572,7 +806,6 @@ const KeyPlotEntryNonBtr = () => {
                                 {`${village.revenueVillageName} (${getVillageRowCount(lb.id, village.revenueVillageName)})`}
                               </Typography>
                               
-                              {/* Conditionally render dropdown only on active village tab */}
                               {isActiveVillageTab && (
                                 <Box
                                   onClick={(e) => {
@@ -610,7 +843,7 @@ const KeyPlotEntryNonBtr = () => {
                 </Paper>
               )}
 
-              {/* Table content with added spacing from tabs */}
+              {/* Table content */}
               <Paper 
                 elevation={3} 
                 sx={{ 
@@ -656,7 +889,6 @@ const KeyPlotEntryNonBtr = () => {
                           <TableRow key={row.id}>
                             <TableCell align="center">{row.slNo}</TableCell>
                             
-                            {/* Removed Village column - Village Block is now the second column */}
                             <TableCell align="center">
                               <TextField
                                 select
@@ -672,7 +904,6 @@ const KeyPlotEntryNonBtr = () => {
                                 }
                                 sx={{ minWidth: 140 }}
                               >
-                                {/* Use blocks for the current village tab instead of row.villageBlockOptions */}
                                 {(villageToBlocks[currentVillageName] || []).map((code) => (
                                   <MenuItem key={code} value={code}>
                                     {code}
@@ -1026,10 +1257,28 @@ const KeyPlotEntryNonBtr = () => {
           </DialogTitle>
           <DialogContent>
             <DialogContentText sx={{ textAlign: 'center', fontSize: '1.1rem' }}>
-              Error saving keyplots!
-              <br />
-              Please check the form for errors and try again.
+              {validationErrors.length > 0 
+                ? `Validation failed with ${validationErrors.length} errors. Please check the form and try again.`
+                : "Error saving keyplots! Please check the form for errors and try again."
+              }
             </DialogContentText>
+            {validationErrors.length > 0 && (
+              <Box sx={{ mt: 2, textAlign: 'left' }}>
+                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
+                  Validation Errors:
+                </Typography>
+                {validationErrors.slice(0, 5).map((error, index) => (
+                  <Typography key={index} variant="body2" sx={{ mb: 0.5, color: '#f44336' }}>
+                    • Survey No: {error.resvno}, Sub Div: {error.resbdno} - {error.message}
+                  </Typography>
+                ))}
+                {validationErrors.length > 5 && (
+                  <Typography variant="body2" sx={{ fontStyle: 'italic', color: '#666' }}>
+                    ... and {validationErrors.length - 5} more errors
+                  </Typography>
+                )}
+              </Box>
+            )}
           </DialogContent>
           <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
             <Button 
@@ -1048,7 +1297,7 @@ const KeyPlotEntryNonBtr = () => {
             variant="contained"
             color="primary"
             onClick={handleSaveButtonClick}
-            disabled={totalKeyplots === 0 || isSaving}
+            disabled={totalKeyplots === 0 || isSaving || btypesLoading}
             startIcon={isSaving ? <CircularProgress size={20} /> : null}
           >
             {isSaving ? "Saving..." : `Save All Keyplots (${totalKeyplots})`}
