@@ -3,6 +3,8 @@ import { TextField, Button, Typography, Box, Grid, Stack, Alert, Paper, IconButt
 import profileService from 'pages/profile/profileservice';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import CircularProgress from '@mui/material/CircularProgress';
+
 import { jwtDecode } from 'jwt-decode';
 
 const ChangePassword = () => {
@@ -16,27 +18,35 @@ const ChangePassword = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+
 
   // Step 1: Email Verification
-  const handleEmailSubmit = async (e) => {
-    e.preventDefault();
-    if (!email) {
-      setError('Please enter your email address.');
-      return;
+ const handleEmailSubmit = async (e) => {
+  e.preventDefault();
+
+  if (!email) {
+    setError('Please enter your email address.');
+    return;
+  }
+
+  setLoading(true); // start loading
+
+  try {
+    const response = await profileService.emailVerification(email);
+    if (response.status === 200) {
+      setError('');
+      setStep(2);
+    } else {
+      setError(response.message);
     }
-    try {
-      const response = await profileService.emailVerification(email);
-      if (response.status === 200) {
-        // setSuccess('OTP sent to your email');
-        setError('');
-        setStep(2);
-      } else {
-        setError(response.message);
-      }
-    } catch (error) {
-      setError('Failed to send OTP.');
-    }
-  };
+  } catch (error) {
+    setError('Failed to send OTP.');
+  } finally {
+    setLoading(false); // stop loading regardless of result
+  }
+};
+
 
   // Step 2: Handle OTP Submission
   const handleOtpSubmit = async (e) => {
@@ -124,22 +134,29 @@ const ChangePassword = () => {
         {success && <Alert severity="success">{success}</Alert>}
 
         {/* Step 1: Email Verification */}
-        {step === 1 && (
-          <>
-            <TextField
+      {step === 1 && (
+              <>
+              <TextField
               variant="outlined"
               label="Email Address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoFocus
-              sx={{ width: '400px' }}  // Adjust the width as needed
+              sx={{ width: '400px' }}
+              disabled={loading}
             />
 
-            <Button variant="contained" color="primary" onClick={handleEmailSubmit}>
-              Send OTP
-            </Button>
-          </>
-        )}
+
+    {loading ? (
+      <CircularProgress size={24} sx={{ mt: 2 }} />
+    ) : (
+      <Button variant="contained" color="primary" onClick={handleEmailSubmit}>
+        Send OTP
+      </Button>
+    )}
+  </>
+)}
+
 
         {/* Step 2: OTP Verification */}
         {step === 2 && (

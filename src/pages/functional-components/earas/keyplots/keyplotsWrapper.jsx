@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom';
-import KeyPlot from './keyplots';
+import KeyPlot from './KeyPlotListing';
 
 
 const keyplotsWrapper = () => {

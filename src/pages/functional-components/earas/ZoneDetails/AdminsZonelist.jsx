@@ -51,9 +51,11 @@ function AdminsZonelistUI() {
      if (!selectedZone?.zoneId) return;
 
   if (menuItem === 'view-btr') {
+   
     navigate(`/schemes/earas/Zone_Details/btr/${selectedZone.zoneId}`);
   }
   if (menuItem === 'view-zone-details') {
+
     navigate(`/schemes/earas/Zone_Details/${selectedZone.zoneId}`);
   }
   if (menuItem === 'view-keyplots') {
@@ -80,6 +82,7 @@ function AdminsZonelistUI() {
         );
 
         const result = await response.json();
+        
         if (!response.ok) {
           if (result?.response === "No value present") {
             setError("No zones are currently assigned to you.");

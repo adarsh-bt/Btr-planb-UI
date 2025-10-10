@@ -1,7 +1,4 @@
 import React, { useContext } from 'react';
-// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
-// import { hasAnyPermission, hasAllPermissions, hasPermission } from 'contexts/auth-reducer/permissionHelpers';
-// material-ui
 import Avatar from '@mui/material/Avatar';
 import AvatarGroup from '@mui/material/AvatarGroup';
 import Button from '@mui/material/Button';
@@ -46,8 +43,10 @@ import schemes from 'assets/images/logo/schemes.png';
 import approvals from 'assets/images/logo/approvals.png';
 import usermanage from 'assets/images/logo/usermanage.png';
 
-// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
-// avatar style
+ //for permissions line
+// import { useUserAccess, PermissionGate } from 'contexts/auth-reducer/universal/UserAccessContext';
+
+
 const avatarSX = {
   width: 36,
   height: 36,
@@ -70,6 +69,19 @@ const { children } = tabmenus.items2[0];
 export default function DashboardDefault() {
   const isauth = auth.isAdmin();
 
+  //for permissions line
+  // const { userAccessData, loading, hasPermission, hasPermissionByName } = useUserAccess();
+
+  // console.log('Dashboard Debug:');
+  // console.log('Loading:', loading);
+  // console.log('UserAccessData:', userAccessData);
+  // console.log('HasPermission function:', hasPermission);
+  // console.log('Permission 11 result:', hasPermission && hasPermission(11));
+
+  // if (loading) {
+  //   return <div>Loading permissions...</div>;
+  // }
+
   // const { permissions, loading, error } = useContext(PermissionsContext);
   // console.log("User Permissions:", permissions);
 
@@ -84,10 +96,9 @@ export default function DashboardDefault() {
       <Grid item xs={12}>
         <Typography variant="h4" align="center" sx={{ mb: 3 }}>
           Dashboard
-          {/* {isauth ? (
-        <h3>Welcome to your Dashboard</h3>
-      ) : (
-        <h3>Please log in to access the Dashboard</h3>
+          {/* Check by permission ID
+      {hasPermission(11) && (
+        <button>Cluster Formation</button>
       )} */}
         </Typography>
       </Grid>

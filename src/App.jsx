@@ -6,18 +6,20 @@ import ThemeCustomization from 'themes';
 
 import ScrollTop from 'components/ScrollTop';
 
-import { UserAccessProvider } from 'contexts/auth-reducer/universal/UserAccessContext';
+// import { UserAccessProvider } from './contexts/auth-reducer/universal/UserAccessContext';
+
+
 
 // ==============================|| APP - THEME, ROUTER, LOCAL ||============================== //
 
 export default function App() {
   return (
     <ThemeCustomization>
-      <UserAccessProvider>
+      {/* <UserAccessProvider> */}
         <ScrollTop>
           <RouterProvider router={router} />
         </ScrollTop>
-      </UserAccessProvider>
+      {/* </UserAccessProvider> */}
     </ThemeCustomization>
   );
 }

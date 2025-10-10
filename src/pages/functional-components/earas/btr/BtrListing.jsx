@@ -82,7 +82,7 @@ const columns = (handleView, page, size) => [
     center: true,
   },
 ];
-const Btr = () => {
+const Btr = ({zoneId}) => {
   // State management
   const [filterText, setFilterText] = useState('');
   const [openViewModal, setOpenViewModal] = useState(false);
@@ -98,6 +98,15 @@ const Btr = () => {
   const [downloading, setDownloading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
+
+
+    const [resolvedZoneId, setResolvedZoneId] = useState(() => {
+  const role = authservice.getrole(); // Get the role
+  return role === 'Field Data Collector'
+    ? authservice.getzone()  // For Field Data Collector
+    : zoneId;                         // For Admin or other roles
+});
+
   // Fetch data from your API
   const fetchData = async () => {
     setLoading(true);
@@ -105,7 +114,7 @@ const Btr = () => {
       // const BASE_URL = mainapi.BASE_URL;
       const BASE_URL = mainapi.BASE_URL;
       const zoneid = authservice.getzone();
-      const response = await fetch(`${BASE_URL}/btr-service/api/fetch-btr/zone/${zoneid}/data`, {
+      const response = await fetch(`${BASE_URL}/btr-service/api/fetch-btr/zone/${resolvedZoneId}/data`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

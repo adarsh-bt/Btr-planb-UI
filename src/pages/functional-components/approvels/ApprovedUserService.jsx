@@ -4,6 +4,7 @@ import mainapi from 'api/mainapi';
 class ApprovedUserService {
   static USER_URL = mainapi.USER_API;
   static BTR_URL = mainapi.BTR_API;
+ 
   // Fetch IT admin approved users
   static async fetchITAdminApprovedUsers() {
     try {

@@ -161,7 +161,7 @@ const Btr = ({ zoneId }) => {
       // Adjust page to 0-based if your API expects it
       const apiPage = page - 1;
       const response = await btrservice.btr_lists_data(apiPage, size, filterText,resolvedZoneId);
-console.log("kkkk ",response)
+
       if (response?.payload?.data) {
         // Add an indexOffset to each row for correct SL. NO display
         const indexedData = response.payload.data.map((item, index) => ({

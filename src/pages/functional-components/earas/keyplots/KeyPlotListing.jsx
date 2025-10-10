@@ -52,7 +52,7 @@ import {
 import mainapi from 'api/mainapi';
 import authservice from 'pages/authentication/services/authservice';
 
-const KeyPlotListing = () => {
+const KeyPlotListing = ({zoneId}) => {
   // State management
   const [plotData, setPlotData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -91,6 +91,13 @@ const KeyPlotListing = () => {
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   const [panchayathAreaSummary, setPanchayathAreaSummary] = useState([]);
 
+      const [resolvedZoneId, setResolvedZoneId] = useState(() => {
+  const role = authservice.getrole(); // Get the role
+  return role === 'Field Data Collector'
+    ? authservice.getzone()  // For Field Data Collector
+    : zoneId;                         // For Admin or other roles
+});
+
   // Preset reasons for removal dialog
   const presetReasons = [
     'Duplicate Entry',
@@ -116,17 +123,19 @@ const KeyPlotListing = () => {
     }));
   };
 
+    
   // Fetch keyplot data from API
   const fetchKeyPlots = useCallback(async () => {
     setLoading(true);
     setError(null);
     setFetchError(null);
-    
+
+
     try {
       const BASE_URL = mainapi.BASE_URL;
       const token = localStorage.getItem('token')
-      const zoneid = authservice.getzone();
-      const response = await fetch(`${BASE_URL}/btr-service/key-plots/get-all/${zoneid}`, {
+      
+      const response = await fetch(`${BASE_URL}/btr-service/key-plots/get-all/${resolvedZoneId}`, {
   headers: {
     'Authorization': `Bearer ${token}`,
   }

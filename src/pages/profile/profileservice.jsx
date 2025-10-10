@@ -24,7 +24,13 @@ const profileService = {
 
   emailVerification: async (username) => {
     try {
-      const response = await axios.post(`${USER_URL}/api/email_verify`, { username });
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${USER_URL}/user-access/user-profile/email_verify`, { "email":username },{
+        headers: {
+          Authorization: `Bearer ${token}`
+         
+        }
+      });
       console.log("result ",response)
       return response;
     } catch (err) {
@@ -38,7 +44,13 @@ const profileService = {
     console.log('otp >>', otp);
     console.log('usernamess :', userid);
     try {
-      const response = await axios.post(`${USER_URL}/api/validateOtp`, { userid, otp });
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${USER_URL}/user-access/user-profile/validateOtp`, { userid, otp },{
+        headers: {
+          Authorization: `Bearer ${token}`
+          
+        }
+      });
       console.log(response.data);
       return response.data;
     } catch (err) {
@@ -48,7 +60,13 @@ const profileService = {
 
   changePassword: async (passwordCheckRequest) => {
     try {
-      const response = await axios.post(`${USER_URL}/api/profile/change_password`, passwordCheckRequest); // Make sure the endpoint is correct
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${USER_URL}/user-access/user-profile/change_password`, passwordCheckRequest,{
+        headers: {
+          Authorization: `Bearer ${token}`
+          
+        }
+      }); // Make sure the endpoint is correct
       return response;
     } catch (error) {
       return {

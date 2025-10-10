@@ -1,6 +1,6 @@
 
 import { useParams } from 'react-router-dom';
-import BTR from './Btr';
+import BTR from './BtrListing';
 
 const BTRWrapper = () => {
   const { zoneId } = useParams();

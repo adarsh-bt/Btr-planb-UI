@@ -40,11 +40,11 @@ function ClusterSeatMap({zoneId}) {
   useEffect(() => {
       const token = localStorage.getItem('token');
      
-      const zoneId = authservice.getzone();
+  
 
       
        setLoading(true);
-    axios.get(`${BASE_URL}/btr-service/cluster-api/user-cluster-summary/${zoneId}`,
+    axios.get(`${BASE_URL}/btr-service/cluster-api/user-cluster-summary/${resolvedZoneId}`,
               {
               headers: {
                   'Authorization': `Bearer ${token}` // Add token in Authorization header
@@ -177,7 +177,7 @@ const handleClusterClick = (syNo, slNo) => {
  <Box
   sx={{
     padding: { xs: 3, sm: 4 },
-    maxWidth: 'lg',
+   width: '90%',
     margin: 'auto',
     backgroundColor: '#ECF0F1',
     borderRadius: 3,

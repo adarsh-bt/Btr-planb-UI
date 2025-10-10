@@ -22,7 +22,6 @@ import {
     Alert
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import MapIcon from '@mui/icons-material/Map';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
@@ -69,7 +68,7 @@ const ClusterFormUI = () => {
         localBody: '',
         landType: '',
         totalArea: 0,
-        maxArea: 1010
+        maxArea: 600
     });
     const [isCropsModalOpen, setCropsModalOpen] = useState(false);
     const [selectedCrops, setSelectedCrops] = useState({});
@@ -101,8 +100,6 @@ const ClusterFormUI = () => {
     const [mincluster, setMinCluster] = useState('');
     const [maxcluster, setMaxCluster] = useState('');
     const [meanCluster, setMeanCluster] = useState('');
-    const [dcode, setDcode] = useState('');
-    const [tcode, setTcode] = useState('');
     const [keyplotMainSvNo, setKeyplotMainSvNo] = useState('');
     const [modalBlockOptions, setModalBlockOptions] = useState([]);
     const [svNoDetails, setSvNoDetails] = useState([]);
@@ -117,16 +114,6 @@ const ClusterFormUI = () => {
 
     const [apiCropsData, setApiCropsData] = useState(null);
     const [loadingApiCrops, setLoadingApiCrops] = useState(false);
-
-    // --- Confirmation dialog states ---
-const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
-const [confirmLabel, setConfirmLabel] = useState('Save');
-const [confirmColor, setConfirmColor] = useState('primary');
-const [dialogIcon, setDialogIcon] = useState(null);
-const [dialogIconColor, setDialogIconColor] = useState("inherit");
-const [limitMessage, setLimitMessage] = useState('');
-
-
 
     
     const [keyplotDetails, setKeyplotDetails] = useState({
@@ -327,8 +314,6 @@ useEffect(() => {
             setMaxCluster(data.payload.clusterMax);
             setMeanCluster(data.payload.clusterMean);
             setDefaultLbcode(data.payload.lbcode);
-            setDcode(data.payload.dcode);
-            setTcode(data.payload.tcode);
             
             console.log("data >>>> ", data.payload);
             
@@ -345,7 +330,7 @@ useEffect(() => {
                     clusterNo: data.payload.clusterNo || '1',
                     localBody: data.payload.kvillageName || 'N/A',
                     landType: data.payload.landType || 'Wet',
-                    maxArea: data.payload.clusterMax || 1010,
+                    maxArea: data.payload.clusterMax || 600,
                 }));
 
                 if (data.payload.cceCrops && Array.isArray(data.payload.cceCrops)) {
@@ -468,74 +453,109 @@ useEffect(() => {
 
     // ✅ WORKING: Submit functionality with proper API integration from paste.txt
     // ✅ FIXED: Submit functionality with proper plot_id handling
-// 🔹 OLD handleSubmit is now submitCluster (your API call)
-const submitCluster = async () => {
+const handleSubmit = async () => {
     try {
         setSubmitting(true);
         setSubmitError('');
 
+        // Get user info using existing authservice methods
         const userId = authservice.userid();
         const token = authservice.gettoken();
 
-        if (!userId) throw new Error('User information not found. Please login again.');
-        if (!token) throw new Error('Authentication token not found. Please login again.');
+        console.log('Debug - User ID:', userId);
+        console.log('Debug - Token exists:', !!token);
+        console.log('Debug - Keyplot ID:', keyplotId);
 
+        if (!userId) {
+            throw new Error('User information not found. Please login again.');
+        }
+
+        if (!token) {
+            throw new Error('Authentication token not found. Please login again.');
+        }
+
+        // Validate that we have at least keyplot data
         const keyplotData = keyplotsData.find(kp => kp.label === 'K');
         if (!keyplotData || keyplotData.rows.length === 0) {
             throw new Error('Keyplot data is required.');
         }
 
-        // 🔹 Validation loop same as your code…
+        // ✅ UPDATED: Modified validation to handle missing plot_id for new rows
         for (const keyplot of keyplotsData) {
             for (const row of keyplot.rows) {
                 if (!row.villageName || !row.block || !row.svNo || !row.sub || !row.area || !row.enumeratedArea) {
                     throw new Error(`Incomplete data in ${keyplot.label} plot. All fields are required.`);
                 }
+                // ✅ FIXED: Only validate plot_id for existing rows, not new ones
                 if (!row.isNew && !row.plot_id) {
                     throw new Error(`Plot ID is missing for existing ${keyplot.label} plot. Please ensure all plots are properly linked.`);
                 }
             }
         }
 
-        // 🔹 Build requestData (same as your code) ...
+        // ✅ PREPARE: Request data with better validation and plot_id handling
         const requestData = {
             userId: userId,
             keyplotId: keyplotId,
             clusterNo: clusterId,
             sidePlots: keyplotsData
-                .filter(keyplot => keyplot.rows.length > 0)
+                .filter(keyplot => keyplot.rows.length > 0) // Only include keyplots with rows
                 .map(keyplot => ({
                     label: keyplot.label,
                     rows: keyplot.rows.map(row => {
+                        // Ensure all numeric fields are properly converted
                         const svNo = parseInt(row.svNo);
                         const actual = parseFloat(row.enumeratedArea);
                         const area = parseFloat(row.area);
 
-                        if (isNaN(svNo)) throw new Error(`Invalid svNo for ${keyplot.label}: ${row.svNo}`);
-                        if (isNaN(actual)) throw new Error(`Invalid actual area for ${keyplot.label}: ${row.enumeratedArea}`);
-                        if (isNaN(area)) throw new Error(`Invalid area for ${keyplot.label}: ${row.area}`);
+                        // Validate numeric conversions
+                        if (isNaN(svNo)) {
+                            throw new Error(`Invalid svNo for ${keyplot.label}: ${row.svNo}`);
+                        }
+                        if (isNaN(actual)) {
+                            throw new Error(`Invalid actual area for ${keyplot.label}: ${row.enumeratedArea}`);
+                        }
+                        if (isNaN(area)) {
+                            throw new Error(`Invalid area for ${keyplot.label}: ${row.area}`);
+                        }
 
                         const rowData = {
+                            // Only include id for existing rows (when b_id exists)
                             ...(row.b_id ? { id: row.b_id } : {}),
                             actual: actual,
                             svNo: svNo,
-                            subNo: row.sub,
+                            subNo: row.sub, // Keep as string
                             area: area,
-                            bcode: row.block,
+                            bcode: isNaN(parseInt(row.block)) ? row.block : parseInt(row.block),
                             village: row.villageId
                         };
 
+                        // ✅ FIXED: Handle plot_id for both existing and new rows
                         if (row.plot_id && row.plot_id !== '') {
+                            // If plot_id exists, use it
                             rowData.plot_id = parseInt(row.plot_id);
-                            if (isNaN(rowData.plot_id)) throw new Error(`Invalid plot_id for ${keyplot.label}: ${row.plot_id}`);
+                            
+                            if (isNaN(rowData.plot_id)) {
+                                throw new Error(`Invalid plot_id for ${keyplot.label}: ${row.plot_id}`);
+                            }
                         } else if (row.isNew) {
-                            rowData.plot_id = 0;
+                            // For new rows without plot_id, you can either:
+                            // Option 1: Generate a temporary ID or use a default
+                            rowData.plot_id = 0; // Use 0 to indicate new plot
+                            
+                            // Option 2: Omit plot_id entirely for new rows
+                            // Don't include plot_id field at all
+                            // delete rowData.plot_id;
                         }
+
                         return rowData;
                     })
                 }))
         };
 
+        console.log('✅ Final request data being sent:', JSON.stringify(requestData, null, 2));
+
+        // ✅ ENHANCED: API call with better error handling
         const response = await fetch(`${BASE_URL}/btr-service/cluster-api/save-cluster`, {
             method: 'POST',
             headers: {
@@ -545,17 +565,30 @@ const submitCluster = async () => {
             body: JSON.stringify(requestData)
         });
 
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+
+        // ✅ ENHANCED: Better error handling
         if (!response.ok) {
             let errorMessage = `HTTP error! status: ${response.status}`;
+            
             try {
                 const errorText = await response.text();
+                console.log('Raw error response:', errorText);
+                
+                // Try to parse as JSON
                 try {
                     const errorData = JSON.parse(errorText);
                     errorMessage = errorData.message || errorData.error || errorMessage;
-                } catch {
+                    console.log('Parsed error data:', errorData);
+                } catch (jsonError) {
+                    // If not JSON, use the raw text
                     errorMessage = errorText || errorMessage;
                 }
-            } catch {}
+            } catch (textError) {
+                console.log('Could not read error response:', textError);
+            }
+            
             throw new Error(errorMessage);
         }
 
@@ -566,6 +599,9 @@ const submitCluster = async () => {
         setSnackbarMessage('Cluster data saved successfully!');
         setSnackbarOpen(true);
 
+        // Optionally redirect or refresh data after successful save
+        // window.location.href = '/clusters'; // Uncomment if you want to redirect
+
     } catch (error) {
         console.error('❌ Error submitting cluster data:', error);
         setSubmitError(error.message);
@@ -574,93 +610,6 @@ const submitCluster = async () => {
     } finally {
         setSubmitting(false);
     }
-};
-
- 
-// Replace existing handleSubmit in ClusterManualEntry.jsx
-const handleSubmit = () => {
-  const totalCents = parseFloat(clusterInfo.totalArea || 0);
-  const minCents = parseFloat(mincluster || 0);
-  const meanCents = parseFloat(meanCluster || 0);
-  const maxCents = parseFloat(maxcluster || 0);
-
-  // Persist a snapshot of what will be submitted if needed later
-  // Here, ClusterManualEntry uses submitCluster which reads from state,
-  // so we only decide dialog configuration.
-
-  // Over max: block and ask user to confirm proceed (kept consistent with cluster_form behavior where it blocks final submit but shows dialog)
-  if (!Number.isNaN(maxCents) && totalCents > maxCents) {
-    setLimitMessage(`Cluster area ${totalCents.toFixed(2)} cents exceeds the maximum ${maxCents} cents. Do you want to proceed anyway?`);
-    setConfirmLabel('Proceed Anyway');
-    setConfirmColor('error');
-    setDialogIcon(WarningAmberIcon);
-    setDialogIconColor('error');
-    setOpenConfirmDialog(true);
-    return;
-  }
-
-  // Below min ⇒ Save Draft flow
-  if (!Number.isNaN(minCents) && totalCents < minCents) {
-    setLimitMessage(`Cluster area ${totalCents.toFixed(2)} cents is below the minimum ${minCents} cents. Do you want to save this as a Draft and continue later?`);
-    setConfirmLabel('Save Draft');
-    setConfirmColor('warning');
-    setDialogIcon(WarningAmberIcon);
-    setDialogIconColor('warning');
-    setOpenConfirmDialog(true);
-    return;
-  }
-
-  // Between min and mean ⇒ Send for Approval
-  if (!Number.isNaN(meanCents) && totalCents < meanCents) {
-    setLimitMessage(`Cluster area ${totalCents.toFixed(2)} cents reached the minimum ${minCents} but is below the mean ${meanCents}. Do you want to Send this cluster for Approval?`);
-    setConfirmLabel('Send for Approval');
-    setConfirmColor('primary');
-    setDialogIcon(InfoIcon);
-    setDialogIconColor('info');
-    setOpenConfirmDialog(true);
-    return;
-  }
-
-  // mean ≤ total ≤ max ⇒ Submit the Cluster
-  setLimitMessage(`Cluster area ${totalCents.toFixed(2)} cents is valid between mean ${meanCents} and max ${maxCents}. Do you want to Submit the Cluster now?`);
-  setConfirmLabel('Submit the Cluster');
-  setConfirmColor('success');
-  setDialogIcon(CheckCircleIcon);
-  setDialogIconColor('success');
-  setOpenConfirmDialog(true);
-};
-
-// Add near submitCluster
-const doSubmit = async (actionLabel) => {
-  try {
-    setOpenConfirmDialog(false);
-    await submitCluster(); // Keep existing API call logic intact
-
-    // Map label to snackbar severity and message similar to cluster_form.jsx
-    let successMsg = 'Form submitted successfully!';
-    let severity = 'success';
-    if (actionLabel === 'Save Draft') {
-      successMsg = 'Draft saved successfully!';
-      severity = 'warning';
-    } else if (actionLabel === 'Send for Approval') {
-      successMsg = 'Cluster sent for approval successfully!';
-      severity = 'info';
-    } else if (actionLabel === 'Submit the Cluster') {
-      successMsg = 'Cluster submitted successfully!';
-      severity = 'success';
-    } else if (actionLabel === 'Proceed Anyway') {
-      successMsg = 'Submitted despite limit warning.';
-      severity = 'warning';
-    }
-
-    setSnackbarMessage(successMsg);
-    setSnackbarOpen1(true);
-    // Optionally set a severity-specific snackbar if desired:
-    // setSnackbarSeverity(severity);
-  } catch (err) {
-    setSnackbarMessage(`Failed to submit form: ${err.message}`);
-    setSnackbarOpen(true);
-  }
 };
 
 
@@ -981,51 +930,6 @@ const handleCloseCropsModal = async () => {
 };
 
 
-
-const checkDuplicatePlot = async (row) => {
-  try {
-    const token = localStorage.getItem("token");
-    const payload = {
-      dcode: dcode,
-      tcode: tcode,
-      vcode: row.villageId,
-      bcode: row.block,
-      resvno: row.svNo,
-      resbdno: row.sub
-    };
-
-    const response = await fetch(`${BASE_URL}/btr-service/api/btr-data/validate-duplicate`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify(payload)
-    });
-
-    // ✅ parse JSON only once
-    const data = await response.json();
-    if (response.status === 409) {
-        console.log("Duplicate check response status:", response.status);
-       
-      setSnackbarMessage(`⚠️ ${data.message || "Duplicate entry found"}`);
-      setSnackbarOpen(true);
-      return true;  // duplicate exists
-    }
-
-    if (!response.ok) {
-      console.error("Unexpected error:", data);
-      return false;
-    }
-
-    return false; // no duplicate
-  } catch (err) {
-    console.error("Error checking duplicate:", err);
-    return false;
-  }
-};
-
-
     const handleInputBlur = (e, keyplotId, rowUniqueId, field) => {
         // This can be used for additional validation if needed
     };
@@ -1332,12 +1236,7 @@ const checkDuplicatePlot = async (row) => {
                                                         </FormControl>
                                                     </Grid>
                                                     <Grid item xs={1.5}><TextField label="Survey No" size="small" fullWidth value={row.svNo} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'svNo')} /></Grid>
-                                                    <Grid item xs={1}><TextField label="Sub Div" size="small" fullWidth value={row.sub} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'sub')}
-                                                                    onBlur={async () => {if (row.sub && row.svNo && row.block && row.villageId) {const isDuplicate = await checkDuplicatePlot(row);
-                                                                        if (isDuplicate) {setErrors(prev => ({ ...prev,[`${keyplot.id}-${row.uniqueId}-sub`]: "Duplicate entry already exists!"}));
-                                                                        }}}} error={!!errors[`${keyplot.id}-${row.uniqueId}-sub`]} helperText={errors[`${keyplot.id}-${row.uniqueId}-sub`] || ""}/>
-
-                                                                    </Grid>
+                                                    <Grid item xs={1}><TextField label="Sub Div" size="small" fullWidth value={row.sub} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'sub')} /></Grid>
                                                     <Grid item xs={2}><TextField label="Area" size="small" fullWidth type="number" value={row.area} InputProps={{ readOnly: isAreaReadOnly }} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'area')} /></Grid>
                                                     <Grid item xs={2}><TextField label="Enum. Area" size="small" fullWidth type="number" value={row.enumeratedArea} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')} onBlur={(e) => handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')} error={hasError} helperText={hasError ? errors[errorKey] : ''} /></Grid>
                                                     <Grid item xs={2}><Tooltip title="Remove Row"><IconButton color="error" onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)}><RemoveCircleOutlineIcon /></IconButton></Tooltip></Grid>
@@ -1518,33 +1417,6 @@ const checkDuplicatePlot = async (row) => {
 </DialogActions>
 
 </Dialog>
-
-
-<Dialog open={openConfirmDialog} onClose={() => setOpenConfirmDialog(false)}>
-  <DialogTitle>
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <Box sx={{ color: dialogIconColor, display: 'flex', alignItems: 'center' }}>
-        {dialogIcon ? React.createElement(dialogIcon) : null}
-      </Box>
-      Confirmation
-    </Box>
-  </DialogTitle>
-  <DialogContent>
-    <DialogContentText>{limitMessage}</DialogContentText>
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={() => setOpenConfirmDialog(false)} color="secondary">Cancel</Button>
-    <Button
-      variant="contained"
-      color={confirmColor || 'primary'}
-      onClick={() => doSubmit(confirmLabel)}
-    >
-      {confirmLabel || 'Confirm'}
-    </Button>
-  </DialogActions>
-</Dialog>
-
-
 
 
             {/* ✅ Success/Error Snackbar - ORIGINAL UI PRESERVED */}
