@@ -310,7 +310,7 @@ console.log("okk",btrData)
               <Card
                 component={Link}
                 // to="/schemes/earas/btr_list"
-                to="/schemes/earas/btr"
+                to="/schemes/earas/btr/btr_classify_wrapper"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',
