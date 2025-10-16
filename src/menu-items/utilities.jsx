@@ -35,8 +35,8 @@ const icons = {
    UsergroupAddOutlined,
   UserSwitchOutlined ,
 
-   UsergroupAddOutlined,
-  UserSwitchOutlined 
+
+
 };
 
 // ==============================|| MENU ITEMS - UTILITIES ||============================== //

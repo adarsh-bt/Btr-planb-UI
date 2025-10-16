@@ -161,13 +161,15 @@ const Btr = ({ zoneId }) => {
       // Adjust page to 0-based if your API expects it
       const apiPage = page - 1;
       const response = await btrservice.btr_lists_data(apiPage, size, filterText,resolvedZoneId);
-
+        console.log("response ",response)
       if (response?.payload?.data) {
+        
         // Add an indexOffset to each row for correct SL. NO display
         const indexedData = response.payload.data.map((item, index) => ({
           ...item,
           indexOffset: (page - 1) * size, // Calculate offset for current page
         }));
+        
         setData(indexedData);
         setTotalRecords(response.payload.totalCount);
         setTotalWetArea(response.payload.totalWetArea);
@@ -193,8 +195,9 @@ const Btr = ({ zoneId }) => {
     const BASE_URL = mainapi.USER_API;
     try {
         const token = localStorage.getItem('token');
+        alert(resolvedZoneId)
       // Ensure the URL is correct for your backend service
-      const response = await fetch(`${BASE_URL}/btr-service/btr-api/export?userId=${userId}`, {
+      const response = await fetch(`${BASE_URL}/btr-service/btr-api/export?userId=${resolvedZoneId}`, {
         headers: {
           Authorization: `Bearer ${token}` // Add token in Authorization header
         }

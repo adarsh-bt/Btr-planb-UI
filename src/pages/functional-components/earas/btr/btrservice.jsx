@@ -25,14 +25,15 @@ static async btr_lists_data(page = 0, size = 10, filter = '', zoneId = null) {
 
     console.log("Zone ID in btr service:", zone);
     const BASE_URL = mainapi.BASE_URL;
-    const url = `${BASE_URL}/btr-service/api/fetch-btr/zone/${zone}/data?page=${page}&size=${size}&filter=${encodeURIComponent(filter)}`;
+    // const url = `${BASE_URL}/btr-service/api/fetch-btr/zone/${zone}/data?page=${page}&size=${size}&filter=${encodeURIComponent(filter)}`;
+    const url = `${BASE_URL}/btr-service/btr-api/btr-data/${zone}?page=${page}&size=${size}&filter=${filter}`;
 
     const response = await axios.get(url, {
       headers: {
         Authorization: `Bearer ${token}`
       }
     });
-
+console.log("ressss ",response)
     return response.data;
   } catch (err) {
     console.error('API Error:', err);

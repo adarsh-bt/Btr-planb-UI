@@ -989,7 +989,7 @@ const handleCloseCropsModal = async () => {
         // Check if all rows have required data
         for (const keyplot of keyplotsData) {
             for (const row of keyplot.rows) {
-                if (!row.villageName || !row.block || !row.svNo || !row.sub || !row.area || !row.enumeratedArea) {
+                if (!row.villageName || !row.block || !row.svNo || !row.area || !row.enumeratedArea) {
                     return true;
                 }
             }
@@ -1118,7 +1118,7 @@ const handleCloseCropsModal = async () => {
 
                 {/* Keyplot Sections - ORIGINAL UI PRESERVED */}
                 {keyplotsData.map((keyplot) => {
-                    const isNewRowIncomplete = keyplot.rows.filter(r => r.isNew).some(r => !r.villageName || !r.block || !r.svNo || !r.sub || !r.area || !r.enumeratedArea);
+                    const isNewRowIncomplete = keyplot.rows.filter(r => r.isNew).some(r => !r.villageName || !r.block || !r.svNo || !r.area || !r.enumeratedArea);
                     const hasErrorInKeyplot = keyplot.rows.some(r => !!errors[`${keyplot.id}-${r.uniqueId}`]);
                     return (
                         <Box key={keyplot.id} sx={{ mt: 3, border: '1px solid #ccc', borderRadius: 1, overflowX: 'auto', bgcolor: 'white', p: 2 }}>

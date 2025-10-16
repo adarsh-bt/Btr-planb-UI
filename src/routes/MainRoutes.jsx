@@ -22,8 +22,8 @@ const RoleDesignation = Loadable(lazy(() => import('pages/usermanage/RoleDesigna
 // const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_list')));
 const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_menus')));
 const Zone_Details = Loadable(lazy(() => import('pages/functional-components/earas/ZoneDetails/Zonecontrol')));
-// const BTR = Loadable(lazy(() => import('pages/functional-components/earas/btr/Btr')));
-const BTR = Loadable(lazy(() => import('pages/functional-components/earas/btr/BtrListing')));
+const BTR = Loadable(lazy(() => import('pages/functional-components/earas/btr/Btr')));
+// const BTR = Loadable(lazy(() => import('pages/functional-components/earas/btr/BtrListing')));
 const BTRWrapper = Loadable(lazy(() => import('pages/functional-components/earas/btr/BTRWrapper')));
 const ZoneDetailsWrapper = Loadable(lazy(() => import('pages/functional-components/earas/ZoneDetails/ZoneDetailsWrapper')));
 

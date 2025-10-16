@@ -90,7 +90,7 @@ const Btr = ({zoneId}) => {
   const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [page, setPage] = useState(1);
-  const [size, setSize] = useState(10);
+  const [size, setSize] = useState(100);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalArea, setTotalArea] = useState(0);
   const [totalWetArea, setTotalWetArea] = useState(0);
@@ -114,7 +114,7 @@ const Btr = ({zoneId}) => {
       // const BASE_URL = mainapi.BASE_URL;
       const BASE_URL = mainapi.BASE_URL;
       const zoneid = authservice.getzone();
-      const response = await fetch(`${BASE_URL}/btr-service/api/fetch-btr/zone/${resolvedZoneId}/data`, {
+      const response = await fetch(`${BASE_URL}/btr-service/api/btr-api/btr-data/${resolvedZoneId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -168,73 +168,110 @@ const Btr = ({zoneId}) => {
     }
   };
   // CSV Download functionality
+  // const handleDownloadExcel = async () => {
+  //   setDownloading(true);
+  //   try {
+  //     // Create CSV headers
+  //     const headers = [
+  //       'ID',
+  //       'Local Body Name',
+  //       'Village Name',
+  //       'Block Code',
+  //       'Re-Survey No',
+  //       'Land Type',
+  //       'Total Area (Cents)',
+  //       'District Code',
+  //       'Taluk Code',
+  //       'Village Code',
+  //       'LSG Code',
+  //       'Zone ID'
+  //     ];
+  //     // Convert data to CSV format
+  //     const csvData = filteredData.map(row => [
+  //       row.id || '',
+  //       row.localBodyName || '',
+  //       row.villageName || '',
+  //       row.bcode || '',
+  //       row.resvno && row.resbdno ? `${row.resvno}/${row.resbdno}` : (row.resvno || row.resbdno || ''),
+  //       row.ltype || '',
+  //       row.totCent || '',
+  //       row.dcode || '',
+  //       row.tcode || '',
+  //       row.vcode || '',
+  //       row.lsgcode || '',
+  //       row.zoneId || ''
+  //     ]);
+  //     // Create CSV string
+  //     const csvContent = [
+  //       headers.join(','),
+  //       ...csvData.map(row =>
+  //         row.map(cell =>
+  //           typeof cell === 'string' && cell.includes(',')
+  //             ? `"${cell}"`
+  //             : cell
+  //         ).join(',')
+  //       )
+  //     ].join('\n');
+  //     // Create and download file
+  //     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  //     const link = document.createElement('a');
+  //     const url = URL.createObjectURL(blob);
+  //     link.setAttribute('href', url);
+  //     link.setAttribute('download', `btr_data_${new Date().toISOString().split('T')[0]}.csv`);
+  //     link.style.visibility = 'hidden';
+  //     document.body.appendChild(link);
+  //     link.click();
+  //     document.body.removeChild(link);
+  //   } catch (error) {
+  //     console.error('Download error:', error);
+  //     alert('Download failed. Please try again.');
+  //   } finally {
+  //     setDownloading(false);
+  //   }
+  // };
   const handleDownloadExcel = async () => {
     setDownloading(true);
+    const userId = authservice.userid();
+    const BASE_URL = mainapi.USER_API;
     try {
-      // Create CSV headers
-      const headers = [
-        'ID',
-        'Local Body Name',
-        'Village Name',
-        'Block Code',
-        'Re-Survey No',
-        'Land Type',
-        'Total Area (Cents)',
-        'District Code',
-        'Taluk Code',
-        'Village Code',
-        'LSG Code',
-        'Zone ID'
-      ];
-      // Convert data to CSV format
-      const csvData = filteredData.map(row => [
-        row.id || '',
-        row.localBodyName || '',
-        row.villageName || '',
-        row.bcode || '',
-        row.resvno && row.resbdno ? `${row.resvno}/${row.resbdno}` : (row.resvno || row.resbdno || ''),
-        row.ltype || '',
-        row.totCent || '',
-        row.dcode || '',
-        row.tcode || '',
-        row.vcode || '',
-        row.lsgcode || '',
-        row.zoneId || ''
-      ]);
-      // Create CSV string
-      const csvContent = [
-        headers.join(','),
-        ...csvData.map(row =>
-          row.map(cell =>
-            typeof cell === 'string' && cell.includes(',')
-              ? `"${cell}"`
-              : cell
-          ).join(',')
-        )
-      ].join('\n');
-      // Create and download file
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const token = localStorage.getItem('token');
+      // Ensure the URL is correct for your backend service
+      const response = await fetch(`${BASE_URL}/btr-service/btr-api/export?zoneId=${resolvedZoneId}`, {
+        headers: {
+          Authorization: `Bearer ${token}` // Add token in Authorization header
+        }
+      });
+
+
+      if (!response.ok) {
+        throw new Error('Failed to download file');
+      }
+
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `btr_data_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
+      link.href = url;
+      link.setAttribute('download', 'btr_data.xlsx');
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      link.remove();
     } catch (error) {
       console.error('Download error:', error);
-      alert('Download failed. Please try again.');
+      alert('Download failed.'); // Provide user feedback
     } finally {
       setDownloading(false);
     }
   };
+
+
   // Fetch individual record details
   const fetchRecordDetails = async (id) => {
     setDetailLoading(true);
     try {
       // const BASE_URL = mainapi.BASE_URL;
       const BASE_URL = mainapi.BASE_URL;
+      
       const response = await fetch(`${BASE_URL}/btr-service/api/fetch-btr/data/${id}`, {
         method: 'GET',
         headers: {
@@ -343,7 +380,7 @@ return (
                   },
                 }}
               >
-                {downloading ? 'Downloading...' : 'Download CSV'}
+                {downloading ? 'Downloading...' : 'Download'}
               </Button>
               <TextField
                 label="Search"
@@ -380,7 +417,7 @@ return (
           onChangeRowsPerPage={handleRowsPerPageChange}
           onChangePage={handlePageChange}
           paginationPerPage={size}
-          paginationRowsPerPageOptions={[10, 25, 50, 100]}
+          paginationRowsPerPageOptions={[100, 150, 200, 250]}
           paginationComponentOptions={{
             rowsPerPageText: 'Rows per page:',
             rangeSeparatorText: 'of',
@@ -464,7 +501,7 @@ return (
                   }}
                 >
                   {[
-                    { key: 'id', label: 'ID' },
+                    
                     { key: 'localBodyName', label: 'Local Body Name' },
                     { key: 'villageName', label: 'Village Name' },
                     { key: 'bcode', label: 'Block Code' },

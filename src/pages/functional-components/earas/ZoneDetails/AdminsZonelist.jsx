@@ -23,6 +23,8 @@ import MapIcon from '@mui/icons-material/Map';
 import ApartmentIcon from '@mui/icons-material/Apartment';
 import KeyIcon from '@mui/icons-material/Key';
 import Breadcrumb from 'routes/Breadcrumb';
+import { Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+
 
 function AdminsZonelistUI() {
   const theme = useTheme();
@@ -30,6 +32,9 @@ function AdminsZonelistUI() {
   const [zoneData, setZoneData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+const [selectedTaluk, setSelectedTaluk] = useState('');
+
 
   // State for the dialog
   const [openDialog, setOpenDialog] = useState(false);
@@ -82,7 +87,7 @@ function AdminsZonelistUI() {
         );
 
         const result = await response.json();
-        
+        console.log("result    ",result)
         if (!response.ok) {
           if (result?.response === "No value present") {
             setError("No zones are currently assigned to you.");
@@ -101,6 +106,12 @@ function AdminsZonelistUI() {
 
     fetchZones();
   }, []);
+const districts = [...new Set(zoneData.map(z => z.districtName))];
+const taluks = [...new Set(zoneData.map(z => z.talukName))];
+const filteredZones = zoneData.filter(z =>
+  (!selectedDistrict || z.districtName === selectedDistrict) &&
+  (!selectedTaluk || z.talukName === selectedTaluk)
+);
 
   // Loading state
   if (loading) {
@@ -151,8 +162,43 @@ function AdminsZonelistUI() {
           You are assigned to {zoneData.length} zone{zoneData.length > 1 ? 's' : ''}.
         </Typography>
         <MainCard>
+        <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+  <FormControl sx={{ minWidth: 200 }}>
+    <InputLabel>District</InputLabel>
+    <Select
+      value={selectedDistrict}
+      label="District"
+      onChange={(e) => {
+        setSelectedDistrict(e.target.value);
+        setSelectedTaluk(''); // reset taluk on district change
+      }}
+    >
+      <MenuItem value="">All</MenuItem>
+      {districts.map((d) => (
+        <MenuItem key={d} value={d}>{d}</MenuItem>
+      ))}
+    </Select>
+  </FormControl>
+
+  <FormControl sx={{ minWidth: 200 }}>
+    <InputLabel>Taluk</InputLabel>
+    <Select
+      value={selectedTaluk}
+      label="Taluk"
+      onChange={(e) => setSelectedTaluk(e.target.value)}
+    >
+      <MenuItem value="">All</MenuItem>
+      {taluks
+        .filter(t => !selectedDistrict || zoneData.some(z => z.talukName === t && z.districtName === selectedDistrict))
+        .map((t) => (
+          <MenuItem key={t} value={t}>{t}</MenuItem>
+        ))}
+    </Select>
+  </FormControl>
+</Box>
+
           <Grid container spacing={2}>
-            {zoneData.map((zone) => (
+           {filteredZones.map((zone) => (
               <Grid item xs={12} sm={6} md={4} key={zone.zoneId}>
                 <Paper
                   sx={{
@@ -176,7 +222,8 @@ function AdminsZonelistUI() {
                 >
                   <LocationOnIcon sx={{ fontSize: 20, color: '#1a237e', mb: 1 }} />
                   <Typography variant="h6" sx={{ color: '#1a237e', mb: 1 }}>
-                    {zone.zoneNameEn}
+                    {zone.zoneNameEn}<br></br>
+                  
                   </Typography>
                 </Paper>
               </Grid>
