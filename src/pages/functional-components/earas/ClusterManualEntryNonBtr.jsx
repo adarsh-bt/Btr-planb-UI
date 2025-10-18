@@ -605,7 +605,7 @@ const getColumnSize = (header, index, totalHeaders) => {
   const baseSize = 12 / totalHeaders; // Dynamic base sizing
   
   switch (header) {
-    case 'Village': return 2.2;
+    case 'Village': return 1;
     case 'Block': return 1.3;
     case 'Name': return 1.8;
     case 'Address': return 1.8;
