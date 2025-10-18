@@ -526,7 +526,7 @@ const KeyPlotListing = ({zoneId}) => {
           <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
             {/* Panchayath Summary and Search */}
             <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              {panchayathAreaSummary.length > 0 && (
+              {/* {panchayathAreaSummary.length > 0 && (
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, flexGrow: 1, maxWidth: 'calc(100% - 320px)' }}>
                   {panchayathAreaSummary.map((item, index) => (
                     <Chip
@@ -538,7 +538,7 @@ const KeyPlotListing = ({zoneId}) => {
                     />
                   ))}
                 </Box>
-              )}
+              )} */}
 
               <Box sx={{ display: 'flex', gap: 2, ml: { xs: 0, sm: 2 }, mt: { xs: 2, sm: 0 } }}>
                 <Chip label="AY 2024 - 2025" variant="outlined" color="info" />
@@ -563,7 +563,7 @@ const KeyPlotListing = ({zoneId}) => {
             {/* Filters */}
             <Box sx={{ mb: 3 }}>
               <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={6} md={2}>
+                {/* <Grid item xs={12} sm={6} md={2}>
                   <FormControl fullWidth size="small">
                     <InputLabel>Land Type</InputLabel>
                     <Select
@@ -577,9 +577,9 @@ const KeyPlotListing = ({zoneId}) => {
                       ))}
                     </Select>
                   </FormControl>
-                </Grid>
+                </Grid> */}
 
-                <Grid item xs={12} sm={6} md={2}>
+                {/* <Grid item xs={12} sm={6} md={2}>
                   <FormControl fullWidth size="small">
                     <InputLabel>Village</InputLabel>
                     <Select
@@ -593,7 +593,7 @@ const KeyPlotListing = ({zoneId}) => {
                       ))}
                     </Select>
                   </FormControl>
-                </Grid>
+                </Grid> */}
 
                 <Grid item xs={12} md={8}>
                   <Stack direction="row" spacing={1} sx={{ justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
