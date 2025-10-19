@@ -88,7 +88,7 @@ const ClusterManualEntryNonBtr = () => {
     const [loading, setLoading] = useState(true);
     const [loadingResvno, setLoadingResvno] = useState(false);
     
-    // ✅ Submit-related states
+    // Submit-related states
     const [submitting, setSubmitting] = useState(false);
     const [submitSuccess, setSubmitSuccess] = useState(false);
     const [submitError, setSubmitError] = useState('');
@@ -115,7 +115,7 @@ const ClusterManualEntryNonBtr = () => {
     const [apiCropsData, setApiCropsData] = useState(null);
     const [loadingApiCrops, setLoadingApiCrops] = useState(false);
 
-    //non btr
+    // non btr
     const [activeBTypes, setActiveBTypes] = useState([]);
     const [currentBType, setCurrentBType] = useState(null);
     const [nonBtrTypeMapping, setNonBtrTypeMapping] = useState({});
@@ -139,7 +139,6 @@ const ClusterManualEntryNonBtr = () => {
             const btypeData = await response.json();
             setActiveBTypes(btypeData);
             
-            // Create dynamic mapping
             const mapping = {};
             btypeData.forEach(btype => {
               mapping[btype.btypeName] = btype.btypeId;
@@ -154,8 +153,6 @@ const ClusterManualEntryNonBtr = () => {
       fetchActiveBTypes();
     }, []);
 
-
-    
     const [keyplotDetails, setKeyplotDetails] = useState({
         villageBlock: '',
         panchayath: '',
@@ -165,133 +162,94 @@ const ClusterManualEntryNonBtr = () => {
     });
     const [rowBlockOptions, setRowBlockOptions] = useState({});
 
-    // ✅ NEW: Function to fetch CCE crop details from API
-    // Updated function to fetch and filter CCE crop details based on land type
-const fetchCceCropDetails = async () => {
-    setLoadingCrops(true);
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        
-        const data = await response.json();
-        console.log('CCE Crop Details:', data);
-        
-        // Ensure data is always an array
-        const cropData = Array.isArray(data) ? data : (data.crops || data.payload || []);
-        
-        // Filter crops based on cluster land type
-        const filteredCrops = filterCropsByLandType(cropData, clusterInfo.landType);
-        
-        setCceCropDetails(filteredCrops);
-    } catch (error) {
-        console.error('Error fetching CCE crop details:', error);
-        setCceCropDetails([]);
-        setSnackbarMessage('Failed to load crop details.');
-        setSnackbarOpen(true);
-    } finally {
-        setLoadingCrops(false);
-    }
-};
-
-// Add this function to your ClusterFormUI component
-// Add this function to fetch CCE crops from your API
-const fetchApiCceCrops = useCallback(async () => {
-    if (!clusterId) return;
-    
-    setLoadingApiCrops(true);
-    
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(
-            `${BASE_URL}/btr-service/crop-assignment-trail/${clusterId}/cce-crops`,
-            {
+    // fetch and filter CCE crop details
+    const fetchCceCropDetails = async () => {
+        setLoadingCrops(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-crops`, {
                 headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            const cropData = Array.isArray(data) ? data : (data.crops || data.payload || []);
+            const filteredCrops = filterCropsByLandType(cropData, clusterInfo.landType);
+            setCceCropDetails(filteredCrops);
+        } catch (error) {
+            console.error('Error fetching CCE crop details:', error);
+            setCceCropDetails([]);
+            setSnackbarMessage('Failed to load crop details.');
+            setSnackbarOpen(true);
+        } finally {
+            setLoadingCrops(false);
+        }
+    };
+
+    const fetchApiCceCrops = useCallback(async () => {
+        if (!clusterId) return;
+        setLoadingApiCrops(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(
+                `${BASE_URL}/btr-service/crop-assignment-trail/${clusterId}/cce-crops`,
+                {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }
+            );
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-        );
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            setApiCropsData(data);
+        } catch (error) {
+            console.error('Error fetching API CCE crops:', error);
+        } finally {
+            setLoadingApiCrops(false);
         }
-        
-        const data = await response.json();
-        setApiCropsData(data);
-        
-    } catch (error) {
-        console.error('Error fetching API CCE crops:', error);
-    } finally {
-        setLoadingApiCrops(false);
-    }
-}, [clusterId, BASE_URL]);
+    }, [clusterId, BASE_URL]);
 
+    useEffect(() => {
+        if (clusterId) {
+            fetchApiCceCrops();
+        }
+    }, [clusterId, fetchApiCceCrops]);
 
-// Add this useEffect after your existing useEffects
-// Add this useEffect after your existing useEffects
-useEffect(() => {
-    if (clusterId) {
-        fetchApiCceCrops();
-    }
-}, [clusterId, fetchApiCceCrops]);
-
-// Helper function to get all currently selected crop names
-const getSelectedCropNames = () => {
-    const selectedCropNames = new Set();
-    
-    // Add saved crops
-    savedCrops.forEach(crop => {
-        const cropName = typeof crop === 'object' ? crop.cropName : crop;
-        selectedCropNames.add(cropName);
-    });
-    
-    // Add API crops
-    if (apiCropsData && apiCropsData.crops) {
-        apiCropsData.crops.forEach(crop => {
-            selectedCropNames.add(crop.cropName);
+    const getSelectedCropNames = () => {
+        const selectedCropNames = new Set();
+        savedCrops.forEach(crop => {
+            const cropName = typeof crop === 'object' ? crop.cropName : crop;
+            selectedCropNames.add(cropName);
         });
-    }
-    
-    return selectedCropNames;
-};
-
-
-// New function to filter crops based on land type
-const filterCropsByLandType = (crops, landType) => {
-    if (!landType || !Array.isArray(crops)) return crops;
-    
-    const normalizedLandType = landType.toUpperCase();
-    
-    return crops.filter(crop => {
-        if (!crop.frameName) return false;
-        
-        const frameName = crop.frameName.toUpperCase();
-        
-        // Filter logic based on frameName and landType
-        switch (frameName) {
-            case 'WET':
-                return normalizedLandType === 'WET';
-            case 'DRY':
-                return normalizedLandType === 'DRY';
-            case 'WET / DRY':
-                return normalizedLandType === 'WET' || normalizedLandType === 'DRY';
-            default:
-                return false;
+        if (apiCropsData && apiCropsData.crops) {
+            apiCropsData.crops.forEach(crop => {
+                selectedCropNames.add(crop.cropName);
+            });
         }
-    });
-};
+        return selectedCropNames;
+    };
 
-    
-useEffect(() => {
-    fetchCceCropDetails();
-}, [clusterInfo.landType]); // Add dependency on landType
+    const filterCropsByLandType = (crops, landType) => {
+        if (!landType || !Array.isArray(crops)) return crops;
+        const normalizedLandType = landType.toUpperCase();
+        return crops.filter(crop => {
+            if (!crop.frameName) return false;
+            const frameName = crop.frameName.toUpperCase();
+            switch (frameName) {
+                case 'WET':
+                    return normalizedLandType === 'WET';
+                case 'DRY':
+                    return normalizedLandType === 'DRY';
+                case 'WET / DRY':
+                    return normalizedLandType === 'WET' || normalizedLandType === 'DRY';
+                default:
+                    return false;
+            }
+        });
+    };
 
-// Keep the original useEffect for initial load
-useEffect(() => {
-    fetchCceCropDetails();
-}, []);
-
+    useEffect(() => {
+        fetchCceCropDetails();
+    }, [clusterInfo.landType]);
 
     useEffect(() => {
         const urlParams = new URLSearchParams(location.search);
@@ -332,8 +290,6 @@ useEffect(() => {
 
     const totalAreaProgress = clusterInfo.maxArea > 0 ? (clusterInfo.totalArea / clusterInfo.maxArea) * 100 : 0;
 
-
-    
     const fetchKeyplotDetails = async (id) => {
         if (!id) return;
         setLoading(true);
@@ -350,7 +306,6 @@ useEffect(() => {
             }
 
             const data = await response.json();
-            // Extract BType information
             const keyplotBTypeId = data.payload.btr_id;
             const keyplotBTypeName = data.payload.btr_type;
             
@@ -362,8 +317,6 @@ useEffect(() => {
             setMaxCluster(data.payload.clusterMax);
             setMeanCluster(data.payload.clusterMean);
             setDefaultLbcode(data.payload.lbcode);
-            
-            console.log("data >>>> ", data.payload);
             
             setDefaultBlock(data.payload.villageBlock);
             setDefaultVillageId(data.payload.kvillageId);
@@ -428,26 +381,19 @@ useEffect(() => {
                                 subOptions: [],
                                 plot_id: row.plot_id || '',
 
-                                // ADD THESE BType-specific fields from backend
                                 ownername: row.ownername || '',
                                 address: row.address || '',
                                 houseno: row.houseno || '',
                                 tpno: row.tpno || '',
                                 mainno: row.mainno || '',
-                                subno: row.subno || '',  // This is different from 'sub' field above
+                                subno: row.subno || '',
                                 tbsubdivisionno: row.tbsubdivisionno || '',
-
-
-
-
                                 isExisting: true,
                                 uniqueId: nextRowId.current++
                             }))
                         };
                     });
                 }
-
-                console.log("existed plots ", existingSidePlots);
 
                 const fixed = ['K'];
                 const existing = Object.keys(existingSidePlots).filter(l => l !== 'K');
@@ -473,158 +419,108 @@ useEffect(() => {
         }
     };
 
+    // BType-specific fields as stacked items (preserve existing logic)
     const renderBTypeSpecificFields = (row, keyplot, isNewRow = false) => {
-  if (!currentBType) return null;
-  
-  const bTypeName = currentBType.name;
-  
-  // Common fields for all non-BTR types
-  const commonFields = (
-    <>
-      <Grid item xs={2}>
-        <TextField 
-          label="Name" 
-          size="small" 
-          fullWidth 
-          value={row.ownername || ''} 
-          InputProps={{ readOnly: !isNewRow }}
-          onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'ownername')} 
-        />
-      </Grid>
-      <Grid item xs={2}>
-        <TextField 
-          label="Address" 
-          size="small" 
-          fullWidth 
-          value={row.address || ''} 
-          InputProps={{ readOnly: !isNewRow }}
-          onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'address')} 
-        />
-      </Grid>
-    </>
-  );
+      if (!currentBType) return null;
+      const bTypeName = currentBType.name;
 
-  // BType specific fields
-  switch (bTypeName) {
-    case 'House List':
-      return (
+      const commonFields = (
         <>
-          {commonFields}
-          <Grid item xs={1.5}>
-            <TextField 
-              label="House No." 
-              size="small" 
-              fullWidth 
-              type="number"
-              value={row.houseno || ''} 
+          <Grid item xs={12}>
+            <TextField
+              label="Name"
+              size="small"
+              fullWidth
+              value={row.ownername || ''}
               InputProps={{ readOnly: !isNewRow }}
-              onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'houseno')} 
+              onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'ownername')}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              label="Address"
+              size="small"
+              fullWidth
+              value={row.address || ''}
+              InputProps={{ readOnly: !isNewRow }}
+              onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'address')}
             />
           </Grid>
         </>
       );
-    
-    case 'Cultivators List':
-      return commonFields;
-    
-    case 'Thandaper Number':
-      return (
-        <>
-          {commonFields}
-          <Grid item xs={1.5}>
-            <TextField 
-              label="Thandaper No." 
-              size="small" 
-              fullWidth 
-              type="number"
-              value={row.tpno || ''} 
-              InputProps={{ readOnly: !isNewRow }}
-              onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'tpno')} 
-            />
-          </Grid>
-        </>
-      );
-    
-    case 'Others':
-      return (
-        <>
-          {commonFields}
-          <Grid item xs={1}>
-            <TextField 
-              label="Main No." 
-              size="small" 
-              fullWidth 
-              type="number"
-              value={row.mainno || ''} 
-              InputProps={{ readOnly: !isNewRow }}
-              onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'mainno')} 
-            />
-          </Grid>
-          <Grid item xs={1}>
-            <TextField 
-              label="Sub No." 
-              size="small" 
-              fullWidth 
-              value={row.subno || ''} 
-              InputProps={{ readOnly: !isNewRow }}
-              onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'subno')} 
-            />
-          </Grid>
-        </>
-      );
-    
-    default:
-      return commonFields;
-  }
-};
 
+      switch (bTypeName) {
+        case 'House List':
+          return (
+            <>
+              {commonFields}
+              <Grid item xs={12}>
+                <TextField
+                  label="House No."
+                  size="small"
+                  fullWidth
+                  type="number"
+                  value={row.houseno || ''}
+                  InputProps={{ readOnly: !isNewRow }}
+                  onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'houseno')}
+                />
+              </Grid>
+            </>
+          );
 
-const getTableHeaders = () => {
-  if (!currentBType) return ['Village', 'Block', 'Survey No.', 'Sub Div No.', 'Actual Area', 'Enumerated Area', ''];
-  
-  const baseHeaders = ['Village', 'Block'];
-  const finalHeaders = ['Survey No.', 'Sub Div No.', 'Actual Area', 'Enumerated Area', ''];
-  
-  switch (currentBType.name) {
-    case 'House List':
-      return [...baseHeaders, 'Name', 'Address', 'House No.', ...finalHeaders];
-    case 'Cultivators List':
-      return [...baseHeaders, 'Name', 'Address', ...finalHeaders];
-    case 'Thandaper Number':
-      return [...baseHeaders, 'Name', 'Address', 'Thandaper No.', ...finalHeaders];
-    case 'Others':
-      return [...baseHeaders, 'Name', 'Address', 'Main No.', 'Sub No.', ...finalHeaders];
-    default:
-      return [...baseHeaders, 'Name', 'Address', ...finalHeaders];
-  }
-};
+        case 'Cultivators List':
+          return commonFields;
 
-// Add this helper function for consistent column sizing
-// Updated getColumnSize function with better alignment
-const getColumnSize = (header, index, totalHeaders) => {
-  const baseSize = 12 / totalHeaders; // Dynamic base sizing
-  
-  switch (header) {
-    case 'Village': return 1;
-    case 'Block': return 1.3;
-    case 'Name': return 1.8;
-    case 'Address': return 1.8;
-    case 'House No.': return 1.2;
-    case 'Thandaper No.': return 1.3;
-    case 'Main No.': return 1.0;
-    case 'Sub No.': return 1.0;
-    case 'Survey No.': return 1.3;
-    case 'Sub Div No.': return 1.0;
-    case 'Actual Area': return 1.8;
-    case 'Enumerated Area': return 1.8;
-    case '': return 1.5; // Actions column
-    default: return Math.max(1, baseSize);
-  }
-};
+        case 'Thandaper Number':
+          return (
+            <>
+              {commonFields}
+              <Grid item xs={12}>
+                <TextField
+                  label="Thandaper No."
+                  size="small"
+                  fullWidth
+                  type="number"
+                  value={row.tpno || ''}
+                  InputProps={{ readOnly: !isNewRow }}
+                  onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'tpno')}
+                />
+              </Grid>
+            </>
+          );
 
+        case 'Others':
+          return (
+            <>
+              {commonFields}
+              <Grid item xs={12}>
+                <TextField
+                  label="Main No."
+                  size="small"
+                  fullWidth
+                  type="number"
+                  value={row.mainno || ''}
+                  InputProps={{ readOnly: !isNewRow }}
+                  onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'mainno')}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Sub No."
+                  size="small"
+                  fullWidth
+                  value={row.subno || ''}
+                  InputProps={{ readOnly: !isNewRow }}
+                  onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'subno')}
+                />
+              </Grid>
+            </>
+          );
 
-
-    
+        default:
+          return commonFields;
+      }
+    };
 
     useEffect(() => {
         const fetchVillageData = async () => {
@@ -641,7 +537,6 @@ const getColumnSize = (header, index, totalHeaders) => {
                 const data = await response.json();
                 setVillageOptions(data);
                 setAllVillageData(data);
-                console.log("village >>> ", data);
                 
                 if (data.length > 0) {
                     setBlockOptions(data[0].blocks.map(b => b.blockCode));
@@ -663,172 +558,133 @@ const getColumnSize = (header, index, totalHeaders) => {
         setClusterInfo(prevInfo => ({ ...prevInfo, totalArea: newTotalArea }));
     }, [keyplotsData]);
 
-    // ✅ WORKING: Submit functionality with proper API integration from paste.txt
-    // ✅ FIXED: Submit functionality with proper plot_id handling
-const handleSubmit = async () => {
-    try {
-        setSubmitting(true);
-        setSubmitError('');
+    const handleSubmit = async () => {
+        try {
+            setSubmitting(true);
+            setSubmitError('');
 
-        // Get user info using existing authservice methods
-        const userId = authservice.userid();
-        const token = authservice.gettoken();
+            const userId = authservice.userid();
+            const token = authservice.gettoken();
 
-        console.log('Debug - User ID:', userId);
-        console.log('Debug - Token exists:', !!token);
-        console.log('Debug - Keyplot ID:', keyplotId);
+            if (!userId) {
+                throw new Error('User information not found. Please login again.');
+            }
+            if (!token) {
+                throw new Error('Authentication token not found. Please login again.');
+            }
 
-        if (!userId) {
-            throw new Error('User information not found. Please login again.');
-        }
+            const keyplotData = keyplotsData.find(kp => kp.label === 'K');
+            if (!keyplotData || keyplotData.rows.length === 0) {
+                throw new Error('Keyplot data is required.');
+            }
 
-        if (!token) {
-            throw new Error('Authentication token not found. Please login again.');
-        }
-
-        // Validate that we have at least keyplot data
-        const keyplotData = keyplotsData.find(kp => kp.label === 'K');
-        if (!keyplotData || keyplotData.rows.length === 0) {
-            throw new Error('Keyplot data is required.');
-        }
-
-        // ✅ UPDATED: Modified validation to handle missing plot_id for new rows
-        for (const keyplot of keyplotsData) {
-            for (const row of keyplot.rows) {
-                if (!row.villageName || !row.block || !row.svNo || !row.sub || !row.area || !row.enumeratedArea) {
-                    throw new Error(`Incomplete data in ${keyplot.label} plot. All fields are required.`);
-                }
-                // ✅ FIXED: Only validate plot_id for existing rows, not new ones
-                if (!row.isNew && !row.plot_id) {
-                    throw new Error(`Plot ID is missing for existing ${keyplot.label} plot. Please ensure all plots are properly linked.`);
+            for (const keyplot of keyplotsData) {
+                for (const row of keyplot.rows) {
+                    if (!row.villageName || !row.block || !row.svNo || !row.sub || !row.area || !row.enumeratedArea) {
+                        throw new Error(`Incomplete data in ${keyplot.label} plot. All fields are required.`);
+                    }
+                    if (!row.isNew && !row.plot_id) {
+                        throw new Error(`Plot ID is missing for existing ${keyplot.label} plot. Please ensure all plots are properly linked.`);
+                    }
                 }
             }
-        }
 
-        // ✅ PREPARE: Request data with better validation and plot_id handling
-        const requestData = {
-      userId: userId,
-      keyplotId: keyplotId,
-      clusterNo: clusterId,
-      btrType: currentBType?.id, // Include the BType ID
-      sidePlots: keyplotsData
-        .filter(keyplot => keyplot.rows.length > 0)
-        .map(keyplot => ({
-          label: keyplot.label,
-          rows: keyplot.rows.map(row => {
-            const baseRowData = {
-              ...(row.b_id ? { id: row.b_id } : {}),
-              actual: parseFloat(row.enumeratedArea),
-              svNo: parseInt(row.svNo),
-              subNo: row.sub,
-              area: parseFloat(row.area),
-              bcode: isNaN(parseInt(row.block)) ? row.block : parseInt(row.block),
-              village: row.villageId,
-              btrtype: currentBType?.id
+            const requestData = {
+              userId: userId,
+              keyplotId: keyplotId,
+              clusterNo: clusterId,
+              btrType: currentBType?.id,
+              sidePlots: keyplotsData
+                .filter(keyplot => keyplot.rows.length > 0)
+                .map(keyplot => ({
+                  label: keyplot.label,
+                  rows: keyplot.rows.map(row => {
+                    const baseRowData = {
+                      ...(row.b_id ? { id: row.b_id } : {}),
+                      actual: parseFloat(row.enumeratedArea),
+                      svNo: parseInt(row.svNo),
+                      subNo: row.sub,
+                      area: parseFloat(row.area),
+                      bcode: isNaN(parseInt(row.block)) ? row.block : parseInt(row.block),
+                      village: row.villageId,
+                      btrtype: currentBType?.id
+                    };
+
+                    if (currentBType) {
+                      switch (currentBType.name) {
+                        case 'House List':
+                          baseRowData.ownername = row.ownername || '';
+                          baseRowData.address = row.address || '';
+                          baseRowData.houseno = row.houseno ? parseInt(row.houseno) : null;
+                          break;
+                        case 'Cultivators List':
+                          baseRowData.ownername = row.ownername || '';
+                          baseRowData.address = row.address || '';
+                          break;
+                        case 'Thandaper Number':
+                          baseRowData.ownername = row.ownername || '';
+                          baseRowData.address = row.address || '';
+                          baseRowData.tpno = row.tpno ? parseInt(row.tpno) : null;
+                          break;
+                        case 'Others':
+                          baseRowData.ownername = row.ownername || '';
+                          baseRowData.address = row.address || '';
+                          baseRowData.mainno = row.mainno ? parseInt(row.mainno) : null;
+                          baseRowData.subno = row.subno || '';
+                          break;
+                      }
+                    }
+
+                    if (row.plot_id && row.plot_id !== '') {
+                      baseRowData.plot_id = parseInt(row.plot_id);
+                    } else if (row.isNew) {
+                      baseRowData.plot_id = 0;
+                    }
+
+                    return baseRowData;
+                  })
+                }))
             };
-            
-            // Add BType-specific fields
-            if (currentBType) {
-              switch (currentBType.name) {
-                case 'House List':
-                  baseRowData.ownername = row.ownername || '';
-                  baseRowData.address = row.address || '';
-                  baseRowData.houseno = row.houseno ? parseInt(row.houseno) : null;
-                  break;
-                case 'Cultivators List':
-                  baseRowData.ownername = row.ownername || '';
-                  baseRowData.address = row.address || '';
-                  break;
-                case 'Thandaper Number':
-                  baseRowData.ownername = row.ownername || '';
-                  baseRowData.address = row.address || '';
-                  baseRowData.tpno = row.tpno ? parseInt(row.tpno) : null;
-                  break;
-                case 'Others':
-                  baseRowData.ownername = row.ownername || '';
-                  baseRowData.address = row.address || '';
-                  baseRowData.mainno = row.mainno ? parseInt(row.mainno) : null;
-                  baseRowData.subno = row.subno || '';
-                  break;
-              }
+
+            const response = await fetch(`${BASE_URL}/btr-service/cluster-api/save-cluster`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            if (!response.ok) {
+                let errorMessage = `HTTP error! status: ${response.status}`;
+                try {
+                    const errorText = await response.text();
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        errorMessage = errorData.message || errorData.error || errorMessage;
+                    } catch {
+                        errorMessage = errorText || errorMessage;
+                    }
+                } catch {}
+                throw new Error(errorMessage);
             }
-            
-            // Handle plot_id
-            if (row.plot_id && row.plot_id !== '') {
-              baseRowData.plot_id = parseInt(row.plot_id);
-            } else if (row.isNew) {
-              baseRowData.plot_id = 0;
-            }
-            
-            return baseRowData;
-          })
-        }))
+
+            const result = await response.json();
+
+            setSubmitSuccess(true);
+            setSnackbarMessage('Cluster data saved successfully!');
+            setSnackbarOpen(true);
+        } catch (error) {
+            console.error('Error submitting cluster data:', error);
+            setSubmitError(error.message);
+            setSnackbarMessage(`Error: ${error.message}`);
+            setSnackbarOpen(true);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
-        console.log('✅ Final request data being sent:', JSON.stringify(requestData, null, 2));
-
-        // ✅ ENHANCED: API call with better error handling
-        const response = await fetch(`${BASE_URL}/btr-service/cluster-api/save-cluster`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(requestData)
-        });
-
-        console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers);
-
-        // ✅ ENHANCED: Better error handling
-        if (!response.ok) {
-            let errorMessage = `HTTP error! status: ${response.status}`;
-            
-            try {
-                const errorText = await response.text();
-                console.log('Raw error response:', errorText);
-                
-                // Try to parse as JSON
-                try {
-                    const errorData = JSON.parse(errorText);
-                    errorMessage = errorData.message || errorData.error || errorMessage;
-                    console.log('Parsed error data:', errorData);
-                } catch (jsonError) {
-                    // If not JSON, use the raw text
-                    errorMessage = errorText || errorMessage;
-                }
-            } catch (textError) {
-                console.log('Could not read error response:', textError);
-            }
-            
-            throw new Error(errorMessage);
-        }
-
-        const result = await response.json();
-        console.log('✅ Cluster saved successfully:', result);
-
-        setSubmitSuccess(true);
-        setSnackbarMessage('Cluster data saved successfully!');
-        setSnackbarOpen(true);
-
-        // Optionally redirect or refresh data after successful save
-        // window.location.href = '/clusters'; // Uncomment if you want to redirect
-
-    } catch (error) {
-        console.error('❌ Error submitting cluster data:', error);
-        setSubmitError(error.message);
-        setSnackbarMessage(`Error: ${error.message}`);
-        setSnackbarOpen(true);
-    } finally {
-        setSubmitting(false);
-    }
-};
-
-
-
-    // ✅ UPDATED: Handle opening crops modal
     const handleOpenCropsModal = () => {
-        // Pre-populate selectedCrops based on savedCrops
         const preSelected = {};
         savedCrops.forEach(crop => {
             if (crop.cropId) {
@@ -839,150 +695,116 @@ const handleSubmit = async () => {
         setCropsModalOpen(true);
     };
 
-    // ✅ CORRECTED: Handle closing crops modal and saving selected crops to API
-const handleCloseCropsModal = async () => {
-    try {
-        setSavingCrops(true);
-        const selectedCropIds = Object.keys(selectedCrops).filter(cropId => selectedCrops[cropId]);
-        
-        if (selectedCropIds.length === 0) {
-            setSnackbarMessage('Please select at least one crop before saving.');
-            setSnackbarOpen(true);
-            // setCropsModalOpen(false);
-            return;
-        }
-
-        // Get required data with proper validation
-        const zoneId = localStorage.getItem("activeZone");
-        const token = localStorage.getItem('token');
-        
-        if (!zoneId) {
-            throw new Error('Zone ID not found. Please select an active zone.');
-        }
-
-        if (!token) {
-            throw new Error('Authentication token not found. Please login again.');
-        }
-
-        // Validate clusterId exists
-        if (!clusterId) {
-        throw new Error('Cluster ID not found. Please ensure cluster data is loaded.')
-        }
-
-        // Ensure clusterId is properly converted to integer
-        const clusterIdNumber = parseInt(clusterId)
-        if (isNaN(clusterId)) {
-            throw new Error('Invalid cluster number. Please check cluster information.');
-        }
-
-        // Prepare the crop assignment data with proper data types
-        const cropAssignments = selectedCropIds.map(cropId => {
-            return {
-                cropId: parseInt(cropId),
-                clusterId: clusterIdNumber,
-                keyplotId: keyplotId, // This should be the UUID from URL params
-                zoneId: parseInt(zoneId),
-                landType: clusterInfo.landType || "WET",
-                isLimitExceeded: false,
-                isCurrentAssignment: true,
-                rejectedBy: null,
-                rejectedAt: null,
-                assignedOn: new Date().toISOString().slice(0, 19) // Format: YYYY-MM-DDTHH:mm:ss
-            };
-        });
-
-        console.log('Saving crop assignments:', cropAssignments);
-
-        // Make the API call with proper error handling
-        const response = await fetch(`${BASE_URL}/btr-service/crop-assignment-trail/save`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(cropAssignments)
-        });
-
-        console.log('Response status:', response.status);
-        
-        if (!response.ok) {
-            let errorMessage = `HTTP error! status: ${response.status}`;
-            try {
-                const errorText = await response.text();
-                console.log('Error response:', errorText);
-                
-                try {
-                    const errorData = JSON.parse(errorText);
-                    errorMessage = errorData.message || errorData.error || errorMessage;
-                } catch (e) {
-                    errorMessage = errorText || errorMessage;
-                }
-            } catch (e) {
-                console.log('Could not read error response');
+    const handleCloseCropsModal = async () => {
+        try {
+            setSavingCrops(true);
+            const selectedCropIds = Object.keys(selectedCrops).filter(cropId => selectedCrops[cropId]);
+            
+            if (selectedCropIds.length === 0) {
+                setSnackbarMessage('Please select at least one crop before saving.');
+                setSnackbarOpen(true);
+                return;
             }
-            throw new Error(errorMessage);
+
+            const zoneId = localStorage.getItem("activeZone");
+            const token = localStorage.getItem('token');
+            if (!zoneId) {
+                throw new Error('Zone ID not found. Please select an active zone.');
+            }
+            if (!token) {
+                throw new Error('Authentication token not found. Please login again.');
+            }
+            if (!clusterId) {
+              throw new Error('Cluster ID not found. Please ensure cluster data is loaded.');
+            }
+
+            const clusterIdNumber = parseInt(clusterId);
+            if (isNaN(clusterIdNumber)) {
+                throw new Error('Invalid cluster number. Please check cluster information.');
+            }
+
+            const cropAssignments = selectedCropIds.map(cropId => {
+                return {
+                    cropId: parseInt(cropId),
+                    clusterId: clusterIdNumber,
+                    keyplotId: keyplotId,
+                    zoneId: parseInt(zoneId),
+                    landType: clusterInfo.landType || "WET",
+                    isLimitExceeded: false,
+                    isCurrentAssignment: true,
+                    rejectedBy: null,
+                    rejectedAt: null,
+                    assignedOn: new Date().toISOString().slice(0, 19)
+                };
+            });
+
+            const response = await fetch(`${BASE_URL}/btr-service/crop-assignment-trail/save`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(cropAssignments)
+            });
+
+            if (!response.ok) {
+                let errorMessage = `HTTP error! status: ${response.status}`;
+                try {
+                    const errorText = await response.text();
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        errorMessage = errorData.message || errorData.error || errorMessage;
+                    } catch {
+                        errorMessage = errorText || errorMessage;
+                    }
+                } catch {}
+                throw new Error(errorMessage);
+            }
+
+            const result = await response.json();
+
+            const cropsToSave = selectedCropIds.map(cropId => {
+                const cropDetail = cceCropDetails.find(crop => crop.cropId === parseInt(cropId));
+                return {
+                    cropId: parseInt(cropId),
+                    cropName: cropDetail ? cropDetail.cropName : `Crop ${cropId}`,
+                    noOfCce: cropDetail ? cropDetail.noOfCce : 0,
+                    isActive: cropDetail ? cropDetail.isActive : true
+                };
+            });
+            
+            setSavedCrops(cropsToSave);
+
+            const cropUsageCount = {};
+            selectedCropIds.forEach(cropId => {
+              cropUsageCount[cropId] = (cropUsageCount[cropId] || 0) + 1;
+            });
+
+            const updatedCceCropDetails = cceCropDetails.map(crop => {
+              const cropIdStr = crop.cropId.toString();
+              if (selectedCrops[cropIdStr]) {
+                const usageCount = cropUsageCount[cropIdStr] || 1;
+                return {
+                  ...crop,
+                  noOfCce: Math.max(0, crop.noOfCce - usageCount)
+                };
+              }
+              return crop;
+            });
+
+            setCceCropDetails(updatedCceCropDetails);
+            setSelectedCrops({});
+            setSnackbarMessage("CCE crops saved successfully!");
+            setSnackbarOpen(true);
+        } catch (error) {
+            console.error('Error saving CCE crops:', error);
+            setSnackbarMessage(`Error saving crops: ${error.message}`);
+            setSnackbarOpen(true);
+        } finally {
+            setSavingCrops(false);
         }
+    };
 
-        const result = await response.json();
-        console.log('Crop assignments saved successfully:', result);
-
-        // Update local state
-        const cropsToSave = selectedCropIds.map(cropId => {
-            const cropDetail = cceCropDetails.find(crop => crop.cropId === parseInt(cropId));
-            return {
-                cropId: parseInt(cropId),
-                cropName: cropDetail ? cropDetail.cropName : `Crop ${cropId}`,
-                noOfCce: cropDetail ? cropDetail.noOfCce : 0,
-                isActive: cropDetail ? cropDetail.isActive : true
-            };
-        });
-        
-        setSavedCrops(cropsToSave);
-        // **UPDATE CCE CROP DETAILS TO REFLECT DECREASED noOfCce**
-    // Calculate how many crops were selected for each crop type
-    const cropUsageCount = {};
-    selectedCropIds.forEach(cropId => {
-      cropUsageCount[cropId] = (cropUsageCount[cropId] || 0) + 1;
-    });
-
-    // Update cceCropDetails to decrease noOfCce for selected crops
-    const updatedCceCropDetails = cceCropDetails.map(crop => {
-      const cropIdStr = crop.cropId.toString();
-      if (selectedCrops[cropIdStr]) {
-        // Decrease noOfCce by the number of times this crop was selected
-        const usageCount = cropUsageCount[cropIdStr] || 1;
-        return {
-          ...crop,
-          noOfCce: Math.max(0, crop.noOfCce - usageCount) // Ensure it doesn't go below 0
-        };
-      }
-      return crop;
-    });
-
-    // Update the state with new crop details
-    setCceCropDetails(updatedCceCropDetails);
-
-    // Clear selected crops for next selection
-    setSelectedCrops({});
-
-    setSnackbarMessage("CCE crops saved successfully!");
-        setSnackbarOpen(true);
-        // setCropsModalOpen(false);
-
-    } catch (error) {
-        console.error('Error saving CCE crops:', error);
-        setSnackbarMessage(`Error saving crops: ${error.message}`);
-        setSnackbarOpen(true);
-    } finally {
-        setSavingCrops(false);
-    }
-};
-
-
-
-   
-
-    // ✅ UPDATED: Handle crop selection with crop ID
     const handleCropSelectionChange = (event) => {
         const cropId = parseInt(event.target.name);
         setSelectedCrops({
@@ -992,50 +814,47 @@ const handleCloseCropsModal = async () => {
     };
 
     const validateAndSetData = (data) => {
-  const newErrors = {};
-  const plotUsage = new Map();
+      const newErrors = {};
+      const plotUsage = new Map();
 
-  data.forEach(kp => {
-    kp.rows.forEach(r => {
-      if (r.villageName && r.block && r.svNo && r.sub) {
-        const plotId = `${r.villageName}-${r.block}-${r.svNo}-${r.sub}`;
-        if (!plotUsage.has(plotId)) {
-          plotUsage.set(plotId, { rows: [], totalArea: 0 });
-        }
-        plotUsage.get(plotId).rows.push(r);
-      }
-    });
-  });
+      data.forEach(kp => {
+        kp.rows.forEach(r => {
+          if (r.villageName && r.block && r.svNo && r.sub) {
+            const plotId = `${r.villageName}-${r.block}-${r.svNo}-${r.sub}`;
+            if (!plotUsage.has(plotId)) {
+              plotUsage.set(plotId, { rows: [], totalArea: 0 });
+            }
+            plotUsage.get(plotId).rows.push(r);
+          }
+        });
+      });
 
-  plotUsage.forEach(plotInfo => {
-    const firstInstance = plotInfo.rows[0];
-    // Convert to number for calculations but preserve string in UI
-    const masterArea = parseFloat(firstInstance.area) || 0;
-    
-    plotInfo.rows.forEach(row => {
-      row.area = masterArea > 0 ? masterArea.toString() : row.area;
-    });
+      plotUsage.forEach(plotInfo => {
+        const firstInstance = plotInfo.rows[0];
+        const masterArea = parseFloat(firstInstance.area) || 0;
+        
+        plotInfo.rows.forEach(row => {
+          row.area = masterArea > 0 ? masterArea.toString() : row.area;
+        });
 
-    let cumulativeEnumerated = 0;
-    plotInfo.rows.forEach(row => {
-      // Convert to number for validation
-      const enumerated = parseFloat(row.enumeratedArea) || 0;
-      const remainingArea = masterArea - cumulativeEnumerated;
-      
-      const errorKey = `${data.find(kp => kp.rows.some(r => r.uniqueId === row.uniqueId)).id}-${row.uniqueId}`;
-      
-      if (enumerated > remainingArea && masterArea > 0) {
-        newErrors[errorKey] = `Exceeds remaining plot area of ${remainingArea.toFixed(2)}`;
-      }
-      
-      cumulativeEnumerated += enumerated;
-    });
-  });
+        let cumulativeEnumerated = 0;
+        plotInfo.rows.forEach(row => {
+          const enumerated = parseFloat(row.enumeratedArea) || 0;
+          const remainingArea = masterArea - cumulativeEnumerated;
+          
+          const errorKey = `${data.find(kp => kp.rows.some(r => r.uniqueId === row.uniqueId)).id}-${row.uniqueId}`;
+          
+          if (enumerated > remainingArea && masterArea > 0) {
+            newErrors[errorKey] = `Exceeds remaining plot area of ${remainingArea.toFixed(2)}`;
+          }
+          
+          cumulativeEnumerated += enumerated;
+        });
+      });
 
-  setErrors(newErrors);
-  setKeyplotsData(data);
-};
-
+      setErrors(newErrors);
+      setKeyplotsData(data);
+    };
 
     const handleVillageChange = (newVillageId, keyplotId, rowUniqueId) => {
         const newData = JSON.parse(JSON.stringify(keyplotsData));
@@ -1077,122 +896,115 @@ const handleCloseCropsModal = async () => {
     };
 
     const handleInputChange = (e, keyplotId, rowUniqueId, field) => {
-  const value = e.target.value;
-  const newData = JSON.parse(JSON.stringify(keyplotsData));
-  const keyplot = newData.find(k => k.id === keyplotId);
-  const row = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
+      const value = e.target.value;
+      const newData = JSON.parse(JSON.stringify(keyplotsData));
+      const keyplot = newData.find(k => k.id === keyplotId);
+      const row = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
 
-  let processedValue = value;
+      let processedValue = value;
 
-  // Special handling for area fields to preserve decimal input
-  if (field === 'area' || field === 'enumeratedArea') {
-    // Allow empty string or valid decimal input
-    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-      processedValue = value; // Keep as string to preserve decimal input
-    } else {
-      return; // Don't update if invalid format
-    }
-  }
-
-  row[field] = processedValue;
-
-  // Existing logic for syncing related fields...
-  if (['villageName', 'block', 'svNo', 'sub'].includes(field)) {
-    const allRows = newData.flatMap(kp => kp.rows);
-    const masterRow = allRows.find(r => isSamePlot(r, row) && r.uniqueId !== row.uniqueId);
-    
-    if (masterRow) {
-      row.area = masterRow.area;
-    }
-
-    if (field === 'area') {
-      const allRows = newData.flatMap(kp => kp.rows);
-      allRows.forEach(otherRow => {
-        if (isSamePlot(otherRow, row)) {
-          otherRow.area = processedValue;
+      if (field === 'area' || field === 'enumeratedArea') {
+        if (value === '' || /^\d*\.?\d*$/.test(value)) {
+          processedValue = value;
+        } else {
+          return;
         }
-      });
-    }
-
-    // Clear dependent fields when parent fields change
-    if (row.isNew) {
-      switch (field) {
-        case 'block':
-          row.svNo = '';
-          row.sub = '';
-          row.area = '';
-          row.enumeratedArea = '';
-          break;
-        case 'svNo':
-          row.sub = '';
-          row.area = '';
-          row.enumeratedArea = '';
-          break;
-        case 'sub':
-          row.area = '';
-          row.enumeratedArea = '';
-          break;
-        default:
-          break;
       }
-    }
-  }
 
-  validateAndSetData(newData);
-};
+      row[field] = processedValue;
 
+      if (['villageName', 'block', 'svNo', 'sub'].includes(field)) {
+        const allRows = newData.flatMap(kp => kp.rows);
+        const masterRow = allRows.find(r => isSamePlot(r, row) && r.uniqueId !== row.uniqueId);
+        
+        if (masterRow) {
+          row.area = masterRow.area;
+        }
+
+        if (field === 'area') {
+          const allRows2 = newData.flatMap(kp => kp.rows);
+          allRows2.forEach(otherRow => {
+            if (isSamePlot(otherRow, row)) {
+              otherRow.area = processedValue;
+            }
+          });
+        }
+
+        if (row.isNew) {
+          switch (field) {
+            case 'block':
+              row.svNo = '';
+              row.sub = '';
+              row.area = '';
+              row.enumeratedArea = '';
+              break;
+            case 'svNo':
+              row.sub = '';
+              row.area = '';
+              row.enumeratedArea = '';
+              break;
+            case 'sub':
+              row.area = '';
+              row.enumeratedArea = '';
+              break;
+            default:
+              break;
+          }
+        }
+      }
+
+      validateAndSetData(newData);
+    };
 
     const handleInputBlur = (e, keyplotId, rowUniqueId, field) => {
-        // This can be used for additional validation if needed
+        // Optional: extra validation per field
     };
 
     const handleAddRow = (keyplotId) => {
-  const newData = JSON.parse(JSON.stringify(keyplotsData));
-  const keyplot = newData.find(k => k.id === keyplotId);
-  
-  const baseNewRow = {
-    uniqueId: nextRowId.current++,
-    villageName: '', 
-    villageId: null,
-    block: '', 
-    svNo: '', 
-    sub: '', 
-    area: '', 
-    enumeratedArea: '', 
-    plot_id: '',
-    isNew: true
-  };
-  
-  // Add BType-specific fields
-  if (currentBType) {
-    switch (currentBType.name) {
-      case 'House List':
-        baseNewRow.ownername = '';
-        baseNewRow.address = '';
-        baseNewRow.houseno = '';
-        break;
-      case 'Cultivators List':
-        baseNewRow.ownername = '';
-        baseNewRow.address = '';
-        break;
-      case 'Thandaper Number':
-        baseNewRow.ownername = '';
-        baseNewRow.address = '';
-        baseNewRow.tpno = '';
-        break;
-      case 'Others':
-        baseNewRow.ownername = '';
-        baseNewRow.address = '';
-        baseNewRow.mainno = '';
-        baseNewRow.subno = '';
-        break;
-    }
-  }
-  
-  keyplot.rows.push(baseNewRow);
-  setKeyplotsData(newData);
-};
-
+      const newData = JSON.parse(JSON.stringify(keyplotsData));
+      const keyplot = newData.find(k => k.id === keyplotId);
+      
+      const baseNewRow = {
+        uniqueId: nextRowId.current++,
+        villageName: '', 
+        villageId: null,
+        block: '', 
+        svNo: '', 
+        sub: '', 
+        area: '', 
+        enumeratedArea: '', 
+        plot_id: '',
+        isNew: true
+      };
+      
+      if (currentBType) {
+        switch (currentBType.name) {
+          case 'House List':
+            baseNewRow.ownername = '';
+            baseNewRow.address = '';
+            baseNewRow.houseno = '';
+            break;
+          case 'Cultivators List':
+            baseNewRow.ownername = '';
+            baseNewRow.address = '';
+            break;
+          case 'Thandaper Number':
+            baseNewRow.ownername = '';
+            baseNewRow.address = '';
+            baseNewRow.tpno = '';
+            break;
+          case 'Others':
+            baseNewRow.ownername = '';
+            baseNewRow.address = '';
+            baseNewRow.mainno = '';
+            baseNewRow.subno = '';
+            break;
+        }
+      }
+      
+      keyplot.rows.push(baseNewRow);
+      setKeyplotsData(newData);
+    };
 
     const handleRemoveRow = (keyplotId, rowUniqueId) => {
         let newData = JSON.parse(JSON.stringify(keyplotsData));
@@ -1219,15 +1031,12 @@ const handleCloseCropsModal = async () => {
 
     const hasAnyError = Object.values(errors).some(error => error !== null && error !== '');
 
-    // ✅ Validation for submit button
     const isSubmitDisabled = () => {
         if (hasAnyError || submitting) return true;
         
-        // Check if keyplot has at least one row
         const keyplotData = keyplotsData.find(kp => kp.label === 'K');
         if (!keyplotData || keyplotData.rows.length === 0) return true;
         
-        // Check if all rows have required data
         for (const keyplot of keyplotsData) {
             for (const row of keyplot.rows) {
                 if (!row.villageName || !row.block || !row.svNo || !row.sub || !row.area || !row.enumeratedArea) {
@@ -1253,9 +1062,386 @@ const handleCloseCropsModal = async () => {
 
     const selectedLabels = keyplotsData.map(kp => kp.label);
 
+    // Helper: a stacked field with label above, field below, consistent spacing
+    const StackedField = ({ children }) => (
+      <Grid item xs={12}>
+        {children}
+      </Grid>
+    );
+
+    const renderRowFormSection = (
+            keyplot,
+            row,
+            isNewRow,
+            hasError,
+            errorKey,
+            currentRowBlockOptions,
+            isAreaReadOnly,
+            isKeyPlotFirstRow
+            ) => {
+            return (
+                <Paper
+                key={`${keyplot.id}-${row.uniqueId}`}
+                elevation={0}
+                variant="outlined"
+                sx={{
+                    p: 2,
+                    mb: 2,
+                    borderRadius: 1,
+                    borderColor: hasError ? 'error.light' : 'divider',
+                    backgroundColor: 'white'
+                }}
+                >
+                <Grid container spacing={2}>
+                    {/* Row 1: Village, Block, Survey No */}
+                    <Grid item xs={12} sm={6} md={4}>
+                    {isNewRow ? (
+                        <Autocomplete
+                        size="small"
+                        options={villageOptions}
+                        getOptionLabel={(option) => option.village || ''}
+                        value={
+                            row.villageId
+                            ? villageOptions.find((v) => v.villageId === row.villageId)
+                            : null
+                        }
+                        onChange={(event, newValue) => {
+                            handleVillageChange(
+                            newValue ? newValue.villageId : null,
+                            keyplot.id,
+                            row.uniqueId
+                            );
+                        }}
+                        renderInput={(params) => (
+                            <TextField
+                            {...params}
+                            label="Village"
+                            variant="outlined"
+                            size="small"
+                            fullWidth
+                            />
+                        )}
+                        />
+                    ) : (
+                        <TextField
+                        label="Village"
+                        value={row.villageName}
+                        InputProps={{ readOnly: true }}
+                        fullWidth
+                        size="small"
+                        />
+                    )}
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={4}>
+                    {isNewRow ? (
+                        <FormControl fullWidth size="small">
+                        <InputLabel>Block</InputLabel>
+                        <Select
+                            name="block"
+                            label="Block"
+                            value={row.block}
+                            onChange={(e) =>
+                            handleInputChange(e, keyplot.id, row.uniqueId, 'block')
+                            }
+                        >
+                            {currentRowBlockOptions.map((option) => (
+                            <MenuItem key={option} value={option}>
+                                {option}
+                            </MenuItem>
+                            ))}
+                        </Select>
+                        </FormControl>
+                    ) : (
+                        <TextField
+                        label="Block"
+                        value={row.block}
+                        InputProps={{ readOnly: true }}
+                        fullWidth
+                        size="small"
+                        />
+                    )}
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={4}>
+                    <TextField
+                        label="Survey No"
+                        size="small"
+                        fullWidth
+                        value={row.svNo}
+                        InputProps={{ readOnly: !isNewRow }}
+                        onChange={(e) =>
+                        handleInputChange(e, keyplot.id, row.uniqueId, 'svNo')
+                        }
+                    />
+                    </Grid>
+
+                    {/* Row 2: Sub Div, Area, Enumerated Area */}
+                    <Grid item xs={12} sm={6} md={4}>
+                    <TextField
+                        label="Sub Div"
+                        size="small"
+                        fullWidth
+                        value={row.sub}
+                        InputProps={{ readOnly: !isNewRow }}
+                        onChange={(e) =>
+                        handleInputChange(e, keyplot.id, row.uniqueId, 'sub')
+                        }
+                    />
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={4}>
+                    <TextField
+                        label="Area"
+                        size="small"
+                        fullWidth
+                        type="number"
+                        value={row.area}
+                        InputProps={{
+                        readOnly: !isKeyPlotFirstRow && isAreaReadOnly && !isNewRow
+                        }}
+                        onChange={(e) =>
+                        handleInputChange(e, keyplot.id, row.uniqueId, 'area')
+                        }
+                    />
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={4}>
+                    <TextField
+                        label="Enum. Area"
+                        size="small"
+                        fullWidth
+                        type="number"
+                        value={row.enumeratedArea}
+                        onChange={(e) =>
+                        handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')
+                        }
+                        onBlur={(e) =>
+                        handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')
+                        }
+                        error={hasError}
+                        helperText={hasError ? errors[errorKey] : ''}
+                    />
+                    </Grid>
+
+                    {/* Row 3: BType-specific fields laid out responsively */}
+                    {(() => {
+                    const b = currentBType?.name;
+                    const readOnly = !isNewRow;
+                    if (!b) return null;
+
+                    if (b === 'Cultivators List') {
+                        return (
+                        <>
+                            <Grid item xs={12} sm={6} md={6}>
+                            <TextField
+                                label="Name"
+                                size="small"
+                                fullWidth
+                                value={row.ownername || ''}
+                                InputProps={{ readOnly }}
+                                onChange={(e) =>
+                                handleInputChange(
+                                    e,
+                                    keyplot.id,
+                                    row.uniqueId,
+                                    'ownername'
+                                )
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={6}>
+                  <TextField
+                    label="Address"
+                    size="small"
+                    fullWidth
+                    value={row.address || ''}
+                    InputProps={{ readOnly }}
+                    onChange={(e) =>
+                      handleInputChange(e, keyplot.id, row.uniqueId, 'address')
+                    }
+                  />
+                </Grid>
+              </>
+            );
+          }
+
+          if (b === 'House List') {
+            return (
+              <>
+                <Grid item xs={12} sm={6} md={4}>
+                  <TextField
+                    label="Name"
+                    size="small"
+                    fullWidth
+                    value={row.ownername || ''}
+                    InputProps={{ readOnly }}
+                    onChange={(e) =>
+                      handleInputChange(
+                        e,
+                        keyplot.id,
+                        row.uniqueId,
+                        'ownername'
+                      )
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={5}>
+                  <TextField
+                    label="Address"
+                    size="small"
+                    fullWidth
+                    value={row.address || ''}
+                    InputProps={{ readOnly }}
+                    onChange={(e) =>
+                      handleInputChange(e, keyplot.id, row.uniqueId, 'address')
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField
+                    label="House No."
+                    size="small"
+                    fullWidth
+                    type="number"
+                    value={row.houseno || ''}
+                    InputProps={{ readOnly }}
+                    onChange={(e) =>
+                      handleInputChange(e, keyplot.id, row.uniqueId, 'houseno')
+                    }
+                  />
+                </Grid>
+              </>
+            );
+          }
+
+          if (b === 'Thandaper Number') {
+            return (
+              <>
+                <Grid item xs={12} sm={6} md={4}>
+                  <TextField
+                    label="Name"
+                    size="small"
+                    fullWidth
+                    value={row.ownername || ''}
+                    InputProps={{ readOnly }}
+                    onChange={(e) =>
+                      handleInputChange(
+                        e,
+                        keyplot.id,
+                        row.uniqueId,
+                        'ownername'
+                      )
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={5}>
+                  <TextField
+                    label="Address"
+                    size="small"
+                    fullWidth
+                    value={row.address || ''}
+                    InputProps={{ readOnly }}
+                    onChange={(e) =>
+                      handleInputChange(e, keyplot.id, row.uniqueId, 'address')
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField
+                    label="Thandaper No."
+                    size="small"
+                    fullWidth
+                    type="number"
+                    value={row.tpno || ''}
+                    InputProps={{ readOnly }}
+                    onChange={(e) =>
+                      handleInputChange(e, keyplot.id, row.uniqueId, 'tpno')
+                    }
+                  />
+                </Grid>
+              </>
+            );
+          }
+
+          // Others
+          return (
+            <>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  label="Name"
+                  size="small"
+                  fullWidth
+                  value={row.ownername || ''}
+                  InputProps={{ readOnly }}
+                  onChange={(e) =>
+                    handleInputChange(e, keyplot.id, row.uniqueId, 'ownername')
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  label="Address"
+                  size="small"
+                  fullWidth
+                  value={row.address || ''}
+                  InputProps={{ readOnly }}
+                  onChange={(e) =>
+                    handleInputChange(e, keyplot.id, row.uniqueId, 'address')
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={2}>
+                <TextField
+                  label="Main No."
+                  size="small"
+                  fullWidth
+                  type="number"
+                  value={row.mainno || ''}
+                  InputProps={{ readOnly }}
+                  onChange={(e) =>
+                    handleInputChange(e, keyplot.id, row.uniqueId, 'mainno')
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={2}>
+                <TextField
+                  label="Sub No."
+                  size="small"
+                  fullWidth
+                  value={row.subno || ''}
+                  InputProps={{ readOnly }}
+                  onChange={(e) =>
+                    handleInputChange(e, keyplot.id, row.uniqueId, 'subno')
+                  }
+                />
+              </Grid>
+            </>
+          );
+        })()}
+
+        {/* Actions */}
+        <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+          {(!isKeyPlotFirstRow || isNewRow) && (
+            <Tooltip title="Remove Row">
+              <IconButton
+                color="error"
+                onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)}
+              >
+                <RemoveCircleOutlineIcon />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Grid>
+      </Grid>
+    </Paper>
+  );
+};
+
+
     return (
         <Container maxWidth="xl" sx={{ mt: 4, bgcolor: '#f4f4f9', p: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-            {/* Floating Summary Bar - ORIGINAL UI PRESERVED */}
+            {/* Floating Summary Bar */}
             <Box sx={{ position: 'fixed', top: '15%', right: 0, zIndex: 1000, borderRadius: '1rem 0 0 1rem', backgroundColor: 'rgba(212, 228, 231, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
                 <Typography variant="subtitle1" fontWeight="bold">Cluster: {clusterInfo.clusterNo} | {clusterInfo.localBody}</Typography>
                 <Box sx={{ width: '100%', mt: 1 }}>
@@ -1268,10 +1454,10 @@ const handleCloseCropsModal = async () => {
                         <Tooltip title="View FMB"><Button variant="contained" color="secondary"><MapIcon /></Button></Tooltip>
                         <Tooltip title="Reject Cluster"><Button variant="contained" color="error"><WarningAmberIcon /></Button></Tooltip>
                         <Tooltip title="Submit">
-                            <Button 
-                                onClick={handleSubmit} 
-                                variant="contained" 
-                                color="primary" 
+                            <Button
+                                onClick={handleSubmit}
+                                variant="contained"
+                                color="primary"
                                 disabled={isSubmitDisabled()}
                                 startIcon={submitting ? <CircularProgress size={20} /> : <SaveIcon />}
                             >
@@ -1285,7 +1471,7 @@ const handleCloseCropsModal = async () => {
             <Typography variant="h4" align="center" gutterBottom color="primary">Cluster Land Form</Typography>
 
             <Box sx={{ maxWidth: '1400px', mx: 'auto' }}>
-                {/* Cluster Info Section - ORIGINAL UI PRESERVED */}
+                {/* Cluster Info Section */}
                 <Box sx={{ bgcolor: '#3066c2', color: 'white', p: 1, borderRadius: 1, mb: 2, fontWeight: 'bold', textAlign: 'center' }}>Cluster Info</Box>
                 <Grid container spacing={2} mb={2} alignItems="flex-start">
                     <Grid item xs={12} sm={6} md={3}><TextField label="Cluster No." value={slNo} InputProps={{ readOnly: true }} fullWidth /></Grid>
@@ -1293,60 +1479,45 @@ const handleCloseCropsModal = async () => {
                     <Grid item xs={12} sm={6} md={3}><TextField label="Land Type" value={clusterInfo.landType} InputProps={{ readOnly: true }} fullWidth /></Grid>
                 </Grid>
 
-                {/* CCE Crops Section - ORIGINAL UI PRESERVED */}
-                {/* Updated section that combines both savedCrops and API crops */}
+                {/* Selected CCE Crops */}
                 {(savedCrops.length > 0 || (apiCropsData && apiCropsData.crops && apiCropsData.crops.length > 0)) && (
-    <Paper elevation={2} sx={{ mt: 3, mb: 3, overflow: 'hidden', borderRadius: 1, border: '1px solid #ccc' }}>
-        <Box sx={{ bgcolor: '#3066c2', color: 'white', p: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-            <GrassIcon />
-            <Typography variant="h6" fontWeight="bold">Selected CCE Crops</Typography>
-            {loadingApiCrops && <CircularProgress size={16} sx={{ color: 'white', ml: 1 }} />}
-        </Box>
-        <Box sx={{ p: 2 }}>
-            <Grid container spacing={1}>
-                {/* Combine and group all crops */}
-                {(() => {
-                    // Combine both saved crops and API crops
-                    const allCrops = [];
-                    
-                    // Add saved crops
-                    savedCrops.forEach(crop => {
-                        const cropName = typeof crop === 'object' ? crop.cropName : crop;
-                        allCrops.push(cropName);
-                    });
-                    
-                    // Add API crops
-                    if (apiCropsData && apiCropsData.crops) {
-                        apiCropsData.crops.forEach(crop => {
-                            allCrops.push(crop.cropName);
-                        });
-                    }
-                    
-                    // Count occurrences of each crop
-                    const cropCounts = {};
-                    allCrops.forEach(cropName => {
-                        cropCounts[cropName] = (cropCounts[cropName] || 0) + 1;
-                    });
-                    
-                    // Render unique crops with counts
-                    return Object.entries(cropCounts).map(([cropName, count]) => (
-                        <Grid item key={cropName}>
-                            <Chip 
-                                label={count > 1 ? `${cropName} (${count})` : cropName}
-                                color="primary"
-                                sx={{ mb: 1 }}
-                            />
-                        </Grid>
-                    ));
-                })()}
-            </Grid>
-        </Box>
-    </Paper>
-)}
-
-
-
-
+                    <Paper elevation={2} sx={{ mt: 3, mb: 3, overflow: 'hidden', borderRadius: 1, border: '1px solid #ccc' }}>
+                        <Box sx={{ bgcolor: '#3066c2', color: 'white', p: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                            <GrassIcon />
+                            <Typography variant="h6" fontWeight="bold">Selected CCE Crops</Typography>
+                            {loadingApiCrops && <CircularProgress size={16} sx={{ color: 'white', ml: 1 }} />}
+                        </Box>
+                        <Box sx={{ p: 2 }}>
+                            <Grid container spacing={1}>
+                                {(() => {
+                                    const allCrops = [];
+                                    savedCrops.forEach(crop => {
+                                        const cropName = typeof crop === 'object' ? crop.cropName : crop;
+                                        allCrops.push(cropName);
+                                    });
+                                    if (apiCropsData && apiCropsData.crops) {
+                                        apiCropsData.crops.forEach(crop => {
+                                            allCrops.push(crop.cropName);
+                                        });
+                                    }
+                                    const cropCounts = {};
+                                    allCrops.forEach(cropName => {
+                                        cropCounts[cropName] = (cropCounts[cropName] || 0) + 1;
+                                    });
+                                    return Object.entries(cropCounts).map(([cropName, count]) => (
+                                        <Grid item key={cropName}>
+                                            <Chip
+                                                label={count > 1 ? `${cropName} (${count})` : cropName}
+                                                color="primary"
+                                                sx={{ mb: 1 }}
+                                            />
+                                        </Grid>
+                                    ));
+                                })()}
+                            </Grid>
+                        </Box>
+                    </Paper>
+                )}
 
                 {/* Action Buttons */}
                 <Box sx={{ maxWidth: 900, margin: '0 auto', mb: 3 }}>
@@ -1357,12 +1528,12 @@ const handleCloseCropsModal = async () => {
                     </Grid>
                 </Box>
 
-                {/* Keyplot Sections - ORIGINAL UI PRESERVED */}
+                {/* Keyplot Sections - REFACTORED TO STACKED FORM FIELDS */}
                 {keyplotsData.map((keyplot) => {
                     const isNewRowIncomplete = keyplot.rows.filter(r => r.isNew).some(r => !r.villageName || !r.block || !r.svNo || !r.sub || !r.area || !r.enumeratedArea);
                     const hasErrorInKeyplot = keyplot.rows.some(r => !!errors[`${keyplot.id}-${r.uniqueId}`]);
                     return (
-                        <Box key={keyplot.id} sx={{ mt: 3, border: '1px solid #ccc', borderRadius: 1, overflowX: 'auto', bgcolor: 'white', p: 2 }}>
+                        <Box key={keyplot.id} sx={{ mt: 3, border: '1px solid #ccc', borderRadius: 1, bgcolor: 'white', p: 0 }}>
                             <Box sx={{ bgcolor: '#05307a', color: 'white', p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 {keyplot.label === 'K' ? (
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -1409,18 +1580,13 @@ const handleCloseCropsModal = async () => {
                                     </Box>
                                 )}
                             </Box>
-                            <Grid container spacing={1} sx={{ p: 1 }} alignItems="center">
-                                {/* Headers */}
-                                {/* Dynamic Headers based on BType */}
-                                {getTableHeaders().map((header, index) => (
-                                    <Grid item xs={getColumnSize(header, index)} key={index}>
-                                        <Typography fontWeight="bold">{header}</Typography>
-                                    </Grid>
-                                ))}
 
-
-
-                                {keyplot.rows.length === 0 && <Grid item xs={12} sx={{ textAlign: 'center', color: 'text.secondary', p: 2 }}>No rows added.</Grid>}
+                            <Box sx={{ p: 2 }}>
+                                {keyplot.rows.length === 0 && (
+                                  <Box sx={{ textAlign: 'center', color: 'text.secondary', p: 2 }}>
+                                    No rows added.
+                                  </Box>
+                                )}
 
                                 {keyplot.rows.map((row) => {
                                     const errorKey = `${keyplot.id}-${row.uniqueId}`;
@@ -1430,91 +1596,45 @@ const handleCloseCropsModal = async () => {
                                     const isFirstInstance = plotId ? firstInstanceMap.get(plotId) === row.uniqueId : true;
                                     const isAreaReadOnly = !isFirstInstance;
                                     const isKeyPlotFirstRow = keyplot.label === 'K' && isFirstInstance;
-                                    
+
                                     const rowKey = `${keyplot.id}-${row.uniqueId}`;
                                     const currentRowBlockOptions = rowBlockOptions[rowKey] || [];
 
-                                    return (
-                                        <React.Fragment key={`${keyplot.id}-${row.uniqueId}`}>
-                                            {row.isNew ? (
-                                                <>
-                                                    <Grid item xs={2}>
-                                                        <Autocomplete
-                                                            size="small"
-                                                            options={villageOptions}
-                                                            getOptionLabel={(option) => option.village || ''}
-                                                            value={
-                                                                row.villageId
-                                                                    ? villageOptions.find((v) => v.villageId === row.villageId)
-                                                                    : null
-                                                            }
-                                                            onChange={(event, newValue) => {
-                                                                handleVillageChange(newValue ? newValue.villageId : null, keyplot.id, row.uniqueId);
-                                                            }}
-                                                            renderInput={(params) => (
-                                                                <TextField
-                                                                    {...params}
-                                                                    label="Village"
-                                                                    variant="outlined"
-                                                                    size="small"
-                                                                    fullWidth
-                                                                />
-                                                            )}
-                                                        />
-                                                    </Grid>
-                                                    <Grid item xs={1.5}>
-                                                        <FormControl fullWidth size="small">
-                                                            <InputLabel>Block</InputLabel>
-                                                            <Select 
-                                                                name="block" 
-                                                                label="Block" 
-                                                                value={row.block} 
-                                                                onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'block')}
-                                                            >
-                                                                {currentRowBlockOptions.map(option => 
-                                                                    <MenuItem key={option} value={option}>{option}</MenuItem>
-                                                                )}
-                                                            </Select>
-                                                        </FormControl>
-                                                    </Grid>
-                                                    {/* ADD THIS LINE HERE: */}
-                                                    {renderBTypeSpecificFields(row, keyplot, true)}
-                                                    <Grid item xs={1.5}><TextField label="Survey No" size="small" fullWidth value={row.svNo} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'svNo')} /></Grid>
-                                                    <Grid item xs={1}><TextField label="Sub Div" size="small" fullWidth value={row.sub} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'sub')} /></Grid>
-                                                    <Grid item xs={2}><TextField label="Area" size="small" fullWidth type="number" value={row.area} InputProps={{ readOnly: isAreaReadOnly }} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'area')} /></Grid>
-                                                    <Grid item xs={2}><TextField label="Enum. Area" size="small" fullWidth type="number" value={row.enumeratedArea} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')} onBlur={(e) => handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')} error={hasError} helperText={hasError ? errors[errorKey] : ''} /></Grid>
-                                                    <Grid item xs={2}><Tooltip title="Remove Row"><IconButton color="error" onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)}><RemoveCircleOutlineIcon /></IconButton></Tooltip></Grid>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Grid item xs={2}><TextField value={row.villageName} InputProps={{ readOnly: true }} fullWidth size="small" /></Grid>
-                                                    <Grid item xs={1.5}><TextField value={row.block} InputProps={{ readOnly: true }} fullWidth size="small" /></Grid>
-                                                    {/* ADD THIS LINE HERE TOO: */}
-                {renderBTypeSpecificFields(row, keyplot, false)}
-                                                    <Grid item xs={1.5}><TextField value={row.svNo} InputProps={{ readOnly: true }} fullWidth size="small" /></Grid>
-                                                    <Grid item xs={1}><TextField value={row.sub} InputProps={{ readOnly: true }} fullWidth size="small" /></Grid>
-                                                    <Grid item xs={2}><TextField value={row.area} InputProps={{ readOnly: !isKeyPlotFirstRow && isAreaReadOnly }} fullWidth size="small" type="number" onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'area')} /></Grid>
-                                                    <Grid item xs={2}><TextField label="Enum. Area" size="small" fullWidth type="number" value={row.enumeratedArea} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')} onBlur={(e) => handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')} error={hasError} helperText={hasError ? errors[errorKey] : ''} /></Grid>
-                                                    <Grid item xs={2}>{!isKeyPlotFirstRow && (<Tooltip title="Remove Row"><IconButton onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)} size="small" color="error"><RemoveCircleOutlineIcon /></IconButton></Tooltip>)}</Grid>
-                                                </>
-                                            )}
-                                        </React.Fragment>
+                                    return renderRowFormSection(
+                                      keyplot,
+                                      row,
+                                      !!row.isNew,
+                                      hasError,
+                                      errorKey,
+                                      currentRowBlockOptions,
+                                      isAreaReadOnly,
+                                      isKeyPlotFirstRow
                                     );
                                 })}
-                                <Grid item xs={12} sx={{ textAlign: 'center', mt: 1 }}>
-                                    <Button startIcon={<AddCircleOutlineIcon />} size="small" variant="contained" color="success" onClick={() => handleAddRow(keyplot.id)} disabled={isNewRowIncomplete || hasErrorInKeyplot}>Add Row</Button>
-                                </Grid>
-                            </Grid>
+
+                                <Box sx={{ textAlign: 'center', mt: 1 }}>
+                                    <Button
+                                      startIcon={<AddCircleOutlineIcon />}
+                                      size="small"
+                                      variant="contained"
+                                      color="success"
+                                      onClick={() => handleAddRow(keyplot.id)}
+                                      disabled={isNewRowIncomplete || hasErrorInKeyplot}
+                                    >
+                                      Add Row
+                                    </Button>
+                                </Box>
+                            </Box>
                         </Box>
                     );
                 })}
 
-                {/* ✅ Main Submit Button - ORIGINAL UI PRESERVED */}
+                {/* Main Submit Button */}
                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2 }}>
-                    <Button 
-                        variant="contained" 
-                        size="large" 
-                        color="primary" 
+                    <Button
+                        variant="contained"
+                        size="large"
+                        color="primary"
                         startIcon={submitting ? <CircularProgress size={20} /> : <SaveIcon />}
                         onClick={handleSubmit}
                         disabled={isSubmitDisabled()}
@@ -1524,7 +1644,7 @@ const handleCloseCropsModal = async () => {
                     </Button>
                 </Box>
                 
-                {/* ✅ Submit Error Display - ORIGINAL UI PRESERVED */}
+                {/* Submit Error Display */}
                 {submitError && (
                     <Box sx={{ mt: 2, p: 2, bgcolor: 'error.light', borderRadius: 1, color: 'error.contrastText' }}>
                         <Typography variant="body2">
@@ -1534,147 +1654,117 @@ const handleCloseCropsModal = async () => {
                 )}
             </Box>
 
-            {/* CCE Crops Modal - ORIGINAL UI PRESERVED */}
-            {/* ✅ UPDATED: CCE Crops Modal with API integration */}
-            {/* ✅ CCE Crops Modal - FIXED */}
-        {/* CCE Crops Modal - UPDATED to handle API response without isActive field */}
-<Dialog open={isCropsModalOpen} onClose={() => setCropsModalOpen(false)} maxWidth="md" fullWidth>
-    <DialogTitle>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <GrassIcon />
-            <Typography variant="h6">Select CCE Crops</Typography>
-        </Box>
-    </DialogTitle>
-    <DialogContent>
-        <DialogContentText sx={{ mb: 2 }}>
-            Please select the crops for Crop Cutting Experiment (CCE). Only active crops are available for selection.
-        </DialogContentText>
-        
-        {loadingCrops ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-                <CircularProgress />
-            </Box>
-        ) : (
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-    {cceCropDetails
-        .filter(crop => crop.cropId && crop.cropName) // Filter valid crops
-        .map(crop => {
-            const selectedCropNames = getSelectedCropNames();
-            const isCropAlreadySelected = selectedCropNames.has(crop.cropName);
-            const isDisabled = crop.noOfCce <= 0 || isCropAlreadySelected;
-            
-            return (
-                <Grid item xs={12} sm={6} md={4} key={crop.cropId}>
-                    <FormControlLabel
-                        control={
-                            <Checkbox
-                                checked={selectedCrops[crop.cropId] || false}
-                                onChange={handleCropSelectionChange}
-                                name={crop.cropId.toString()}
-                                color="primary"
-                                disabled={isDisabled}
-                            />
-                        }
-                        label={
-                            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                                <Typography 
-                                    variant="body2" 
-                                    sx={{ 
-                                        fontWeight: 'bold',
-                                        color: isCropAlreadySelected ? 'text.disabled' : 'text.primary'
-                                    }}
-                                >
-                                    {crop.cropName} ({crop.noOfCce})
-                                    {isCropAlreadySelected && (
-                                        <Typography component="span" variant="caption" sx={{ ml: 1, color: 'warning.main' }}>
-                                            - Already Selected
-                                        </Typography>
-                                    )}
-                                </Typography>
-                                <Typography 
-                                    variant="caption" 
-                                    color={isCropAlreadySelected ? 'text.disabled' : 'textSecondary'}
-                                >
-                                    {crop.frameName} - {crop.noOfCce} CCE
-                                </Typography>
-                            </Box>
-                        }
-                        sx={{
-                            width: '100%',
-                            m: 0,
-                            p: 1,
-                            border: '1px solid #e0e0e0',
-                            borderRadius: 1,
-                            backgroundColor: isCropAlreadySelected ? '#f5f5f5' : 'white',
-                            opacity: isCropAlreadySelected ? 0.7 : 1,
-                            '&:hover': {
-                                backgroundColor: isCropAlreadySelected ? '#f5f5f5' : '#f5f5f5'
+            {/* CCE Crops Modal */}
+            <Dialog open={isCropsModalOpen} onClose={() => setCropsModalOpen(false)} maxWidth="md" fullWidth>
+                <DialogTitle>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <GrassIcon />
+                        <Typography variant="h6">Select CCE Crops</Typography>
+                    </Box>
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText sx={{ mb: 2 }}>
+                        Please select the crops for Crop Cutting Experiment (CCE). Only active crops are available for selection.
+                    </DialogContentText>
+                    
+                    {loadingCrops ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                            <CircularProgress />
+                        </Box>
+                    ) : (
+                        <Grid container spacing={2} sx={{ mt: 1 }}>
+                            {cceCropDetails
+                                .filter(crop => crop.cropId && crop.cropName)
+                                .map(crop => {
+                                    const selectedCropNames = getSelectedCropNames();
+                                    const isCropAlreadySelected = selectedCropNames.has(crop.cropName);
+                                    const isDisabled = crop.noOfCce <= 0 || isCropAlreadySelected;
+                                    
+                                    return (
+                                        <Grid item xs={12} sm={6} md={4} key={crop.cropId}>
+                                            <FormControlLabel
+                                                control={
+                                                    <Checkbox
+                                                        checked={selectedCrops[crop.cropId] || false}
+                                                        onChange={handleCropSelectionChange}
+                                                        name={crop.cropId.toString()}
+                                                        color="primary"
+                                                        disabled={isDisabled}
+                                                    />
+                                                }
+                                                label={
+                                                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                                        <Typography
+                                                            variant="body2"
+                                                            sx={{
+                                                                fontWeight: 'bold',
+                                                                color: isCropAlreadySelected ? 'text.disabled' : 'text.primary'
+                                                            }}
+                                                        >
+                                                            {crop.cropName} ({crop.noOfCce})
+                                                            {isCropAlreadySelected && (
+                                                                <Typography component="span" variant="caption" sx={{ ml: 1, color: 'warning.main' }}>
+                                                                    - Already Selected
+                                                                </Typography>
+                                                            )}
+                                                        </Typography>
+                                                        <Typography
+                                                            variant="caption"
+                                                            color={isCropAlreadySelected ? 'text.disabled' : 'textSecondary'}
+                                                        >
+                                                            {crop.frameName} - {crop.noOfCce} CCE
+                                                        </Typography>
+                                                    </Box>
+                                                }
+                                                sx={{
+                                                    width: '100%',
+                                                    m: 0,
+                                                    p: 1,
+                                                    border: '1px solid #e0e0e0',
+                                                    borderRadius: 1,
+                                                    backgroundColor: isCropAlreadySelected ? '#f5f5f5' : 'white',
+                                                    opacity: isCropAlreadySelected ? 0.7 : 1,
+                                                    '&:hover': {
+                                                        backgroundColor: isCropAlreadySelected ? '#f5f5f5' : '#f5f5f5'
+                                                    }
+                                                }}
+                                            />
+                                        </Grid>
+                                    );
+                                })
                             }
-                        }}
-                    />
-                </Grid>
-            );
-        })
-    }
-</Grid>
+                        </Grid>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                  <Button
+                    onClick={() => setCropsModalOpen(false)}
+                    color="primary"
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    onClick={handleCloseCropsModal}
+                    variant="contained"
+                    color="primary"
+                    disabled={loadingCrops || savingCrops}
+                    startIcon={savingCrops ? <CircularProgress size={20} /> : null}
+                  >
+                    {savingCrops ? "Saving..." : "Save Selection"}
+                  </Button>
+                </DialogActions>
+            </Dialog>
 
-        )}
-        
-        {/* Remove or comment out the inactive crops section since all crops should be active */}
-        {/* 
-        {cceCropDetails.filter(crop => !crop.isActive).length > 0 && (
-            <Box sx={{ mt: 3 }}>
-                <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-                    Inactive Crops (Not Available for Selection)
-                </Typography>
-                <Grid container spacing={1}>
-                    {cceCropDetails
-                        .filter(crop => !crop.isActive)
-                        .map(crop => (
-                            <Grid item key={crop.cropId}>
-                                <Chip label={crop.cropName} size="small" disabled sx={{ opacity: 0.6 }} />
-                            </Grid>
-                        ))
-                    }
-                </Grid>
-            </Box>
-        )}
-        */}
-    </DialogContent>
-<DialogActions>
-  {/* <Button onClick={() => setCropsModalOpen(false)} color="secondary">
-    Close
-  </Button> */}
-  <Button 
-    onClick={() => setCropsModalOpen(false)} 
-    color="primary"
-  >
-    Close
-  </Button>
-  <Button
-    onClick={handleCloseCropsModal}
-    variant="contained"
-    color="primary"
-    disabled={loadingCrops || savingCrops}
-    startIcon={savingCrops ? <CircularProgress size={20} /> : null}
-  >
-    {savingCrops ? "Saving..." : "Save Selection"}
-  </Button>
-</DialogActions>
-
-</Dialog>
-
-
-            {/* ✅ Success/Error Snackbar - ORIGINAL UI PRESERVED */}
+            {/* Snackbar */}
             <Snackbar
                 open={snackbarOpen}
                 autoHideDuration={6000}
                 onClose={() => setSnackbarOpen(false)}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             >
-                <Alert 
-                    onClose={() => setSnackbarOpen(false)} 
-                    severity={submitSuccess ? "success" : "error"} 
+                <Alert
+                    onClose={() => setSnackbarOpen(false)}
+                    severity={submitSuccess ? "success" : "error"}
                     sx={{ width: '100%' }}
                 >
                     {snackbarMessage}

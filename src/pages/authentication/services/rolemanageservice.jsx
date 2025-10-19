@@ -59,6 +59,22 @@ const roleManageService = {
     }
   },
 
+
+
+  async fetchRoleById(roleId) {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await axios.get(
+        `${BASE_URL}/user-access/api/user-approval/fetch/role/${roleId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data.payload;
+    } catch (err) {
+      return { message: err.response?.data?.message || 'Error fetching role details.' };
+    }
+  },
+
+
   async saveOrUpdateRole(userData) {
     const token = localStorage.getItem('token');
     try {

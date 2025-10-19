@@ -35,7 +35,7 @@ const icons = {
    UsergroupAddOutlined,
   UserSwitchOutlined ,
 
-   UsergroupAddOutlined
+
 
 };
 
@@ -98,6 +98,7 @@ const userManagement = {
   url: '/rolelist',
   icon: icons.UserSwitchOutlined
 };
+
 
    // {
     //   id: 'util-workallocation',

@@ -560,6 +560,7 @@ const KeyPlotEntryNonBtr = () => {
               ...(btrTypeId === 2 && {
                 ownername: row.name || "",
                 address: row.address || "",
+                wardno: row.wardNo ? parseInt(row.wardNo) : null,
                 houseno: row.houseNo ? parseInt(row.houseNo) : null
               }),
               ...(btrTypeId === 3 && {
@@ -633,7 +634,7 @@ const KeyPlotEntryNonBtr = () => {
 
   const getTableHeaders = (lbId, villageName) => {
     const baseHeaders = ["Sl. No", "Village Block"];
-    const houseListHeaders = ["Name", "Address", "House No."];
+    const houseListHeaders = ["Name", "Address","Ward No.", "House No."];
     const cultivatorListHeaders = ["Name", "Address"];
     const thandaperHeaders = ["Name", "Address", "Thandaper No."];
     const othersHeaders = ["Name", "Address", "Main No.", "Sub No."];
@@ -951,21 +952,40 @@ const KeyPlotEntryNonBtr = () => {
                             )}
 
                             {currentListType === "House List" && (
-                              <TableCell align="center">
-                                <TextField
-                                  value={row.houseNo}
-                                  onChange={(e) =>
-                                    handleChange(
-                                      lb.id,
-                                      currentVillageName,
-                                      row.id,
-                                      "houseNo",
-                                      e.target.value
-                                    )
-                                  }
-                                />
-                              </TableCell>
+                              <>
+                                <TableCell align="center">
+                                  <TextField
+                                    value={row.wardNo}
+                                    onChange={(e) =>
+                                      handleChange(
+                                        lb.id,
+                                        currentVillageName,
+                                        row.id,
+                                        "wardNo",
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="Ward No."
+                                  />
+                                </TableCell>
+                                <TableCell align="center">
+                                  <TextField
+                                    value={row.houseNo}
+                                    onChange={(e) =>
+                                      handleChange(
+                                        lb.id,
+                                        currentVillageName,
+                                        row.id,
+                                        "houseNo",
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="House No."
+                                  />
+                                </TableCell>
+                              </>
                             )}
+
 
                             {currentListType === "Thandaper Number" && (
                               <TableCell align="center">

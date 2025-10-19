@@ -22,28 +22,44 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import btrservice from './btrservice';
 import authservice from 'pages/authentication/services/authservice';
 import mainapi from 'api/mainapi';
+import { width } from '@mui/system';
 
 // Define the columns for the data table
 const columns = (handleEdit, handleView,page,size) => [
- {
+{
     name: 'SL. NO',
     selector: (row, index) => (page - 1) * size + index + 1,
+    width: '80px', // Fixed width for SL. NO
+    minWidth: '80px',
   },
   // { name: 'District', selector: (row) => row.dcode, sortable: true },
   // { name: 'Taluk', selector: (row) => row.tcode, sortable: true },
   // { name: 'Village', selector: (row) => row.vcode, sortable: true },
-  { name: 'Local Body Name', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> },
- {
-  name: 'Village',
-  selector: (row) => {
-    const name = row.villageName?.toString();
-    return name
-      ? name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()
-      : <span style={{ color: '#888' }}>NA</span>;
-  }
-},
+  { 
+    name: 'Local Body Name', 
+    selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span>,
+    wrap: true, // Allow text wrapping
+    minWidth: '180px', // Set minimum width
+  },
+{
+    name: 'Village',
+    selector: (row) => {
+      const name = row.villageName?.toString();
+      return name
+        ? name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()
+        : <span style={{ color: '#888' }}>NA</span>;
+    },
+    wrap: true, // Allow text wrapping
+    width:'140px',
+    minWidth: '50px', // Set minimum width
+  },
 
-  { name: 'Block No.', selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  { 
+    name: 'Block No.', 
+    selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span>,
+    width: '120px', // Fixed width
+    minWidth: '120px',
+  },
   {
     name: 'Re-Survey No',
     selector: (row) =>
@@ -63,10 +79,16 @@ const columns = (handleEdit, handleView,page,size) => [
   // { name: 'Address', selector: (row) => row.lbcode, sortable: true },
 
   { name: 'Land Type', selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span> },
-  { name: 'Total Area(in Cents)', selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span> },
+   { 
+    name: 'Total Area (in Cents)', 
+    selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span>,
+    wrap: true, // Allow text wrapping
+    width:'190px',
+    minWidth: '150px', // Set minimum width
+  },
 
   {
-    name: 'View Detail',
+    name: 'View Details',
     cell: (row) => (
       <Button color="success" onClick={() => handleView(row)}>
         <VisibilityIcon />
@@ -161,13 +183,15 @@ const Btr = ({ zoneId }) => {
       // Adjust page to 0-based if your API expects it
       const apiPage = page - 1;
       const response = await btrservice.btr_lists_data(apiPage, size, filterText,resolvedZoneId);
-
+        console.log("response ",response)
       if (response?.payload?.data) {
+        
         // Add an indexOffset to each row for correct SL. NO display
         const indexedData = response.payload.data.map((item, index) => ({
           ...item,
           indexOffset: (page - 1) * size, // Calculate offset for current page
         }));
+        
         setData(indexedData);
         setTotalRecords(response.payload.totalCount);
         setTotalWetArea(response.payload.totalWetArea);
@@ -193,8 +217,9 @@ const Btr = ({ zoneId }) => {
     const BASE_URL = mainapi.USER_API;
     try {
         const token = localStorage.getItem('token');
+        alert(resolvedZoneId)
       // Ensure the URL is correct for your backend service
-      const response = await fetch(`${BASE_URL}/btr-service/btr-api/export?userId=${userId}`, {
+      const response = await fetch(`${BASE_URL}/btr-service/btr-api/export?userId=${resolvedZoneId}`, {
         headers: {
           Authorization: `Bearer ${token}` // Add token in Authorization header
         }
@@ -277,6 +302,10 @@ const Btr = ({ zoneId }) => {
               onChange={handleFilterChange}
               size="small"
               style={{ width: '200px' }}
+              inputProps={{
+              maxLength: 100 // Limit to 10 characters
+                }}
+              helperText={`${filterText.length}/100 characters`} // Show character count
             />
           </Stack>
         </Paper>

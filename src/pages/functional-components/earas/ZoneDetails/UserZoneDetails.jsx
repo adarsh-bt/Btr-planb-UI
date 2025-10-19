@@ -24,6 +24,7 @@ function UserZoneDetails({zoneId}) {
   const [localtype, setLocalType] = useState(null);
   const [zone, setZone] = useState(null);
   const [result, setResult] = useState(null);
+  const [zoneName, setZoneName] = useState('')
 
      const BASE_URL = mainapi.BASE_URL;
 
@@ -59,6 +60,7 @@ useEffect(() => {
       } else {
         console.log('data', result.payload);
         setResult(result.payload);
+        setZoneName(result.payload.zone_name)
         setData(result.payload.data);
       }
     } catch (error) {
@@ -116,7 +118,7 @@ if (error) {
         <Grid container sx={{ marginBottom: 2 }} alignItems="center">
           <Grid item xs={6}>
             <Typography variant="h3" sx={{ marginBottom: 2 }}>
-              Zone Details
+              Zone Details : {zoneName}
             </Typography>
           </Grid>
         </Grid>
@@ -149,7 +151,7 @@ if (error) {
                     Taluk:
                   </Typography>
                   <Typography variant="body1" align="center" sx={{ color: '#00796b' }}>
-                    {result.taluk}:
+                    {result.taluk}
                   </Typography>
                 </Grid>
                  <Grid item xs={6} sm={3} >

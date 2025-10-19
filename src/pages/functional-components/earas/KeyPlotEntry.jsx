@@ -270,8 +270,8 @@ useEffect(() => {
       case 'surveyNo':
         return !value ? 'Survey Number is required' :
                 !/^\d+$/.test(value) ? 'Survey Number must be numeric' : null;
-      case 'subDivNo':
-        return !value ? 'Sub Division Number is required' : null;
+      // case 'subDivNo':
+      //   return !value ? 'Sub Division Number is required' : null;
       case 'area':
         return !value ? 'Area is required' :
                 !/^\d*\.?\d+$/.test(value) ? 'Area must be a valid number' : null;
@@ -561,7 +561,7 @@ const areAllFieldsFilled = (lbId) => {
       row.village &&
       row.villageBlock &&
       row.surveyNo &&
-      row.subDivNo &&
+      // row.subDivNo &&
       row.area &&
       row.landType
     );
@@ -657,7 +657,7 @@ const areAllFieldsFilled = (lbId) => {
           KeyPlot Entry 
           {/* (Total Required: {TOTAL_REQUIRED}) */}
         </Typography>
-        {localBodies.length > 0 && (
+        {/* {localBodies.length > 0 && (
   <Paper elevation={3} sx={{ mb: 2 }}>
     <Box sx={{ 
       display: 'flex', 
@@ -709,7 +709,7 @@ const areAllFieldsFilled = (lbId) => {
       </Tabs>
     </Box>
   </Paper>
-)}
+)} */}
 
 
 
@@ -761,7 +761,8 @@ const areAllFieldsFilled = (lbId) => {
                     <Table stickyHeader>
                       <TableHead>
                         <TableRow>
-                          {["Sl. No", "Village", "Village Block", "Survey No.", "Sub Div No.", "Area (Cents)", "Land Type", "Actions"].map((col) => (
+                         {["Sl. No", "Local Body", "Village", "Village Block", "Survey No.", "Sub Div No.", "Area (Cents)", "Land Type", "Actions"].map((col) => (
+
                             <TableCell key={col} align="center" sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}>
                               {col}
                             </TableCell>
@@ -789,6 +790,24 @@ const areAllFieldsFilled = (lbId) => {
                                 )}
                               </Box>
                             </TableCell>
+                            <TableCell>
+                          <TextField
+                            select
+                            value={row.localBody || ""}
+                            onChange={(e) => handleChange(lb.id, row.id, "localBody", e.target.value)}
+                            fullWidth
+                            error={hasFieldError(lb.id, row.id, "localBody")}
+                            helperText={getFieldError(lb.id, row.id, "localBody")}
+                            size="small"
+                          >
+                            {localBodies.map((opt) => (
+                              <MenuItem key={opt.id} value={opt.name}>
+                                {opt.name}
+                              </MenuItem>
+                            ))}
+                          </TextField>
+                        </TableCell>
+
                             <TableCell>
                               <TextField
                                  select

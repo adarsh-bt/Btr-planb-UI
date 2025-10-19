@@ -131,7 +131,8 @@ const fetchCceCropDetails = async () => {
     setLoadingCrops(true);
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops`, {
+        const zoneid = authservice.getzone();
+        const response = await fetch(`${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops?zoneId=${zoneid}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -989,7 +990,7 @@ const handleCloseCropsModal = async () => {
         // Check if all rows have required data
         for (const keyplot of keyplotsData) {
             for (const row of keyplot.rows) {
-                if (!row.villageName || !row.block || !row.svNo || !row.sub || !row.area || !row.enumeratedArea) {
+                if (!row.villageName || !row.block || !row.svNo || !row.area || !row.enumeratedArea) {
                     return true;
                 }
             }
@@ -1118,7 +1119,18 @@ const handleCloseCropsModal = async () => {
 
                 {/* Keyplot Sections - ORIGINAL UI PRESERVED */}
                 {keyplotsData.map((keyplot) => {
-                    const isNewRowIncomplete = keyplot.rows.filter(r => r.isNew).some(r => !r.villageName || !r.block || !r.svNo || !r.sub || !r.area || !r.enumeratedArea);
+                    const isNewRowIncomplete = keyplot.rows.filter(r => r.isNew).some(r => !r.villageName || !r.block || !r.svNo || !r.area || !r.enumeratedArea);
+
+                    const entryRecommed = keyplot.rows
+                            .filter(r => r.isNew)
+                            .some(r => r.villageName && r.block && r.svNo && r.area);
+                    {/* if(entryRecommed){
+                       console.log("alert   ")
+                    }else{
+                        console.log("else >" )
+                    } */}
+                    
+                    console.log("entry recommed   ",entryRecommed)
                     const hasErrorInKeyplot = keyplot.rows.some(r => !!errors[`${keyplot.id}-${r.uniqueId}`]);
                     return (
                         <Box key={keyplot.id} sx={{ mt: 3, border: '1px solid #ccc', borderRadius: 1, overflowX: 'auto', bgcolor: 'white', p: 2 }}>
