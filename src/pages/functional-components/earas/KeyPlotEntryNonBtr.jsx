@@ -454,8 +454,9 @@ const KeyPlotEntryNonBtr = () => {
               address: "",
               houseNo: "",
               thandaperNo: "",
-              mainNo: "",
-              subNo: "",
+              thandapersubNo:"",
+              oldsvno: "",
+              oldsubno: "",
               surveyNo: "",
               subDivNo: "",
               area: "",
@@ -571,13 +572,13 @@ const KeyPlotEntryNonBtr = () => {
                 ownername: row.name || "",
                 address: row.address || "",
                 tpno: row.thandaperNo ? parseInt(row.thandaperNo) : null,
-                tbsubdivisionno: row.subDivNo ? parseInt(row.subDivNo) : null
+                tbsubdivisionno: row.thandapersubNo ? parseInt(row.thandapersubNo) : null
               }),
               ...(btrTypeId === 5 && {
                 ownername: row.name || "",
                 address: row.address || "",
-                mainno: row.mainNo ? parseInt(row.mainNo) : null,
-                subno: row.subNo || ""
+                oldsvno: row.oldsvno ? parseInt(row.oldsvno) : null,
+                oldsubno: row.oldsubno || ""
               })
             };
             
@@ -614,6 +615,7 @@ const KeyPlotEntryNonBtr = () => {
         
       } else if (result.status === 'Validation Failed') {
         setValidationErrors(result.errors || []);
+        console.log("ress  ",result)
         setShowErrorModal(true);
         console.error("Validation errors:", result.errors);
         toast.error(`Validation failed: ${result.errors?.length || 0} errors found`);
@@ -636,8 +638,8 @@ const KeyPlotEntryNonBtr = () => {
     const baseHeaders = ["Sl. No", "Village Block"];
     const houseListHeaders = ["Name", "Address","Ward No.", "House No."];
     const cultivatorListHeaders = ["Name", "Address"];
-    const thandaperHeaders = ["Name", "Address", "Thandaper No."];
-    const othersHeaders = ["Name", "Address", "Main No.", "Sub No."];
+    const thandaperHeaders = ["Name", "Address", "Thandaper No.","Thandaper Sub No."];
+    const othersHeaders = [ "Old Survey No.", "Old Sub No."];
     const finalHeaders = [
       "Survey No.",
       "Sub Div No.",
@@ -657,7 +659,7 @@ const KeyPlotEntryNonBtr = () => {
     if (currentListType === "Thandaper Number") {
       return [...baseHeaders, ...thandaperHeaders, ...finalHeaders];
     }
-    if (currentListType === "Others") {
+    if (currentListType === "Old Survey Number") {
       return [...baseHeaders, ...othersHeaders, ...finalHeaders];
     }
     return [...baseHeaders, ...finalHeaders];
@@ -918,7 +920,7 @@ const KeyPlotEntryNonBtr = () => {
                             {(currentListType === "House List" ||
                               currentListType === "Cultivators List" ||
                               currentListType === "Thandaper Number" ||
-                              currentListType === "Others") && (
+                              currentListType === "Old Survey Numbera") && (
                               <>
                                 <TableCell align="center">
                                   <TextField
@@ -988,6 +990,7 @@ const KeyPlotEntryNonBtr = () => {
 
 
                             {currentListType === "Thandaper Number" && (
+                              <>
                               <TableCell align="center">
                                 <TextField
                                   value={row.thandaperNo}
@@ -1002,19 +1005,34 @@ const KeyPlotEntryNonBtr = () => {
                                   }
                                 />
                               </TableCell>
+                              <TableCell align="center">
+                                <TextField
+                                  value={row.thandapersubNo}
+                                  onChange={(e) =>
+                                    handleChange(
+                                      lb.id,
+                                      currentVillageName,
+                                      row.id,
+                                      "thandapersubNo",
+                                      e.target.value
+                                    )
+                                  }
+                                />
+                              </TableCell>
+                              </>
                             )}
 
-                            {currentListType === "Others" && (
+                            {currentListType === "Old Survey Number" && (
                               <>
                                 <TableCell align="center">
                                   <TextField
-                                    value={row.mainNo}
+                                    value={row.oldsvno}
                                     onChange={(e) =>
                                       handleChange(
                                         lb.id,
                                         currentVillageName,
                                         row.id,
-                                        "mainNo",
+                                        "oldsvno",
                                         e.target.value
                                       )
                                     }
@@ -1022,13 +1040,13 @@ const KeyPlotEntryNonBtr = () => {
                                 </TableCell>
                                 <TableCell align="center">
                                   <TextField
-                                    value={row.subNo}
+                                    value={row.oldsubno}
                                     onChange={(e) =>
                                       handleChange(
                                         lb.id,
                                         currentVillageName,
                                         row.id,
-                                        "subNo",
+                                        "oldsubno",
                                         e.target.value
                                       )
                                     }
@@ -1290,7 +1308,7 @@ const KeyPlotEntryNonBtr = () => {
                 </Typography>
                 {validationErrors.slice(0, 5).map((error, index) => (
                   <Typography key={index} variant="body2" sx={{ mb: 0.5, color: '#f44336' }}>
-                    • Survey No: {error.resvno}, Sub Div: {error.resbdno} - {error.message}
+                     {error.message}
                   </Typography>
                 ))}
                 {validationErrors.length > 5 && (
