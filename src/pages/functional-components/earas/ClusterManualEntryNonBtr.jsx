@@ -384,6 +384,7 @@ const ClusterManualEntryNonBtr = () => {
                                 ownername: row.ownername || '',
                                 address: row.address || '',
                                 houseno: row.houseno || '',
+                                wardNumber: row.wardNumber || '',
                                 tpno: row.tpno || '',
                                 mainno: row.mainno || '',
                                 subno: row.subno || '',
@@ -465,6 +466,17 @@ const ClusterManualEntryNonBtr = () => {
                   onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'houseno')}
                 />
               </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Ward No."
+                  size="small"
+                  fullWidth
+                  type="number"
+                  value={row.wardNumber || ''}
+                  InputProps={{ readOnly: !isNewRow }}
+                  onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'wardNumber')}
+                />
+              </Grid>
             </>
           );
 
@@ -484,6 +496,16 @@ const ClusterManualEntryNonBtr = () => {
                   value={row.tpno || ''}
                   InputProps={{ readOnly: !isNewRow }}
                   onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'tpno')}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Thandaper Sub No."
+                  size="small"
+                  fullWidth
+                  value={row.tbsubdivisionno}
+                  InputProps={{ readOnly: !isNewRow }}
+                  onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'tbsubdivisionno')}
                 />
               </Grid>
             </>
@@ -616,6 +638,7 @@ const ClusterManualEntryNonBtr = () => {
                           baseRowData.ownername = row.ownername || '';
                           baseRowData.address = row.address || '';
                           baseRowData.houseno = row.houseno ? parseInt(row.houseno) : null;
+                          baseRowData.wardNumber = row.wardNumber ? parseInt(row.wardNumber) : null;
                           break;
                         case 'Cultivators List':
                           baseRowData.ownername = row.ownername || '';
@@ -974,7 +997,7 @@ const ClusterManualEntryNonBtr = () => {
         area: '', 
         enumeratedArea: '', 
         plot_id: '',
-        isNew: true
+        isNew: true,
       };
       
       if (currentBType) {
@@ -983,6 +1006,7 @@ const ClusterManualEntryNonBtr = () => {
             baseNewRow.ownername = '';
             baseNewRow.address = '';
             baseNewRow.houseno = '';
+            baseNewRow.wardNumber = ''; // NEW
             break;
           case 'Cultivators List':
             baseNewRow.ownername = '';
@@ -1311,6 +1335,16 @@ const ClusterManualEntryNonBtr = () => {
                     }
                   />
                 </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField
+                    label="Ward No."
+                    size="small"
+                    fullWidth
+                    value={row.wardNumber}
+                    InputProps={{ readOnly }}
+                    onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, "wardNumber")}
+                  />
+                </Grid>
               </>
             );
           }
@@ -1357,6 +1391,18 @@ const ClusterManualEntryNonBtr = () => {
                     InputProps={{ readOnly }}
                     onChange={(e) =>
                       handleInputChange(e, keyplot.id, row.uniqueId, 'tpno')
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField
+                    label="Thandaper Sub No."
+                    size="small"
+                    fullWidth
+                    value={row.tbsubdivisionno}
+                    InputProps={{ readOnly }}
+                    onChange={(e) =>
+                      handleInputChange(e, keyplot.id, row.uniqueId, 'tbsubdivisionno')
                     }
                   />
                 </Grid>

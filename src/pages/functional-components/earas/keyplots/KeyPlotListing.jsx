@@ -705,6 +705,7 @@ const KeyPlotListing = ({zoneId}) => {
                             <ViewIcon fontSize="small" />
                           </Button>
                           <Button
+                          disabled={true}
                             sx={{ color: 'error.main', minWidth: 'unset', px: 0.5 }}
                             size="small"
                             onClick={() => handleOpenRemoveDialog(row)}

@@ -42,6 +42,9 @@ const ZoneSettings = Loadable(lazy(() => import('pages/functional-components/ear
 const SettingsMenu = Loadable(lazy(() => import('pages/functional-components/earas/SettingsMenu')));
 const CCE_crop_selection = Loadable(lazy(() => import('pages/functional-components/earas/CceCropSelection')));
 
+const Form1_menus = Loadable(lazy(() => import('pages/functional-components/earas/form1/form1menus')));
+const LandUtilization = Loadable(lazy(() => import('pages/functional-components/earas/form1/LandUtilization')));
+
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
 
 const RoleList = Loadable(lazy(() => import('pages/usermanage/RoleList')));
@@ -52,7 +55,7 @@ const Approvel = Loadable(lazy(() => import('pages/functional-components/approve
 
 const CCE_menus = Loadable(lazy(() => import('pages/functional-components/earas/cce_menus')));
 const CCE_plotlist = Loadable(lazy(() => import('pages/functional-components/earas/cce_plotlist')));
-const AvailableCcePlots = Loadable(lazy(() => import('pages/functional-components/form1/AvailableCcePlotsTable')));
+const AvailableCcePlots = Loadable(lazy(() => import('pages/functional-components/earas/form1/AvailableCcePlotsTable')));
 
 // planB
  const KeyPlotEntry = Loadable(lazy(() => import('pages/functional-components/earas/KeyPlotEntry')));
@@ -355,6 +358,27 @@ const MainRoutes = {
     //     </PrivateRoute>
     //   )
     // },
+
+    
+    {
+      path: '/schemes/earas/form1',
+      element: (
+        <PrivateRoute>
+          <Form1_menus/>
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/form1/land_utilization',
+      element: (
+        <PrivateRoute>
+          <LandUtilization/>
+        </PrivateRoute>
+      )
+    },
+
+
+
 
     {
       path: '/schemes/earas/CCE_crop_selection',

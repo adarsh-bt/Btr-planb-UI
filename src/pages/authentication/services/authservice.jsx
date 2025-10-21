@@ -73,11 +73,8 @@ console.log("err ",decryptedError.message)
   static async registration(userData) {
     try {
       console.log('userdataregister > ', userData);
-      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/user-registration/save-user`, userData, {
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      });
+      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/user-registration/save-user`, userData
+      );
       console.log('ress   ', response.status);
       return response;
     } catch (err) {
