@@ -358,6 +358,8 @@ const ClusterManualEntryNonBtr = () => {
                             area: data.payload.areaCents || '',
                             subOptions: [],
                             plot_id: data.payload.plot_id || '',
+                            oldsvno: data.payload.oldsvno || '', // ensure present
+                            oldsubno: data.payload.oldsubno || '', // ensure present
                             isExisting: true,
                             uniqueId: nextRowId.current++
                         }]
@@ -386,8 +388,8 @@ const ClusterManualEntryNonBtr = () => {
                                 houseno: row.houseno || '',
                                 wardNumber: row.wardNumber || '',
                                 tpno: row.tpno || '',
-                                mainno: row.mainno || '',
-                                subno: row.subno || '',
+                                oldsvno: row.oldsvno || '',
+                                oldsubno: row.oldsubno || '',
                                 tbsubdivisionno: row.tbsubdivisionno || '',
                                 isExisting: true,
                                 uniqueId: nextRowId.current++
@@ -652,8 +654,8 @@ const ClusterManualEntryNonBtr = () => {
                         case 'Others':
                           baseRowData.ownername = row.ownername || '';
                           baseRowData.address = row.address || '';
-                          baseRowData.mainno = row.mainno ? parseInt(row.mainno) : null;
-                          baseRowData.subno = row.subno || '';
+                          baseRowData.oldsvno = row.oldsvno ? parseInt(row.oldsvno) : null;
+                          baseRowData.oldsubno = row.oldsubno || '';
                           break;
                       }
                     }
@@ -1020,8 +1022,8 @@ const ClusterManualEntryNonBtr = () => {
           case 'Others':
             baseNewRow.ownername = '';
             baseNewRow.address = '';
-            baseNewRow.mainno = '';
-            baseNewRow.subno = '';
+            baseNewRow.oldsvno = '';
+            baseNewRow.oldsubno = '';
             break;
         }
       }
@@ -1437,28 +1439,28 @@ const ClusterManualEntryNonBtr = () => {
                   }
                 />
               </Grid>
+              {/* Only Old Survey fields */}
               <Grid item xs={12} sm={6} md={2}>
                 <TextField
-                  label="Main No."
+                  label="Old Survey No."
                   size="small"
                   fullWidth
-                  type="number"
-                  value={row.mainno || ''}
+                  value={row.oldsvno || ''}
                   InputProps={{ readOnly }}
                   onChange={(e) =>
-                    handleInputChange(e, keyplot.id, row.uniqueId, 'mainno')
+                    handleInputChange(e, keyplot.id, row.uniqueId, 'oldsvno')
                   }
                 />
               </Grid>
               <Grid item xs={12} sm={6} md={2}>
                 <TextField
-                  label="Sub No."
+                  label="Old Sub No."
                   size="small"
                   fullWidth
-                  value={row.subno || ''}
+                  value={row.oldsubno || ''}
                   InputProps={{ readOnly }}
                   onChange={(e) =>
-                    handleInputChange(e, keyplot.id, row.uniqueId, 'subno')
+                    handleInputChange(e, keyplot.id, row.uniqueId, 'oldsubno')
                   }
                 />
               </Grid>
