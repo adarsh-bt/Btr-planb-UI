@@ -756,7 +756,7 @@ console.log("okk",btrData)
               <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                // to="/schemes/earas/form1"
+                to="/schemes/earas/form1"
                 // /schemes/earas/cluster_manual_entry
                 sx={{
                   textDecoration: 'none',

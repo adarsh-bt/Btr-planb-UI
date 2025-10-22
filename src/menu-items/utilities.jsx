@@ -99,13 +99,13 @@ const userManagement = {
   icon: icons.UserSwitchOutlined
 };
 
-   // {
-    //   id: 'util-workallocation',
-    //   title: 'Work Allocation Report',
-    //   type: 'item',
-    //   url: '/workallocation',
-    //   icon: icons.FormOutlined
-    // }
+  const workallocation = {
+      id: 'util-workallocation',
+      title: 'Work Allocation Report',
+      type: 'item',
+      url: '/workallocation',
+      icon: icons.FormOutlined
+    };
 
 // Role-based logic with fallback
 if (role === 'IT Admin' || role === 'District Level Approver') {
@@ -122,7 +122,8 @@ if (role === 'IT Admin' || role === 'District Level Approver') {
     zoneDetails,
     viewBtr,
     keyPlot,
-    clusterFormation
+    clusterFormation,
+    workallocation
   );
 } else {
   // Fallback for undefined/empty/other roles

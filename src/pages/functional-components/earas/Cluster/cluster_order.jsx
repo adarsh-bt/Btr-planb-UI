@@ -9,7 +9,12 @@ import {
   Chip,
   Stack,
   Tooltip,
-  Button
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  IconButton,
+  Paper,
 } from '@mui/material';
 import LocalFloristIcon from '@mui/icons-material/LocalFlorist';
 import axios from 'axios';
@@ -17,6 +22,12 @@ import Breadcrumb from 'routes/Breadcrumb';
 import LoadingScreen from 'utils/loadingscreen';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import authservice from 'pages/authentication/services/authservice';
+import CloseIcon from '@mui/icons-material/Close';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import MapIcon from '@mui/icons-material/Map';
+import KeyIcon from '@mui/icons-material/VpnKey';
+import ApartmentIcon from '@mui/icons-material/Apartment';
 import mainapi from 'api/mainapi';
 
 
@@ -27,6 +38,8 @@ function ClusterSeatMap({zoneId}) {
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [openModal, setOpenModal] = useState(false);
+  const [selectedCluster, setSelectedCluster] = useState(null);
 
     const [resolvedZoneId, setResolvedZoneId] = useState(() => {
     const role = authservice.getrole(); // Get the role
@@ -97,12 +110,15 @@ function ClusterSeatMap({zoneId}) {
 
   const navigate = useNavigate();
 
-const handleClusterClick = (syNo, slNo) => {
-  const encodedSyNo = encodeURIComponent(syNo);
-  const encodedSlNo = encodeURIComponent(slNo);
-   navigate(`/schemes/earas/cluster_manual_entry?No=${encodedSyNo}&slno=${encodedSlNo}`);
+// const handleClusterClick = (syNo, slNo) => {
+//   const encodedSyNo = encodeURIComponent(syNo);
+//   const encodedSlNo = encodeURIComponent(slNo);
+//    navigate(`/schemes/earas/cluster_manual_entry?No=${encodedSyNo}&slno=${encodedSlNo}`);
+// };
+const handleClusterClick = (cluster) => {
+  setSelectedCluster(cluster);
+  setOpenModal(true);
 };
-
 
   // Animated border style for 'Ongoing' clusters to make them stand out
   const ongoingBorderAnimation = {
@@ -258,7 +274,9 @@ const handleClusterClick = (syNo, slNo) => {
 
             return (
               <Grid item xs={4} sm={3} md={2} lg={1} xl={1} key={cluster.keyplotId}
-                onClick={() => handleClusterClick(cluster.keyplotId, index + 1)}>
+                // onClick={() => handleClusterClick(cluster.keyplotId, index + 1)}>
+                onClick={() => handleClusterClick(cluster)}>
+
                 <Tooltip
                   title={ // Tooltip content to show detailed cluster information on hover
                     <Box>
@@ -346,6 +364,113 @@ const handleClusterClick = (syNo, slNo) => {
     </Box>
      </>
         )}
+
+        <Dialog
+  open={openModal}
+  onClose={() => setOpenModal(false)}
+  maxWidth="sm"
+  fullWidth
+>
+  <DialogTitle
+    sx={{
+      m: 0,
+      p: 2,
+      background: '#04255e',
+      color: '#fff',
+      fontWeight: 'bold',
+      position: 'relative',
+    }}
+  >
+    {selectedCluster
+      ? `Cluster SL No: ${selectedCluster.clusterNo ?? 'N/A'}`
+      : 'Cluster Details'}
+    <IconButton
+      aria-label="close"
+      onClick={() => setOpenModal(false)}
+      sx={{
+        position: 'absolute',
+        right: 8,
+        top: 8,
+        color: '#fff',
+      }}
+    >
+      <CloseIcon />
+    </IconButton>
+  </DialogTitle>
+
+  <DialogContent
+    sx={{
+      backgroundColor: '#f9f9f9',
+      p: 3,
+    }}
+  >
+    <Grid container spacing={3} sx={{ marginTop: '1rem' }}>
+      {/* Open Cluster Form */}
+      <Grid item xs={12} sm={6}>
+        <Paper
+          onClick={() => {
+            setOpenModal(false);
+            navigate(
+              `/schemes/earas/cluster_manual_entry?No=${encodeURIComponent(
+                selectedCluster.keyplotId
+              )}&slno=${encodeURIComponent(selectedCluster.clusterNo)}`
+            );
+          }}
+          sx={{
+            p: 2,
+            textAlign: 'center',
+            borderRadius: 2,
+            cursor: 'pointer',
+            transition: '0.3s',
+            '&:hover': {
+              backgroundColor: '#e3f2fd',
+              transform: 'translateY(-3px)',
+              boxShadow: 3,
+            },
+          }}
+        >
+          <OpenInNewIcon color="primary" sx={{ fontSize: 38 }} />
+          <Typography variant="subtitle2" sx={{ mt: 1 }}>
+            Open Cluster Form
+          </Typography>
+        </Paper>
+      </Grid>
+
+      {/* View Cluster Details */}
+      <Grid item xs={12} sm={6}>
+        <Paper
+          onClick={() => {
+            setOpenModal(false);
+            navigate(
+              // `/schemes/earas/form1?No=${encodeURIComponent(
+              //   selectedCluster.keyplotId
+              // )}&slno=${encodeURIComponent(selectedCluster.btrid)}`
+              `/schemes/earas/form1`
+            );
+          }}
+          sx={{
+            p: 2,
+            textAlign: 'center',
+            borderRadius: 2,
+            cursor: 'pointer',
+            transition: '0.3s',
+            '&:hover': {
+              backgroundColor: '#e3f2fd',
+              transform: 'translateY(-3px)',
+              boxShadow: 3,
+            },
+          }}
+        >
+          <VisibilityIcon color="primary" sx={{ fontSize: 38 }} />
+          <Typography variant="subtitle2" sx={{ mt: 1 }}>
+            View Form Details
+          </Typography>
+        </Paper>
+      </Grid>
+    </Grid>
+  </DialogContent>
+</Dialog>
+
     </Grid>
   );
 }

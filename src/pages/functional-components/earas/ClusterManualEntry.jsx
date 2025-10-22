@@ -527,7 +527,7 @@ const handleSubmit = async () => {
                             svNo: svNo,
                             subNo: row.sub, // Keep as string
                             area: area,
-                            bcode: isNaN(parseInt(row.block)) ? row.block : parseInt(row.block),
+                            bcode: row.block ? row.block : row.block,
                             village: row.villageId
                         };
 
