@@ -120,6 +120,8 @@ const ClusterManualEntryNonBtr = () => {
     const [currentBType, setCurrentBType] = useState(null);
     const [nonBtrTypeMapping, setNonBtrTypeMapping] = useState({});
 
+    const [updatingRow, setUpdatingRow] = useState(null);
+
     // Fetch active btypes from API
     useEffect(() => {
       const fetchActiveBTypes = async () => {
@@ -300,12 +302,13 @@ const ClusterManualEntryNonBtr = () => {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            
+           
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
             const data = await response.json();
+             console.log("response >> ",data)
             const keyplotBTypeId = data.payload.btr_id;
             const keyplotBTypeName = data.payload.btr_type;
             
@@ -386,8 +389,9 @@ const ClusterManualEntryNonBtr = () => {
                                 ownername: row.ownername || '',
                                 address: row.address || '',
                                 houseno: row.houseno || '',
-                                wardNumber: row.wardNumber || '',
+                                ward_number: row.ward_number || '',
                                 tpno: row.tpno || '',
+                                tbsubdivisionno: row.tbsubdivisionno || '',
                                 oldsvno: row.oldsvno || '',
                                 oldsubno: row.oldsubno || '',
                                 tbsubdivisionno: row.tbsubdivisionno || '',
@@ -474,9 +478,9 @@ const ClusterManualEntryNonBtr = () => {
                   size="small"
                   fullWidth
                   type="number"
-                  value={row.wardNumber || ''}
+                  value={row.ward_number || ''}
                   InputProps={{ readOnly: !isNewRow }}
-                  onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'wardNumber')}
+                  onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'ward_number')}
                 />
               </Grid>
             </>
@@ -640,7 +644,7 @@ const ClusterManualEntryNonBtr = () => {
                           baseRowData.ownername = row.ownername || '';
                           baseRowData.address = row.address || '';
                           baseRowData.houseno = row.houseno ? parseInt(row.houseno) : null;
-                          baseRowData.wardNumber = row.wardNumber ? parseInt(row.wardNumber) : null;
+                          baseRowData.ward_number = row.ward_number ? parseInt(row.ward_number) : null;
                           break;
                         case 'Cultivators List':
                           baseRowData.ownername = row.ownername || '';
@@ -650,6 +654,7 @@ const ClusterManualEntryNonBtr = () => {
                           baseRowData.ownername = row.ownername || '';
                           baseRowData.address = row.address || '';
                           baseRowData.tpno = row.tpno ? parseInt(row.tpno) : null;
+                          baseRowData.tbsubdivisionno = row.tbsubdivisionno ? parseInt(row.tbsubdivisionno) : null;
                           break;
                         case 'Others':
                           baseRowData.ownername = row.ownername || '';
@@ -981,9 +986,67 @@ const ClusterManualEntryNonBtr = () => {
       validateAndSetData(newData);
     };
 
-    const handleInputBlur = (e, keyplotId, rowUniqueId, field) => {
-        // Optional: extra validation per field
-    };
+    // In ClusterManualEntryNonBtr component, replace the existing handleInputBlur with this:
+
+const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
+  const { value } = e.target;
+  const row = keyplotsData.find(kp => kp.id === keyplotId)?.rows.find(r => r.uniqueId === rowUniqueId);
+
+  // 1. Only trigger for the 'enumeratedArea' field on an existing row that has a b_id
+  if (field !== 'enumeratedArea' || !row || row.isNew || !row.b_id) {
+    return; // Do nothing if it's not the right field or it's a new row
+  }
+
+  // 2. Prevent API call if value is empty or invalid
+  const enumeratedArea = parseFloat(value);
+  if (isNaN(enumeratedArea)) {
+    return;
+  }
+  
+  setUpdatingRow(row.uniqueId); // Show loading spinner for this row
+  setSnackbarMessage(''); // Clear previous messages
+
+  try {
+    const token = authservice.gettoken();
+    const userId = authservice.userid();
+
+    if (!token || !userId) {
+      throw new Error("Authentication failed. Please log in again.");
+    }
+
+    // 3. Make the PATCH request to the new endpoint
+    const response = await fetch(`${BASE_URL}/btr-service/cluster-api/update-sideplot/${row.b_id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        enumeratedArea: enumeratedArea,
+        userId: userId,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `HTTP error! Status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    setSnackbarMessage(result.message || 'Plot updated successfully!');
+    setSubmitSuccess(true);
+    setSnackbarOpen(true);
+
+  } catch (error) {
+    console.error('Error updating plot:', error);
+    setSnackbarMessage(`Update failed: ${error.message}`);
+    setSubmitSuccess(false);
+    setSnackbarOpen(true);
+  } finally {
+    setUpdatingRow(null); // Hide loading spinner
+  }
+};
+
 
     const handleAddRow = (keyplotId) => {
       const newData = JSON.parse(JSON.stringify(keyplotsData));
@@ -1008,7 +1071,7 @@ const ClusterManualEntryNonBtr = () => {
             baseNewRow.ownername = '';
             baseNewRow.address = '';
             baseNewRow.houseno = '';
-            baseNewRow.wardNumber = ''; // NEW
+            baseNewRow.ward_number = ''; // NEW
             break;
           case 'Cultivators List':
             baseNewRow.ownername = '';
@@ -1018,6 +1081,8 @@ const ClusterManualEntryNonBtr = () => {
             baseNewRow.ownername = '';
             baseNewRow.address = '';
             baseNewRow.tpno = '';
+            baseNewRow.tbsubdivisionno = '';
+
             break;
           case 'Others':
             baseNewRow.ownername = '';
@@ -1233,22 +1298,30 @@ const ClusterManualEntryNonBtr = () => {
                     </Grid>
 
                     <Grid item xs={12} sm={6} md={4}>
-                    <TextField
+                      <TextField
                         label="Enum. Area"
                         size="small"
                         fullWidth
                         type="number"
                         value={row.enumeratedArea}
                         onChange={(e) =>
-                        handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')
+                          handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')
                         }
+                        // This onBlur will now trigger the API call
                         onBlur={(e) =>
-                        handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')
+                          handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')
                         }
                         error={hasError}
                         helperText={hasError ? errors[errorKey] : ''}
-                    />
+                        // Add InputProps to show a loading spinner during update
+                        InputProps={{
+                          endAdornment: updatingRow === row.uniqueId ? (
+                            <CircularProgress color="inherit" size={20} />
+                          ) : null,
+                        }}
+                      />
                     </Grid>
+
 
                     {/* Row 3: BType-specific fields laid out responsively */}
                     {(() => {
@@ -1342,9 +1415,9 @@ const ClusterManualEntryNonBtr = () => {
                     label="Ward No."
                     size="small"
                     fullWidth
-                    value={row.wardNumber}
+                    value={row.ward_number}
                     InputProps={{ readOnly }}
-                    onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, "wardNumber")}
+                    onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, "ward_number")}
                   />
                 </Grid>
               </>
@@ -1402,7 +1475,7 @@ const ClusterManualEntryNonBtr = () => {
                     size="small"
                     fullWidth
                     value={row.tbsubdivisionno}
-                    InputProps={{ readOnly }}
+                    // InputProps={{ readOnly }}
                     onChange={(e) =>
                       handleInputChange(e, keyplot.id, row.uniqueId, 'tbsubdivisionno')
                     }
