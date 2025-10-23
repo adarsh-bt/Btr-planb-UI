@@ -847,7 +847,7 @@ function Form1_menus() {
                   backgroundColor: '#e8f5e9',
                   borderRight: '1px solid #e0e0e0'
                 }}>
-                  <Typography variant="subtitle1" fontWeight="bold">TOTALS</Typography>
+                  <Typography variant="subtitle1" fontWeight="bold">TOTAL</Typography>
                 </TableCell>
                 <TableCell align="right"><Typography variant="subtitle1" fontWeight="bold">{totals.netAreasSown}</Typography></TableCell>
                 <TableCell align="right"><Typography variant="subtitle1" fontWeight="bold">{totals.currentFallowArea}</Typography></TableCell>
