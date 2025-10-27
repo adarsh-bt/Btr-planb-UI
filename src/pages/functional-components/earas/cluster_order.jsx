@@ -94,6 +94,7 @@ const [selectedCluster, setSelectedCluster] = useState(null);
 const handleClusterClick = (syNo, slNo) => {
   const encodedSyNo = encodeURIComponent(syNo);
   const encodedSlNo = encodeURIComponent(slNo);
+  console.log(syNo, "tttt")
   navigate(`/schemes/earas/cluster_manual_entry?No=${encodedSyNo}&slno=${encodedSlNo}`);
 };
 

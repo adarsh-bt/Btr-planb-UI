@@ -99,6 +99,7 @@ const userManagement = {
   icon: icons.UserSwitchOutlined
 };
 
+
   const workallocation = {
       id: 'util-workallocation',
       title: 'Work Allocation Report',

@@ -38,7 +38,7 @@ const BASE_URL = mainapi.BASE_URL;
 const FORM_URL = mainapi.FORM_API;
 
 // --- Constant for Side Plot Dropdown ---
-const SIDE_PLOT_OPTIONS = ['N1', 'E1', 'S1', 'W1', 'N2', 'E2', 'S2', 'W2'];
+const SIDE_PLOT_OPTIONS = ['N1','N2','N3','N4','E1','E2','E3','E4','S1','S2','S3','S4','W1', 'W2', 'W3', 'W4'];
 
 // --- Sample Data for Dropdowns & Modal ---
 const cropOptions = [
@@ -93,6 +93,8 @@ const ClusterFormUI = () => {
     const [submitSuccess, setSubmitSuccess] = useState(false);
     const [submitError, setSubmitError] = useState('');
     
+    const [currentFormPlots, setCurrentFormPlots] = useState(new Map());
+    
     const nextRowId = useRef(0);
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [snackbarOpen1, setSnackbarOpen1] = useState(false);
@@ -115,6 +117,13 @@ const ClusterFormUI = () => {
     const [apiCropsData, setApiCropsData] = useState(null);
     const [loadingApiCrops, setLoadingApiCrops] = useState(false);
 
+    const [validationInfo, setValidationInfo] = useState(null);
+    const [isValidationDialogOpen, setIsValidationDialogOpen] = useState(false);
+    const [validatingRow, setValidatingRow] = useState(null);
+const [subdivisionDialogOpen, setSubdivisionDialogOpen] = useState(false);
+const [availableSubdivisions, setAvailableSubdivisions] = useState([]);
+const [selectedSubdivision, setSelectedSubdivision] = useState('');
+const [pendingPlot, setPendingPlot] = useState(null);
     
     const [keyplotDetails, setKeyplotDetails] = useState({
         villageBlock: '',
@@ -139,7 +148,6 @@ const fetchCceCropDetails = async () => {
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
         const data = await response.json();
-        console.log('CCE Crop Details:', data);
         
         // Ensure data is always an array
         const cropData = Array.isArray(data) ? data : (data.crops || data.payload || []);
@@ -157,6 +165,286 @@ const fetchCceCropDetails = async () => {
         setLoadingCrops(false);
     }
 };
+
+const handleUseRecommendedPlot = (type) => {
+    if (!validatingRow || !validationInfo) return;
+
+    const { keyplotId, rowUniqueId } = validatingRow;
+    const newData = JSON.parse(JSON.stringify(keyplotsData));
+    const keyplot = newData.find(k => k.id === keyplotId);
+    const row = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
+
+    if (row) {
+        // ✅ IMPORTANT: Set the plot_id from validation response
+        row.plot_id = validationInfo.id; // This is the actual plot ID from backend
+        row.area = validationInfo.totalcent.toString();
+
+        if (type === 'remaining') {
+            row.enumeratedArea = validationInfo.remainingArea.toFixed(2);
+        } else {
+            row.enumeratedArea = '';
+        }
+    }
+
+    setKeyplotsData(newData);
+    setIsValidationDialogOpen(false);
+    setValidationInfo(null);
+    setValidatingRow(null);
+};
+
+const renderValidationDialogContent = () => {
+    if (!validationInfo) return null;
+
+    if (validationInfo.isFromCurrentForm) {
+        return (
+            <Box>
+                <DialogContentText sx={{ mb: 2, color: 'warning.main' }}>
+                    ⚠️ This plot is already used in the current form in: <strong>{validationInfo.location}</strong>
+                </DialogContentText>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Total Area:</strong> {validationInfo.totalArea} cents
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Already Used:</strong> {validationInfo.usedArea} cents
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 2 }}>
+                    <strong>Remaining Area:</strong> {validationInfo.remainingArea.toFixed(2)} cents
+                </Typography>
+            </Box>
+        );
+    } else {
+        return (
+            <Box>
+                <DialogContentText sx={{ mb: 2 }}>
+                    {validationInfo.message}
+                </DialogContentText>
+                {validationInfo.totalcent && (
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                        <strong>Total Area:</strong> {validationInfo.totalcent} cents
+                    </Typography>
+                )}
+                {validationInfo.remainingArea > 0 && (
+                    <Typography variant="body2" sx={{ mb: 2 }}>
+                        <strong>Remaining Area:</strong> {validationInfo.remainingArea.toFixed(2)} cents
+                    </Typography>
+                )}
+            </Box>
+        );
+    }
+};
+const handleRejectPlot = () => {
+    if (!validatingRow) return;
+
+    const { keyplotId, rowUniqueId } = validatingRow;
+    const newData = JSON.parse(JSON.stringify(keyplotsData));
+    const keyplot = newData.find(k => k.id === keyplotId);
+    const row = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
+
+    // Clear the inputs for the rejected plot
+    if (row) {
+        row.svNo = '';
+        row.sub = '';
+        row.area = '';
+        row.enumeratedArea = '';
+    }
+
+    setKeyplotsData(newData);
+    setIsValidationDialogOpen(false);
+    setSnackbarMessage("This plot cannot be used. Please enter a different one.");
+    setSnackbarOpen(true);
+};
+const checkPlotUsageInCurrentForm = (plotIdentifier, currentRowUniqueId) => {
+    const allRows = keyplotsData.flatMap(kp => kp.rows);
+    const duplicateRows = allRows.filter(row => {
+        const rowPlotIdentifier = `${row.villageId}-${row.block}-${row.svNo}-${row.sub || ''}`;
+        return rowPlotIdentifier === plotIdentifier && row.uniqueId !== currentRowUniqueId;
+    });
+
+    if (duplicateRows.length === 0) {
+        return { isUsed: false };
+    }
+
+    // Calculate total area and used area
+    const totalArea = parseFloat(duplicateRows[0].area) || 0;
+    const usedArea = duplicateRows.reduce((sum, row) => sum + (parseFloat(row.enumeratedArea) || 0), 0);
+    const remainingArea = totalArea - usedArea;
+
+    const locations = duplicateRows.map(row => {
+        const keyplot = keyplotsData.find(kp => kp.rows.some(r => r.uniqueId === row.uniqueId));
+        return keyplot ? keyplot.label : 'Unknown';
+    });
+
+    return {
+        isUsed: true,
+        location: locations.join(', '),
+        totalArea,
+        usedArea,
+        remainingArea
+    };
+};
+
+const handlePlotValidation = async (keyplotId, rowUniqueId) => {
+    const keyplot = keyplotsData.find(k => k.id === keyplotId);
+    if (!keyplot) return;
+
+    const row = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
+    if (!row || !row.villageId || !row.block || !row.svNo) {
+        return;
+    }
+
+    // First check if this plot is already used in the current form
+    const plotIdentifier = `${row.villageId}-${row.block}-${row.svNo}-${row.sub || ''}`;
+    const existingUsageInForm = checkPlotUsageInCurrentForm(plotIdentifier, rowUniqueId);
+
+    if (existingUsageInForm.isUsed) {
+        // Plot is already used in current form - show UI validation
+        setValidationInfo({
+            message: `This plot is already used in ${existingUsageInForm.location}.`,
+            totalcent: existingUsageInForm.totalArea,
+            remainingArea: existingUsageInForm.remainingArea,
+            isFromCurrentForm: true
+        });
+        setValidatingRow({ keyplotId, rowUniqueId });
+        setIsValidationDialogOpen(true);
+        return;
+    }
+
+    // If not found in current form, check with backend
+    try {
+        const token = authservice.gettoken();
+        const zoneId = authservice.getzone();
+        
+        const payload = {
+            vcode: row.villageId,
+            bcode: row.block,
+            resvno: parseInt(row.svNo, 10),
+            resbdno: row.sub && row.sub.trim() !== "" ? row.sub.trim() : null,
+            zoneId: parseInt(zoneId, 10),
+        };
+
+        console.log('Sending validation payload:', payload);
+
+        const response = await fetch(`${BASE_URL}/btr-service/api/btr-data/validate-duplicate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const responseText = await response.text();
+        let data = {};
+        
+        try {
+            data = responseText ? JSON.parse(responseText) : {};
+        } catch (parseError) {
+            console.error('Failed to parse response:', parseError);
+            throw new Error('Invalid response from server');
+        }
+
+        if (response.status === 409 || response.ok) {
+            console.log('Validation result:', data);
+            
+            if (response.status === 409) {
+                if (data.availableSubdivisions && data.availableSubdivisions.length > 0) {
+                    setAvailableSubdivisions(data.availableSubdivisions);
+                    setPendingPlot({ keyplotId, rowUniqueId, validationInfo: data });
+                    setSubdivisionDialogOpen(true);
+                } else {
+                    setValidationInfo(data);
+                    setValidatingRow({ keyplotId, rowUniqueId });
+                    setIsValidationDialogOpen(true);
+                }
+            } else {
+                setSnackbarMessage("Plot is available for use.");
+                setSnackbarOpen(true);
+            }
+        } else {
+            throw new Error(data.message || `Validation failed: ${response.status}`);
+        }
+    } catch (error) {
+        console.error("Error validating duplicate plot:", error);
+        setSnackbarMessage(`Error: ${error.message}`);
+        setSnackbarOpen(true);
+    }
+};
+
+// New function to fetch available subdivisions when user enters only survey number
+const fetchAvailableSubdivisions = async (villageId, block, svNo, keyplotId, rowUniqueId) => {
+    try {
+        const token = authservice.gettoken();
+        const zoneId = authservice.getzone();
+        
+        const payload = {
+            vcode: villageId,
+            bcode: block,
+            resvno: parseInt(svNo, 10),
+            resbdno: null, // Explicitly null to get all subdivisions
+            zoneId: parseInt(zoneId, 10),
+        };
+
+        console.log('Fetching subdivisions with payload:', payload);
+
+        const response = await fetch(`${BASE_URL}/btr-service/api/btr-data/validate-duplicate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (response.status === 409) {
+            const data = await response.json();
+            if (data.availableSubdivisions && data.availableSubdivisions.length > 0) {
+                console.log('Found subdivisions for survey number:', data.availableSubdivisions);
+                setAvailableSubdivisions(data.availableSubdivisions);
+                setPendingPlot({ 
+                    keyplotId, 
+                    rowUniqueId, 
+                    validationInfo: data,
+                    isSubdivisionSelection: true 
+                });
+                setSubdivisionDialogOpen(true);
+            }
+        }
+    } catch (error) {
+        console.error("Error fetching subdivisions:", error);
+    }
+};
+// Handle subdivision selection
+// Update the subdivision selection handler
+const handleSubdivisionSelect = () => {
+    if (!pendingPlot || !selectedSubdivision) return;
+
+    const { keyplotId, rowUniqueId, validationInfo, isSubdivisionSelection } = pendingPlot;
+    const newData = JSON.parse(JSON.stringify(keyplotsData));
+    const keyplot = newData.find(k => k.id === keyplotId);
+    const row = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
+
+    if (row) {
+        row.sub = selectedSubdivision;
+        
+        // If this was a subdivision selection (user entered only survey number initially),
+        // we can auto-fill the area from the validation info
+        if (isSubdivisionSelection && validationInfo && validationInfo.totalcent) {
+            row.area = validationInfo.totalcent.toString();
+        } else if (validationInfo && validationInfo.totalcent) {
+            // For normal cases, use the total area
+            row.area = validationInfo.totalcent.toString();
+        }
+    }
+
+    setKeyplotsData(newData);
+    setSubdivisionDialogOpen(false);
+    setSelectedSubdivision('');
+    setPendingPlot(null);
+    
+    setSnackbarMessage(`Subdivision ${selectedSubdivision} selected. Please complete the entry.`);
+    setSnackbarOpen(true);
+};
+
 
 // Add this function to your ClusterFormUI component
 // Add this function to fetch CCE crops from your API
@@ -187,9 +475,6 @@ const fetchApiCceCrops = useCallback(async () => {
         setLoadingApiCrops(false);
     }
 }, [clusterId, BASE_URL]);
-
-
-// Add this useEffect after your existing useEffects
 // Add this useEffect after your existing useEffects
 useEffect(() => {
     if (clusterId) {
@@ -459,48 +744,32 @@ const handleSubmit = async () => {
         setSubmitting(true);
         setSubmitError('');
 
-        // Get user info using existing authservice methods
+        // Get user info
         const userId = authservice.userid();
         const token = authservice.gettoken();
 
-        console.log('Debug - User ID:', userId);
-        console.log('Debug - Token exists:', !!token);
-        console.log('Debug - Keyplot ID:', keyplotId);
-
-        if (!userId) {
-            throw new Error('User information not found. Please login again.');
+        if (!userId || !token) {
+            throw new Error('Authentication required. Please login again.');
         }
 
-        if (!token) {
-            throw new Error('Authentication token not found. Please login again.');
+        // ✅ STEP 1: First remove deleted rows via DELETE API
+        if (removedRows.length > 0) {
+            await removeDeletedRows(token);
         }
 
-        // Validate that we have at least keyplot data
+        // ✅ STEP 2: Validate that we have at least keyplot data
         const keyplotData = keyplotsData.find(kp => kp.label === 'K');
         if (!keyplotData || keyplotData.rows.length === 0) {
             throw new Error('Keyplot data is required.');
         }
 
-        // ✅ UPDATED: Modified validation to handle missing plot_id for new rows
-        for (const keyplot of keyplotsData) {
-            for (const row of keyplot.rows) {
-                if (!row.villageName || !row.block || !row.svNo || !row.sub || !row.area || !row.enumeratedArea) {
-                    throw new Error(`Incomplete data in ${keyplot.label} plot. All fields are required.`);
-                }
-                // ✅ FIXED: Only validate plot_id for existing rows, not new ones
-                if (!row.isNew && !row.plot_id) {
-                    throw new Error(`Plot ID is missing for existing ${keyplot.label} plot. Please ensure all plots are properly linked.`);
-                }
-            }
-        }
-
-        // ✅ PREPARE: Request data with better validation and plot_id handling
+        // ✅ STEP 3: Prepare request data with proper plot_id handling
         const requestData = {
             userId: userId,
             keyplotId: keyplotId,
             clusterNo: clusterId,
             sidePlots: keyplotsData
-                .filter(keyplot => keyplot.rows.length > 0) // Only include keyplots with rows
+                .filter(keyplot => keyplot.rows.length > 0)
                 .map(keyplot => ({
                     label: keyplot.label,
                     rows: keyplot.rows.map(row => {
@@ -510,45 +779,37 @@ const handleSubmit = async () => {
                         const area = parseFloat(row.area);
 
                         // Validate numeric conversions
-                        if (isNaN(svNo)) {
-                            throw new Error(`Invalid svNo for ${keyplot.label}: ${row.svNo}`);
-                        }
-                        if (isNaN(actual)) {
-                            throw new Error(`Invalid actual area for ${keyplot.label}: ${row.enumeratedArea}`);
-                        }
-                        if (isNaN(area)) {
-                            throw new Error(`Invalid area for ${keyplot.label}: ${row.area}`);
+                        if (isNaN(svNo)) throw new Error(`Invalid svNo for ${keyplot.label}: ${row.svNo}`);
+                        if (isNaN(actual)) throw new Error(`Invalid actual area for ${keyplot.label}: ${row.enumeratedArea}`);
+                        if (isNaN(area)) throw new Error(`Invalid area for ${keyplot.label}: ${row.area}`);
+
+                        // ✅ CRITICAL FIX: Proper plot_id handling
+                        let plot_id;
+                        if (row.plot_id && row.plot_id !== '' && row.plot_id !== 0) {
+                            // Use existing plot_id for saved rows
+                            plot_id = parseInt(row.plot_id);
+                            if (isNaN(plot_id)) throw new Error(`Invalid plot_id for ${keyplot.label}: ${row.plot_id}`);
+                        } else if (row.isNew) {
+                            // For new rows, use 0 to indicate new plot creation
+                            plot_id = 0;
+                        } else {
+                            // For existing rows without plot_id, this should not happen
+                            throw new Error(`Missing plot_id for existing ${keyplot.label} plot`);
                         }
 
                         const rowData = {
-                            // Only include id for existing rows (when b_id exists)
+                            // Include id only for existing rows (for updating)
                             ...(row.b_id ? { id: row.b_id } : {}),
+                            plot_id: plot_id,
                             actual: actual,
                             svNo: svNo,
-                            subNo: row.sub, // Keep as string
+                            subNo: row.sub,
                             area: area,
-                            bcode: row.block ? row.block : row.block,
+                            bcode: row.block,
                             village: row.villageId
                         };
 
-                        // ✅ FIXED: Handle plot_id for both existing and new rows
-                        if (row.plot_id && row.plot_id !== '') {
-                            // If plot_id exists, use it
-                            rowData.plot_id = parseInt(row.plot_id);
-                            
-                            if (isNaN(rowData.plot_id)) {
-                                throw new Error(`Invalid plot_id for ${keyplot.label}: ${row.plot_id}`);
-                            }
-                        } else if (row.isNew) {
-                            // For new rows without plot_id, you can either:
-                            // Option 1: Generate a temporary ID or use a default
-                            rowData.plot_id = 0; // Use 0 to indicate new plot
-                            
-                            // Option 2: Omit plot_id entirely for new rows
-                            // Don't include plot_id field at all
-                            // delete rowData.plot_id;
-                        }
-
+                        console.log(`Row data for ${keyplot.label}:`, rowData);
                         return rowData;
                     })
                 }))
@@ -556,7 +817,7 @@ const handleSubmit = async () => {
 
         console.log('✅ Final request data being sent:', JSON.stringify(requestData, null, 2));
 
-        // ✅ ENHANCED: API call with better error handling
+        // ✅ STEP 4: Send main save request
         const response = await fetch(`${BASE_URL}/btr-service/cluster-api/save-cluster`, {
             method: 'POST',
             headers: {
@@ -567,29 +828,20 @@ const handleSubmit = async () => {
         });
 
         console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers);
 
-        // ✅ ENHANCED: Better error handling
         if (!response.ok) {
             let errorMessage = `HTTP error! status: ${response.status}`;
-            
             try {
                 const errorText = await response.text();
-                console.log('Raw error response:', errorText);
-                
-                // Try to parse as JSON
                 try {
                     const errorData = JSON.parse(errorText);
                     errorMessage = errorData.message || errorData.error || errorMessage;
-                    console.log('Parsed error data:', errorData);
-                } catch (jsonError) {
-                    // If not JSON, use the raw text
+                } catch {
                     errorMessage = errorText || errorMessage;
                 }
-            } catch (textError) {
-                console.log('Could not read error response:', textError);
+            } catch {
+                // Ignore text read errors
             }
-            
             throw new Error(errorMessage);
         }
 
@@ -599,9 +851,6 @@ const handleSubmit = async () => {
         setSubmitSuccess(true);
         setSnackbarMessage('Cluster data saved successfully!');
         setSnackbarOpen(true);
-
-        // Optionally redirect or refresh data after successful save
-        // window.location.href = '/clusters'; // Uncomment if you want to redirect
 
     } catch (error) {
         console.error('❌ Error submitting cluster data:', error);
@@ -613,8 +862,53 @@ const handleSubmit = async () => {
     }
 };
 
+const removeDeletedRows = async (token) => {
+    console.log('Removing deleted rows:', removedRows);
+    
+    for (const removedRow of removedRows) {
+        try {
+            if (!removedRow.b_id) {
+                console.warn('Skipping row without b_id:', removedRow);
+                continue;
+            }
 
+            const response = await fetch(`${BASE_URL}/btr-service/cluster-api/delete-sideplot/${removedRow.b_id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
 
+            console.log(`DELETE response for row ${removedRow.b_id}:`, response.status);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Failed to remove row ${removedRow.b_id}: ${response.status} - ${errorText}`);
+            }
+
+            console.log(`✅ Successfully removed row: ${removedRow.b_id}`);
+        } catch (error) {
+            console.error(`❌ Error removing row ${removedRow.b_id}:`, error);
+            throw new Error(`Failed to remove deleted plot: ${removedRow.villageName}-${removedRow.block}-${removedRow.svNo}-${removedRow.sub}`);
+        }
+    }
+    
+    // Clear removed rows after successful deletion
+    setRemovedRows([]);
+    console.log('✅ All deleted rows removed successfully');
+};
+
+const getRemovedRowsInfo = () => {
+    return removedRows.map(row => ({
+        id: row.b_id,
+        plot_id: row.plot_id,
+        label: row.keyplotLabel,
+        village: row.villageName,
+        block: row.block,
+        svNo: row.svNo,
+        sub: row.sub
+    }));
+};
     // ✅ UPDATED: Handle opening crops modal
     const handleOpenCropsModal = () => {
         // Pre-populate selectedCrops based on savedCrops
@@ -884,7 +1178,15 @@ const handleCloseCropsModal = async () => {
   }
 
   row[field] = processedValue;
-
+   if (field === 'svNo' && value && row.villageId && row.block) {
+        // Trigger validation after a short delay when survey number is entered
+        setTimeout(() => {
+            handlePlotValidation(keyplotId, rowUniqueId);
+        }, 500);
+    } else if (field === 'sub' && value && row.villageId && row.block && row.svNo) {
+        // Trigger validation immediately when subdivision is entered/changed
+        handlePlotValidation(keyplotId, rowUniqueId);
+    }
   // Existing logic for syncing related fields...
   if (['villageName', 'block', 'svNo', 'sub'].includes(field)) {
     const allRows = newData.flatMap(kp => kp.rows);
@@ -953,21 +1255,50 @@ const handleCloseCropsModal = async () => {
         keyplot.rows.push(newRow);
         setKeyplotsData(newData);
     };
+const [removedRows, setRemovedRows] = useState([]);
+const handleRemoveRow = (keyplotId, rowUniqueId) => {
+    let newData = JSON.parse(JSON.stringify(keyplotsData));
+    const keyplot = newData.find(k => k.id === keyplotId);
+    const rowToRemove = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
+    
+    // If it's an existing row (has b_id), add to removed rows tracking
+    if (rowToRemove && rowToRemove.b_id) {
+        setRemovedRows(prev => [...prev, {
+            b_id: rowToRemove.b_id,
+            plot_id: rowToRemove.plot_id,
+            keyplotLabel: keyplot.label,
+            villageName: rowToRemove.villageName,
+            block: rowToRemove.block,
+            svNo: rowToRemove.svNo,
+            sub: rowToRemove.sub
+        }]);
+        
+        console.log('Added to removed rows:', rowToRemove.b_id);
+    }
+    
+    // Remove the row from UI
+    keyplot.rows = keyplot.rows.filter(r => r.uniqueId !== rowUniqueId);
 
-    const handleRemoveRow = (keyplotId, rowUniqueId) => {
-        let newData = JSON.parse(JSON.stringify(keyplotsData));
-        const keyplot = newData.find(k => k.id === keyplotId);
-        keyplot.rows = keyplot.rows.filter(r => r.uniqueId !== rowUniqueId);
+    // Clean up row block options
+    const rowKey = `${keyplotId}-${rowUniqueId}`;
+    setRowBlockOptions(prev => {
+        const newOptions = { ...prev };
+        delete newOptions[rowKey];
+        return newOptions;
+    });
 
-        const rowKey = `${keyplotId}-${rowUniqueId}`;
-        setRowBlockOptions(prev => {
-            const newOptions = { ...prev };
-            delete newOptions[rowKey];
-            return newOptions;
-        });
+    validateAndSetData(newData);
+};
 
-        validateAndSetData(newData);
-    };
+// ✅ Clear removed rows when component loads
+useEffect(() => {
+    setRemovedRows([]);
+}, [keyplotId]);
+// ✅ ADD THIS: Function to clear removed rows when component loads or resets
+useEffect(() => {
+    // Clear removed rows when component mounts or keyplotId changes
+    setRemovedRows([]);
+}, [keyplotId]);
 
     const handleLabelChange = (newLabel, keyplotId) => {
         setKeyplotsData(prevData =>
@@ -1130,7 +1461,7 @@ const handleCloseCropsModal = async () => {
                         console.log("else >" )
                     } */}
                     
-                    console.log("entry recommed   ",entryRecommed)
+                
                     const hasErrorInKeyplot = keyplot.rows.some(r => !!errors[`${keyplot.id}-${r.uniqueId}`]);
                     return (
                         <Box key={keyplot.id} sx={{ mt: 3, border: '1px solid #ccc', borderRadius: 1, overflowX: 'auto', bgcolor: 'white', p: 2 }}>
@@ -1247,8 +1578,12 @@ const handleCloseCropsModal = async () => {
                                                             </Select>
                                                         </FormControl>
                                                     </Grid>
-                                                    <Grid item xs={1.5}><TextField label="Survey No" size="small" fullWidth value={row.svNo} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'svNo')} /></Grid>
-                                                    <Grid item xs={1}><TextField label="Sub Div" size="small" fullWidth value={row.sub} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'sub')} /></Grid>
+                                                    <Grid item xs={1.5}><TextField label="Survey No" size="small" fullWidth value={row.svNo} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'svNo')} 
+                                                        onBlur={() => handlePlotValidation(keyplot.id, row.uniqueId)}
+                                                    /></Grid>
+                                                    <Grid item xs={1}><TextField label="Sub Div" size="small" fullWidth value={row.sub} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'sub')} 
+                                                        onBlur={() => handlePlotValidation(keyplot.id, row.uniqueId)}
+                                                    /></Grid>
                                                     <Grid item xs={2}><TextField label="Area" size="small" fullWidth type="number" value={row.area} InputProps={{ readOnly: isAreaReadOnly }} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'area')} /></Grid>
                                                     <Grid item xs={2}><TextField label="Enum. Area" size="small" fullWidth type="number" value={row.enumeratedArea} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')} onBlur={(e) => handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')} error={hasError} helperText={hasError ? errors[errorKey] : ''} /></Grid>
                                                     <Grid item xs={2}><Tooltip title="Remove Row"><IconButton color="error" onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)}><RemoveCircleOutlineIcon /></IconButton></Tooltip></Grid>
@@ -1430,6 +1765,54 @@ const handleCloseCropsModal = async () => {
 
 </Dialog>
 
+
+{/* Subdivision Selection Dialog */}
+{/* Validation Dialog */}
+<Dialog 
+    open={isValidationDialogOpen} 
+    onClose={() => setIsValidationDialogOpen(false)}
+    maxWidth="sm"
+    fullWidth
+>
+    <DialogTitle>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <InfoIcon color={validationInfo?.isFromCurrentForm ? "warning" : "primary"} />
+            <Typography variant="h6">
+                {validationInfo?.isFromCurrentForm ? "Duplicate Plot in Form" : "Plot Recommendation"}
+            </Typography>
+        </Box>
+    </DialogTitle>
+    <DialogContent>
+        {renderValidationDialogContent()}
+    </DialogContent>
+    <DialogActions>
+        <Button onClick={() => setIsValidationDialogOpen(false)} color="secondary">
+            Cancel
+        </Button>
+        
+        {validationInfo && (
+            <>
+                {validationInfo.remainingArea > 0 && (
+                    <Button
+                        onClick={() => handleUseRecommendedPlot('remaining')}
+                        color="primary"
+                        variant="contained"
+                    >
+                        Use Remaining Area ({validationInfo.remainingArea.toFixed(2)} cents)
+                    </Button>
+                )}
+                
+                <Button 
+                    onClick={handleRejectPlot} 
+                    color="error" 
+                    variant="outlined"
+                >
+                    {validationInfo.isFromCurrentForm ? 'Clear Entry' : 'Reject Plot'}
+                </Button>
+            </>
+        )}
+    </DialogActions>
+</Dialog>
 
             {/* ✅ Success/Error Snackbar - ORIGINAL UI PRESERVED */}
             <Snackbar

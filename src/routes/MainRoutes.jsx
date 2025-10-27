@@ -25,6 +25,7 @@ const Zone_Details = Loadable(lazy(() => import('pages/functional-components/ear
 const BTR = Loadable(lazy(() => import('pages/functional-components/earas/btr/Btr')));
 // const BTR = Loadable(lazy(() => import('pages/functional-components/earas/btr/BtrListing')));
 const BTRWrapper = Loadable(lazy(() => import('pages/functional-components/earas/btr/BTRWrapper')));
+const BTRClassifyWrapper = Loadable(lazy(() => import('pages/functional-components/earas/btr/BTRClassifyWrapper')));
 const ZoneDetailsWrapper = Loadable(lazy(() => import('pages/functional-components/earas/ZoneDetails/ZoneDetailsWrapper')));
 
 const ClusterForm = Loadable(lazy(() => import('pages/functional-components/earas/cluster_form')));
@@ -33,6 +34,9 @@ const KeyplotsWrapper = Loadable(lazy(() => import('pages/functional-components/
 
 const Clusters = Loadable(lazy(() => import('pages/functional-components/earas/Cluster/cluster_order')));
 const ClustersWrapper = Loadable(lazy(() => import('pages/functional-components/earas/Cluster/clusterWrapper')));
+const ClusterRouteWrapper = Loadable(lazy(() => import('pages/functional-components/earas/Cluster/clusterRouteWrapper')));
+
+
 
 const ZoneSettings = Loadable(lazy(() => import('pages/functional-components/earas/ZoneDetails/ZoneSettings')));
 const SettingsMenu = Loadable(lazy(() => import('pages/functional-components/earas/SettingsMenu')));
@@ -60,6 +64,8 @@ const KeyplotListing = Loadable(lazy(() => import('pages/functional-components/e
 // const ClusterManualEntryList = Loadable(lazy(() => import('pages/functional-components/earas/ClusterManualEntryList')));
 
 const ClusterManualEntry = Loadable(lazy(() => import('pages/functional-components/earas/ClusterManualEntry')));
+const ClusterManualEntryNonBtr = Loadable(lazy(() => import('pages/functional-components/earas/ClusterManualEntryNonBtr')));
+
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
@@ -203,6 +209,14 @@ const MainRoutes = {
     </PrivateRoute>
   )
 },
+// {
+//   path: '/schemes/earas/Non_btr',
+//   element: (
+//     <PrivateRoute>
+//       <NonBTR />
+//     </PrivateRoute>
+//   )
+// },
 
     {
       path: '/schemes/earas/Zone_Details/btr/:zoneId',
@@ -212,6 +226,15 @@ const MainRoutes = {
         </PrivateRoute>
         )
     },
+    {
+      path: '/schemes/earas/btr/btr_classify_wrapper',
+      element: (
+        <PrivateRoute>
+          <BTRClassifyWrapper />
+        </PrivateRoute>
+        )
+    },
+
 
     
     {
@@ -293,6 +316,16 @@ const MainRoutes = {
       )
     },
 
+    {
+      path: '/schemes/earas/cluster-route-wrapper',
+      element: (
+        <PrivateRoute>
+          <ClusterRouteWrapper />
+        </PrivateRoute>
+      )
+    },
+
+
      {
       path: '/schemes/earas/Clusters',
       element: (
@@ -306,6 +339,14 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <ClusterManualEntry />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/cluster_manual_entry_Non_BTR',
+      element: (
+        <PrivateRoute>
+          <ClusterManualEntryNonBtr />
         </PrivateRoute>
       )
     },
