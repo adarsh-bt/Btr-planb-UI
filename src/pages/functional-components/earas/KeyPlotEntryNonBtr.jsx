@@ -608,26 +608,6 @@ const KeyPlotEntryNonBtr = () => {
         setSavedCount(result.ids?.length || totalKeyplots);
         setShowSuccessModal(true);
         toast.success(`Successfully saved ${result.ids?.length || totalKeyplots} keyplots!`);
-
-        // ---MODIFICATION START: Reset form for a fresh start ---
-        
-        // 1. Clear all entered keyplot data from the tables.
-        setLocalBodyData({});
-
-        // 2. Reset the list types for all villages.
-        setListTypes({});
-
-        // 3. Reset the primary local body tab to the first one.
-        setActiveTab(0);
-
-        // 4. Reset the village tabs within each local body to the first one.
-        const initialVillageTabs = {};
-        localBodies.forEach(lb => {
-          initialVillageTabs[lb.id] = 0;
-        });
-        setActiveVillageTab(initialVillageTabs);
-        
-        // --- MODIFICATION END ---
         
         // Optional: Clear the form data after successful save
         // setLocalBodyData({});
@@ -659,7 +639,7 @@ const KeyPlotEntryNonBtr = () => {
     const houseListHeaders = ["Name", "Address","Ward No.", "House No."];
     const cultivatorListHeaders = ["Name", "Address"];
     const thandaperHeaders = ["Name", "Address", "Thandaper No.","Thandaper Sub No."];
-    const othersHeaders = [ "Name", "Address","Old Survey No.", "Old Sub No."];
+    const othersHeaders = [ "Old Survey No.", "Old Sub No."];
     const finalHeaders = [
       "Survey No.",
       "Sub Div No.",
