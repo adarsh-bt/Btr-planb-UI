@@ -456,7 +456,8 @@ useEffect(() => {
   if (isAddZoneOpen) {
     const fetchZones = async () => {
       try {
-        const response = await approvalservice.zoneslist(userData.officeType, 1);
+        console.log("user data  ",userData)
+        const response = await approvalservice.zoneslist(userData.officeType, userData.officeId);
         if (response) {
           setAvailableZones(response);
           

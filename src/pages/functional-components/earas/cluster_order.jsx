@@ -27,6 +27,9 @@ function ClusterSeatMap({zoneId}) {
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [openModal, setOpenModal] = useState(false);
+const [selectedCluster, setSelectedCluster] = useState(null);
+
 
   const BASE_URL = mainapi.BTR_API;
   
@@ -34,7 +37,7 @@ function ClusterSeatMap({zoneId}) {
   const token = localStorage.getItem('token');
   const zoneId = authservice.getrole() === 'Field Data Collector' 
     ? authservice.getzone() 
-    : '3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924';
+    : zoneId;
     
   setLoading(true);
   axios.get(`${BASE_URL}/btr-service/cluster-api/user-cluster-summary/${zoneId}`, {
@@ -61,6 +64,8 @@ function ClusterSeatMap({zoneId}) {
     setLoading(false);
   });
 }, []);
+
+
 
 
   // Determines the border color of the card based on cluster status
@@ -248,7 +253,9 @@ const handleClusterClick = (syNo, slNo) => {
 
             return (
               <Grid item xs={4} sm={3} md={2} lg={1} xl={1} key={cluster.keyplotId}
-                onClick={() => handleClusterClick(cluster.keyplotId, index + 1)}>
+                // onClick={() => handleClusterClick(cluster.keyplotId, index + 1)}>
+                onClick={() => handleClusterClick(cluster)}>
+
                 <Tooltip
                   title={ // Tooltip content to show detailed cluster information on hover
                     <Box>
@@ -338,6 +345,75 @@ const handleClusterClick = (syNo, slNo) => {
     </Box>
      </>
         )}
+
+        <Modal
+  open={openModal}
+  onClose={() => setOpenModal(false)}
+  aria-labelledby="cluster-modal-title"
+  sx={{
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backdropFilter: 'blur(3px)',
+  }}
+>
+  <Box
+    sx={{
+      backgroundColor: '#fff',
+      borderRadius: 3,
+      boxShadow: 24,
+      width: { xs: '90%', sm: '400px' },
+      padding: 4,
+      textAlign: 'center',
+    }}
+  >
+    <Typography
+      id="cluster-modal-title"
+      variant="h6"
+      sx={{ fontWeight: 'bold', mb: 3, color: '#2C3E50' }}
+    >
+      Cluster #{selectedCluster ? selectedCluster.keyplotId.slice(0, 6) : ''} 
+    </Typography>
+
+    <Typography variant="body2" sx={{ mb: 3, color: '#7F8C8D' }}>
+      Choose an action for this cluster:
+    </Typography>
+
+    <Stack spacing={2}>
+      <Button
+        variant="contained"
+        startIcon={<OpenInNewIcon />}
+        sx={{
+          backgroundColor: '#2E7D32',
+          '&:hover': { backgroundColor: '#1B5E20' },
+        }}
+        onClick={() => {
+          setOpenModal(false);
+          navigate(`/schemes/earas/cluster_manual_entry?No=${encodeURIComponent(selectedCluster.keyplotId)}&slno=${encodeURIComponent(selectedCluster.slNo)}`);
+        }}
+      >
+        Open Cluster Form
+      </Button>
+
+      <Button
+        variant="outlined"
+        startIcon={<VisibilityIcon />}
+        sx={{
+          color: '#1976D2',
+          borderColor: '#1976D2',
+          '&:hover': { borderColor: '#115293', backgroundColor: '#E3F2FD' },
+        }}
+        onClick={() => {
+          setOpenModal(false);
+          navigate(`/schemes/earas/cluster_form_view?No=${encodeURIComponent(selectedCluster.keyplotId)}`);
+        }}
+      >
+        View Form Details
+      </Button>
+    </Stack>
+  </Box>
+</Modal>
+
     </Grid>
   );
 }
