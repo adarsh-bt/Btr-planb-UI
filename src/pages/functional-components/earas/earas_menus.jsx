@@ -310,8 +310,7 @@ console.log("okk",btrData)
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                // to="/schemes/earas/btr_list"
-                to="/schemes/earas/btr/btr_classify_wrapper"
+                to="/schemes/earas/btr"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',
