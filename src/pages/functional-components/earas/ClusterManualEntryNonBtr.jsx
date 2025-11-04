@@ -38,7 +38,7 @@ const BASE_URL = mainapi.BASE_URL;
 const FORM_URL = mainapi.FORM_API;
 
 // --- Constant for Side Plot Dropdown ---
-const SIDE_PLOT_OPTIONS = ['N1', 'E1', 'S1', 'W1', 'N2', 'E2', 'S2', 'W2'];
+const SIDE_PLOT_OPTIONS = ['N1','N2','N3','N4','E1','E2','E3','E4','S1','S2','S3','S4','W1', 'W2', 'W3', 'W4'];
 
 // --- Sample Data for Dropdowns & Modal ---
 const cropOptions = [
@@ -68,11 +68,13 @@ const ClusterManualEntryNonBtr = () => {
         localBody: '',
         landType: '',
         totalArea: 0,
-        maxArea: 600
+        maxArea: 600,
+        BtrType:''
     });
     const [isCropsModalOpen, setCropsModalOpen] = useState(false);
     const [selectedCrops, setSelectedCrops] = useState({});
     const [savedCrops, setSavedCrops] = useState([]);
+    const [BtrTypeId, setBtrTypeId] = useState('')
 
     const [cceCropDetails, setCceCropDetails] = useState([]);
     const [loadingCrops, setLoadingCrops] = useState(false);
@@ -111,6 +113,11 @@ const ClusterManualEntryNonBtr = () => {
     const [defaultBlock, setDefaultBlock] = useState('');
     const [resvnoError, setResvnoError] = useState('');
     const [savingCrops, setSavingCrops] = useState(false);
+ 
+
+     const [validationInfo, setValidationInfo] = useState(null);
+       const [isValidationDialogOpen, setIsValidationDialogOpen] = useState(false);
+       const [validatingRow, setValidatingRow] = useState(null);
 
     const [apiCropsData, setApiCropsData] = useState(null);
     const [loadingApiCrops, setLoadingApiCrops] = useState(false);
@@ -186,6 +193,103 @@ const ClusterManualEntryNonBtr = () => {
             setLoadingCrops(false);
         }
     };
+
+
+const renderValidationDialogContent = () => {
+    if (!validationInfo) return null;
+
+    if (validationInfo.isFromCurrentForm) {
+        return (
+            <Box>
+                <DialogContentText sx={{ mb: 2, color: 'warning.main' }}>
+                    ⚠️ This plot is already used in the current form in: <strong>{validationInfo.location}</strong>
+                </DialogContentText>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Total Area:</strong> {validationInfo.totalArea} cents
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Already Used:</strong> {validationInfo.usedArea} cents
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 2 }}>
+                    <strong>Remaining Area:</strong> {validationInfo.remainingArea.toFixed(2)} cents
+                </Typography>
+            </Box>
+        );
+    } else {
+        return (
+            <Box>
+                <DialogContentText sx={{ mb: 2 }}>
+                    {validationInfo.message}
+                </DialogContentText>
+                {validationInfo.totalcent && (
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                        <strong>Total Area:</strong> {validationInfo.totalcent} cents
+                    </Typography>
+                )}
+                {validationInfo.remainingArea > 0 && (
+                    <Typography variant="body2" sx={{ mb: 2 }}>
+                        <strong>Remaining Area:</strong> {validationInfo.remainingArea.toFixed(2)} cents
+                    </Typography>
+                )}
+            </Box>
+        );
+    }
+};
+const handleRejectPlot = () => {
+    if (!validatingRow) return;
+
+    const { keyplotId, rowUniqueId } = validatingRow;
+    const newData = JSON.parse(JSON.stringify(keyplotsData));
+    const keyplot = newData.find(k => k.id === keyplotId);
+    const row = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
+
+    // Clear the inputs for the rejected plot
+    if (row) {
+        row.svNo = '';
+        row.sub = '';
+        row.area = '';
+        row.enumeratedArea = '';
+        row.ward_number = '';
+        row.houseno = '';
+        row.address = '';
+        row.ownername = '';
+        row.oldsubno = '';
+        row.oldsvno = '';
+        row.tpno = '';
+        row.tbsubdivisionno = '';
+    }
+
+    setKeyplotsData(newData);
+    setIsValidationDialogOpen(false);
+    setSnackbarMessage("This plot cannot be used. Please enter a different one.");
+    setSnackbarOpen(true);
+};
+const handleUseRecommendedPlot = (type) => {
+    if (!validatingRow || !validationInfo) return;
+
+    const { keyplotId, rowUniqueId } = validatingRow;
+    const newData = JSON.parse(JSON.stringify(keyplotsData));
+    const keyplot = newData.find(k => k.id === keyplotId);
+    const row = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
+
+    if (row) {
+        // ✅ IMPORTANT: Set the plot_id from validation response
+        row.plot_id = validationInfo.id; // This is the actual plot ID from backend
+        row.area = validationInfo.totalcent.toString();
+
+        if (type === 'remaining') {
+            row.enumeratedArea = validationInfo.remainingArea.toFixed(2);
+        } else {
+            row.enumeratedArea = '';
+        }
+    }
+
+    setKeyplotsData(newData);
+    setIsValidationDialogOpen(false);
+    setValidationInfo(null);
+    setValidatingRow(null);
+};
+
 
     const fetchApiCceCrops = useCallback(async () => {
         if (!clusterId) return;
@@ -325,6 +429,7 @@ const ClusterManualEntryNonBtr = () => {
             setDefaultVillageId(data.payload.kvillageId);
             setDefaultVillage(data.payload.kvillageName);
             setClusterId(data.payload.clusterId);
+            setBtrTypeId(data.payload.btr_id)
 
             if (data.payload) {
                 setKeyplotDetails(data.payload);
@@ -335,8 +440,9 @@ const ClusterManualEntryNonBtr = () => {
                     localBody: data.payload.kvillageName || 'N/A',
                     landType: data.payload.landType || 'Wet',
                     maxArea: data.payload.clusterMax || 600,
+                    BtrType: data.payload.btr_type || 'NA',
                 }));
-
+                  setBtrTypeId(data.payload.btr_id || 'NA')
                 if (data.payload.cceCrops && Array.isArray(data.payload.cceCrops)) {
                     setSavedCrops(data.payload.cceCrops);
                 }
@@ -394,7 +500,7 @@ const ClusterManualEntryNonBtr = () => {
                                 tbsubdivisionno: row.tbsubdivisionno || '',
                                 oldsvno: row.oldsvno || '',
                                 oldsubno: row.oldsubno || '',
-                                tbsubdivisionno: row.tbsubdivisionno || '',
+                                
                                 isExisting: true,
                                 uniqueId: nextRowId.current++
                             }))
@@ -600,7 +706,9 @@ const ClusterManualEntryNonBtr = () => {
             if (!token) {
                 throw new Error('Authentication token not found. Please login again.');
             }
-
+             if (removedRows.length > 0) {
+            await removeDeletedRows(token);
+        }
             const keyplotData = keyplotsData.find(kp => kp.label === 'K');
             if (!keyplotData || keyplotData.rows.length === 0) {
                 throw new Error('Keyplot data is required.');
@@ -608,11 +716,30 @@ const ClusterManualEntryNonBtr = () => {
 
             for (const keyplot of keyplotsData) {
                 for (const row of keyplot.rows) {
-                    if (!row.villageName || !row.block || !row.svNo || !row.sub || !row.area || !row.enumeratedArea) {
+                  if(BtrTypeId == 2){
+                    if (!row.villageName || !row.block || !row.houseno || !row.ward_number || !row.area || !row.enumeratedArea) {
                         throw new Error(`Incomplete data in ${keyplot.label} plot. All fields are required.`);
                     }
                     if (!row.isNew && !row.plot_id) {
                         throw new Error(`Plot ID is missing for existing ${keyplot.label} plot. Please ensure all plots are properly linked.`);
+                    }}else if (BtrTypeId == 3){
+                        if (!row.villageName || !row.block || !row.ownername || !row.address || !row.area || !row.enumeratedArea) {
+                        throw new Error(`Incomplete data in ${keyplot.label} plot. All fields are required.`);
+                    }if (!row.isNew && !row.plot_id) {
+                        throw new Error(`Plot ID is missing for existing ${keyplot.label} plot. Please ensure all plots are properly linked.`);
+                    }
+                    }else if (BtrTypeId == 4){
+                       if (!row.villageName || !row.block || !row.tpno || !row.area || !row.enumeratedArea) {
+                        throw new Error(`Incomplete data in ${keyplot.label} plot. All fields are required.`);
+                    }if (!row.isNew && !row.plot_id) {
+                        throw new Error(`Plot ID is missing for existing ${keyplot.label} plot. Please ensure all plots are properly linked.`);
+                    }
+                    }else if (BtrTypeId == 5){
+                      if (!row.villageName || !row.block || !row.oldsvno || !row.oldsubno || !row.area || !row.enumeratedArea) {
+                        throw new Error(`Incomplete data in ${keyplot.label} plot. All fields are required.`);
+                    }if (!row.isNew && !row.plot_id) {
+                        throw new Error(`Plot ID is missing for existing ${keyplot.label} plot. Please ensure all plots are properly linked.`);
+                    }
                     }
                 }
             }
@@ -633,7 +760,7 @@ const ClusterManualEntryNonBtr = () => {
                       svNo: parseInt(row.svNo),
                       subNo: row.sub,
                       area: parseFloat(row.area),
-                      bcode: isNaN(parseInt(row.block)) ? row.block : parseInt(row.block),
+                      bcode: row.block,
                       village: row.villageId,
                       btrtype: currentBType?.id
                     };
@@ -656,7 +783,7 @@ const ClusterManualEntryNonBtr = () => {
                           baseRowData.tpno = row.tpno ? parseInt(row.tpno) : null;
                           baseRowData.tbsubdivisionno = row.tbsubdivisionno ? parseInt(row.tbsubdivisionno) : null;
                           break;
-                        case 'Others':
+                        case 'Old Survey Number':
                           baseRowData.ownername = row.ownername || '';
                           baseRowData.address = row.address || '';
                           baseRowData.oldsvno = row.oldsvno ? parseInt(row.oldsvno) : null;
@@ -714,6 +841,41 @@ const ClusterManualEntryNonBtr = () => {
         }
     };
 
+    const removeDeletedRows = async (token) => {
+    console.log('Removing deleted rows:', removedRows);
+    
+    for (const removedRow of removedRows) {
+        try {
+            if (!removedRow.b_id) {
+                console.warn('Skipping row without b_id:', removedRow);
+                continue;
+            }
+
+            const response = await fetch(`${BASE_URL}/btr-service/cluster-api/delete-sideplot/${removedRow.b_id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            console.log(`DELETE response for row ${removedRow.b_id}:`, response.status);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Failed to remove row ${removedRow.b_id}: ${response.status} - ${errorText}`);
+            }
+
+            console.log(`✅ Successfully removed row: ${removedRow.b_id}`);
+        } catch (error) {
+            console.error(`❌ Error removing row ${removedRow.b_id}:`, error);
+            throw new Error(`Failed to remove deleted plot: ${removedRow.villageName}-${removedRow.block}-${removedRow.svNo}-${removedRow.sub}`);
+        }
+    }
+    
+    // Clear removed rows after successful deletion
+    setRemovedRows([]);
+    console.log('✅ All deleted rows removed successfully');
+};
     const handleOpenCropsModal = () => {
         const preSelected = {};
         savedCrops.forEach(crop => {
@@ -849,12 +1011,37 @@ const ClusterManualEntryNonBtr = () => {
 
       data.forEach(kp => {
         kp.rows.forEach(r => {
-          if (r.villageName && r.block && r.svNo && r.sub) {
-            const plotId = `${r.villageName}-${r.block}-${r.svNo}-${r.sub}`;
+          if(BtrTypeId == 2){
+          if (r.villageName && r.block && r.ward_number && r.houseno) {
+            const plotId = `${r.villageName}-${r.block}-${r.ward_number}-${r.houseno}`;
             if (!plotUsage.has(plotId)) {
               plotUsage.set(plotId, { rows: [], totalArea: 0 });
             }
             plotUsage.get(plotId).rows.push(r);
+          }}else if (BtrTypeId == 3){
+            if (r.villageName && r.block && r.ownername && r.address && r.area) {
+            const plotId = `${r.villageName}-${r.block}-${r.ownername}-${r.address}-${r.area}`;
+            if (!plotUsage.has(plotId)) {
+              plotUsage.set(plotId, { rows: [], totalArea: 0 });
+            }
+            plotUsage.get(plotId).rows.push(r);
+          }
+          }else if (BtrTypeId == 4){
+            if (r.villageName && r.block && r.tpno ) {
+            const plotId = `${r.villageName}-${r.block}-${r.tpno}`;
+            if (!plotUsage.has(plotId)) {
+              plotUsage.set(plotId, { rows: [], totalArea: 0 });
+            }
+            plotUsage.get(plotId).rows.push(r);
+          }
+          }else if (BtrTypeId == 5){
+             if (r.villageName && r.block && r.oldsvno && r.oldsubno) {
+            const plotId = `${r.villageName}-${r.block}-${r.oldsvno}-${r.oldsubno}`;
+            if (!plotUsage.has(plotId)) {
+              plotUsage.set(plotId, { rows: [], totalArea: 0 });
+            }
+            plotUsage.get(plotId).rows.push(r);
+          }
           }
         });
       });
@@ -926,6 +1113,7 @@ const ClusterManualEntryNonBtr = () => {
     };
 
     const handleInputChange = (e, keyplotId, rowUniqueId, field) => {
+
       const value = e.target.value;
       const newData = JSON.parse(JSON.stringify(keyplotsData));
       const keyplot = newData.find(k => k.id === keyplotId);
@@ -943,7 +1131,18 @@ const ClusterManualEntryNonBtr = () => {
 
       row[field] = processedValue;
 
-      if (['villageName', 'block', 'svNo', 'sub'].includes(field)) {
+      let rowtitle  = []
+      if (BtrTypeId == 2){
+        rowtitle = ['villageName', 'block', 'ward_number', 'houseno']
+      }else if (BtrTypeId == 3){
+          rowtitle = ['villageName', 'block', 'ownername', 'address', 'enumeratedArea']
+      }else if (BtrTypeId == 4){
+        rowtitle = ['villageName', 'block', 'tpno', 'tbsubdivisionno']
+      }else if (BtrTypeId == 5){
+        rowtitle = ['villageName', 'block', 'oldsvno', 'oldsubno']
+      }
+   
+      if (rowtitle.includes(field)) {
         const allRows = newData.flatMap(kp => kp.rows);
         const masterRow = allRows.find(r => isSamePlot(r, row) && r.uniqueId !== row.uniqueId);
         
@@ -1076,6 +1275,7 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
           case 'Cultivators List':
             baseNewRow.ownername = '';
             baseNewRow.address = '';
+            baseNewRow.area = '';
             break;
           case 'Thandaper Number':
             baseNewRow.ownername = '';
@@ -1096,22 +1296,47 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
       keyplot.rows.push(baseNewRow);
       setKeyplotsData(newData);
     };
+const [removedRows, setRemovedRows] = useState([]);
+  const handleRemoveRow = (keyplotId, rowUniqueId) => {
+    let newData = JSON.parse(JSON.stringify(keyplotsData));
+    const keyplot = newData.find(k => k.id === keyplotId);
+    const rowToRemove = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
+    
+    // If it's an existing row (has b_id), add to removed rows tracking
+    if (rowToRemove && rowToRemove.b_id) {
+        setRemovedRows(prev => [...prev, {
+            b_id: rowToRemove.b_id,
+            plot_id: rowToRemove.plot_id,
+            keyplotLabel: keyplot.label,
+            villageName: rowToRemove.villageName,
+            block: rowToRemove.block,
+            ward_number: rowToRemove.ward_number,
+            houseno: rowToRemove.houseno,
+            ownername:rowToRemove.ownername,
+            address:rowToRemove.address,
+            // area:rowToRemove.area,
+            tpno:rowToRemove.tpno,
+            tbsubdivisionno:rowToRemove.tbsubdivisionno,
+            oldsvno:rowToRemove.oldsvno,
+            oldsubno:rowToRemove.oldsubno
+        }]);
+        
+        console.log('Added to removed rows:', rowToRemove.b_id);
+    }
+    
+    // Remove the row from UI
+    keyplot.rows = keyplot.rows.filter(r => r.uniqueId !== rowUniqueId);
 
-    const handleRemoveRow = (keyplotId, rowUniqueId) => {
-        let newData = JSON.parse(JSON.stringify(keyplotsData));
-        const keyplot = newData.find(k => k.id === keyplotId);
-        keyplot.rows = keyplot.rows.filter(r => r.uniqueId !== rowUniqueId);
+    // Clean up row block options
+    const rowKey = `${keyplotId}-${rowUniqueId}`;
+    setRowBlockOptions(prev => {
+        const newOptions = { ...prev };
+        delete newOptions[rowKey];
+        return newOptions;
+    });
 
-        const rowKey = `${keyplotId}-${rowUniqueId}`;
-        setRowBlockOptions(prev => {
-            const newOptions = { ...prev };
-            delete newOptions[rowKey];
-            return newOptions;
-        });
-
-        validateAndSetData(newData);
-    };
-
+    validateAndSetData(newData);
+};
     const handleLabelChange = (newLabel, keyplotId) => {
         setKeyplotsData(prevData =>
             prevData.map(kp =>
@@ -1121,18 +1346,289 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
     };
 
     const hasAnyError = Object.values(errors).some(error => error !== null && error !== '');
+const checkPlotUsageInCurrentForm = (plotIdentifier, currentRowUniqueId) => {
+    const allRows = keyplotsData.flatMap(kp => kp.rows);
+    const duplicateRows = allRows.filter(row => {
+        const rowPlotIdentifier = `${row.villageId}-${row.block}-${row.svNo}-${row.sub || ''}`;
+        return rowPlotIdentifier === plotIdentifier && row.uniqueId !== currentRowUniqueId;
+    });
+
+    if (duplicateRows.length === 0) {
+        return { isUsed: false };
+    }
+
+    // Calculate total area and used area
+    const totalArea = parseFloat(duplicateRows[0].area) || 0;
+    const usedArea = duplicateRows.reduce((sum, row) => sum + (parseFloat(row.enumeratedArea) || 0), 0);
+    const remainingArea = totalArea - usedArea;
+
+    const locations = duplicateRows.map(row => {
+        const keyplot = keyplotsData.find(kp => kp.rows.some(r => r.uniqueId === row.uniqueId));
+        return keyplot ? keyplot.label : 'Unknown';
+    });
+
+    return {
+        isUsed: true,
+        location: locations.join(', '),
+        totalArea,
+        usedArea,
+        remainingArea
+    };
+};
+const handlePlotValidation = async (keyplotId, rowUniqueId) => {
+ 
+    const keyplot = keyplotsData.find(k => k.id === keyplotId);
+    if (!keyplot) return;
+
+    const row = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
+    
+    if (BtrTypeId == 2) {
+    if (!row || !row.villageId || !row.block || !row.ward_number || !row.houseno) {
+        return;
+    }}else if (BtrTypeId == 3){
+      if (!row || !row.villageId || !row.block || !row.ownername || !row.address || !row.area) {
+        return;
+    }}else if (BtrTypeId == 4){
+      if (!row || !row.villageId || !row.block || !row.tpno ) {
+        return;
+    }}else if (BtrTypeId == 5){
+      if (!row || !row.villageId || !row.block || !row.oldsvno || !row.oldsubno) {
+        return;
+    }}
+
+    // First check if this plot is already used in the current form
+    const plotIdentifier = `${row.villageId}-${row.block}-${row.svNo}-${row.sub || ''}`;
+    const existingUsageInForm = checkPlotUsageInCurrentForm(plotIdentifier, rowUniqueId);
+
+    if (existingUsageInForm.isUsed) {
+        // Plot is already used in current form - show UI validation
+        setValidationInfo({
+            message: `This plot is already used in ${existingUsageInForm.location}.`,
+            totalcent: existingUsageInForm.totalArea,
+            remainingArea: existingUsageInForm.remainingArea,
+            isFromCurrentForm: true
+        });
+        setValidatingRow({ keyplotId, rowUniqueId });
+        setIsValidationDialogOpen(true);
+        return;
+    }
+
+    // If not found in current form, check with backend
+    try {
+        const token = authservice.gettoken();
+        const zoneId = authservice.getzone();
+        let payload = null;
+        if (BtrTypeId == 2){
+         payload = {
+            btrtype: BtrTypeId,
+            vcode: row.villageId,
+            bcode: row.block,
+            resvno: parseInt(row.svNo, 10),
+            resbdno: row.sub && row.sub.trim() !== "" ? row.sub.trim() : null,
+            wardno: row.ward_number,
+            houseno:row.houseno,
+            lbcode:defaultLbcode,
+            zoneId: parseInt(zoneId, 10),
+        };
+      }else if(BtrTypeId == 3){
+          payload = {
+            btrtype: BtrTypeId,
+            vcode: row.villageId,
+            bcode: row.block,
+            resvno: parseInt(row.svNo, 10),
+            resbdno: row.sub && row.sub.trim() !== "" ? row.sub.trim() : null,
+            ownername: row.ownername,
+            address:row.address,
+            lbcode:defaultLbcode,
+            totCent:row.area,
+            zoneId: parseInt(zoneId, 10),
+        };
+      }else if (BtrTypeId == 4){
+    
+        payload = {
+            btrtype: BtrTypeId,
+            vcode: row.villageId,
+            bcode: row.block,
+            resvno: parseInt(row.svNo, 10),
+            resbdno: row.sub && row.sub.trim() !== "" ? row.sub.trim() : null,
+            tpno: row.tpno,
+            tbsubdivisionno:row.tbsubdivisionno,
+            lbcode:defaultLbcode,
+            totCent:row.area,
+            zoneId: parseInt(zoneId, 10),
+        };
+      }else if (BtrTypeId == 5){
+        payload = {
+            btrtype: BtrTypeId,
+            vcode: row.villageId,
+            bcode: row.block,
+            resvno: parseInt(row.svNo, 10),
+            resbdno: row.sub && row.sub.trim() !== "" ? row.sub.trim() : null,
+            oldsvno: row.oldsvno,
+            oldsubno:row.oldsubno,
+            lbcode:defaultLbcode,
+            totCent:row.area,
+            zoneId: parseInt(zoneId, 10),
+        };
+      }
+
+        console.log('Sending validation payload:', payload);
+
+        const response = await fetch(`${BASE_URL}/btr-service/api/btr-data/validate-duplicate-nonbtr`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const responseText = await response.text();
+        let data = {};
+        
+        try {
+            data = responseText ? JSON.parse(responseText) : {};
+        } catch (parseError) {
+            console.error('Failed to parse response:', parseError);
+            throw new Error('Invalid response from server');
+        }
+
+        if (response.status === 409 || response.ok) {
+            console.log('Validation result:', data);
+            
+            if (response.status === 409) {
+                if (data.availableSubdivisions && data.availableSubdivisions.length > 0) {
+                    setAvailableSubdivisions(data.availableSubdivisions);
+                    setPendingPlot({ keyplotId, rowUniqueId, validationInfo: data });
+                    setSubdivisionDialogOpen(true);
+                } else {
+                    setValidationInfo(data);
+                    setValidatingRow({ keyplotId, rowUniqueId });
+                    setIsValidationDialogOpen(true);
+                }
+            } else {
+                setSnackbarMessage("Plot is available for use.");
+                setSnackbarOpen(true);
+            }
+        } else {
+            throw new Error(data.message || `Validation failed: ${response.status}`);
+        }
+    } catch (error) {
+        console.error("Error validating duplicate plot:", error);
+        setSnackbarMessage(`Error: ${error.message}`);
+        setSnackbarOpen(true);
+    }
+};
+
+const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
+    const keyplot = keyplotsData.find(k => k.id === keyplotId);
+    if (!keyplot) return;
+
+    const row = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
+    if (!row || !row.villageId || !row.block || !row.svNo) {
+        return;
+    }
+
+    // First check if this plot is already used in the current form
+    const plotIdentifier = `${row.villageId}-${row.block}-${row.svNo}-${row.sub || ''}`;
+    const existingUsageInForm = checkPlotUsageInCurrentForm(plotIdentifier, rowUniqueId);
+
+    if (existingUsageInForm.isUsed) {
+        // Plot is already used in current form - show UI validation
+        setValidationInfo({
+            message: `This plot is already used in ${existingUsageInForm.location}.`,
+            totalcent: existingUsageInForm.totalArea,
+            remainingArea: existingUsageInForm.remainingArea,
+            isFromCurrentForm: true
+        });
+        setValidatingRow({ keyplotId, rowUniqueId });
+        setIsValidationDialogOpen(true);
+        return;
+    }
+
+    // If not found in current form, check with backend
+    try {
+        const token = authservice.gettoken();
+        const zoneId = authservice.getzone();
+        
+        const payload = {
+            vcode: row.villageId,
+            bcode: row.block,
+            resvno: parseInt(row.svNo, 10),
+            resbdno: row.sub && row.sub.trim() !== "" ? row.sub.trim() : null,
+            zoneId: parseInt(zoneId, 10),
+        };
+
+        console.log('Sending validation payload:', payload);
+
+        const response = await fetch(`${BASE_URL}/btr-service/api/btr-data/validate-duplicate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const responseText = await response.text();
+        let data = {};
+        
+        try {
+            data = responseText ? JSON.parse(responseText) : {};
+        } catch (parseError) {
+            console.error('Failed to parse response:', parseError);
+            throw new Error('Invalid response from server');
+        }
+
+        if (response.status === 409 || response.ok) {
+            console.log('Validation result:', data);
+            
+            if (response.status === 409) {
+                if (data.availableSubdivisions && data.availableSubdivisions.length > 0) {
+                    setAvailableSubdivisions(data.availableSubdivisions);
+                    setPendingPlot({ keyplotId, rowUniqueId, validationInfo: data });
+                    setSubdivisionDialogOpen(true);
+                } else {
+                    setValidationInfo(data);
+                    setValidatingRow({ keyplotId, rowUniqueId });
+                    setIsValidationDialogOpen(true);
+                }
+            } else {
+                setSnackbarMessage("Plot is available for use.");
+                setSnackbarOpen(true);
+            }
+        } else {
+            throw new Error(data.message || `Validation failed: ${response.status}`);
+        }
+    } catch (error) {
+        console.error("Error validating duplicate plot:", error);
+        setSnackbarMessage(`Error: ${error.message}`);
+        setSnackbarOpen(true);
+    }
+};
 
     const isSubmitDisabled = () => {
         if (hasAnyError || submitting) return true;
-        
+       
         const keyplotData = keyplotsData.find(kp => kp.label === 'K');
         if (!keyplotData || keyplotData.rows.length === 0) return true;
         
         for (const keyplot of keyplotsData) {
             for (const row of keyplot.rows) {
-                if (!row.villageName || !row.block || !row.svNo || !row.sub || !row.area || !row.enumeratedArea) {
+            
+              if(BtrTypeId == 2){
+                if (!row.villageName || !row.block || !row.houseno || !row.ward_number || !row.area || !row.enumeratedArea) {
                     return true;
-                }
+                }}else if (BtrTypeId == 3){
+                  if (!row.villageName || !row.block || !row.ownername || !row.address || !row.area || !row.enumeratedArea) {
+                    return true;
+                }}else if (BtrTypeId == 4){
+                  if (!row.villageName || !row.block || !row.tpno ||  !row.area || !row.enumeratedArea) {
+                    return true;
+                }}else if (BtrTypeId == 5){
+                  if (!row.villageName || !row.block || !row.oldsvno || !row.oldsubno || !row.area || !row.enumeratedArea) {
+                    return true;
+                }}
             }
         }
         
@@ -1215,7 +1711,7 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
                         />
                     ) : (
                         <TextField
-                        label="Village"
+                        label={<> Village.<span style={{ color: 'red' }}> *</span></>}
                         value={row.villageName}
                         InputProps={{ readOnly: true }}
                         fullWidth
@@ -1224,7 +1720,7 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
                     )}
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={4}>
+                    <Grid item xs={12} sm={6} md={2}>
                     {isNewRow ? (
                         <FormControl fullWidth size="small">
                         <InputLabel>Block</InputLabel>
@@ -1244,8 +1740,8 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
                         </Select>
                         </FormControl>
                     ) : (
-                        <TextField
-                        label="Block"
+                        <TextField                       
+                        label={<>  Block.<span style={{ color: 'red' }}> *</span></>}
                         value={row.block}
                         InputProps={{ readOnly: true }}
                         fullWidth
@@ -1254,7 +1750,7 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
                     )}
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={4}>
+                    <Grid item xs={12} sm={6} md={2}>
                     <TextField
                         label="Survey No"
                         size="small"
@@ -1264,6 +1760,7 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
                         onChange={(e) =>
                         handleInputChange(e, keyplot.id, row.uniqueId, 'svNo')
                         }
+                          onBlur={() => handlePlotValidation2(keyplot.id, row.uniqueId)}
                     />
                     </Grid>
 
@@ -1278,53 +1775,11 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
                         onChange={(e) =>
                         handleInputChange(e, keyplot.id, row.uniqueId, 'sub')
                         }
+                          onBlur={() => handlePlotValidation2(keyplot.id, row.uniqueId)}
                     />
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={4}>
-                    <TextField
-                        label="Area"
-                        size="small"
-                        fullWidth
-                        type="number"
-                        value={row.area}
-                        InputProps={{
-                        readOnly: !isKeyPlotFirstRow && isAreaReadOnly && !isNewRow
-                        }}
-                        onChange={(e) =>
-                        handleInputChange(e, keyplot.id, row.uniqueId, 'area')
-                        }
-                    />
-                    </Grid>
-
-                    <Grid item xs={12} sm={6} md={4}>
-                      <TextField
-                        label="Enum. Area"
-                        size="small"
-                        fullWidth
-                        type="number"
-                        value={row.enumeratedArea}
-                        onChange={(e) =>
-                          handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')
-                        }
-                        // This onBlur will now trigger the API call
-                        onBlur={(e) =>
-                          handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')
-                        }
-                        error={hasError}
-                        helperText={hasError ? errors[errorKey] : ''}
-                        // Add InputProps to show a loading spinner during update
-                        InputProps={{
-                          endAdornment: updatingRow === row.uniqueId ? (
-                            <CircularProgress color="inherit" size={20} />
-                          ) : null,
-                        }}
-                      />
-                    </Grid>
-
-
-                    {/* Row 3: BType-specific fields laid out responsively */}
-                    {(() => {
+                           {(() => {
                     const b = currentBType?.name;
                     const readOnly = !isNewRow;
                     if (!b) return null;
@@ -1334,7 +1789,7 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
                         <>
                             <Grid item xs={12} sm={6} md={6}>
                             <TextField
-                                label="Name"
+                                label={<> Name.<span style={{ color: 'red' }}> *</span></>}
                                 size="small"
                                 fullWidth
                                 value={row.ownername || ''}
@@ -1351,7 +1806,7 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
                 </Grid>
                 <Grid item xs={12} sm={6} md={6}>
                   <TextField
-                    label="Address"
+                    label={<> Address<span style={{ color: 'red' }}> *</span></>}
                     size="small"
                     fullWidth
                     value={row.address || ''}
@@ -1361,6 +1816,7 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
                     }
                   />
                 </Grid>
+                
               </>
             );
           }
@@ -1368,13 +1824,14 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
           if (b === 'House List') {
             return (
               <>
-                <Grid item xs={12} sm={6} md={4}>
+                <Grid item xs={12} sm={6} md={2}>
                   <TextField
                     label="Name"
                     size="small"
                     fullWidth
                     value={row.ownername || ''}
                     InputProps={{ readOnly }}
+                     onBlur={() => handlePlotValidation(keyplot.id, row.uniqueId)}
                     onChange={(e) =>
                       handleInputChange(
                         e,
@@ -1392,32 +1849,36 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
                     fullWidth
                     value={row.address || ''}
                     InputProps={{ readOnly }}
+                     onBlur={() => handlePlotValidation(keyplot.id, row.uniqueId)}
                     onChange={(e) =>
                       handleInputChange(e, keyplot.id, row.uniqueId, 'address')
                     }
                   />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                
+                <Grid item xs={12} sm={6} md={2}>
                   <TextField
-                    label="House No."
+                    label={<> Ward No.<span style={{ color: 'red' }}> *</span></>}
+                    size="small"
+                    fullWidth
+                    value={row.ward_number}
+                    InputProps={{ readOnly }}
+                    onBlur={() => handlePlotValidation(keyplot.id, row.uniqueId)}
+                    onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, "ward_number")}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={2}>
+                  <TextField
+                    label={<> House No.<span style={{ color: 'red' }}> *</span></>}
                     size="small"
                     fullWidth
                     type="number"
                     value={row.houseno || ''}
                     InputProps={{ readOnly }}
+                    onBlur={() => handlePlotValidation(keyplot.id, row.uniqueId)}
                     onChange={(e) =>
                       handleInputChange(e, keyplot.id, row.uniqueId, 'houseno')
                     }
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <TextField
-                    label="Ward No."
-                    size="small"
-                    fullWidth
-                    value={row.ward_number}
-                    InputProps={{ readOnly }}
-                    onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, "ward_number")}
                   />
                 </Grid>
               </>
@@ -1458,12 +1919,13 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                   <TextField
-                    label="Thandaper No."
+                    label={<> Thandaper No.<span style={{ color: 'red' }}> *</span></>}
                     size="small"
                     fullWidth
                     type="number"
                     value={row.tpno || ''}
                     InputProps={{ readOnly }}
+                    onBlur={() => handlePlotValidation(keyplot.id, row.uniqueId)}
                     onChange={(e) =>
                       handleInputChange(e, keyplot.id, row.uniqueId, 'tpno')
                     }
@@ -1475,6 +1937,7 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
                     size="small"
                     fullWidth
                     value={row.tbsubdivisionno}
+                    onBlur={() => handlePlotValidation(keyplot.id, row.uniqueId)}
                     // InputProps={{ readOnly }}
                     onChange={(e) =>
                       handleInputChange(e, keyplot.id, row.uniqueId, 'tbsubdivisionno')
@@ -1515,11 +1978,12 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
               {/* Only Old Survey fields */}
               <Grid item xs={12} sm={6} md={2}>
                 <TextField
-                  label="Old Survey No."
+                label={<> Old Survey No..<span style={{ color: 'red' }}> *</span></>}
                   size="small"
                   fullWidth
                   value={row.oldsvno || ''}
                   InputProps={{ readOnly }}
+                  onBlur={() => handlePlotValidation(keyplot.id, row.uniqueId)}
                   onChange={(e) =>
                     handleInputChange(e, keyplot.id, row.uniqueId, 'oldsvno')
                   }
@@ -1532,6 +1996,7 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
                   fullWidth
                   value={row.oldsubno || ''}
                   InputProps={{ readOnly }}
+                  onBlur={() => handlePlotValidation(keyplot.id, row.uniqueId)}
                   onChange={(e) =>
                     handleInputChange(e, keyplot.id, row.uniqueId, 'oldsubno')
                   }
@@ -1540,6 +2005,53 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
             </>
           );
         })()}
+
+                    <Grid item xs={12} sm={6} md={4}>
+                    <TextField
+                        label={<> Area.<span style={{ color: 'red' }}> *</span></>}
+                        size="small"
+                        fullWidth
+                        type="number"
+                        value={row.area}
+                        InputProps={{
+                        readOnly: !isKeyPlotFirstRow && isAreaReadOnly && !isNewRow
+                        }}
+                       {...(BtrTypeId === 3 && {
+                            onBlur: () => handlePlotValidation(keyplot.id, row.uniqueId),})}
+                        onChange={(e) =>
+                        handleInputChange(e, keyplot.id, row.uniqueId, 'area')
+                        }
+                    />
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={4}>
+                      <TextField
+                        label={<> Enum. Area<span style={{ color: 'red' }}> *</span></>}
+                        size="small"
+                        fullWidth
+                        type="number"
+                        value={row.enumeratedArea}
+                        onChange={(e) =>
+                          handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')
+                        }
+                        // This onBlur will now trigger the API call
+                        // onBlur={(e) =>
+                        //   handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')
+                        // }
+                        error={hasError}
+                        helperText={hasError ? errors[errorKey] : ''}
+                        // Add InputProps to show a loading spinner during update
+                        InputProps={{
+                          endAdornment: updatingRow === row.uniqueId ? (
+                            <CircularProgress color="inherit" size={20} />
+                          ) : null,
+                        }}
+                      />
+                    </Grid>
+
+
+                    {/* Row 3: BType-specific fields laid out responsively */}
+                 
 
         {/* Actions */}
         <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -1573,7 +2085,7 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
                     </Typography>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
                         <Tooltip title="View FMB"><Button variant="contained" color="secondary"><MapIcon /></Button></Tooltip>
-                        <Tooltip title="Reject Cluster"><Button variant="contained" color="error"><WarningAmberIcon /></Button></Tooltip>
+                        {/* <Tooltip title="Reject Cluster"><Button variant="contained" color="error"><WarningAmberIcon /></Button></Tooltip> */}
                         <Tooltip title="Submit">
                             <Button
                                 onClick={handleSubmit}
@@ -1599,12 +2111,14 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
                     <Grid item xs={12} sm={6} md={4}><TextField label="Local Body" value={clusterInfo.localBody} InputProps={{ readOnly: true }} fullWidth /></Grid>
                     <Grid item xs={12} sm={6} md={3}><TextField label="Land Type" value={clusterInfo.landType} InputProps={{ readOnly: true }} fullWidth /></Grid>
                 </Grid>
-
+                <center><Chip label={clusterInfo.BtrType} variant="outlined" /></center>
+                  
                 {/* Selected CCE Crops */}
                 {(savedCrops.length > 0 || (apiCropsData && apiCropsData.crops && apiCropsData.crops.length > 0)) && (
                     <Paper elevation={2} sx={{ mt: 3, mb: 3, overflow: 'hidden', borderRadius: 1, border: '1px solid #ccc' }}>
                         <Box sx={{ bgcolor: '#3066c2', color: 'white', p: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
                             <GrassIcon />
+                            
                             <Typography variant="h6" fontWeight="bold">Selected CCE Crops</Typography>
                             {loadingApiCrops && <CircularProgress size={16} sx={{ color: 'white', ml: 1 }} />}
                         </Box>
@@ -1645,13 +2159,31 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
                     <Grid container spacing={2} alignItems="center" justifyContent="center">
                         <Grid item><Button variant="contained" color="info" onClick={handleOpenCropsModal}>Add CCE crops</Button></Grid>
                         <Grid item><Button variant="contained" color="secondary" startIcon={<MapIcon />}>View FMB</Button></Grid>
-                        <Grid item><Button variant="contained" color="error" startIcon={<DeleteForeverIcon />}>Reject Cluster</Button></Grid>
+                        {/* <Grid item><Button variant="contained" color="error" startIcon={<DeleteForeverIcon />}>Reject Cluster</Button></Grid> */}
                     </Grid>
                 </Box>
 
                 {/* Keyplot Sections - REFACTORED TO STACKED FORM FIELDS */}
                 {keyplotsData.map((keyplot) => {
-                    const isNewRowIncomplete = keyplot.rows.filter(r => r.isNew).some(r => !r.villageName || !r.block || !r.svNo || !r.sub || !r.area || !r.enumeratedArea);
+                  let isNewRowIncomplete = false;
+                  if (BtrTypeId === 2) {
+    isNewRowIncomplete = keyplot.rows
+      .filter(r => r.isNew)
+      .some(r => !r.villageName || !r.block || !r.ward_number || !r.houseno || !r.area || !r.enumeratedArea);
+  } else if (BtrTypeId === 3) {
+    isNewRowIncomplete = keyplot.rows
+      .filter(r => r.isNew)
+      .some(r => !r.villageName || !r.block || !r.ownername || !r.address || !r.area || !r.enumeratedArea);
+  } else if (BtrTypeId === 4) {
+    isNewRowIncomplete = keyplot.rows
+      .filter(r => r.isNew)
+      .some(r => !r.villageName || !r.block || !r.tpno || !r.area || !r.enumeratedArea);
+  } else if (BtrTypeId === 5) {
+    isNewRowIncomplete = keyplot.rows
+      .filter(r => r.isNew)
+      .some(r => !r.villageName || !r.block || !r.oldsvno || !r.oldsubno || !r.area || !r.enumeratedArea);
+  }
+                    
                     const hasErrorInKeyplot = keyplot.rows.some(r => !!errors[`${keyplot.id}-${r.uniqueId}`]);
                     return (
                         <Box key={keyplot.id} sx={{ mt: 3, border: '1px solid #ccc', borderRadius: 1, bgcolor: 'white', p: 0 }}>
@@ -1700,6 +2232,22 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
                                         </FormControl>
                                     </Box>
                                 )}
+                                 <Box sx={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: 1,
+                                    p: '6px 16px',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                                    borderRadius: '6px',
+                                    border: '1px solid rgba(255, 255, 255, 0.3)'
+                                }}>
+                                    <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                                        Total:
+                                    </Typography>
+                                    <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                                        {keyplot.rows.reduce((total, row) => total + (parseFloat(row.enumeratedArea) || 0), 0).toFixed(2)} cents
+                                    </Typography>
+                                </Box>
                             </Box>
 
                             <Box sx={{ p: 2 }}>
@@ -1876,6 +2424,52 @@ const handleInputBlur = async (e, keyplotId, rowUniqueId, field) => {
                 </DialogActions>
             </Dialog>
 
+
+<Dialog 
+    open={isValidationDialogOpen} 
+    onClose={() => setIsValidationDialogOpen(false)}
+    maxWidth="sm"
+    fullWidth
+>
+    <DialogTitle>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <InfoIcon color={validationInfo?.isFromCurrentForm ? "warning" : "primary"} />
+            <Typography variant="h6">
+                {validationInfo?.isFromCurrentForm ? "Duplicate Plot in Form" : "Plot Recommendation"}
+            </Typography>
+        </Box>
+    </DialogTitle>
+    <DialogContent>
+        {renderValidationDialogContent()}
+    </DialogContent>
+    <DialogActions>
+        <Button onClick={() => setIsValidationDialogOpen(false)} color="secondary">
+            Cancel
+        </Button>
+        
+        {validationInfo && (
+            <>
+                {validationInfo.remainingArea > 0 && (
+                    <Button
+                        onClick={() => handleUseRecommendedPlot('remaining')}
+                        color="primary"
+                        variant="contained"
+                    >
+                        Use Remaining Area ({validationInfo.remainingArea.toFixed(2)} cents)
+                    </Button>
+                )}
+                
+                <Button 
+                    onClick={handleRejectPlot} 
+                    color="error" 
+                    variant="outlined"
+                >
+                    {validationInfo.isFromCurrentForm ? 'Clear Entry' : 'Reject Plot'}
+                </Button>
+            </>
+        )}
+    </DialogActions>
+</Dialog>
             {/* Snackbar */}
             <Snackbar
                 open={snackbarOpen}

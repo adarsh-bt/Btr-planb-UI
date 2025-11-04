@@ -253,35 +253,53 @@ const handleRejectPlot = () => {
     setSnackbarMessage("This plot cannot be used. Please enter a different one.");
     setSnackbarOpen(true);
 };
+
 const checkPlotUsageInCurrentForm = (plotIdentifier, currentRowUniqueId) => {
+    // Collect all rows from the current form, including saved (isExisting) ones
     const allRows = keyplotsData.flatMap(kp => kp.rows);
+
+    // Find all rows (existing + new) with the same plot identifier
     const duplicateRows = allRows.filter(row => {
-        const rowPlotIdentifier = `${row.villageId}-${row.block}-${row.svNo}-${row.sub || ''}`;
-        return rowPlotIdentifier === plotIdentifier && row.uniqueId !== currentRowUniqueId;
+        const rowPlotIdentifier = `${row.villageName}-${row.block}-${row.svNo}-${row.sub || ''}`;
+        return rowPlotIdentifier === plotIdentifier;
     });
 
     if (duplicateRows.length === 0) {
         return { isUsed: false };
     }
 
-    // Calculate total area and used area
-    const totalArea = parseFloat(duplicateRows[0].area) || 0;
-    const usedArea = duplicateRows.reduce((sum, row) => sum + (parseFloat(row.enumeratedArea) || 0), 0);
-    const remainingArea = totalArea - usedArea;
+    // ✅ Pick master area from the first occurrence (existing or not)
+    const masterRow = duplicateRows[0];
+    const totalArea = parseFloat(masterRow.area) || 0;
 
-    const locations = duplicateRows.map(row => {
-        const keyplot = keyplotsData.find(kp => kp.rows.some(r => r.uniqueId === row.uniqueId));
-        return keyplot ? keyplot.label : 'Unknown';
-    });
+    // ✅ Calculate used area from ALL duplicate rows EXCEPT the current one being validated
+    const usedArea = duplicateRows.reduce((sum, row) => {
+        // Don't count the current row being validated in the used area calculation
+        if (row.uniqueId === currentRowUniqueId) {
+            return sum;
+        }
+        const val = parseFloat(row.enumeratedArea) || 0;
+        return sum + val;
+    }, 0);
+
+    const remainingArea = Math.max(0, totalArea - usedArea);
+
+    const locations = duplicateRows
+        .filter(row => row.uniqueId !== currentRowUniqueId) // Exclude current row from locations
+        .map(row => {
+            const keyplot = keyplotsData.find(kp => kp.rows.some(r => r.uniqueId === row.uniqueId));
+            return keyplot ? keyplot.label : 'Unknown';
+        });
 
     return {
-        isUsed: true,
+        isUsed: locations.length > 0, // Only considered "used" if there are other rows using this plot
         location: locations.join(', '),
         totalArea,
         usedArea,
         remainingArea
     };
 };
+
 
 const handlePlotValidation = async (keyplotId, rowUniqueId) => {
     const keyplot = keyplotsData.find(k => k.id === keyplotId);
@@ -1074,10 +1092,11 @@ const handleCloseCropsModal = async () => {
         });
     };
 
-    const validateAndSetData = (data) => {
+ const validateAndSetData = (data) => {
   const newErrors = {};
   const plotUsage = new Map();
 
+  // First pass: collect all plot information
   data.forEach(kp => {
     kp.rows.forEach(r => {
       if (r.villageName && r.block && r.svNo && r.sub) {
@@ -1090,28 +1109,26 @@ const handleCloseCropsModal = async () => {
     });
   });
 
-  plotUsage.forEach(plotInfo => {
+  // Second pass: validate each plot's area usage
+  plotUsage.forEach((plotInfo, plotId) => {
     const firstInstance = plotInfo.rows[0];
-    // Convert to number for calculations but preserve string in UI
     const masterArea = parseFloat(firstInstance.area) || 0;
     
-    plotInfo.rows.forEach(row => {
-      row.area = masterArea > 0 ? masterArea.toString() : row.area;
-    });
+    // Calculate total used area for this plot
+    const totalUsedArea = plotInfo.rows.reduce((sum, row) => {
+      return sum + (parseFloat(row.enumeratedArea) || 0);
+    }, 0);
 
-    let cumulativeEnumerated = 0;
+    // Validate each row in this plot
     plotInfo.rows.forEach(row => {
-      // Convert to number for validation
       const enumerated = parseFloat(row.enumeratedArea) || 0;
-      const remainingArea = masterArea - cumulativeEnumerated;
+      const remainingArea = masterArea - (totalUsedArea - enumerated); // Subtract current row's area from total
       
       const errorKey = `${data.find(kp => kp.rows.some(r => r.uniqueId === row.uniqueId)).id}-${row.uniqueId}`;
       
       if (enumerated > remainingArea && masterArea > 0) {
-        newErrors[errorKey] = `Exceeds remaining plot area of ${remainingArea.toFixed(2)}`;
+        newErrors[errorKey] = `Exceeds remaining plot area of ${remainingArea.toFixed(2)} cents`;
       }
-      
-      cumulativeEnumerated += enumerated;
     });
   });
 
@@ -1159,7 +1176,7 @@ const handleCloseCropsModal = async () => {
         validateAndSetData(newData);
     };
 
-    const handleInputChange = (e, keyplotId, rowUniqueId, field) => {
+const handleInputChange = (e, keyplotId, rowUniqueId, field) => {
   const value = e.target.value;
   const newData = JSON.parse(JSON.stringify(keyplotsData));
   const keyplot = newData.find(k => k.id === keyplotId);
@@ -1178,15 +1195,16 @@ const handleCloseCropsModal = async () => {
   }
 
   row[field] = processedValue;
-   if (field === 'svNo' && value && row.villageId && row.block) {
-        // Trigger validation after a short delay when survey number is entered
-        setTimeout(() => {
-            handlePlotValidation(keyplotId, rowUniqueId);
-        }, 500);
-    } else if (field === 'sub' && value && row.villageId && row.block && row.svNo) {
-        // Trigger validation immediately when subdivision is entered/changed
+
+  // Trigger validation when plot details change
+  if (['svNo', 'sub', 'enumeratedArea'].includes(field)) {
+    if (row.villageId && row.block && row.svNo) {
+      setTimeout(() => {
         handlePlotValidation(keyplotId, rowUniqueId);
+      }, 300);
     }
+  }
+
   // Existing logic for syncing related fields...
   if (['villageName', 'block', 'svNo', 'sub'].includes(field)) {
     const allRows = newData.flatMap(kp => kp.rows);
@@ -1231,7 +1249,6 @@ const handleCloseCropsModal = async () => {
 
   validateAndSetData(newData);
 };
-
 
     const handleInputBlur = (e, keyplotId, rowUniqueId, field) => {
         // This can be used for additional validation if needed
@@ -1464,8 +1481,9 @@ useEffect(() => {
                 
                     const hasErrorInKeyplot = keyplot.rows.some(r => !!errors[`${keyplot.id}-${r.uniqueId}`]);
                     return (
-                        <Box key={keyplot.id} sx={{ mt: 3, border: '1px solid #ccc', borderRadius: 1, overflowX: 'auto', bgcolor: 'white', p: 2 }}>
+                      <Box key={keyplot.id} sx={{ mt: 3, border: '1px solid #ccc', borderRadius: 1, overflowX: 'auto', bgcolor: 'white', p: 2 }}>
                             <Box sx={{ bgcolor: '#05307a', color: 'white', p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                {/* LEFT SIDE: Section label (existing code) */}
                                 {keyplot.label === 'K' ? (
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <Typography variant="h6" sx={{ fontWeight: 'bold' }}>KEYPLOT:</Typography>
@@ -1510,7 +1528,26 @@ useEffect(() => {
                                         </FormControl>
                                     </Box>
                                 )}
+
+                                {/* RIGHT SIDE: Total enumerated area for this section */}
+                                <Box sx={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: 1,
+                                    p: '6px 16px',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                                    borderRadius: '6px',
+                                    border: '1px solid rgba(255, 255, 255, 0.3)'
+                                }}>
+                                    <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                                        Total:
+                                    </Typography>
+                                    <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                                        {keyplot.rows.reduce((total, row) => total + (parseFloat(row.enumeratedArea) || 0), 0).toFixed(2)} cents
+                                    </Typography>
+                                </Box>
                             </Box>
+
                             <Grid container spacing={2} sx={{ p: 2 }} alignItems="center">
                                 {/* Headers */}
                                 <Grid item xs={2}><Typography fontWeight="bold">Village</Typography></Grid>
