@@ -394,6 +394,7 @@ const getRequiredFieldsForRow = (currentListType) => {
         { field: "villageBlock", label: "Village Block" },
         { field: "name", label: "Name" },
         { field: "address", label: "Address" },
+        { field: "area", label: "Area Cents" },
         { field: "landType", label: "Land Type" },
       ];
     case "Thandaper Number": // btrTypeId = 4
@@ -558,8 +559,10 @@ const getRequiredFieldsForRow = (currentListType) => {
     setShowConfirmModal(false);
   };
 
-  // Updated handleActualSave with backend integration and district/taluk data
+    // Form-level validation per row based on current list type
   const handleActualSave = async () => {
+
+    // CHANGE START: guard on reference data load and form validation using localBodyData (remove sortedRows usage here)
     // Check if required reference data is loaded
     if (!districtInfo || talukInfo.length === 0) {
       toast.error("District or Taluk data is not yet loaded. Please wait.");
@@ -567,44 +570,37 @@ const getRequiredFieldsForRow = (currentListType) => {
     }
 
     // Form-level validation per row based on current list type
-  const newValidationErrors = [];
-  Object.entries(localBodyData).forEach(([lbId, villageData]) => {
-    Object.entries(villageData || {}).forEach(([villageName, rows]) => {
-      const currentListType = getCurrentListType(lbId, villageName);
-      const requiredFields = getRequiredFieldsForRow(currentListType);
-      (rows || []).forEach((row) => {
-        requiredFields.forEach(({ field, label }) => {
-          const val = row[field];
-          const isEmpty =
-            val === null ||
-            val === undefined ||
-            (typeof val === "string" && val.trim() === "");
-          if (isEmpty) {
-            newValidationErrors.push({
-              message: `Row ${row.slNo || row.id}: ${label} is required in ${currentListType} (${villageName}).`,
-            });
-          }
+    const newValidationErrors = [];
+
+    Object.entries(localBodyData).forEach(([lbId, villageData]) => {
+      Object.entries(villageData || {}).forEach(([villageName, rows]) => {
+        const currentListType = getCurrentListType(lbId, villageName);
+        const requiredFields = getRequiredFieldsForRow(currentListType);
+
+        (rows || []).forEach((row) => {
+          requiredFields.forEach(({ field, label }) => {
+            const val = row[field];
+            const isEmpty =
+              val === null ||
+              val === undefined ||
+              (typeof val === "string" && val.trim() === "");
+            if (isEmpty) {
+              newValidationErrors.push({
+                message: `Row ${row.slNo || row.id}: ${label} is required in ${currentListType} (${villageName}).`,
+              });
+            }
+          });
         });
       });
     });
-  });
 
-  const allRequiredFilled = sortedRows.every(row =>
-  requiredFields.every(({ field }) => {
-    const val = row[field];
-    if (val === null || val === undefined) return false;
-    if (typeof val === "string") return val.trim() !== "";
-    // numbers like wardNo, houseNo, area should not be empty; allow 0 if valid
-    return String(val).trim() !== "";
-  })
-);
-
-  if (newValidationErrors.length > 0) {
-    setValidationErrors(newValidationErrors);
-    setShowErrorModal(true);
-    toast.error("Validation failed. Please fill all required fields.");
-    return;
-  }
+    if (newValidationErrors.length > 0) {
+      setValidationErrors(newValidationErrors);
+      setShowErrorModal(true);
+      toast.error("Validation failed. Please fill all required fields.");
+      return;
+    }
+    // CHANGE END
 
     setIsSaving(true);
     
@@ -694,8 +690,8 @@ const getRequiredFieldsForRow = (currentListType) => {
         toast.success(`Successfully saved ${result.ids?.length || totalKeyplots} keyplots!`);
         
         // Optional: Clear the form data after successful save
-        // setLocalBodyData({});
-        // setListTypes({});
+        setLocalBodyData({});
+        setListTypes({});
         
       } else if (result.status === 'Validation Failed') {
         setValidationErrors(result.errors || []);
@@ -847,7 +843,8 @@ const headerToFieldKey = {
   "Old Sub No.": "oldsubno",
   "Survey No.": "surveyNo",
   "Sub Div No.": "subDivNo",
-  "Area Cents": "area",
+  // "Area Cents": "area",
+  "Area (Cents)": "area",
   "Land Type": "landType",
   "Actions": "__actions__",
 };
@@ -1551,17 +1548,17 @@ const allRequiredFilled = sortedRows.every(row =>
             </Box>
           </DialogTitle>
           <DialogContent>
-            <DialogContentText sx={{ textAlign: 'center', fontSize: '1.1rem' }}>
+            {/* <DialogContentText sx={{ textAlign: 'center', fontSize: '1.1rem' }}>
               {validationErrors.length > 0 
                 ? `Validation failed with ${validationErrors.length} errors. Please check the form and try again.`
                 : "Error saving keyplots! Please check the form for errors and try again."
               }
-            </DialogContentText>
+            </DialogContentText> */}
             {validationErrors.length > 0 && (
               <Box sx={{ mt: 2, textAlign: 'left' }}>
-                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
+                {/* <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
                   Validation Errors:
-                </Typography>
+                </Typography> */}
                 {validationErrors.slice(0, 5).map((error, index) => (
                   <Typography key={index} variant="body2" sx={{ mb: 0.5, color: '#f44336' }}>
                      {error.message}
