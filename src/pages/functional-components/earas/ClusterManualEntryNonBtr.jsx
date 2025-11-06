@@ -1552,6 +1552,7 @@ const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
         const zoneId = authservice.getzone();
         
         const payload = {
+            lbcode: defaultLbcode,
             vcode: row.villageId,
             bcode: row.block,
             resvno: parseInt(row.svNo, 10),

@@ -50,6 +50,7 @@ const Roles = () => {
   const [schemeRolePairs, setSchemeRolePairs] = useState([]);
   const [schemesLoading, setSchemesLoading] = useState(false);
   const [rolesLoading, setRolesLoading] = useState(false);
+  const [designationConfirmOpen, setDesignationConfirmOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState(0);
   const [isEditingOffice, setIsEditingOffice] = useState(false);
@@ -84,6 +85,8 @@ const [availableZones, setAvailableZones] = useState([]);
 
   const [innerTabValue, setInnerTabValue] = useState(0);
   
+const [confirmOpen, setConfirmOpen] = useState(false);
+const [confirmMessage, setConfirmMessage] = useState('');
 
   // Designation Change States
   const [isEditingDesignation, setIsEditingDesignation] = useState(false);
@@ -274,7 +277,7 @@ const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
         // Optionally refresh user data
         const updatedRes = await ApprovedUserService.fetchUserById(userId);
         if (!updatedRes.error) {
-        
+        console.log("updatedRes.payload ",updatedRes.payload )
           setUserData(updatedRes.payload);
           setOfficeType(updatedRes.payload.officeType || '');
         }
@@ -309,6 +312,14 @@ const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
     setStatusUpdating(false);
   };
 
+// 1️⃣ Add this function near your other handlers
+const handleSchemeRoleActiveChange = (idx, value) => {
+  setSchemeRolePairs((pairs) =>
+    pairs.map((pair, i) =>
+      i === idx ? { ...pair, active: value === 'active' } : pair
+    )
+  );
+};
 
 
   // Fetch user details on mount
@@ -594,6 +605,7 @@ console.log("selectedZoneIdToAdd", selectedZoneIdToAdd);
 
   const handleSaveDesignation = async () => {
     if (!selectedDesignationId) return;
+    setDesignationConfirmOpen(false);
     setDesignationLoading(true);
     setDesignationError('');
     const res = await ApprovedUserService.updateUserDesignation(userId, selectedDesignationId);
@@ -609,7 +621,11 @@ console.log("selectedZoneIdToAdd", selectedZoneIdToAdd);
       setIsEditingDesignation(false);
     }
   };
-
+const handleSaveDesignationClick = () => {
+  if (selectedDesignationId) {
+    setDesignationConfirmOpen(true);
+  }
+};
   const handleCancelDesignation = () => {
     setIsEditingDesignation(false);
     setDesignationError('');
@@ -683,8 +699,12 @@ console.log("selectedZoneIdToAdd", selectedZoneIdToAdd);
 
   const handleSaveSchemes = async () => {
     const roleScheme = schemeRolePairs
-      .filter((pair) => pair.schemeId && pair.roleId)
-      .map((pair) => ({ schemeId: pair.schemeId, roleId: pair.roleId }));
+       .filter((pair) => pair.schemeId && pair.roleId)
+  .map((pair) => ({
+    schemeId: pair.schemeId,
+    roleId: pair.roleId,
+    isActive: pair.active ?? true, // include individual active/inactive state
+  }));
 
     try {
       const result = await ApprovedUserService.updateUserRoleScheme({
@@ -694,9 +714,9 @@ console.log("selectedZoneIdToAdd", selectedZoneIdToAdd);
       });
 
       if (result.error) {
-        alert(`Failed to update schemes/roles: ${result.message}`);
+       setConfirmMessage(`Failed to update schemes/roles: ${result.message}`);
       } else {
-        alert('Schemes and roles updated!');
+        setConfirmMessage('Schemes and roles updated!');
         setIsEditingSchemes(false);
 
         // Refresh user data
@@ -714,8 +734,9 @@ console.log("selectedZoneIdToAdd", selectedZoneIdToAdd);
           );
         }
       }
+      setConfirmOpen(true);
     } catch (err) {
-      alert('Failed to update schemes/roles');
+      setConfirmMessage('Failed to update schemes/roles');
     }
   };
 
@@ -793,19 +814,30 @@ console.log("selectedZoneIdToAdd", selectedZoneIdToAdd);
                         label: 'Roles',
                         value: userData.roleSchemeResponses?.map((r) => r.roleName).join(' | ') || ''
                       },
-                      { label: 'Register Date', value: userData.createdAt?.slice(0, 10) || userData.registerDate },
+                     {label: 'Register Date',
+                                  value: userData.createdAt
+                                    ? new Date(userData.createdAt).toLocaleString() // e.g., "10/9/2025, 10:27:11 PM"
+                                    : ''
+                                },
+
                       {
                         label: 'Status',
                         value: (
                           <Chip
-                            label={userData.active ? 'Activ' : 'Inactive'}
+                            label={userData.active ? 'Active' : 'Inactive'}
                             color={userData.active ? 'success' : 'default'}
                             size="small"
                             sx={{ fontWeight: 'bold', color: '#fff' }}
                           />
                         )
                       },
-                      { label: 'Active Date', value: userData.updatedAt?.slice(0, 10) || userData.activeDate }
+
+
+                      { label: 'Active Date', value: userData.updatedAt
+                          ? new Date(userData.updatedAt).toLocaleString() // e.g., "10/9/2025, 10:27:11 PM"
+                          : '' },
+
+
                     ].map((item, index) => (
                       <Grid item xs={12} sm={6} key={index}>
                         {typeof item.value === 'string' || typeof item.value === 'number' ? (
@@ -930,7 +962,7 @@ console.log("selectedZoneIdToAdd", selectedZoneIdToAdd);
                       <Grid item xs={12} sm={6}>
                         <FormControl fullWidth size="small">
                           <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-                            <Typography variant="h6">Designation</Typography>
+                            <Typography variant="h6">Update Designation</Typography>
                             {!isEditingDesignation && (
                               <IconButton
                                 aria-label="edit"
@@ -967,7 +999,7 @@ console.log("selectedZoneIdToAdd", selectedZoneIdToAdd);
                               </Select>
                               <Box sx={{ mt: 2 }}>
                                 <Button
-                                  onClick={handleSaveDesignation}
+                                   onClick={handleSaveDesignationClick}
                                   variant="contained"
                                   color="primary"
                                   disabled={designationLoading || !selectedDesignationId}
@@ -1175,7 +1207,7 @@ console.log("selectedZoneIdToAdd", selectedZoneIdToAdd);
                   {innerTabValue === 4 && (
                     <FormControl component="fieldset" sx={{ mt: 2 }}>
                       <Typography variant="body2" sx={{ mb: 1 }}>
-                        User Status
+                        User Action Status :
                       </Typography>
                       <RadioGroup row value={userStatus} onChange={handleUserStatusChange} disabled={statusUpdating}>
                         <FormControlLabel value="active" control={<Radio />} label="Active" />
@@ -1274,6 +1306,46 @@ console.log("selectedZoneIdToAdd", selectedZoneIdToAdd);
       </Button>
     </DialogActions>
   </Dialog>
+
+
+{/* Designation Change Confirmation Dialog */}
+<Dialog open={designationConfirmOpen} onClose={() => setDesignationConfirmOpen(false)}>
+  <DialogTitle sx={{background:"#04255e",color:"white"}}>Confirm Designation Change</DialogTitle>
+  <DialogContent sx={{ mt: 2 }}>
+    <Typography>
+      Are you sure you want to change the designation to{" "}
+      <strong>
+        {designationOptions.find(d => d.id === selectedDesignationId)?.designationName}
+      </strong>
+      ?
+    </Typography>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setDesignationConfirmOpen(false)}>Cancel</Button>
+    <Button 
+      onClick={handleSaveDesignation} 
+      variant="contained" 
+      color="primary"
+    >
+      Confirm Change
+    </Button>
+  </DialogActions>
+</Dialog>
+
+
+<Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+  <DialogTitle sx={{ background: "#04255e", color: "white" }}>
+    Update Status
+  </DialogTitle>
+  <DialogContent>
+    <Typography sx={{ mt: 2 }}>{confirmMessage}</Typography>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setConfirmOpen(false)} variant="contained" color="primary">
+      OK
+    </Button>
+  </DialogActions>
+</Dialog>
 
     </Grid>
   );

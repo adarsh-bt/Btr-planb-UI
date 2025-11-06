@@ -152,6 +152,7 @@ const DesignationManage = () => {
             variant="outlined"
             value={designationName}
             onChange={(e) => setDesignationName(e.target.value)}
+             inputProps={{ maxLength: 40 }}
           />
         </Grid>
 

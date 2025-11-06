@@ -95,7 +95,7 @@ const RoleList = () => {
   const navigate = useNavigate();
 
   const handleView = (row) => {
-  navigate('/role', { state: { userId: row.userId || row.id } });
+  navigate('/User_Manage/Manage_Users/User_Details', { state: { userId: row.userId || row.id } });
 };
 
   const handleFilterChange = (event) => {
