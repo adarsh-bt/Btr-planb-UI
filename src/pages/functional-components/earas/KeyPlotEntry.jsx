@@ -470,7 +470,10 @@ const handleLocalBodyChange = (tabLbId, rowId, selectedLbId) => {
         toast.success(`Successfully saved! All ${savedKeyplotCount} keyplots have been saved successfully.`);
         console.log("Save successful:", result);
         // Optional: Reset form state after successful save
-        // setLocalBodyData({});
+        setLocalBodyData({});
+        setDuplicateErrors({});
+        setClientDuplicateErrors({});
+        setFieldErrors({});
         clearValidationErrors();
       } else {
         toast.warning("Unexpected response format from server.");
