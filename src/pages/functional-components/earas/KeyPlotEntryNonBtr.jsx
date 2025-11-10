@@ -50,6 +50,7 @@ import authservice from "pages/authentication/services/authservice";
 const landTypeOptions = ["Wet", "Dry"];
 const TOTAL_REQUIRED = 100;
 
+
 const KeyPlotEntryNonBtr = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [activeVillageTab, setActiveVillageTab] = useState({});
@@ -80,6 +81,7 @@ const KeyPlotEntryNonBtr = () => {
   const [popoverAnchorEl, setPopoverAnchorEl] = useState(null);
   const [selectedVillage, setSelectedVillage] = useState(null);
   const [selectedLocalBody, setSelectedLocalBody] = useState(null);
+  
 
   const BASE_URL = mainapi.BASE_URL;
   const zoneId = typeof window !== "undefined" ? localStorage.getItem("activeZone") : null;
@@ -243,6 +245,8 @@ const KeyPlotEntryNonBtr = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
 
+
+
   // Get villages for a specific local body
   const getVillagesForLocalBody = (localBodyId) => {
     return villageOptions.filter(v => 
@@ -373,6 +377,47 @@ const KeyPlotEntryNonBtr = () => {
       ? (a, b) => descendingComparator(a, b, orderBy)
       : (a, b) => -descendingComparator(a, b, orderBy);
   };
+
+  // Returns an array of { field, label } that must be filled for this row based on current list type
+const getRequiredFieldsForRow = (currentListType) => {
+  switch (currentListType) {
+    case "House List": // btrTypeId = 2
+      return [
+        { field: "villageBlock", label: "Village Block" },
+        { field: "wardNo", label: "Ward No." },
+        { field: "houseNo", label: "House No." },
+        { field: "area", label: "Area (Cents)" },
+        { field: "landType", label: "Land Type" },
+      ];
+    case "Cultivators List": // btrTypeId = 3
+      return [
+        { field: "villageBlock", label: "Village Block" },
+        { field: "name", label: "Name" },
+        { field: "address", label: "Address" },
+        { field: "area", label: "Area Cents" },
+        { field: "landType", label: "Land Type" },
+      ];
+    case "Thandaper Number": // btrTypeId = 4
+      return [
+        { field: "villageBlock", label: "Village Block" },
+        { field: "thandaperNo", label: "Thandaper No." },
+        { field: "thandapersubNo", label: "Thandaper Sub No." },
+        { field: "area", label: "Area (Cents)" },
+        { field: "landType", label: "Land Type" },
+      ];
+    case "Old Survey Number": // btrTypeId = 5
+      return [
+        { field: "villageBlock", label: "Village Block" },
+        { field: "oldsvno", label: "Old Survey No." },
+        { field: "oldsubno", label: "Old Sub No." },
+        { field: "area", label: "Area (Cents)" },
+        { field: "landType", label: "Land Type" },
+      ];
+    default:
+      return [];
+  }
+};
+
 
   const sortedByLocalBodyAndVillage = useMemo(() => {
     const out = {};
@@ -514,13 +559,48 @@ const KeyPlotEntryNonBtr = () => {
     setShowConfirmModal(false);
   };
 
-  // Updated handleActualSave with backend integration and district/taluk data
+    // Form-level validation per row based on current list type
   const handleActualSave = async () => {
+
+    // CHANGE START: guard on reference data load and form validation using localBodyData (remove sortedRows usage here)
     // Check if required reference data is loaded
     if (!districtInfo || talukInfo.length === 0) {
       toast.error("District or Taluk data is not yet loaded. Please wait.");
       return;
     }
+
+    // Form-level validation per row based on current list type
+    const newValidationErrors = [];
+
+    Object.entries(localBodyData).forEach(([lbId, villageData]) => {
+      Object.entries(villageData || {}).forEach(([villageName, rows]) => {
+        const currentListType = getCurrentListType(lbId, villageName);
+        const requiredFields = getRequiredFieldsForRow(currentListType);
+
+        (rows || []).forEach((row) => {
+          requiredFields.forEach(({ field, label }) => {
+            const val = row[field];
+            const isEmpty =
+              val === null ||
+              val === undefined ||
+              (typeof val === "string" && val.trim() === "");
+            if (isEmpty) {
+              newValidationErrors.push({
+                message: `Row ${row.slNo || row.id}: ${label} is required in ${currentListType} (${villageName}).`,
+              });
+            }
+          });
+        });
+      });
+    });
+
+    if (newValidationErrors.length > 0) {
+      setValidationErrors(newValidationErrors);
+      setShowErrorModal(true);
+      toast.error("Validation failed. Please fill all required fields.");
+      return;
+    }
+    // CHANGE END
 
     setIsSaving(true);
     
@@ -608,30 +688,10 @@ const KeyPlotEntryNonBtr = () => {
         setSavedCount(result.ids?.length || totalKeyplots);
         setShowSuccessModal(true);
         toast.success(`Successfully saved ${result.ids?.length || totalKeyplots} keyplots!`);
-
-        // ---MODIFICATION START: Reset form for a fresh start ---
-        
-        // 1. Clear all entered keyplot data from the tables.
-        setLocalBodyData({});
-
-        // 2. Reset the list types for all villages.
-        setListTypes({});
-
-        // 3. Reset the primary local body tab to the first one.
-        setActiveTab(0);
-
-        // 4. Reset the village tabs within each local body to the first one.
-        const initialVillageTabs = {};
-        localBodies.forEach(lb => {
-          initialVillageTabs[lb.id] = 0;
-        });
-        setActiveVillageTab(initialVillageTabs);
-        
-        // --- MODIFICATION END ---
         
         // Optional: Clear the form data after successful save
-        // setLocalBodyData({});
-        // setListTypes({});
+        setLocalBodyData({});
+        setListTypes({});
         
       } else if (result.status === 'Validation Failed') {
         setValidationErrors(result.errors || []);
@@ -659,7 +719,7 @@ const KeyPlotEntryNonBtr = () => {
     const houseListHeaders = ["Name", "Address","Ward No.", "House No."];
     const cultivatorListHeaders = ["Name", "Address"];
     const thandaperHeaders = ["Name", "Address", "Thandaper No.","Thandaper Sub No."];
-    const othersHeaders = [ "Name", "Address","Old Survey No.", "Old Sub No."];
+    const othersHeaders = [ "Old Survey No.", "Old Sub No."];
     const finalHeaders = [
       "Survey No.",
       "Sub Div No.",
@@ -767,6 +827,39 @@ const KeyPlotEntryNonBtr = () => {
           const currentVillageName = currentVillage?.revenueVillageName || "";
           const sortedRows = sortedByLocalBodyAndVillage[lb.id]?.[currentVillageName] || [];
           const currentListType = getCurrentListType(lb.id, currentVillageName);
+          // compute if all required fields in current village rows are filled
+
+          // Map header labels to the corresponding field keys in row objects
+const headerToFieldKey = {
+  "Sl. No": "slNo",
+  "Village Block": "villageBlock",
+  "Name": "name",
+  "Address": "address",
+  "Ward No.": "wardNo",
+  "House No.": "houseNo",
+  "Thandaper No.": "thandaperNo",
+  "Thandaper Sub No.": "thandapersubNo",
+  "Old Survey No.": "oldsvno",
+  "Old Sub No.": "oldsubno",
+  "Survey No.": "surveyNo",
+  "Sub Div No.": "subDivNo",
+  // "Area Cents": "area",
+  "Area (Cents)": "area",
+  "Land Type": "landType",
+  "Actions": "__actions__",
+};
+
+const requiredFields = getRequiredFieldsForRow(currentListType);
+const requiredSet = new Set(requiredFields.map(f => f.field));
+const allRequiredFilled = sortedRows.every(row =>
+  requiredFields.every(({ field }) => {
+    const val = row[field];
+    if (val === null || val === undefined) return false;
+    if (typeof val === "string") return val.trim() !== "";
+    return String(val).trim() !== "";
+  })
+);
+
           const headers = getTableHeaders(lb.id, currentVillageName);
           const colSpan = headers.length;
 
@@ -888,21 +981,25 @@ const KeyPlotEntryNonBtr = () => {
                   <Table stickyHeader>
                     <TableHead>
                       <TableRow>
-                        {headers.map((col) => (
-                          <TableCell
-                            key={col}
-                            align="center"
-                            sx={{
-                              bgcolor: "#05307a",
-                              color: "white",
-                              fontWeight: "bold",
-                            }}
-                          >
-                            {col}
-                          </TableCell>
-                        ))}
+                        {headers.map((col) => {
+                          const key = headerToFieldKey[col] || null;
+                          const isRequired = key && requiredSet.has(key);
+                          return (
+                            <TableCell
+                              key={col}
+                              align="center"
+                              sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}
+                            >
+                              <span>
+                                {col}
+                                {isRequired && <span style={{ color: "red", marginLeft: 4 }}>*</span>}
+                              </span>
+                            </TableCell>
+                          );
+                        })}
                       </TableRow>
                     </TableHead>
+
                     <TableBody>
                       {sortedRows
                         .slice(
@@ -927,6 +1024,9 @@ const KeyPlotEntryNonBtr = () => {
                                   )
                                 }
                                 sx={{ minWidth: 140 }}
+                                required={getRequiredFieldsForRow(currentListType).some(f => f.field === "villageBlock")}
+                                error={getRequiredFieldsForRow(currentListType).some(f => f.field === "villageBlock") && !row.villageBlock}
+                                helperText={getRequiredFieldsForRow(currentListType).some(f => f.field === "villageBlock") && !row.villageBlock ? "Required" : ""}
                               >
                                 {(villageToBlocks[currentVillageName] || []).map((code) => (
                                   <MenuItem key={code} value={code}>
@@ -944,32 +1044,66 @@ const KeyPlotEntryNonBtr = () => {
                               <>
                                 <TableCell align="center">
                                   <TextField
-                                    value={row.name}
-                                    onChange={(e) =>
-                                      handleChange(
-                                        lb.id,
-                                        currentVillageName,
-                                        row.id,
-                                        "name",
-                                        e.target.value
+                                    value={row.name ?? ""}
+                                    onChange={(e) => {
+                                      // Allow clearing; enforce only letters/spaces, cap to 60
+                                      const raw = e.target.value ?? "";
+                                      const v = raw.slice(0, 60);
+                                      if (v === "" || /^[A-Za-z ]*$/.test(v)) {
+                                        handleChange(lb.id, currentVillageName, row.id, "name", v);
+                                      }
+                                    }}
+                                    placeholder="Name"
+                                    inputProps={{
+                                      maxLength: 60,
+                                      pattern: "^[A-Za-z ]*$",
+                                      title: "Only alphabets and spaces, up to 60 characters",
+                                    }}
+                                    required={getRequiredFieldsForRow(currentListType).some((f) => f.field === "name")}
+                                    error={
+                                      getRequiredFieldsForRow(currentListType).some((f) => f.field === "name") &&
+                                      (
+                                        !(row.name ?? "").trim() || // required
+                                        (!!row.name && !/^[A-Za-z ]{1,60}$/.test(row.name)) // format
                                       )
+                                    }
+                                    helperText={
+                                      getRequiredFieldsForRow(currentListType).some((f) => f.field === "name")
+                                        ? (!(row.name ?? "").trim()
+                                            ? "Required"
+                                            : (!!row.name && !/^[A-Za-z ]{1,60}$/.test(row.name)
+                                                ? "Only alphabets and spaces, max 60"
+                                                : ""))
+                                        : ""
                                     }
                                   />
                                 </TableCell>
+
+
                                 <TableCell align="center">
                                   <TextField
-                                    value={row.address}
-                                    onChange={(e) =>
-                                      handleChange(
-                                        lb.id,
-                                        currentVillageName,
-                                        row.id,
-                                        "address",
-                                        e.target.value
-                                      )
+                                    value={row.address || ""}
+                                    onChange={(e) => {
+                                      const v = e.target.value.slice(0, 250);
+                                      handleChange(lb.id, currentVillageName, row.id, "address", v);
+                                    }}
+                                    placeholder="Address"
+                                    inputProps={{
+                                      maxLength: 250,
+                                      title: "Up to 250 characters",
+                                    }}
+                                    required={getRequiredFieldsForRow(currentListType).some((f) => f.field === "address")}
+                                    error={
+                                      getRequiredFieldsForRow(currentListType).some((f) => f.field === "address") &&
+                                      !row.address?.trim()
+                                    }
+                                    helperText={
+                                      getRequiredFieldsForRow(currentListType).some((f) => f.field === "address") &&
+                                      (!row.address?.trim() ? "Required" : `${(row.address || "").length}/250`)
                                     }
                                   />
                                 </TableCell>
+
                               </>
                             )}
 
@@ -977,34 +1111,56 @@ const KeyPlotEntryNonBtr = () => {
                               <>
                                 <TableCell align="center">
                                   <TextField
-                                    value={row.wardNo}
-                                    onChange={(e) =>
-                                      handleChange(
-                                        lb.id,
-                                        currentVillageName,
-                                        row.id,
-                                        "wardNo",
-                                        e.target.value
-                                      )
-                                    }
+                                    value={row.wardNo ?? ""}
+                                    onChange={(e) => {
+                                      const digits = (e.target.value || "").replace(/\D/g, "").slice(0, 5);
+                                      handleChange(lb.id, currentVillageName, row.id, "wardNo", digits);
+                                    }}
                                     placeholder="Ward No."
+                                    inputMode="numeric"
+                                    inputProps={{
+                                      pattern: "^\\d{0,5}$",
+                                      maxLength: 5,
+                                      title: "Up to 5 digits",
+                                    }}
+                                    required={getRequiredFieldsForRow(currentListType).some((f) => f.field === "wardNo")}
+                                    error={
+                                      getRequiredFieldsForRow(currentListType).some((f) => f.field === "wardNo") &&
+                                      !(String(row.wardNo || "").trim())
+                                    }
+                                    helperText={
+                                      getRequiredFieldsForRow(currentListType).some((f) => f.field === "wardNo") &&
+                                      !(String(row.wardNo || "").trim()) ? "Required" : ""
+                                    }
                                   />
                                 </TableCell>
+
                                 <TableCell align="center">
                                   <TextField
-                                    value={row.houseNo}
-                                    onChange={(e) =>
-                                      handleChange(
-                                        lb.id,
-                                        currentVillageName,
-                                        row.id,
-                                        "houseNo",
-                                        e.target.value
-                                      )
-                                    }
+                                    value={row.houseNo ?? ""}
+                                    onChange={(e) => {
+                                      const digits = (e.target.value || "").replace(/\D/g, "").slice(0, 5);
+                                      handleChange(lb.id, currentVillageName, row.id, "houseNo", digits);
+                                    }}
                                     placeholder="House No."
+                                    inputMode="numeric"
+                                    inputProps={{
+                                      pattern: "^\\d{0,5}$",
+                                      maxLength: 5,
+                                      title: "Up to 5 digits",
+                                    }}
+                                    required={getRequiredFieldsForRow(currentListType).some((f) => f.field === "houseNo")}
+                                    error={
+                                      getRequiredFieldsForRow(currentListType).some((f) => f.field === "houseNo") &&
+                                      !(String(row.houseNo || "").trim())
+                                    }
+                                    helperText={
+                                      getRequiredFieldsForRow(currentListType).some((f) => f.field === "houseNo") &&
+                                      !(String(row.houseNo || "").trim()) ? "Required" : ""
+                                    }
                                   />
                                 </TableCell>
+
                               </>
                             )}
 
@@ -1013,32 +1169,54 @@ const KeyPlotEntryNonBtr = () => {
                               <>
                               <TableCell align="center">
                                 <TextField
-                                  value={row.thandaperNo}
-                                  onChange={(e) =>
-                                    handleChange(
-                                      lb.id,
-                                      currentVillageName,
-                                      row.id,
-                                      "thandaperNo",
-                                      e.target.value
-                                    )
+                                  value={row.thandaperNo ?? ""}
+                                  onChange={(e) => {
+                                    const digits = (e.target.value || "").replace(/\D/g, "").slice(0, 5);
+                                    handleChange(lb.id, currentVillageName, row.id, "thandaperNo", digits);
+                                  }}
+                                  placeholder="Thandaper No."
+                                  inputMode="numeric"
+                                  inputProps={{
+                                    pattern: "^\\d{0,5}$",
+                                    maxLength: 5,
+                                    title: "Up to 5 digits",
+                                  }}
+                                  required={getRequiredFieldsForRow(currentListType).some((f) => f.field === "thandaperNo")}
+                                  error={
+                                    getRequiredFieldsForRow(currentListType).some((f) => f.field === "thandaperNo") &&
+                                    !(String(row.thandaperNo || "").trim())
+                                  }
+                                  helperText={
+                                    getRequiredFieldsForRow(currentListType).some((f) => f.field === "thandaperNo") &&
+                                    !(String(row.thandaperNo || "").trim()) ? "Required" : ""
                                   }
                                 />
                               </TableCell>
+
                               <TableCell align="center">
                                 <TextField
-                                  value={row.thandapersubNo}
-                                  onChange={(e) =>
-                                    handleChange(
-                                      lb.id,
-                                      currentVillageName,
-                                      row.id,
-                                      "thandapersubNo",
-                                      e.target.value
-                                    )
+                                  value={row.thandapersubNo ?? ""}
+                                  onChange={(e) => {
+                                    const v = (e.target.value || "").slice(0, 5);
+                                    handleChange(lb.id, currentVillageName, row.id, "thandapersubNo", v);
+                                  }}
+                                  placeholder="Thandaper Sub No."
+                                  inputProps={{
+                                    maxLength: 5,
+                                    title: "Up to 5 characters",
+                                  }}
+                                  required={getRequiredFieldsForRow(currentListType).some((f) => f.field === "thandapersubNo")}
+                                  error={
+                                    getRequiredFieldsForRow(currentListType).some((f) => f.field === "thandapersubNo") &&
+                                    !(String(row.thandapersubNo || "").trim())
+                                  }
+                                  helperText={
+                                    getRequiredFieldsForRow(currentListType).some((f) => f.field === "thandapersubNo") &&
+                                    !(String(row.thandapersubNo || "").trim()) ? "Required" : ""
                                   }
                                 />
                               </TableCell>
+
                               </>
                             )}
 
@@ -1046,77 +1224,129 @@ const KeyPlotEntryNonBtr = () => {
                               <>
                                 <TableCell align="center">
                                   <TextField
-                                    value={row.oldsvno}
-                                    onChange={(e) =>
-                                      handleChange(
-                                        lb.id,
-                                        currentVillageName,
-                                        row.id,
-                                        "oldsvno",
-                                        e.target.value
-                                      )
+                                    value={row.oldsvno ?? ""}
+                                    onChange={(e) => {
+                                      const digits = (e.target.value || "").replace(/\D/g, "").slice(0, 5);
+                                      handleChange(lb.id, currentVillageName, row.id, "oldsvno", digits);
+                                    }}
+                                    placeholder="Old Survey No."
+                                    inputMode="numeric"
+                                    inputProps={{
+                                      pattern: "^\\d{0,5}$",
+                                      maxLength: 5,
+                                      title: "Up to 5 digits",
+                                    }}
+                                    required={getRequiredFieldsForRow(currentListType).some((f) => f.field === "oldsvno")}
+                                    error={
+                                      getRequiredFieldsForRow(currentListType).some((f) => f.field === "oldsvno") &&
+                                      !(String(row.oldsvno || "").trim())
+                                    }
+                                    helperText={
+                                      getRequiredFieldsForRow(currentListType).some((f) => f.field === "oldsvno") &&
+                                      !(String(row.oldsvno || "").trim()) ? "Required" : ""
                                     }
                                   />
                                 </TableCell>
+
                                 <TableCell align="center">
                                   <TextField
-                                    value={row.oldsubno}
-                                    onChange={(e) =>
-                                      handleChange(
-                                        lb.id,
-                                        currentVillageName,
-                                        row.id,
-                                        "oldsubno",
-                                        e.target.value
-                                      )
+                                    value={row.oldsubno ?? ""}
+                                    onChange={(e) => {
+                                      const v = (e.target.value || "").slice(0, 5);
+                                      handleChange(lb.id, currentVillageName, row.id, "oldsubno", v);
+                                    }}
+                                    placeholder="Old Sub No."
+                                    inputProps={{
+                                      maxLength: 5,
+                                      title: "Up to 5 characters",
+                                    }}
+                                    required={getRequiredFieldsForRow(currentListType).some((f) => f.field === "oldsubno")}
+                                    error={
+                                      getRequiredFieldsForRow(currentListType).some((f) => f.field === "oldsubno") &&
+                                      !(String(row.oldsubno || "").trim())
+                                    }
+                                    helperText={
+                                      getRequiredFieldsForRow(currentListType).some((f) => f.field === "oldsubno") &&
+                                      !(String(row.oldsubno || "").trim()) ? "Required" : ""
                                     }
                                   />
                                 </TableCell>
+
                               </>
                             )}
 
                             <TableCell align="center">
                               <TextField
-                                value={row.surveyNo}
-                                onChange={(e) =>
-                                  handleChange(
-                                    lb.id,
-                                    currentVillageName,
-                                    row.id,
-                                    "surveyNo",
-                                    e.target.value
-                                  )
-                                }
+                                value={row.surveyNo ?? ""}
+                                onChange={(e) => {
+                                  const digits = (e.target.value || "").replace(/\D/g, "").slice(0, 5);
+                                  handleChange(lb.id, currentVillageName, row.id, "surveyNo", digits);
+                                }}
+                                placeholder="Survey No."
+                                inputMode="numeric"
+                                inputProps={{
+                                  pattern: "^\\d{0,5}$",
+                                  maxLength: 5,
+                                  title: "Up to 5 digits",
+                                }}
                               />
                             </TableCell>
+
                             <TableCell align="center">
                               <TextField
-                                value={row.subDivNo}
-                                onChange={(e) =>
-                                  handleChange(
-                                    lb.id,
-                                    currentVillageName,
-                                    row.id,
-                                    "subDivNo",
-                                    e.target.value
-                                  )
-                                }
+                                value={row.subDivNo ?? ""}
+                                onChange={(e) => {
+                                  const v = (e.target.value || "").slice(0, 5);
+                                  handleChange(lb.id, currentVillageName, row.id, "subDivNo", v);
+                                }}
+                                placeholder="Sub Div No."
+                                inputProps={{
+                                  maxLength: 5,
+                                  title: "Up to 5 characters",
+                                }}
                               />
                             </TableCell>
+
                             <TableCell align="center">
                               <TextField
-                                value={row.area}
-                                onChange={(e) =>
-                                  handleChange(
-                                    lb.id,
-                                    currentVillageName,
-                                    row.id,
-                                    "area",
-                                    e.target.value
-                                  )
+                                value={row.area ?? ""}
+                                onChange={(e) => {
+                                  let v = (e.target.value || "").replace(/[^0-9.]/g, "");
+                                  // Keep only first dot
+                                  const firstDot = v.indexOf(".");
+                                  if (firstDot !== -1) {
+                                    v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, "");
+                                  }
+                                  const m = v.match(/^(\d{0,5})(?:\.(\d{0,2})?)?$/);
+                                  if (m) {
+                                    handleChange(lb.id, currentVillageName, row.id, "area", v);
+                                  } else {
+                                    // Try to coerce to allowed shape by trimming overflow
+                                    const parts = v.split(".");
+                                    let intPart = (parts[0] || "").slice(0, 5);
+                                    let decPart = parts[1] !== undefined ? parts[1].slice(0, 2) : undefined;
+                                    const coerced = decPart !== undefined ? `${intPart}.${decPart}` : intPart;
+                                    handleChange(lb.id, currentVillageName, row.id, "area", coerced);
+                                  }
+                                }}
+                                placeholder="Area (Cents)"
+                                inputMode="decimal"
+                                inputProps={{
+                                  pattern: "^\\d{0,5}(\\.\\d{0,2})?$",
+                                  title: "Up to 5 digits, optional decimal with 2 digits",
+                                }}
+                                required={getRequiredFieldsForRow(currentListType).some((f) => f.field === "area")}
+                                error={
+                                  getRequiredFieldsForRow(currentListType).some((f) => f.field === "area") &&
+                                  !(String(row.area || "").trim())
+                                }
+                                helperText={
+                                  getRequiredFieldsForRow(currentListType).some((f) => f.field === "area") &&
+                                  !(String(row.area || "").trim()) ? "Required" : ""
                                 }
                               />
                             </TableCell>
+
                             <TableCell align="center">
                               <TextField
                                 select
@@ -1131,6 +1361,9 @@ const KeyPlotEntryNonBtr = () => {
                                   )
                                 }
                                 sx={{ minWidth: 90 }}
+                                required={getRequiredFieldsForRow(currentListType).some(f => f.field === "landType")}
+    error={getRequiredFieldsForRow(currentListType).some(f => f.field === "landType") && !row.landType}
+    helperText={getRequiredFieldsForRow(currentListType).some(f => f.field === "landType") && !row.landType ? "Required" : ""}
                               >
                                 {landTypeOptions.map((opt) => (
                                   <MenuItem key={opt} value={opt}>
@@ -1156,7 +1389,7 @@ const KeyPlotEntryNonBtr = () => {
                             variant="outlined"
                             color="success"
                             onClick={() => handleAddRow(lb.id, currentVillageName)}
-                            disabled={totalKeyplots >= TOTAL_REQUIRED}
+                            disabled={totalKeyplots >= TOTAL_REQUIRED || !allRequiredFilled}
                           >
                             Add Keyplot
                           </Button>
@@ -1315,17 +1548,17 @@ const KeyPlotEntryNonBtr = () => {
             </Box>
           </DialogTitle>
           <DialogContent>
-            <DialogContentText sx={{ textAlign: 'center', fontSize: '1.1rem' }}>
+            {/* <DialogContentText sx={{ textAlign: 'center', fontSize: '1.1rem' }}>
               {validationErrors.length > 0 
                 ? `Validation failed with ${validationErrors.length} errors. Please check the form and try again.`
                 : "Error saving keyplots! Please check the form for errors and try again."
               }
-            </DialogContentText>
+            </DialogContentText> */}
             {validationErrors.length > 0 && (
               <Box sx={{ mt: 2, textAlign: 'left' }}>
-                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
+                {/* <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
                   Validation Errors:
-                </Typography>
+                </Typography> */}
                 {validationErrors.slice(0, 5).map((error, index) => (
                   <Typography key={index} variant="body2" sx={{ mb: 0.5, color: '#f44336' }}>
                      {error.message}

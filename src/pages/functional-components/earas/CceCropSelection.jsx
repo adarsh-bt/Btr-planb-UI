@@ -5,6 +5,7 @@ import {
   TableSortLabel, InputAdornment
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import Breadcrumb from 'routes/Breadcrumb';
 
 const themeColor = "#05307a";
 
@@ -123,7 +124,9 @@ const CceCropSelection = () => {
   );
 
   return (
-    <Box p={4} sx={{ backgroundColor: "#f4f6f8", minHeight: "100vh" }}>
+    <Grid container spacing={3}>
+      <Breadcrumb />
+      <Grid item xs={12}>
       {/* Snackbar */}
       <Snackbar
         open={snackbar.open}
@@ -143,7 +146,7 @@ const CceCropSelection = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
-
+      <Box sx={{ p: 3 }}>
       {/* Top Section */}
       <Paper sx={{ p: 4, mb: 4, boxShadow: 6, borderRadius: 3 }}>
         <Typography variant="h5" gutterBottom fontWeight="bold" sx={{ color: themeColor }}>
@@ -318,7 +321,9 @@ const CceCropSelection = () => {
           </Table>
         </TableContainer>
       </Paper>
-    </Box>
+      </Box>    
+    </Grid>
+    </Grid>
   );
 };
 

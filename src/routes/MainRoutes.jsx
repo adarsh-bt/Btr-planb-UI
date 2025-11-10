@@ -24,6 +24,7 @@ const Earas = Loadable(lazy(() => import('pages/functional-components/earas/eara
 const Zone_Details = Loadable(lazy(() => import('pages/functional-components/earas/ZoneDetails/Zonecontrol')));
 const BTR = Loadable(lazy(() => import('pages/functional-components/earas/btr/Btr')));
 // const BTR = Loadable(lazy(() => import('pages/functional-components/earas/btr/BtrListing')));
+const BtrListing = Loadable(lazy(() => import('pages/functional-components/earas/BtrListing')));
 const BTRWrapper = Loadable(lazy(() => import('pages/functional-components/earas/btr/BTRWrapper')));
 const BTRClassifyWrapper = Loadable(lazy(() => import('pages/functional-components/earas/btr/BTRClassifyWrapper')));
 const ZoneDetailsWrapper = Loadable(lazy(() => import('pages/functional-components/earas/ZoneDetails/ZoneDetailsWrapper')));
@@ -200,6 +201,15 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <RoleDesignation />
+        </PrivateRoute>
+      )
+    },
+
+        {
+      path: '/schemes/earas/btr_list',
+      element: (
+        <PrivateRoute>
+          <BtrListing />
         </PrivateRoute>
       )
     },
@@ -402,7 +412,7 @@ const MainRoutes = {
 
 
     {
-      path: '/schemes/earas/CCE_crop_selection',
+      path: '/schemes/earas/earas_management/CCE_crop_selection',
       element: (
         <PrivateRoute>
           <CCE_crop_selection/>
@@ -426,7 +436,7 @@ const MainRoutes = {
       )
     },
     {
-      path: '/schemes/earas/zonesettings',
+      path: '/schemes/earas/earas_management/zonesettings',
       element: (
         <PrivateRoute>
           <ZoneSettings />
@@ -434,7 +444,7 @@ const MainRoutes = {
       )
     },
     {
-      path: '/schemes/earas/settings_menu',
+      path: '/schemes/earas/earas_management',
       element: (
         <PrivateRoute>
           <SettingsMenu />
@@ -606,14 +616,7 @@ export default MainRoutes;
 //         </PrivateRoute>
 //       )
 //     },
-//     {
-//       path: '/schemes/earas/btr_list',
-//       element: (
-//         <PrivateRoute>
-//           <BtrListing />
-//         </PrivateRoute>
-//       )
-//     },
+
 
 //     {
 //       path: 'profile',

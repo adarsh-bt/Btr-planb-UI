@@ -27,19 +27,27 @@ import { width } from '@mui/system';
 // Define the columns for the data table
 const columns = (handleEdit, handleView,page,size) => [
 {
-    name: 'SL. NO',
-    selector: (row, index) => (page - 1) * size + index + 1,
-    width: '80px', // Fixed width for SL. NO
-    minWidth: '80px',
-  },
+  name: 'SL. NO',
+  selector: (row) => row.indexOffset,   // use the stored serial
+  sortable: true,
+  sortKey: 'indexOffset',
+  width: '80px',
+  minWidth: '80px',
+  allowOverflow: true,
+  button: true,
+}
+,
+
   // { name: 'District', selector: (row) => row.dcode, sortable: true },
   // { name: 'Taluk', selector: (row) => row.tcode, sortable: true },
   // { name: 'Village', selector: (row) => row.vcode, sortable: true },
   { 
-    name: 'Local Body Name', 
-    selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span>,
-    wrap: true, // Allow text wrapping
-    minWidth: '180px', // Set minimum width
+    name: 'Local Body Name',
+    selector: row => row.lbname?.toString() || 'NA',
+    sortable: true,
+    sortKey: 'lbname',
+    wrap: true,
+    minWidth: '180px',
   },
 {
     name: 'Village',
@@ -49,6 +57,8 @@ const columns = (handleEdit, handleView,page,size) => [
         ? name.charAt(0).toUpperCase() + name.slice(1).toLowerCase()
         : <span style={{ color: '#888' }}>NA</span>;
     },
+    sortable: true,
+    sortKey: 'villageName',
     wrap: true, // Allow text wrapping
     width:'140px',
     minWidth: '50px', // Set minimum width
@@ -57,11 +67,15 @@ const columns = (handleEdit, handleView,page,size) => [
   { 
     name: 'Block No.', 
     selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span>,
+    sortable: true,
+    sortKey: 'bcode',
     width: '120px', // Fixed width
     minWidth: '120px',
   },
   {
     name: 'Re-Survey No',
+    sortable: true,
+    sortKey: 'resvno',
     selector: (row) =>
       row.resvno && row.resbdno ? (
         `${row.resvno} / ${row.resbdno}`
@@ -78,9 +92,16 @@ const columns = (handleEdit, handleView,page,size) => [
   // { name: 'Address', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> },
   // { name: 'Address', selector: (row) => row.lbcode, sortable: true },
 
-  { name: 'Land Type', selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span> },
+  {
+    name: 'Land Type',
+    selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span>,
+    sortable: true,
+    sortKey: 'ltype',
+  },
    { 
     name: 'Total Area (in Cents)', 
+    sortable: true,
+    sortKey: 'totalCent',
     selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span>,
     wrap: true, // Allow text wrapping
     width:'190px',
@@ -128,6 +149,39 @@ const Btr = ({ zoneId }) => {
   const [downloading, setDownloading] = useState(false);
     // const [zoneId, setZoneId] = useState(() => propZoneId || localStorage.getItem('zoneId'));
   const [loading, setLoading] = useState(false);
+
+  const [order, setOrder] = useState('asc');
+const [orderBy, setOrderBy] = useState('indexOffset');
+
+
+  const descendingComparator = (a, b, key) => {
+  const va = a?.[key];
+  const vb = b?.[key];
+  if (typeof va === 'string' && typeof vb === 'string') return vb.localeCompare(va);
+  if (vb < va) return -1;
+  if (vb > va) return 1;
+  return 0;
+};
+
+const getComparator = (ord, key) =>
+  ord === 'desc'
+    ? (a, b) => descendingComparator(a, b, key)
+    : (a, b) => -descendingComparator(a, b, key);
+
+const sortedData = useMemo(() => {
+  const copy = [...(data || [])];
+  return copy.sort(getComparator(order, orderBy));
+}, [data, order, orderBy]);
+
+const handleRequestSort = (columnKey) => {
+  const isAsc = orderBy === columnKey && order === 'asc';
+  setOrder(isAsc ? 'desc' : 'asc');
+  setOrderBy(columnKey);
+};
+
+
+
+
 
   // Function to handle filter change
   const handleFilterChange = (event) => {
@@ -186,11 +240,13 @@ const Btr = ({ zoneId }) => {
         console.log("response ",response)
       if (response?.payload?.data) {
         
-        // Add an indexOffset to each row for correct SL. NO display
-        const indexedData = response.payload.data.map((item, index) => ({
+        // after fetching data
+        const indexedData = response.payload.data.map((item, idx) => ({
           ...item,
-          indexOffset: (page - 1) * size, // Calculate offset for current page
+          indexOffset: (page - 1) * size + idx + 1, // 1-based serial across pages
         }));
+        setData(indexedData);
+
         
         setData(indexedData);
         setTotalRecords(response.payload.totalCount);
@@ -217,9 +273,9 @@ const Btr = ({ zoneId }) => {
     const BASE_URL = mainapi.USER_API;
     try {
         const token = localStorage.getItem('token');
-        alert(resolvedZoneId)
+       
       // Ensure the URL is correct for your backend service
-      const response = await fetch(`${BASE_URL}/btr-service/btr-api/export?userId=${resolvedZoneId}`, {
+      const response = await fetch(`${BASE_URL}/btr-service/btr-api/export?zoneId=${resolvedZoneId}`, {
         headers: {
           Authorization: `Bearer ${token}` // Add token in Authorization header
         }
@@ -249,6 +305,16 @@ const Btr = ({ zoneId }) => {
 
   const columnDefs = useMemo(() => columns(undefined, handleView, page, size), [handleView, page, size]);
 
+  const columnDefsMapped = useMemo(
+  () => columnDefs.map(col => ({ ...col, sortField: col.sortKey || col.name })),
+  [columnDefs]
+);
+
+const handleSort = (column, direction) => {
+  const key = column.sortField || column.sortKey || column.name;
+  setOrder(direction);
+  setOrderBy(key);
+};
 
   useEffect(() => {
     fetchData();
@@ -312,8 +378,10 @@ const Btr = ({ zoneId }) => {
 
 
 <DataTable
-  columns={columnDefs}
-  data={data}
+  columns={columnDefsMapped}
+  data={sortedData}
+  sortServer
+  onSort={handleSort}
   progressPending={loading}
   progressComponent={
     <div

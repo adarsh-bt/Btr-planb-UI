@@ -172,7 +172,7 @@ const Btr = () => {
     try {
         const token = localStorage.getItem('token');
       // Ensure the URL is correct for your backend service
-      const response = await fetch(`${BASE_URL}/btr-service/btr-api/export?userId=${userId}`, {
+      const response = await fetch(`${BASE_URL}/btr-service/btr-api/export?zoneId=${userId}`, {
         headers: {
           Authorization: `Bearer ${token}` // Add token in Authorization header
         }

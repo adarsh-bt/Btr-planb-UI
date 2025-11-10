@@ -69,6 +69,8 @@ const KeyPlotEntry = () => {
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
+    const [listTypes, setListTypes] = useState({});
+
   const BASE_URL = mainapi.BASE_URL;
   
   // Confirmation Modal State
@@ -317,6 +319,30 @@ useEffect(() => {
     setShowConfirmModal(false);
   };
 
+  // Add near other handlers
+const handleLocalBodyChange = (tabLbId, rowId, selectedLbId) => {
+  const lb = localBodies.find(b => b.id === selectedLbId);
+  setLocalBodyData(prev => ({
+    ...prev,
+    [tabLbId]: prev[tabLbId].map(row =>
+      row.id === rowId
+        ? { ...row, lbIdSelected: selectedLbId, localBody: lb?.name || '' }
+        : row
+    )
+  }));
+
+  // clear field error for Local Body if you track it
+  const errorKey = `${tabLbId}-${rowId}-localBody`;
+  if (fieldErrors[errorKey]) {
+    setFieldErrors(prev => {
+      const next = { ...prev };
+      delete next[errorKey];
+      return next;
+    });
+  }
+};
+
+
   const handleActualSave = async () => {
     if (!districtInfo || talukInfo.length === 0) {
       toast.error("District or Taluk data is not yet loaded. Please wait.");
@@ -358,28 +384,31 @@ useEffect(() => {
     console.log(">     >> ---  ", localBodyInfoMap);
     const zoneId = authservice.getzone();
     const payload = allKeyplots.map((row) => {
-      const villageData = villageInfoMap.get(row.village);
-      const localBodyData = localBodyInfoMap.get(row.lbId);
-      if (!villageData || !localBodyData || !row.surveyNo) {
-        return null;
-      }
-    
-      return {
-        dcode: districtInfo.distId,
-        tcode: talukInfo[0].revenueTalukId,
-        vcode: villageData.vcode,
-        lsgcode: villageData.lsgcode,
-        lbcode: localBodyData.lbcode,
-        zoneId: parseInt(zoneId, 10),
-        user_id: userId,
-        bcode: row.villageBlock || null,
-        ltype: row.landType.toUpperCase(),
-        resvno: parseInt(row.surveyNo, 10),
-        resbdno: row.subDivNo,
-        totCent: row.area,
-        btrtype:1
-      };
-    }).filter(Boolean);
+  const villageData = villageInfoMap.get(row.village);
+
+  // Prefer per-row selected Local Body id, fallback to tab lbId
+  const rowLbId = row.lbIdSelected ?? row.lbId;
+  const lbInfo = localBodyInfoMap.get(rowLbId);
+
+  if (!villageData || !lbInfo || !row.surveyNo) return null;
+
+  return {
+    dcode: districtInfo.distId,
+    tcode: talukInfo[0]?.revenueTalukId,
+    vcode: villageData.vcode,
+    lsgcode: villageData.lsgcode,
+    lbcode: lbInfo.lbcode,
+    zoneId: parseInt(zoneId, 10),
+    userid: userId,
+    bcode: row.villageBlock ?? null,
+    ltype: row.landType.toUpperCase(),
+    resvno: parseInt(row.surveyNo, 10),
+    resbdno: row.subDivNo,
+    totCent: row.area,
+    btrtype: 1,
+  };
+}).filter(Boolean);
+
 
     if (payload.length !== totalKeyplots) {
       toast.error("Some rows have missing or invalid data. Please check all fields.");
@@ -443,8 +472,12 @@ useEffect(() => {
         toast.success(`Successfully saved! All ${savedKeyplotCount} keyplots have been saved successfully.`);
         console.log("Save successful:", result);
         // Optional: Reset form state after successful save
-        // setLocalBodyData({});
+          setLocalBodyData({});
+        setDuplicateErrors({});
+        setClientDuplicateErrors({});
+        setFieldErrors({});
         clearValidationErrors();
+        
       } else {
         toast.warning("Unexpected response format from server.");
         setShowErrorModal(true);
@@ -538,6 +571,8 @@ useEffect(() => {
           {
             id: newId,
             slNo: newSlNo,
+            lbIdSelected: lbId,     // default to tab local body id
+            localBody: localBodies.find(b => b.id === lbId)?.name || '',
             village: "",
             villageBlock: "",
             villageBlockOptions: [],
@@ -792,20 +827,21 @@ const areAllFieldsFilled = (lbId) => {
                             </TableCell>
                             <TableCell>
                           <TextField
-                            select
-                            value={row.localBody || ""}
-                            onChange={(e) => handleChange(lb.id, row.id, "localBody", e.target.value)}
-                            fullWidth
-                            error={hasFieldError(lb.id, row.id, "localBody")}
-                            helperText={getFieldError(lb.id, row.id, "localBody")}
-                            size="small"
-                          >
-                            {localBodies.map((opt) => (
-                              <MenuItem key={opt.id} value={opt.name}>
-                                {opt.name}
-                              </MenuItem>
-                            ))}
-                          </TextField>
+  select
+  value={row.lbIdSelected ?? lb.id}               // default to tab’s lb.id on first render
+  onChange={(e) => handleLocalBodyChange(lb.id, row.id, Number(e.target.value))}
+  fullWidth
+  error={hasFieldError(lb.id, row.id, 'localBody')}
+  helperText={getFieldError(lb.id, row.id, 'localBody')}
+  size="small"
+>
+  {localBodies.map((opt) => (
+    <MenuItem key={opt.id} value={opt.id}>
+      {opt.name}
+    </MenuItem>
+  ))}
+</TextField>
+
                         </TableCell>
 
                             <TableCell>

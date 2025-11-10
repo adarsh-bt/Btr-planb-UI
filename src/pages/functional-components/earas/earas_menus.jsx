@@ -21,11 +21,13 @@ import { useContext } from 'react';
 import cluster from 'assets/images/logo/cluster.png';
 import keyplot from 'assets/images/logo/keyplot.png';
 import zonedetails from 'assets/images/logo/zonedetails.png';
+import ZoneSettings from 'assets/images/logo/ZoneSettings.png';
 import eBTR from 'assets/images/logo/eBTR.png';
 
  //for permissions line
 // import { useUserAccess, PermissionGate } from 'contexts/auth-reducer/universal/UserAccessContext';
 import mainapi from 'api/mainapi';
+import authservice from 'pages/authentication/services/authservice';
 
 
 function Earas_menus() {
@@ -39,7 +41,7 @@ function Earas_menus() {
 
   const zoneId = localStorage.getItem('activeZone');
   console.log(zoneId);
-
+const role = authservice.getrole();
   useEffect(() => {
     const fetchBtrType = async () => {
       if (!zoneId) {
@@ -247,6 +249,61 @@ console.log("okk",btrData)
                 </Box>
               </Card>
             </Grid>
+
+             <Grid item xs={12} sm={4} md={3} lg={3}>
+              <Card
+                component={Link}
+                to="/schemes/earas/earas_management"
+                sx={{
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '1rem',
+                  borderRadius: '1rem',
+                  background: 'linear-gradient(135deg, rgba(208, 79, 79, 0.45), rgba(218, 98, 98, 1))', // Gradient color
+                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
+                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
+                  '&:hover': {
+                    transform: 'scale(1.05)', // Hover scale effect
+                    // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
+                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
+                  }
+                }}
+              >
+                <CardMedia
+                  component="img"
+                  sx={{
+                    width: '5rem',
+                    height: '5rem',
+                    borderRadius: '.5rem',
+                    marginRight: '1rem' // Space between image and text
+                  }}
+                  image={ZoneSettings} // <-- Use the imported image here
+                  alt="zone details"
+                />
+
+                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
+                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
+                      Earas
+                    </Typography>
+                    <Typography
+                      variant="subtitle1"
+                      component="div"
+                      sx={{
+                        color: '#f3f3f3',
+                        fontStyle: 'italic',
+                        fontWeight: 'lighter',
+                        marginTop: '0.5rem'
+                      }}
+                    >
+                     Management
+                    </Typography>
+                  </CardContent>
+                </Box>
+              </Card>
+            </Grid>
             {/* )} */}
 
             {/* {LocalBody to Village Mapping && ( */}
@@ -307,11 +364,11 @@ console.log("okk",btrData)
             {/* )} */}
 
             {/* {canViewBTR && ( */}
+            {role === 'Field Data Collector' && (
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                // to="/schemes/earas/btr_list"
-                to="/schemes/earas/btr/btr_classify_wrapper"
+                to="/schemes/earas/btr"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',
@@ -361,7 +418,7 @@ console.log("okk",btrData)
                   </CardContent>
                 </Box>
               </Card>
-            </Grid>
+            </Grid>)}
 
             {/* {canViewBTR && ( */}
             {/* <Grid item xs={12} sm={4} md={3} lg={3}>
@@ -586,7 +643,7 @@ console.log("okk",btrData)
 
             {/* Dynamic Key Plot Entry Grid */}
             {renderKeyPlotGrids()}
-
+                     {role === 'Field Data Collector' && (
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
@@ -641,7 +698,7 @@ console.log("okk",btrData)
                 </Box>
               </Card>
             </Grid>
-
+            )}
             {/* <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
@@ -696,6 +753,7 @@ console.log("okk",btrData)
                 </Box>
               </Card>
             </Grid> */}
+                   {role === 'Field Data Collector' && (
 
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
@@ -752,7 +810,8 @@ console.log("okk",btrData)
                 </Box>
               </Card>
             </Grid>
-
+            )}
+                   {role === 'Field Data Collector' && (
               <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
@@ -808,6 +867,8 @@ console.log("okk",btrData)
                 </Box>
               </Card>
             </Grid>
+                    )}
+
 
             {/* <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
