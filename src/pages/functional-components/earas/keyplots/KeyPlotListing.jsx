@@ -113,12 +113,17 @@ const KeyPlotListing = ({zoneId}) => {
       id: plot.keyplotId,
       plot_id: plot.keyplotId,
       slNo: index + 1,
-      syNo: plot.syNo,
+      syNo: plot.syNo && !['null', 'null/', 'undefined', ''].includes(plot.syNo.trim().toLowerCase())
+  ? plot.syNo
+  : 'NA',
+
+
       panchayth: plot.panchayath,
       area: plot.areaCents,
       villageBlock: plot.villageBlock,
       landType: plot.landType,
       kvillageName: plot.kvillageName,
+      
       action: "View Cluster"
     }));
   };
@@ -146,8 +151,9 @@ const KeyPlotListing = ({zoneId}) => {
       }
       const data = await response.json();
       const plots = data.payload || [];
+      console.log("plotsss",plots)
       const transformedPlots = transformPlotData(plots);
-      console.log("key >>>> "+transformedPlots);
+      console.log("key >>>>   "+transformedPlots);
       
       setPlotData(transformedPlots);
       setDataVisible(plots.length > 0);
@@ -207,6 +213,7 @@ const KeyPlotListing = ({zoneId}) => {
       }
       
       const data = await response.json();
+      console.log(data,"...")
       setPlotDetailsData(data.payload);
       
     } catch (err) {
@@ -813,7 +820,12 @@ const KeyPlotListing = ({zoneId}) => {
           <Grid container spacing={1.5}>
             <Grid item xs={6}>
               <Typography variant="body2" color="text.secondary">Survey No:</Typography>
-              <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>{plotDetailsData.syNo}</Typography>
+              <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>{plotDetailsData.syNo &&
+  !['null', 'null/', 'undefined', ''].includes(
+    String(plotDetailsData.syNo).trim().toLowerCase()
+  )
+    ? plotDetailsData.syNo
+    : 'NA'}</Typography>
             </Grid>
             <Grid item xs={6}>
               <Typography variant="body2" color="text.secondary">Panchayath:</Typography>

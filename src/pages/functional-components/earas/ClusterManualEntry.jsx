@@ -1070,7 +1070,9 @@ const handleCloseCropsModal = async () => {
 
     setSnackbarMessage("CCE crops saved successfully!");
         setSnackbarOpen(true);
-        // setCropsModalOpen(false);
+
+        // Added line
+        setCropsModalOpen(false);
 
     } catch (error) {
         console.error('Error saving CCE crops:', error);
@@ -1197,6 +1199,11 @@ const handleInputChange = (e, keyplotId, rowUniqueId, field) => {
   }
 
   row[field] = processedValue;
+
+  if (field === 'area' && row.isNew) {
+        row.enumeratedArea = processedValue;
+    }
+
 
   // Trigger validation when plot details change
   if (['svNo', 'sub', 'enumeratedArea'].includes(field)) {

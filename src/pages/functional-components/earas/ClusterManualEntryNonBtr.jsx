@@ -988,6 +988,9 @@ const handleUseRecommendedPlot = (type) => {
             setSelectedCrops({});
             setSnackbarMessage("CCE crops saved successfully!");
             setSnackbarOpen(true);
+
+            // Added line
+            setCropsModalOpen(false);
         } catch (error) {
             console.error('Error saving CCE crops:', error);
             setSnackbarMessage(`Error saving crops: ${error.message}`);
@@ -1130,6 +1133,10 @@ const handleUseRecommendedPlot = (type) => {
       }
 
       row[field] = processedValue;
+
+      if (field === 'area' && row.isNew) {
+        row.enumeratedArea = processedValue;
+    }
 
       let rowtitle  = []
       if (BtrTypeId == 2){

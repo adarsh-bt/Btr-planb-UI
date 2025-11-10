@@ -484,16 +484,27 @@ const handleSort = (column, direction) => {
                       let label = key;
                       let value = selectedRow[key] || 'NA';
 
-                      if (key === 'villageName') {
-                        label = 'Village Name';
-                      }
-
-                      if (key === 'bcode') {
-                        label = 'Block Code';
-                      }
+                      if (key === 'owner_name') {
+                    label = 'Owner Name';
+                  } else if (key === 'address') {
+                    label = 'Address';
+                  } else if (key === 'tp_no') {
+                    label = 'Thandaper No';
+                  } else if (key === 'tp_subdivion_no') {
+                    label = 'Thandaper Sub Division No';
+                  } else if (key === 'house_no') {
+                    label = 'House Number';
+                  } else if (key === 'main_no') {
+                    label = 'Old Survey No';
+                  } else if (key === 'sub_main_no') {
+                    label = 'Old Sub Division No';
+} else if (key === 'villageName') {
+                    label = 'Village Name';
+                  } else if (key === 'bcode') {
+                    label = 'Block Code';
+                  } else if (key === 'resvno') {
 
                       // Custom rendering for resvno
-                      if (key === 'resvno') {
                         const resvno = selectedRow.resvno ? selectedRow.resvno : 'NA';
                         const resbdno = selectedRow.resbdno ? selectedRow.resbdno : 'NA';
                         label = 'Re-Survey No.';
