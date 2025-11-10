@@ -102,7 +102,7 @@ const userManagement = {
   id: 'util-usermanagement',
   title: 'User Management',
   type: 'item',
-  url: '/rolelist',
+  url: '/User_Manage',
   icon: icons.UserSwitchOutlined
 };
 

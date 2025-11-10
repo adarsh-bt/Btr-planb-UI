@@ -412,7 +412,7 @@ const MainRoutes = {
 
 
     {
-      path: '/schemes/earas/CCE_crop_selection',
+      path: '/schemes/earas/earas_management/CCE_crop_selection',
       element: (
         <PrivateRoute>
           <CCE_crop_selection/>
@@ -436,7 +436,7 @@ const MainRoutes = {
       )
     },
     {
-      path: '/schemes/earas/zonesettings',
+      path: '/schemes/earas/earas_management/zonesettings',
       element: (
         <PrivateRoute>
           <ZoneSettings />
@@ -444,7 +444,7 @@ const MainRoutes = {
       )
     },
     {
-      path: '/schemes/earas/settings_menu',
+      path: '/schemes/earas/earas_management',
       element: (
         <PrivateRoute>
           <SettingsMenu />

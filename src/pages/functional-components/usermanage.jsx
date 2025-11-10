@@ -134,7 +134,7 @@ function UserManage() {
                         marginTop: '0.5rem'
                       }}
                     >
-                      --- ----
+                     
                     </Typography>
                   </CardContent>
                 </Box>

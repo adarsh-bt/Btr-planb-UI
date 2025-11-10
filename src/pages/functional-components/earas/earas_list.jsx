@@ -4,6 +4,7 @@ import { Box, Card, CardContent, CardMedia, Typography } from '@mui/material';
 import { Link } from 'react-router-dom';
 import Breadcrumb from 'routes/Breadcrumb';
 import { useContext } from 'react';
+import auth from 'contexts/auth-reducer/auth';
 // import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
 // import { flattenPermissions } from 'contexts/auth-reducer/permissionHelpers';
 
@@ -16,7 +17,8 @@ const earas_list = () => {
   
   //   // Check if user has "View BTR"
   //   const canViewBTR = userPermissions.includes('View BTR');
-
+const role = auth.getrole()?.trim();
+   alert(role);
   const cardData = [
     {
       title: 'Zone Details',
@@ -26,6 +28,7 @@ const earas_list = () => {
     },
     // Only show if user does NOT have "View BTR"
     // !canViewBTR ? 
+
     {
       title: 'e-BTR',
       image: '...',

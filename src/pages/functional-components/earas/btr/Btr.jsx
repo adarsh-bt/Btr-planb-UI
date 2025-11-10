@@ -273,9 +273,9 @@ const handleRequestSort = (columnKey) => {
     const BASE_URL = mainapi.USER_API;
     try {
         const token = localStorage.getItem('token');
-        alert(resolvedZoneId)
+       
       // Ensure the URL is correct for your backend service
-      const response = await fetch(`${BASE_URL}/btr-service/btr-api/export?userId=${resolvedZoneId}`, {
+      const response = await fetch(`${BASE_URL}/btr-service/btr-api/export?zoneId=${resolvedZoneId}`, {
         headers: {
           Authorization: `Bearer ${token}` // Add token in Authorization header
         }
