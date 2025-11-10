@@ -37,6 +37,9 @@ const Clusters = Loadable(lazy(() => import('pages/functional-components/earas/C
 const ClustersWrapper = Loadable(lazy(() => import('pages/functional-components/earas/Cluster/clusterWrapper')));
 const ClusterRouteWrapper = Loadable(lazy(() => import('pages/functional-components/earas/Cluster/clusterRouteWrapper')));
 
+const ClusterFormView = Loadable(lazy(() => import('pages/functional-components/earas/Cluster/cluster_order_form')));
+const ClustersWrapperForm = Loadable(lazy(() => import('pages/functional-components/earas/Cluster/clusterWrapperform')));
+// const Form1_menus = Loadable(lazy(() => import('pages/functional-components/earas/form1/form1menus')));
 
 
 const ZoneSettings = Loadable(lazy(() => import('pages/functional-components/earas/ZoneDetails/ZoneSettings')));
@@ -159,7 +162,7 @@ const MainRoutes = {
     },
 
     {
-      path: 'rolelist',
+      path: '/User_Manage/Manage_Users',
       element: (
         <PrivateRoute>
           <RoleList />
@@ -168,7 +171,7 @@ const MainRoutes = {
     },
 
     {
-      path: 'role',
+      path: '/User_Manage/Manage_Users/User_Details',
       element: (
         <PrivateRoute>
           <RoleDetail />
@@ -194,7 +197,7 @@ const MainRoutes = {
     },
 
     {
-      path: '/RoleDesignation',
+      path: '/User_Manage/RoleDesignation',
       element: (
         <PrivateRoute>
           <RoleDesignation />
@@ -369,6 +372,24 @@ const MainRoutes = {
     //   )
     // },
 
+
+     {
+      path: '/schemes/earas/Clusters_Form',
+      element: (
+        <PrivateRoute>
+          <ClusterFormView />
+        </PrivateRoute>
+      )
+    },
+
+     {
+      path: '/schemes/earas/Clusters_Form/ClusterFormView',
+      element: (
+        <PrivateRoute>
+          <Form1_menus/>
+        </PrivateRoute>
+      )
+    },
     
     {
       path: '/schemes/earas/form1',

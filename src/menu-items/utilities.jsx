@@ -13,7 +13,8 @@ import {
   EnvironmentOutlined,       // New icon for Zone Details
   ClusterOutlined ,    
    UsergroupAddOutlined,
-  UserSwitchOutlined        // New icon for Key Plot Generation
+  UserSwitchOutlined,        
+  DeliveredProcedureOutlined 
  
 } from '@ant-design/icons';
 import authservice from 'pages/authentication/services/authservice';
@@ -33,10 +34,8 @@ const icons = {
   EnvironmentOutlined,
   ClusterOutlined,
    UsergroupAddOutlined,
-  UserSwitchOutlined ,
-
-
-
+  UserSwitchOutlined,
+  DeliveredProcedureOutlined
 };
 
 // ==============================|| MENU ITEMS - UTILITIES ||============================== //
@@ -73,6 +72,14 @@ const clusterFormation = {
   type: 'item',
   url: '/schemes/earas/clusters',
   icon: icons.DeploymentUnitOutlined
+};
+
+const ClusterFormView = {
+  id: 'util-form-view',
+  title: 'Cluster Form View',
+  type: 'item',
+  url: '/schemes/earas/Clusters_Form',
+  icon: icons.DeliveredProcedureOutlined
 };
 
 const zoneDetails = {
@@ -124,6 +131,7 @@ if (role === 'IT Admin' || role === 'District Level Approver') {
     viewBtr,
     keyPlot,
     clusterFormation,
+    // ClusterFormView,
     workallocation
   );
 } else {

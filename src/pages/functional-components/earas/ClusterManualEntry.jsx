@@ -103,6 +103,7 @@ const ClusterFormUI = () => {
     const [maxcluster, setMaxCluster] = useState('');
     const [meanCluster, setMeanCluster] = useState('');
     const [keyplotMainSvNo, setKeyplotMainSvNo] = useState('');
+    const [lbcode, setLbcode] = useState('');
     const [modalBlockOptions, setModalBlockOptions] = useState([]);
     const [svNoDetails, setSvNoDetails] = useState([]);
     const [selectedSvNos, setSelectedSvNos] = useState([]);
@@ -333,6 +334,7 @@ const handlePlotValidation = async (keyplotId, rowUniqueId) => {
         const zoneId = authservice.getzone();
         
         const payload = {
+            lbcode:defaultLbcode,
             vcode: row.villageId,
             bcode: row.block,
             resvno: parseInt(row.svNo, 10),
@@ -1615,8 +1617,9 @@ useEffect(() => {
                                                             </Select>
                                                         </FormControl>
                                                     </Grid>
-                                                    <Grid item xs={1.5}><TextField label="Survey No" size="small" fullWidth value={row.svNo} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'svNo')} 
-                                                        onBlur={() => handlePlotValidation(keyplot.id, row.uniqueId)}
+                                                    <Grid item xs={1.5}><TextField label="Survey No" size="small" fullWidth value={row.svNo}  onChange={(e) => {const value = e.target.value; if (value.length <= 5 && /^\d*$/.test(value)) {
+                                                         handleInputChange(e, keyplot.id, row.uniqueId, 'svNo');}}} 
+                                                         onBlur={() => handlePlotValidation(keyplot.id, row.uniqueId)} inputProps={{ maxLength: 5 }}
                                                     /></Grid>
                                                     <Grid item xs={1}><TextField label="Sub Div" size="small" fullWidth value={row.sub} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'sub')} 
                                                         onBlur={() => handlePlotValidation(keyplot.id, row.uniqueId)}

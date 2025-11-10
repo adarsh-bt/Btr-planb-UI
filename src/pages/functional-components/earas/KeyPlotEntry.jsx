@@ -379,7 +379,7 @@ const handleLocalBodyChange = (tabLbId, rowId, selectedLbId) => {
       setIsSaving(false);
       return;
     }
-
+    console.log(">     >> ---  ", localBodyInfoMap);
     const zoneId = authservice.getzone();
     const payload = allKeyplots.map((row) => {
   const villageData = villageInfoMap.get(row.village);

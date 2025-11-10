@@ -144,10 +144,10 @@ const KeyPlotListing = ({zoneId}) => {
       if (!response.ok) {
         throw new Error(`Failed to fetch data (${response.status})`);
       }
-      
       const data = await response.json();
       const plots = data.payload || [];
       const transformedPlots = transformPlotData(plots);
+      console.log("key >>>> "+transformedPlots);
       
       setPlotData(transformedPlots);
       setDataVisible(plots.length > 0);
@@ -691,7 +691,7 @@ const KeyPlotListing = ({zoneId}) => {
                       >
                         <TableCell align="center">{row.slNo}</TableCell>
                         <TableCell align="center">{row.syNo}</TableCell>
-                        <TableCell align="center">{row.kvillageName}</TableCell>
+                        <TableCell align="center">{row.panchayth}</TableCell>
                         <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
                         <TableCell align="center">{row.villageBlock}</TableCell>
                         <TableCell align="center">{row.landType}</TableCell>

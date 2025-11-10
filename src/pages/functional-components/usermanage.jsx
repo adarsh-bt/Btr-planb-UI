@@ -21,14 +21,14 @@ function UserManage() {
       <Breadcrumb/>
       <Grid item xs={12}>
         <Typography variant="h3" sx={{ marginBottom: 2 }}>
-          Schemes
+          User Management
         </Typography>
         <MainCard title="">
           <Grid container spacing={4}>
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                to="/RoleDesignation"
+                to="/User_Manage/RoleDesignation"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',
@@ -76,7 +76,7 @@ function UserManage() {
                         marginTop: '0.5rem'
                       }}
                     >
-                      --- ----
+                  
                     </Typography>
                   </CardContent>
                 </Box>
@@ -87,7 +87,7 @@ function UserManage() {
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                to="/rolelist"
+                to="/User_Manage/Manage_Users"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',
@@ -122,7 +122,7 @@ function UserManage() {
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
                     <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Manage Approved Users
+                      Manage Users
                     </Typography>
                     <Typography
                       variant="subtitle1"
@@ -140,7 +140,7 @@ function UserManage() {
                 </Box>
               </Card>
             </Grid>
-
+{/* 
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 sx={{
@@ -245,7 +245,7 @@ function UserManage() {
                   </CardContent>
                 </Box>
               </Card>
-            </Grid>
+            </Grid> */}
           </Grid>
         </MainCard>
       </Grid>

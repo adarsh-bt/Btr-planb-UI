@@ -45,14 +45,13 @@ class ApprovedUserService {
     try {
       // const userId = '95a816d1-e16a-4fc5-8353-9be4d555bf8a';
       const token = localStorage.getItem('token');
-      console.log('userId in service:', userId);
+   
       // const userId = "44b2a345-b9c5-429f-8f66-52830f1962c8"
       const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/user-manage/fetch-by-id/${userId}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
-      console.log('response usersss', response);
       return response.data;
     } catch (err) {
       return {
@@ -87,7 +86,7 @@ class ApprovedUserService {
   static async getDesignations() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/user-registration/fetch-designations`, {
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/fetch-designations`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
