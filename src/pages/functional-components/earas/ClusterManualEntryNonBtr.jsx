@@ -176,9 +176,10 @@ const ClusterManualEntryNonBtr = () => {
         setLoadingCrops(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-crops`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+        const zoneid = authservice.getzone();
+        const response = await fetch(`${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops?zoneId=${zoneid}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
             const cropData = Array.isArray(data) ? data : (data.crops || data.payload || []);

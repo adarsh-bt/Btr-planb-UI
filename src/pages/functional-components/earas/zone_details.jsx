@@ -9,7 +9,7 @@ function ZoneDetailsWrapper() {
   if (!role) return <p>Checking role...</p>;
 
   // You can customize this logic based on actual roles used in your app
-  if (role === 'Taluk Level Approver' || role === "IT Admin" || role === "District Level Approver") {
+  if (role == 'Super Admin' || role === 'Taluk Level Approver' || role === "IT Admin" || role === "District Level Approver") {
     return <AdminsZonelist />;
   }
 

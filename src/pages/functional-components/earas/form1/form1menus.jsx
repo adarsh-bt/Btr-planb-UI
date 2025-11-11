@@ -179,6 +179,11 @@ const DownloadMenu = ({ onDownload }) => {
 // --- Form1_menus Main Component ---
 
 function Form1_menus() {
+  const [syNo, setSyNo] = useState('');
+    const [slNo, setSLNo] = useState('');
+    const [keyplotId, setKeyplotId] = useState('');
+    const [keyplotSubNo, setKeyplotSubNo] = useState('');
+    const [clusterId, setClusterId] = useState('');
   const [activeTab, setActiveTab] = useState(0);
   const [keyplotData, setKeyplotData] = useState(null);
   const [farmerData, setFarmerData] = useState(null); 
@@ -196,6 +201,8 @@ function Form1_menus() {
   const KEYPLOT_ID = 'db537d81-e8d5-45f4-82d5-fd12d9026bc5';
   const CLUSTER_ID_63 = '63';
   const IRRIGATION_CLUSTER_ID_108 = '108';
+
+
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
@@ -235,31 +242,64 @@ function Form1_menus() {
       // link.click();
     }
   };
+   useEffect(() => {
+  const urlParams = new URLSearchParams(location.search);
+  const syNoFromURL = urlParams.get('No');
+  const slnoFromURL = urlParams.get('slno');
+  setKeyplotId(syNoFromURL);
+  
+  if (syNoFromURL) {
+    setSyNo(decodeURIComponent(syNoFromURL));
+    if (slnoFromURL) {
+      setSLNo(decodeURIComponent(slnoFromURL));
+      setKeyplotSubNo(decodeURIComponent(slnoFromURL));
+    }
+    fetchKeyplotDetails(syNoFromURL); // this sets clusterId
+  }
+}, [location.search]);
+
+// once clusterId is available, load dependent data
+useEffect(() => {
+  if (clusterId) {
+    fetchCropDetails();
+    fetchIrrigationDetails();
+    fetchLandUtilizationDetails();
+    fetchOtherDetails();
+  }
+}, [clusterId]);
+
 
   // API Fetch Functions (same as before)
-  const fetchKeyplotDetails = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const token = localStorage.getItem('token');
-      const BASE_URL = mainapi.BASE_URL;
+ const fetchKeyplotDetails = async (idFromUrl) => {
+  setIsLoading(true);
+  setError(null);
+  try {
+    const token = localStorage.getItem('token');
+    const BASE_URL = mainapi.BASE_URL;
 
-      const response = await axios.get(`${BASE_URL}/btr-service/key-plots/fetch-by-keyplotsdetails/${KEYPLOT_ID}`, {
+    console.log("Fetching Keyplot details for SubNo:", idFromUrl);
+    const response = await axios.get(
+      `${BASE_URL}/btr-service/key-plots/fetch-by-keyplotsdetails/${idFromUrl}`,
+      {
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
 
       const data = response.data;
-
+      
       if (data && data.payload) {
         setKeyplotData({
           ...data.payload,
-          plot_no: 'N/A (API Field Missing)', 
-          area: 'N/A (API Field Missing)',
-          location: 'N/A (API Field Missing)',
+          plot_no: 'N/A (Field Missing)', 
+          area: 'N/A (Field Missing)',
+          location: 'N/A (Field Missing)',
         });
+        setClusterId(data.payload.cluster_id);
+        console.log("Keyplot details payload:", data.payload.cluster_id);
       } else {
         throw new Error('Invalid Keyplot API response structure or empty payload.');
       }
@@ -277,8 +317,8 @@ function Form1_menus() {
     try {
       const token = localStorage.getItem('token');
       const BASE_URL = mainapi.BASE_URL;
-
-      const response = await axios.get(`${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${CLUSTER_ID_63}`, {
+    
+      const response = await axios.get(`${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${clusterId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -288,6 +328,7 @@ function Form1_menus() {
       const data = response.data;
 
       if (data && Array.isArray(data.payload)) {
+        console.log("Crop details payload:", data.payload);
         setCropData(data.payload);
       } else {
         throw new Error('Invalid Crop API response structure or payload is not an array.');
@@ -303,7 +344,7 @@ function Form1_menus() {
       const token = localStorage.getItem('token');
       const BASE_URL = mainapi.BASE_URL;
 
-      const response = await axios.get(`${BASE_URL}/earas-form1-entry/irrigation-details/fetch-by-clusterId/${IRRIGATION_CLUSTER_ID_108}`, {
+      const response = await axios.get(`${BASE_URL}/earas-form1-entry/irrigation-details/fetch-by-clusterId/${clusterId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -328,7 +369,7 @@ function Form1_menus() {
       const token = localStorage.getItem('token');
       const BASE_URL = mainapi.BASE_URL;
 
-      const response = await axios.get(`${BASE_URL}/earas-form1-entry/land-utilization-details/fetch-by-clusterId/${CLUSTER_ID_63}`, {
+      const response = await axios.get(`${BASE_URL}/earas-form1-entry/land-utilization-details/fetch-by-clusterId/${clusterId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -352,17 +393,20 @@ function Form1_menus() {
     setFarmerData({ id: 1, name: 'Ravi Kumar', age: 45, contact: '9876543210', aadhaar: '1234-5678-9012' });
   };
 
-  const refreshData = () => {
-    fetchKeyplotDetails();
-    fetchCropDetails(); 
-    fetchIrrigationDetails(); 
-    fetchLandUtilizationDetails();
-    fetchOtherDetails();
-  };
+  // const refreshData = () => {
+  //   fetchKeyplotDetails();
+  //   fetchCropDetails(); 
+  //   fetchIrrigationDetails(); 
+  //   fetchLandUtilizationDetails();
+  //   fetchOtherDetails();
+  // };
 
-  useEffect(() => {
-    refreshData();
-  }, []);
+  // useEffect(() => {
+  //   refreshData();
+  // }, []);
+
+
+
 
   // Enhanced Loading Component
   const renderLoading = () => (
@@ -375,24 +419,24 @@ function Form1_menus() {
   );
 
   // Enhanced Error Component
-  const renderError = () => (
-    <Alert 
-      severity="error" 
-      action={
-        <Button color="inherit" size="small" onClick={refreshData}>
-          Retry
-        </Button>
-      }
-      sx={{ mb: 2 }}
-    >
-      {error}
-    </Alert>
-  );
+  // const renderError = () => (
+  //   <Alert 
+  //     severity="error" 
+  //     action={
+  //       <Button color="inherit" size="small" onClick={refreshData}>
+  //         Retry
+  //       </Button>
+  //     }
+  //     sx={{ mb: 2 }}
+  //   >
+  //     {error}
+  //   </Alert>
+  // );
 
   // 1. Enhanced Keyplot Details with Download
   const renderKeyplotDetails = () => {
     if (isLoading) return renderLoading();
-    if (error) return renderError();
+    // if (error) return renderError();
     if (!keyplotData) return <Alert severity="warning">No keyplot data available.</Alert>;
 
     return (
@@ -456,9 +500,11 @@ function Form1_menus() {
 
     const columns = [
       { id: 'clusterLabel', label: 'Cluster Label', sortable: true },
-      { id: 'seasonId', label: 'Season ID', sortable: true },
-      { id: 'cropTypeId', label: 'Crop Type ID', sortable: true },
-      { id: 'cropId', label: 'Crop ID', sortable: true },
+      // { id: 'seasonId', label: 'Season ID', sortable: true },
+      { id: 'seasonName', label: 'Season Name', sortable: true },
+      { id: 'cropName', label: 'Crop Name', sortable: true },
+      { id: 'cropType', label: 'Crop Type', sortable: true },
+      // { id: 'cropId', label: 'Crop ID', sortable: true },
       { id: 'cropArea', label: 'Area', sortable: true, numeric: true },
       { id: 'isIrrigated', label: 'Irrigation Status', sortable: true },
     ];
@@ -470,6 +516,9 @@ function Form1_menus() {
         clusterLabel: cluster.clusterLabel,
         seasonId: cluster.seasonId,
         cropTypeId: cluster.cropTypeId,
+        seasonName: crop.season,
+        cropName: crop.cropNameEn,
+        cropType: crop.cropType,
       }))
     );
 
@@ -490,6 +539,7 @@ function Form1_menus() {
       }
       return 0;
     });
+    
 
     const totalArea = sortedData.reduce((sum, item) => sum + item.cropArea, 0);
 
@@ -529,9 +579,9 @@ function Form1_menus() {
                   <TableCell>
                     <Chip label={row.clusterLabel} size="small" variant="outlined" />
                   </TableCell>
-                  <TableCell>{row.seasonId}</TableCell>
-                  <TableCell>{row.cropTypeId}</TableCell>
-                  <TableCell>{row.cropId}</TableCell>
+                  <TableCell>{row.seasonName}</TableCell>
+                  <TableCell>{row.cropName}</TableCell>
+                  <TableCell>{row.cropType}</TableCell>
                   <TableCell align="right">
                     <Typography variant="body2" fontWeight="medium">
                       {row.cropArea.toFixed(2)}
@@ -907,7 +957,7 @@ function Form1_menus() {
             boxShadow: 3
           }}
         >
-          {error && renderError()}
+          {/* {error && renderError()} */}
           
           <Tabs
             value={activeTab}
@@ -934,10 +984,10 @@ function Form1_menus() {
             }}
           >
             <Tab label="Keyplot Details" id="tab-0" aria-controls="tabpanel-0" />
-            <Tab label="Farmer Details" id="tab-1" aria-controls="tabpanel-1" />
-            <Tab label="Crop Details" id="tab-2" aria-controls="tabpanel-2" />
-            <Tab label="Irrigation Details" id="tab-3" aria-controls="tabpanel-3" />
-            <Tab label="Land Utilization" id="tab-4" aria-controls="tabpanel-4" />
+            {/* <Tab label="Farmer Details" id="tab-1" aria-controls="tabpanel-1" /> */}
+            <Tab label="Crop Details" id="tab-1" aria-controls="tabpanel-1" />
+            <Tab label="Irrigation Details" id="tab-2" aria-controls="tabpanel-2" />
+            <Tab label="Land Utilization" id="tab-3" aria-controls="tabpanel-3" />
           </Tabs>
           <Divider sx={{ mb: 2 }} />
 
@@ -946,19 +996,19 @@ function Form1_menus() {
             {renderKeyplotDetails()}
           </TabPanel>
 
-          <TabPanel value={activeTab} index={1}>
+          {/* <TabPanel value={activeTab} index={1}>
             {renderFarmerDetails()}
-          </TabPanel>
+          </TabPanel> */}
 
-          <TabPanel value={activeTab} index={2}>
+          <TabPanel value={activeTab} index={1}>
             {renderCropDetails()}
           </TabPanel>
 
-          <TabPanel value={activeTab} index={3}>
+          <TabPanel value={activeTab} index={2}>
             {renderIrrigationDetails()}
           </TabPanel>
 
-          <TabPanel value={activeTab} index={4}>
+          <TabPanel value={activeTab} index={3}>
             {renderLandUtilizationDetails()}
           </TabPanel>
         </MainCard>
