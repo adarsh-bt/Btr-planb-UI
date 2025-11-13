@@ -128,7 +128,7 @@ const RoleList = () => {
         // const userRolea = authservice.getrole();
         setRole(userRole);
 
-        if (userRole === 'IT Admin') {
+        if (userRole === 'IT Admin' ) {
           // IT Admin sees all three categories
           const res = await ApprovedUserService.fetchITAdminApprovedUsers();
           console.log("resssss  >>>  ",res)
@@ -143,7 +143,17 @@ const RoleList = () => {
           setTalukUsers(res.payload.talukUsers || []);
           setDistrictUsers(res.payload.districtUsers || []);
           setDirectorateUsers([]); // No directorate users for district admin
-        } else {
+        } 
+        else if (userRole === 'Taluk Level Approver') {
+          // Taluk Admin sees only taluk
+          const res = await ApprovedUserService.fetchTalukAdminApprovedUsers();
+          if (res.error) throw new Error(res.message);
+          console.log("resssss  >>>  ",res)
+          setTalukUsers(res.payload.talukUsers || []);
+          setDistrictUsers([]); // No district users for taluk admin
+          setDirectorateUsers([]); // No directorate users for taluk admin
+        } 
+        else {
           setError('Unauthorized or unknown admin role');
         }
       } catch (err) {

@@ -116,7 +116,7 @@ const userManagement = {
     };
 
 // Role-based logic with fallback
-if (role === 'IT Admin' || role === 'District Level Approver') {
+if (role == 'Super Admin' ||role === 'IT Admin' || role === 'District Level Approver' || role === 'Taluk Level Approver' ) {
   utilities.children.push(
     userApproval,
     userManagement,
@@ -131,7 +131,7 @@ if (role === 'IT Admin' || role === 'District Level Approver') {
     viewBtr,
     keyPlot,
     clusterFormation,
-    // ClusterFormView,
+    ClusterFormView,
     workallocation
   );
 } else {

@@ -24,6 +24,7 @@ import mainapi from 'api/mainapi';
 import authservice from 'pages/authentication/services/authservice';
 import LoadingScreen from 'utils/loadingscreen';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import axios from 'axios';
 
 // Custom styles for text fields and tabs
 const FormInput = styled(TextField)(({ theme }) => ({
@@ -103,15 +104,17 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
 
 
 function WorkAllocationForm() {
-  const [district, setDistrict] = useState('');
-  const [activeTab, setActiveTab] = useState('tab1');
-  const [areaDetailsRows, setAreaDetailsRows] = useState([{}]);
-  const [forestDetailsRows, setForestDetailsRows] = useState([{}]);
-  const [otherDetailsRows, setOtherDetailsRows] = useState([{}]);
-  const [result, setResult] = useState(null);
-  const [data, setData] = useState([]);
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Removed unused state: district
+const [activeTab, setActiveTab] = useState('tab1');
+const [result, setResult] = useState(null);
+const [zoneData, setZoneData] = useState([]);
+const [workAllocationData, setWorkAllocationData] = useState([]);
+const [data, setData] = useState([]);
+const [error, setError] = useState(null);
+const [loading, setLoading] = useState(true);
+const [validationErrors, setValidationErrors] = useState({});
+const [isdisabled,SetIsDisable] = useState(true)
+
 
   const BASE_URL = mainapi.BASE_URL;
 
@@ -119,70 +122,252 @@ function WorkAllocationForm() {
     setActiveTab(newValue);
   };
 
-  const handleAddRow = () => {
-    if (activeTab === 'tab1') {
-      setAreaDetailsRows([...areaDetailsRows, {}]);
-    } else if (activeTab === 'tab2') {
-      setForestDetailsRows([...forestDetailsRows, {}]);
-    } else if (activeTab === 'tab3') {
-      setOtherDetailsRows([...otherDetailsRows, {}]);
-    }
-  };
+  // Removed: handleAddRow
 
-  const handleRemoveRow = (index) => {
-    if (activeTab === 'tab1') {
-      // Create a new array without the element at the specified index
-      const newRows = areaDetailsRows.filter((_, i) => i !== index);
-      setAreaDetailsRows(newRows);
-    } else if (activeTab === 'tab2') {
-      const newRows = forestDetailsRows.filter((_, i) => i !== index);
-      setForestDetailsRows(newRows);
-    } else if (activeTab === 'tab3') {
-      const newRows = otherDetailsRows.filter((_, i) => i !== index);
-      setOtherDetailsRows(newRows);
-    }
-  };
-
-  const handleSubmit = () => {
-    const formData = {
-      district,
-      areaDetails: areaDetailsRows,
-      forestDetails: forestDetailsRows,
-      otherDetails: otherDetailsRows,
-    };
-    console.log(JSON.stringify(formData, null, 2));
-    alert('Form data has been logged to the console. Check the console to see the data.');
-  };
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const user_id = authservice.userid();
-        const zone_id = localStorage.getItem('activeZone');
-        console.log(token," ",user_id)
-        const response = await fetch(`${BASE_URL}/btr-service/btr-api/zone-details/${zone_id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        if (!response.ok) {
-          throw new Error('Failed to fetch data');
+  // Removed: handleRemoveRow - We'll remove the delete icon from the table as well.
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const user_id = authservice.userid();
+      const zone_id = localStorage.getItem('activeZone');
+      
+      const response = await fetch(`${BASE_URL}/btr-service/btr-api/zone-details/${zone_id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
         }
-        const result = await response.json();
-        console.log('data', result.payload);
-        setResult(result.payload);
-        setData(result.payload.data);
-        console.log("re    ",result.payload.district)
-      } catch (error) {
-        setError(error.message);
-      } finally {
-        setLoading(false);
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch data');
       }
-    };
-    fetchData();
-  }, []);
+      const result = await response.json();
+      console.log('Zone details data:', result.payload);
+      setResult(result.payload);
+      setZoneData(result.payload.data || []);
+      
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchData();
+}, []);
 
+const zoneId = authservice.getzone();
+
+useEffect(() => {
+  const fetchWorkAllocation = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${BASE_URL}/btr-service/btr-api/work-allocation-view/${zoneId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      const apiData = res.data;
+      console.log("Work allocation data >>> ", apiData);
+      
+      // Check if data is in payload or directly in response
+      if (apiData) {
+
+        // If data is in payloadproperty
+        if (apiData.payload) {
+          setWorkAllocationData(apiData.payload);
+          SetIsDisable(false)
+        } 
+        // If data is directly the array
+        else if (Array.isArray(apiData)) {
+          setWorkAllocationData(apiData);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching work allocation data:', err);
+    }
+  };
+
+  if (zoneId) {
+    fetchWorkAllocation();
+  }
+}, [zoneId]);
+
+
+// Merge zone data with work allocation data
+useEffect(() => {
+  console.log("zone data   ",zoneData)
+  console.log("work all >>>>> data   ",workAllocationData)
+  if (zoneData.length > 0 && workAllocationData.length > 0) {
+    const merged = zoneData.map(zoneItem => {
+     
+      // Find matching work allocation data by lbcode
+      const workItem = workAllocationData.find(work => work.lbcode === zoneItem.lbcode);
+      console.log("A   ",workAllocationData)
+       console.log("work      ",zoneItem.lbcode)
+      // console.log("zoneITM         ",work.lbcode)
+      return {
+        // Zone details
+        blocks: zoneItem.blocks || [],
+        p_name: zoneItem.p_name || '',
+        lbcode: zoneItem.lbcode || '',
+        
+        // Work allocation data (if exists)
+        Wet_area: workItem?.villageWetArea?.toString() || '',
+        Dry_area: workItem?.villageDryArea?.toString() || '',
+        Total_area: workItem?.villageTotalArea?.toString() || '',
+        forest_a: workItem?.forestAreaA?.toString() || '',
+        forest_b: workItem?.forestAreaB?.toString() || '',
+        forest_c: workItem?.forestAreaC?.toString() || '',
+        area_under: workItem?.areaUnderPlant?.toString() || '',
+        plantation_under: workItem?.forestExcludeUnclutivate?.toString() || '',
+        plantation_not_under: workItem?.forestExcludeNotUnclutivate?.toString() || '',
+        kayal_excluded: workItem?.kayalExcludeArea?.toString() || '',
+        others_dry_13: workItem?.otherExcludeFWet?.toString() || '',
+        others_wet_14: workItem?.otherExcludedFDry?.toString() || '',
+        others_total: workItem?.otherExcludeFTotal?.toString() || '',
+        plots_dry_16: workItem?.noOfPlotsDry?.toString() || '',
+        plots_wet_17: workItem?.noOfPlotsWet?.toString() || '',
+        plots_total: workItem?.noOfPlotsTotal?.toString() || '',
+        total_area_wet_19: workItem?.totalAreaWet?.toString() || '',
+        total_area_dry_21: workItem?.totalAreaDry?.toString() || '',
+        total_area_total_20: workItem?.totalAreaForEstimation?.toString() || '',
+        remarks: workItem?.remarks || ''
+      };
+    });
+    
+    console.log("Merged data:", merged);
+    setData(merged);
+  } else if (zoneData.length > 0) {
+    // If no work allocation data, just use zone data with empty form fields
+    const zoneDataWithEmptyFields = zoneData.map(zoneItem => ({
+      blocks: zoneItem.blocks || [],
+      p_name: zoneItem.p_name || '',
+      lbcode: zoneItem.lbcode || '',
+      Wet_area: zoneItem.Wet_area || '',
+      Dry_area: zoneItem.Dry_area || '',
+      Total_area: zoneItem.Total_area || '',
+      forest_a: '',
+      forest_b: '',
+      forest_c: '',
+      area_under: '',
+      plantation_under: '',
+      plantation_not_under: '',
+      kayal_excluded: '',
+      others_dry_13: '',
+      others_wet_14: '',
+      others_total: '',
+      plots_dry_16: '',
+      plots_wet_17: '',
+      plots_total: '',
+      total_area_wet_19: '',
+      total_area_dry_21: '',
+      total_area_total_20: '',
+      remarks: ''
+    }));
+    setData(zoneDataWithEmptyFields);
+  }
+}, [zoneData, workAllocationData]);
+  // 🔹 Utility validation function
+const validateNumber = (value) => {
+  if (value === '' || value === null || value === undefined) return 'This field is required';
+  if (!/^\d*\.?\d*$/.test(value)) return 'Only numbers allowed';
+  return '';
+};
+const handleInputChange = (index, field, value) => {
+  const updatedData = [...data];
+  updatedData[index] = { ...updatedData[index], [field]: value };
+  setData(updatedData);
+
+  // Validate only numeric fields
+  const numericFields = [
+    'Wet_area','Dry_area','Total_area',
+    'forest_a','forest_b','forest_c',
+    'area_under','plantation_under','plantation_not_under',
+    'kayal_excluded','others_dry_13','others_wet_14','others_total',
+    'plots_dry_16','plots_wet_17','plots_total',
+    'total_area_wet_19','total_area_dry_21','total_area_total_20'
+  ];
+
+  if (numericFields.includes(field)) {
+    const errorMsg = validateNumber(value);
+    setValidationErrors((prev) => ({
+      ...prev,
+      [`${field}_${index}`]: errorMsg,
+    }));
+  }
+};
+
+
+
+const handleSubmit = async () => {
+  const hasErrors = Object.values(validationErrors).some((msg) => msg !== '');
+  if (hasErrors) {
+    alert('⚠️ Please correct all invalid fields before submitting.');
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('token');
+    const user_id = authservice.userid();
+    const zone_id = localStorage.getItem('activeZone');
+
+    const rowsToSave = data.map((row) => ({
+      zoneId: zone_id,
+      lbcode: row.lbcode || "LB-2025-001",
+
+
+      // Area Details
+      villageWetArea: parseFloat(row.Wet_area) || 0,
+      villageDryArea: parseFloat(row.Dry_area) || 0,
+      villageTotalArea: parseFloat(row.Total_area) || 0,
+
+      // Forest Details
+      forestAreaA: parseFloat(row.forest_a) || 0,
+      forestAreaB: parseFloat(row.forest_b) || 0,
+      forestAreaC: parseFloat(row.forest_c) || 0,
+      areaUnderPlant: parseFloat(row.area_under) || 0,
+      forestExcludeUnclutivate: parseFloat(row.plantation_under) || 0,
+      forestExcludeNotUnclutivate: parseFloat(row.plantation_not_under) || 0,
+      kayalExcludeArea: parseFloat(row.kayal_excluded) || 0,
+
+      // Other Details
+      otherExcludeFWet: parseFloat(row.others_dry_13) || 0,
+      otherExcludedFDry: parseFloat(row.others_wet_14) || 0,
+      otherExcludeFTotal: parseFloat(row.others_total) || 0,
+      noOfPlotsWet: parseFloat(row.plots_wet_17) || 0,
+      noOfPlotsDry: parseFloat(row.plots_dry_16) || 0,
+      noOfPlotsTotal: parseFloat(row.plots_total) || 0,
+      totalAreaWet: parseFloat(row.total_area_wet_19) || 0,
+      totalAreaDry: parseFloat(row.total_area_dry_21) || 0,
+      totalAreaForEstimation: parseFloat(row.total_area_total_20) || 0,
+      remarks: row.remarks || "",
+
+      userId: user_id,
+      isActive: true
+    }));
+
+    console.log("🧾 Rows ready to save:", rowsToSave);
+
+    const response = await fetch(`${BASE_URL}/btr-service/btr-api/work-allocation-save`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(rowsToSave)
+    });
+
+    if (!response.ok) throw new Error('Failed to save work allocation');
+    const saveResponse = await response.json();
+    alert('✅ Work allocation rows saved successfully!');
+    console.log(saveResponse.payload);
+
+  } catch (error) {
+    console.error('❌ Error:', error);
+    alert('Error saving data: ' + error.message);
+  }
+};
   const renderAreaDetailsTable = () => (
     <StyledTable size="small">
       <TableHead>
@@ -190,7 +375,7 @@ function WorkAllocationForm() {
           <StyledTableCell rowSpan={2}>Block</StyledTableCell>
           <StyledTableCell rowSpan={2}>Panchayat / Municipality / Corporation Zone</StyledTableCell>
           <StyledTableCell align="center" colSpan={3}>Area as per village records (in cents)</StyledTableCell>
-          <StyledTableCell rowSpan={2}>Action</StyledTableCell>
+          {/* Removed Action column header */}
         </TableRow>
         <TableRow>
           <StyledTableCell align="center">Wet in Cents</StyledTableCell>
@@ -199,113 +384,274 @@ function WorkAllocationForm() {
         </TableRow>
       </TableHead>
       <TableBody>
-        {data.map((row, index) => (
+        {data.map((row, index) => ( // Use 'data'
           <TableRow key={index}>
             <StyledTableCell><FormInput name={`block[${index}]`} size="small" placeholder="Enter Block" value={row.blocks ? row.blocks.join(', ') : 'N/A'}/></StyledTableCell>
             <StyledTableCell><FormInput name={`panchayat[${index}]`} size="small" placeholder="Enter Panchayat" value={row.p_name} /></StyledTableCell>
-            <StyledTableCell><FormInput name={`area_wet[${index}]`} size="small" placeholder="Wet" value={row.Wet_area || 0}/></StyledTableCell>
-            <StyledTableCell><FormInput name={`area_dry[${index}]`} size="small" placeholder="Dry" value={row.Dry_area || 0}/></StyledTableCell>
-            <StyledTableCell><FormInput name={`area_total[${index}]`} size="small" placeholder="Total" value={row.Total_area || 0} /></StyledTableCell>
-            <StyledTableCell>
-              <IconButton color="error" aria-label="remove row" onClick={() => handleRemoveRow(index)}>
-                <DeleteIcon />
-              </IconButton>
-            </StyledTableCell>
+            <StyledTableCell><FormInput name={`area_wet[${index}]`} size="small" placeholder="Wet" value={row.Wet_area || 0} onChange={(e) => handleInputChange(index, 'Wet_area', e.target.value)}
+  error={!!validationErrors[`Wet_area_${index}`]}
+  helperText={validationErrors[`Wet_area_${index}`]}/></StyledTableCell>
+            <StyledTableCell><FormInput name={`area_dry[${index}]`} size="small" placeholder="Dry" value={row.Dry_area || 0} onChange={(e) => handleInputChange(index, 'Dry_area', e.target.value)}
+  error={!!validationErrors[`Dry_area_${index}`]}
+  helperText={validationErrors[`Dry_area_${index}`]}/></StyledTableCell>
+            <StyledTableCell><FormInput name={`area_total[${index}]`} size="small" placeholder="Total" value={row.Total_area || 0} onChange={(e) => handleInputChange(index, 'Total_area', e.target.value)}
+  error={!!validationErrors[`Total_area_${index}`]}
+  helperText={validationErrors[`Total_area_${index}`]}/></StyledTableCell>
+            {/* Removed the action cell with the DeleteIcon */}
           </TableRow>
         ))}
       </TableBody>
     </StyledTable>
   );
 
-  const renderForestDetailsTable = () => (
-    <StyledTable size="small">
-      <TableHead>
-        <TableRow>
-          <StyledTableCell align="center" colSpan={3}>Forest Area as per village records (in cents)</StyledTableCell>
-          <StyledTableCell align="center" rowSpan={2}>Area under plantation (in cents)</StyledTableCell>
-          <StyledTableCell align="center" colSpan={2}>Forest Area excluded from Village records if any (in cents)</StyledTableCell>
-          <StyledTableCell align="center" rowSpan={2}>Kayal excluded from EARAS Survey (in cents)</StyledTableCell>
-          <StyledTableCell rowSpan={2}>Action</StyledTableCell>
+const renderForestDetailsTable = () => (
+  <StyledTable size="small">
+    <TableHead>
+      <TableRow>
+        <StyledTableCell rowSpan={2}>Panchayat / Municipality / Corporation Zone</StyledTableCell>
+        <StyledTableCell align="center" colSpan={3}>Forest Area as per village records (in cents)</StyledTableCell>
+        <StyledTableCell align="center" rowSpan={2}>Area under plantation (in cents)</StyledTableCell>
+        <StyledTableCell align="center" colSpan={2}>Forest Area excluded from Village records if any (in cents)</StyledTableCell>
+        <StyledTableCell align="center" rowSpan={2}>Kayal excluded from EARAS Survey (in cents)</StyledTableCell>
+      </TableRow>
+      <TableRow>
+        <StyledTableCell align="center">A </StyledTableCell>
+        <StyledTableCell align="center">B </StyledTableCell>
+        <StyledTableCell align="center">C </StyledTableCell>
+        <StyledTableCell align="center">Under Cultivation </StyledTableCell>
+        <StyledTableCell align="center">Not Under Cultivation </StyledTableCell>
+      </TableRow>
+    </TableHead>
+    <TableBody>
+      {data.map((row, index) => (
+        <TableRow key={index}>
+          <StyledTableCell><Typography variant="body2">{row.p_name}</Typography></StyledTableCell>
+          <StyledTableCell>
+            <FormInput 
+              name={`forest_a[${index}]`} 
+              size="small" 
+              placeholder="A" 
+              value={row.forest_a || ''}  // ADD THIS
+              onChange={(e) => handleInputChange(index, 'forest_a', e.target.value)}
+              error={!!validationErrors[`forest_a_${index}`]}
+              helperText={validationErrors[`forest_a_${index}`]}
+            />
+          </StyledTableCell>
+          <StyledTableCell>
+            <FormInput 
+              name={`forest_b[${index}]`} 
+              size="small" 
+              placeholder="B" 
+              value={row.forest_b || ''}  // ADD THIS
+              onChange={(e) => handleInputChange(index, 'forest_b', e.target.value)}
+              error={!!validationErrors[`forest_b_${index}`]}
+              helperText={validationErrors[`forest_b_${index}`]}
+            />
+          </StyledTableCell>
+          <StyledTableCell>
+            <FormInput 
+              name={`forest_c[${index}]`} 
+              size="small" 
+              placeholder="C" 
+              value={row.forest_c || ''}  // ADD THIS
+              onChange={(e) => handleInputChange(index, 'forest_c', e.target.value)}
+              error={!!validationErrors[`forest_c_${index}`]}
+              helperText={validationErrors[`forest_c_${index}`]}
+            />
+          </StyledTableCell>
+          <StyledTableCell>
+            <FormInput 
+              name={`area_under[${index}]`} 
+              size="small" 
+              placeholder="0.0" 
+              value={row.area_under || ''}  // ADD THIS
+              onChange={(e) => handleInputChange(index, 'area_under', e.target.value)}
+              error={!!validationErrors[`area_under_${index}`]}
+              helperText={validationErrors[`area_under_${index}`]}
+            />
+          </StyledTableCell>
+          <StyledTableCell>
+            <FormInput 
+              name={`plantation_under[${index}]`} 
+              size="small" 
+              placeholder="Under" 
+              value={row.plantation_under || ''}  // ADD THIS
+              onChange={(e) => handleInputChange(index, 'plantation_under', e.target.value)}
+              error={!!validationErrors[`plantation_under_${index}`]}
+              helperText={validationErrors[`plantation_under_${index}`]}
+            />
+          </StyledTableCell>
+          <StyledTableCell>
+            <FormInput 
+              name={`plantation_not_under[${index}]`} 
+              size="small" 
+              placeholder="Not Under" 
+              value={row.plantation_not_under || ''}  // ADD THIS
+              onChange={(e) => handleInputChange(index, 'plantation_not_under', e.target.value)}
+              error={!!validationErrors[`plantation_not_under_${index}`]}
+              helperText={validationErrors[`plantation_not_under_${index}`]}
+            />
+          </StyledTableCell>
+          <StyledTableCell>
+            <FormInput 
+              name={`kayal_excluded[${index}]`} 
+              size="small" 
+              value={row.kayal_excluded || ''}  // ADD THIS
+              onChange={(e) => handleInputChange(index, 'kayal_excluded', e.target.value)}
+              error={!!validationErrors[`kayal_excluded_${index}`]}
+              helperText={validationErrors[`kayal_excluded_${index}`]}
+            />
+          </StyledTableCell>
         </TableRow>
-        <TableRow>
-          <StyledTableCell align="center">A </StyledTableCell>
-          <StyledTableCell align="center">B </StyledTableCell>
-          <StyledTableCell align="center">C </StyledTableCell>
-          <StyledTableCell align="center">Under Cultivation </StyledTableCell>
-          <StyledTableCell align="center">Not Under Cultivation </StyledTableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {forestDetailsRows.map((row, index) => (
-          <TableRow key={index}>
-            <StyledTableCell><FormInput name={`forest_a[${index}]`} size="small" placeholder="A" /></StyledTableCell>
-            <StyledTableCell><FormInput name={`forest_b[${index}]`} size="small" placeholder="B" /></StyledTableCell>
-            <StyledTableCell><FormInput name={`forest_c[${index}]`} size="small" placeholder="C" /></StyledTableCell>
-            <StyledTableCell><FormInput name={`area_under[${index}]`} size="small" placeholder="0.0" /></StyledTableCell>
-            <StyledTableCell><FormInput name={`plantation_under[${index}]`} size="small" placeholder="Under" /></StyledTableCell>
-            <StyledTableCell><FormInput name={`plantation_not_under[${index}]`} size="small" placeholder="Not Under" /></StyledTableCell>
-            <StyledTableCell><FormInput name={`kayal_excluded[${index}]`} size="small" /></StyledTableCell>
-            <StyledTableCell>
-              <IconButton color="error" aria-label="remove row" onClick={() => handleRemoveRow(index)}>
-                <DeleteIcon />
-              </IconButton>
-            </StyledTableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </StyledTable>
-  );
+      ))}
+    </TableBody>
+  </StyledTable>
+);
 
-  const renderOtherDetailsTable = () => (
-    <StyledTable size="small">
-      <TableHead>
-        <TableRow>
-          <StyledTableCell align="center" colSpan={3}>Others excluded from EARAS Survey (in cents)</StyledTableCell>
-          <StyledTableCell align="center" colSpan={3}>No. of Plots for Estimation purpose</StyledTableCell>
-          <StyledTableCell align="center" colSpan={3}>Total Area for Estimation Purpose (in cents)</StyledTableCell>
-          <StyledTableCell align="left" rowSpan={2}>Remarks </StyledTableCell>
-          <StyledTableCell rowSpan={2}>Action</StyledTableCell>
+const renderOtherDetailsTable = () => (
+  <StyledTable size="small">
+    <TableHead>
+      <TableRow>
+        <StyledTableCell rowSpan={2}>Panchayat / Municipality / Corporation Zone</StyledTableCell>
+        <StyledTableCell align="center" colSpan={3}>Others excluded from EARAS Survey (in cents)</StyledTableCell>
+        <StyledTableCell align="center" colSpan={3}>No. of Plots for Estimation purpose</StyledTableCell>
+        <StyledTableCell align="center" colSpan={3}>Total Area for Estimation Purpose (in cents)</StyledTableCell>
+        <StyledTableCell align="left" rowSpan={2}>Remarks </StyledTableCell>
+      </TableRow>
+      <TableRow>
+        <StyledTableCell align="center">Wet (12)</StyledTableCell>
+        <StyledTableCell align="center">Dry (13)</StyledTableCell>
+        <StyledTableCell align="center">Total (14)</StyledTableCell>
+        <StyledTableCell align="center">Wet (15)</StyledTableCell>
+        <StyledTableCell align="center">Dry (16)</StyledTableCell>
+        <StyledTableCell align="center">Total (17)</StyledTableCell>
+        <StyledTableCell align="center">Wet (18)</StyledTableCell>
+        <StyledTableCell align="center">Dry (20)</StyledTableCell>
+        <StyledTableCell align="center">Total (19)</StyledTableCell>
+      </TableRow>
+    </TableHead>
+    <TableBody>
+      {data.map((row, index) => (
+        <TableRow key={index}>
+          <StyledTableCell><Typography variant="body2">{row.p_name}</Typography></StyledTableCell>
+          <StyledTableCell>
+            <FormInput 
+              name={`others_dry_13[${index}]`} 
+              size="small" 
+              placeholder="Dry" 
+              value={row.others_dry_13 || ''}  // ADD THIS
+              onChange={(e) => handleInputChange(index, 'others_dry_13', e.target.value)}
+              error={!!validationErrors[`others_dry_13_${index}`]}
+              helperText={validationErrors[`others_dry_13_${index}`]}
+            />
+          </StyledTableCell>
+          <StyledTableCell>
+            <FormInput 
+              name={`others_wet_14[${index}]`} 
+              size="small" 
+              placeholder="Wet" 
+              value={row.others_wet_14 || ''}  // ADD THIS
+              onChange={(e) => handleInputChange(index, 'others_wet_14', e.target.value)}
+              error={!!validationErrors[`others_wet_14_${index}`]}
+              helperText={validationErrors[`others_wet_14_${index}`]}
+            />
+          </StyledTableCell>
+          <StyledTableCell>
+            <FormInput 
+              name={`others_total[${index}]`} 
+              size="small" 
+              placeholder="Total" 
+              value={row.others_total || ''}  // ADD THIS
+              onChange={(e) => handleInputChange(index, 'others_total', e.target.value)}
+              error={!!validationErrors[`others_total_${index}`]}
+              helperText={validationErrors[`others_total_${index}`]}
+            />
+          </StyledTableCell>
+          <StyledTableCell>
+            <FormInput 
+              name={`plots_dry_16[${index}]`} 
+              size="small" 
+              placeholder="Dry" 
+              value={row.plots_dry_16 || ''}  // ADD THIS
+              onChange={(e) => handleInputChange(index, 'plots_dry_16', e.target.value)}
+              error={!!validationErrors[`plots_dry_16_${index}`]}
+              helperText={validationErrors[`plots_dry_16_${index}`]}
+            />
+          </StyledTableCell>
+          <StyledTableCell>
+            <FormInput 
+              name={`plots_wet_17[${index}]`} 
+              size="small" 
+              placeholder="Wet" 
+              value={row.plots_wet_17 || ''}  // ADD THIS
+              onChange={(e) => handleInputChange(index, 'plots_wet_17', e.target.value)}
+              error={!!validationErrors[`plots_wet_17_${index}`]}
+              helperText={validationErrors[`plots_wet_17_${index}`]}
+            />
+          </StyledTableCell>
+          <StyledTableCell>
+            <FormInput 
+              name={`plots_total[${index}]`} 
+              size="small" 
+              placeholder="Total" 
+              value={row.plots_total || ''}  // ADD THIS
+              onChange={(e) => handleInputChange(index, 'plots_total', e.target.value)}
+              error={!!validationErrors[`plots_total_${index}`]}
+              helperText={validationErrors[`plots_total_${index}`]}
+            />
+          </StyledTableCell>
+          <StyledTableCell>
+            <FormInput 
+              name={`total_area_wet_19[${index}]`} 
+              size="small" 
+              placeholder="Wet" 
+              value={row.total_area_wet_19 || ''}  // ADD THIS
+              onChange={(e) => handleInputChange(index, 'total_area_wet_19', e.target.value)}
+              error={!!validationErrors[`total_area_wet_19_${index}`]}
+              helperText={validationErrors[`total_area_wet_19_${index}`]}
+            />
+          </StyledTableCell>
+          <StyledTableCell>
+            <FormInput 
+              name={`total_area_dry_21[${index}]`} 
+              size="small" 
+              placeholder="Dry" 
+              value={row.total_area_dry_21 || ''}  // ADD THIS
+              onChange={(e) => handleInputChange(index, 'total_area_dry_21', e.target.value)}  // FIX THIS - was using wrong field name
+              error={!!validationErrors[`total_area_dry_21_${index}`]}
+              helperText={validationErrors[`total_area_dry_21_${index}`]}
+            />
+          </StyledTableCell>
+          <StyledTableCell>
+            <FormInput 
+              name={`total_area_total_20[${index}]`} 
+              size="small" 
+              placeholder="Total" 
+              value={row.total_area_total_20 || ''}  // ADD THIS
+              onChange={(e) => handleInputChange(index, 'total_area_total_20', e.target.value)}
+              error={!!validationErrors[`total_area_total_20_${index}`]}
+              helperText={validationErrors[`total_area_total_20_${index}`]}
+            />
+          </StyledTableCell>
+          <StyledTableCell>
+            <FormInput 
+              name={`remarks[${index}]`} 
+              size="small" 
+              placeholder="Enter Remarks"
+              value={row.remarks || ''}  // ADD THIS
+              onChange={(e) => handleInputChange(index, 'remarks', e.target.value)}
+            />
+          </StyledTableCell>
         </TableRow>
-        <TableRow>
-          <StyledTableCell align="center">Wet (12)</StyledTableCell>
-          <StyledTableCell align="center">Dry (13)</StyledTableCell>
-          <StyledTableCell align="center">Total (14)</StyledTableCell>
-          <StyledTableCell align="center">Wet (15)</StyledTableCell>
-          <StyledTableCell align="center">Dry (16)</StyledTableCell>
-          <StyledTableCell align="center">Total (17)</StyledTableCell>
-          <StyledTableCell align="center">Wet (18)</StyledTableCell>
-          <StyledTableCell align="center">Dry (20)</StyledTableCell>
-          <StyledTableCell align="center">Total (19)</StyledTableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {otherDetailsRows.map((row, index) => (
-          <TableRow key={index}>
-            <StyledTableCell><FormInput name={`others_dry_13[${index}]`} size="small" placeholder="Dry" /></StyledTableCell>
-            <StyledTableCell><FormInput name={`others_wet_14[${index}]`} size="small" placeholder="Wet" /></StyledTableCell>
-            <StyledTableCell><FormInput name={`others_total[${index}]`} size="small" placeholder="Total" /></StyledTableCell>
-            <StyledTableCell><FormInput name={`plots_dry_16[${index}]`} size="small" placeholder="Dry" /></StyledTableCell>
-            <StyledTableCell><FormInput name={`plots_wet_17[${index}]`} size="small" placeholder="Wet" /></StyledTableCell>
-            <StyledTableCell><FormInput name={`plots_total[${index}]`} size="small" placeholder="Total" /></StyledTableCell>
-            <StyledTableCell><FormInput name={`total_area_wet_19[${index}]`} size="small" placeholder="Wet" /></StyledTableCell>
-            <StyledTableCell><FormInput name={`total_area_dry_21[${index}]`} size="small" placeholder="Dry" /></StyledTableCell>
-            <StyledTableCell><FormInput name={`total_area_total_20[${index}]`} size="small" placeholder="Total" /></StyledTableCell>
-            <StyledTableCell><FormInput name={`remarks[${index}]`} size="small" placeholder="Enter Remarks" /></StyledTableCell>
-            <StyledTableCell>
-              <IconButton color="error" aria-label="remove row" onClick={() => handleRemoveRow(index)}>
-                <DeleteIcon />
-              </IconButton>
-            </StyledTableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </StyledTable>
-  );
-
+      ))}
+    </TableBody>
+  </StyledTable>
+);
   if (loading) {
     return <LoadingScreen message="Fetching work allocation details..." />;
   }
   if (error) {
+    // ... (Error handling remains the same)
     return (
       <Box sx={{ textAlign: 'center', mt: 6 }}>
         <Box
@@ -404,13 +750,9 @@ function WorkAllocationForm() {
             )}
           </Box>
           <Grid container spacing={2} justifyContent="flex-end">
+            {/* Removed Add Row button */}
             <Grid item>
-              <Button variant="contained" color="primary" onClick={handleAddRow}>
-                Add Row
-              </Button>
-            </Grid>
-            <Grid item>
-              <Button variant="contained" color="success" onClick={handleSubmit}>
+              <Button variant="contained" color="success" onClick={handleSubmit} disabled={isdisabled}>
                 Submit
               </Button>
             </Grid>

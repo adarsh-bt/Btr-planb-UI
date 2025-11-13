@@ -22,6 +22,24 @@ class ApprovedUserService {
       };
     }
   }
+
+  // Fetch Super admin approved users
+  static async fetchSuperAdminApprovedUsers() {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/super-admin/fetch-approved-users`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      return response.data;
+    } catch (err) {
+      return {
+        message: err?.response?.data?.message || 'Failed to fetch IT admin approved users',
+        error: true
+      };
+    }
+  }
   // Fetch district admin approved users
   static async fetchDistrictAdminApprovedUsers() {
     try {
@@ -36,6 +54,24 @@ class ApprovedUserService {
     } catch (err) {
       return {
         message: err?.response?.data?.message || 'Failed to fetch district admin approved users',
+        error: true
+      };
+    }
+  }
+
+   static async fetchTalukAdminApprovedUsers() {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/tso-admin/fetch-approved-users`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      console.log(response.data);
+      return response.data;
+    } catch (err) {
+      return {
+        message: err?.response?.data?.message || 'Failed to fetch taluk admin approved users',
         error: true
       };
     }
