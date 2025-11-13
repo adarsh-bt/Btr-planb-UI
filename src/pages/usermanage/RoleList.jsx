@@ -76,6 +76,7 @@ function CustomTabPanel({ children, value, index }) {
 
 const roleTabsMap = {
   'IT Admin': ['Directorate', 'District', 'Taluk'],
+  'Super Admin': ['Directorate', 'District', 'Taluk'],
   'District Level Approver': ['District', 'Taluk'],
   'Taluk Level Approver': ['Taluk']
 };
@@ -131,12 +132,21 @@ const RoleList = () => {
         if (userRole === 'IT Admin' ) {
           // IT Admin sees all three categories
           const res = await ApprovedUserService.fetchITAdminApprovedUsers();
-          console.log("resssss  >>>  ",res)
+          console.log("resssss  IT Admin >>>  ",res)
           if (res.error) throw new Error(res.message);
           setTalukUsers(res.payload.talukUsers || []);
           setDistrictUsers(res.payload.districtUsers || []);
           setDirectorateUsers(res.payload.directorateUsers || []);
-        } else if (userRole === 'District Level Approver') {
+        } else if (userRole === 'Super Admin') {
+          // Super Admin sees all three categories
+          const res = await ApprovedUserService.fetchSuperAdminApprovedUsers();
+          console.log("resssss  super admin >>>  ",res)
+          if (res.error) throw new Error(res.message);
+          setTalukUsers(res.payload.talukUsers || []);
+          setDistrictUsers(res.payload.districtUsers || []);
+          setDirectorateUsers(res.payload.directorateUsers || []);
+        }
+        else if (userRole === 'District Level Approver') {
           // District Admin sees only district and taluk
           const res = await ApprovedUserService.fetchDistrictAdminApprovedUsers();
           if (res.error) throw new Error(res.message);
