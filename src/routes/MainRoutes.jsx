@@ -31,7 +31,7 @@ const KeyplotListing = Loadable(lazy(() => import('pages/functional-components/e
 const KeyPlotEntry = Loadable(lazy(() => import('pages/functional-components/earas/KeyPlotEntry')));
 const KeyPlotEntryNonBtr = Loadable(lazy(() => import('pages/functional-components/earas/KeyPlotEntryNonBtr')));
 
-const ClusterManualEntryList = Loadable(lazy(() => import('pages/functional-components/earas/ClusterManualEntryList')));
+// const ClusterManualEntryList = Loadable(lazy(() => import('pages/functional-components/earas/ClusterManualEntryList')));
 
 const ClusterManualEntry = Loadable(lazy(() => import('pages/functional-components/earas/ClusterManualEntry')));
 
@@ -268,14 +268,14 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-    {
-      path: '/schemes/earas/cluster_manual_entry_List',
-      element: (
-        <PrivateRoute>
-          <ClusterManualEntryList />
-        </PrivateRoute>
-      )
-    },
+    // {
+    //   path: '/schemes/earas/cluster_manual_entry_List',
+    //   element: (
+    //     <PrivateRoute>
+    //       <ClusterManualEntryList />
+    //     </PrivateRoute>
+    //   )
+    // },
      {
       path: '/schemes/earas/Clusters',
       element: (

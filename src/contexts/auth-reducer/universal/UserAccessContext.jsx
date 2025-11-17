@@ -1,3 +1,4 @@
+import mainapi from 'api/mainapi';
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 
 // Create the context
@@ -28,8 +29,8 @@ const fetchUserAccess = useCallback(async () => {
     // Get token from localStorage
     const token = localStorage.getItem('token');
     console.log('Token from localStorage:', token);
-    
-    const response = await fetch('http://localhost:8081/user-access/user-state/user-permissions', {
+    const BASE_URL = mainapi.BASE_URL
+    const response = await fetch(`${BASE_URL}/user-access/user-state/user-permissions`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
