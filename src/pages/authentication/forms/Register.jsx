@@ -227,9 +227,23 @@ const Register = ({ onBack }) => {
     }
   };
 
+  const handlePenBlur = () => {
+  if (penNumber && penNumber.length === 6) {
+    const paddedPen = penNumber.padStart(7, '0'); // makes 6 → 7 digits
+    setPenNumber(paddedPen);
+  }
+};
+
+const handleTenBlur = () => {
+  if (tenNumber && tenNumber.length === 6) {
+    const paddedTen = tenNumber.padStart(7, '0');
+    setTenNumber(paddedTen);
+  }
+};
+
   const handlePenChange = (e) => {
     const value = e.target.value;
-    if (/^\d*$/.test(value)) {
+    if (/^\d*$/.test(value) && value.length <= 7) {
       setPenNumber(value);
       setErrors((prevErrors) => ({ ...prevErrors, idNumber: '' })); // Clear error
     }
@@ -500,7 +514,8 @@ const Register = ({ onBack }) => {
           label="PEN"
           value={penNumber}
           onChange={handlePenChange}
-          inputProps={{ maxLength: 10 }}
+          onBlur={handlePenBlur}
+          inputProps={{ maxLength: 7 }}
           error={!!errors.idNumber}
           helperText={errors.idNumber ? errors.idNumber : ' '}
           sx={{
@@ -519,7 +534,8 @@ const Register = ({ onBack }) => {
           label="TEN"
           value={tenNumber}
           onChange={handleTenChange}
-          inputProps={{ maxLength: 10 }}
+          onBlur={handleTenBlur}
+          inputProps={{ maxLength: 7 }}
           error={!!errors.idNumber}
           helperText={errors.idNumber ? errors.idNumber : ' '}
           sx={{

@@ -269,18 +269,24 @@ useEffect(() => {
         return !value ? 'Village is required' : null;
       case 'villageBlock':
         return !value ? 'Village Block is required' : null;
-      case 'surveyNo':
-        return !value ? 'Survey Number is required' :
-                !/^\d+$/.test(value) ? 'Survey Number must be numeric' : null;
-      // case 'subDivNo':
-      //   return !value ? 'Sub Division Number is required' : null;
-      case 'area':
-        return !value ? 'Area is required' :
-                !/^\d*\.?\d+$/.test(value) ? 'Area must be a valid number' : null;
-      case 'landType':
-        return !value ? 'Land Type is required' : null;
+      case "surveyNo":
+          if (!value) return "Survey Number is required";
+          if (value === "0") return "Survey No. cannot be zero.";
+          if (!/^\d{1,4}$/.test(value)) return "Survey No. must be a numeric value with up to 4 digits.";
+          return null;
+      case "subDivNo":
+          if (!value) return "Sub Division Number is required";
+          if (value.length > 4) return "Sub Div No. cannot exceed 4 characters.";
+          return null;
+      case "area":
+          if (!value) return "Area is required";
+          if (!/^\d*\.?\d*$/.test(value)) return "Area must be a valid number.";
+          if (value.length > 7) return "Area cannot exceed 7 characters.";
+          return null;
+      case "landType":
+          return !value ? "Land Type is required" : null;
       default:
-        return null;
+          return null;
     }
   };
 
@@ -879,34 +885,40 @@ const areAllFieldsFilled = (lbId) => {
                             </TableCell>
                             <TableCell>
                               <TextField
-                                 value={row.surveyNo}
-                                 onChange={(e) => handleChange(lb.id, row.id, "surveyNo", e.target.value)}
-                                error={hasFieldError(lb.id, row.id, 'surveyNo')}
-                                helperText={getFieldError(lb.id, row.id, 'surveyNo')}
+                                value={row.surveyNo}
+                                onChange={(e) => handleChange(lb.id, row.id, "surveyNo", e.target.value)}
+                                error={hasFieldError(lb.id, row.id, "surveyNo")}
+                                helperText={getFieldError(lb.id, row.id, "surveyNo")}
                                 size="small"
                                 fullWidth
+                                inputProps={{ maxLength: 4 }}
                               />
                             </TableCell>
+
                             <TableCell>
                               <TextField
-                                 value={row.subDivNo}
-                                 onChange={(e) => handleChange(lb.id, row.id, "subDivNo", e.target.value)}
-                                error={hasFieldError(lb.id, row.id, 'subDivNo')}
-                                helperText={getFieldError(lb.id, row.id, 'subDivNo')}
+                                value={row.subDivNo}
+                                onChange={(e) => handleChange(lb.id, row.id, "subDivNo", e.target.value)}
+                                error={hasFieldError(lb.id, row.id, "subDivNo")}
+                                helperText={getFieldError(lb.id, row.id, "subDivNo")}
                                 size="small"
                                 fullWidth
+                                inputProps={{ maxLength: 4 }}
                               />
                             </TableCell>
+
                             <TableCell>
                               <TextField
-                                 value={row.area}
-                                 onChange={(e) => handleChange(lb.id, row.id, "area", e.target.value)}
-                                error={hasFieldError(lb.id, row.id, 'area')}
-                                helperText={getFieldError(lb.id, row.id, 'area')}
+                                value={row.area}
+                                onChange={(e) => handleChange(lb.id, row.id, "area", e.target.value)}
+                                error={hasFieldError(lb.id, row.id, "area")}
+                                helperText={getFieldError(lb.id, row.id, "area")}
                                 size="small"
                                 fullWidth
+                                inputProps={{ maxLength: 7 }}
                               />
                             </TableCell>
+
                             <TableCell>
                               <TextField
                                  select
