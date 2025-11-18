@@ -41,12 +41,7 @@ const FORM_URL = mainapi.FORM_API;
 const SIDE_PLOT_OPTIONS = ['N1','N2','N3','N4','E1','E2','E3','E4','S1','S2','S3','S4','W1', 'W2', 'W3', 'W4'];
 
 // --- Sample Data for Dropdowns & Modal ---
-const cropOptions = [
-    'Paddy', 'Banana', 'Tapioca', 'Ginger', 'Turmeric',
-    'Elephant Foot Yam', 'Taro', 'Sweet Potato', 'Bitter Gourd',
-    'Snake Gourd', 'Ash Gourd', 'Pumpkin', 'Cucumber', 'Beans',
-    'Cowpea', 'Bhindi', 'Brinjal', 'Green Chilli', 'Tomato'
-];
+
 
 // --- Helper Function ---
 const isSamePlot = (rowA, rowB) => {
@@ -126,7 +121,8 @@ const ClusterManualEntryNonBtr = () => {
     const [activeBTypes, setActiveBTypes] = useState([]);
     const [currentBType, setCurrentBType] = useState(null);
     const [nonBtrTypeMapping, setNonBtrTypeMapping] = useState({});
-
+const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
+const [rowToDelete, setRowToDelete] = useState(null);
     const [updatingRow, setUpdatingRow] = useState(null);
 
     // Fetch active btypes from API
@@ -438,7 +434,7 @@ const handleUseRecommendedPlot = (type) => {
                 setClusterInfo(prevInfo => ({
                     ...prevInfo,
                     clusterNo: data.payload.clusterNo || '1',
-                    localBody: data.payload.kvillageName || 'N/A',
+                    localBody: data.payload.panchayath || 'N/A',
                     landType: data.payload.landType || 'Wet',
                     maxArea: data.payload.clusterMax || 600,
                     BtrType: data.payload.btr_type || 'NA',
@@ -1112,7 +1108,70 @@ const handleUseRecommendedPlot = (type) => {
 
         validateAndSetData(newData);
     };
+const handleOpenConfirmDialog = (keyplotId, rowUniqueId) => {
+    const keyplot = keyplotsData.find(k => k.id === keyplotId);
+    const row = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
+    
+    setRowToDelete({
+        keyplotId,
+        rowUniqueId,
+        rowData: row
+    });
+    setOpenConfirmDialog(true);
+};
 
+// Function to close the confirmation dialog
+const handleCloseConfirmDialog = () => {
+    setOpenConfirmDialog(false);
+    setRowToDelete(null);
+};
+
+// Function to handle the actual deletion after confirmation
+const handleConfirmDelete = async () => {
+    if (!rowToDelete) return;
+
+    const { keyplotId, rowUniqueId, rowData } = rowToDelete;
+
+    try {
+        const token = authservice.gettoken();
+        
+        // Only call API if the row has a b_id (existing saved row)
+        if (rowData.b_id) {
+            const response = await fetch(`${BASE_URL}/btr-service/cluster-api/delete-sideplot/${rowData.b_id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) throw new Error('Failed to delete row from server');
+            
+            console.log(`✅ Successfully removed saved row: ${rowData.b_id}`);
+        }
+
+        // Remove row from UI after successful deletion (or if it was never saved)
+        const newData = JSON.parse(JSON.stringify(keyplotsData));
+        const keyplot = newData.find(k => k.id === keyplotId);
+        keyplot.rows = keyplot.rows.filter(r => r.uniqueId !== rowUniqueId);
+
+        // Clean up row block options
+        const rowKey = `${keyplotId}-${rowUniqueId}`;
+        setRowBlockOptions(prev => {
+            const newOptions = { ...prev };
+            delete newOptions[rowKey];
+            return newOptions;
+        });
+
+        validateAndSetData(newData);
+        handleCloseConfirmDialog();
+
+    } catch (err) {
+        console.error('Error deleting row:', err);
+        setSnackbarMessage(`Failed to delete row: ${err.message}`);
+        setSnackbarOpen(true);
+        handleCloseConfirmDialog();
+    }
+};
     const handleInputChange = (e, keyplotId, rowUniqueId, field) => {
 
       const value = e.target.value;
@@ -1304,7 +1363,9 @@ const [removedRows, setRemovedRows] = useState([]);
     const rowToRemove = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
     
     // If it's an existing row (has b_id), add to removed rows tracking
-    if (rowToRemove && rowToRemove.b_id) {
+       if (rowToRemove && rowToRemove.b_id) {
+        handleOpenConfirmDialog(keyplotId, rowUniqueId);
+    } else {
         setRemovedRows(prev => [...prev, {
             b_id: rowToRemove.b_id,
             plot_id: rowToRemove.plot_id,
@@ -1754,7 +1815,7 @@ const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
 
                     <Grid item xs={12} sm={6} md={2}>
                     <TextField
-                        label="Survey No"
+                        label="Survey No."
                         size="small"
                         fullWidth
                         value={row.svNo}
@@ -1980,7 +2041,7 @@ const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
               {/* Only Old Survey fields */}
               <Grid item xs={12} sm={6} md={2}>
                 <TextField
-                label={<> Old Survey No..<span style={{ color: 'red' }}> *</span></>}
+                label={<> Old Survey No.<span style={{ color: 'red' }}> *</span></>}
                   size="small"
                   fullWidth
                   value={row.oldsvno || ''}
@@ -2008,15 +2069,17 @@ const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
           );
         })()}
 
-                    <Grid item xs={12} sm={6} md={4}>
+                    <Grid item xs={12} sm={6} md={3}>
                     <TextField
                         label={<> Area.<span style={{ color: 'red' }}> *</span></>}
                         size="small"
                         fullWidth
                         type="number"
                         value={row.area}
+                        
                         InputProps={{
-                        readOnly: !isKeyPlotFirstRow && isAreaReadOnly && !isNewRow
+                        // readOnly: !isKeyPlotFirstRow && isAreaReadOnly && !isNewRow
+                        readOnly:row.isExisting
                         }}
                        {...(BtrTypeId === 3 && {
                             onBlur: () => handlePlotValidation(keyplot.id, row.uniqueId),})}
@@ -2026,12 +2089,13 @@ const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
                     />
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={4}>
+                    <Grid item xs={12} sm={6} md={3}>
                       <TextField
                         label={<> Enum. Area<span style={{ color: 'red' }}> *</span></>}
                         size="small"
                         fullWidth
                         type="number"
+                        
                         value={row.enumeratedArea}
                         onChange={(e) =>
                           handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')
@@ -2043,11 +2107,12 @@ const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
                         error={hasError}
                         helperText={hasError ? errors[errorKey] : ''}
                         // Add InputProps to show a loading spinner during update
-                        InputProps={{
-                          endAdornment: updatingRow === row.uniqueId ? (
-                            <CircularProgress color="inherit" size={20} />
-                          ) : null,
-                        }}
+                        // InputProps={{
+                        //   endAdornment: updatingRow === row.uniqueId ? (
+                        //     <CircularProgress color="inherit" size={20} />
+                        //   ) : null,
+                        // }}
+                       InputProps={{readOnly:row.isExisting}}
                       />
                     </Grid>
 
@@ -2057,6 +2122,10 @@ const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
 
         {/* Actions */}
         <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+         <Grid item xs={1}>
+          {row.isExisting && (
+            <Chip label="Saved" size="small" color="success" variant="outlined" />
+          )}</Grid>
           {(!isKeyPlotFirstRow || isNewRow) && (
             <Tooltip title="Remove Row">
               <IconButton
@@ -2078,7 +2147,7 @@ const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
         <Container maxWidth="xl" sx={{ mt: 4, bgcolor: '#f4f4f9', p: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
             {/* Floating Summary Bar */}
             <Box sx={{ position: 'fixed', top: '15%', right: 0, zIndex: 1000, borderRadius: '1rem 0 0 1rem', backgroundColor: 'rgba(212, 228, 231, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
-                <Typography variant="subtitle1" fontWeight="bold">Cluster: {clusterInfo.clusterNo} | {clusterInfo.localBody}</Typography>
+                <Typography variant="subtitle1" fontWeight="bold">Cluster: {slNo} | {clusterInfo.localBody}</Typography>
                 <Box sx={{ width: '100%', mt: 1 }}>
                     <Typography variant="subtitle1"><strong>Total Enumerated Area:</strong> {clusterInfo.totalArea.toFixed(2)} Cent</Typography>
                     <LinearProgress variant="determinate" value={totalAreaProgress} sx={{ height: 8, borderRadius: 4, mt: 0.5 }} />
@@ -2107,55 +2176,64 @@ const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
 
             <Box sx={{ maxWidth: '1400px', mx: 'auto' }}>
                 {/* Cluster Info Section */}
-                <Box sx={{ bgcolor: '#3066c2', color: 'white', p: 1, borderRadius: 1, mb: 2, fontWeight: 'bold', textAlign: 'center' }}>Cluster Info</Box>
+                <Box sx={{ bgcolor: '#05307a', color: 'white', p: 1, borderRadius: 1, mb: 2, fontWeight: 'bold', textAlign: 'center' }}>Cluster Info</Box>
                 <Grid container spacing={2} mb={2} alignItems="flex-start">
                     <Grid item xs={12} sm={6} md={3}><TextField label="Cluster No." value={slNo} InputProps={{ readOnly: true }} fullWidth /></Grid>
-                    <Grid item xs={12} sm={6} md={4}><TextField label="Local Body" value={clusterInfo.localBody} InputProps={{ readOnly: true }} fullWidth /></Grid>
+                    <Grid item xs={12} sm={6} md={3}><TextField label="Local Body" value={clusterInfo.localBody} InputProps={{ readOnly: true }} fullWidth /></Grid>
                     <Grid item xs={12} sm={6} md={3}><TextField label="Land Type" value={clusterInfo.landType} InputProps={{ readOnly: true }} fullWidth /></Grid>
+                    <Grid item xs={12} sm={6} md={3}><TextField label="Total area" value={`${clusterInfo.totalArea} cents`} InputProps={{ readOnly: true }} fullWidth /></Grid>
                 </Grid>
                 <center><Chip label={clusterInfo.BtrType} variant="outlined" /></center>
                   
                 {/* Selected CCE Crops */}
-                {(savedCrops.length > 0 || (apiCropsData && apiCropsData.crops && apiCropsData.crops.length > 0)) && (
-                    <Paper elevation={2} sx={{ mt: 3, mb: 3, overflow: 'hidden', borderRadius: 1, border: '1px solid #ccc' }}>
-                        <Box sx={{ bgcolor: '#3066c2', color: 'white', p: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                            <GrassIcon />
-                            
-                            <Typography variant="h6" fontWeight="bold">Selected CCE Crops</Typography>
-                            {loadingApiCrops && <CircularProgress size={16} sx={{ color: 'white', ml: 1 }} />}
-                        </Box>
-                        <Box sx={{ p: 2 }}>
-                            <Grid container spacing={1}>
-                                {(() => {
-                                    const allCrops = [];
-                                    savedCrops.forEach(crop => {
-                                        const cropName = typeof crop === 'object' ? crop.cropName : crop;
-                                        allCrops.push(cropName);
-                                    });
-                                    if (apiCropsData && apiCropsData.crops) {
-                                        apiCropsData.crops.forEach(crop => {
-                                            allCrops.push(crop.cropName);
-                                        });
-                                    }
-                                    const cropCounts = {};
-                                    allCrops.forEach(cropName => {
-                                        cropCounts[cropName] = (cropCounts[cropName] || 0) + 1;
-                                    });
-                                    return Object.entries(cropCounts).map(([cropName, count]) => (
-                                        <Grid item key={cropName}>
-                                            <Chip
-                                                label={count > 1 ? `${cropName} (${count})` : cropName}
-                                                color="primary"
-                                                sx={{ mb: 1 }}
-                                            />
-                                        </Grid>
-                                    ));
-                                })()}
-                            </Grid>
-                        </Box>
-                    </Paper>
-                )}
-
+     {(savedCrops.length > 0 || (apiCropsData && apiCropsData.crops && apiCropsData.crops.length > 0)) && (
+    <Paper elevation={2} sx={{ mt: 3, mb: 3, overflow: 'hidden', borderRadius: 1, border: '1px solid #ccc' }}>
+        <Box sx={{ bgcolor: '#05307a', color: 'white', p: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+            <GrassIcon />
+            <Typography variant="h6" fontWeight="bold">Selected CCE Crops</Typography>
+            {loadingApiCrops && <CircularProgress size={16} sx={{ color: 'white', ml: 1 }} />}
+        </Box>
+        <Box sx={{ p: 2 }}>
+            <Grid container spacing={1}>
+                {/* Combine and group all crops */}
+                {(() => {
+                    // Combine both saved crops and API crops
+                    const allCrops = [];
+                    
+                    // Add saved crops
+                    savedCrops.forEach(crop => {
+                        const cropName = typeof crop === 'object' ? crop.cropName : crop;
+                        allCrops.push(cropName);
+                    });
+                    
+                    // Add API crops
+                    if (apiCropsData && apiCropsData.crops) {
+                        apiCropsData.crops.forEach(crop => {
+                            allCrops.push(crop.cropName);
+                        });
+                    }
+                    
+                    // Count occurrences of each crop
+                    const cropCounts = {};
+                    allCrops.forEach(cropName => {
+                        cropCounts[cropName] = (cropCounts[cropName] || 0) + 1;
+                    });
+                    
+                    // Render unique crops with counts
+                    return Object.entries(cropCounts).map(([cropName, count]) => (
+                        <Grid item key={cropName}>
+                            <Chip 
+                                label={count > 1 ? `${cropName}` : cropName}
+                                color="success"
+                                sx={{ mb: 1 }}
+                            />
+                        </Grid>
+                    ));
+                })()}
+            </Grid>
+        </Box>
+    </Paper>
+)}
                 {/* Action Buttons */}
                 <Box sx={{ maxWidth: 900, margin: '0 auto', mb: 3 }}>
                     <Grid container spacing={2} alignItems="center" justifyContent="center">
@@ -2470,6 +2548,37 @@ const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
                 </Button>
             </>
         )}
+    </DialogActions>
+</Dialog>
+
+<Dialog
+    open={openConfirmDialog}
+    onClose={handleCloseConfirmDialog}
+    aria-labelledby="alert-dialog-title"
+    aria-describedby="alert-dialog-description"
+>
+    <DialogTitle id="alert-dialog-title">
+        {"Confirm Deletion"}
+    </DialogTitle>
+    <DialogContent>
+        <DialogContentText id="alert-dialog-description">
+            This row is already saved in the database. Do you want to delete it permanently?
+            {rowToDelete && (
+                <Box sx={{ mt: 1, p: 1, bgcolor: 'grey.100', borderRadius: 1 }}>
+                    <Typography variant="body2">
+                        <strong>Plot:</strong> {rowToDelete.rowData.villageName} - {rowToDelete.rowData.block} - {rowToDelete.rowData.svNo}/{rowToDelete.rowData.sub}
+                    </Typography>
+                </Box>
+            )}
+        </DialogContentText>
+    </DialogContent>
+    <DialogActions>
+        <Button onClick={handleCloseConfirmDialog} color="primary">
+            Cancel
+        </Button>
+        <Button onClick={handleConfirmDelete} color="error" autoFocus>
+            Delete Permanently
+        </Button>
     </DialogActions>
 </Dialog>
             {/* Snackbar */}

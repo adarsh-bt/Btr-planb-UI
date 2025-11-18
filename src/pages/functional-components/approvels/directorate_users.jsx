@@ -735,7 +735,7 @@ return (
 {/* Conditionally render Schemes dropdown only for District users */}
 
 {((admrole === 'Super Admin' || admrole === "IT Admin") && 
-  (selectedRow.designation !== "Deputy Director -IT" && selectedRow.designation !== "Deputy Director -Districts")
+(selectedRow.designation_id !== 7 && selectedRow.designation_id !== 4)
 ) && (
   <Stack direction="column" spacing={2} alignItems="center">
     {schemeRolePairs.map((pair, index) => (
@@ -814,7 +814,7 @@ return (
 
 {/* Always show Roles dropdown */}
 {((admrole === 'Super Admin' || admrole === "IT Admin") &&
-  (selectedRow.designation === "Deputy Director -IT" || selectedRow.designation === "Deputy Director -Districts")
+  (selectedRow.designation_id === 7 || selectedRow.designation_id === 4)
 ) && (
 <Box style={{ width: '48%' }}>
   <strong>Role</strong><br />
@@ -837,7 +837,7 @@ return (
         </Box>
  {/* zones */}
  {/* { (selectedScheme == '1' && selectedRole == "1") && ( */}
-{(zoneVisble === true && selectedRow.designation !== 'Deputy Director -IT') && (
+{(zoneVisble === true && selectedRow.designation_id !== 7) && (
   <Box style={{ width: '30%', margin: 'auto' }}>
     <center><strong>Select Zone</strong></center>
     <TextField

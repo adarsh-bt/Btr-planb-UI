@@ -266,7 +266,7 @@ const KeyPlotListing = ({zoneId}) => {
 
   // Filter and sort data
   const filteredSortedAndPaginatedData = useMemo(() => {
-    const visibleKeys = ['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'landType'];
+    const visibleKeys = ['slNo', 'syNo', 'panchayth', 'village','area', 'villageBlock', 'landType'];
 
     let filtered = plotData.filter((row) => {
       const matchesSearch = !searchTerm || 
@@ -416,34 +416,34 @@ const KeyPlotListing = ({zoneId}) => {
   };
 
   // Export to CSV
-  const exportToCSV = () => {
-    const headers = ['Sl No', 'Sy No', 'Village', 'Area (Cents)', 'Village Block', 'Land Type'];
-    const csvData = [
-      headers.join(','),
-      ...plotData.map((plot, index) => [
-        index + 1,
-        `"${plot.syNo}"`,
-        `"${plot.kvillageName}"`,
-        plot.area?.toFixed(2) || '0.00',
-        `"${plot.villageBlock}"`,
-        `"${plot.landType}"`
-      ].join(','))
-    ].join('\n');
+  // const exportToCSV = () => {
+  //   const headers = ['Sl No', 'Sy No', 'Panchayth' ,'Village', 'Area (Cents)', 'Village Block', 'Land Type'];
+  //   const csvData = [
+  //     headers.join(','),
+  //     ...plotData.map((plot, index) => [
+  //       index + 1,
+  //       `"${plot.syNo}"`,
+  //       `"${plot.kvillageName}"`,
+  //       plot.area?.toFixed(2) || '0.00',
+  //       `"${plot.villageBlock}"`,
+  //       `"${plot.landType}"`
+  //     ].join(','))
+  //   ].join('\n');
 
-    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `keyplots_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  //   const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+  //   const link = document.createElement('a');
+  //   const url = URL.createObjectURL(blob);
+  //   link.setAttribute('href', url);
+  //   link.setAttribute('download', `keyplots_${new Date().toISOString().split('T')[0]}.csv`);
+  //   link.style.visibility = 'hidden';
+  //   document.body.appendChild(link);
+  //   link.click();
+  //   document.body.removeChild(link);
     
-    setSnackbarMessage(`Exported ${plotData.length} records to CSV`);
-    setSnackbarSeverity('success');
-    setSnackbarOpen(true);
-  };
+  //   setSnackbarMessage(`Exported ${plotData.length} records to CSV`);
+  //   setSnackbarSeverity('success');
+  //   setSnackbarOpen(true);
+  // };
 
   // Generate keyplot handler (placeholder)
   const handleGenerateKeyplot = async () => {
@@ -613,7 +613,7 @@ const KeyPlotListing = ({zoneId}) => {
                     >
                       Clear Filters
                     </Button>
-                    <Button
+                    {/* <Button
                       startIcon={<ExportIcon />}
                       onClick={exportToCSV}
                       variant="contained"
@@ -621,7 +621,7 @@ const KeyPlotListing = ({zoneId}) => {
                       disabled={plotData.length === 0}
                     >
                       Export CSV
-                    </Button>
+                    </Button> */}
                   </Stack>
                 </Grid>
               </Grid>
@@ -634,7 +634,7 @@ const KeyPlotListing = ({zoneId}) => {
               <Table stickyHeader sx={{ tableLayout: 'fixed' }}>
                 <TableHead>
                   <TableRow>
-                    {['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'landType'].map((col) => (
+                    {['slNo', 'syNo', 'panchayth', 'village','villageBlock', 'area','landType'].map((col) => (
                       <TableCell
                         key={col}
                         align="center"
@@ -692,8 +692,9 @@ const KeyPlotListing = ({zoneId}) => {
                         <TableCell align="center">{row.slNo}</TableCell>
                         <TableCell align="center">{row.syNo}</TableCell>
                         <TableCell align="center">{row.panchayth}</TableCell>
-                        <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
+                        <TableCell align="center">{row.kvillageName}</TableCell>
                         <TableCell align="center">{row.villageBlock}</TableCell>
+                        <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
                         <TableCell align="center">{row.landType}</TableCell>
                         <TableCell align="center">
                           <Button

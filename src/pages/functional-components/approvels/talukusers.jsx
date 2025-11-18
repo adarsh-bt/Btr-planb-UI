@@ -120,6 +120,7 @@ const [rolesMap, setRolesMap] = useState({});
   // Function to handle edit action
   const handleEdit = (row) => {
     setSelectedRow(row);
+
     setRadioState(row.approvalStatus.toLowerCase());
     setRemarks(row.remarks || ''); // Reset remarks to row's value or empty
     setSelectedScheme(''); // Reset scheme selection
@@ -713,7 +714,7 @@ useEffect(() => {
                   )} */}
 
                   {/* {selectedRow.designation === 'Taluk Statistical Officer' && ( */}
-{(selectedRow.designation === 'Taluk Statistical Officer' || admrole === 'IT Admin' || admrole === 'Super Admin') && (
+{(selectedRow.designation_id === 3 || admrole === 'IT Admin' || admrole === 'Super Admin') && (
  <Box
   style={{
     display: "flex",
@@ -801,7 +802,7 @@ useEffect(() => {
 {/* )} */}
 
                 </Box>
-                 { (zoneVisble === true && selectedRow.designation !== 'Taluk Statistical Officer') && (
+                 { (zoneVisble === true && selectedRow.designation_id !== 3) && (
                   <Box style={{ width: '30%', margin: 'auto' }}>
                     <center>
                       <strong>Select Zone</strong>

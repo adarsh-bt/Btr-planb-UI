@@ -52,7 +52,7 @@ const LandUtilization = Loadable(lazy(() => import('pages/functional-components/
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
 
 const RoleList = Loadable(lazy(() => import('pages/usermanage/RoleList')));
-const RoleDetail = Loadable(lazy(() => import('pages/usermanage/Roles')));
+const RoleDetail = Loadable(lazy(() => import('pages/usermanage/UserManage')));
 
 // Approvels
 const Approvel = Loadable(lazy(() => import('pages/functional-components/approvels/approvelist')));
