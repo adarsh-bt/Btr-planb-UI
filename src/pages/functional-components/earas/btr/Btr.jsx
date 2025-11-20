@@ -13,7 +13,7 @@ import {
   DialogContentText,
   DialogTitle,
   CircularProgress,
-  Grid, // Ensure Grid is imported
+  Grid, Card, CardContent,Chip
 } from '@mui/material';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 
@@ -23,6 +23,12 @@ import btrservice from './btrservice';
 import authservice from 'pages/authentication/services/authservice';
 import mainapi from 'api/mainapi';
 import { width } from '@mui/system';
+import CloseIcon from '@mui/icons-material/Close';
+import InfoIcon from '@mui/icons-material/Info';
+import DescriptionIcon from '@mui/icons-material/Description';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import InfoOutlineIcon from '@mui/icons-material/InfoOutlined';
+import IconButton from '@mui/material/IconButton';
 
 // Define the columns for the data table
 const columns = (handleEdit, handleView,page,size) => [
@@ -267,41 +273,69 @@ const handleRequestSort = (columnKey) => {
     }
   };
 
-  const handleDownloadExcel = async () => {
-    setDownloading(true);
-    const userId = authservice.userid();
-    const BASE_URL = mainapi.USER_API;
-    try {
-        const token = localStorage.getItem('token');
-       
-      // Ensure the URL is correct for your backend service
-      const response = await fetch(`${BASE_URL}/btr-service/btr-api/export?zoneId=${resolvedZoneId}`, {
+const handleDownloadExcel = async () => {
+  setDownloading(true);
+  
+  const userId = authservice.userid();
+  const BASE_URL = mainapi.USER_API;
+
+  try {
+    const token = localStorage.getItem('token');
+
+    const response = await fetch(
+      `${BASE_URL}/btr-service/btr-api/export?zoneId=${resolvedZoneId}`,
+      {
         headers: {
-          Authorization: `Bearer ${token}` // Add token in Authorization header
+          Authorization: `Bearer ${token}`
         }
-      });
-
-
-      if (!response.ok) {
-        throw new Error('Failed to download file');
       }
+    );
 
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'btr_data.xlsx');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (error) {
-      console.error('Download error:', error);
-      alert('Download failed.'); // Provide user feedback
-    } finally {
-      setDownloading(false);
+    if (!response.ok) {
+      throw new Error('Failed to download file');
     }
-  };
+
+    // 🔹 Extract filename from header
+    const disposition = response.headers.get('Content-Disposition');
+   let fileName = "btr_data.xlsx";
+
+if (disposition) {
+  // Try filename*= (RFC 5987)
+  let fileNameMatch = disposition.match(/filename\*=(?:UTF-8''|)([^;]+)/);
+
+  if (!fileNameMatch) {
+    // Try "filename="
+    fileNameMatch = disposition.match(/filename="([^"]+)"/);
+  }
+
+  if (!fileNameMatch) {
+    // Try unquoted filename=
+    fileNameMatch = disposition.match(/filename=([^;]+)/);
+  }
+
+  if (fileNameMatch && fileNameMatch[1]) {
+    fileName = decodeURIComponent(fileNameMatch[1].trim());
+  }
+}
+    // 🔹 Download file
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", fileName);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+  } catch (error) {
+    console.error("Download error:", error);
+    alert("Download failed.");
+  } finally {
+    setDownloading(false);
+  }
+};
+
 
   const columnDefs = useMemo(() => columns(undefined, handleView, page, size), [handleView, page, size]);
 
@@ -448,114 +482,267 @@ const handleSort = (column, direction) => {
 
 
         {/* Modal for viewing full details */}
-         <Dialog open={openViewModal} onClose={handleCloseModals} maxWidth="md" fullWidth>
-          <DialogTitle
-            variant="h4"
-            style={{
-              color: '#fff',
-              fontWeight: 'bold',
-              textAlign: 'center',
-              borderBottom: '2px solid #f0f0f0',
-              paddingBottom: '10px',
-              background: '#04255e'
-            }}
-          >
-            View BTR Details
-          </DialogTitle>
-          <DialogContent style={{ padding: '20px', backgroundColor: '#fafafa' }}>
-            {selectedRow && (
-              <DialogContentText>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                    gap: '20px',
-                    fontSize: '14px',
-                    color: '#333',
-                    backgroundColor: '#fff',
-                    padding: '20px',
-                    borderRadius: '8px',
-                    boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)'
-                  }}
-                >
-                  {Object.keys(selectedRow)
-                    .filter((key) => key !== 'id' && key !== 'lbcode' && key !== 'resbdno' && key !== 'lbtype' && key !== 'indexOffset') // skip resbdno & lbtype
-                    .map((key) => {
-                      let label = key;
-                      let value = selectedRow[key] || 'NA';
+       <Dialog
+  open={openViewModal}
+  onClose={handleCloseModals}
+  maxWidth="md"
+  fullWidth
+  PaperProps={{
+    sx: {
+      borderRadius: 3,
+      boxShadow: '0 16px 48px rgba(0,0,0,0.15)',
+      overflow: 'hidden'
+    }
+  }}
+>
+  {/* Header with Gradient Background */}
+  <DialogTitle sx={{
+    background: 'linear-gradient(135deg, #05307a 0%, #1976d2 100%)',
+    color: 'white',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    py: 2.5,
+    position: 'relative',
+    '&::after': {
+      content: '""',
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: '2px',
+      background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)'
+    }
+  }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <InfoIcon sx={{ fontSize: 28, opacity: 0.9 }} />
+      <Box>
+        <Typography variant="h5" component="div" sx={{ fontWeight: '700', lineHeight: 1.2 }}>
+          View BTR Details
+        </Typography>
+        <Typography variant="body2" sx={{ opacity: 0.8, mt: 0.5 }}>
+          Complete Book of Transfer Registry information
+        </Typography>
+      </Box>
+    </Box>
+    <IconButton
+      onClick={handleCloseModals}
+      sx={{
+        color: 'white',
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        '&:hover': {
+          backgroundColor: 'rgba(255,255,255,0.2)',
+          transform: 'scale(1.1)'
+        },
+        transition: 'all 0.2s ease',
+        width: 40,
+        height: 40
+      }}
+      size="small"
+    >
+      <CloseIcon />
+    </IconButton>
+  </DialogTitle>
 
-                      if (key === 'villageName') {
-                        label = 'Village Name';
-                      }
+  {/* Content Area */}
+  <DialogContent sx={{ p: 0, backgroundColor: '#fafbfc' }}>
+    {/* Assuming selectedRow is available. If you have loading/error states, insert them here. */}
+    {selectedRow && (
+      <Box sx={{ p: 3 }}>
+        {/* Main Information Card */}
+        <Card
+          sx={{
+            borderRadius: 3,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+            border: '1px solid',
+            borderColor: 'divider',
+            overflow: 'visible',
+            mb: 3
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            {/* Card Header - Basic Information (BTR/Land/Area are highlighted fields) */}
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              mb: 3,
+              pb: 2,
+              borderBottom: '2px solid',
+              borderColor: 'primary.light',
+              background: 'linear-gradient(135deg, #f8faff 0%, #f0f4ff 100%)',
+              mx: -3,
+              mt: -3,
+              px: 3,
+              py: 2,
+              borderRadius: '12px 12px 0 0'
+            }}>
+              <DescriptionIcon sx={{ fontSize: 28, color: 'primary.main', mr: 2 }} />
+              <Box>
+                <Typography variant="h5" sx={{ fontWeight: '700', color: 'primary.main' }}>
+                  Core BTR Information
+                </Typography>
+                <Typography variant="body2" color="primary.dark" sx={{ opacity: 0.8 }}>
+                  Key identifiers, ownership, and location details
+                </Typography>
+              </Box>
+            </Box>
 
-                      if (key === 'bcode') {
-                        label = 'Block Code';
-                      }
+            {/* Information Grid for Data Fields */}
+            <Grid container spacing={3}>
+              {/* === Dynamically Generated Fields === */}
+              {Object.keys(selectedRow)
+                .filter((key) => key !== 'id' && key !== 'lbcode' && key !== 'resbdno' && key !== 'lbtype' && key !== 'indexOffset')
+                .map((key) => {
+                  let label = key;
+                  let value = selectedRow[key] || 'NA';
+                  let highlight = false;
+                  let fieldIcon = null;
 
-                      // Custom rendering for resvno
-                      if (key === 'resvno') {
-                        const resvno = selectedRow.resvno ? selectedRow.resvno : 'NA';
-                        const resbdno = selectedRow.resbdno ? selectedRow.resbdno : 'NA';
-                        label = 'Re-Survey No.';
-                        value = `${resvno} / ${resbdno}`;
-                      }
-                      // Custom rendering for lbname
-                      if (key === 'lbname') {
-                        const lbname = selectedRow.lbname ? selectedRow.lbname : 'NA';
-                        const lbtype = selectedRow.lbtype ? selectedRow.lbtype : 'NA';
-                        label = 'Local Body Name';
-                        value = `${lbname}`;
-                      }
-                      if (key === 'ltype') {
-                        label = 'Land Type';
-                      }
-                      if (key === 'totalCent') {
-                        label = 'Total Area (in Cents)';
-                      }
-                      return (
-                        <div
-                          key={key}
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            alignItems: 'flex-start'
-                          }}
+                  // --- Custom Label/Value Logic (Copied from your original code) ---
+                  if (key === 'villageName') {
+                    label = 'Village Name';
+                    fieldIcon = <LocationOnIcon sx={{ color: 'primary.main', fontSize: 18 }} />;
+                  } else if (key === 'bcode') {
+                    label = 'Block Code';
+                  } else if (key === 'resvno') {
+                    // Combine resvno and resbdno
+                    const resvno = selectedRow.resvno || 'NA';
+                    const resbdno = selectedRow.resbdno || 'NA';
+                    label = 'Re-Survey No.';
+                    value = `${resvno} / ${resbdno}`;
+                    highlight = true; // Highlight Survey Number
+                  } else if (key === 'lbname') {
+                    // Use only lbname, as lbtype is filtered out for the detailed view
+                    label = 'Local Body Name';
+                    value = selectedRow.lbname || 'NA';
+                  } else if (key === 'ltype') {
+                    label = 'Land Type';
+                    highlight = true; // Highlight Land Type
+                  } else if (key === 'owner_name') {
+                    label = 'Owner Name';
+                  } else if (key === 'address') {
+                    label = 'Address';
+                  } else if (key === 'tp_no') {
+                    label = 'Thandaper No';
+                  } else if (key === 'tp_subdivion_no') {
+                    label = 'Thandaper Subdivision No';
+                  } else if (key === 'main_no') {
+                    label = 'Old Survey No';
+                  } else if (key === 'sub_main_no') {
+                    label = 'Old Sub Division No';
+                  } else if (key === 'totalCent') {
+                    label = 'Total Area';
+                    value = `${parseFloat(selectedRow.totalCent || 0).toFixed(2)} Cents`;
+                    highlight = true; // Highlight Area
+                  } else {
+                    // Default cleaning for camelCase keys
+                    label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                  }
+
+                  // Skip the original composite fields since we combined them
+                  if (key === 'lbtype') return null;
+
+                  // --- Rendering a single field ---
+                  return (
+                    <Grid item xs={12} sm={6} md={4} key={key}>
+                      <Box
+                        sx={{
+                          p: 2,
+                          backgroundColor: highlight ? '#ffffffff' : 'grey.50',
+                          borderRadius: 2,
+                          border: highlight ? '1px solid #ff9800' : '1px solid #e0e0e0',
+                          height: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          transition: 'all 0.2s',
+                          '&:hover': {
+                            boxShadow: '0 4px 8px rgba(0,0,0,0.05)',
+                          }
+                        }}
+                      >
+                        <Typography
+                          variant="caption"
+                          color={highlight ? '#ff9800' : 'text.secondary'}
+                          sx={{ fontWeight: '700', mb: 1, textTransform: 'uppercase', fontSize: '0.75rem' }}
                         >
-                          <div
-                            style={{
-                              fontWeight: 'bold',
-                              color: 'gray',
-                              marginBottom: '8px'
-                            }}
-                          >
-                            {label}:
-                          </div>
-                          <div
-                            style={{
-                              backgroundColor: '#f9f9f9',
-                              padding: '8px 12px',
-                              borderRadius: '4px',
-                              boxShadow: 'inset 0 0 5px rgba(0, 0, 0, 0.1)',
+                          {label}
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {fieldIcon}
+                          <Typography
+                            variant="body1"
+                            sx={{
+                              fontWeight: '600',
+                              color: highlight ? '#d32f2f' : 'text.primary',
                               wordBreak: 'break-word',
-                              width: '100%'
                             }}
                           >
                             {value}
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </DialogContentText>
-            )}
-          </DialogContent>
-          <DialogActions style={{ justifyContent: 'center' }}>
-            <Button onClick={handleCloseModals} color="secondary" variant="outlined">
-              Close
-            </Button>
-          </DialogActions>
-        </Dialog>
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Grid>
+                  );
+                })}
+
+              {/* === Static Highlighted Card for Land Type (Redesigned for better UX) === */}
+              {/* This is based on the logic in your provided example, but adapted to use selectedRow data. */}
+             
+            </Grid>
+          </CardContent>
+        </Card>
+
+        {/* Additional Information Section */}
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          mt: 2
+        }}>
+          <Chip
+            icon={<InfoOutlineIcon />}
+            label="Field details are dynamically adjusted based on the BTR Type."
+            color="info" // Changed color to info for a more neutral/information look
+            variant="outlined"
+            sx={{ fontWeight: '600', py: 1, px: 1 }}
+          />
+        </Box>
+      </Box>
+    )}
+  </DialogContent>
+
+  {/* Footer Actions */}
+  <DialogActions sx={{
+    p: 3,
+    backgroundColor: '#f8f9fa',
+    borderTop: '1px solid',
+    borderColor: 'divider'
+  }}>
+    <Button
+      onClick={handleCloseModals} // Kept your original handler
+      variant="contained"
+      startIcon={<CloseIcon />}
+      sx={{
+        background: 'linear-gradient(135deg, #05307a 0%, #1976d2 100%)',
+        borderRadius: 2,
+        px: 4,
+        py: 1,
+        fontWeight: '600',
+        fontSize: '1rem',
+        textTransform: 'none',
+        boxShadow: '0 4px 12px rgba(5, 48, 122, 0.3)',
+        '&:hover': {
+          background: 'linear-gradient(135deg, #032050 0%, #1565c0 100%)',
+          boxShadow: '0 6px 16px rgba(5, 48, 122, 0.4)',
+          transform: 'translateY(-1px)'
+        },
+        transition: 'all 0.3s ease'
+      }}
+    >
+      Close Details
+    </Button>
+  </DialogActions>
+</Dialog>
 
 
       </Grid>

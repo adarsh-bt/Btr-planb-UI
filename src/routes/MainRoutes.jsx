@@ -47,7 +47,7 @@ const SettingsMenu = Loadable(lazy(() => import('pages/functional-components/ear
 const CCE_crop_selection = Loadable(lazy(() => import('pages/functional-components/earas/CceCropSelection')));
 
 const Form1_menus = Loadable(lazy(() => import('pages/functional-components/earas/form1/form1menus')));
-const LandUtilization = Loadable(lazy(() => import('pages/functional-components/earas/form1/LandUtilization')));
+// const LandUtilization = Loadable(lazy(() => import('pages/functional-components/earas/form1/Form1Wrapper')));
 
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
 
@@ -399,14 +399,14 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-    {
-      path: '/schemes/earas/form1/land_utilization',
-      element: (
-        <PrivateRoute>
-          <LandUtilization/>
-        </PrivateRoute>
-      )
-    },
+    // {
+    //   path: '/schemes/earas/form1/land_utilization',
+    //   element: (
+    //     <PrivateRoute>
+    //       <LandUtilization/>
+    //     </PrivateRoute>
+    //   )
+    // },
 
 
 

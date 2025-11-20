@@ -40,10 +40,10 @@ const BASE_URL = mainapi.BASE_URL;
 const FORM_URL = mainapi.FORM_API;
 
 // --- Constant for Side Plot Dropdown ---
-const SIDE_PLOT_OPTIONS = ['N1','N2','N3','N4','E1','E2','E3','E4','S1','S2','S3','S4','W1', 'W2', 'W3', 'W4'];
+const SIDE_PLOT_OPTIONS = ['S1','S2','S3','S4','W1', 'W2', 'W3', 'W4','N1','N2','N3','N4','E1','E2','E3','E4'];
 
 // --- Sample Data for Dropdowns & Modal ---
-
+const role = authservice.getrole();
 
 // --- Helper Function ---
 const isSamePlot = (rowA, rowB) => {
@@ -84,7 +84,7 @@ const ClusterFormUI = () => {
     const [keyplotSubNo, setKeyplotSubNo] = useState('');
     const [loading, setLoading] = useState(true);
     const [loadingResvno, setLoadingResvno] = useState(false);
-    
+    const totalAreaRef = useRef(null);
     // ✅ Submit-related states
     const [submitting, setSubmitting] = useState(false);
     const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -142,6 +142,7 @@ const fetchCceCropDetails = async () => {
     try {
         const token = localStorage.getItem('token');
         const zoneid = authservice.getzone();
+   
         const response = await fetch(`${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops?zoneId=${zoneid}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -160,8 +161,8 @@ const fetchCceCropDetails = async () => {
     } catch (error) {
         console.error('Error fetching CCE crop details:', error);
         setCceCropDetails([]);
-        setSnackbarMessage('Failed to load crop details.');
-        setSnackbarOpen(true);
+        // setSnackbarMessage('Failed to load crop details.');
+        // setSnackbarOpen(true);
     } finally {
         setLoadingCrops(false);
     }
@@ -422,6 +423,7 @@ setIsValidationDialogOpen(true);
         }
     } catch (error) {
         console.error("Error validating duplicate plot:", error);
+        console.log("Validation error response:", responseText);
         setSnackbarMessage(`Error: ${error.message}`);
         setSnackbarOpen(true);
     }
@@ -513,6 +515,7 @@ const fetchApiCceCrops = useCallback(async () => {
     
     try {
         const token = localStorage.getItem('token');
+       
         const response = await fetch(
             `${BASE_URL}/btr-service/crop-assignment-trail/${clusterId}/cce-crops`,
             {
@@ -735,7 +738,7 @@ useEffect(() => {
 
                 const fixed = ['K'];
                 const existing = Object.keys(existingSidePlots).filter(l => l !== 'K');
-                const defaults = ['N1', 'E1', 'S1', 'W1'];
+                const defaults = ['S1', 'W1', 'E1', 'N1'];
                 const uniqueDefaults = defaults.filter(d => !existing.includes(d));
                 const sideplots = [...existing, ...uniqueDefaults].slice(0, 4);
                 const allDirections = [...fixed, ...sideplots];
@@ -912,9 +915,9 @@ const handleSubmit = async () => {
         setSnackbarOpen(true);
 
     } catch (error) {
-        console.error('❌ Error submitting cluster data:', error);
+        console.error('❌ Error submitting cluster data:', error.message);
         setSubmitError(error.message);
-        setSnackbarMessage(`Error: ${error.message}`);
+        setSnackbarMessage(`${error.message} (Maximum area: ${clusterInfo.maxArea} cents)`);
         setSnackbarOpen(true);
     } finally {
         setSubmitting(false);
@@ -1467,6 +1470,7 @@ useEffect(() => {
         return false;
     };
 
+    totalAreaRef.current = clusterInfo.totalArea;
     const firstInstanceMap = new Map();
     keyplotsData.forEach(kp => {
         kp.rows.forEach(r => {
@@ -1490,13 +1494,34 @@ useEffect(() => {
                 <Typography variant="subtitle1" fontWeight="bold">Cluster: {slNo} | {clusterInfo.localBody}</Typography>
                 <Box sx={{ width: '100%', mt: 1 }}>
                     <Typography variant="subtitle1"><strong>Total Enumerated Area:</strong> {clusterInfo.totalArea.toFixed(2)} Cent</Typography>
-                    <LinearProgress variant="determinate" value={totalAreaProgress} sx={{ height: 8, borderRadius: 4, mt: 0.5 }} />
+
+                     <LinearProgress
+                                    variant="determinate"
+                                    value={(parseFloat(clusterInfo.totalArea) / maxcluster) * 100} // Assuming 600 cents is 6 acres
+                                    sx={{
+                                      height: 10,
+                                      borderRadius: 5,
+                                      '& .MuiLinearProgress-bar': {
+                                        backgroundColor: () => {
+                                          const totalCents = parseFloat(clusterInfo.totalArea);
+                                          if (totalCents > maxcluster) { // Example: Warning when close to limit (e.g., over 5.5 acres)
+                                            return 'error.main'; // Red
+                                          } else if (totalCents > meanCluster) { // Example: Approaching limit (e.g., over 4.5 acres)
+                                            return 'warning.main'; // Orange/Yellow
+                                          }
+                                          return 'success.main'; // Green
+                                        },
+                                      },
+                                    }}
+                                  />
+                    
                     <Typography variant="caption" display="block" sx={{ mt: 0.5, textAlign: 'right', color: 'text.secondary' }}>
-                        {clusterInfo.totalArea.toFixed(2)} / {clusterInfo.maxArea} Cents
+                        {clusterInfo.totalArea.toFixed(2)} / {maxcluster} Cents (Max {maxcluster / 100} Acres)
                     </Typography>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
                         <Tooltip title="View FMB"><Button variant="contained" color="secondary"><MapIcon />FMB</Button></Tooltip>
                         {/* <Tooltip title="Reject Cluster"><Button variant="contained" color="error"><WarningAmberIcon /></Button></Tooltip> */}
+                         {role === 'Field Data Collector' && (
                         <Tooltip title="Submit">
                             <Button 
                                 onClick={handleSubmit} 
@@ -1508,6 +1533,7 @@ useEffect(() => {
                                 {submitting ? 'Saving...' : 'Submit'}
                             </Button>
                         </Tooltip>
+                         )}
                     </Box>
                 </Box>
             </Box>
@@ -1521,7 +1547,37 @@ useEffect(() => {
                     <Grid item xs={12} sm={6} md={2}><TextField label="Cluster No." value={slNo} InputProps={{ readOnly: true }} fullWidth /></Grid>
                     <Grid item xs={12} sm={6} md={3}><TextField label="Local Body" value={clusterInfo.localBody} InputProps={{ readOnly: true }} fullWidth /></Grid>
                     <Grid item xs={12} sm={6} md={3}><TextField label="Land Type" value={clusterInfo.landType} InputProps={{ readOnly: true }} fullWidth /></Grid>
-                    <Grid item xs={12} sm={6} md={3}><TextField label="Total area" value={`${clusterInfo.totalArea} cents`} InputProps={{ readOnly: true }} fullWidth /></Grid>
+                    {/* <Grid item xs={12} sm={6} md={3}><TextField label="Total area" value={`${clusterInfo.totalArea} cents`} InputProps={{ readOnly: true }} fullWidth /></Grid> */}
+                     <Grid item xs={12} sm={6} md={3} ref={totalAreaRef}>
+                                <TextField label="Total Actual Area (in cents)" value={clusterInfo.totalArea} InputProps={{ readOnly: true }} fullWidth/>
+                                {/* THIS IS WHERE THE NEW CODE FOR LinearProgress IS ADDED */}
+                                <Box sx={{ width: '100%', mt: 1 }}>
+                    
+                                  <LinearProgress
+                                    variant="determinate"
+                                    value={(parseFloat(clusterInfo.totalArea) / maxcluster) * 100} // Assuming 600 cents is 6 acres
+                                    sx={{
+                                      height: 10,
+                                      borderRadius: 5,
+                                      '& .MuiLinearProgress-bar': {
+                                        backgroundColor: () => {
+                                          const totalCents = parseFloat(clusterInfo.totalArea);
+                                          if (totalCents > maxcluster) { // Example: Warning when close to limit (e.g., over 5.5 acres)
+                                            return 'error.main'; // Red
+                                          } else if (totalCents > meanCluster) { // Example: Approaching limit (e.g., over 4.5 acres)
+                                            return 'warning.main'; // Orange/Yellow
+                                          }
+                                          return 'success.main'; // Green
+                                        },
+                                      },
+                                    }}
+                                  />
+                                  <Typography variant="caption" display="block" sx={{ mt: 0.5, textAlign: 'right', color: 'text.secondary' }}>
+                                    {parseFloat(clusterInfo.totalArea).toFixed(2)} / {maxcluster} Cents (Max {maxcluster / 100} Acres)
+                                  </Typography>
+                              
+                                </Box>
+                              </Grid>
                     
                 </Grid>
 <Grid 
@@ -1684,7 +1740,8 @@ useEffect(() => {
                 {/* Action Buttons */}
                 <Box sx={{ maxWidth: 900, margin: '0 auto', mb: 3 }}>
                     <Grid container spacing={2} alignItems="center" justifyContent="center">
-                        <Grid item><Button variant="contained" color="info" onClick={handleOpenCropsModal}>Add CCE crops</Button></Grid>
+                     {role === 'Field Data Collector' && (
+                        <Grid item><Button variant="contained" color="info" onClick={handleOpenCropsModal}>Add CCE crops</Button></Grid>)}
                         <Grid item><Button variant="contained" color="secondary" startIcon={<MapIcon />}>View FMB</Button></Grid>
                         {/* <Grid item><Button variant="contained" color="error" startIcon={<DeleteForeverIcon />}>Reject Cluster</Button></Grid> */}
                     </Grid>
@@ -1870,15 +1927,17 @@ useEffect(() => {
                                         </React.Fragment>
                                     );
                                 })}
+                                  {role === 'Field Data Collector' && (
                                 <Grid item xs={12} sx={{ textAlign: 'center', mt: 1 }}>
                                     <Button startIcon={<AddCircleOutlineIcon />} size="small" variant="contained" color="success" onClick={() => handleAddRow(keyplot.id)} disabled={isNewRowIncomplete || hasErrorInKeyplot}>Add Row</Button>
-                                </Grid>
+                                </Grid>)}
                             </Grid>
                         </Box>
                     );
                 })}
 
                 {/* ✅ Main Submit Button - ORIGINAL UI PRESERVED */}
+                 {role === 'Field Data Collector' && (
                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2 }}>
                     <Button 
                         variant="contained" 
@@ -1892,15 +1951,15 @@ useEffect(() => {
                         {submitting ? 'Saving Cluster...' : 'Submit Cluster'}
                     </Button>
                 </Box>
-                
+                 )}
                 {/* ✅ Submit Error Display - ORIGINAL UI PRESERVED */}
-                {submitError && (
+                {/* {submitError && (
                     <Box sx={{ mt: 2, p: 2, bgcolor: 'error.light', borderRadius: 1, color: 'error.contrastText' }}>
                         <Typography variant="body2">
                             <strong>Submit Error:</strong> {submitError}
                         </Typography>
                     </Box>
-                )}
+                )} */}
             </Box>
 
             {/* CCE Crops Modal - ORIGINAL UI PRESERVED */}
@@ -2127,7 +2186,7 @@ useEffect(() => {
                 open={snackbarOpen}
                 autoHideDuration={6000}
                 onClose={() => setSnackbarOpen(false)}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
             >
                 <Alert 
                     onClose={() => setSnackbarOpen(false)} 

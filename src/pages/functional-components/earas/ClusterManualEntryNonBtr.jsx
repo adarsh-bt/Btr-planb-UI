@@ -38,11 +38,11 @@ const BASE_URL = mainapi.BASE_URL;
 const FORM_URL = mainapi.FORM_API;
 
 // --- Constant for Side Plot Dropdown ---
-const SIDE_PLOT_OPTIONS = ['N1','N2','N3','N4','E1','E2','E3','E4','S1','S2','S3','S4','W1', 'W2', 'W3', 'W4'];
+const SIDE_PLOT_OPTIONS = ['S1','S2','S3','S4','W1', 'W2', 'W3', 'W4','N1','N2','N3','N4','E1','E2','E3','E4'];
 
 // --- Sample Data for Dropdowns & Modal ---
 
-
+const role = authservice.getrole();
 // --- Helper Function ---
 const isSamePlot = (rowA, rowB) => {
     if (!rowA || !rowB) return false;
@@ -507,7 +507,7 @@ const handleUseRecommendedPlot = (type) => {
 
                 const fixed = ['K'];
                 const existing = Object.keys(existingSidePlots).filter(l => l !== 'K');
-                const defaults = ['N1', 'E1', 'S1', 'W1'];
+                const defaults = ['S1', 'E1', 'N1', 'W1'];
                 const uniqueDefaults = defaults.filter(d => !existing.includes(d));
                 const sideplots = [...existing, ...uniqueDefaults].slice(0, 4);
                 const allDirections = [...fixed, ...sideplots];
@@ -831,7 +831,7 @@ const handleUseRecommendedPlot = (type) => {
         } catch (error) {
             console.error('Error submitting cluster data:', error);
             setSubmitError(error.message);
-            setSnackbarMessage(`Error: ${error.message}`);
+            setSnackbarMessage(`${error.message} (Maximum area: ${clusterInfo.maxArea} cents)`);
             setSnackbarOpen(true);
         } finally {
             setSubmitting(false);
@@ -2158,7 +2158,8 @@ const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
                         <Tooltip title="View FMB"><Button variant="contained" color="secondary"><MapIcon /></Button></Tooltip>
                         {/* <Tooltip title="Reject Cluster"><Button variant="contained" color="error"><WarningAmberIcon /></Button></Tooltip> */}
                         <Tooltip title="Submit">
-                            <Button
+                            {role === 'Field Data Collector' && (
+                                <Button
                                 onClick={handleSubmit}
                                 variant="contained"
                                 color="primary"
@@ -2167,6 +2168,7 @@ const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
                             >
                                 {submitting ? 'Saving...' : 'Submit'}
                             </Button>
+                            )}
                         </Tooltip>
                     </Box>
                 </Box>
@@ -2237,7 +2239,11 @@ const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
                 {/* Action Buttons */}
                 <Box sx={{ maxWidth: 900, margin: '0 auto', mb: 3 }}>
                     <Grid container spacing={2} alignItems="center" justifyContent="center">
-                        <Grid item><Button variant="contained" color="info" onClick={handleOpenCropsModal}>Add CCE crops</Button></Grid>
+                        <Grid item>
+                        {role === 'Field Data Collector' && (
+                        <Button variant="contained" color="info" onClick={handleOpenCropsModal}>Add CCE crops</Button>
+                        )}
+                        </Grid>
                         <Grid item><Button variant="contained" color="secondary" startIcon={<MapIcon />}>View FMB</Button></Grid>
                         {/* <Grid item><Button variant="contained" color="error" startIcon={<DeleteForeverIcon />}>Reject Cluster</Button></Grid> */}
                     </Grid>
@@ -2360,7 +2366,7 @@ const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
                                       isKeyPlotFirstRow
                                     );
                                 })}
-
+                                  {role === 'Field Data Collector' && (
                                 <Box sx={{ textAlign: 'center', mt: 1 }}>
                                     <Button
                                       startIcon={<AddCircleOutlineIcon />}
@@ -2373,12 +2379,14 @@ const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
                                       Add Row
                                     </Button>
                                 </Box>
+                                  )}
                             </Box>
                         </Box>
                     );
                 })}
 
                 {/* Main Submit Button */}
+                  {role === 'Field Data Collector' && (
                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2 }}>
                     <Button
                         variant="contained"
@@ -2392,15 +2400,16 @@ const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
                         {submitting ? 'Saving Cluster...' : 'Submit Cluster'}
                     </Button>
                 </Box>
+                  )}
                 
                 {/* Submit Error Display */}
-                {submitError && (
+                {/* {submitError && (
                     <Box sx={{ mt: 2, p: 2, bgcolor: 'error.light', borderRadius: 1, color: 'error.contrastText' }}>
                         <Typography variant="body2">
                             <strong>Submit Error:</strong> {submitError}
                         </Typography>
                     </Box>
-                )}
+                )} */}
             </Box>
 
             {/* CCE Crops Modal */}
@@ -2586,7 +2595,7 @@ const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
                 open={snackbarOpen}
                 autoHideDuration={6000}
                 onClose={() => setSnackbarOpen(false)}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
             >
                 <Alert
                     onClose={() => setSnackbarOpen(false)}
