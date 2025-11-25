@@ -44,7 +44,7 @@ import approvals from 'assets/images/logo/approvals.png';
 import usermanage from 'assets/images/logo/usermanage.png';
 
  //for permissions line
-import { useUserAccess, PermissionGate } from 'contexts/auth-reducer/universal/UserAccessContext';
+// import { useUserAccess, PermissionGate } from 'contexts/auth-reducer/universal/UserAccessContext';
 
 
 const avatarSX = {
@@ -70,17 +70,17 @@ export default function DashboardDefault() {
   const isauth = auth.isAdmin();
 
   //for permissions line
-  const { userAccessData, loading, hasPermission, hasPermissionByName } = useUserAccess();
+  // const { userAccessData, loading, hasPermission, hasPermissionByName } = useUserAccess();
 
-  console.log('Dashboard Debug:');
-  console.log('Loading:', loading);
-  console.log('UserAccessData:', userAccessData);
-  console.log('HasPermission function:', hasPermission);
-  console.log('Permission 11 result:', hasPermission && hasPermission(11));
+  // console.log('Dashboard Debug:');
+  // console.log('Loading:', loading);
+  // console.log('UserAccessData:', userAccessData);
+  // console.log('HasPermission function:', hasPermission);
+  // console.log('Permission 11 result:', hasPermission && hasPermission(11));
 
-  if (loading) {
-    return <div>Loading permissions...</div>;
-  }
+  // if (loading) {
+  //   return <div>Loading permissions...</div>;
+  // }
 
   // const { permissions, loading, error } = useContext(PermissionsContext);
   // console.log("User Permissions:", permissions);
@@ -96,10 +96,10 @@ export default function DashboardDefault() {
       <Grid item xs={12}>
         <Typography variant="h4" align="center" sx={{ mb: 3 }}>
           Dashboard
-          {/* Check by permission ID */}
+          {/* Check by permission ID
       {hasPermission(11) && (
         <button>Cluster Formation</button>
-      )}
+      )} */}
         </Typography>
       </Grid>
 
@@ -304,7 +304,7 @@ export default function DashboardDefault() {
           </Card>
         </Grid>
       
-{["Super Admin", "District Level Approver", "IT Admin"].includes(authservice.getrole()) && (
+{["Super Admin", "District Level Approver", "IT Admin",].includes(authservice.getrole()) && (
         <Grid item xs={12} sm={4} md={4} lg={4}>
           <Card
             component={Link}

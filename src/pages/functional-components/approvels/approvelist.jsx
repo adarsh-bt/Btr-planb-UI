@@ -35,6 +35,7 @@ import approvalservice from './approvalservice';
 import auth from 'contexts/auth-reducer/auth';
 import authservice from 'pages/authentication/services/authservice';
 import Taluk from './talukusers';
+import Breadcrumb from 'routes/Breadcrumb';
 
 const columns = (handleEdit) => [
     { name: 'SL. NO', selector:(row, index) => index + 1, sortable: true },
@@ -163,7 +164,7 @@ const[zoneVisble, setzoneVisble] = useState(false);
         updatedPairs[index].roleId = '';
         if (!rolesMap[value]) {
           try {
-            console.log("office type ",selectedRow.officeType)
+           
             // Fetch roles and zones in parallel
             const [rolesResponse, zonesResponse] = await Promise.all([
               approvalservice.allrolesBySchems(value),
@@ -200,119 +201,218 @@ const[zoneVisble, setzoneVisble] = useState(false);
 
 
   const [remarks, setRemarks] = useState("");
-    const handleSaveChanges = () => {
-      // Close the modal first
-      handleCloseModal();
+
+
+    // const handleSaveChanges = () => {
+    //   // Close the modal first
+    //   handleCloseModal();
     
-      // SweetAlert2 confirmation dialog
-      Swal.fire({
-        title: "Are you sure?",
-        text: "You are about to save changes. Do you want to proceed?",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonText: "Yes, save changes",
-        cancelButtonText: "No, cancel",
-      }).then((result) => {
-        if (result.isConfirmed) {
+    //   // SweetAlert2 confirmation dialog
+    //   Swal.fire({
+    //     title: "Are you sure?",
+    //     text: "You are about to save changes. Do you want to proceed?",
+    //     icon: "warning",
+    //     showCancelButton: true,
+    //     confirmButtonText: "Yes, save changes",
+    //     cancelButtonText: "No, cancel",
+    //   }).then((result) => {
+    //     if (result.isConfirmed) {
           
-          // Prepare data for the API call
+    //       // Prepare data for the API call
       
-           const admin_id = authservice.userid();
+    //        const admin_id = authservice.userid();
         
-          const approvalStatus = radioState;  // The status ("approved", "marked", "rejected")
-        const filteredPairs = schemeRolePairs.filter(pair => pair.schemeId && pair.roleId);
-          const payload = {
-            approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "pending" : "Rejected",
-            approvalDate: new Date().toISOString().split('T')[0],
-            remarks: remarks,
-            isApproved: approvalStatus === "approved", 
-            adminId: admin_id, 
-            userId: selectedRow ? selectedRow.userId : "", 
-            id:selectedRow.approvalId,
-            // roleId:selectedRole
-     roleSchemes: selectedRole
-    ? [
-        {
-          roleId: selectedRole,
-          schemeId: null
-        }
-      ]
-    : filteredPairs.map(pair => ({
-        roleId: pair.roleId,
-        schemeId: pair.schemeId
-      }))
-    };
+    //       const approvalStatus = radioState;  // The status ("approved", "marked", "rejected")
+    //     const filteredPairs = schemeRolePairs.filter(pair => pair.schemeId && pair.roleId);
+    //       const payload = {
+    //         approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "pending" : "Rejected",
+    //         approvalDate: new Date().toISOString().split('T')[0],
+    //         remarks: remarks,
+    //         isApproved: approvalStatus === "approved", 
+    //         adminId: admin_id, 
+    //         userId: selectedRow ? selectedRow.userId : "", 
+    //         id:selectedRow.approvalId,
+    //         // roleId:selectedRole
+    //  roleSchemes: selectedRole
+    // ? [
+    //     {
+    //       roleId: selectedRole,
+    //       schemeId: null
+    //     }
+    //   ]
+    // : filteredPairs.map(pair => ({
+    //     roleId: pair.roleId,
+    //     schemeId: pair.schemeId
+    //   }))
+    // };
     
-         if(admrole === "IT Admin"){
-          console.log("IT Dis ",payload)
-          var apicall = approvalservice.saveItadminApproval(payload)
+    //      if(admrole === "IT Admin"){
+    //       console.log("IT Dis ",payload)
+    //       var apicall = approvalservice.saveItadminApproval(payload)
           
-          console.log("zone saved")
+    //       console.log("zone saved")
 
-         }else if(admrole === "Super Admin") {
-          var apicall = approvalservice.saveSuperadminApproval(payload)
+    //      }else if(admrole === "Super Admin") {
+    //       var apicall = approvalservice.saveSuperadminApproval(payload)
 
-         }else if(admrole === "District Level Approver"){
+    //      }else if(admrole === "District Level Approver"){
          
          
-          var apicall = approvalservice.saveDisApproval(payload)
-         }
+    //       var apicall = approvalservice.saveDisApproval(payload)
+    //      }
          
-            apicall.then((data) => {
-              // console.log("data >>",data)
-              if (data.payload) {
-                Swal.fire("Saved!", "Your changes have been saved.", "success");
-                // setUserList((prevUserList) => 
-                //   prevUserList.map((user) =>
-                //     // Update only the selected user, keep the rest of the users unchanged
-                //     user.userId === selectedRow.userId
-                //       ? { ...user, approvalStatus: data.payload.approvalStatus,approvalId:data.payload.id }
-                //       : user
-                //   )
-                // );
-                if (value === 0) { // District Level Users tab
-                  setUserListDis(prev => 
-                    prev.map(user => 
-                      user.userId === selectedRow.userId
-                        ? { ...user, approvalStatus: data.payload.approvalStatus, approvalId: data.payload.id }
-                        : user
-                    )
-                  );
-                  console.log("admin ",admin_id)
-                  console.log("admin ",zone)
-                  console.log("userid ",data.payload.loginId)
-                   if (zone !== null && data.payload.loginId !== null) {
-                                 // Call the zone_save API with required parameters
-                      approvalservice.zone_save(zone, data.payload.loginId, admin_id)
-                            .then((zoneResponse) => {
-                            }).catch((zoneError) => {
-                             Swal.fire("Error", "Failed to save zone information. Please try again later.", "error");
-                  });
-              }
-                } else if (value === 2) { // Directorate Users tab
-                  setUserList(prev => 
-                    prev.map(user => 
-                      user.userId === selectedRow.userId
-                        ? { ...user, approvalStatus: data.payload.approvalStatus, approvalId: data.payload.id }
-                        : user
-                    )
-                  );
-                }
-              } else {
-                Swal.fire("Error", data.message || "Something went wrong, please try again.", "error");
-              }
-            })
-            .catch((error) => {
-              Swal.fire("Error", "Failed to save changes. Please try again later.", "error");
-            });
-        } else {
-          Swal.fire("Cancelled", "Your changes have not been saved.", "error");
+    //         apicall.then((data) => {
+    //           // console.log("data >>",data)
+    //           if (data.payload) {
+    //             Swal.fire("Saved!", "Your changes have been saved.", "success");
+    //             // setUserList((prevUserList) => 
+    //             //   prevUserList.map((user) =>
+    //             //     // Update only the selected user, keep the rest of the users unchanged
+    //             //     user.userId === selectedRow.userId
+    //             //       ? { ...user, approvalStatus: data.payload.approvalStatus,approvalId:data.payload.id }
+    //             //       : user
+    //             //   )
+    //             // );
+    //             if (value === 0) { // District Level Users tab
+    //               setUserListDis(prev => 
+    //                 prev.map(user => 
+    //                   user.userId === selectedRow.userId
+    //                     ? { ...user, approvalStatus: data.payload.approvalStatus, approvalId: data.payload.id }
+    //                     : user
+    //                 )
+    //               );
+    //               console.log("admin ",admin_id)
+    //               console.log("admin ",zone)
+    //               console.log("userid ",data.payload.loginId)
+    //                if (zone !== '' && data.payload.loginId !== null) {
+    //                              // Call the zone_save API with required parameters
+    //                   approvalservice.zone_save(zone, data.payload.loginId, admin_id)
+    //                         .then((zoneResponse) => {
+    //                         }).catch((zoneError) => {
+    //                          Swal.fire("Error", "Failed to save zone information. Please try again later.", "error");
+    //               });
+    //           }
+    //             } else if (value === 2) { // Directorate Users tab
+    //               setUserList(prev => 
+    //                 prev.map(user => 
+    //                   user.userId === selectedRow.userId
+    //                     ? { ...user, approvalStatus: data.payload.approvalStatus, approvalId: data.payload.id }
+    //                     : user
+    //                 )
+    //               );
+    //             }
+    //           } else {
+    //             Swal.fire("Error", data.message || "Something went wrong, please try again.", "error");
+    //           }
+    //         })
+    //         .catch((error) => {
+    //           Swal.fire("Error", "Failed to save changes. Please try again later.", "error");
+    //         });
+    //     } else {
+    //       Swal.fire("Cancelled", "Your changes have not been saved.", "error");
+    //     }
+    //   });
+    // };
+    const handleSaveChanges = () => {
+  // Close the modal first
+  handleCloseModal();
+
+  // SweetAlert2 confirmation dialog
+  Swal.fire({
+    title: "Are you sure?",
+    text: "You are about to save changes. Do you want to proceed?",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes, save changes",
+    cancelButtonText: "No, cancel",
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const admin_id = authservice.userid();
+      const approvalStatus = radioState;
+      const filteredPairs = schemeRolePairs.filter(pair => pair.schemeId && pair.roleId);
+
+      const payload = {
+        approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "pending" : "Rejected",
+        approvalDate: new Date().toISOString().split('T')[0],
+        remarks: remarks,
+        isApproved: approvalStatus === "approved", 
+        adminId: admin_id, 
+        userId: selectedRow ? selectedRow.userId : "", 
+        id: selectedRow.approvalId,
+        roleSchemes: selectedRole
+          ? [{ roleId: selectedRole, schemeId: null }]
+          : filteredPairs.map(pair => ({
+              roleId: pair.roleId,
+              schemeId: pair.schemeId
+            }))
+      };
+
+      let apicall;
+      if (admrole === "IT Admin") {
+        apicall = approvalservice.saveItadminApproval(payload);
+      } else if (admrole === "Super Admin") {
+        apicall = approvalservice.saveSuperadminApproval(payload);
+      } else if (admrole === "District Level Approver") {
+        apicall = approvalservice.saveDisApproval(payload);
+      }
+
+      // 🔹 Loader Swal
+      Swal.fire({
+        title: "Saving...",
+        text: "Please wait while we save your changes.",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
         }
       });
-    };
-    
-  
 
+      apicall
+        .then((data) => {
+          Swal.close(); // 🔹 close loader
+
+          if (data.payload) {
+            Swal.fire("Saved!", "Your changes have been saved.", "success");
+
+            if (value === 0) { // District Level Users tab
+              setUserListDis(prev => 
+                prev.map(user => 
+                  user.userId === selectedRow.userId
+                    ? { ...user, approvalStatus: data.payload.approvalStatus, approvalId: data.payload.id }
+                    : user
+                )
+              );
+
+              if (zone !== '' && data.payload.loginId !== null) {
+                 console.log("zone  ",zone,"   >>> ",data.payload.loginId)
+                approvalservice.zone_save(zone, data.payload.loginId, admin_id)
+                  .catch(() => {
+                    Swal.fire("Error", "Failed to save zone information. Please try again later.", "error");
+                  });
+              }
+            } else if (value === 2) { // Directorate Users tab
+              setUserList(prev => 
+                prev.map(user => 
+                  user.userId === selectedRow.userId
+                    ? { ...user, approvalStatus: data.payload.approvalStatus, approvalId: data.payload.id }
+                    : user
+                )
+              );
+            }
+          } else {
+            Swal.fire("Error", data.message || "Something went wrong, please try again.", "error");
+          }
+        })
+        .catch(() => {
+          Swal.close();
+          Swal.fire("Error", "Failed to save changes. Please try again later.", "error");
+        });
+    } else {
+      Swal.fire("Cancelled", "Your changes have not been saved.", "error");
+    }
+  });
+};
+
+  
     const handleChange = (event, newValue) => {
       setValue(newValue);
     };
@@ -419,6 +519,9 @@ useEffect(() => {
     if (admrole === 'IT Admin' || admrole === 'Super Admin') {
    
       // Fetch all roles for super admin
+      const schemesResponse = await approvalservice.allschmes();
+      console.log("schmre ",schemesResponse.payload)
+      setSchemesList(schemesResponse.payload);
       const rolesResponse = await approvalservice.allroles();
       console.log("role payload ",rolesResponse)
       setRolesList(rolesResponse.payload);
@@ -477,8 +580,8 @@ useEffect(() => {
         setUserList(response.payload.directorateUsers); 
         setUserListDis(response.payload.districtUsers);
         setUserList2(response.payload.talukUsers);
-        // console.log("director IT ",response.payload.directorateUsers)
-        // console.log("distict IT ",response.payload.districtUsers)
+        console.log("director IT ",response.payload.directorateUsers)
+        console.log("distict IT ",response.payload.districtUsers)
       }
       else if(admrole === "District Level Approver"){
         // console.log("disttict admin set")
@@ -487,7 +590,7 @@ useEffect(() => {
         setUserListDis(response.payload.districtUsers);
         setUserList(response.payload.talukUsers); 
       }else if(admrole == "Taluk Level Approver"){
-        alert(ok)
+        
         var response = await approvalservice.tsoadmin_roleassign();
         setUserList(response.payload); 
       }
@@ -531,6 +634,7 @@ const filteredDataDis = userListDis.filter((item) =>
 return (
 
     <Box style={{background:'white'}}>
+    <Breadcrumb></Breadcrumb>
     <Typography variant='h4' p={1}>Approvals</Typography>
     <hr></hr>
     <Box sx={{ width: '100%' }}>
@@ -787,7 +891,7 @@ return (
       background: '#04255e',
     }}
   >
-    New User Requestaaa
+    New User Request
   </DialogTitle>
   <DialogContent style={{ padding: "20px", backgroundColor: "#fafafa" }}>
     {selectedRow && (
@@ -809,8 +913,8 @@ return (
             { label: "Email", value: selectedRow.email },
             { label: "Phone Number", value: selectedRow.mobileNumber },
             { label: "Date of Joining", value: selectedRow.dateOfJoining },
-            { label: "Pen", value: selectedRow.penNumber },
-            { label: "Office",value: selectedRow.officeType }
+            { label: "Emp ID", value: selectedRow.empNumber },
+            { label: "Office",value: selectedRow.officelocation } 
           ].map((field, index) => (
             <Box
               key={index}
@@ -894,7 +998,8 @@ return (
 
 
 {/* Dis Admin Case */}
-{(admrole !== 'IT Admin' && admrole !== 'Super Admin') && (
+{/* {(admrole === 'IT Admin' && admrole !== 'Super Admin') && ( */}
+{(selectedRow.designation !== 'Deputy Director -Districts') && (
 
   <Stack direction="column" spacing={2} alignItems="center">
     {schemeRolePairs.map((pair, index) => (
@@ -1085,7 +1190,8 @@ return (
     <Button onClick={handleCloseModal} color="secondary" variant="outlined">
       Close
     </Button>
-    {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow && selectedRow.designation === "Deputy Director -Districts") || (
+    {/* {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow && selectedRow.designation === "Deputy Director -Districts") || ( */}
+    {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow ) || (
       (admrole === "District Level Approver")
     )) && (
     <Button

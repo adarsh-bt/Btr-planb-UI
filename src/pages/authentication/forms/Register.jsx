@@ -337,7 +337,6 @@ const Register = ({ onBack }) => {
       setLoading(true);
       const userDatas = await authservice.registration(userData);
       setLoading(false);
-
       if (userDatas.status === 201) {
         setSuccessMessage('Registration successfully submitted. Please wait for the approval.');
         setErrorMessage('');

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Box, Tabs, Tab } from '@mui/material';
+import { Box, Tabs, Tab,Grid,Typography } from '@mui/material';
 import RoleManage from './RoleManage';
 import DesignationManage from './DesignationManage';
+import Breadcrumb from 'routes/Breadcrumb';
 
 const RoleDesignationTabs = () => {
   const [tabValue, setTabValue] = useState(0);
@@ -11,7 +12,14 @@ const RoleDesignationTabs = () => {
   };
 
   return (
-    <Box sx={{ width: '100%', mt: 4 }}>
+     <Grid container spacing={3}>
+          <Breadcrumb></Breadcrumb>
+          <Grid item xs={12}>
+          <Typography variant="h4" gutterBottom>
+        User Management
+      </Typography>
+    <Box sx={{ width: '100%' }}>
+     
       <Tabs
         value={tabValue}
         onChange={handleTabChange}
@@ -33,7 +41,8 @@ const RoleDesignationTabs = () => {
         {tabValue === 0 && <RoleManage />}
         {tabValue === 1 && <DesignationManage />}
       </Box>
-    </Box>
+    </Box></Grid>
+    </Grid>
   );
 };
 

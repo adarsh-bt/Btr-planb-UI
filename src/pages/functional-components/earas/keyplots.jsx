@@ -102,7 +102,7 @@ const transformSample = (sample, type, index) => ({
     useEffect(() => {
         const fetchInitialKeyplots = async () => {
             setLoading(true);
-        
+            zoneid = authservice.getzone();
             try {
              
                 // Replace with your actual userId
@@ -111,7 +111,7 @@ const transformSample = (sample, type, index) => ({
               const res = await axios.post(`${BASE_URL}/btr-service/key-plots/fetch-existing-keyplots`,
   {
     userId: userId,
-    zone_id:'758'  // Request body
+    zone_id:zoneid  // Request body
   },
   {
     headers: {

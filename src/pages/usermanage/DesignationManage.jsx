@@ -127,6 +127,7 @@ const DesignationManage = () => {
                   <IconButton
                     size="small"
                     color="primary"
+                    disabled={true}
                     onClick={() => {
                       setDesignationName(designation.designationName);
                       setEditMode(true);
@@ -151,6 +152,7 @@ const DesignationManage = () => {
             variant="outlined"
             value={designationName}
             onChange={(e) => setDesignationName(e.target.value)}
+             inputProps={{ maxLength: 40 }}
           />
         </Grid>
 

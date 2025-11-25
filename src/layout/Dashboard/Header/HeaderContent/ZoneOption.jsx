@@ -21,11 +21,17 @@ export default function ZoneOptions() {
   const [pendingZone, setPendingZone] = useState('');
   const BASE_URL = mainapi.BTR_API;
   const user_id = authservice.userid();
-
+  
   // Fetch zones and restore last selected zone
   useEffect(() => {
+    const token = localStorage.getItem('token');
     axios
-      .get(`${BASE_URL}/btr-service/btr-api/zones/assigned/${user_id}`)
+      axios
+    .get(`${BASE_URL}/btr-service/btr-api/zones/assigned/${user_id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
       .then((response) => {
         const data = response.data;
         setZones(data);

@@ -215,7 +215,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     const { token, username: userNameFromApi } = userData.payload;
                     localStorage.setItem('token', token);
                     localStorage.setItem('user', userNameFromApi);
-
+                    console.log("  >   name   > "+userNameFromApi)
                     if (rememberMe) {
                         localStorage.setItem('rememberedUsername', username);
                         localStorage.setItem('rememberedPassword', password);
@@ -246,12 +246,14 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                         const permissionsData = await permissionsResponse.json();
                         setPermissions(permissionsData);
                         setIsLoading(false);
-                        navigate('/');
+                        // navigate('/');
+                          window.location.href = '/';
                     } catch (permissionsError) {
                         console.error('Error fetching permissions:', permissionsError);
                         setError(permissionsError.message || 'Failed to load permissions');
                         setIsLoading(false);
-                        navigate('/');
+                        // navigate('/');
+                          window.location.href = '/';
                     }
                 } else {
                     setError(userData.message || 'Login failed after forced login attempt');
@@ -283,8 +285,8 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
             setIsLoading(true);
             let userData = await authservice.login(userLogin);
             setIsLoading(false);
-
             if (userData.message === "User already logged in elsewhere") {
+               
                 setLoginAttemptData(userLogin);
                 setOpenConfirmDialog(true);
                 return;
@@ -307,8 +309,9 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
 
                 setIsLoading(true);
                 try {
+                    const BASE_URL = mainapi.USER_API;
                     const permissionsResponse = await fetch(
-                        'http://localhost:8081/user-accesss/user-state/userpremissions',
+                        `${BASE_URL}/user-accesss/user-state/userpremissions`,
                         {
                             headers: {
                                 Authorization: `Bearer ${token}`,
@@ -324,12 +327,15 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     const permissionsData = await permissionsResponse.json();
                     setPermissions(permissionsData);
                     setIsLoading(false);
-                    navigate('/');
+                    // navigate('/');
+                     window.location.href = '/';
+
                 } catch (permissionsError) {
                     console.error('Error fetching permissions:', permissionsError);
-                    setError(permissionsError.message || 'Failed to load permissions');
+                    // setError(permissionsError.message || 'Failed to load permissions');
                     setIsLoading(false);
-                    navigate('/');
+                    // navigate('/');
+                     window.location.href = '/';
                 }
             } else {
                 setError(userData.message || 'Login failed');

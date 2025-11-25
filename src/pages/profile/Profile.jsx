@@ -60,31 +60,35 @@ const Profile = () => {
           {userData ? (
             <Box>
               <Typography>
-                <strong>PEN Number:</strong> {userData.penNumber}
+                <strong>FullName : </strong> {userData.name}
               </Typography>
               <Divider sx={{ my: 2 }} />
               <Typography>
-                <strong>Designation:</strong> {userData.designation}
+                <strong>Emp Number : </strong> {userData.penNumber}
               </Typography>
               <Divider sx={{ my: 2 }} />
               <Typography>
-                <strong>Date of Joining:</strong> {userData.dateOfJoining}
+                <strong>Designation : </strong> {userData.designation}
               </Typography>
               <Divider sx={{ my: 2 }} />
               <Typography>
-                <strong>Office of Joining:</strong> {userData.officeToJoining}
+                <strong>Date of Joining : </strong> {userData.dateOfJoining}
               </Typography>
               <Divider sx={{ my: 2 }} />
               <Typography>
-                <strong>Date of Birth:</strong> {userData.dateOfBirth}
+                <strong>Office of Joining : </strong> {userData.officelocation}
               </Typography>
               <Divider sx={{ my: 2 }} />
               <Typography>
-                <strong>Personal Email:</strong> {userData.email}
+                <strong>Date of Birth : </strong> {userData.dateOfBirth}
               </Typography>
               <Divider sx={{ my: 2 }} />
               <Typography>
-                <strong>Mobile Number:</strong> {userData.mobileNumber}
+                <strong>Personal Email : </strong> {userData.email}
+              </Typography>
+              <Divider sx={{ my: 2 }} />
+              <Typography>
+                <strong>Mobile Number : </strong> {userData.mobileNumber}
               </Typography>
             </Box>
           ) : (

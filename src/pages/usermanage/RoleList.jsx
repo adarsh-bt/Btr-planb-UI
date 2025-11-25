@@ -8,23 +8,10 @@ import { jwtDecode } from 'jwt-decode';
 import ApprovedUserService from 'pages/functional-components/approvels/ApprovedUserService';
 
 import authservice from 'pages/authentication/services/authservice';
+import Breadcrumb from 'routes/Breadcrumb';
 
 // Helper function to determine office location
-const getOfficeLocation = (row) => {
-  // Check if taluk exists and is not "NA"
-  if (row.taluk && row.taluk !== "NA") {
-    return row.taluk;
-  }
-  // Check if district exists and is not "NA" (note: API has typo 'distict')
-  if (row.distict && row.distict !== "NA") {
-    return row.distict;
-  }
-  // Fallback to officeType if available
-  if (row.officeType) {
-    return row.officeType;
-  }
-  return 'NA';
-};
+
 // Columns definition (update as per your API fields)
 const columns = (handleView) => [
   {
@@ -47,19 +34,19 @@ const columns = (handleView) => [
   },
   {
     name: 'PEN No',
-    selector: (row) => row.penNumber || row.penNo || <span style={{ color: '#888' }}>NA</span>,
+    selector: (row) => row.empNumber || row.penNo || <span style={{ color: '#888' }}>NA</span>,
     sortable: true,
     width: '270px'
   },
   {
     name: 'Designation',
-    selector: (row) => row.designations?.designationName || row.roles || <span style={{ color: '#888' }}>NA</span>,
+    selector: (row) => row.designation || row.roles || <span style={{ color: '#888' }}>NA</span>,
     sortable: true,
     width: '300px'
   },
   {
     name: 'Office Location',
-    selector: (row) => getOfficeLocation(row),
+    selector: (row) => row.officelocation || <span style={{ color: '#888' }}>NA</span>,
     sortable: true,
     width: '250px'
   },
@@ -89,6 +76,7 @@ function CustomTabPanel({ children, value, index }) {
 
 const roleTabsMap = {
   'IT Admin': ['Directorate', 'District', 'Taluk'],
+  'Super Admin': ['Directorate', 'District', 'Taluk'],
   'District Level Approver': ['District', 'Taluk'],
   'Taluk Level Approver': ['Taluk']
 };
@@ -108,7 +96,7 @@ const RoleList = () => {
   const navigate = useNavigate();
 
   const handleView = (row) => {
-  navigate('/role', { state: { userId: row.userId || row.id } });
+  navigate('/User_Manage/Manage_Users/User_Details', { state: { userId: row.userId || row.id } });
 };
 
   const handleFilterChange = (event) => {
@@ -141,22 +129,41 @@ const RoleList = () => {
         // const userRolea = authservice.getrole();
         setRole(userRole);
 
-        if (userRole === 'IT Admin') {
+        if (userRole === 'IT Admin' ) {
           // IT Admin sees all three categories
           const res = await ApprovedUserService.fetchITAdminApprovedUsers();
-          console.log("resssss  >>>  ",res)
+          console.log("resssss  IT Admin >>>  ",res)
           if (res.error) throw new Error(res.message);
           setTalukUsers(res.payload.talukUsers || []);
           setDistrictUsers(res.payload.districtUsers || []);
           setDirectorateUsers(res.payload.directorateUsers || []);
-        } else if (userRole === 'District Level Approver') {
+        } else if (userRole === 'Super Admin') {
+          // Super Admin sees all three categories
+          const res = await ApprovedUserService.fetchSuperAdminApprovedUsers();
+          console.log("resssss  super admin >>>  ",res)
+          if (res.error) throw new Error(res.message);
+          setTalukUsers(res.payload.talukUsers || []);
+          setDistrictUsers(res.payload.districtUsers || []);
+          setDirectorateUsers(res.payload.directorateUsers || []);
+        }
+        else if (userRole === 'District Level Approver') {
           // District Admin sees only district and taluk
           const res = await ApprovedUserService.fetchDistrictAdminApprovedUsers();
           if (res.error) throw new Error(res.message);
           setTalukUsers(res.payload.talukUsers || []);
           setDistrictUsers(res.payload.districtUsers || []);
           setDirectorateUsers([]); // No directorate users for district admin
-        } else {
+        } 
+        else if (userRole === 'Taluk Level Approver') {
+          // Taluk Admin sees only taluk
+          const res = await ApprovedUserService.fetchTalukAdminApprovedUsers();
+          if (res.error) throw new Error(res.message);
+          console.log("resssss  >>>  ",res)
+          setTalukUsers(res.payload.talukUsers || []);
+          setDistrictUsers([]); // No district users for taluk admin
+          setDirectorateUsers([]); // No directorate users for taluk admin
+        } 
+        else {
           setError('Unauthorized or unknown admin role');
         }
       } catch (err) {
@@ -184,6 +191,7 @@ const RoleList = () => {
 
   return (
     <div>
+        <Breadcrumb></Breadcrumb>
       <Paper elevation={3} style={{ marginBottom: '16px', padding: '10px' }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" style={{ fontWeight: 'bold', color: '#333' }}>

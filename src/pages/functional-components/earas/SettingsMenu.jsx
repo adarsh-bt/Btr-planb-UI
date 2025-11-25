@@ -27,7 +27,7 @@ const SettingsMenu = () => {
       <Breadcrumb />
       <Grid item xs={12}>
         <Typography variant="h3" sx={{ marginBottom: 2 }}>
-          EARAS
+          EARAS Management
         </Typography>
         <MainCard title="">
           <Grid container spacing={4} alignItems="stretch">
@@ -35,7 +35,7 @@ const SettingsMenu = () => {
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                to="/schemes/earas/zonesettings"
+                to="/schemes/earas/earas_management/zonesettings"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',
@@ -68,7 +68,7 @@ const SettingsMenu = () => {
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
                     <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Key plot / Cluster Area Limit
+                      Zone Settings
                     </Typography>
                     {/* Subtitle removed from here */}
                   </CardContent>
@@ -81,7 +81,7 @@ const SettingsMenu = () => {
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                to="/schemes/earas/CCE_crop_selection"
+                to="/schemes/earas/earas_management/CCE_crop_selection"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',

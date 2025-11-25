@@ -34,10 +34,12 @@ import {
 } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import mainapi from "api/mainapi";
+import authservice from "pages/authentication/services/authservice";
+import Breadcrumb from "routes/Breadcrumb";
 
 const landTypeOptions = ["Wet", "Dry"];
 const TOTAL_REQUIRED = 100;
-const BASE_URL = mainapi.BASE_URL;
+
 
 /** * A robust fetch wrapper that handles non-OK responses and non-JSON content. */
 const robustFetch = async (url) => {
@@ -67,7 +69,9 @@ const KeyPlotEntry = () => {
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  const BASE_URL = mainapi.BTR_API;
+    const [listTypes, setListTypes] = useState({});
+
+  const BASE_URL = mainapi.BASE_URL;
   
   // Confirmation Modal State
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -93,7 +97,7 @@ const KeyPlotEntry = () => {
       return userItem ? JSON.parse(userItem) : null;
     } catch (error) {
       console.error("Failed to parse user info from localStorage:", error);
-      localStorage.removeItem("user");
+   
       return null;
     }
   };
@@ -101,7 +105,7 @@ const KeyPlotEntry = () => {
   // Read IDs from localStorage
   const zoneId = typeof window !== "undefined" ? localStorage.getItem("activeZone") : null;
   const userInfo = getUserInfo();
-  const userId = userInfo?.id || "3fa85f64-5717-4562-b3fc-2c963f66afa6";
+  const userId = authservice.userid();
 
   // Auto-close success modal after 3 seconds
   useEffect(() => {
@@ -134,45 +138,72 @@ const KeyPlotEntry = () => {
   }, [showErrorModal]);
 
   // --- Data Fetching ---
-  useEffect(() => {
-    if (!zoneId) {
-      setLoading(false);
-      setError("No active zone selected. Please select a zone first.");
-      toast.warn("No active zone found.");
-      return;
-    }
-    const fetchData = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const [lbData, villageData, distData, talukData] = await Promise.all([
-          robustFetch(`${BASE_URL}/btr-service/localbodies/by-zone/${zoneId}`),
-          robustFetch(`${BASE_URL}/btr-service/localbodies/revenue-villages/${zoneId}`),
-          robustFetch(`${BASE_URL}/btr-service/localbodies/district/${zoneId}`),
-          robustFetch(`${BASE_URL}/btr-service/localbodies/revenue-taluks/${zoneId}`),
-        ]);
-        setLocalBodies(lbData || []);
-        setVillageOptions(villageData || []);
-        setDistrictInfo(distData);
-        setTalukInfo(talukData || []);
-        // Initialize localBodyData state for each fetched local body
-        setLocalBodyData((prev) => {
-          const next = { ...prev };
-          (lbData || []).forEach((lb) => {
-            if (!next[lb.id]) next[lb.id] = [];
-          });
-          return next;
-        });
-      } catch (err) {
-        console.error("Data fetching error:", err);
-        setError(err.message);
-        toast.error(`Data loading failed: ${err.message}`);
-      } finally {
-        setLoading(false);
+useEffect(() => {
+  if (!zoneId) {
+    setLoading(false);
+    setError("No active zone selected. Please select a zone first.");
+    toast.warn("No active zone found.");
+    return;
+  }
+
+  const fetchData = async () => {
+    setLoading(true);
+    setError("");
+    const BASE_URL = mainapi.BASE_URL;
+    const urls = [
+      `${BASE_URL}/btr-service/localbodies/by-zone/${zoneId}`,
+      `${BASE_URL}/btr-service/localbodies/revenue-villages/${zoneId}`,
+      `${BASE_URL}/btr-service/localbodies/district/${zoneId}`,
+      `${BASE_URL}/btr-service/localbodies/revenue-taluks/${zoneId}`,
+    ];
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error("No token found, please log in again.");
       }
-    };
-    fetchData();
-  }, [zoneId]);
+
+      const requests = urls.map(url =>
+        fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          }
+        }).then(res => {
+          if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.statusText}`);
+          return res.json();
+        })
+      );
+
+      const [lbData, villageData, distData, talukData] = await Promise.all(requests);
+
+      setLocalBodies(lbData || []);
+      setVillageOptions(villageData || []);
+      setDistrictInfo(distData);
+      setTalukInfo(talukData || []);
+
+      setLocalBodyData(prev => {
+        const next = { ...prev };
+        (lbData || []).forEach(lb => {
+          if (!next[lb.id]) next[lb.id] = [];
+        });
+        return next;
+      });
+
+    } catch (err) {
+      console.error("Data fetching error:", err);
+      setError(err.message);
+      toast.error(`Data loading failed: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchData();
+
+}, [zoneId]);
+
+
 
   // --- Memoized Lookups ---
   const villageInfoMap = useMemo(() => {
@@ -241,8 +272,8 @@ const KeyPlotEntry = () => {
       case 'surveyNo':
         return !value ? 'Survey Number is required' :
                 !/^\d+$/.test(value) ? 'Survey Number must be numeric' : null;
-      case 'subDivNo':
-        return !value ? 'Sub Division Number is required' : null;
+      // case 'subDivNo':
+      //   return !value ? 'Sub Division Number is required' : null;
       case 'area':
         return !value ? 'Area is required' :
                 !/^\d*\.?\d+$/.test(value) ? 'Area must be a valid number' : null;
@@ -288,6 +319,30 @@ const KeyPlotEntry = () => {
     setShowConfirmModal(false);
   };
 
+  // Add near other handlers
+const handleLocalBodyChange = (tabLbId, rowId, selectedLbId) => {
+  const lb = localBodies.find(b => b.id === selectedLbId);
+  setLocalBodyData(prev => ({
+    ...prev,
+    [tabLbId]: prev[tabLbId].map(row =>
+      row.id === rowId
+        ? { ...row, lbIdSelected: selectedLbId, localBody: lb?.name || '' }
+        : row
+    )
+  }));
+
+  // clear field error for Local Body if you track it
+  const errorKey = `${tabLbId}-${rowId}-localBody`;
+  if (fieldErrors[errorKey]) {
+    setFieldErrors(prev => {
+      const next = { ...prev };
+      delete next[errorKey];
+      return next;
+    });
+  }
+};
+
+
   const handleActualSave = async () => {
     if (!districtInfo || talukInfo.length === 0) {
       toast.error("District or Taluk data is not yet loaded. Please wait.");
@@ -326,29 +381,34 @@ const KeyPlotEntry = () => {
       setIsSaving(false);
       return;
     }
-
+    console.log(">     >> ---  ", localBodyInfoMap);
+    const zoneId = authservice.getzone();
     const payload = allKeyplots.map((row) => {
-      const villageData = villageInfoMap.get(row.village);
-      const localBodyData = localBodyInfoMap.get(row.lbId);
-      if (!villageData || !localBodyData || !row.surveyNo) {
-        return null;
-      }
-            
-      return {
-        dcode: districtInfo.distId,
-        tcode: talukInfo[0].revenueTalukId,
-        vcode: villageData.vcode,
-        lsgcode: villageData.lsgcode,
-        lbcode: localBodyData.lbcode,
-        zoneId: parseInt(zoneId, 10),
-        user_id: userId,
-        bcode: parseInt(row.villageBlock, 10) || null,
-        ltype: row.landType.toUpperCase(),
-        resvno: parseInt(row.surveyNo, 10),
-        resbdno: row.subDivNo,
-        totCent: row.area
-      };
-    }).filter(Boolean);
+  const villageData = villageInfoMap.get(row.village);
+
+  // Prefer per-row selected Local Body id, fallback to tab lbId
+  const rowLbId = row.lbIdSelected ?? row.lbId;
+  const lbInfo = localBodyInfoMap.get(rowLbId);
+
+  if (!villageData || !lbInfo || !row.surveyNo) return null;
+
+  return {
+    dcode: districtInfo.distId,
+    tcode: talukInfo[0]?.revenueTalukId,
+    vcode: villageData.vcode,
+    lsgcode: villageData.lsgcode,
+    lbcode: lbInfo.lbcode,
+    zoneId: parseInt(zoneId, 10),
+    userid: userId,
+    bcode: row.villageBlock ?? null,
+    ltype: row.landType.toUpperCase(),
+    resvno: parseInt(row.surveyNo, 10),
+    resbdno: row.subDivNo,
+    totCent: row.area,
+    btrtype: 1,
+  };
+}).filter(Boolean);
+
 
     if (payload.length !== totalKeyplots) {
       toast.error("Some rows have missing or invalid data. Please check all fields.");
@@ -357,14 +417,20 @@ const KeyPlotEntry = () => {
     }
 
     try {
-      const response = await fetch(
-          `${BASE_URL}/btr-service/api/btr-data/saveAll`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
+      const token = localStorage.getItem('token');
+
+  const response = await fetch(
+    `${BASE_URL}/btr-service/api/btr-data/saveAll`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
       const result = await response.json();
       if (!response.ok) {
         // Handle different types of error responses from backend
@@ -398,6 +464,7 @@ const KeyPlotEntry = () => {
         return;
       }
       // Success response
+      console.log("API save response:", result);
       if (result.status === "Success") {
         const savedKeyplotCount = result.ids?.length || totalKeyplots;
         setSavedCount(savedKeyplotCount);
@@ -405,8 +472,12 @@ const KeyPlotEntry = () => {
         toast.success(`Successfully saved! All ${savedKeyplotCount} keyplots have been saved successfully.`);
         console.log("Save successful:", result);
         // Optional: Reset form state after successful save
-        // setLocalBodyData({});
+          setLocalBodyData({});
+        setDuplicateErrors({});
+        setClientDuplicateErrors({});
+        setFieldErrors({});
         clearValidationErrors();
+        
       } else {
         toast.warning("Unexpected response format from server.");
         setShowErrorModal(true);
@@ -500,6 +571,8 @@ const KeyPlotEntry = () => {
           {
             id: newId,
             slNo: newSlNo,
+            lbIdSelected: lbId,     // default to tab local body id
+            localBody: localBodies.find(b => b.id === lbId)?.name || '',
             village: "",
             villageBlock: "",
             villageBlockOptions: [],
@@ -512,6 +585,24 @@ const KeyPlotEntry = () => {
       };
     });
   };
+
+  // Add this function after your existing helper functions, around line 280
+const areAllFieldsFilled = (lbId) => {
+  const rows = localBodyData[lbId] || [];
+  if (rows.length === 0) return true; // Allow adding first row
+  
+  return rows.every((row) => {
+    return (
+      row.village &&
+      row.villageBlock &&
+      row.surveyNo &&
+      // row.subDivNo &&
+      row.area &&
+      row.landType
+    );
+  });
+};
+
 
   const handleDeleteRow = (lbId, rowId) => {
     setLocalBodyData((prev) => ({
@@ -595,13 +686,71 @@ const KeyPlotEntry = () => {
 
   return (
     <Grid container spacing={3}>
+    <Breadcrumb> </Breadcrumb> 
       <Box sx={{ p: 3, maxWidth: 1400, margin: "0 auto", width: "100%" }}>
         <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
           KeyPlot Entry 
           {/* (Total Required: {TOTAL_REQUIRED}) */}
         </Typography>
-        {localBodies.length > 0 && (
+        {/* {localBodies.length > 0 && (
+  <Paper elevation={3} sx={{ mb: 2 }}>
+    <Box sx={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      px: 2, 
+      pt: 2, 
+      pb: 1,
+      gap: 2 
+    }}>
+      <Typography 
+        variant="h6" 
+        sx={{ 
+          fontWeight: 'bold', 
+          color: '#05307a',
+          minWidth: 'max-content',
+          flexShrink: 0
+        }}
+      >
+        Local Body:
+      </Typography>
+      <Tabs
+        value={activeTab}
+        onChange={(e, newVal) => setActiveTab(newVal)}
+        indicatorColor="primary"
+        textColor="primary"
+        variant="scrollable"
+        scrollButtons="auto"
+        sx={{ flex: 1 }}
+      >
+        {localBodies.map((lb, index) => {
+          const rowCount = (localBodyData[lb.id] || []).length;
+          const hasErrors = Object.keys(fieldErrors).some(key => key.startsWith(`${lb.id}_`)) ||
+                           Object.keys(duplicateErrors).some(key => key.startsWith(`${lb.id}_`)) ||
+                           Object.keys(clientDuplicateErrors).some(key => key.startsWith(`${lb.id}_`));
+                          
+          return (
+            <Tab
+              key={lb.id}
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {`${lb.name} (${rowCount})`}
+                  {hasErrors && <ErrorIcon color="error" fontSize="small" />}
+                </Box>
+              }
+              id={`tab-${index}`}
+            />
+          );
+        })}
+      </Tabs>
+    </Box>
+  </Paper>
+)} */}
+
+
+
+        {/* {localBodies.length > 0 && (
           <Paper elevation={3} sx={{ mb: 2 }}>
+            
             <Tabs
               value={activeTab}
               onChange={(e, newVal) => setActiveTab(newVal)}
@@ -631,7 +780,7 @@ const KeyPlotEntry = () => {
               })}
             </Tabs>
           </Paper>
-        )}
+        )} */}
         {localBodies.map((lb, idx) => {
           const rows = localBodyData[lb.id] || [];
           return (
@@ -647,7 +796,8 @@ const KeyPlotEntry = () => {
                     <Table stickyHeader>
                       <TableHead>
                         <TableRow>
-                          {["Sl. No", "Village", "Village Block", "Survey No.", "Sub Div No.", "Area (Cents)", "Land Type", "Actions"].map((col) => (
+                         {["Sl. No", "Local Body", "Village", "Village Block", "Survey No.", "Sub Div No.", "Area (Cents)", "Land Type", "Actions"].map((col) => (
+
                             <TableCell key={col} align="center" sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}>
                               {col}
                             </TableCell>
@@ -675,6 +825,25 @@ const KeyPlotEntry = () => {
                                 )}
                               </Box>
                             </TableCell>
+                            <TableCell>
+                          <TextField
+  select
+  value={row.lbIdSelected ?? lb.id}               // default to tab’s lb.id on first render
+  onChange={(e) => handleLocalBodyChange(lb.id, row.id, Number(e.target.value))}
+  fullWidth
+  error={hasFieldError(lb.id, row.id, 'localBody')}
+  helperText={getFieldError(lb.id, row.id, 'localBody')}
+  size="small"
+>
+  {localBodies.map((opt) => (
+    <MenuItem key={opt.id} value={opt.id}>
+      {opt.name}
+    </MenuItem>
+  ))}
+</TextField>
+
+                        </TableCell>
+
                             <TableCell>
                               <TextField
                                  select
@@ -711,17 +880,32 @@ const KeyPlotEntry = () => {
                             <TableCell>
                               <TextField
                                  value={row.surveyNo}
-                                 onChange={(e) => handleChange(lb.id, row.id, "surveyNo", e.target.value)}
+                                 //has fixed the limit to 4 
+                                 onChange={(e) =>{
+                                //→ enforce max 4 digits
+                                const val = e.target.value.slice(0, 4); 
+                            
+                                handleChange(lb.id, row.id, "surveyNo",val)}}
                                 error={hasFieldError(lb.id, row.id, 'surveyNo')}
                                 helperText={getFieldError(lb.id, row.id, 'surveyNo')}
                                 size="small"
                                 fullWidth
+                                //made surveyno integer and setted limit to 4
+                                type="number"
+                                inputProps={{
+                                  maxLength:4,// stops user from typing more than 4 chars
+                                  pattern:"[0-9]*",// ensures only digits
+                               }}
                               />
                             </TableCell>
                             <TableCell>
                               <TextField
                                  value={row.subDivNo}
-                                 onChange={(e) => handleChange(lb.id, row.id, "subDivNo", e.target.value)}
+                                 onChange={(e) =>{
+                                  let val = e.target.value;
+                                   // 🔒 Limit to 4 characters (string)
+                                  val = val.slice(0,4);
+                                  handleChange(lb.id, row.id, "subDivNo", val)}}
                                 error={hasFieldError(lb.id, row.id, 'subDivNo')}
                                 helperText={getFieldError(lb.id, row.id, 'subDivNo')}
                                 size="small"
@@ -731,7 +915,13 @@ const KeyPlotEntry = () => {
                             <TableCell>
                               <TextField
                                  value={row.area}
-                                 onChange={(e) => handleChange(lb.id, row.id, "area", e.target.value)}
+                                 onChange={(e) => {
+                                   let val = e.target.value;
+                                   // 🔒 Allow only digits and one decimal point
+                                    val = val.replace(/[^0-9.]/g, ""); 
+                                    val = val.replace(/(\..*?)\..*/g, "$1"); 
+                                   val = val.slice(0, 4);
+                                  handleChange(lb.id, row.id, "area",val)}}
                                 error={hasFieldError(lb.id, row.id, 'area')}
                                 helperText={getFieldError(lb.id, row.id, 'area')}
                                 size="small"
@@ -763,16 +953,20 @@ const KeyPlotEntry = () => {
                         <TableRow>
                           <TableCell colSpan={8} align="right">
                             <Button
-                               startIcon={<AddCircle />}
-                               variant="outlined"
-                               color="success"
-                               onClick={() => handleAddRow(lb.id)}
-                              disabled={totalKeyplots >= TOTAL_REQUIRED}
+                              startIcon={<AddCircle />}
+                              variant="outlined"
+                              color="success"
+                              onClick={() => handleAddRow(lb.id)}
+                              disabled={
+                                totalKeyplots >= TOTAL_REQUIRED || 
+                                !areAllFieldsFilled(lb.id)
+                              }
                             >
                               Add Keyplot
                             </Button>
                           </TableCell>
                         </TableRow>
+
                       </TableBody>
                     </Table>
                   </TableContainer>
