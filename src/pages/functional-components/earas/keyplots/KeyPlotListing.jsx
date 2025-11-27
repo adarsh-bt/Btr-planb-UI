@@ -47,10 +47,15 @@ import {
   FileDownload as ExportIcon,
   Refresh as RefreshIcon,
   FilterList as FilterIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  Info as InfoIcon,
+  Description as DescriptionIcon,
+  LocationOn as LocationOnIcon,
+  InfoOutlined as InfoOutlineIcon
 } from '@mui/icons-material';
 import mainapi from 'api/mainapi';
 import authservice from 'pages/authentication/services/authservice';
+import { pl } from 'date-fns/locale';
 
 const KeyPlotListing = ({zoneId}) => {
   // State management
@@ -113,12 +118,24 @@ const KeyPlotListing = ({zoneId}) => {
       id: plot.keyplotId,
       plot_id: plot.keyplotId,
       slNo: index + 1,
-      syNo: plot.syNo,
+      syNo: plot.syNo && !['null', 'null/', 'undefined', ''].includes(plot.syNo.trim().toLowerCase())
+  ? plot.syNo
+  : 'NA',
+
       panchayth: plot.panchayath,
       area: plot.areaCents,
+      btyType: plot.btr_type,
       villageBlock: plot.villageBlock,
       landType: plot.landType,
       kvillageName: plot.kvillageName,
+      ownerName: plot.ownerName,
+      address: plot.address,
+      wardNo: plot.wardNo,
+      houseNo: plot.houseNo,
+      tpNo: plot.tpNo,
+      tpSubNo: plot.tpSubNo,
+      oldsuvNo: plot.oldsuvNo,
+      oldsubNo: plot.oldsubNo,
       action: "View Cluster"
     }));
   };
@@ -147,7 +164,7 @@ const KeyPlotListing = ({zoneId}) => {
       const data = await response.json();
       const plots = data.payload || [];
       const transformedPlots = transformPlotData(plots);
-      console.log("key >>>> "+transformedPlots);
+      // console.log("key >>>> "+transformedPlots);
       
       setPlotData(transformedPlots);
       setDataVisible(plots.length > 0);
@@ -170,9 +187,9 @@ const KeyPlotListing = ({zoneId}) => {
       
       setPanchayathAreaSummary(panchayathSummary);
       
-      setSnackbarMessage(`Successfully loaded ${plots.length} keyplots`);
-      setSnackbarSeverity('success');
-      setSnackbarOpen(true);
+      // setSnackbarMessage(`Successfully loaded ${plots.length} keyplots`);
+      // setSnackbarSeverity('success');
+      // setSnackbarOpen(true);
       
     } catch (err) {
       setError(err.message);
@@ -207,7 +224,9 @@ const KeyPlotListing = ({zoneId}) => {
       }
       
       const data = await response.json();
+      console.log("plot details >>>> ",data);
       setPlotDetailsData(data.payload);
+      
       
     } catch (err) {
       console.error('Error fetching plot details:', err);
@@ -266,7 +285,7 @@ const KeyPlotListing = ({zoneId}) => {
 
   // Filter and sort data
   const filteredSortedAndPaginatedData = useMemo(() => {
-    const visibleKeys = ['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'landType'];
+    const visibleKeys = ['slNo', 'syNo', 'panchayth', 'village','area', 'villageBlock', 'landType'];
 
     let filtered = plotData.filter((row) => {
       const matchesSearch = !searchTerm || 
@@ -329,7 +348,7 @@ const KeyPlotListing = ({zoneId}) => {
 
   // Handle view plot - Updated to fetch details and open modal
   const handleViewPlot = async (keyplotId) => {
-    console.log('Viewing plot:', keyplotId);
+    // console.log('Viewing plot:', keyplotId);
     setOpenPlotDetailsModal(true);
     await fetchPlotDetails(keyplotId);
   };
@@ -416,34 +435,34 @@ const KeyPlotListing = ({zoneId}) => {
   };
 
   // Export to CSV
-  const exportToCSV = () => {
-    const headers = ['Sl No', 'Sy No', 'Village', 'Area (Cents)', 'Village Block', 'Land Type'];
-    const csvData = [
-      headers.join(','),
-      ...plotData.map((plot, index) => [
-        index + 1,
-        `"${plot.syNo}"`,
-        `"${plot.kvillageName}"`,
-        plot.area?.toFixed(2) || '0.00',
-        `"${plot.villageBlock}"`,
-        `"${plot.landType}"`
-      ].join(','))
-    ].join('\n');
+  // const exportToCSV = () => {
+  //   const headers = ['Sl No', 'Sy No', 'Panchayth' ,'Village', 'Area (Cents)', 'Village Block', 'Land Type'];
+  //   const csvData = [
+  //     headers.join(','),
+  //     ...plotData.map((plot, index) => [
+  //       index + 1,
+  //       `"${plot.syNo}"`,
+  //       `"${plot.kvillageName}"`,
+  //       plot.area?.toFixed(2) || '0.00',
+  //       `"${plot.villageBlock}"`,
+  //       `"${plot.landType}"`
+  //     ].join(','))
+  //   ].join('\n');
 
-    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `keyplots_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  //   const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+  //   const link = document.createElement('a');
+  //   const url = URL.createObjectURL(blob);
+  //   link.setAttribute('href', url);
+  //   link.setAttribute('download', `keyplots_${new Date().toISOString().split('T')[0]}.csv`);
+  //   link.style.visibility = 'hidden';
+  //   document.body.appendChild(link);
+  //   link.click();
+  //   document.body.removeChild(link);
     
-    setSnackbarMessage(`Exported ${plotData.length} records to CSV`);
-    setSnackbarSeverity('success');
-    setSnackbarOpen(true);
-  };
+  //   setSnackbarMessage(`Exported ${plotData.length} records to CSV`);
+  //   setSnackbarSeverity('success');
+  //   setSnackbarOpen(true);
+  // };
 
   // Generate keyplot handler (placeholder)
   const handleGenerateKeyplot = async () => {
@@ -613,7 +632,7 @@ const KeyPlotListing = ({zoneId}) => {
                     >
                       Clear Filters
                     </Button>
-                    <Button
+                    {/* <Button
                       startIcon={<ExportIcon />}
                       onClick={exportToCSV}
                       variant="contained"
@@ -621,7 +640,7 @@ const KeyPlotListing = ({zoneId}) => {
                       disabled={plotData.length === 0}
                     >
                       Export CSV
-                    </Button>
+                    </Button> */}
                   </Stack>
                 </Grid>
               </Grid>
@@ -634,7 +653,7 @@ const KeyPlotListing = ({zoneId}) => {
               <Table stickyHeader sx={{ tableLayout: 'fixed' }}>
                 <TableHead>
                   <TableRow>
-                    {['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'landType'].map((col) => (
+                    {['slNo', 'syNo', 'panchayth', 'village','villageBlock', 'area','landType'].map((col) => (
                       <TableCell
                         key={col}
                         align="center"
@@ -692,8 +711,9 @@ const KeyPlotListing = ({zoneId}) => {
                         <TableCell align="center">{row.slNo}</TableCell>
                         <TableCell align="center">{row.syNo}</TableCell>
                         <TableCell align="center">{row.panchayth}</TableCell>
-                        <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
+                        <TableCell align="center">{row.kvillageName}</TableCell>
                         <TableCell align="center">{row.villageBlock}</TableCell>
+                        <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
                         <TableCell align="center">{row.landType}</TableCell>
                         <TableCell align="center">
                           <Button
@@ -756,105 +776,505 @@ const KeyPlotListing = ({zoneId}) => {
 <Dialog 
   open={openPlotDetailsModal} 
   onClose={handleClosePlotDetailsModal}
-  maxWidth="sm"
+  maxWidth="md"
   fullWidth
   PaperProps={{
     sx: {
-      borderRadius: 2,
-      boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+      borderRadius: 3,
+      boxShadow: '0 16px 48px rgba(0,0,0,0.15)',
+      overflow: 'hidden'
     }
   }}
 >
+  {/* Header with Gradient Background */}
   <DialogTitle sx={{ 
-    backgroundColor: '#05307a', 
+    background: 'linear-gradient(135deg, #05307a 0%, #1976d2 100%)', 
     color: 'white', 
     display: 'flex', 
     justifyContent: 'space-between', 
     alignItems: 'center',
-    py: 1.5
+    py: 2.5,
+    position: 'relative',
+    '&::after': {
+      content: '""',
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: '2px',
+      background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)'
+    }
   }}>
-    <Typography variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
-      KeyPlot Details
-    </Typography>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <InfoIcon sx={{ fontSize: 28, opacity: 0.9 }} />
+      <Box>
+        <Typography variant="h5" component="div" sx={{ fontWeight: '700', lineHeight: 1.2 }}>
+          KeyPlot Details
+        </Typography>
+        <Typography variant="body2" sx={{ opacity: 0.8, mt: 0.5 }}>
+          Complete plot information and specifications
+        </Typography>
+      </Box>
+    </Box>
     <IconButton 
       onClick={handleClosePlotDetailsModal} 
-      sx={{ color: 'white' }}
+      sx={{ 
+        color: 'white',
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        '&:hover': { 
+          backgroundColor: 'rgba(255,255,255,0.2)',
+          transform: 'scale(1.1)'
+        },
+        transition: 'all 0.2s ease',
+        width: 40,
+        height: 40
+      }}
       size="small"
     >
       <CloseIcon />
     </IconButton>
   </DialogTitle>
   
-  <DialogContent sx={{ p: 2 }}>
+  {/* Content Area */}
+  <DialogContent sx={{ p: 0, backgroundColor: '#fafbfc' }}>
+    {/* Loading State */}
     {plotDetailsLoading && (
-      <Box display="flex" justifyContent="center" alignItems="center" py={3}>
-        <CircularProgress size={30} thickness={4} />
-        <Typography variant="body1" sx={{ ml: 2 }}>Loading plot details...</Typography>
+      <Box 
+        display="flex" 
+        justifyContent="center" 
+        alignItems="center" 
+        py={6}
+        flexDirection="column"
+        gap={2}
+      >
+        <CircularProgress 
+          size={40} 
+          thickness={4} 
+          sx={{ color: '#05307a' }}
+        />
+        <Box textAlign="center">
+          <Typography variant="h6" color="text.primary" gutterBottom>
+            Loading Plot Details
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Please wait while we fetch the information...
+          </Typography>
+        </Box>
       </Box>
     )}
 
+    {/* Error State */}
     {plotDetailsError && (
-      <Box sx={{ textAlign: 'center', py: 3 }}>
-        <Typography variant="h6" color="error" gutterBottom>
-          Error Loading Plot Details
+      <Box sx={{ textAlign: 'center', py: 6, px: 3 }}>
+        <ErrorOutlineIcon 
+          sx={{ fontSize: 64, color: '#d32f2f', mb: 2, opacity: 0.7 }} 
+        />
+        <Typography variant="h6" color="error" gutterBottom sx={{ fontWeight: '600' }}>
+          Unable to Load Plot Details
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 400, mx: 'auto' }}>
           {plotDetailsError}
         </Typography>
+        <Button 
+          variant="outlined" 
+          color="error"
+          onClick={() => window.location.reload()}
+          startIcon={<RefreshIcon />}
+        >
+          Try Again
+        </Button>
       </Box>
     )}
 
+    {/* Success State */}
     {plotDetailsData && !plotDetailsLoading && (
-      <Card variant="outlined" sx={{ borderRadius: 2 }}>
-        <CardContent sx={{ p: 2 }}>
-          <Typography variant="h6" gutterBottom color="primary" sx={{ fontWeight: 'bold', mb: 1.5 }}>
-            Basic Information
-          </Typography>
-          <Grid container spacing={1.5}>
-            <Grid item xs={6}>
-              <Typography variant="body2" color="text.secondary">Survey No:</Typography>
-              <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>{plotDetailsData.syNo}</Typography>
+      <Box sx={{ p: 3 }}>
+        {/* Main Information Card */}
+        <Card 
+          sx={{ 
+            borderRadius: 3,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+            border: '1px solid',
+            borderColor: 'divider',
+            overflow: 'visible',
+            mb: 3
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            {/* Card Header */}
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              mb: 3,
+              pb: 2,
+              borderBottom: '2px solid',
+              borderColor: 'primary.light',
+              background: 'linear-gradient(135deg, #f8faff 0%, #f0f4ff 100%)',
+              mx: -3,
+              mt: -3,
+              px: 3,
+              py: 2,
+              borderRadius: '12px 12px 0 0'
+            }}>
+              <DescriptionIcon sx={{ fontSize: 28, color: 'primary.main', mr: 2 }} />
+              <Box>
+                <Typography variant="h5" sx={{ fontWeight: '700', color: 'primary.main' }}>
+                  Basic Information
+                </Typography>
+                <Typography variant="body2" color="primary.dark" sx={{ opacity: 0.8 }}>
+                  Survey number and location details
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* Information Grid */}
+            <Grid container spacing={3}>
+              {/* Survey Number - Highlighted */}
+              <Grid item xs={12} md={4}>
+                <Paper
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 2,
+                    background: 'linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%)',
+                    border: '1px solid',
+                    borderColor: 'primary.100',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '4px',
+                      height: '100%',
+                      background: 'linear-gradient(180deg, #05307a 0%, #1976d2 100%)'
+                    }
+                  }}
+                >
+                  <Typography variant="caption" sx={{ 
+                    color: 'primary.main', 
+                    fontWeight: '600',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    fontSize: '0.75rem'
+                  }}>
+                    BTR Type
+                  </Typography>
+                  <Typography variant="h4" sx={{ 
+                    fontWeight: '800', 
+                    color: 'primary.dark',
+                    mt: 0.5
+                  }}>
+                    {plotDetailsData.btr_type}
+                  </Typography>
+                </Paper>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Paper
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 2,
+                    background: plotDetailsData.landType === 'Wet' ? 'linear-gradient(135deg, #83fd9dff 0%, #8dce87ff 100%)' : 'linear-gradient(135deg, #fab2b2ff 0%, #ffd0d0ff 100%)',
+                    border: '1px solid',
+                    borderColor: 'primary.100',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '4px',
+                      height: '100%',
+                      background: 'linear-gradient(180deg, #787a05ff 0%, #91d219ff 100%)'
+                    }
+                  }}
+                >
+                  <Typography variant="caption" sx={{ 
+                    color: 'primary.main', 
+                    fontWeight: '600',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    fontSize: '0.75rem'
+                  }}>
+                    Land Type
+                  </Typography>
+                  <Typography variant="h4" sx={{ 
+                    fontWeight: '800', 
+                    color: 'primary.dark',
+                    mt: 0.5
+                  }}>
+                    {plotDetailsData.landType}
+                  </Typography>
+                </Paper>
+              </Grid>
+
+              {/* Area - Highlighted */}
+              <Grid item xs={12} md={4}>
+                <Paper
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 2,
+                    background: 'linear-gradient(135deg, #bee3eeff 0%, #f1f8e9 100%)',
+                    border: '1px solid',
+                    borderColor: 'success.100',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '4px',
+                      height: '100%',
+                      background: 'linear-gradient(180deg, #2e7d32 0%, #4caf50 100%)'
+                    }
+                  }}
+                >
+                  <Typography variant="caption" sx={{ 
+                    color: 'success.main', 
+                    fontWeight: '600',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    fontSize: '0.75rem'
+                  }}>
+                    Total Area
+                  </Typography>
+                  <Typography variant="h4" sx={{ 
+                    fontWeight: '800', 
+                    color: 'success.dark',
+                    mt: 0.5
+                  }}>
+                    {parseFloat(plotDetailsData.areaCents).toFixed(2)} <Typography component="span" variant="h6" sx={{ fontWeight: '600' }}>Cents</Typography>
+                  </Typography>
+                </Paper>
+              </Grid>
+
+              {/* Location Details */}
+              <Grid item xs={12}>
+                <Typography variant="h6" sx={{ 
+                  fontWeight: '600', 
+                  color: 'text.primary',
+                  mb: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}>
+                  <LocationOnIcon sx={{ color: 'primary.main', fontSize: 22 }} />
+                  Location Information
+                </Typography>
+              </Grid>
+
+              {/* Location Grid */}
+              <Grid item xs={12} md={4}>
+                <Box sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: '500', mb: 1 }}>
+                    Panchayath
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: '600', color: 'text.primary' }}>
+                    {plotDetailsData.panchayath}
+                  </Typography>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <Box sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: '500', mb: 1 }}>
+                    Village
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: '600', color: 'text.primary' }}>
+                    {plotDetailsData.kvillageName}
+                  </Typography>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <Box sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: '500', mb: 1 }}>
+                    Village Block
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: '600', color: 'text.primary' }}>
+                    {plotDetailsData.villageBlock}
+                  </Typography>
+                </Box>
+              </Grid>
+
+                <Grid item xs={12} md={4}>
+                <Box sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: '500', mb: 1 }}>
+                    Survey Number
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: '600', color: 'text.primary' }}>
+                     {!plotDetailsData.syNo || plotDetailsData.syNo === "null" || plotDetailsData.syNo === "null/" ? "NA" : plotDetailsData.syNo}
+                  </Typography>
+                </Box>
+              </Grid>
+                    <Grid item xs={12} md={4}>
+                <Box sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: '500', mb: 1 }}>
+                    Owner Name
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: '600', color: 'text.primary' }}>
+                    {!plotDetailsData.ownerName || plotDetailsData.ownerName === "null" || plotDetailsData.ownerName === "null/" ? "NA" : plotDetailsData.ownerName}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Box sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: '500', mb: 1 }}>
+                    Address
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: '600', color: 'text.primary' }}>
+                    {!plotDetailsData.address || plotDetailsData.address === "null" || plotDetailsData.address === "null/" ? "NA" : plotDetailsData.address}
+                  </Typography>
+                </Box>
+              </Grid>
+              {plotDetailsData.btr_id === 2 && (
+               <Grid item xs={12} md={4}>
+                <Box sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: '500', mb: 1 }}>
+                    Ward Number
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: '600', color: 'text.primary' }}>
+                    {!plotDetailsData.wardNo || plotDetailsData.wardNo === "null" || plotDetailsData.wardNo === "null/" ? "NA" : plotDetailsData.wardNo}
+                  </Typography>
+                </Box>
+              </Grid>)}
+                {plotDetailsData.btr_id === 2 && (
+               <Grid item xs={12} md={4}>
+                <Box sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: '500', mb: 1 }}>
+                    House Number
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: '600', color: 'text.primary' }}>
+                    {!plotDetailsData.houseNo || plotDetailsData.houseNo === "null" || plotDetailsData.houseNo === "null/" ? "NA" : plotDetailsData.houseNo}
+                  </Typography>
+                </Box>
+              </Grid>)}
+                {plotDetailsData.btr_id === 4 && (
+                 <Grid item xs={12} md={4}>
+                <Box sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: '500', mb: 1 }}>
+                   Thandaper Number
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: '600', color: 'text.primary' }}>
+                    {!plotDetailsData.tpNo || plotDetailsData.tpNo === "null" || plotDetailsData.tpNo === "null/" ? "NA" : plotDetailsData.tpNo}
+                  </Typography>
+                </Box>
+              </Grid>)}
+                {plotDetailsData.btr_id === 4 && (
+                 <Grid item xs={12} md={4}>
+                <Box sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: '500', mb: 1 }}>
+                   Thandaper Subdivision
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: '600', color: 'text.primary' }}>
+                    {!plotDetailsData.tpSubNo || plotDetailsData.tpSubNo === "null" || plotDetailsData.tpSubNo === "null/" ? "NA" : plotDetailsData.tpSubNo}
+                  </Typography>
+                </Box>
+              </Grid>)}
+                    {plotDetailsData.btr_id === 5 && (
+              <Grid item xs={12} md={4}>
+                <Box sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: '500', mb: 1 }}>
+                   Old Survey Number
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: '600', color: 'text.primary' }}>
+                    {!plotDetailsData.oldsuvNo || plotDetailsData.oldsuvNo === "null" || plotDetailsData.oldsuvNo === "null/" ? "NA" : plotDetailsData.oldsuvNo}
+                  </Typography>
+                </Box>
+              </Grid>)}
+                        {plotDetailsData.btr_id === 5 && (
+              <Grid item xs={12} md={4}>
+                <Box sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: '500', mb: 1 }}>
+                   Old Subdivision Number
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: '600', color: 'text.primary' }}>
+                    {!plotDetailsData.oldsubNo || plotDetailsData.oldsubNo === "null" || plotDetailsData.oldsubNo === "null/" ? "NA" : plotDetailsData.oldsubNo}
+                  </Typography>
+                </Box>
+              </Grid>)}
+
+
+
+
+              {/* Land Type */}
+              {/* <Grid item xs={12}>
+                <Box sx={{ 
+                  p: 2.5, 
+                  backgroundColor: 'primary.50', 
+                  borderRadius: 2,
+                  border: '1px solid',
+                  borderColor: 'primary.100'
+                }}>
+                  <Typography variant="body2" color="primary.main" sx={{ fontWeight: '600', mb: 1 }}>
+                    Land Type
+                  </Typography>
+                  <Chip 
+                    label={plotDetailsData.landType}
+                    color="success"
+                    variant="filled"
+                    sx={{ 
+                      fontWeight: '700',
+                      fontSize: '0.9rem',
+                      px: 1,
+                      py: 0.5
+                    }}
+                  />
+                </Box>
+              </Grid> */}
             </Grid>
-            <Grid item xs={6}>
-              <Typography variant="body2" color="text.secondary">Panchayath:</Typography>
-              <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>{plotDetailsData.panchayath}</Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="body2" color="text.secondary">Village:</Typography>
-              <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>{plotDetailsData.kvillageName}</Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="body2" color="text.secondary">Village Block:</Typography>
-              <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>{plotDetailsData.villageBlock}</Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="body2" color="text.secondary">Area:</Typography>
-              <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1, color: '#05307a' }}>
-                {parseFloat(plotDetailsData.areaCents).toFixed(2)} Cents
-              </Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="body2" color="text.secondary">Land Type:</Typography>
-              <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
-                {plotDetailsData.landType}
-              </Typography>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* Additional Information Section (if needed) */}
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center',
+          mt: 2
+        }}>
+          <Chip 
+            icon={<InfoOutlineIcon/>}
+            label="Field Are Changed Based on Btr Type"
+            color="success"
+            variant="outlined"
+            sx={{ fontWeight: '600' }}
+          />
+        </Box>
+      </Box>
     )}
   </DialogContent>
   
-  <DialogActions sx={{ p: 1.5, backgroundColor: '#f8f9fa' }}>
+  {/* Footer Actions */}
+  <DialogActions sx={{ 
+    p: 3, 
+    backgroundColor: '#f8f9fa',
+    borderTop: '1px solid',
+    borderColor: 'divider'
+  }}>
     <Button 
       onClick={handleClosePlotDetailsModal}
       variant="contained"
+      startIcon={<CloseIcon />}
       sx={{ 
-        backgroundColor: '#05307a',
-        '&:hover': { backgroundColor: '#032050' }
+        background: 'linear-gradient(135deg, #05307a 0%, #1976d2 100%)',
+        borderRadius: 2,
+        px: 4,
+        py: 1,
+        fontWeight: '600',
+        fontSize: '1rem',
+        textTransform: 'none',
+        boxShadow: '0 4px 12px rgba(5, 48, 122, 0.3)',
+        '&:hover': { 
+          background: 'linear-gradient(135deg, #032050 0%, #1565c0 100%)',
+          boxShadow: '0 6px 16px rgba(5, 48, 122, 0.4)',
+          transform: 'translateY(-1px)'
+        },
+        transition: 'all 0.3s ease'
       }}
     >
-      Close
+      Close Details
     </Button>
   </DialogActions>
 </Dialog>

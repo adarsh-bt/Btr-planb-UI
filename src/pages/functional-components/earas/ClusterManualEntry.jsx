@@ -19,8 +19,9 @@ import {
     FormControlLabel,
     CircularProgress,
     Snackbar,
-    Alert
+    Alert,Card,CardContent
 } from '@mui/material';
+import { ArrowDownward, ArrowUpward, TrendingFlat } from '@mui/icons-material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import MapIcon from '@mui/icons-material/Map';
@@ -33,20 +34,16 @@ import GrassIcon from '@mui/icons-material/Grass';
 import mainapi from 'api/mainapi';
 import Autocomplete from '@mui/material/Autocomplete';
 import authservice from 'pages/authentication/services/authservice';
+import Breadcrumb from 'routes/Breadcrumb';
 
 const BASE_URL = mainapi.BASE_URL;
 const FORM_URL = mainapi.FORM_API;
 
 // --- Constant for Side Plot Dropdown ---
-const SIDE_PLOT_OPTIONS = ['N1','N2','N3','N4','E1','E2','E3','E4','S1','S2','S3','S4','W1', 'W2', 'W3', 'W4'];
+const SIDE_PLOT_OPTIONS = ['S1','S2','S3','S4','W1', 'W2', 'W3', 'W4','N1','N2','N3','N4','E1','E2','E3','E4'];
 
 // --- Sample Data for Dropdowns & Modal ---
-const cropOptions = [
-    'Paddy', 'Banana', 'Tapioca', 'Ginger', 'Turmeric',
-    'Elephant Foot Yam', 'Taro', 'Sweet Potato', 'Bitter Gourd',
-    'Snake Gourd', 'Ash Gourd', 'Pumpkin', 'Cucumber', 'Beans',
-    'Cowpea', 'Bhindi', 'Brinjal', 'Green Chilli', 'Tomato'
-];
+const role = authservice.getrole();
 
 // --- Helper Function ---
 const isSamePlot = (rowA, rowB) => {
@@ -87,7 +84,7 @@ const ClusterFormUI = () => {
     const [keyplotSubNo, setKeyplotSubNo] = useState('');
     const [loading, setLoading] = useState(true);
     const [loadingResvno, setLoadingResvno] = useState(false);
-    
+    const totalAreaRef = useRef(null);
     // ✅ Submit-related states
     const [submitting, setSubmitting] = useState(false);
     const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -125,6 +122,9 @@ const [subdivisionDialogOpen, setSubdivisionDialogOpen] = useState(false);
 const [availableSubdivisions, setAvailableSubdivisions] = useState([]);
 const [selectedSubdivision, setSelectedSubdivision] = useState('');
 const [pendingPlot, setPendingPlot] = useState(null);
+// Add this with your other state declarations
+const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
+const [rowToDelete, setRowToDelete] = useState(null); // Stores { keyplotId, rowUniqueId, rowData }
     
     const [keyplotDetails, setKeyplotDetails] = useState({
         villageBlock: '',
@@ -142,6 +142,7 @@ const fetchCceCropDetails = async () => {
     try {
         const token = localStorage.getItem('token');
         const zoneid = authservice.getzone();
+   
         const response = await fetch(`${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops?zoneId=${zoneid}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -160,8 +161,8 @@ const fetchCceCropDetails = async () => {
     } catch (error) {
         console.error('Error fetching CCE crop details:', error);
         setCceCropDetails([]);
-        setSnackbarMessage('Failed to load crop details.');
-        setSnackbarOpen(true);
+        // setSnackbarMessage('Failed to load crop details.');
+        // setSnackbarOpen(true);
     } finally {
         setLoadingCrops(false);
     }
@@ -181,7 +182,7 @@ const handleUseRecommendedPlot = (type) => {
         row.area = validationInfo.totalcent.toString();
 
         if (type === 'remaining') {
-            row.enumeratedArea = validationInfo.remainingArea.toFixed(2);
+            row.enumeratedArea = validationInfo.uiUsedRemaining.toFixed(2);
         } else {
             row.enumeratedArea = '';
         }
@@ -209,7 +210,7 @@ const renderValidationDialogContent = () => {
                     <strong>Already Used:</strong> {validationInfo.usedArea} cents
                 </Typography>
                 <Typography variant="body2" sx={{ mb: 2 }}>
-                    <strong>Remaining Area:</strong> {validationInfo.remainingArea.toFixed(2)} cents
+                    <strong>Remaining Area:</strong> {validationInfo.uiUsedRemaining.toFixed(2)} cents
                 </Typography>
             </Box>
         );
@@ -226,7 +227,7 @@ const renderValidationDialogContent = () => {
                 )}
                 {validationInfo.remainingArea > 0 && (
                     <Typography variant="body2" sx={{ mb: 2 }}>
-                        <strong>Remaining Area:</strong> {validationInfo.remainingArea.toFixed(2)} cents
+                        <strong>Remaining Area:</strong> {validationInfo.uiUsedRemaining.toFixed(2)} cents
                     </Typography>
                 )}
             </Box>
@@ -252,7 +253,7 @@ const handleRejectPlot = () => {
     setKeyplotsData(newData);
     setIsValidationDialogOpen(false);
     setSnackbarMessage("This plot cannot be used. Please enter a different one.");
-    setSnackbarOpen(true);
+    // setSnackbarOpen(true);
 };
 
 const checkPlotUsageInCurrentForm = (plotIdentifier, currentRowUniqueId) => {
@@ -264,7 +265,7 @@ const checkPlotUsageInCurrentForm = (plotIdentifier, currentRowUniqueId) => {
         const rowPlotIdentifier = `${row.villageName}-${row.block}-${row.svNo}-${row.sub || ''}`;
         return rowPlotIdentifier === plotIdentifier;
     });
-
+// alert(duplicateRows.length);
     if (duplicateRows.length === 0) {
         return { isUsed: false };
     }
@@ -301,6 +302,16 @@ const checkPlotUsageInCurrentForm = (plotIdentifier, currentRowUniqueId) => {
     };
 };
 
+const getUiUsedArea = (plotIdentifier, currentRowId) => {
+  const allRows = keyplotsData.flatMap(kp => kp.rows);
+
+  return allRows.reduce((sum, r) => {
+    const id = `${r.villageId}-${r.block}-${r.svNo}-${r.sub || ''}`;
+    if (id !== plotIdentifier) return sum;
+    if (r.uniqueId === currentRowId) return sum;
+    return sum + (parseFloat(r.enumeratedArea) || 0);
+  }, 0);
+};
 
 const handlePlotValidation = async (keyplotId, rowUniqueId) => {
     const keyplot = keyplotsData.find(k => k.id === keyplotId);
@@ -372,19 +383,47 @@ const handlePlotValidation = async (keyplotId, rowUniqueId) => {
                     setPendingPlot({ keyplotId, rowUniqueId, validationInfo: data });
                     setSubdivisionDialogOpen(true);
                 } else {
-                    setValidationInfo(data);
-                    setValidatingRow({ keyplotId, rowUniqueId });
-                    setIsValidationDialogOpen(true);
+                    // Calculate UI-used BEFORE dialog
+const plotIdentifier = `${row.villageId}-${row.block}-${row.svNo}-${row.sub || ''}`;
+const uiUsed = getUiUsedArea(plotIdentifier, row.uniqueId);
+
+const backendRem = data.remainingArea || data.remaining_area || 0;
+const finalRemaining = backendRem - uiUsed;
+
+// Store backend remaining on row
+const newData = [...keyplotsData];
+const kp = newData.find(k => k.id === keyplotId);
+const rowU = kp.rows.find(r => r.uniqueId === rowUniqueId);
+
+if (rowU) {
+    rowU.totalArea = data.totalcent || 0;
+    rowU.backendRemaining = backendRem;
+}
+
+setKeyplotsData(newData);
+
+// Show dialog with UI-calculated remaining also added
+setValidationInfo({
+    ...data,
+    uiUsed: uiUsed,
+    uiUsedRemaining: finalRemaining,
+    backendRemaining: backendRem
+});
+
+setValidatingRow({ keyplotId, rowUniqueId });
+setIsValidationDialogOpen(true);
+
                 }
             } else {
                 setSnackbarMessage("Plot is available for use.");
-                setSnackbarOpen(true);
+                // setSnackbarOpen(true);
             }
         } else {
             throw new Error(data.message || `Validation failed: ${response.status}`);
         }
     } catch (error) {
         console.error("Error validating duplicate plot:", error);
+        console.log("Validation error response:", responseText);
         setSnackbarMessage(`Error: ${error.message}`);
         setSnackbarOpen(true);
     }
@@ -420,6 +459,7 @@ const fetchAvailableSubdivisions = async (villageId, block, svNo, keyplotId, row
             if (data.availableSubdivisions && data.availableSubdivisions.length > 0) {
                 console.log('Found subdivisions for survey number:', data.availableSubdivisions);
                 setAvailableSubdivisions(data.availableSubdivisions);
+           
                 setPendingPlot({ 
                     keyplotId, 
                     rowUniqueId, 
@@ -475,6 +515,7 @@ const fetchApiCceCrops = useCallback(async () => {
     
     try {
         const token = localStorage.getItem('token');
+       
         const response = await fetch(
             `${BASE_URL}/btr-service/crop-assignment-trail/${clusterId}/cce-crops`,
             {
@@ -627,14 +668,15 @@ useEffect(() => {
             setDefaultVillageId(data.payload.kvillageId);
             setDefaultVillage(data.payload.kvillageName);
             setClusterId(data.payload.clusterId);
+            
 
             if (data.payload) {
                 setKeyplotDetails(data.payload);
-
+                console.log("keyplot details >>> ", data.payload);  
                 setClusterInfo(prevInfo => ({
                     ...prevInfo,
-                    clusterNo: data.payload.clusterNo || '1',
-                    localBody: data.payload.kvillageName || 'N/A',
+                    clusterNo: slNo || '1',
+                    localBody: data.payload.panchayath || 'N/A',
                     landType: data.payload.landType || 'Wet',
                     maxArea: data.payload.clusterMax || 600,
                 }));
@@ -696,7 +738,7 @@ useEffect(() => {
 
                 const fixed = ['K'];
                 const existing = Object.keys(existingSidePlots).filter(l => l !== 'K');
-                const defaults = ['N1', 'E1', 'S1', 'W1'];
+                const defaults = ['S1', 'W1', 'E1', 'N1'];
                 const uniqueDefaults = defaults.filter(d => !existing.includes(d));
                 const sideplots = [...existing, ...uniqueDefaults].slice(0, 4);
                 const allDirections = [...fixed, ...sideplots];
@@ -873,9 +915,9 @@ const handleSubmit = async () => {
         setSnackbarOpen(true);
 
     } catch (error) {
-        console.error('❌ Error submitting cluster data:', error);
+        console.error('❌ Error submitting cluster data:', error.message);
         setSubmitError(error.message);
-        setSnackbarMessage(`Error: ${error.message}`);
+        setSnackbarMessage(`${error.message} (Maximum area: ${clusterInfo.maxArea} cents)`);
         setSnackbarOpen(true);
     } finally {
         setSubmitting(false);
@@ -1178,6 +1220,95 @@ const handleCloseCropsModal = async () => {
         validateAndSetData(newData);
     };
 
+      const removeKeyplotRow = async (keyplotIndex, rowIndexToRemove) => {
+    const row = keyplots[keyplotIndex].rows[rowIndexToRemove];
+
+    if (row.isExisting) {
+      // Open the MUI confirmation dialog instead of window.confirm
+      handleOpenConfirmDialog(keyplotIndex, rowIndexToRemove);
+    } else {
+      // Just remove the row from the UI
+      setKeyplots((prevKeyplots) =>
+        prevKeyplots.map((keyplot, idx) => {
+          if (idx === keyplotIndex) {
+            const newRows = keyplot.rows.filter(
+              (_, rIdx) => rIdx !== rowIndexToRemove
+            );
+            return { ...keyplot, rows: newRows };
+          }
+          return keyplot;
+        })
+      );
+    }
+  };
+
+  // Add these functions with your other handler functions
+
+// Handler to open the confirmation dialog
+const handleOpenConfirmDialog = (keyplotId, rowUniqueId) => {
+    const keyplot = keyplotsData.find(k => k.id === keyplotId);
+    const row = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
+    
+    setRowToDelete({
+        keyplotId,
+        rowUniqueId,
+        rowData: row
+    });
+    setOpenConfirmDialog(true);
+};
+
+// Function to close the confirmation dialog
+const handleCloseConfirmDialog = () => {
+    setOpenConfirmDialog(false);
+    setRowToDelete(null);
+};
+
+// Function to handle the actual deletion after confirmation
+const handleConfirmDelete = async () => {
+    if (!rowToDelete) return;
+
+    const { keyplotId, rowUniqueId, rowData } = rowToDelete;
+
+    try {
+        const token = authservice.gettoken();
+        
+        // Only call API if the row has a b_id (existing saved row)
+        if (rowData.b_id) {
+            const response = await fetch(`${BASE_URL}/btr-service/cluster-api/delete-sideplot/${rowData.b_id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) throw new Error('Failed to delete row from server');
+            
+            console.log(`✅ Successfully removed saved row: ${rowData.b_id}`);
+        }
+
+        // Remove row from UI after successful deletion (or if it was never saved)
+        const newData = JSON.parse(JSON.stringify(keyplotsData));
+        const keyplot = newData.find(k => k.id === keyplotId);
+        keyplot.rows = keyplot.rows.filter(r => r.uniqueId !== rowUniqueId);
+
+        // Clean up row block options
+        const rowKey = `${keyplotId}-${rowUniqueId}`;
+        setRowBlockOptions(prev => {
+            const newOptions = { ...prev };
+            delete newOptions[rowKey];
+            return newOptions;
+        });
+
+        validateAndSetData(newData);
+        handleCloseConfirmDialog();
+
+    } catch (err) {
+        console.error('Error deleting row:', err);
+        setSnackbarMessage(`Failed to delete row: ${err.message}`);
+        setSnackbarOpen(true);
+        handleCloseConfirmDialog();
+    }
+};
 const handleInputChange = (e, keyplotId, rowUniqueId, field) => {
   const value = e.target.value;
   const newData = JSON.parse(JSON.stringify(keyplotsData));
@@ -1199,7 +1330,7 @@ const handleInputChange = (e, keyplotId, rowUniqueId, field) => {
   row[field] = processedValue;
 
   // Trigger validation when plot details change
-  if (['svNo', 'sub', 'enumeratedArea'].includes(field)) {
+  if (['svNo', 'sub'].includes(field)) {
     if (row.villageId && row.block && row.svNo) {
       setTimeout(() => {
         handlePlotValidation(keyplotId, rowUniqueId);
@@ -1276,39 +1407,29 @@ const handleInputChange = (e, keyplotId, rowUniqueId, field) => {
     };
 const [removedRows, setRemovedRows] = useState([]);
 const handleRemoveRow = (keyplotId, rowUniqueId) => {
-    let newData = JSON.parse(JSON.stringify(keyplotsData));
-    const keyplot = newData.find(k => k.id === keyplotId);
+    const keyplot = keyplotsData.find(k => k.id === keyplotId);
     const rowToRemove = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
     
-    // If it's an existing row (has b_id), add to removed rows tracking
+    // If it's an existing row (has b_id), show confirmation dialog
     if (rowToRemove && rowToRemove.b_id) {
-        setRemovedRows(prev => [...prev, {
-            b_id: rowToRemove.b_id,
-            plot_id: rowToRemove.plot_id,
-            keyplotLabel: keyplot.label,
-            villageName: rowToRemove.villageName,
-            block: rowToRemove.block,
-            svNo: rowToRemove.svNo,
-            sub: rowToRemove.sub
-        }]);
-        
-        console.log('Added to removed rows:', rowToRemove.b_id);
+        handleOpenConfirmDialog(keyplotId, rowUniqueId);
+    } else {
+        // For new rows (no b_id), just remove from UI immediately
+        const newData = JSON.parse(JSON.stringify(keyplotsData));
+        const keyplot = newData.find(k => k.id === keyplotId);
+        keyplot.rows = keyplot.rows.filter(r => r.uniqueId !== rowUniqueId);
+
+        // Clean up row block options
+        const rowKey = `${keyplotId}-${rowUniqueId}`;
+        setRowBlockOptions(prev => {
+            const newOptions = { ...prev };
+            delete newOptions[rowKey];
+            return newOptions;
+        });
+
+        validateAndSetData(newData);
     }
-    
-    // Remove the row from UI
-    keyplot.rows = keyplot.rows.filter(r => r.uniqueId !== rowUniqueId);
-
-    // Clean up row block options
-    const rowKey = `${keyplotId}-${rowUniqueId}`;
-    setRowBlockOptions(prev => {
-        const newOptions = { ...prev };
-        delete newOptions[rowKey];
-        return newOptions;
-    });
-
-    validateAndSetData(newData);
 };
-
 // ✅ Clear removed rows when component loads
 useEffect(() => {
     setRemovedRows([]);
@@ -1349,6 +1470,7 @@ useEffect(() => {
         return false;
     };
 
+    totalAreaRef.current = clusterInfo.totalArea;
     const firstInstanceMap = new Map();
     keyplotsData.forEach(kp => {
         kp.rows.forEach(r => {
@@ -1364,19 +1486,42 @@ useEffect(() => {
     const selectedLabels = keyplotsData.map(kp => kp.label);
 
     return (
-        <Container maxWidth="xl" sx={{ mt: 4, bgcolor: '#f4f4f9', p: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+       <Grid container spacing={3}>
+      <Breadcrumb></Breadcrumb>
             {/* Floating Summary Bar - ORIGINAL UI PRESERVED */}
-            <Box sx={{ position: 'fixed', top: '15%', right: 0, zIndex: 1000, borderRadius: '1rem 0 0 1rem', backgroundColor: 'rgba(212, 228, 231, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
-                <Typography variant="subtitle1" fontWeight="bold">Cluster: {clusterInfo.clusterNo} | {clusterInfo.localBody}</Typography>
+           <Grid item xs={12}>
+           . <Box sx={{ position: 'fixed', top: '15%', right: 0, zIndex: 1000, borderRadius: '1rem 0 0 1rem', backgroundColor: 'rgba(212, 228, 231, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
+                <Typography variant="subtitle1" fontWeight="bold">Cluster: {slNo} | {clusterInfo.localBody}</Typography>
                 <Box sx={{ width: '100%', mt: 1 }}>
                     <Typography variant="subtitle1"><strong>Total Enumerated Area:</strong> {clusterInfo.totalArea.toFixed(2)} Cent</Typography>
-                    <LinearProgress variant="determinate" value={totalAreaProgress} sx={{ height: 8, borderRadius: 4, mt: 0.5 }} />
+
+                     <LinearProgress
+                                    variant="determinate"
+                                    value={(parseFloat(clusterInfo.totalArea) / maxcluster) * 100} // Assuming 600 cents is 6 acres
+                                    sx={{
+                                      height: 10,
+                                      borderRadius: 5,
+                                      '& .MuiLinearProgress-bar': {
+                                        backgroundColor: () => {
+                                          const totalCents = parseFloat(clusterInfo.totalArea);
+                                          if (totalCents > maxcluster) { // Example: Warning when close to limit (e.g., over 5.5 acres)
+                                            return 'error.main'; // Red
+                                          } else if (totalCents > meanCluster) { // Example: Approaching limit (e.g., over 4.5 acres)
+                                            return 'warning.main'; // Orange/Yellow
+                                          }
+                                          return 'success.main'; // Green
+                                        },
+                                      },
+                                    }}
+                                  />
+                    
                     <Typography variant="caption" display="block" sx={{ mt: 0.5, textAlign: 'right', color: 'text.secondary' }}>
-                        {clusterInfo.totalArea.toFixed(2)} / {clusterInfo.maxArea} Cents
+                        {clusterInfo.totalArea.toFixed(2)} / {maxcluster} Cents (Max {maxcluster / 100} Acres)
                     </Typography>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                        <Tooltip title="View FMB"><Button variant="contained" color="secondary"><MapIcon /></Button></Tooltip>
-                        <Tooltip title="Reject Cluster"><Button variant="contained" color="error"><WarningAmberIcon /></Button></Tooltip>
+                        <Tooltip title="View FMB"><Button variant="contained" color="secondary"><MapIcon />FMB</Button></Tooltip>
+                        {/* <Tooltip title="Reject Cluster"><Button variant="contained" color="error"><WarningAmberIcon /></Button></Tooltip> */}
+                         {role === 'Field Data Collector' && (
                         <Tooltip title="Submit">
                             <Button 
                                 onClick={handleSubmit} 
@@ -1388,26 +1533,165 @@ useEffect(() => {
                                 {submitting ? 'Saving...' : 'Submit'}
                             </Button>
                         </Tooltip>
+                         )}
                     </Box>
                 </Box>
             </Box>
-
-            <Typography variant="h4" align="center" gutterBottom color="primary">Cluster Land Form</Typography>
+            
+            <Typography variant="h4" align="center" gutterBottom color="primary" sx={{mb:2}}>Cluster Land Form</Typography>
 
             <Box sx={{ maxWidth: '1400px', mx: 'auto' }}>
                 {/* Cluster Info Section - ORIGINAL UI PRESERVED */}
-                <Box sx={{ bgcolor: '#3066c2', color: 'white', p: 1, borderRadius: 1, mb: 2, fontWeight: 'bold', textAlign: 'center' }}>Cluster Info</Box>
+                <Box sx={{ bgcolor: '#05307a', color: 'white', p: 1, borderRadius: 1, mb: 2, fontWeight: 'bold', textAlign: 'center' }}>Cluster Info</Box>
                 <Grid container spacing={2} mb={2} alignItems="flex-start">
-                    <Grid item xs={12} sm={6} md={3}><TextField label="Cluster No." value={slNo} InputProps={{ readOnly: true }} fullWidth /></Grid>
-                    <Grid item xs={12} sm={6} md={4}><TextField label="Local Body" value={clusterInfo.localBody} InputProps={{ readOnly: true }} fullWidth /></Grid>
+                    <Grid item xs={12} sm={6} md={2}><TextField label="Cluster No." value={slNo} InputProps={{ readOnly: true }} fullWidth /></Grid>
+                    <Grid item xs={12} sm={6} md={3}><TextField label="Local Body" value={clusterInfo.localBody} InputProps={{ readOnly: true }} fullWidth /></Grid>
                     <Grid item xs={12} sm={6} md={3}><TextField label="Land Type" value={clusterInfo.landType} InputProps={{ readOnly: true }} fullWidth /></Grid>
+                    {/* <Grid item xs={12} sm={6} md={3}><TextField label="Total area" value={`${clusterInfo.totalArea} cents`} InputProps={{ readOnly: true }} fullWidth /></Grid> */}
+                     <Grid item xs={12} sm={6} md={3} ref={totalAreaRef}>
+                                <TextField label="Total Actual Area (in cents)" value={clusterInfo.totalArea} InputProps={{ readOnly: true }} fullWidth/>
+                                {/* THIS IS WHERE THE NEW CODE FOR LinearProgress IS ADDED */}
+                                <Box sx={{ width: '100%', mt: 1 }}>
+                    
+                                  <LinearProgress
+                                    variant="determinate"
+                                    value={(parseFloat(clusterInfo.totalArea) / maxcluster) * 100} // Assuming 600 cents is 6 acres
+                                    sx={{
+                                      height: 10,
+                                      borderRadius: 5,
+                                      '& .MuiLinearProgress-bar': {
+                                        backgroundColor: () => {
+                                          const totalCents = parseFloat(clusterInfo.totalArea);
+                                          if (totalCents > maxcluster) { // Example: Warning when close to limit (e.g., over 5.5 acres)
+                                            return 'error.main'; // Red
+                                          } else if (totalCents > meanCluster) { // Example: Approaching limit (e.g., over 4.5 acres)
+                                            return 'warning.main'; // Orange/Yellow
+                                          }
+                                          return 'success.main'; // Green
+                                        },
+                                      },
+                                    }}
+                                  />
+                                  <Typography variant="caption" display="block" sx={{ mt: 0.5, textAlign: 'right', color: 'text.secondary' }}>
+                                    {parseFloat(clusterInfo.totalArea).toFixed(2)} / {maxcluster} Cents (Max {maxcluster / 100} Acres)
+                                  </Typography>
+                              
+                                </Box>
+                              </Grid>
+                    
                 </Grid>
-
+<Grid 
+  container 
+  spacing={2} // Increased spacing between the light boxes
+  justifyContent="center"
+  sx={{ p: 2, backgroundColor: 'transparent' }} // Main container background remains transparent
+>
+  
+  {/* Minimum Total Block */}
+  <Grid item xs={12} sm={4}>
+    <Box 
+      sx={{ 
+        backgroundColor: 'rgba(255, 255, 255, 0.7)', // Light, semi-transparent white
+        backdropFilter: 'blur(5px)', // Optional: for a frosted glass effect
+        borderRadius: 2, 
+        p: 2, 
+        textAlign: 'center', 
+        boxShadow: 1, // Subtle shadow
+        border: '1px solid rgba(0, 0, 0, 0.05)' // Very light border
+      }}
+    >
+      <Typography 
+        variant="body2" 
+        sx={{ 
+          color: '#e74c3c', // A slightly brighter red
+          fontWeight: 'bold', 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center',
+          mb: 1
+        }}
+      >
+        <ArrowDownward fontSize="small" sx={{ mr: 0.5 }} />
+        MINIMUM TOTAL
+      </Typography>
+      <Typography variant="h5" component="p" sx={{ fontWeight: 'bold', color: '#333' }}>
+        {mincluster}
+      </Typography>
+    </Box>
+  </Grid>
+  
+  {/* Mean Total Block */}
+  <Grid item xs={12} sm={4}>
+    <Box 
+      sx={{ 
+        backgroundColor: 'rgba(255, 255, 255, 0.7)', // Light, semi-transparent white
+        backdropFilter: 'blur(5px)', 
+        borderRadius: 2, 
+        p: 2, 
+        textAlign: 'center', 
+        boxShadow: 1, 
+        border: '1px solid rgba(0, 0, 0, 0.05)'
+      }}
+    >
+      <Typography 
+        variant="body2" 
+        sx={{ 
+          color: '#3498db', // A slightly brighter blue
+          fontWeight: 'bold', 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center',
+          mb: 1
+        }}
+      >
+        <TrendingFlat fontSize="small" sx={{ mr: 0.5 }} />
+        MEAN TOTAL
+      </Typography>
+      <Typography variant="h5" component="p" sx={{ fontWeight: 'bold', color: '#333' }}>
+        {meanCluster}
+      </Typography>
+    </Box>
+  </Grid>
+  
+  {/* Maximum Total Block */}
+  <Grid item xs={12} sm={4}>
+    <Box 
+      sx={{ 
+        backgroundColor: 'rgba(255, 255, 255, 0.7)', // Light, semi-transparent white
+        backdropFilter: 'blur(5px)', 
+        borderRadius: 2, 
+        p: 2, 
+        textAlign: 'center', 
+        boxShadow: 1, 
+        border: '1px solid rgba(0, 0, 0, 0.05)'
+      }}
+    >
+      <Typography 
+        variant="body2" 
+        sx={{ 
+          color: '#2ecc71', // A slightly brighter green
+          fontWeight: 'bold', 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center',
+          mb: 1
+        }}
+      >
+        <ArrowUpward fontSize="small" sx={{ mr: 0.5 }} />
+        MAXIMUM TOTAL
+      </Typography>
+      <Typography variant="h5" component="p" sx={{ fontWeight: 'bold', color: '#333' }}>
+        {maxcluster}
+      </Typography>
+    </Box>
+  </Grid>
+  
+</Grid>
                 {/* CCE Crops Section - ORIGINAL UI PRESERVED */}
                 {/* Updated section that combines both savedCrops and API crops */}
                 {(savedCrops.length > 0 || (apiCropsData && apiCropsData.crops && apiCropsData.crops.length > 0)) && (
     <Paper elevation={2} sx={{ mt: 3, mb: 3, overflow: 'hidden', borderRadius: 1, border: '1px solid #ccc' }}>
-        <Box sx={{ bgcolor: '#3066c2', color: 'white', p: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+        <Box sx={{ bgcolor: '#05307a', color: 'white', p: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
             <GrassIcon />
             <Typography variant="h6" fontWeight="bold">Selected CCE Crops</Typography>
             {loadingApiCrops && <CircularProgress size={16} sx={{ color: 'white', ml: 1 }} />}
@@ -1442,8 +1726,8 @@ useEffect(() => {
                     return Object.entries(cropCounts).map(([cropName, count]) => (
                         <Grid item key={cropName}>
                             <Chip 
-                                label={count > 1 ? `${cropName} (${count})` : cropName}
-                                color="primary"
+                                label={count > 1 ? `${cropName}` : cropName}
+                                color="success"
                                 sx={{ mb: 1 }}
                             />
                         </Grid>
@@ -1453,17 +1737,13 @@ useEffect(() => {
         </Box>
     </Paper>
 )}
-
-
-
-
-
                 {/* Action Buttons */}
                 <Box sx={{ maxWidth: 900, margin: '0 auto', mb: 3 }}>
                     <Grid container spacing={2} alignItems="center" justifyContent="center">
-                        <Grid item><Button variant="contained" color="info" onClick={handleOpenCropsModal}>Add CCE crops</Button></Grid>
+                     {role === 'Field Data Collector' && (
+                        <Grid item><Button variant="contained" color="info" onClick={handleOpenCropsModal}>Add CCE crops</Button></Grid>)}
                         <Grid item><Button variant="contained" color="secondary" startIcon={<MapIcon />}>View FMB</Button></Grid>
-                        <Grid item><Button variant="contained" color="error" startIcon={<DeleteForeverIcon />}>Reject Cluster</Button></Grid>
+                        {/* <Grid item><Button variant="contained" color="error" startIcon={<DeleteForeverIcon />}>Reject Cluster</Button></Grid> */}
                     </Grid>
                 </Box>
 
@@ -1552,6 +1832,7 @@ useEffect(() => {
 
                             <Grid container spacing={2} sx={{ p: 2 }} alignItems="center">
                                 {/* Headers */}
+                                <Grid container spacing={2} sx={{ borderBottom: '2px solid #06d83aff', pb: 3, m: 1 }}>
                                 <Grid item xs={2}><Typography fontWeight="bold">Village</Typography></Grid>
                                 <Grid item xs={1.5}><Typography fontWeight="bold">Block</Typography></Grid>
                                 <Grid item xs={1.5}><Typography fontWeight="bold">Survey No.</Typography></Grid>
@@ -1559,7 +1840,7 @@ useEffect(() => {
                                 <Grid item xs={2}><Typography fontWeight="bold">Actual Area</Typography></Grid>
                                 <Grid item xs={2}><Typography fontWeight="bold">Enumerated Area</Typography></Grid>
                                 <Grid item xs={2} />
-
+                                </Grid>
                                 {keyplot.rows.length === 0 && <Grid item xs={12} sx={{ textAlign: 'center', color: 'text.secondary', p: 2 }}>No rows added.</Grid>}
 
                                 {keyplot.rows.map((row) => {
@@ -1634,23 +1915,29 @@ useEffect(() => {
                                                     <Grid item xs={1.5}><TextField value={row.block} InputProps={{ readOnly: true }} fullWidth size="small" /></Grid>
                                                     <Grid item xs={1.5}><TextField value={row.svNo} InputProps={{ readOnly: true }} fullWidth size="small" /></Grid>
                                                     <Grid item xs={1}><TextField value={row.sub} InputProps={{ readOnly: true }} fullWidth size="small" /></Grid>
-                                                    <Grid item xs={2}><TextField value={row.area} InputProps={{ readOnly: !isKeyPlotFirstRow && isAreaReadOnly }} fullWidth size="small" type="number" onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'area')} /></Grid>
-                                                    <Grid item xs={2}><TextField label="Enum. Area" size="small" fullWidth type="number" value={row.enumeratedArea} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')} onBlur={(e) => handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')} error={hasError} helperText={hasError ? errors[errorKey] : ''} /></Grid>
-                                                    <Grid item xs={2}>{!isKeyPlotFirstRow && (<Tooltip title="Remove Row"><IconButton onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)} size="small" color="error"><RemoveCircleOutlineIcon /></IconButton></Tooltip>)}</Grid>
+                                                    <Grid item xs={2}><TextField value={row.area} InputProps={{ readOnly: !isKeyPlotFirstRow && isAreaReadOnly || row.isExisting }} fullWidth size="small" type="number" onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'area')} /></Grid>
+                                                    <Grid item xs={2}><TextField label="Enum. Area" size="small" InputProps={{readOnly:row.isExisting}} fullWidth type="number" value={row.enumeratedArea} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')} onBlur={(e) => handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')} error={hasError} helperText={hasError ? errors[errorKey] : ''} /></Grid>
+                                                    <Grid item xs={1}>{!isKeyPlotFirstRow && (<Tooltip title="Remove Row"><IconButton onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)} size="small" color="error"><RemoveCircleOutlineIcon /></IconButton></Tooltip>)}</Grid>
+                                                    <Grid item xs={1}>
+                                                    {row.isExisting && (
+                                                      <Chip label="Saved" size="small" color="success" variant="outlined" />
+                                                    )}</Grid>
                                                 </>
                                             )}
                                         </React.Fragment>
                                     );
                                 })}
+                                  {role === 'Field Data Collector' && (
                                 <Grid item xs={12} sx={{ textAlign: 'center', mt: 1 }}>
                                     <Button startIcon={<AddCircleOutlineIcon />} size="small" variant="contained" color="success" onClick={() => handleAddRow(keyplot.id)} disabled={isNewRowIncomplete || hasErrorInKeyplot}>Add Row</Button>
-                                </Grid>
+                                </Grid>)}
                             </Grid>
                         </Box>
                     );
                 })}
 
                 {/* ✅ Main Submit Button - ORIGINAL UI PRESERVED */}
+                 {role === 'Field Data Collector' && (
                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2 }}>
                     <Button 
                         variant="contained" 
@@ -1664,15 +1951,15 @@ useEffect(() => {
                         {submitting ? 'Saving Cluster...' : 'Submit Cluster'}
                     </Button>
                 </Box>
-                
+                 )}
                 {/* ✅ Submit Error Display - ORIGINAL UI PRESERVED */}
-                {submitError && (
+                {/* {submitError && (
                     <Box sx={{ mt: 2, p: 2, bgcolor: 'error.light', borderRadius: 1, color: 'error.contrastText' }}>
                         <Typography variant="body2">
                             <strong>Submit Error:</strong> {submitError}
                         </Typography>
                     </Box>
-                )}
+                )} */}
             </Box>
 
             {/* CCE Crops Modal - ORIGINAL UI PRESERVED */}
@@ -1825,8 +2112,15 @@ useEffect(() => {
     <DialogContent>
         {renderValidationDialogContent()}
     </DialogContent>
+   {validationInfo?.uiUsedRemaining <= 0 && (
+  <Typography variant="h6" textAlign="center" color="red">
+    No Remaining Area Available
+  </Typography>
+)}
+
     <DialogActions>
-        <Button onClick={() => setIsValidationDialogOpen(false)} color="secondary">
+        {/* <Button onClick={() => setIsValidationDialogOpen(false)} color="secondary"> */}
+        <Button onClick={handleRejectPlot}  color="secondary">
             Cancel
         </Button>
         
@@ -1837,8 +2131,9 @@ useEffect(() => {
                         onClick={() => handleUseRecommendedPlot('remaining')}
                         color="primary"
                         variant="contained"
-                    >
-                        Use Remaining Area ({validationInfo.remainingArea.toFixed(2)} cents)
+                        disabled={validationInfo.uiUsedRemaining.toFixed(2) <= 0}>
+                        {/* Use Remaining Area ({(validationInfo.backendRemaining.toFixed(2))} cents) */}
+                        Use Remaining Area ({(validationInfo.uiUsedRemaining.toFixed(2))} cents)
                     </Button>
                 )}
                 
@@ -1854,12 +2149,44 @@ useEffect(() => {
     </DialogActions>
 </Dialog>
 
+{/* Confirmation Dialog for Deleting Saved Rows */}
+<Dialog
+    open={openConfirmDialog}
+    onClose={handleCloseConfirmDialog}
+    aria-labelledby="alert-dialog-title"
+    aria-describedby="alert-dialog-description"
+>
+    <DialogTitle id="alert-dialog-title">
+        {"Confirm Deletion"}
+    </DialogTitle>
+    <DialogContent>
+        <DialogContentText id="alert-dialog-description">
+            This row is already saved in the database. Do you want to delete it permanently?
+            {rowToDelete && (
+                <Box sx={{ mt: 1, p: 1, bgcolor: 'grey.100', borderRadius: 1 }}>
+                    <Typography variant="body2">
+                        <strong>Plot:</strong> {rowToDelete.rowData.villageName} - {rowToDelete.rowData.block} - {rowToDelete.rowData.svNo}/{rowToDelete.rowData.sub}
+                    </Typography>
+                </Box>
+            )}
+        </DialogContentText>
+    </DialogContent>
+    <DialogActions>
+        <Button onClick={handleCloseConfirmDialog} color="primary">
+            Cancel
+        </Button>
+        <Button onClick={handleConfirmDelete} color="error" autoFocus>
+            Delete Permanently
+        </Button>
+    </DialogActions>
+</Dialog>
+
             {/* ✅ Success/Error Snackbar - ORIGINAL UI PRESERVED */}
             <Snackbar
                 open={snackbarOpen}
                 autoHideDuration={6000}
                 onClose={() => setSnackbarOpen(false)}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
             >
                 <Alert 
                     onClose={() => setSnackbarOpen(false)} 
@@ -1869,7 +2196,8 @@ useEffect(() => {
                     {snackbarMessage}
                 </Alert>
             </Snackbar>
-        </Container>
+            </Grid>
+        </Grid>
     );
 };
 

@@ -76,7 +76,7 @@ const clusterFormation = {
 
 const ClusterFormView = {
   id: 'util-form-view',
-  title: 'Cluster Form View',
+  title: 'Form View',
   type: 'item',
   url: '/schemes/earas/Clusters_Form',
   icon: icons.DeliveredProcedureOutlined

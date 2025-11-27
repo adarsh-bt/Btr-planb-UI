@@ -2167,7 +2167,7 @@ const combinedTotal = useMemo(() => {
       {!(keyplot.label === "K" && rowIndex === 0) && (
   <Button 
     startIcon={<RemoveCircleOutlineIcon />}
-    onClick={() => removeKeyplotRow(index, rowIndex,row.id)}  // Pass both indices
+    onClick={() => removeKeyplotRow(index, rowIndex, row.id)}  // Pass both indices
     size="small"
     variant="contained"
     color="error"

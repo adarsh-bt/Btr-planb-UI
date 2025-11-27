@@ -21,6 +21,7 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import CloseIcon from '@mui/icons-material/Close';
 import MapIcon from '@mui/icons-material/Map';
 import ApartmentIcon from '@mui/icons-material/Apartment';
+import SummarizeIcon from '@mui/icons-material/Summarize';
 import KeyIcon from '@mui/icons-material/Key';
 import Breadcrumb from 'routes/Breadcrumb';
 import { Select, MenuItem, FormControl, InputLabel } from '@mui/material';
@@ -68,6 +69,9 @@ const [selectedTaluk, setSelectedTaluk] = useState('');
   }
     if (menuItem === 'view-clusters') {
     navigate(`/schemes/earas/Zone_Details/clusters/${selectedZone.zoneId}`);
+  }
+   if (menuItem === 'form-view') {
+    navigate(`/schemes/earas/Zone_Details/form_view/${selectedZone.zoneId}`);
   }
     
     handleCloseDialog();
@@ -362,12 +366,35 @@ const filteredZones = zoneData.filter(z =>
             }
           }}
         >
-          <ApartmentIcon color="primary" sx={{ fontSize: 38,color: '#1a237e' }} />
+          <SummarizeIcon color="primary" sx={{ fontSize: 38,color: '#1a237e' }} />
           <Typography variant="subtitle2" sx={{ mt: 1 }}>
             View Cluster
           </Typography>
         </Paper>
       </Grid>
+
+      {/* <Grid item xs={12} sm={4}>
+        <Paper
+          onClick={() => handleMenuItemClick('view-clusters')}
+          sx={{
+            p: 2,
+            textAlign: 'center',
+            borderRadius: 2,
+            cursor: 'pointer',
+            transition: '0.3s',
+            '&:hover': {
+              backgroundColor: '#e3f2fd',
+              transform: 'translateY(-3px)',
+              boxShadow: 3
+            }
+          }}
+        >
+          <ApartmentIcon color="primary" sx={{ fontSize: 38,color: '#1a237e' }} />
+          <Typography variant="subtitle2" sx={{ mt: 1 }}>
+            Form View
+          </Typography>
+        </Paper>
+      </Grid> */}
     </Grid>
   </DialogContent>
 </Dialog>

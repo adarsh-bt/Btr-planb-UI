@@ -336,9 +336,9 @@ const ForgotPassword = ({ onBack }) => {
     {success && (
       <Stack sx={{ width: '100%' }} spacing={2}>
         <center>
-          <Alert severity="success" sx={{ textAlign: 'center', width: 'max-content', fontSize: '0.9rem' }}>
+          { <Alert severity="success" sx={{ textAlign: 'center', width: 'max-content', fontSize: '0.9rem' }}>
             {success}
-          </Alert>
+          </Alert>  }
         </center>
       </Stack>
     )}

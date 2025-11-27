@@ -132,6 +132,7 @@ const[zoneVisble, setzoneVisble] = useState(false);
     // Function to handle edit action
     const handleEdit = (row) => {
       setSelectedRow(row); 
+ 
       setRadioState(row.approvalStatus.toLowerCase()); 
       setRemarks(row.remarks || ""); // Reset remarks to row's value or empty
       setSelectedScheme(""); // Reset scheme selection
@@ -520,17 +521,17 @@ useEffect(() => {
    
       // Fetch all roles for super admin
       const schemesResponse = await approvalservice.allschmes();
-      console.log("schmre ",schemesResponse.payload)
+      
       setSchemesList(schemesResponse.payload);
       const rolesResponse = await approvalservice.allroles();
-      console.log("role payload ",rolesResponse)
+    
       setRolesList(rolesResponse.payload);
     } else if (admrole === 'District Level Approver') {
      
-      console.log("schmed  ",admrole)
+    
       // Fetch all schemes for district user
       const schemesResponse = await approvalservice.allschmes();
-      console.log("schmre ",schemesResponse.payload)
+   
       setSchemesList(schemesResponse.payload);
     }
   };
@@ -969,11 +970,9 @@ return (
     boxShadow: "0 0 5px rgba(193, 8, 8, 0.1)",
   }}
 >
-
-{/* IT ADMIN CASE */}
 {/* IT ADMIN CASE */}
 {!(
-  ((admrole === 'IT Admin' || admrole === 'Super Admin' ) && selectedRow.designation !== 'Deputy Director -Districts') ||
+  ((admrole === 'IT Admin' || admrole === 'Super Admin' ) && selectedRow.designation_id !== 4) ||
   admrole === 'District Level Approver'
 ) && (
   <Box style={{ width: '48%' }}>
@@ -999,7 +998,7 @@ return (
 
 {/* Dis Admin Case */}
 {/* {(admrole === 'IT Admin' && admrole !== 'Super Admin') && ( */}
-{(selectedRow.designation !== 'Deputy Director -Districts') && (
+{(selectedRow.designation_id !== 4) && (
 
   <Stack direction="column" spacing={2} alignItems="center">
     {schemeRolePairs.map((pair, index) => (

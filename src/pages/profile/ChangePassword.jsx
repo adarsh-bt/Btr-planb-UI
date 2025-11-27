@@ -19,6 +19,11 @@ const ChangePassword = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+const [errors, setErrors] = useState({
+  oldPassword: "",
+  newPassword: "",
+  confirmPassword: ""
+});
 
 
   // Step 1: Email Verification
@@ -74,14 +79,12 @@ const ChangePassword = () => {
     }
   };
 
+  //has done validation for OP,NP,CP (ie)it gets accept only all 3 feilds are filled.
   // Step 3: Password Reset
   const handlePasswordResetSubmit = async (e) => {
     e.preventDefault();
 
-    if (!oldPassword) {
-      setError('Please enter your old password.');
-      return;
-    }
+    if (!validatePasswords()) return;
 
     if (newPassword !== confirmPassword) {
       setError('Passwords do not match.');
@@ -123,6 +126,30 @@ const ChangePassword = () => {
     }
   };
 
+const validatePasswords = () => {
+  let isValid = true;
+  const newErrors = { oldPassword: "", newPassword: "", confirmPassword: "" };
+
+  if (!oldPassword) {
+    newErrors.oldPassword = "Old password is required";
+    isValid = false;
+  }
+
+  if (!newPassword) {
+    newErrors.newPassword = "New password is required";
+    isValid = false;
+  }
+
+  if (!confirmPassword) {
+    newErrors.confirmPassword = "Confirm password is required";
+    isValid = false;
+  }
+
+  setErrors(newErrors);
+  return isValid;
+};
+
+  
   return (
     <Paper elevation={3} sx={{ p: 4, borderRadius: 3 }}>
       <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 3, textAlign: 'center' }}>
@@ -144,6 +171,7 @@ const ChangePassword = () => {
               autoFocus
               sx={{ width: '400px' }}
               disabled={loading}
+              inputProps={{maxLength:250}}
             />
 
 
@@ -208,7 +236,10 @@ const ChangePassword = () => {
               type="password"
               label="Old Password"
               value={oldPassword}
-              onChange={(e) => setOldPassword(e.target.value)}
+              onChange={(e) =>{ setOldPassword(e.target.value); setError("")}}
+              inputProps={{maxLength:16}}
+              error={!!errors.oldPassword}
+              helperText={errors.oldPassword}
             />
             <TextField
               fullWidth
@@ -216,7 +247,7 @@ const ChangePassword = () => {
               type={showPassword ? 'text' : 'password'}
               label="New Password"
               value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
+              onChange={(e) => {setNewPassword(e.target.value);setError("");}}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
@@ -226,6 +257,9 @@ const ChangePassword = () => {
                   </InputAdornment>
                 )
               }}
+              inputProps={{minLength: 8, maxLength: 16}}
+              error={!!errors.newPassword}
+              helperText={errors.newPassword}
             />
             <TextField
               fullWidth
@@ -233,7 +267,7 @@ const ChangePassword = () => {
               type={showConfirmPassword ? 'text' : 'password'}
               label="Confirm Password"
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              onChange={(e) => {setConfirmPassword(e.target.value);setError("");}}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
@@ -243,6 +277,10 @@ const ChangePassword = () => {
                   </InputAdornment>
                 )
               }}
+              inputProps={{minLength: 8, maxLength: 16}}
+              error={!!errors.confirmPassword}
+              helperText={errors.confirmPassword}
+
             />
             <Button variant="contained" color="primary" onClick={handlePasswordResetSubmit}>
               Change Password

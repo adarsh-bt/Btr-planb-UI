@@ -21,6 +21,7 @@
 //   const [userAccessData, setUserAccessData] = useState(null);
 //   const [loading, setLoading] = useState(true);
 //   const [error, setError] = useState(null);
+//   const [userAccess, setUserAccess] = useState(null);
 
 //   const fetchUserAccess = async () => {
 //     try {

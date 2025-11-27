@@ -18,6 +18,11 @@ import {
   Stack,
   FormHelperText
 } from '@mui/material';
+
+import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { enIN } from 'date-fns/locale';
+
 import authservice from '../services/authservice';
 import RegisterService from 'pages/authentication/services/registerservice';
 
@@ -68,6 +73,7 @@ const Register = ({ onBack }) => {
       try {
         const response = await RegisterService.getDesignations();
         if (response.payload && Array.isArray(response.payload)) {
+          console.log("designations response ",response.payload)
           setDesignations(response.payload);
         } else {
           setErrorMessage(response.message || 'Failed to fetch designations.');
@@ -188,7 +194,7 @@ const Register = ({ onBack }) => {
       case 'idNumber':
         if (idType === 'PEN') {
           if (!penNumber) return 'PEN Number is required.';
-          return penNumber.length !== 10 ? 'PEN Number must be exactly 10 characters.' : null;
+          return penNumber.length !== 7 ? 'PEN Number must be exactly 10 characters.' : null;
         }
         if (idType === 'TEN') {
           if (!tenNumber) return 'PEN/TEN Number is required.';
@@ -226,6 +232,13 @@ const Register = ({ onBack }) => {
       setErrors((prevErrors) => ({ ...prevErrors, phone: '' })); // Clear error
     }
   };
+
+    const handlePenBlur = () => {
+  if (penNumber && penNumber.length === 6) {
+    const paddedPen = penNumber.padStart(7, '0'); // makes 6 → 7 digits
+    setPenNumber(paddedPen);
+  }
+};
 
   const handlePenChange = (e) => {
     const value = e.target.value;
@@ -375,6 +388,7 @@ const Register = ({ onBack }) => {
   };
 
   return (
+    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enIN}>
     <Box sx={{ width: '100%', maxWidth: '400px', mx: 'auto' }}>
       {errorMessage && (
         <Stack sx={{ width: '100%', marginBottom: '.5rem', background: '#fffaef' }} spacing={1}>
@@ -500,6 +514,7 @@ const Register = ({ onBack }) => {
           label="PEN"
           value={penNumber}
           onChange={handlePenChange}
+          onBlur={handlePenBlur}
           inputProps={{ maxLength: 10 }}
           error={!!errors.idNumber}
           helperText={errors.idNumber ? errors.idNumber : ' '}
@@ -562,51 +577,71 @@ const Register = ({ onBack }) => {
         {errors.designation && <FormHelperText error>{errors.designation}</FormHelperText>}
       </MuiFormControl>
 
-      <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={6}>
-          <TextField
-            fullWidth
-            variant="outlined"
-            label={
-              <>
-                Date of Joining{' '}
-                <Typography component="span" color="error">
-                  *
-                </Typography>
-              </>
-            }
-            type="date"
-            value={dateOfJoining}
-            onChange={handleDateOfJoiningChange}
-            InputProps={{ inputProps: { max: today } }}
-            InputLabelProps={{ shrink: true }}
-            error={!!errors.dateOfJoining}
-            helperText={errors.dateOfJoining}
-          />
-        </Grid>
+   <Grid container spacing={2} sx={{ mb: 2 }}>
+  <Grid item xs={6}>
+    <DatePicker
+      label={
+        <>
+          Date of Joining{' '}
+          <Typography component="span" color="error">
+            *
+          </Typography>
+        </>
+      }
+      value={dateOfJoining ? new Date(dateOfJoining) : null}
+      onChange={(newValue) => {
+        if (newValue) {
+          const isoDate = newValue.toISOString().split('T')[0];
+          handleDateOfJoiningChange({ target: { value: isoDate } });
+        } else {
+          handleDateOfJoiningChange({ target: { value: '' } });
+        }
+      }}
+      maxDate={new Date()}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          fullWidth
+          error={!!errors.dateOfJoining}
+          helperText={errors.dateOfJoining}
+        />
+      )}
+      inputFormat="dd/MM/yyyy"
+    />
+  </Grid>
 
-        <Grid item xs={6}>
-          <TextField
-            fullWidth
-            variant="outlined"
-            label={
-              <>
-                Date of Birth{' '}
-                <Typography component="span" color="error">
-                  *
-                </Typography>
-              </>
-            }
-            type="date"
-            value={dateOfBirth}
-            onChange={handleDateOfBirthChange}
-            InputProps={{ inputProps: { max: today } }}
-            InputLabelProps={{ shrink: true }}
-            error={!!errors.dateOfBirth}
-            helperText={errors.dateOfBirth}
-          />
-        </Grid>
-      </Grid>
+  <Grid item xs={6}>
+    <DatePicker
+      label={
+        <>
+          Date of Birth{' '}
+          <Typography component="span" color="error">
+            *
+          </Typography>
+        </>
+      }
+      value={dateOfBirth ? new Date(dateOfBirth) : null}
+      onChange={(newValue) => {
+        if (newValue) {
+          const isoDate = newValue.toISOString().split('T')[0];
+          handleDateOfBirthChange({ target: { value: isoDate } });
+        } else {
+          handleDateOfBirthChange({ target: { value: '' } });
+        }
+      }}
+      maxDate={new Date()}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          fullWidth
+          error={!!errors.dateOfBirth}
+          helperText={errors.dateOfBirth}
+        />
+      )}
+      inputFormat="dd/MM/yyyy"
+    />
+  </Grid>
+</Grid>
 
       <MuiFormControl fullWidth sx={{ mb: 2 }} error={!!errors.district}>
         <Autocomplete
@@ -657,6 +692,7 @@ const Register = ({ onBack }) => {
         </Grid>
       </Grid>
     </Box>
+    </LocalizationProvider>
   );
 };
 
