@@ -974,7 +974,7 @@ const KeyPlotListing = ({zoneId}) => {
                   sx={{
                     p: 2.5,
                     borderRadius: 2,
-                    background: plotDetailsData.landType === 'Wet' ? 'linear-gradient(135deg, #83fd9dff 0%, #8dce87ff 100%)' : 'linear-gradient(135deg, #fab2b2ff 0%, #ffd0d0ff 100%)',
+                    background: plotDetailsData.landType === 'WET' ? 'linear-gradient(135deg, #83fd9dff 0%, #8dce87ff 100%)' : 'linear-gradient(135deg, #fab2b2ff 0%, #ffd0d0ff 100%)',
                     border: '1px solid',
                     borderColor: 'primary.100',
                     position: 'relative',

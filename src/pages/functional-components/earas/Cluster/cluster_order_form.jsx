@@ -9,9 +9,22 @@ import {
   Chip,
   Stack,
   Tooltip,
-  Button
+  Button,
+  Container,
+  Paper,
+  Alert
 } from '@mui/material';
-import LocalFloristIcon from '@mui/icons-material/LocalFlorist';
+import {
+  LocalFlorist,
+  Refresh,
+  FilterList,
+  Dashboard,
+  TrendingUp,
+  PendingActions,
+  CheckCircle,
+  PlayCircle,
+  NewReleases
+} from '@mui/icons-material';
 import axios from 'axios';
 import Breadcrumb from 'routes/Breadcrumb';
 import LoadingScreen from 'utils/loadingscreen';
@@ -19,329 +32,486 @@ import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import authservice from 'pages/authentication/services/authservice';
 import mainapi from 'api/mainapi';
 
-
-function ClusterSeatForm({zoneId,btrType}) {
-  const BTR_URL = mainapi.BTR_API
+function ClusterSeatForm({ zoneId, btrType }) {
+  const BTR_URL = mainapi.BTR_API;
   const [clusters, setClusters] = useState([]);
-  const [summary, setSummary] = useState({ completed: 0, ongoing: 0, notStarted: 0 ,underreview:0});
+  const [summary, setSummary] = useState({ 
+    completed: 0, 
+    ongoing: 0, 
+    notStarted: 0, 
+    underreview: 0 
+  });
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
-    const [resolvedZoneId, setResolvedZoneId] = useState(() => {
-    const role = authservice.getrole(); // Get the role
-    return role === 'Field Data Collector'
-      ? authservice.getzone()  // For Field Data Collector
-      : zoneId;                         // For Admin or other roles
+  const [resolvedZoneId, setResolvedZoneId] = useState(() => {
+    const role = authservice.getrole();
+    return role === 'Field Data Collector' ? authservice.getzone() : zoneId;
   });
-  
-   const BASE_URL = mainapi.BTR_API;
+
+  const BASE_URL = mainapi.BTR_API;
 
   useEffect(() => {
-      const token = localStorage.getItem('token');
-       setLoading(true);
-    axios.get(`${BASE_URL}/btr-service/cluster-api/user-cluster-summary/${resolvedZoneId}`,
-              {
-              headers: {
-                  'Authorization': `Bearer ${token}` // Add token in Authorization header
-              }
-                })
-      .then(res => {
-        // Sets the clusters data from the payload
-        setClusters(res.data.payload || []);
-        console.log("cluster data  ",res.data.payload)
-        // Updates the summary counts
-        setSummary({
-          completed: res.data.completed || 0,
-          ongoing: res.data.ongoing || 0,
-          notStarted: res.data.notStarted || 0,
-          underreview: res.data.underreview || 0,
-        });
-        setLoading(false);
-          setError(null);
-      })
-      .catch(err => {
-        // Logs an error if data fetching fails and resets state
-        console.error('Failed to fetch data:', err);
-         setClusters([]);
-  setSummary({ completed: 0, ongoing: 0, notStarted: 0, underreview: 0 });
-  setError('Failed to load cluster data. Please try again later.');
-  setLoading(false);
+    fetchClusterData();
+  }, [resolvedZoneId]);
+
+  const fetchClusterData = () => {
+    const token = localStorage.getItem('token');
+    setLoading(true);
+    setError(null);
+    
+    axios.get(`${BASE_URL}/btr-service/cluster-api/user-cluster-summary/${resolvedZoneId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    .then(res => {
+      setClusters(res.data.payload || []);
+      setSummary({
+        completed: res.data.completed || 0,
+        ongoing: res.data.ongoing || 0,
+        notStarted: res.data.notStarted || 0,
+        underreview: res.data.underreview || 0,
       });
-  }, []); // Empty dependency array ensures this runs only once on mount
+      setLoading(false);
+    })
+    .catch(err => {
+      console.error('Failed to fetch data:', err);
+      setClusters([]);
+      setSummary({ completed: 0, ongoing: 0, notStarted: 0, underreview: 0 });
+      setError('Failed to load cluster data. Please try again later.');
+      setLoading(false);
+    });
+  };
 
-  // Determines the border color of the card based on cluster status
-  const getStatusBorderColor = (status) => {
+  const getStatusColor = (status) => {
     switch (status) {
-      case 'Completed': return '#4caf50'; // Green for completed
+      case 'Completed': return '#4caf50';
       case 'Ongoing':
-      case 'On Going': return '#ffc107';   // Amber for ongoing statuses
-      case 'Under Review': return '#076affff';   // Amber for ongoing statuses
-      default: return '#9e9e9e';         // Grey for not started
+      case 'On Going': return '#ff9800';
+      case 'Under Review': return '#2196f3';
+      case 'Not Started': return '#9e9e9e';
+      default: return '#757575';
     }
   };
 
-  // Determines the background color of the card based on cluster type (now solid colors)
-  const getClusterTypeBackgroundColor = (type) => {
-    switch (type.toLowerCase()) {
-      case 'wet': return '#DCEDC8'; // A very light pale green
-      case 'dry': return '#FFCDD2'; // A very light pale red
-      default: return '#F5F5F5'; // Default light grey
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'Completed': return <CheckCircle sx={{ fontSize: 16 }} />;
+      case 'Ongoing':
+      case 'On Going': return <PlayCircle sx={{ fontSize: 16 }} />;
+      case 'Under Review': return <PendingActions sx={{ fontSize: 16 }} />;
+      case 'Not Started': return <NewReleases sx={{ fontSize: 16 }} />;
+      default: return <Dashboard sx={{ fontSize: 16 }} />;
     }
   };
 
+  const getClusterTypeColor = (type) => {
+    switch (type?.toLowerCase()) {
+      case 'wet': return { bg: '#E8F5E8', color: '#2E7D32', border: '#4CAF50' };
+      case 'dry': return { bg: '#FFEBEE', color: '#C62828', border: '#F44336' };
+      default: return { bg: '#F5F5F5', color: '#424242', border: '#9E9E9E' };
+    }
+  };
+
+  const getStatusCount = (status) => {
+    switch (status) {
+      case 'All': return summary.completed + summary.ongoing + summary.notStarted + summary.underreview;
+      case 'Completed': return summary.completed;
+      case 'On Going': return summary.ongoing;
+      case 'Not Started': return summary.notStarted;
+      case 'Under Review': return summary.underreview;
+      default: return 0;
+    }
+  };
 
   const navigate = useNavigate();
 
-const handleClusterClick = (syNo, slNo) => {
-  const encodedSyNo = encodeURIComponent(syNo);
-  const encodedSlNo = encodeURIComponent(slNo);
-  navigate(`/schemes/earas/Clusters_Form/ClusterFormView?No=${encodedSyNo}&slno=${encodedSlNo}`);
-};
-
-
-  // Animated border style for 'Ongoing' clusters to make them stand out
-  const ongoingBorderAnimation = {
-    animation: 'borderPulse 2s infinite',
-    '@keyframes borderPulse': {
-      '0%': {
-        boxShadow: '0 0 0px 0px rgba(255,193,7, 0.5)',
-      },
-      '50%': {
-        boxShadow: '0 0 12px 4px rgba(255,193,7, 0.8)',
-      },
-      '100%': {
-        boxShadow: '0 0 0px 0px rgba(255,193,7, 0.5)',
-      },
-    },
+  const handleClusterClick = (syNo, slNo) => {
+    const encodedSyNo = encodeURIComponent(syNo);
+    const encodedSlNo = encodeURIComponent(slNo);
+    navigate(`/schemes/earas/Clusters_Form/ClusterFormView?No=${encodedSyNo}&slno=${encodedSlNo}`);
   };
 
-  // Define the available statuses for filtering
-  const statuses = ['All', 'Completed', 'On Going', 'Not Started','Under Review'];
+  const filteredClusters = clusters.filter(cluster => {
+    const matchesStatus = selectedStatus === 'All' || cluster.status === selectedStatus;
+    const matchesSearch = cluster.clusterNo?.toString().includes(searchTerm) || 
+                         cluster.localbody?.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
+
+  const statuses = ['All', 'Completed', 'On Going', 'Not Started', 'Under Review'];
 
   return (
-
-    
-    <Grid container spacing={3}>
-      <Breadcrumb></Breadcrumb>
-       {loading ? (
-  <Grid item xs={12}>
-    <Box
-      display="flex"
-      justifyContent="center"
-      alignItems="center"
-      minHeight="300px"
-      width="100%"
-    >
-      <LoadingScreen message="Loading cluster data..." />
-    </Box>
-  </Grid>
-) : error ? (
-  <Grid item xs={12}>
-    <Box
-      display="flex"
-      flexDirection="column"
-      justifyContent="center"
-      alignItems="center"
-      minHeight="300px"
-      textAlign="center"
-      width="100%"
-    >
-      <DotLottieReact
-              style={{ width: '50rem', maxWidth: '100%' }}
-              src="https://lottie.host/ae6ba3d5-ea79-454d-ae28-fbcb986a5f7b/9vhgZMKvHq.lottie"
-              loop
-              autoplay
-            />
-       <Typography variant="h5" gutterBottom>
-      Oops! Something went wrong.
-    </Typography>
-    <Typography variant="body1" sx={{ mb: 2 }}>
-      {error}
-    </Typography>
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={() => window.location.reload()} // or re-fetch via useEffect trigger
-      >
-        Retry
-      </Button>
-    </Box>
-  </Grid>
-) : (
-  <>
- <Box
-  sx={{
-    padding: { xs: 3, sm: 4 },
-    maxWidth: 'lg',
-    margin: 'auto',
-    backgroundColor: '#ECF0F1',
-    borderRadius: 3,
-    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-  }}
->
-      <Typography variant="h3" component="h1" gutterBottom sx={{ textAlign: 'center', mb: 4, fontWeight: 'bold', color: '#3f51b5' }}>
-        Cluster Map For Form View
-      </Typography>
-
-      {/* --- Status Filter Tabs --- */}
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={2}
-        sx={{
-          marginBottom: 6,
-          justifyContent: 'center',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-        }}
-      >
-        {statuses.map((status) => {
-          let count = 0;
-          // Calculate count for each status tab
-          if (status === 'All') {
-            count = summary.completed + summary.ongoing + summary.notStarted + summary.underreview;
-          } else if (status === 'Completed') count = summary.completed;
-          else if (status === 'On Going') count = summary.ongoing;
-          else if (status === 'Not Started') count = summary.notStarted;
-          else if (status === 'Under Review') count = summary.underreview;
-
-          const isActive = selectedStatus === status; // Check if the current tab is active
-
-          return (
-            <Chip
-              key={status}
-              label={`${status}${status !== 'All' ? `: ${count}` : ''}`} // Display status and count (except for 'All')
-              onClick={() => setSelectedStatus(status)} // Set selected status on click
+ <Grid container spacing={3}>
+      <Breadcrumb />
+    <Container maxWidth="xl" sx={{ py: 3 }}>
+     
+      
+      {loading ? (
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+          <LoadingScreen message="Loading cluster data..." />
+        </Box>
+      ) : error ? (
+        <Box
+          display="flex"
+          flexDirection="column"
+          justifyContent="center"
+          alignItems="center"
+          minHeight="400px"
+          textAlign="center"
+        >
+          <DotLottieReact
+            style={{ width: '300px', maxWidth: '100%' }}
+            src="https://lottie.host/ae6ba3d5-ea79-454d-ae28-fbcb986a5f7b/9vhgZMKvHq.lottie"
+            loop
+            autoplay
+          />
+          <Typography variant="h5" gutterBottom color="error">
+            Oops! Something went wrong.
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 3, maxWidth: 400 }}>
+            {error}
+          </Typography>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<Refresh />}
+            onClick={fetchClusterData}
+            sx={{ borderRadius: 3 }}
+          >
+            Retry
+          </Button>
+        </Box>
+      ) : (
+        <>
+          {/* Header Section */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 4,
+              mb: 4,
+              background: 'linear-gradient(135deg, #4682f3ff 0%, #5b86e2ff 100%)',
+              color: 'white',
+              borderRadius: 3,
+              position: 'relative',
+              overflow: 'hidden'
+            }}
+          >
+            <Box sx={{ position: 'relative', zIndex: 1 }}>
+              <Typography 
+                variant="h3" 
+                component="h1" 
+                gutterBottom 
+                sx={{ 
+                  fontWeight: 'bold',
+                  textAlign: 'center',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                }}
+              >
+                Cluster Form Dashboard
+              </Typography>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  textAlign: 'center',
+                  opacity: 0.9,
+                  mb: 3
+                }}
+              >
+                Manage and monitor your cluster form submissions
+              </Typography>
+            </Box>
+            
+            {/* Background decorative elements */}
+            <Box
               sx={{
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '0.9rem',
-                padding: '6px 16px',
-                borderRadius: '8px', // Slightly less rounded for a keycap look
-                // 3D effect styling
-                backgroundColor: isActive ? '#556B2F' : '#E0E0E0', // Darker green/grey for pressed/unpressed
-                color: isActive ? 'white' : '#333',
-                boxShadow: isActive
-                  ? 'inset 0 2px 5px rgba(0,0,0,0.3), 0 0 0px rgba(0,0,0,0)' // Pressed effect
-                  : '0 3px 0px #A0A0A0, 0 5px 10px rgba(0,0,0,0.2)', // Base 3D shadow
-                border: '1px solid #C0C0C0', // Slight border
-                transition: 'all 0.1s ease-out', // Faster transition for click feel
-                '&:hover': {
-                  // Subtle lift effect on hover
-                  transform: isActive ? 'none' : 'translateY(-1px)',
-                  boxShadow: isActive
-                    ? 'inset 0 2px 5px rgba(0,0,0,0.3), 0 0 0px rgba(0,0,0,0)'
-                    : '0 4px 0px #909090, 0 6px 12px rgba(0,0,0,0.3)',
-                },
-                '&:active': {
-                  transform: 'translateY(2px)', // Push down on active
-                  boxShadow: 'inset 0 2px 5px rgba(0,0,0,0.3), 0 0 0px rgba(0,0,0,0)',
-                },
+                position: 'absolute',
+                top: -50,
+                right: -50,
+                width: 200,
+                height: 200,
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.1)'
               }}
             />
-          );
-        })}
-      </Stack>
+            <Box
+              sx={{
+                position: 'absolute',
+                bottom: -80,
+                left: -80,
+                width: 250,
+                height: 250,
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.05)'
+              }}
+            />
+          </Paper>
 
-      {/* --- Filtered Cluster Grid Display --- */}
-      <Grid container spacing={1.5} justifyContent="center">
-        {clusters
-          .filter(cluster => selectedStatus === 'All' || cluster.status === selectedStatus) // Filter clusters based on selected status
-          .map((cluster, index) => {
-            // Get background color and border color for the current cluster card
-            const cardBackgroundColor = getClusterTypeBackgroundColor(cluster.clusterType); // Changed to solid color
-            const cardBorderColor = getStatusBorderColor(cluster.status);
-
-            return (
-              <Grid item xs={4} sm={3} md={2} lg={1} xl={1} key={cluster.keyplotId}
-                onClick={() => handleClusterClick(cluster.keyplotId, index + 1)}>
-                <Tooltip
-                  title={ // Tooltip content to show detailed cluster information on hover
-                    <Box>
-                      <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.8rem' }}>
-                        Local Body: <strong style={{ color: 'white' }}>{cluster.localbody}</strong>
-                      </Typography>
-                     {/* <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.8rem' }}>
-                        Crops: <strong style={{ color: 'white' }}>{cluster.cceCrops?.join(', ') || 'N/A'}</strong>
-                      </Typography> */}
-
-                      <Typography variant="caption" sx={{ display: 'block', fontSize: '0.8rem' }}>
-                        Status: <strong style={{ color: 'white' }}>{cluster.status}</strong>
-                      </Typography>
-                    </Box>
-                  }
-                  arrow // Adds an arrow to the tooltip
-                  placement="top" // Positions the tooltip above the element
+          {/* Summary Cards */}
+          <Grid container spacing={3} sx={{ mb: 4 }}>
+            {[
+              { status: 'All', label: 'Total Clusters', icon: <Dashboard />, color: '#666' },
+              { status: 'Completed', label: 'Completed', icon: <CheckCircle />, color: '#4caf50' },
+              { status: 'On Going', label: 'In Progress', icon: <PlayCircle />, color: '#ff9800' },
+              { status: 'Under Review', label: 'Under Review', icon: <PendingActions />, color: '#2196f3' },
+              { status: 'Not Started', label: 'Not Started', icon: <NewReleases />, color: '#9e9e9e' },
+            ].map((item) => (
+              <Grid item xs={12} sm={6} md={2.4} key={item.status}>
+                <Paper
+                  elevation={2}
+                  sx={{
+                    p: 3,
+                    textAlign: 'center',
+                    borderRadius: 3,
+                    borderLeft: `4px solid ${item.color}`,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      elevation: 4,
+                      transform: 'translateY(-4px)'
+                    }
+                  }}
                 >
-                  <Card
+                  <Box
                     sx={{
-                      background: cardBackgroundColor, // Apply the determined solid background color
-                      border: `2px solid ${cardBorderColor}`, // Apply the determined border color
-                      borderRadius: 2, // Rounded corners for the card
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease-in-out', // Smooth transition for hover effects
-                      // Updated 3D box shadow for the cards
-                      boxShadow: '0 3px 0px rgba(0,0,0,0.1), 0 5px 10px rgba(0,0,0,0.15)',
-                      ...(cluster.status === 'Ongoing' || cluster.status === 'On Going' ? ongoingBorderAnimation : {}), // Apply animation for ongoing clusters
-                      '&:hover': {
-                        // Removed transform translateY, and kept the same boxShadow for normal look
-                        boxShadow: '0 3px 0px rgba(0,0,0,0.1), 0 5px 10px rgba(0,0,0,0.15)',
-                      },
-                      minHeight: { xs: 70, sm: 80 }, // Minimum height for responsiveness
-                      p: 0.5, // Padding around content
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      mb: 2
                     }}
                   >
-                  <CardContent
-                          sx={{
-                              padding: '4px',
-                              '&:last-child': { paddingBottom: '4px' },
-                              width: '100%',
-                              height: '50px', // Force uniform height
-                              boxSizing: 'border-box',
-                              }}>
-
-                      <Typography
-                        variant="h6"
-                        component="div"
-                        sx={{
-                          fontWeight: 'bold',
-                          color: '#2C3E50', // Darker text color for the cluster number
-                          lineHeight: 1,
-                        }}
-                      >
-                        {cluster.clusterNo} {/* Display cluster number (1-indexed) */}
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          display: 'block',
-                          mt: 0.5,
-                          color: '#7F8C8D', // Muted text color for cluster type
-                          borderRadius: '3px',
-                          padding: '1px 4px',
-                          fontSize: '0.7rem',
-                          fontWeight: 'bold',
-                          textTransform: 'uppercase', // Uppercase for cluster type
-                        }}
-                      >
-                        {cluster.clusterType} {/* Display cluster type */}
-                        {/* <Typography>
-                         {cluster.cce ? <LocalFloristIcon/> : null}
-                        </Typography> */}
-
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Tooltip>
+                    <Box
+                      sx={{
+                        p: 1,
+                        borderRadius: '50%',
+                        backgroundColor: `${item.color}20`,
+                        color: item.color,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      {item.icon}
+                    </Box>
+                  </Box>
+                  <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
+                    {getStatusCount(item.status)}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'medium' }}>
+                    {item.label}
+                  </Typography>
+                </Paper>
               </Grid>
-            );
-          })}
-      </Grid>
-      
-    </Box>
-     </>
-        )}
+            ))}
+          </Grid>
+
+          {/* Filter Section */}
+          <Paper elevation={2} sx={{ p: 3, mb: 4, borderRadius: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <FilterList sx={{ mr: 1, color: 'primary.main' }} />
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                Filter Clusters
+              </Typography>
+            </Box>
+            
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2}
+              alignItems="center"
+              justifyContent="space-between"
+            >
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{ flexWrap: 'wrap', gap: 1 }}
+              >
+                {statuses.map((status) => (
+                  <Chip
+                    key={status}
+                    label={`${status} ${status !== 'All' ? `(${getStatusCount(status)})` : ''}`}
+                    onClick={() => setSelectedStatus(status)}
+                    icon={status !== 'All' ? getStatusIcon(status) : undefined}
+                    variant={selectedStatus === status ? 'filled' : 'outlined'}
+                    color={
+                      selectedStatus === status ? 
+                      (status === 'Completed' ? 'success' : 
+                       status === 'On Going' ? 'warning' : 
+                       status === 'Under Review' ? 'info' : 
+                       status === 'Not Started' ? 'default' : 'primary') : 
+                      'default'
+                    }
+                    sx={{
+                      fontWeight: 'bold',
+                      borderRadius: 2,
+                      minWidth: 120,
+                      ...(selectedStatus === status && {
+                        boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+                      })
+                    }}
+                  />
+                ))}
+              </Stack>
+              
+              <Button
+                startIcon={<Refresh />}
+                onClick={fetchClusterData}
+                variant="outlined"
+                sx={{ borderRadius: 2 }}
+              >
+                Refresh
+              </Button>
+            </Stack>
+          </Paper>
+
+          {/* Clusters Grid */}
+          <Box>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+              <LocalFlorist sx={{ mr: 1 }} />
+              {selectedStatus === 'All' ? 'All Clusters' : `${selectedStatus} Clusters`} 
+              <Typography component="span" sx={{ ml: 1, color: 'text.secondary' }}>
+                ({filteredClusters.length})
+              </Typography>
+            </Typography>
+
+            {filteredClusters.length === 0 ? (
+              <Alert severity="info" sx={{ borderRadius: 2 }}>
+                No clusters found matching the current filters.
+              </Alert>
+            ) : (
+              <Grid container spacing={2}>
+                {filteredClusters.map((cluster, index) => {
+                  const typeColors = getClusterTypeColor(cluster.clusterType);
+                  const statusColor = getStatusColor(cluster.status);
+                  
+                  return (
+                    <Grid item xs={6} sm={4} md={3} lg={2} key={cluster.keyplotId || index}>
+                      <Tooltip
+                        title={
+                          <Box sx={{ p: 1 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'white' }}>
+                              Cluster {cluster.clusterNo}
+                            </Typography>
+                            <Typography variant="caption" sx={{ display: 'block', color: 'white', mt: 0.5 }}>
+                              Local Body: <strong>{cluster.localbody}</strong>
+                            </Typography>
+                            <Typography variant="caption" sx={{ display: 'block', color: 'white' }}>
+                              Type: <strong>{cluster.clusterType}</strong>
+                            </Typography>
+                            <Typography variant="caption" sx={{ display: 'block', color: 'white' }}>
+                              Status: <strong>{cluster.status}</strong>
+                            </Typography>
+                          </Box>
+                        }
+                        arrow
+                        placement="top"
+                      >
+                        <Card
+                          elevation={2}
+                          sx={{
+                            background: typeColors.bg,
+                            border: `2px solid ${typeColors.border}`,
+                            borderRadius: 3,
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            position: 'relative',
+                            overflow: 'visible',
+                            '&:hover': {
+                              transform: 'translateY(-4px)',
+                              boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
+                            }
+                          }}
+                          onClick={() => handleClusterClick(cluster.keyplotId, index + 1)}
+                        >
+                          {/* Status Indicator */}
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              top: -6,
+                              right: -6,
+                              width: 20,
+                              height: 20,
+                              borderRadius: '50%',
+                              backgroundColor: statusColor,
+                              border: '2px solid white',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                            }}
+                          />
+                          
+                          <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                            <Typography
+                              variant="h5"
+                              component="div"
+                              sx={{
+                                fontWeight: 'bold',
+                                color: typeColors.color,
+                                mb: 1,
+                                fontSize: { xs: '1.5rem', sm: '1.75rem' }
+                              }}
+                            >
+                              {cluster.clusterNo}
+                            </Typography>
+                            
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
+                              <Box
+                                sx={{
+                                  px: 1,
+                                  py: 0.5,
+                                  borderRadius: 2,
+                                  backgroundColor: `${typeColors.color}15`,
+                                  border: `1px solid ${typeColors.border}30`
+                                }}
+                              >
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: typeColors.color,
+                                    fontWeight: 'bold',
+                                    textTransform: 'uppercase',
+                                    fontSize: '0.65rem',
+                                    letterSpacing: '0.5px'
+                                  }}
+                                >
+                                  {cluster.clusterType}
+                                </Typography>
+                              </Box>
+                            </Box>
+                            
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                mt: 1
+                              }}
+                            >
+                              {getStatusIcon(cluster.status)}
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  ml: 0.5,
+                                  color: statusColor,
+                                  fontWeight: 'bold',
+                                  fontSize: '0.7rem'
+                                }}
+                              >
+                                {cluster.status}
+                              </Typography>
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      </Tooltip>
+                    </Grid>
+                  );
+                })}
+              </Grid>
+            )}
+          </Box>
+        </>
+      )}
+    </Container>
     </Grid>
   );
 }

@@ -298,7 +298,6 @@ const handleDownloadExcel = async () => {
     // 🔹 Extract filename from header
     const disposition = response.headers.get('Content-Disposition');
    let fileName = "btr_data.xlsx";
-
 if (disposition) {
   // Try filename*= (RFC 5987)
   let fileNameMatch = disposition.match(/filename\*=(?:UTF-8''|)([^;]+)/);
@@ -317,6 +316,7 @@ if (disposition) {
     fileName = decodeURIComponent(fileNameMatch[1].trim());
   }
 }
+
     // 🔹 Download file
     const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);

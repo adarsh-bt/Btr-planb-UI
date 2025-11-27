@@ -94,6 +94,8 @@ const [availableZones, setAvailableZones] = useState([]);
   const [userStatus, setUserStatus] = useState('active');
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+  const [roleSchemes, setRoleSchemes] = useState([]);
+
 
   const [innerTabValue, setInnerTabValue] = useState(0);
   
@@ -352,12 +354,15 @@ const handleUserStatusChange = (e) => {
 // ... existing code ...
 
 // 1️⃣ Add this function near your other handlers
-const handleSchemeRoleActiveChange = (idx, value) => {
-  setSchemeRolePairs((pairs) =>
-    pairs.map((pair, i) =>
-      i === idx ? { ...pair, active: value === 'active' } : pair
-    )
-  );
+const handleSchemeRoleActiveChange = (index, value) => {
+  setSchemeRolePairs(prev => {
+    const updated = [...prev];
+    updated[index] = {
+      ...updated[index],
+      isActive: value === "active"   // Convert string back to boolean
+    };
+    return updated;
+  });
 };
 
 
@@ -405,14 +410,16 @@ const handleSchemeRoleActiveChange = (idx, value) => {
         .catch((error) => {
           console.error('Error fetching zones:', error);
         });
-
+        console.log("role  dddd ",payload.roleSchemeResponses)
       // Other state updates...
       setSchemeRolePairs(
         (payload.roleSchemeResponses || []).map((r) => ({
+          id:r.id,
           schemeId: r.schemeId,
           schemeName: r.schemeName,
           roleId: r.roleId,
-          roleName: r.roleName
+          roleName: r.roleName,
+          isActive:r.isActive
         }))
       );
       setOffice(payload.officeLocation || '');
@@ -738,19 +745,20 @@ const handleSaveDesignationClick = () => {
 
   const handleSaveSchemes = async () => {
     const roleScheme = schemeRolePairs
-       .filter((pair) => pair.schemeId && pair.roleId)
-  .map((pair) => ({
-    schemeId: pair.schemeId,
-    roleId: pair.roleId,
-    isActive: pair.active ?? true, // include individual active/inactive state
-  }));
-console.log("roleScheme ",roleScheme)
-    try {
-      const result = await ApprovedUserService.updateUserRoleScheme({
-        userId,
-        isActive: userStatus === 'active', // overall user active status
-        roleScheme
-      });
+    .filter((pair) => pair.schemeId && pair.roleId)
+    .map((pair) => ({
+      schemeId: pair.schemeId,
+      roleId: pair.roleId,
+      id: pair.id,
+      isActive: pair.isActive, // Use the correct property name
+    }));
+
+   try {
+    const result = await ApprovedUserService.updateUserRoleScheme({
+      userId,
+      isActive: userStatus === 'active',
+      roleScheme
+    });
 
       if (result.error) {
        setConfirmMessage(`Failed to update schemes/roles: ${result.message}`);
@@ -763,6 +771,7 @@ console.log("roleScheme ",roleScheme)
         
         if (!updatedRes.error) {
           setUserData(updatedRes.payload);
+          console.log("schemes rolesss "+updatedRes.payload)
           setSchemeRolePairs(
             (updatedRes.payload.roleSchemeResponses || []).map((r) => ({
               schemeId: r.schemeId,
@@ -1007,7 +1016,7 @@ console.log("roleScheme ",roleScheme)
                         label={userData.active ? 'Active' : 'Inactive'}
                         color={userData.active ? 'success' : 'default'}
                         size="large"
-                        sx={{ 
+                        sx={{
                           fontWeight: 'bold', 
                           fontSize: '1rem',
                           px: 2,
@@ -1122,9 +1131,10 @@ console.log("roleScheme ",roleScheme)
                                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
                                     
                                     {/* Status Chip */}
+                                 
                                     <Chip
-                                      label={pair.active === false ? 'Inactive' : 'Active'}
-                                      color={pair.active === false ? 'error' : 'success'}
+                                      label={pair.isActive === false ? 'Inactive' : 'Active'} // Use isActive
+                                      color={pair.isActive === false ? 'error' : 'success'}
                                       size="small"
                                       sx={{ color: '#fff' }}
                                     />
@@ -1140,7 +1150,7 @@ console.log("roleScheme ",roleScheme)
                             ))
                           )}
                           <Grid item xs={12}>
-                            <Button variant="outlined" startIcon={<EditIcon />} onClick={handleEditSchemes} sx={{ mt: 2 }}>
+                            <Button variant="outlined" disabled={true} startIcon={<EditIcon />} onClick={handleEditSchemes} sx={{ mt: 2 }}>
                               Edit Schemes & Roles
                             </Button>
                           </Grid>
@@ -1195,16 +1205,26 @@ console.log("roleScheme ",roleScheme)
                                 </FormControl>
                                 
                                 {/* Status Radio Buttons */}
-                                <FormControl component="fieldset" sx={{ flex: '0 0 auto', minWidth: 160 }}>
-                                  <RadioGroup
-                                    row
-                                    value={pair.active === false ? 'inactive' : 'active'}
-                                    onChange={(e) => handleSchemeRoleActiveChange(idx, e.target.value)}
-                                  >
-                                    <FormControlLabel value="active" control={<Radio size="small" color="primary" />} label="Active" />
-                                    <FormControlLabel value="inactive" control={<Radio size="small" color="error" />} label="Inactive" />
-                                  </RadioGroup>
-                                </FormControl>
+
+<FormControl component="fieldset" sx={{ flex: '0 0 auto', minWidth: 160 }}>
+  <RadioGroup
+    row
+    value={pair.isActive ? "active" : "inactive"} // Convert boolean to string
+    onChange={(e) => handleSchemeRoleActiveChange(idx, e.target.value)}
+  >
+    <FormControlLabel
+      value="active"
+      control={<Radio size="small" color="primary" />}
+      label="Active"
+    />
+    <FormControlLabel
+      value="inactive"
+      control={<Radio size="small" color="error" />}
+      label="Inactive"
+    />
+  </RadioGroup>
+</FormControl>
+
                                 
                                 {/* Remove Button */}
                                 <IconButton 

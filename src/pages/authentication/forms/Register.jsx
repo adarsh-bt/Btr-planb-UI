@@ -194,11 +194,11 @@ const Register = ({ onBack }) => {
       case 'idNumber':
         if (idType === 'PEN') {
           if (!penNumber) return 'PEN Number is required.';
-          return penNumber.length !== 7 ? 'PEN Number must be exactly 10 characters.' : null;
+          return penNumber.length !== 7 ? 'PEN Number must be exactly 7 characters.' : null;
         }
         if (idType === 'TEN') {
           if (!tenNumber) return 'PEN/TEN Number is required.';
-          return tenNumber.length < 6 || tenNumber.length > 10 ? 'TEN Number must be between 6 and 10 characters.' : null;
+          return tenNumber.length !== 7 || tenNumber.length > 7 ? 'TEN Number must be between 6 and 10 characters.' : null;
         }
         return null;
       case 'district':
@@ -237,6 +237,8 @@ const Register = ({ onBack }) => {
   if (penNumber && penNumber.length === 6) {
     const paddedPen = penNumber.padStart(7, '0'); // makes 6 → 7 digits
     setPenNumber(paddedPen);
+  }else{
+    
   }
 };
 
@@ -582,7 +584,7 @@ const Register = ({ onBack }) => {
     <DatePicker
       label={
         <>
-          Date of Joining{' '}
+          Joining of Service{' '}
           <Typography component="span" color="error">
             *
           </Typography>

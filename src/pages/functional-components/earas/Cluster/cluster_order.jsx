@@ -228,8 +228,10 @@ function ClusterSeatMap({ zoneId }) {
   );
 
   return (
-    <Container maxWidth="xl" sx={{ py: 3 }}>
+     <Grid container spacing={3}>
       <Breadcrumb />
+    <Container maxWidth="xl" sx={{ py: 3 }}>
+    
       
       {loading ? (
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px" width="100%">
@@ -659,6 +661,7 @@ function ClusterSeatMap({ zoneId }) {
         </>
       )}
     </Container>
+    </Grid>
   );
 }
 

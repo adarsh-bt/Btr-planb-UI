@@ -38,9 +38,10 @@ body{
 
 
   .logo_gov{
-    width: 180px;
-    height: 140px;
-    margin-bottom: 16px;
+    width: 200px;            /* your chosen width */
+    aspect-ratio: 797 / 519;
+    height: auto;
+    margin-bottom: 14px;
     margin-top:2rem;
   }
 

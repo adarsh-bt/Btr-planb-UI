@@ -192,6 +192,8 @@ function Form1_menus() {
   const [landUtilizationData, setLandUtilizationData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [seasonId, setSeasonId] = useState(1); 
+
 
   // Sorting and Filtering States
   const [order, setOrder] = useState('asc');
@@ -261,12 +263,18 @@ function Form1_menus() {
 // once clusterId is available, load dependent data
 useEffect(() => {
   if (clusterId) {
-    fetchCropDetails();
+    // fetchCropDetails();
     fetchIrrigationDetails();
     fetchLandUtilizationDetails();
     fetchOtherDetails();
   }
 }, [clusterId]);
+useEffect(() => {
+  if (clusterId && seasonId) {
+    fetchCropDetails();
+  }
+}, [seasonId, clusterId]);
+
 
 
   // API Fetch Functions (same as before)
@@ -313,31 +321,34 @@ useEffect(() => {
     }
   };
 
-  const fetchCropDetails = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const BASE_URL = mainapi.BASE_URL;
-    
-      const response = await axios.get(`${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${clusterId}`, {
+const fetchCropDetails = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const BASE_URL = mainapi.BASE_URL;
+
+    const response = await axios.get(
+      `${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${clusterId}/season/${seasonId}`,
+      {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
-      });
-
-      const data = response.data;
-
-      if (data && Array.isArray(data.payload)) {
-        console.log("Crop details payload:", data.payload);
-        setCropData(data.payload);
-      } else {
-        throw new Error('Invalid Crop API response structure or payload is not an array.');
       }
-    } catch (err) {
-      console.error('Error fetching crop details:', err);
-      setCropData([]);
+    );
+
+    const data = response.data;
+
+    if (data && Array.isArray(data.payload)) {
+      setCropData(data.payload);
+    } else {
+      throw new Error('Invalid Crop API response structure');
     }
-  };
+  } catch (err) {
+    console.error('Error fetching crop details:', err);
+    setCropData([]);
+  }
+};
+
 
   const fetchIrrigationDetails = async () => {
     try {
@@ -393,21 +404,6 @@ useEffect(() => {
     setFarmerData({ id: 1, name: 'Ravi Kumar', age: 45, contact: '9876543210', aadhaar: '1234-5678-9012' });
   };
 
-  // const refreshData = () => {
-  //   fetchKeyplotDetails();
-  //   fetchCropDetails(); 
-  //   fetchIrrigationDetails(); 
-  //   fetchLandUtilizationDetails();
-  //   fetchOtherDetails();
-  // };
-
-  // useEffect(() => {
-  //   refreshData();
-  // }, []);
-
-
-
-
   // Enhanced Loading Component
   const renderLoading = () => (
     <Box sx={{ width: '100%', p: 3 }}>
@@ -418,20 +414,6 @@ useEffect(() => {
     </Box>
   );
 
-  // Enhanced Error Component
-  // const renderError = () => (
-  //   <Alert 
-  //     severity="error" 
-  //     action={
-  //       <Button color="inherit" size="small" onClick={refreshData}>
-  //         Retry
-  //       </Button>
-  //     }
-  //     sx={{ mb: 2 }}
-  //   >
-  //     {error}
-  //   </Alert>
-  // );
 
   // 1. Enhanced Keyplot Details with Download
   const renderKeyplotDetails = () => {
@@ -544,20 +526,43 @@ useEffect(() => {
     const totalArea = sortedData.reduce((sum, item) => sum + item.cropArea, 0);
 
     return (
-      <Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-          <SearchFilter onFilter={handleFilter} placeholder="Search crops..." />
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            {/* <Tooltip title="Refresh Data">
-              <IconButton onClick={refreshData} color="primary">
-                <Refresh />
-              </IconButton>
-            </Tooltip> */}
-            <DownloadMenu 
-              onDownload={(format) => handleDownload(format, sortedData, 'crop-details')}
-            />
-          </Box>
-        </Box>
+                    <Box>
+                    <Box 
+                sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  mb: 2, 
+                  flexWrap: 'wrap', 
+                  gap: 2 
+                }}
+              >
+                <SearchFilter onFilter={handleFilter} placeholder="Search crops..." />
+
+                {/* ⭐ SEASON DROPDOWN ADDED HERE */}
+                <TextField
+                  select
+                  label="Season"
+                  size="small"
+                  sx={{ minWidth: 150 }}
+                  value={seasonId}
+                  onChange={(e) => {
+                    setSeasonId(e.target.value);
+                    fetchCropDetails();    // reload data
+                  }}
+                >
+                  <MenuItem value={1}>Autumn</MenuItem>
+                  <MenuItem value={2}>Winter</MenuItem>
+                  <MenuItem value={3}>Summer</MenuItem>
+                </TextField>
+
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                  <DownloadMenu 
+                    onDownload={(format) => handleDownload(format, sortedData, 'crop-details')}
+                  />
+                </Box>
+              </Box>
+
 
         <TableContainer component={Paper} sx={{ border: '1px solid #e0e0e0', boxShadow: 1 }}>
           <Table aria-label="crop details table" size="small">

@@ -40,7 +40,7 @@ const BASE_URL = mainapi.BASE_URL;
 const FORM_URL = mainapi.FORM_API;
 
 // --- Constant for Side Plot Dropdown ---
-const SIDE_PLOT_OPTIONS = ['S1','S2','S3','S4','W1', 'W2', 'W3', 'W4','N1','N2','N3','N4','E1','E2','E3','E4'];
+const SIDE_PLOT_OPTIONS = ['S1','S2','S3','S4','E1', 'E2', 'E3', 'E4','N1','N2','N3','N4','W1','W2','W3','W4'];
 
 // --- Sample Data for Dropdowns & Modal ---
 const role = authservice.getrole();
@@ -325,7 +325,7 @@ const handlePlotValidation = async (keyplotId, rowUniqueId) => {
     // First check if this plot is already used in the current form
     const plotIdentifier = `${row.villageId}-${row.block}-${row.svNo}-${row.sub || ''}`;
     const existingUsageInForm = checkPlotUsageInCurrentForm(plotIdentifier, rowUniqueId);
-
+    console.log("plot idec  "+plotIdentifier)
     if (existingUsageInForm.isUsed) {
         // Plot is already used in current form - show UI validation
         setValidationInfo({
@@ -738,7 +738,7 @@ useEffect(() => {
 
                 const fixed = ['K'];
                 const existing = Object.keys(existingSidePlots).filter(l => l !== 'K');
-                const defaults = ['S1', 'W1', 'E1', 'N1'];
+                const defaults = ['S1', 'E1', 'N1', 'W1'];
                 const uniqueDefaults = defaults.filter(d => !existing.includes(d));
                 const sideplots = [...existing, ...uniqueDefaults].slice(0, 4);
                 const allDirections = [...fixed, ...sideplots];
@@ -1069,7 +1069,7 @@ const handleCloseCropsModal = async () => {
         }
 
         const result = await response.json();
-        console.log('Crop assignments saved successfully:', result);
+        // console.log('Crop assignments saved successfully:', result);
 
         // Update local state
         const cropsToSave = selectedCropIds.map(cropId => {

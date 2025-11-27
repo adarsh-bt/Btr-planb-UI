@@ -229,9 +229,8 @@ class approvalservice {
   // end
 
   // zone services
-
   static async zoneslist(officeType, officeId) {
-    console.log("okk")
+    // console.log("okk")
     try {
       const token = localStorage.getItem('token');
       console.log("office _id ",officeId,"office typr >>",officeId)
@@ -243,7 +242,7 @@ class approvalservice {
           }
         }
       );
-      console.log('aaa', response.data);
+     
       return response.data; // Return response data on success
     } catch (err) {
       return {
