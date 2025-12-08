@@ -202,101 +202,25 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
         setLoginAttemptData(null);
     };
 
-    const handleConfirmSwitchLogin = async () => {
-        setOpenConfirmDialog(false);
-        if (loginAttemptData) {
-            try {
-                setIsLoading(true);
-                const forceLoginData = { ...loginAttemptData, forceLogin: true };
-                const userData = await authservice.login(forceLoginData);
-                setIsLoading(false);
+ const handleConfirmSwitchLogin = async () => {
+    setOpenConfirmDialog(false);
 
-                if (userData.payload && typeof userData.payload.token === 'string') {
-                    const { token, username: userNameFromApi } = userData.payload;
-                    localStorage.setItem('token', token);
-                    localStorage.setItem('user', userNameFromApi);
-                    console.log("  >   name   > "+userNameFromApi)
-                    if (rememberMe) {
-                        localStorage.setItem('rememberedUsername', username);
-                        localStorage.setItem('rememberedPassword', password);
-                        localStorage.setItem('rememberMe', 'true');
-                    } else {
-                        localStorage.removeItem('rememberedUsername');
-                        localStorage.removeItem('rememberedPassword');
-                        localStorage.removeItem('rememberMe');
-                    }
-
-                    setIsLoading(true);
-                    try {
-                        const BASE_URL = mainapi.USER_API;
-                        const permissionsResponse = await fetch(
-                            `${BASE_URL}/user-accesss/user-state/userpremissions`,
-                            {
-                                headers: {
-                                    Authorization: `Bearer ${token}`,
-                                    'Content-Type': 'application/json',
-                                },
-                            }
-                        );
-
-                    //     if (!permissionsResponse.ok) {
-                    //         throw new Error(`HTTP error! status: ${permissionsResponse.status}`);
-                    //     }
-
-                        const permissionsData = await permissionsResponse.json();
-                        setPermissions(permissionsData);
-                        setIsLoading(false);
-                        // navigate('/');
-                          window.location.href = '/';
-                    } catch (permissionsError) {
-                        console.error('Error fetching permissions:', permissionsError);
-                        setError(permissionsError.message || 'Failed to load permissions');
-                        setIsLoading(false);
-                        // navigate('/');
-                          window.location.href = '/';
-                    }
-                } else {
-                    setError(userData.message || 'Login failed after forced login attempt');
-                }
-            } catch (error) {
-                console.error('Error during forced login:', error);
-                setError(error.message || 'An error occurred during forced login');
-                setIsLoading(false);
-            } finally {
-                setLoginAttemptData(null);
-            }
-        }
-    };
-
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        if (!username || !password) {
-            setError(username ? 'Enter your password' : 'Enter your email');
-            return;
-        }
-
-        const trimmedEmail = username.trim();
-        const trimmedPassword = password.trim();
-        const userLogin = { username: trimmedEmail, password: trimmedPassword };
-
+    if (loginAttemptData) {
         try {
             setIsLoading(true);
-            let userData = await authservice.login(userLogin);
+            const forceLoginData = { ...loginAttemptData, forceLogin: true };
+            const userData = await authservice.login(forceLoginData);
             setIsLoading(false);
-            if (userData.message === "User already logged in elsewhere") {
-               
-                setLoginAttemptData(userLogin);
-                setOpenConfirmDialog(true);
-                return;
-            }
 
             if (userData.payload && typeof userData.payload.token === 'string') {
+
                 const { token, username: userNameFromApi } = userData.payload;
+
+                // Store token + user
                 localStorage.setItem('token', token);
                 localStorage.setItem('user', userNameFromApi);
 
+                // Remember me
                 if (rememberMe) {
                     localStorage.setItem('rememberedUsername', username);
                     localStorage.setItem('rememberedPassword', password);
@@ -306,46 +230,127 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     localStorage.removeItem('rememberedPassword');
                     localStorage.removeItem('rememberMe');
                 }
-
                 setIsLoading(true);
                 try {
-                    const BASE_URL = mainapi.USER_API;
-                    const permissionsResponse = await fetch(
-                        `${BASE_URL}/user-accesss/user-state/userpremissions`,
-                        {
-                            headers: {
-                                Authorization: `Bearer ${token}`,
-                                'Content-Type': 'application/json',
-                            },
-                        }
-                    );
+                   const permissionsResponse = await authservice.fetchPermission(token);
 
-                    if (!permissionsResponse.ok) {
-                        throw new Error(`HTTP error! status: ${permissionsResponse.status}`);
+                        if (!permissionsResponse.success) {
+                    throw new Error(permissionsResponse.error || "Permission fetch failed");
                     }
 
-                    const permissionsData = await permissionsResponse.json();
+                    const permissionsData = permissionsResponse.data;
+
+
+                    // ⭐ STORE permissions in localStorage
+                   localStorage.setItem("permissionsData", JSON.stringify(permissionsData));
+
                     setPermissions(permissionsData);
                     setIsLoading(false);
-                    // navigate('/');
-                     window.location.href = '/';
+
+                    window.location.href = '/';
 
                 } catch (permissionsError) {
                     console.error('Error fetching permissions:', permissionsError);
-                    // setError(permissionsError.message || 'Failed to load permissions');
+                    setError(permissionsError.message || 'Failed to load permissions');
+
                     setIsLoading(false);
-                    // navigate('/');
-                     window.location.href = '/';
+                    window.location.href = '/';
                 }
+
             } else {
-                setError(userData.message || 'Login failed');
+                setError(userData.message || 'Login failed after forced login attempt');
             }
+
         } catch (error) {
-            console.error('Error during login:', error);
-            setError(error.message || 'An error occurred during login');
+            console.error('Error during forced login:', error);
+            setError(error.message || 'An error occurred during forced login');
             setIsLoading(false);
+
+        } finally {
+            setLoginAttemptData(null);
         }
+    }
+};
+
+   const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!username || !password) {
+        setError(username ? 'Enter your password' : 'Enter your email');
+        return;
+    }
+
+    const userLogin = {
+        username: username.trim(),
+        password: password.trim()
     };
+
+    try {
+        setIsLoading(true);
+        let userData = await authservice.login(userLogin);
+        setIsLoading(false);
+
+        // User logged in somewhere else
+        if (userData.message === "User already logged in elsewhere") {
+            setLoginAttemptData(userLogin);
+            setOpenConfirmDialog(true);
+            return;
+        }
+
+        if (userData.payload && typeof userData.payload.token === 'string') {
+
+            const { token, username: userNameFromApi } = userData.payload;
+
+            // Store token + user
+            localStorage.setItem('token', token);
+            localStorage.setItem('user', userNameFromApi);
+
+            // Remember me
+            if (rememberMe) {
+                localStorage.setItem('rememberedUsername', username);
+                localStorage.setItem('rememberedPassword', password);
+                localStorage.setItem('rememberMe', 'true');
+            } else {
+                localStorage.removeItem('rememberedUsername');
+                localStorage.removeItem('rememberedPassword');
+                localStorage.removeItem('rememberMe');
+            }
+            setIsLoading(true);
+           try {
+                const permissionsResponse = await authservice.fetchPermission(token);
+
+                if (!permissionsResponse.success) {
+                    throw new Error(permissionsResponse.error || "Permission fetch failed");
+                }
+
+                const permissionsData = permissionsResponse.data;
+
+                // ⭐ STORE permissions in localStorage
+                localStorage.setItem("permissionsData", JSON.stringify(permissionsData));
+
+                setPermissions(permissionsData);
+                setIsLoading(false);
+
+                window.location.href = '/';
+
+            } catch (permissionsError) {
+                console.error('Error fetching permissions:', permissionsError);
+
+                setIsLoading(false);
+                window.location.href = '/';
+            }
+
+        } else {
+            setError(userData.message || 'Login failed');
+        }
+
+    } catch (error) {
+        console.error('Error during login:', error);
+        setError(error.message || 'An error occurred during login');
+        setIsLoading(false);
+    }
+};
+
 
 
     return (

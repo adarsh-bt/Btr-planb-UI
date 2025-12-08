@@ -29,6 +29,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import InfoOutlineIcon from '@mui/icons-material/InfoOutlined';
 import IconButton from '@mui/material/IconButton';
+import { usePermission } from 'contexts/auth-reducer/usePermission';
 
 // Define the columns for the data table
 const columns = (handleEdit, handleView,page,size) => [
@@ -130,10 +131,11 @@ const columns = (handleEdit, handleView,page,size) => [
 ];
 
 const Btr = ({ zoneId }) => {
- 
+ const { hasPermission } = usePermission();
+const { roles, hasRole } = usePermission();
   const [resolvedZoneId, setResolvedZoneId] = useState(() => {
   const role = authservice.getrole(); // Get the role
-  return role === 'Field Data Collector'
+  return hasRole(1)
     ? authservice.getzone()  // For Field Data Collector
     : zoneId;                         // For Admin or other roles
 });

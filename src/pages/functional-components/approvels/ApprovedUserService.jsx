@@ -5,6 +5,27 @@ class ApprovedUserService {
   static USER_URL = mainapi.USER_API;
   static BTR_URL = mainapi.BTR_API;
  
+
+static async fetchPagedApprovedUsers(params) {
+  try {
+    const token = localStorage.getItem("token");
+    const response = await axios.get(
+      `${ApprovedUserService.USER_URL}/user-access/user-state/approved-users`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        params,
+      }
+    );
+    console.log("response ",response)
+    return response.data;
+  } catch (err) {
+    return {
+      error: true,
+      message: err.response?.data?.message || "Failed to fetch approved users",
+    };
+  }
+}
+
   // Fetch IT admin approved users
   static async fetchITAdminApprovedUsers() {
     try {

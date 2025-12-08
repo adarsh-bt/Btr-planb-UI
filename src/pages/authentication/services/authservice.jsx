@@ -25,33 +25,63 @@ class authservice {
       // Store token/user
       localStorage.setItem('token', responseData.payload.token);
       localStorage.setItem('user', responseData.payload.username);
+      localStorage.setItem('des', responseData.payload.designation);
       console.log('>> >>>>> >>>>>> ', responseData);
       return responseData;
-    } catch (err) {
+    } 
+ catch (err) {
   if (err.response) {
+    const status = err.response.status;
+    const rawError = err.response.data;
+
+    // Handle service down cases clearly
+    if (status === 503 || status === 502 || status === 500) {
+      return { message: "Server is temporarily unavailable. Please try again later." };
+    }
+
     let decryptedError = '';
-try {
-  const decrypted = decryptData(err.response.data);
-  decryptedError = JSON.parse(decrypted)?.message || decrypted;
-} catch (decryptionError) {
-  decryptedError = 'Unknown encrypted error from backend';
-}
-console.log("err ",decryptedError.message)
-    return {
-      message: decryptedError || err.response.data.message || 'Unknown error from backend'
-    };
-  } else if (err.request) {
-    return {
-      message: 'Sorry, Please try again later'
-    };
-  } else {
-    return {
-      message: err.message || 'An unknown error occurred'
-    };
-  }
-}
+    try {
+      // Try decrypting only if the data is your encrypted string
+      const decrypted = decryptData(rawError);
+      decryptedError = JSON.parse(decrypted)?.message || decrypted;
+    } catch {
+      // Fallback for non-encrypted backend errors
+      decryptedError = rawError?.message || "Unexpected error from server.";
+    }
+
+    return { message: decryptedError };
   }
 
+  if (err.request) {
+    return { message: "Unable to reach server. Please check your connection." };
+  }
+
+  return { message: err.message || "An unknown error occurred" };
+}
+
+  }
+
+static async fetchPermission(token)  {
+    try {
+        const BASE_URL = mainapi.USER_API;
+        const res = await fetch(`${BASE_URL}/user-access/user-state/access`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!res.ok) {
+            throw new Error(`Permissions API failed: ${res.status}`);
+        }
+
+        const data = await res.json();
+        return { success: true, data };
+    } catch (err) {
+        console.error("Error fetching permissions:", err);
+        return { success: false, error: err.message };
+    }
+};
 
   
   static async fetchPermissions(token) {
@@ -153,6 +183,8 @@ static async logout(navigate) {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
   localStorage.removeItem('activeZone');
+  localStorage.removeItem('des');
+  localStorage.removeItem('permissionsData');
   navigate('/login');
 
 }
@@ -182,6 +214,15 @@ static async logout(navigate) {
     return decodedToken.roles;}
     catch{
       return null
+    }
+  }
+
+    static getdesignation() {
+    try{
+      const designation = localStorage.getItem('des');
+      return designation;
+    } catch (error) {
+      console.error('Error decoding token:', error);
     }
   }
   static getzone() {

@@ -45,6 +45,9 @@ import usermanage from 'assets/images/logo/usermanage.png';
 
  //for permissions line
 // import { useUserAccess, PermissionGate } from 'contexts/auth-reducer/universal/UserAccessContext';
+import { usePermission } from "../../contexts/auth-reducer/usePermission";
+
+
 
 
 const avatarSX = {
@@ -68,6 +71,10 @@ const { children } = tabmenus.items2[0];
 
 export default function DashboardDefault() {
   const isauth = auth.isAdmin();
+const { hasPermission } = usePermission();
+const { roles, hasRole } = usePermission();
+
+// Check if user has role ID 3
 
   //for permissions line
   // const { userAccessData, loading, hasPermission, hasPermissionByName } = useUserAccess();
@@ -394,7 +401,8 @@ export default function DashboardDefault() {
         </Grid>
 )} */}
 
-{["Super Admin", "District Level Approver", "IT Admin","Taluk Level Approver"].includes(authservice.getrole()) && (
+{/* {["Super Admin", "District Level Approver", "IT Admin","Taluk Level Approver"].includes(authservice.getrole()) && ( */}
+{hasPermission(93) && (
         <Grid item xs={12} sm={4} md={4} lg={4}>
           <Card
             component={Link}
@@ -484,7 +492,7 @@ export default function DashboardDefault() {
         </Grid>
 )}
 
-{["Super Admin", "District Level Approver", "IT Admin"].includes(authservice.getrole()) && (
+{["Super Admin", "District Level Approver", "IT Admin","Taluk Level Approver"].includes(authservice.getrole()) && (
         <Grid item xs={12} sm={4} md={4} lg={4}>
           <Card
             component={Link}

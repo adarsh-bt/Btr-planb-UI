@@ -3,6 +3,7 @@ import UserZoneDetails from './userzonedetails';
 import AdminsZonelist from './AdminsZonelist';
 import authservice from 'pages/authentication/services/authservice';
 
+
 function ZoneDetailsWrapper() {
   const role = authservice.getrole();
 

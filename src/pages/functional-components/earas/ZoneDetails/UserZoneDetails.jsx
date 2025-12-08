@@ -25,6 +25,7 @@ function UserZoneDetails({zoneId}) {
   const [zone, setZone] = useState(null);
   const [result, setResult] = useState(null);
   const [zoneName, setZoneName] = useState('')
+  const [zonestatus,setZonestatus] = useState(false)
 
      const BASE_URL = mainapi.BASE_URL;
 
@@ -35,37 +36,106 @@ function UserZoneDetails({zoneId}) {
     : zoneId;                         // For Admin or other roles
 });
 
-
 useEffect(() => {
   const fetchData = async () => {
+    setLoading(true);
+
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       const user_id = authservice.userid();
-      
-      const response = await fetch(`${BASE_URL}/btr-service/btr-api/zone-details/${resolvedZoneId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
 
-      const result = await response.json(); // Always parse response body
-
-      if (!response.ok) {
-        // Handle specific case: "No value present"
-        if (result?.response === "No value present") {
-          setError("No zones are currently assigned to you.");
-        } else {
-          throw new Error(result?.message || 'Failed to fetch data');
-        }
-      } else {
-        console.log('data', result.payload);
-        setResult(result.payload);
-        setZoneName(result.payload.zone_name)
-        setData(result.payload.data);
+      // --- STEP 1: Fetch assigned zones ---
+      let zoneRes;
+      try {
+        zoneRes = await fetch(
+          `${BASE_URL}/btr-service/btr-api/zones/assigned/${user_id}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+      } catch {
+        // NETWORK FAILURE = server down
+        setError("Server is busy. Please try again later.");
+        return;
       }
+
+      let assignedZones;
+      try {
+        assignedZones = await zoneRes.json();
+      } catch {
+        assignedZones = null;
+      }
+
+      // SERVER DOWN / INTERNAL ERROR
+      if (zoneRes.status >= 500) {
+        setError("Server is busy. Please try again later.");
+        return;
+      }
+
+      // NO ZONES ASSIGNED (Backend already sends 400)
+      if (zoneRes.status === 400) {
+        const msg = assignedZones?.message || assignedZones || "";
+        if (msg.includes("User has no assigned zones")) {
+          setError("No zones are assigned to you. Please contact your admin.");
+          setZonestatus(true)
+        } else {
+          setError("No zones are assigned to you. Please contact your admin.");
+          setZonestatus(true)
+        }
+        return;
+      }
+
+      // ALSO HANDLE EMPTY LIST CASE
+      if (!assignedZones || assignedZones.length === 0) {
+        setError("No zones are assigned to you. Please contact your admin.");
+        return;
+      }
+
+      // --- STEP 2: Pick final zoneId ---
+      const zoneIdToUse =
+        resolvedZoneId && resolvedZoneId !== "null"
+          ? resolvedZoneId
+          : assignedZones[0].zoneId;
+
+      if (!zoneIdToUse) {
+        setError("No zones are assigned to you. Please contact your admin.");
+        return;
+      }
+
+      // --- STEP 3: Fetch zone details ---
+      let zoneDetRes;
+      try {
+        zoneDetRes = await fetch(
+          `${BASE_URL}/btr-service/btr-api/zone-details/${zoneIdToUse}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+      } catch {
+        setError("Server is busy. Please try again later.");
+        return;
+      }
+
+      let detailJson;
+      try {
+        detailJson = await zoneDetRes.json();
+      } catch {
+        setError("Server is busy. Please try again later.");
+        return;
+      }
+
+      if (!zoneDetRes.ok) {
+        setError(detailJson.message || "Unable to load zone details.");
+        return;
+      }
+
+      // SUCCESS
+      setResult(detailJson.payload);
+      setZoneName(detailJson.payload.zone_name);
+      setData(detailJson.payload.data);
+
     } catch (error) {
-      console.log(">>>", error);
-      setError(error.message+". Please try refreshing the page." || 'An unexpected error occurred');
+      setError("Server is busy. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -81,32 +151,81 @@ useEffect(() => {
 
 if (error) {
   return (
-    <Box sx={{ textAlign: 'center', mt: 6 }}>
-      
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          mb: 2,
-        }}
-      >
-        <DotLottieReact
-          style={{ width: '50rem', maxWidth: '100%' }}
-          src="https://lottie.host/ae6ba3d5-ea79-454d-ae28-fbcb986a5f7b/9vhgZMKvHq.lottie"
-          loop
-          autoplay
-        />
-      </Box>
-      <Typography variant="h5" gutterBottom>
-        Oops! Something went wrong.
-      </Typography>
-      <Typography variant="body1" sx={{ mb: 2 }}>
-        {error} 
-      </Typography>
-      <Button variant="contained" color="error" onClick={() => window.location.reload()}>
-        Retry
-      </Button>
-    </Box>
+<Box sx={{ textAlign: 'center', mt: 2 }}>
+  
+  {/* ZONESTATUS MESSAGE ON TOP */}
+  <Box
+    sx={{
+      display: 'flex',
+      justifyContent: 'center',
+      mb: 2,
+    }}
+  >
+    <DotLottieReact
+      style={{ width: '50rem', maxWidth: '100%' }}
+      src="https://lottie.host/ae6ba3d5-ea79-454d-ae28-fbcb986a5f7b/9vhgZMKvHq.lottie"
+      loop
+      autoplay
+    />
+  </Box>
+
+ {zonestatus && (
+  <Box
+    sx={{
+      position: "relative",
+      overflow: "hidden",
+      bgcolor: "#f5a123ff",
+      color: "#faf9f7ff",
+      border: "1px solid #FFEEBA",
+      borderRadius: 2,
+      p: 2,
+      mb: 3,
+      width: "60%",
+      mx: "auto",
+    }}
+  >
+    {/* MOVING REFLECTOR EFFECT */}
+    <Box
+      sx={{
+        position: "absolute",
+        top: 0,
+        left: "-150px",
+        width: "120px",
+        height: "100%",
+        background:
+          "linear-gradient(120deg, rgba(255,255,255,0) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255,255,255,0) 100%)",
+        transform: "skewX(-20deg)",
+        animation: "shine 2.5s infinite",
+      }}
+    />
+
+    <Typography variant="h5" sx={{ position: "relative", zIndex: 2 }}>
+       {error} 
+    </Typography>
+
+    {/* ANIMATION KEYFRAMES */}
+    <style>
+      {`
+        @keyframes shine {
+          0% { left: -150px; }
+          60% { left: 100%; }
+          100% { left: 100%; }
+        }
+      `}
+    </style>
+  </Box>
+)}
+
+  <Typography variant="body1" sx={{ mb: 2 }}>
+    {error}
+  </Typography>
+
+  <Button variant="contained" color="error" onClick={() => window.location.reload()}>
+    Retry
+  </Button>
+
+</Box>
+
   );
 }
 

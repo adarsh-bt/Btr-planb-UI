@@ -11,6 +11,7 @@ import Notification from './Notification';
 import MobileSection from './MobileSection';
 import ZoneOptions from './ZoneOption';
 import authservice from 'pages/authentication/services/authservice';
+import { usePermission } from 'contexts/auth-reducer/usePermission';
 
 // project import
 // import { GithubOutlined } from '@ant-design/icons';
@@ -20,9 +21,12 @@ import authservice from 'pages/authentication/services/authservice';
 export default function HeaderContent() {
   const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
  const role = authservice.getrole();
+ const { hasPermission } = usePermission();
+const { roles, hasRole } = usePermission();
   return (
     <>
       {!downLG && <Search />}
+      
       {downLG && <Box sx={{ width: '100%', ml: 1 }} />}
       {/* <IconButton
         component={Link}
@@ -35,7 +39,7 @@ export default function HeaderContent() {
       >
         <GithubOutlined />
       </IconButton> */}
-      {role === "Field Data Collector" && <ZoneOptions />}
+      {hasRole(1) && <ZoneOptions />}
 
       <Notification />
       {!downLG && <Profile />}

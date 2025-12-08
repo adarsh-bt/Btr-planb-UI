@@ -27,6 +27,7 @@ import Breadcrumb from 'routes/Breadcrumb';
 import LoadingScreen from 'utils/loadingscreen';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import authservice from 'pages/authentication/services/authservice';
+import { usePermission } from 'contexts/auth-reducer/usePermission';
 import mainapi from 'api/mainapi';
 
 function ClusterSeatMap({ zoneId }) {
@@ -36,10 +37,13 @@ function ClusterSeatMap({ zoneId }) {
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+   const [zonestatus,setZonestatus] = useState(false)
+   const { hasPermission } = usePermission();
+const { roles, hasRole } = usePermission();
 
   const [resolvedZoneId, setResolvedZoneId] = useState(() => {
     const role = authservice.getrole();
-    return role === 'Field Data Collector' ? authservice.getzone() : zoneId;
+    return hasRole(1) ? authservice.getzone() : zoneId;
   });
 
   const BASE_URL = mainapi.BASE_URL;
@@ -47,7 +51,13 @@ function ClusterSeatMap({ zoneId }) {
   useEffect(() => {
     const token = localStorage.getItem('token');
     setLoading(true);
-
+ if (!resolvedZoneId || resolvedZoneId === "null") {
+    setError("No zones are assigned to you. Please contact your administrator.");
+    setZonestatus(true)
+   
+    setLoading(false);
+    return;
+  }
     axios.get(`${BASE_URL}/btr-service/cluster-api/user-cluster-summary/${resolvedZoneId}`, {
       headers: {
         'Authorization': `Bearer ${token}`
@@ -238,6 +248,7 @@ function ClusterSeatMap({ zoneId }) {
           <LoadingScreen message="Loading cluster data..." />
         </Box>
       ) : error ? (
+        
         <Box
           display="flex"
           flexDirection="column"
@@ -253,9 +264,52 @@ function ClusterSeatMap({ zoneId }) {
             loop
             autoplay
           />
-          <Typography variant="h5" gutterBottom color="error">
-            Oops! Something went wrong.
-          </Typography>
+          {zonestatus && (
+  <Box
+    sx={{
+      position: "relative",
+      overflow: "hidden",
+      bgcolor: "#f5a123ff",
+      color: "#faf9f7ff",
+      border: "1px solid #FFEEBA",
+      borderRadius: 2,
+      p: 2,
+      mb: 3,
+      width: "60%",
+      mx: "auto",
+    }}
+  >
+    {/* MOVING REFLECTOR EFFECT */}
+    <Box
+      sx={{
+        position: "absolute",
+        top: 0,
+        left: "-150px",
+        width: "120px",
+        height: "100%",
+        background:
+          "linear-gradient(120deg, rgba(255,255,255,0) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255,255,255,0) 100%)",
+        transform: "skewX(-20deg)",
+        animation: "shine 2.5s infinite",
+      }}
+    />
+
+    <Typography variant="h5" sx={{ position: "relative", zIndex: 2 }}>
+       {error} 
+    </Typography>
+
+    {/* ANIMATION KEYFRAMES */}
+    <style>
+      {`
+        @keyframes shine {
+          0% { left: -150px; }
+          60% { left: 100%; }
+          100% { left: 100%; }
+        }
+      `}
+    </style>
+  </Box>
+)}
           <Typography variant="body1" sx={{ mb: 3, color: 'text.secondary' }}>
             {error}
           </Typography>

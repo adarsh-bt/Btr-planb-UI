@@ -356,10 +356,10 @@ const handleSaveChanges = () => {
               )
             );
 
-            if (zone !== "" && data.payload.loginId !== null) {
-              console.log("zone  ",zone,"   >>> ",data.payload.loginId,"admin ",admin_id)
+            if (zone !== "" && data.payload[0].loginId !== null) {
+              console.log("zone  ",zone,"   >>> ",data.payload,"admin ",admin_id)
               approvalservice
-                .zone_save(zone, data.payload.loginId, admin_id)
+                .zone_save(zone, data.payload[0].loginId, admin_id)
                 .catch(() => {
                   Swal.fire("Error", "Failed to save zone information. Please try again later.", "error");
                 });
@@ -611,10 +611,10 @@ useEffect(() => {
         >
           {[{ label: "Name", value: selectedRow.name },
             { label: "Designation", value: selectedRow.designation },
-            { label: "Date Of birth", value: selectedRow.dateOfBirth },
+            { label: "Date Of birth", value: new Date(selectedRow.dateOfBirth).toLocaleDateString('en-GB') },
             { label: "Email", value: selectedRow.email },
             { label: "Phone Number", value: selectedRow.mobileNumber },
-            { label: "Date of Joining", value: selectedRow.dateOfJoining },
+            { label: "Date of Joining", value: new Date(selectedRow.dateOfJoining).toLocaleDateString('en-GB') },
             { label: "Emp ID", value: selectedRow.empNumber },
             { label: "Office", value: selectedRow.officelocation }
           ].map((field, index) => (
@@ -963,10 +963,10 @@ useEffect(() => {
         >
           {[{ label: "Name", value: selectedRow.name },
             { label: "Designation", value: selectedRow.designation },
-            { label: "Date Of birth", value: selectedRow.dateOfBirth },
+            { label: "Date Of birth", value: new Date(selectedRow.dateOfBirth).toLocaleDateString('en-GB') },
             { label: "Email", value: selectedRow.email },
             { label: "Phone Number", value: selectedRow.mobileNumber },
-            { label: "Date of Joining", value: selectedRow.dateOfJoining },
+            { label: "Date of Joining", value: new Date(selectedRow.dateOfJoining).toLocaleDateString('en-GB') },
             { label: "Emp number", value: selectedRow.empNumber },
             { label: "Office", value: selectedRow.officelocation }
           ].map((field, index) => (

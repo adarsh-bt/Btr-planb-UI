@@ -13,6 +13,7 @@ import { Link } from 'react-router-dom';
 
 import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
+import { usePermission } from 'contexts/auth-reducer/usePermission';
 
 import { useContext } from 'react';
 // import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
@@ -22,6 +23,8 @@ import zonesettings from 'assets/images/logo/zonesettings.png';
 import ccecropselection from 'assets/images/logo/ccecropselection.png';
 
 const SettingsMenu = () => {
+   const { hasPermission } = usePermission();
+const { roles, hasRole } = usePermission();
   return (
     <Grid container spacing={3}>
       <Breadcrumb />
@@ -31,7 +34,7 @@ const SettingsMenu = () => {
         </Typography>
         <MainCard title="">
           <Grid container spacing={4} alignItems="stretch">
-            {/* {canViewZoneDetails && ( */}
+            {hasPermission(99) && (
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
@@ -68,16 +71,16 @@ const SettingsMenu = () => {
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
                     <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Zone Settings
+                      Cluster Settings
                     </Typography>
                     {/* Subtitle removed from here */}
                   </CardContent>
                 </Box>
               </Card>
             </Grid>
-            {/* )} */}
+            )}
 
-            {/* {canViewBTR && ( */}
+            {hasPermission(100) && (
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
@@ -121,9 +124,51 @@ const SettingsMenu = () => {
                 </Box>
               </Card>
             </Grid>
-
-
-            {/* )} */}
+            )}
+            {hasPermission(103) && (
+             <Grid item xs={12} sm={4} md={3} lg={3}>
+              <Card
+                component={Link}
+                to="/schemes/earas/earas_management/CCE_crop_selection"
+                sx={{
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '1rem',
+                  borderRadius: '1rem',
+                  background: 'linear-gradient(135deg, rgba(254, 146, 146, 0.45), rgba(250, 120, 120, 1))', // Gradient color
+                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
+                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
+                  height: '100%', // Ensure card takes full height of the grid item
+                  '&:hover': {
+                    transform: 'scale(1.05)', // Hover scale effect
+                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
+                  }
+                }}
+              >
+                <CardMedia
+                  component="img"
+                  sx={{
+                    width: '5rem',
+                    height: '5rem',
+                    borderRadius: '.5rem',
+                    marginRight: '1rem' // Space between image and text
+                  }}
+                  image={ccecropselection}
+                  alt="ccecropselection"
+                />
+                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
+                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
+                      Zone Seasons Management
+                    </Typography>
+                    {/* Subtitle removed from here */}
+                  </CardContent>
+                </Box>
+              </Card>
+            </Grid>
+            )}
           </Grid>
         </MainCard>
       </Grid>

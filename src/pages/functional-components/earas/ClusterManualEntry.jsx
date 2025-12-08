@@ -35,6 +35,7 @@ import mainapi from 'api/mainapi';
 import Autocomplete from '@mui/material/Autocomplete';
 import authservice from 'pages/authentication/services/authservice';
 import Breadcrumb from 'routes/Breadcrumb';
+import MapEditor from './Cluster/MapEditor';
 
 const BASE_URL = mainapi.BASE_URL;
 const FORM_URL = mainapi.FORM_API;
@@ -125,6 +126,14 @@ const [pendingPlot, setPendingPlot] = useState(null);
 // Add this with your other state declarations
 const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
 const [rowToDelete, setRowToDelete] = useState(null); // Stores { keyplotId, rowUniqueId, rowData }
+
+const [open, setOpen] = useState(false);
+  const [savedJson, setSavedJson] = useState(null);
+
+  const handleSave = (json) => {
+    setSavedJson(json); // store in state (or send to backend)
+    setOpen(false);
+  };
     
     const [keyplotDetails, setKeyplotDetails] = useState({
         villageBlock: '',
@@ -515,7 +524,7 @@ const fetchApiCceCrops = useCallback(async () => {
     
     try {
         const token = localStorage.getItem('token');
-       
+       alert(clusterId);
         const response = await fetch(
             `${BASE_URL}/btr-service/crop-assignment-trail/${clusterId}/cce-crops`,
             {
@@ -1744,6 +1753,7 @@ useEffect(() => {
                         <Grid item><Button variant="contained" color="info" onClick={handleOpenCropsModal}>Add CCE crops</Button></Grid>)}
                         <Grid item><Button variant="contained" color="secondary" startIcon={<MapIcon />}>View FMB</Button></Grid>
                         {/* <Grid item><Button variant="contained" color="error" startIcon={<DeleteForeverIcon />}>Reject Cluster</Button></Grid> */}
+                        {/* <Grid item><Button variant="contained" color="primary" startIcon={<DeleteForeverIcon />} onClick={() => setOpen(true)}>Draw Map</Button></Grid> */}
                     </Grid>
                 </Box>
 
@@ -2149,6 +2159,11 @@ useEffect(() => {
     </DialogActions>
 </Dialog>
 
+
+ <Dialog open={open} onClose={() => setOpen(false)} maxWidth="lg">
+        <MapEditor savedJson={savedJson} onSave={handleSave} />
+      </Dialog>
+    
 {/* Confirmation Dialog for Deleting Saved Rows */}
 <Dialog
     open={openConfirmDialog}

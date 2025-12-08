@@ -24,6 +24,7 @@ export default function ZoneOptions() {
   
   // Fetch zones and restore last selected zone
   useEffect(() => {
+   
     const token = localStorage.getItem('token');
     axios
       axios

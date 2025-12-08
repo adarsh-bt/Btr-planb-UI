@@ -18,12 +18,18 @@ const PrivateRoute = ({ children }) => {
     if (decodedToken.exp < currentTime) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      localStorage.removeItem('des');
+      localStorage.removeItem('permissionsData');
+        localStorage.removeItem('activeZone');
       return <Navigate to="/login" replace />;
     }
   } catch (error) {
     // If decoding the token fails, also redirect to login
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('des');
+    localStorage.removeItem('permissionsData');
+      localStorage.removeItem('activeZone');
     return <Navigate to="/login" replace />;
   }
 

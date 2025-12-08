@@ -114,6 +114,7 @@ const [error, setError] = useState(null);
 const [loading, setLoading] = useState(true);
 const [validationErrors, setValidationErrors] = useState({});
 const [isdisabled,SetIsDisable] = useState(true)
+ const [zonestatus,setZonestatus] = useState(false)
 
 
   const BASE_URL = mainapi.BASE_URL;
@@ -131,7 +132,14 @@ useEffect(() => {
       const token = localStorage.getItem('token');
       const user_id = authservice.userid();
       const zone_id = localStorage.getItem('activeZone');
-      
+            //  if (!resolvedZoneId || resolvedZoneId === "null" || !zoneId || zoneId ==="null" ) {
+             if ( !zoneId || zoneId ==="null" ) {
+     
+    setError("No zones are assigned to you. Please contact your administrator.");
+    setZonestatus(true)
+    setLoading(false);
+    return;
+  }
       const response = await fetch(`${BASE_URL}/btr-service/btr-api/zone-details/${zone_id}`, {
         headers: {
           Authorization: `Bearer ${token}`
@@ -160,7 +168,9 @@ const zoneId = authservice.getzone();
 useEffect(() => {
   const fetchWorkAllocation = async () => {
     try {
+      
       const token = localStorage.getItem('token');
+
       const res = await axios.get(`${BASE_URL}/btr-service/btr-api/work-allocation-view/${zoneId}`, {
         headers: {
           Authorization: `Bearer ${token}`
@@ -668,9 +678,52 @@ const renderOtherDetailsTable = () => (
             autoplay
           />
         </Box>
-        <Typography variant="h5" gutterBottom>
-          Oops! Something went wrong.
-        </Typography>
+        {zonestatus && (
+  <Box
+    sx={{
+      position: "relative",
+      overflow: "hidden",
+      bgcolor: "#f5a123ff",
+      color: "#faf9f7ff",
+      border: "1px solid #FFEEBA",
+      borderRadius: 2,
+      p: 2,
+      mb: 3,
+      width: "60%",
+      mx: "auto",
+    }}
+  >
+    {/* MOVING REFLECTOR EFFECT */}
+    <Box
+      sx={{
+        position: "absolute",
+        top: 0,
+        left: "-150px",
+        width: "120px",
+        height: "100%",
+        background:
+          "linear-gradient(120deg, rgba(255,255,255,0) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255,255,255,0) 100%)",
+        transform: "skewX(-20deg)",
+        animation: "shine 2.5s infinite",
+      }}
+    />
+
+    <Typography variant="h5" sx={{ position: "relative", zIndex: 2 }}>
+       {error} 
+    </Typography>
+
+    {/* ANIMATION KEYFRAMES */}
+    <style>
+      {`
+        @keyframes shine {
+          0% { left: -150px; }
+          60% { left: 100%; }
+          100% { left: 100%; }
+        }
+      `}
+    </style>
+  </Box>
+)}
         <Typography variant="body1" sx={{ mb: 2 }}>
           {error} Please try refreshing the page.
         </Typography>

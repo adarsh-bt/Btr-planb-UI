@@ -16,7 +16,7 @@ import ListItemSecondaryAction from '@mui/material/ListItemSecondaryAction';
 import Paper from '@mui/material/Paper';
 import Popper from '@mui/material/Popper';
 import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
+
 import Box from '@mui/material/Box';
 
 // project import
@@ -29,6 +29,7 @@ import CheckCircleOutlined from '@ant-design/icons/CheckCircleOutlined';
 import GiftOutlined from '@ant-design/icons/GiftOutlined';
 import MessageOutlined from '@ant-design/icons/MessageOutlined';
 import SettingOutlined from '@ant-design/icons/SettingOutlined';
+import authservice from 'pages/authentication/services/authservice';
 
 // sx styles
 const avatarSX = {
@@ -71,6 +72,7 @@ export default function Notification() {
 
   return (
     <Box sx={{ flexShrink: 0, ml: 0.75 }}>
+     
       <IconButton
         color="secondary"
         variant="light"

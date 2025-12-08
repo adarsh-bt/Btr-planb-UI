@@ -42,9 +42,9 @@ const ClustersWrapperForm = Loadable(lazy(() => import('pages/functional-compone
 // const Form1_menus = Loadable(lazy(() => import('pages/functional-components/earas/form1/form1menus')));
 
 
-const ZoneSettings = Loadable(lazy(() => import('pages/functional-components/earas/ZoneDetails/ZoneSettings')));
-const SettingsMenu = Loadable(lazy(() => import('pages/functional-components/earas/SettingsMenu')));
-const CCE_crop_selection = Loadable(lazy(() => import('pages/functional-components/earas/CceCropSelection')));
+const ZoneSettings = Loadable(lazy(() => import('pages/functional-components/earas/earasManagement/ZoneSettings')));
+const SettingsMenu = Loadable(lazy(() => import('pages/functional-components/earas/earasManagement/SettingsMenu')));
+const CCE_crop_selection = Loadable(lazy(() => import('pages/functional-components/earas/earasManagement/CceCropSelection')));
 
 const Form1_menus = Loadable(lazy(() => import('pages/functional-components/earas/form1/form1menus')));
 // const LandUtilization = Loadable(lazy(() => import('pages/functional-components/earas/form1/Form1Wrapper')));

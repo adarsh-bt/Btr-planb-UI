@@ -194,7 +194,7 @@ const Register = ({ onBack }) => {
       case 'idNumber':
         if (idType === 'PEN') {
           if (!penNumber) return 'PEN Number is required.';
-          return penNumber.length !== 7 ? 'PEN Number must be exactly 7 characters.' : null;
+          return penNumber.length !== 7 ? 'PEN Number must be exactly 7 / 6 characters.' : null;
         }
         if (idType === 'TEN') {
           if (!tenNumber) return 'PEN/TEN Number is required.';
@@ -505,19 +505,26 @@ const Register = ({ onBack }) => {
 
       <FormControl component="fieldset" sx={{ mb: 2 }}>
         <RadioGroup row value={idType} onChange={(e) => setIdType(e.target.value)}>
-          <FormControlLabel value="PEN" control={<Radio />} label="PEN" />
-          <FormControlLabel value="TEN" control={<Radio />} label="TEN" />
+          <FormControlLabel value="PEN" control={<Radio />} 
+          label="PEN" />
+          <FormControlLabel value="TEN" control={<Radio />} 
+          label="TEN" />
         </RadioGroup>
       </FormControl>
 
       {idType === 'PEN' ? (
         <TextField
           variant="outlined"
-          label="PEN"
+          label={<>
+            PEN{' '}
+            <Typography component="span" color="error">
+              *
+            </Typography>
+          </>}
           value={penNumber}
           onChange={handlePenChange}
           onBlur={handlePenBlur}
-          inputProps={{ maxLength: 10 }}
+          inputProps={{ maxLength: 7 }}
           error={!!errors.idNumber}
           helperText={errors.idNumber ? errors.idNumber : ' '}
           sx={{
@@ -533,10 +540,15 @@ const Register = ({ onBack }) => {
       ) : (
         <TextField
           variant="outlined"
-          label="TEN"
+          label={<>
+            TEN{' '}
+            <Typography component="span" color="error">
+              *
+            </Typography>
+          </>}
           value={tenNumber}
           onChange={handleTenChange}
-          inputProps={{ maxLength: 10 }}
+          inputProps={{ maxLength: 7 }}
           error={!!errors.idNumber}
           helperText={errors.idNumber ? errors.idNumber : ' '}
           sx={{

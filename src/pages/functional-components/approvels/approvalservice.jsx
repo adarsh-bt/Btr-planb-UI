@@ -242,7 +242,7 @@ class approvalservice {
           }
         }
       );
-     
+     console.log("zone list response",response.data)
       return response.data; // Return response data on success
     } catch (err) {
       return {
