@@ -910,10 +910,10 @@ return (
         >
           {[{ label: "Name", value: selectedRow.name },
             { label: "Designation", value: selectedRow.designation },
-            { label: "Date Of birth", value: selectedRow.dateOfBirth },
+            { label: "Date Of birth", value: new Date(selectedRow.dateOfBirth).toLocaleDateString('en-GB'), sortable: true  },
             { label: "Email", value: selectedRow.email },
             { label: "Phone Number", value: selectedRow.mobileNumber },
-            { label: "Date of Joining", value: selectedRow.dateOfJoining },
+            { label: "Date of Joining", value: new Date(selectedRow.dateOfJoining).toLocaleDateString('en-GB'), sortable: true  },
             { label: "Emp ID", value: selectedRow.empNumber },
             { label: "Office",value: selectedRow.officelocation } 
           ].map((field, index) => (

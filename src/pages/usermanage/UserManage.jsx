@@ -1105,7 +1105,9 @@ const handleSaveDesignationClick = () => {
                     <Tab label="Change Schemes & Roles" />
                     <Tab label="Change Designations" />
                     <Tab label="Change Office Type" />
-                    <Tab label="Zone Manage" />
+                    {userData.roleSchemeResponses?.[0]?.roleId === 1 && (
+                      <Tab label="Zone Manage" />
+                    )}
                     <Tab label="Change user status" />
                   </Tabs>
 

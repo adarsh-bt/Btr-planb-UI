@@ -581,78 +581,87 @@ const Register = ({ onBack }) => {
 
    <Grid container spacing={2} sx={{ mb: 2 }}>
   <Grid item xs={6}>
-    <DatePicker
-      label={
-        <>
-          Joining of Service{' '}
-          <Typography component="span" color="error">
-            *
-          </Typography>
-        </>
+  <DatePicker
+    label={
+      <>
+        Joining of Service{' '}
+        <Typography component="span" color="error">
+          *
+        </Typography>
+      </>
+    }
+    value={dateOfJoining ? new Date(dateOfJoining) : null}
+    onChange={(newValue) => {
+      // ... your existing onChange logic
+      if (newValue) {
+        const year = newValue.getFullYear();
+        const month = String(newValue.getMonth() + 1).padStart(2, '0');
+        const day = String(newValue.getDate()).padStart(2, '0');
+        const localDate = `${year}-${month}-${day}`;
+        handleDateOfJoiningChange({ target: { value: localDate } });
+      } else {
+        handleDateOfJoiningChange({ target: { value: '' } });
       }
-      value={dateOfJoining ? new Date(dateOfJoining) : null}
-     onChange={(newValue) => {
-  if (newValue) {
-    const year = newValue.getFullYear();
-    const month = String(newValue.getMonth() + 1).padStart(2, '0');
-    const day = String(newValue.getDate()).padStart(2, '0');
-    const localDate = `${year}-${month}-${day}`;
+    }}
+    maxDate={new Date()}
+    renderInput={(params) => (
+      <TextField
+        {...params}
+        fullWidth
+        error={!!errors.dateOfJoining}
+        helperText={errors.dateOfJoining}
+        // 👇 ADD THIS TO DISABLE MANUAL KEYBOARD INPUT
+        inputProps={{
+          ...params.inputProps,
+          readOnly: true, // Prevents keyboard input
+        }}
+      />
+    )}
+    inputFormat="dd/MM/yyyy"
+  />
+</Grid>
 
-    handleDateOfJoiningChange({ target: { value: localDate } });
-  } else {
-    handleDateOfJoiningChange({ target: { value: '' } });
-  }
-}}
+ <Grid item xs={6}>
+  <DatePicker
+    label={
+      <>
+        Date of Birth{' '}
+        <Typography component="span" color="error">
+          *
+        </Typography>
+      </>
+    }
+    value={dateOfBirth ? new Date(dateOfBirth) : null}
+    onChange={(newValue) => {
+      // ... your existing onChange logic
+      if (newValue) {
+        const year = newValue.getFullYear();
+        const month = String(newValue.getMonth() + 1).padStart(2, '0');
+        const day = String(newValue.getDate()).padStart(2, '0');
+        const localDate = `${year}-${month}-${day}`;
 
-      maxDate={new Date()}
-      renderInput={(params) => (
-        <TextField
-          {...params}
-          fullWidth
-          error={!!errors.dateOfJoining}
-          helperText={errors.dateOfJoining}
-        />
-      )}
-      inputFormat="dd/MM/yyyy"
-    />
-  </Grid>
-
-  <Grid item xs={6}>
-    <DatePicker
-      label={
-        <>
-          Date of Birth{' '}
-          <Typography component="span" color="error">
-            *
-          </Typography>
-        </>
+        handleDateOfBirthChange({ target: { value: localDate } });
+      } else {
+        handleDateOfBirthChange({ target: { value: '' } });
       }
-      value={dateOfBirth ? new Date(dateOfBirth) : null}
-     onChange={(newValue) => {
-  if (newValue) {
-    const year = newValue.getFullYear();
-    const month = String(newValue.getMonth() + 1).padStart(2, '0');
-    const day = String(newValue.getDate()).padStart(2, '0');
-    const localDate = `${year}-${month}-${day}`;
-
-    handleDateOfBirthChange({ target: { value: localDate } });
-  } else {
-    handleDateOfBirthChange({ target: { value: '' } });
-  }
-}}
-
-      maxDate={new Date()}
-      renderInput={(params) => (
-        <TextField
-          {...params}
-          fullWidth
-          error={!!errors.dateOfBirth}
-          helperText={errors.dateOfBirth}
-        />
-      )}
-      inputFormat="dd/MM/yyyy"
-    />
-  </Grid>
+    }}
+    maxDate={new Date()}
+    renderInput={(params) => (
+      <TextField
+        {...params}
+        fullWidth
+        error={!!errors.dateOfBirth}
+        helperText={errors.dateOfBirth}
+        // 👇 ADD THIS TO DISABLE MANUAL KEYBOARD INPUT
+        inputProps={{
+          ...params.inputProps,
+          readOnly: true, // Prevents keyboard input
+        }}
+      />
+    )}
+    inputFormat="dd/MM/yyyy"
+  />
+</Grid>
 </Grid>
 
       <MuiFormControl fullWidth sx={{ mb: 2 }} error={!!errors.district}>
