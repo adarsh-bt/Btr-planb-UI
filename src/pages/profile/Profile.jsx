@@ -274,7 +274,12 @@ const Profile = () => {
                       
                       <Box sx={{ space: 2 }}>
                         <InfoRow label="Full Name" value={userData.name} icon={<PersonOutlineIcon />} />
-                        <InfoRow label="Date of Birth" value={userData.dateOfBirth} icon={<CakeIcon />} />
+                       <InfoRow label="Date of Birth"
+                              value={
+                                userData.dateOfBirth
+                                  ? new Date(userData.dateOfBirth).toLocaleDateString()
+                                  : 'N/A'}
+                              icon={<CakeIcon />}/>
                         <InfoRow label="Personal Email" value={userData.email} icon={<EmailIcon />} />
                         <InfoRow label="Mobile Number" value={userData.mobileNumber} icon={<PhoneIcon />} />
                       </Box>
@@ -301,7 +306,13 @@ const Profile = () => {
                       <Box sx={{ space: 2 }}>
                         <InfoRow label="Employee Number" value={userData.penNumber} icon={<BadgeOutlinedIcon />} />
                         <InfoRow label="Designation" value={userData.designation} icon={<WorkOutlineIcon />} />
-                        <InfoRow label="Date of Joining" value={userData.dateOfJoining} icon={<EventAvailableIcon />} />
+                       <InfoRow label="Date of Joining" value={
+                                  userData.dateOfJoining
+                                    ? new Date(userData.dateOfJoining).toLocaleDateString()
+                                    : 'N/A'
+                                }
+                                icon={<EventAvailableIcon />}
+                              />
                         <InfoRow label="Office Location" value={userData.officelocation} icon={<LocationOnIcon />} />
                       </Box>
                     </Paper>
@@ -350,7 +361,7 @@ const Profile = () => {
                         <Grid item xs={6} sm={3}>
                           <StatBox 
                             label="Member Since" 
-                            value={userData.dateOfJoining} 
+                            value={new Date(userData.dateOfJoining).toLocaleDateString()} 
                             color="#9c27b0"
                             icon={<CalendarTodayIcon />}
                           />

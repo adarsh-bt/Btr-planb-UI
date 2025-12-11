@@ -1330,13 +1330,13 @@ const handleInputChange = (e, keyplotId, rowUniqueId, field) => {
   row[field] = processedValue;
 
   // Trigger validation when plot details change
-  if (['svNo', 'sub'].includes(field)) {
-    if (row.villageId && row.block && row.svNo) {
-      setTimeout(() => {
-        handlePlotValidation(keyplotId, rowUniqueId);
-      }, 300);
-    }
-  }
+//   if (['svNo', 'sub'].includes(field)) {
+//     if (row.villageId && row.block && row.svNo) {
+//       setTimeout(() => {
+//         handlePlotValidation(keyplotId, rowUniqueId);
+//       }, 300);
+//     }
+//   }
 
   // Existing logic for syncing related fields...
   if (['villageName', 'block', 'svNo', 'sub'].includes(field)) {
@@ -1900,10 +1900,11 @@ useEffect(() => {
                                                     </Grid>
                                                     <Grid item xs={1.5}><TextField label="Survey No" size="small" fullWidth value={row.svNo}  onChange={(e) => {const value = e.target.value; if (value.length <= 5 && /^\d*$/.test(value)) {
                                                          handleInputChange(e, keyplot.id, row.uniqueId, 'svNo');}}} 
-                                                         onBlur={() => handlePlotValidation(keyplot.id, row.uniqueId)} inputProps={{ maxLength: 5 }}
+                                                         onBlur={() => {if (row.villageId && row.block && row.svNo) {
+                                                                handlePlotValidation(keyplot.id, row.uniqueId);}}} inputProps={{ maxLength: 5 }}
                                                     /></Grid>
                                                     <Grid item xs={1}><TextField label="Sub Div" size="small" fullWidth value={row.sub} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'sub')} 
-                                                        onBlur={() => handlePlotValidation(keyplot.id, row.uniqueId)}
+                                                        onBlur={() => {if (row.villageId && row.block && row.svNo) {handlePlotValidation(keyplot.id, row.uniqueId);}}}
                                                     /></Grid>
                                                     <Grid item xs={2}><TextField label="Area" size="small" fullWidth type="number" value={row.area} InputProps={{ readOnly: isAreaReadOnly }} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'area')} /></Grid>
                                                     <Grid item xs={2}><TextField label="Enum. Area" size="small" fullWidth type="number" value={row.enumeratedArea} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')} onBlur={(e) => handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')} error={hasError} helperText={hasError ? errors[errorKey] : ''} /></Grid>

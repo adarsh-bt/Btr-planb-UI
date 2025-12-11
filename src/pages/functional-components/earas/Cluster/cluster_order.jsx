@@ -327,64 +327,7 @@ function ClusterSeatMap({ zoneId }) {
 
             {/* Summary Stats */}
             <Grid container spacing={2} justifyContent="center">
-              {Object.entries(summary).map(([key, value]) => (
-                <Grid item xs={6} sm={3} key={key}>
-                  <Paper
-                    sx={{
-                      p: 2,
-                      textAlign: 'center',
-                      backgroundColor: 'rgba(255,255,255,0.1)',
-                      backdropFilter: 'blur(10px)',
-                      borderRadius: 2,
-                      border: '1px solid rgba(255,255,255,0.2)',
-                    }}
-                  >
-                    <Typography variant="h4" fontWeight="bold" sx={{ color: 'white' }}>
-                      {value}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', textTransform: 'capitalize' }}>
-                      {key.replace(/([A-Z])/g, ' $1').trim()}
-                    </Typography>
-                  </Paper>
-                </Grid>
-              ))}
-              {/* Crop Summary */}
-              <Grid item xs={6} sm={3}>
-                <Paper
-                  sx={{
-                    p: 2,
-                    textAlign: 'center',
-                    backgroundColor: 'rgba(255,255,255,0.1)',
-                    backdropFilter: 'blur(10px)',
-                    borderRadius: 2,
-                    border: '1px solid rgba(255,255,255,0.2)',
-                  }}
-                >
-                  <Typography variant="h4" fontWeight="bold" sx={{ color: 'white' }}>
-                    {totalCrops}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                    Total Crops
-                  </Typography>
-                </Paper>
-              </Grid>
-            </Grid>
-          </Paper>
-
-          {/* Status Filter Section */}
-          <Paper
-            sx={{
-              p: 3,
-              mb: 3,
-              borderRadius: 3,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-            }}
-          >
-            <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: '600', color: 'text.primary' }}>
-              Filter by Status
-            </Typography>
-            
-            <Stack
+              <Stack
               direction={{ xs: 'column', sm: 'row' }}
               spacing={2}
               sx={{
@@ -412,7 +355,44 @@ function ClusterSeatMap({ zoneId }) {
                 );
               })}
             </Stack>
+              {/* Crop Summary */}
+              {/* <Grid item xs={6} sm={3}>
+                <Paper
+                  sx={{
+                    p: 2,
+                    textAlign: 'center',
+                    backgroundColor: 'rgba(255,255,255,0.1)',
+                    backdropFilter: 'blur(10px)',
+                    borderRadius: 2,
+                    border: '1px solid rgba(255,255,255,0.2)',
+                  }}
+                >
+                  <Typography variant="h4" fontWeight="bold" sx={{ color: 'white' }}>
+                    {totalCrops}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                    Total Crops
+                  </Typography>
+                </Paper>
+              </Grid> */}
+            </Grid>
           </Paper>
+
+          {/* Status Filter Section */}
+          {/* <Paper
+            sx={{
+              p: 3,
+              mb: 3,
+              borderRadius: 3,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+            }}
+          >
+            <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: '600', color: 'text.primary' }}>
+              Filter by Status
+            </Typography>
+            
+           
+          </Paper> */}
 
           {/* Crop Filter Section */}
           {Object.keys(cropCounts).length > 0 && (
@@ -426,7 +406,7 @@ function ClusterSeatMap({ zoneId }) {
               }}
             >
               <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: '600', color: 'text.primary' }}>
-                Crops Overview
+               Crops selected for CCE : Total {totalCrops} Crops
               </Typography>
               
               <Stack

@@ -970,7 +970,7 @@ const handleSaveDesignationClick = () => {
                   {[
                     { icon: '🏢', label: 'Office Type', value: userData.officeType || 'Not specified' },
                     { icon: '📍', label: 'Office Location', value: userData.officeLocation || 'Not specified' },
-                    { icon: '📅', label: 'Date of Join', value: userData.dateOfJoining || userData.dateOfJoin || 'Not specified' },
+                    { icon: '📅', label: 'Date of Join', value: userData.dateOfJoining ? new Date(userData.dateOfJoining).toLocaleDateString('en-GB') : userData.dateOfJoin ? new Date(userData.dateOfJoin).toLocaleDateString('en-GB') : 'Not specified' },
                   ].map((item, index) => (
                     <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start' }}>
                       <Box sx={{ 
@@ -1059,7 +1059,7 @@ const handleSaveDesignationClick = () => {
                 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                   {[
-                    { icon: '🎂', label: 'Date of Birth', value: userData.dateOfBirth || 'Not specified' },
+                    { icon: '🎂', label: 'Date of Birth', value: userData.dateOfBirth ? new Date(userData.dateOfBirth).toLocaleDateString('en-GB') : 'Not specified' },
                     { icon: '⏰', label: 'Last Activity', value: userData.updatedAt ? new Date(userData.updatedAt).toLocaleString() : 'N/A' },
                   ].map((item, index) => (
                     <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start' }}>
@@ -1150,7 +1150,7 @@ const handleSaveDesignationClick = () => {
                             ))
                           )}
                           <Grid item xs={12}>
-                            <Button variant="outlined" disabled={true} startIcon={<EditIcon />} onClick={handleEditSchemes} sx={{ mt: 2 }}>
+                            <Button variant="outlined" disabled={true}  startIcon={<EditIcon />} onClick={handleEditSchemes} sx={{ mt: 2 }}>
                               Edit Schemes & Roles
                             </Button>
                           </Grid>
@@ -1684,8 +1684,8 @@ const handleSaveDesignationClick = () => {
                                   }}
                                 >
                                   <Typography variant="subtitle1" fontWeight="bold">
-                                    {z.zoneName}
-                                  </Typography>
+                                    {z.zoneName} 
+                                  </Typography><Typography variant="h6" >{z.zone_type_name}</Typography>
                                   <Typography variant="body2" color="text.secondary">
                                     {/* Status: {z.status || 'Inactive'} */}
                                     Status: {'Active'}
@@ -1812,10 +1812,18 @@ const handleSaveDesignationClick = () => {
             <em>Select a zone</em>
           </MenuItem>
           {availableZones.map((zone) => (
-            <MenuItem key={zone.zoneId} value={zone.zoneId}>
-              {zone.zoneNameEn}
-            </MenuItem>
-          ))}
+  <MenuItem key={zone.zoneId} value={zone.zoneId}>
+    <Box display="flex" justifyContent="space-between" width="100%">
+      <Typography variant="body1">
+        {zone.zoneNameEn}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        {zone.zoneType}
+      </Typography>
+    </Box>
+  </MenuItem>
+))}
+
         </Select>
         {addZoneError && (
           <Typography color="error" sx={{ mt: 1 }}>

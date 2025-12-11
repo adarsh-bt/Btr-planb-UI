@@ -66,7 +66,7 @@ const Register = ({ onBack }) => {
     office: ''
   });
 
-  const today = new Date().toISOString().split('T')[0];
+  // const today = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
     const fetchDesignations = async () => {
@@ -591,14 +591,19 @@ const Register = ({ onBack }) => {
         </>
       }
       value={dateOfJoining ? new Date(dateOfJoining) : null}
-      onChange={(newValue) => {
-        if (newValue) {
-          const isoDate = newValue.toISOString().split('T')[0];
-          handleDateOfJoiningChange({ target: { value: isoDate } });
-        } else {
-          handleDateOfJoiningChange({ target: { value: '' } });
-        }
-      }}
+     onChange={(newValue) => {
+  if (newValue) {
+    const year = newValue.getFullYear();
+    const month = String(newValue.getMonth() + 1).padStart(2, '0');
+    const day = String(newValue.getDate()).padStart(2, '0');
+    const localDate = `${year}-${month}-${day}`;
+
+    handleDateOfJoiningChange({ target: { value: localDate } });
+  } else {
+    handleDateOfJoiningChange({ target: { value: '' } });
+  }
+}}
+
       maxDate={new Date()}
       renderInput={(params) => (
         <TextField
@@ -623,14 +628,19 @@ const Register = ({ onBack }) => {
         </>
       }
       value={dateOfBirth ? new Date(dateOfBirth) : null}
-      onChange={(newValue) => {
-        if (newValue) {
-          const isoDate = newValue.toISOString().split('T')[0];
-          handleDateOfBirthChange({ target: { value: isoDate } });
-        } else {
-          handleDateOfBirthChange({ target: { value: '' } });
-        }
-      }}
+     onChange={(newValue) => {
+  if (newValue) {
+    const year = newValue.getFullYear();
+    const month = String(newValue.getMonth() + 1).padStart(2, '0');
+    const day = String(newValue.getDate()).padStart(2, '0');
+    const localDate = `${year}-${month}-${day}`;
+
+    handleDateOfBirthChange({ target: { value: localDate } });
+  } else {
+    handleDateOfBirthChange({ target: { value: '' } });
+  }
+}}
+
       maxDate={new Date()}
       renderInput={(params) => (
         <TextField

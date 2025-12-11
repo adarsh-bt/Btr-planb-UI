@@ -25,6 +25,7 @@ class authservice {
       // Store token/user
       localStorage.setItem('token', responseData.payload.token);
       localStorage.setItem('user', responseData.payload.username);
+       localStorage.setItem('des', responseData.payload.designation);
       console.log('>> >>>>> >>>>>> ', responseData);
       return responseData;
     } catch (err) {
@@ -188,6 +189,15 @@ static async logout(navigate) {
     try{
       const zoneId = localStorage.getItem('activeZone');
       return zoneId;
+    } catch (error) {
+      console.error('Error decoding token:', error);
+    }
+  }
+
+  static getdesignation() {
+    try{
+      const designation = localStorage.getItem('des');
+      return designation;
     } catch (error) {
       console.error('Error decoding token:', error);
     }

@@ -56,6 +56,7 @@ import {
 import mainapi from 'api/mainapi';
 import authservice from 'pages/authentication/services/authservice';
 import { pl } from 'date-fns/locale';
+// import { usePermission } from 'contexts/auth-reducer/usePermission';
 
 const KeyPlotListing = ({zoneId}) => {
   // State management
@@ -95,6 +96,16 @@ const KeyPlotListing = ({zoneId}) => {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   const [panchayathAreaSummary, setPanchayathAreaSummary] = useState([]);
+  const [zonestatus,setZonestatus] = useState(false)
+  // const { hasPermission } = usePermission();
+// const { roles, hasRole } = usePermission();
+
+//       const [resolvedZoneId, setResolvedZoneId] = useState(() => {
+//   const role = authservice.getrole(); // Get the role
+//   return  hasRole(1)
+//     ? authservice.getzone()  // For Field Data Collector
+//     : zoneId;                         // For Admin or other roles
+// });
 
       const [resolvedZoneId, setResolvedZoneId] = useState(() => {
   const role = authservice.getrole(); // Get the role
@@ -151,13 +162,20 @@ const KeyPlotListing = ({zoneId}) => {
     try {
       const BASE_URL = mainapi.BASE_URL;
       const token = localStorage.getItem('token')
+        if (!resolvedZoneId || resolvedZoneId === "null") {
+    setError("No zones are assigned to you. Please contact your administrator.");
+    setZonestatus(true)
+    setDataVisible(false);
+    setLoading(false);
+    return;
+  }
       
       const response = await fetch(`${BASE_URL}/btr-service/key-plots/get-all/${resolvedZoneId}`, {
   headers: {
     'Authorization': `Bearer ${token}`,
   }
 });
-      
+     
       if (!response.ok) {
         throw new Error(`Failed to fetch data (${response.status})`);
       }
@@ -165,27 +183,38 @@ const KeyPlotListing = ({zoneId}) => {
       const plots = data.payload || [];
       const transformedPlots = transformPlotData(plots);
       // console.log("key >>>> "+transformedPlots);
-      
+      console.log("key >>>> ",transformedPlots);
       setPlotData(transformedPlots);
       setDataVisible(plots.length > 0);
       
       // Calculate panchayath summary
-      const panchayathSummary = plots.reduce((acc, plot) => {
-        const existing = acc.find(item => item.panchayath === plot.panchayath);
-        if (existing) {
-          existing.totalarea += plot.areaCents || 0;
-          existing.count += 1;
-        } else {
-          acc.push({
-            panchayath: plot.panchayath,
-            totalarea: plot.areaCents || 0,
-            count: 1
-          });
-        }
-        return acc;
-      }, []).sort((a, b) => b.totalarea - a.totalarea);
-      
-      setPanchayathAreaSummary(panchayathSummary);
+     // Calculate panchayath summary WITH WET/DRY counts
+const panchayathSummary = plots.reduce((acc, plot) => {
+  const existing = acc.find(item => item.panchayath === plot.panchayath);
+  const isWet = plot.landType?.toUpperCase() === "WET";
+  const isDry = plot.landType?.toUpperCase() === "DRY";
+
+  if (existing) {
+    existing.totalarea += plot.areaCents || 0;
+    existing.count += 1;
+
+    if (isWet) existing.wetCount += 1;
+    if (isDry) existing.dryCount += 1;
+
+  } else {
+    acc.push({
+      panchayath: plot.panchayath,
+      totalarea: plot.areaCents || 0,
+      count: 1,
+      wetCount: isWet ? 1 : 0,
+      dryCount: isDry ? 1 : 0
+    });
+  }
+  return acc;
+}, []).sort((a, b) => b.totalarea - a.totalarea);
+
+setPanchayathAreaSummary(panchayathSummary);
+
       
       // setSnackbarMessage(`Successfully loaded ${plots.length} keyplots`);
       // setSnackbarSeverity('success');
@@ -285,7 +314,7 @@ const KeyPlotListing = ({zoneId}) => {
 
   // Filter and sort data
   const filteredSortedAndPaginatedData = useMemo(() => {
-    const visibleKeys = ['slNo', 'syNo', 'panchayth', 'village','area', 'villageBlock', 'landType'];
+    const visibleKeys = ['slNo', 'panchayth', 'village','area', 'syNo','villageBlock', 'landType'];
 
     let filtered = plotData.filter((row) => {
       const matchesSearch = !searchTerm || 
@@ -305,7 +334,7 @@ const KeyPlotListing = ({zoneId}) => {
 
   // Get filtered count for pagination
   const filteredCount = useMemo(() => {
-    const visibleKeys = ['slNo', 'syNo', 'panchayth', 'area', 'villageBlock', 'landType'];
+    const visibleKeys = ['slNo', 'panchayth', 'village','area', 'syNo','villageBlock', 'landType'];
     
     return plotData.filter((row) => {
       const matchesSearch = !searchTerm || 
@@ -500,6 +529,52 @@ const KeyPlotListing = ({zoneId}) => {
           </Box>
         )}
 
+{zonestatus && (
+  <Box
+    sx={{
+      position: "relative",
+      overflow: "hidden",
+      bgcolor: "#f5a123ff",
+      color: "#faf9f7ff",
+      border: "1px solid #FFEEBA",
+      borderRadius: 2,
+      p: 2,
+      mb: 3,
+      width: "100%",
+      mx: "auto",
+    }}
+  >
+    {/* MOVING REFLECTOR EFFECT */}
+    <Box
+      sx={{
+        position: "absolute",
+        top: 0,
+        left: "-150px",
+        width: "120px",
+        height: "100%",
+        background:
+          "linear-gradient(120deg, rgba(255,255,255,0) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255,255,255,0) 100%)",
+        transform: "skewX(-20deg)",
+        animation: "shine 2.5s infinite",
+      }}
+    />
+
+    <Typography variant="h5" sx={{ position: "relative", zIndex: 2 }}>
+       {error} 
+    </Typography>
+
+    {/* ANIMATION KEYFRAMES */}
+    <style>
+      {`
+        @keyframes shine {
+          0% { left: -150px; }
+          60% { left: 100%; }
+          100% { left: 100%; }
+        }
+      `}
+    </style>
+  </Box>
+)}
         {!loading && fetchError && (
           <Box sx={{ textAlign: 'center', mt: 6 }}>
             <Typography variant="h5" gutterBottom>
@@ -545,19 +620,16 @@ const KeyPlotListing = ({zoneId}) => {
           <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
             {/* Panchayath Summary and Search */}
             <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              {/* {panchayathAreaSummary.length > 0 && (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, flexGrow: 1, maxWidth: 'calc(100% - 320px)' }}>
-                  {panchayathAreaSummary.map((item, index) => (
-                    <Chip
-                      key={index}
-                      label={`${item.panchayath}: ${item.totalarea.toFixed(2)} Cents`}
-                      variant="outlined"
-                      color="primary"
-                      size="small"
-                    />
-                  ))}
-                </Box>
-              )} */}
+              {panchayathAreaSummary.map((item, index) => (
+                  <Chip
+                    key={index}
+                    label={`${item.panchayath}: ${item.totalarea.toFixed(2)} Cents | WET: ${item.wetCount} | DRY: ${item.dryCount}`}
+               
+                    color="success"
+                    size="small"
+                  />
+                ))}
+
 
               <Box sx={{ display: 'flex', gap: 2, ml: { xs: 0, sm: 2 }, mt: { xs: 2, sm: 0 } }}>
                 <Chip label="AY 2024 - 2025" variant="outlined" color="info" />
@@ -709,10 +781,10 @@ const KeyPlotListing = ({zoneId}) => {
                         }}
                       >
                         <TableCell align="center">{row.slNo}</TableCell>
-                        <TableCell align="center">{row.syNo}</TableCell>
                         <TableCell align="center">{row.panchayth}</TableCell>
                         <TableCell align="center">{row.kvillageName}</TableCell>
                         <TableCell align="center">{row.villageBlock}</TableCell>
+                        <TableCell align="center">{row.syNo}</TableCell>
                         <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
                         <TableCell align="center">{row.landType}</TableCell>
                         <TableCell align="center">

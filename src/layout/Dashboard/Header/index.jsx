@@ -8,6 +8,7 @@ import Toolbar from '@mui/material/Toolbar';
 import IconButton from '@mui/material/IconButton';
 import MenuIcon from '@mui/icons-material/Menu';
 import MenuOpenIcon from '@mui/icons-material/MenuOpen';
+import Typography from '@mui/material/Typography';
 
 // project import
 import AppBarStyled from './AppBarStyled';
@@ -15,7 +16,7 @@ import HeaderContent from './HeaderContent';
 
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 
-
+import authservice from 'pages/authentication/services/authservice';
 
 // ==============================|| MAIN LAYOUT - HEADER ||============================== //
 
@@ -25,6 +26,7 @@ export default function Header() {
 
   const { menuMaster } = useGetMenuMaster();
   const drawerOpen = menuMaster.isDashboardDrawerOpened;
+     const designation = authservice.getdesignation();
 
   // header content
   const headerContent = useMemo(() => <HeaderContent />, []);
@@ -46,6 +48,9 @@ export default function Header() {
       >
         {!drawerOpen ? <MenuIcon /> : <MenuOpenIcon />}
       </IconButton>
+       {/* <Typography variant="p" color="white" sx={{width:'50%', ml:4,border:'1px solid white',borderRadius:2,padding:1, alignItems:'center', justifyContent:'center', display:'flex',background: 'rgba(0, 0, 0, 0.2)'}}>
+        {designation}
+      </Typography> */}
       {headerContent}
     </Toolbar>
   );
