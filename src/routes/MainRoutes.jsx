@@ -377,7 +377,7 @@ const MainRoutes = {
       path: '/schemes/earas/Clusters_Form',
       element: (
         <PrivateRoute>
-          <ClusterFormView />
+          <ClustersWrapperForm />
         </PrivateRoute>
       )
     },

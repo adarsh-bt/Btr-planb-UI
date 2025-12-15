@@ -642,7 +642,7 @@ const getRequiredFieldsForRow = (currentListType) => {
                 ownername: row.name || "",
                 address: row.address || "",
                 wardno: row.wardNo ? parseInt(row.wardNo) : null,
-                houseno: row.houseNo ? parseInt(row.houseNo) : null
+                houseno: row.houseNo || ""
               }),
               ...(btrTypeId === 3 && {
                 ownername: row.name || "",
@@ -1135,31 +1135,44 @@ const allRequiredFilled = sortedRows.every(row =>
                                   />
                                 </TableCell>
 
-                                <TableCell align="center">
-                                  <TextField
-                                    value={row.houseNo ?? ""}
-                                    onChange={(e) => {
-                                      const digits = (e.target.value || "").replace(/\D/g, "").slice(0, 5);
-                                      handleChange(lb.id, currentVillageName, row.id, "houseNo", digits);
-                                    }}
-                                    placeholder="House No."
-                                    inputMode="numeric"
-                                    inputProps={{
-                                      pattern: "^\\d{0,5}$",
-                                      maxLength: 5,
-                                      title: "Up to 5 digits",
-                                    }}
-                                    required={getRequiredFieldsForRow(currentListType).some((f) => f.field === "houseNo")}
-                                    error={
-                                      getRequiredFieldsForRow(currentListType).some((f) => f.field === "houseNo") &&
-                                      !(String(row.houseNo || "").trim())
-                                    }
-                                    helperText={
-                                      getRequiredFieldsForRow(currentListType).some((f) => f.field === "houseNo") &&
-                                      !(String(row.houseNo || "").trim()) ? "Required" : ""
-                                    }
-                                  />
-                                </TableCell>
+                               <TableCell align="center">
+  <TextField
+    value={row.houseNo ?? ""}
+    onChange={(e) => {
+      const value = e.target.value.slice(0, 10); // max length (change as needed)
+      handleChange(
+        lb.id,
+        currentVillageName,
+        row.id,
+        "houseNo",
+        value
+      );
+    }}
+    placeholder="House No."
+    inputProps={{
+      maxLength: 10,
+      title: "Up to 10 characters",
+    }}
+    required={getRequiredFieldsForRow(currentListType).some(
+      (f) => f.field === "houseNo"
+    )}
+    error={
+      getRequiredFieldsForRow(currentListType).some(
+        (f) => f.field === "houseNo"
+      ) &&
+      !String(row.houseNo || "").trim()
+    }
+    helperText={
+      getRequiredFieldsForRow(currentListType).some(
+        (f) => f.field === "houseNo"
+      ) &&
+      !String(row.houseNo || "").trim()
+        ? "Required"
+        : ""
+    }
+  />
+</TableCell>
+
 
                               </>
                             )}

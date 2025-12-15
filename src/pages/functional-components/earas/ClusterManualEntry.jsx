@@ -35,6 +35,7 @@ import mainapi from 'api/mainapi';
 import Autocomplete from '@mui/material/Autocomplete';
 import authservice from 'pages/authentication/services/authservice';
 import Breadcrumb from 'routes/Breadcrumb';
+import { is } from 'date-fns/locale';
 
 const BASE_URL = mainapi.BASE_URL;
 const FORM_URL = mainapi.FORM_API;
@@ -91,6 +92,15 @@ const ClusterFormUI = () => {
     const [submitError, setSubmitError] = useState('');
     
     const [currentFormPlots, setCurrentFormPlots] = useState(new Map());
+    const [openLimitDialog, setOpenLimitDialog] = useState(false);
+const [limitDialogMessage, setLimitDialogMessage] = useState('');
+const [limitSeverity, setLimitSeverity] = useState('info'); // warning | error | success
+const [pendingSubmit, setPendingSubmit] = useState(false);
+const [submitMode, setSubmitMode] = useState(null);
+const [remarks, setRemarks] = useState('');
+const [remarksError, setRemarksError] = useState('');
+const [isedit, setEdit] = useState(false);
+
     
     const nextRowId = useRef(0);
     const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -661,9 +671,8 @@ useEffect(() => {
             setMaxCluster(data.payload.clusterMax);
             setMeanCluster(data.payload.clusterMean);
             setDefaultLbcode(data.payload.lbcode);
-            
-            console.log("data >>>> ", data.payload);
-            
+            setEdit(data.payload.iseditable);
+            // console.log("data >>>> ", data.payload);
             setDefaultBlock(data.payload.villageBlock);
             setDefaultVillageId(data.payload.kvillageId);
             setDefaultVillage(data.payload.kvillageName);
@@ -777,7 +786,7 @@ useEffect(() => {
                 const data = await response.json();
                 setVillageOptions(data);
                 setAllVillageData(data);
-                console.log("village >>> ", data);
+                
                 
                 if (data.length > 0) {
                     setBlockOptions(data[0].blocks.map(b => b.blockCode));
@@ -799,13 +808,65 @@ useEffect(() => {
         setClusterInfo(prevInfo => ({ ...prevInfo, totalArea: newTotalArea }));
     }, [keyplotsData]);
 
-    // ✅ WORKING: Submit functionality with proper API integration from paste.txt
-    // ✅ FIXED: Submit functionality with proper plot_id handling
-const handleSubmit = async () => {
+const validateClusterLimits = () => {
+  const total = parseFloat(clusterInfo.totalArea || 0);
+  const min = parseFloat(mincluster);
+  const max = parseFloat(maxcluster);
+  const mean = parseFloat(meanCluster);
+
+  // ❌ Above MAX → BLOCK
+  if (max && total > max) {
+    setLimitSeverity('error');
+    setLimitDialogMessage(
+      `Total area ${total.toFixed(2)} exceeds maximum allowed (${max}).`
+    );
+    return { type: 'BLOCK' };
+  }
+
+  // ⚠️ Below MIN → Ongoing
+  if (min && total < min) {
+    setLimitSeverity('info');
+    setLimitDialogMessage(
+      `Total area ${total.toFixed(2)} is below minimum required (${min}).`
+    );
+    return { type: 'BELOW_MIN' };
+  }
+
+  // ⚠️ Between MIN & MEAN → Under process
+  if (mean && total < mean) {
+    setLimitSeverity('warning');
+    setLimitDialogMessage(
+      `Total area ${total.toFixed(2)} is below cluster mean (${mean}).`
+    );
+    return { type: 'BELOW_MEAN' };
+  }
+
+  // ✅ Above MEAN
+  setLimitSeverity('success');
+  setLimitDialogMessage(
+    `Total area ${total.toFixed(2)} meets cluster mean.`
+  );
+  return { type: 'ABOVE_MEAN' };
+};
+
+const handleSubmit = () => {
+  const result = validateClusterLimits();
+
+  if (result.type === 'BLOCK') {
+    setOpenLimitDialog(true);
+    return;
+  }
+
+  setOpenLimitDialog(true);
+};
+
+
+const proceedSubmit = async (mode) => {
+    console.log(`Submitting cluster data in mode: ${mode}`);
     try {
         setSubmitting(true);
         setSubmitError('');
-
+        
         // Get user info
         const userId = authservice.userid();
         const token = authservice.gettoken();
@@ -830,6 +891,13 @@ const handleSubmit = async () => {
             userId: userId,
             keyplotId: keyplotId,
             clusterNo: clusterId,
+            status:
+        mode === 'COMPLETED'
+          ? 'Completed'
+          : mode === 'Under Review'
+          ? 'Under Review'
+          : 'On Going',
+      remarks: mode === 'Under Review' ? remarks : null,
             sidePlots: keyplotsData
                 .filter(keyplot => keyplot.rows.length > 0)
                 .map(keyplot => ({
@@ -875,6 +943,7 @@ const handleSubmit = async () => {
                         return rowData;
                     })
                 }))
+                
         };
 
         console.log('✅ Final request data being sent:', JSON.stringify(requestData, null, 2));
@@ -1453,7 +1522,9 @@ useEffect(() => {
     // ✅ Validation for submit button
     const isSubmitDisabled = () => {
         if (hasAnyError || submitting) return true;
-        
+        if (!isedit){
+            return true;
+        }
         // Check if keyplot has at least one row
         const keyplotData = keyplotsData.find(kp => kp.label === 'K');
         if (!keyplotData || keyplotData.rows.length === 0) return true;
@@ -1522,7 +1593,7 @@ useEffect(() => {
                         <Tooltip title="View FMB"><Button variant="contained" color="secondary"><MapIcon />FMB</Button></Tooltip>
                         {/* <Tooltip title="Reject Cluster"><Button variant="contained" color="error"><WarningAmberIcon /></Button></Tooltip> */}
                          {role === 'Field Data Collector' && (
-                        <Tooltip title="Submit">
+                        <Tooltip title="Save">
                             <Button 
                                 onClick={handleSubmit} 
                                 variant="contained" 
@@ -1530,7 +1601,7 @@ useEffect(() => {
                                 disabled={isSubmitDisabled()}
                                 startIcon={submitting ? <CircularProgress size={20} /> : <SaveIcon />}
                             >
-                                {submitting ? 'Saving...' : 'Submit'}
+                                {submitting ? 'Saving...' : 'Save'}
                             </Button>
                         </Tooltip>
                          )}
@@ -1741,7 +1812,7 @@ useEffect(() => {
                 <Box sx={{ maxWidth: 900, margin: '0 auto', mb: 3 }}>
                     <Grid container spacing={2} alignItems="center" justifyContent="center">
                      {role === 'Field Data Collector' && (
-                        <Grid item><Button variant="contained" color="info" onClick={handleOpenCropsModal}>Add CCE crops</Button></Grid>)}
+                        <Grid item><Button variant="contained" color="info" onClick={handleOpenCropsModal} disabled={!isedit}>Add CCE crops</Button></Grid>)}
                         <Grid item><Button variant="contained" color="secondary" startIcon={<MapIcon />}>View FMB</Button></Grid>
                         {/* <Grid item><Button variant="contained" color="error" startIcon={<DeleteForeverIcon />}>Reject Cluster</Button></Grid> */}
                     </Grid>
@@ -1749,6 +1820,7 @@ useEffect(() => {
 
                 {/* Keyplot Sections - ORIGINAL UI PRESERVED */}
                 {keyplotsData.map((keyplot) => {
+                    
                     const isNewRowIncomplete = keyplot.rows.filter(r => r.isNew).some(r => !r.villageName || !r.block || !r.svNo || !r.area || !r.enumeratedArea);
 
                     const entryRecommed = keyplot.rows
@@ -1930,7 +2002,7 @@ useEffect(() => {
                                 })}
                                   {role === 'Field Data Collector' && (
                                 <Grid item xs={12} sx={{ textAlign: 'center', mt: 1 }}>
-                                    <Button startIcon={<AddCircleOutlineIcon />} size="small" variant="contained" color="success" onClick={() => handleAddRow(keyplot.id)} disabled={isNewRowIncomplete || hasErrorInKeyplot}>Add Row</Button>
+                                    <Button startIcon={<AddCircleOutlineIcon />} size="small" variant="contained" color="success" onClick={() => handleAddRow(keyplot.id)} disabled={isNewRowIncomplete || hasErrorInKeyplot || !isedit}>Add Row</Button>
                                 </Grid>)}
                             </Grid>
                         </Box>
@@ -1949,24 +2021,85 @@ useEffect(() => {
                         disabled={isSubmitDisabled()}
                         sx={{ minWidth: 200, height: 48 }}
                     >
-                        {submitting ? 'Saving Cluster...' : 'Submit Cluster'}
+                        {submitting ? 'Saving Cluster...' : 'Save Cluster'}
                     </Button>
                 </Box>
                  )}
-                {/* ✅ Submit Error Display - ORIGINAL UI PRESERVED */}
-                {/* {submitError && (
-                    <Box sx={{ mt: 2, p: 2, bgcolor: 'error.light', borderRadius: 1, color: 'error.contrastText' }}>
-                        <Typography variant="body2">
-                            <strong>Submit Error:</strong> {submitError}
-                        </Typography>
-                    </Box>
-                )} */}
+             
             </Box>
 
-            {/* CCE Crops Modal - ORIGINAL UI PRESERVED */}
-            {/* ✅ UPDATED: CCE Crops Modal with API integration */}
-            {/* ✅ CCE Crops Modal - FIXED */}
-        {/* CCE Crops Modal - UPDATED to handle API response without isActive field */}
+<Dialog open={openLimitDialog} onClose={() => setOpenLimitDialog(false)} maxWidth="sm" fullWidth>
+  <DialogTitle>Cluster Submission</DialogTitle>
+
+  <DialogContent>
+    <Alert severity={limitSeverity}>{limitDialogMessage}</Alert>
+
+    {/* Remarks ONLY for BELOW MEAN */}
+    {limitSeverity === 'warning' && (
+      <TextField
+        label="Remarks"
+        fullWidth
+        multiline
+        rows={3}
+        margin="dense"
+        value={remarks}
+        onChange={(e) => {
+          setRemarks(e.target.value);
+          setRemarksError('');
+        }}
+        error={!!remarksError}
+        helperText={remarksError}
+      />
+    )}
+  </DialogContent>
+
+  <DialogActions>
+    <Button onClick={() => setOpenLimitDialog(false)}>Cancel</Button>
+
+    {/* BELOW MIN → Save only */}
+    {limitSeverity === 'info' && (
+      <Button onClick={() => proceedSubmit('ON_GOING')}>
+        Save
+      </Button>
+    )}
+
+    {/* BETWEEN MIN & MEAN */}
+    {limitSeverity === 'warning' && (
+      <>
+        <Button onClick={() => proceedSubmit('SAVE')}>
+          Save
+        </Button>
+
+        <Button
+          variant="contained"
+          color="warning"
+          onClick={() => proceedSubmit('Under Review')}
+        >
+          Send for Approval
+        </Button>
+      </>
+    )}
+
+    {/* ABOVE MEAN */}
+    {limitSeverity === 'success' && (
+      <>
+        <Button onClick={() => proceedSubmit('SAVE')}>
+          Save
+        </Button>
+
+        <Button
+          variant="contained"
+          color="success"
+          onClick={() => proceedSubmit('COMPLETED')}
+        >
+          Completed
+        </Button>
+      </>
+    )}
+  </DialogActions>
+</Dialog>
+
+         
 <Dialog open={isCropsModalOpen} onClose={() => setCropsModalOpen(false)} maxWidth="md" fullWidth>
     <DialogTitle>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -2093,9 +2226,6 @@ useEffect(() => {
 
 </Dialog>
 
-
-{/* Subdivision Selection Dialog */}
-{/* Validation Dialog */}
 <Dialog 
     open={isValidationDialogOpen} 
     onClose={() => setIsValidationDialogOpen(false)}
