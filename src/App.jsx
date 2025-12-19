@@ -18,7 +18,7 @@ export default function App() {
       {/* <UserAccessProvider> */}
         <ScrollTop>
           <RouterProvider router={router} />
-        </ScrollTop>
+      </ScrollTop>
       {/* </UserAccessProvider> */}
     </ThemeCustomization>
   );
