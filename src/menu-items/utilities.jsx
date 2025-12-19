@@ -94,7 +94,7 @@ const userApproval = {
   id: 'util-userapproval',
   title: 'User Approval',
   type: 'item',
-  url: '/approvals',
+  url: 'approval_manage/approvals',
   icon: icons.UsergroupAddOutlined
 };
 

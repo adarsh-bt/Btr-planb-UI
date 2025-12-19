@@ -461,7 +461,7 @@ function ClusterSeatMap({ zoneId }) {
                         title={
                           <Box sx={{ p: 1 }}>
                             <Typography variant="subtitle2" sx={{ color: 'white', mb: 1 }}>
-                              Cluster #{cluster.clusterNo}
+                              Cluster {cluster.clusterNo}
                             </Typography>
                             <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>
                               Type: <strong>{cluster.clusterType}</strong>
@@ -566,7 +566,7 @@ function ClusterSeatMap({ zoneId }) {
                             </Box>
 
                             {/* Crop badges for multiple crops */}
-                            {cluster.cceCrops && cluster.cceCrops.length > 0 && (
+                            {/* {cluster.cceCrops && cluster.cceCrops.length > 0 && ( */}
                               <Box sx={{ 
                                 display: 'flex', 
                                 justifyContent: 'center', 
@@ -574,7 +574,26 @@ function ClusterSeatMap({ zoneId }) {
                                 gap: 0.5,
                                 mt: 0.5
                               }}>
-                                {cluster.cceCrops.slice(0, 2).map((crop, idx) => (
+                              <Box
+                                   
+                                    sx={{
+                                      backgroundColor: alpha('#4caf50', 0.2),
+                                      borderRadius: '8px',
+                                      padding: '1px 6px',
+                                    }}
+                                  >
+                                    <Typography 
+                                      variant="caption" 
+                                      sx={{ 
+                                        fontSize: '0.55rem',
+                                        color: '#2e7d32',
+                                        fontWeight: 'bold'
+                                      }}
+                                    >
+                                     {cluster.area} cents
+                                    </Typography>
+                                  </Box>
+                                {/* {cluster.cceCrops.slice(0, 2).map((crop, idx) => (
                                   <Box
                                     key={idx}
                                     sx={{
@@ -594,8 +613,8 @@ function ClusterSeatMap({ zoneId }) {
                                       {crop}
                                     </Typography>
                                   </Box>
-                                ))}
-                                {cluster.cceCrops.length > 2 && (
+                                ))} */}
+                                {/* {cluster.cceCrops.length > 2 && (
                                   <Box
                                     sx={{
                                       backgroundColor: alpha('#757575', 0.2),
@@ -614,9 +633,9 @@ function ClusterSeatMap({ zoneId }) {
                                       +{cluster.cceCrops.length - 2}
                                     </Typography>
                                   </Box>
-                                )}
+                                )} */}
                               </Box>
-                            )}
+                            {/* )} */}
                           </CardContent>
                         </Card>
                       </Tooltip>

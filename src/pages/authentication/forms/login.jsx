@@ -34,6 +34,7 @@ import loginimg from "../images/login.png"; // Import the login image
 import bg1 from "../images/bg1.jpg"; // Import the background image
 import duklogo from "../images/duk_icon.png"; // Import the DUK logo image
 import cdtilogo from "../images/cdti_icon.png"; // Import the CDTI logo image
+import deslogo from "../images/des.png"; // Import the CDTI logo image
 import { keyframes } from '@emotion/react';
 import '../login.css'
 // import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext'
@@ -118,6 +119,7 @@ const SignInSide = () => {
                     <Stack spacing={1} sx={{ mt: 5 }}>
                         <Typography className='duk_logo_typ'>
                             <img className='duk_logo' src={duklogo} alt="DUK Logo" />
+                            <img className='des_logo' src={deslogo} alt="DES Logo" />
                             <img className='cdti_logo' src={cdtilogo} alt="CDTI Logo" />
                         </Typography>
                         <Box className="copy_right" sx={{ color: 'text.disabled' }}>

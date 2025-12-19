@@ -56,6 +56,8 @@ const RoleDetail = Loadable(lazy(() => import('pages/usermanage/UserManage')));
 
 // Approvels
 const Approvel = Loadable(lazy(() => import('pages/functional-components/approvels/approvelist')));
+const ApprovelMenu = Loadable(lazy(() => import('pages/functional-components/approvels/ApprovalMenus')));
+const ClusterApprovals = Loadable(lazy(() => import('pages/functional-components/approvels/Cluster_approvals')));
 
 const CCE_menus = Loadable(lazy(() => import('pages/functional-components/earas/cce_menus')));
 const CCE_plotlist = Loadable(lazy(() => import('pages/functional-components/earas/cce_plotlist')));
@@ -460,10 +462,26 @@ const MainRoutes = {
       )
     },
     {
-      path: 'approvals',
+      path: '/approval_manage',
+      element: (
+        <PrivateRoute>
+          <ApprovelMenu />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'approval_manage/approvals',
       element: (
         <PrivateRoute>
           <Approvel />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'approval_manage/cluster_approvals',
+      element: (
+        <PrivateRoute>
+          <ClusterApprovals />
         </PrivateRoute>
       )
     }

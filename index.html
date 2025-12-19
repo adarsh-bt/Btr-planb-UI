@@ -2,33 +2,61 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <!-- <link rel="icon" href="/favicon.svg" /> -->
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <!-- <meta name="description" content="Mantis is react free admin template build using Vite" /> -->
-    <link rel="apple-touch-icon" href="/logo192.png" />
-    <title>AIDEA</title>
 
-    <!-- this is to resolve issue in old safari browser in tablet -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#04255e" />
+
+    <title>
+      AIDEA – Application for Intelligent Data Engineering and Analytics | Government of Kerala
+    </title>
+
+    <!-- Meta Description -->
+    <meta
+      name="description"
+      content="The Application for Intelligent Data Engineering and Analytics (AIDEA) is an official initiative of the Department of Economics & Statistics, Government of Kerala, for digital transformation of survey and analytics operations."
+    />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/des.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/des.png" />
+    <link rel="apple-touch-icon" href="/des.png" />
+
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:title"
+      content="AIDEA – Application for Intelligent Data Engineering and Analytics | Government of Kerala"
+    />
+    <meta
+      property="og:description"
+      content="The Application for Intelligent Data Engineering and Analytics enables the Department of Economics & Statistics, Government of Kerala, to digitally transform survey operations across multiple sectors through advanced data engineering and analytics."
+    />
+    <meta property="og:url" content="https://www.aidea.kerala.gov.in/" />
+    <meta property="og:site_name" content="AIDEA Kerala" />
+    <meta property="og:image" content="https://www.aidea.kerala.gov.in/des.png" />
+
+    <!-- Safari old tablet fix -->
     <script src="https://cdn.jsdelivr.net/npm/resize-observer-polyfill@1.5.1/dist/ResizeObserver.min.js"></script>
   </head>
-  <body style="background-image: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%);overflow-y: scroll;" >
+
+  <body
+    style="
+      background-image: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%);
+      overflow-y: scroll;
+    "
+  >
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
-    <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
 
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
-
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
-
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    <!-- DataTables -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css"
+    />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+
+    <!-- React Entry -->
     <script type="module" src="/src/index.jsx"></script>
   </body>
 </html>

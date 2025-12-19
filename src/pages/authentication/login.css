@@ -71,6 +71,14 @@ body{
           margin-top: -8px;
   }
 
+    .des_logo{
+     width: 70px;
+          height: 70px;
+          padding: .7rem;
+          border-radius: 5px;
+          /* margin-top: -8px; */
+  }
+
 
   @media only screen and (max-width: 1024px) {
     .main {

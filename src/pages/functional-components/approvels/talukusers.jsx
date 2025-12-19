@@ -357,9 +357,9 @@ const handleSaveChanges = () => {
             );
 
               if (zone !== "" && data.payload[0].loginId !== null) {
-              console.log("zone  ",zone,"   >>> ",data.payload.loginId,"admin ",admin_id)
+              console.log("zone  ",zone,"   >>> ",data.payload[0].loginId,"admin ",admin_id)
               approvalservice
-                .zone_save(zone, data.payload.loginId, admin_id)
+                .zone_save(zone, data.payload[0].loginId, admin_id)
                 .catch(() => {
                   Swal.fire("Error", "Failed to save zone information. Please try again later.", "error");
                 });
