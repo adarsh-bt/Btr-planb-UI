@@ -34,6 +34,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
 import mainapi from 'api/mainapi';
+import Breadcrumb from 'routes/Breadcrumb';
+import authservice from 'pages/authentication/services/authservice';
 
 function AdminsZonelistUI() {
   const theme = useTheme();
@@ -67,7 +69,7 @@ function AdminsZonelistUI() {
       'view-btr': `/schemes/earas/Zone_Details/btr/${selectedZone.zoneId}`,
       'view-zone-details': `/schemes/earas/Zone_Details/${selectedZone.zoneId}`,
       'view-keyplots': `/schemes/earas/Zone_Details/Key_plots/${selectedZone.zoneId}`,
-      'view-clusters': `/schemes/earas/Zone_Details/clusters/${selectedZone.zoneId}`
+      'view-clusters': `/schemes/earas/Zone_Details/clusters/${selectedZone.zoneId}`,
     };
 
     if (routes[menuItem]) {
@@ -77,6 +79,7 @@ function AdminsZonelistUI() {
     handleCloseDialog();
   };
 
+  const role = authservice.getrole();
   useEffect(() => {
     const fetchZones = async () => {
       try {
@@ -98,7 +101,9 @@ function AdminsZonelistUI() {
             throw new Error(result?.message || "Failed to fetch zones");
           }
         } else {
+        
           setZoneData(result || []);
+          
         }
       } catch (err) {
         setError(err.message || "Unexpected error occurred.");
@@ -175,11 +180,11 @@ function AdminsZonelistUI() {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
-          {/* Remove Breadcrumb if it causes issues */}
-          {/* <Breadcrumb /> */}
+  
+        <Grid container spacing={3}>
+      <Breadcrumb/>
+      <Grid item xs={12}>
+       
           
           {/* Header Section */}
           <Box sx={{ 
@@ -245,6 +250,7 @@ function AdminsZonelistUI() {
                 </Grid>
 
                 {/* District Filter */}
+                {role != "Taluk Level Approver" && 
                 <Grid item xs={12} md={4}>
                   <FormControl fullWidth>
                     <InputLabel>District</InputLabel>
@@ -263,9 +269,10 @@ function AdminsZonelistUI() {
                       ))}
                     </Select>
                   </FormControl>
-                </Grid>
+                </Grid>}
 
                 {/* Taluk Filter */}
+                {role != "Taluk Level Approver" && 
                 <Grid item xs={12} md={4}>
                   <FormControl fullWidth>
                     <InputLabel>Taluk</InputLabel>
@@ -283,7 +290,7 @@ function AdminsZonelistUI() {
                         ))}
                     </Select>
                   </FormControl>
-                </Grid>
+                </Grid>}
               </Grid>
 
               {/* Results Count */}
@@ -337,78 +344,103 @@ function AdminsZonelistUI() {
               ) : (
                 <Grid container spacing={2}>
                   {filteredZones.map((zone) => (
-                    <Grid item xs={12} sm={6} md={4} lg={3} key={zone.zoneId}>
-                      <Card
-                        sx={{
-                          height: '100%',
-                          cursor: 'pointer',
-                          transition: 'all 0.3s ease-in-out',
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          borderRadius: 3,
-                          background: 'linear-gradient(135deg, #ffffff 0%, #f8faff 100%)',
-                          '&:hover': {
-                            transform: 'translateY(-8px)',
-                            boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
-                            borderColor: 'primary.main'
-                          }
-                        }}
-                        onClick={() => handleBoxClick(zone)}
-                      >
-                        <CardContent sx={{ 
-                          p: 3, 
-                          textAlign: 'center',
-                          '&:last-child': { pb: 3 }
-                        }}>
-                          <Box sx={{
-                            width: 60,
-                            height: 60,
-                            borderRadius: '50%',
-                            backgroundColor: 'primary.light',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            margin: '0 auto 16px',
-                            color: 'primary.main'
-                          }}>
-                            <LocationOn sx={{ fontSize: 30 }} />
-                          </Box>
-                          
-                          <Typography 
-                            variant="h6" 
-                            sx={{ 
-                              fontWeight: 600,
-                              color: 'text.primary',
-                              mb: 1
-                            }}
-                          >
-                            {zone.zoneNameEn}
-                          </Typography>
-                          
-                          <Box sx={{ mt: 2 }}>
-                            <Chip 
-                              label={zone.districtName} 
-                              size="small" 
-                              variant="outlined"
-                              sx={{ mr: 1, mb: 1 }}
-                            />
-                            <Chip 
-                              label={zone.talukName} 
-                              size="small" 
-                              variant="outlined"
-                              color="secondary"
-                            />
-                          </Box>
-                        </CardContent>
-                      </Card>
-                    </Grid>
+                   <Grid item xs={12} sm={6} md={4} lg={3} key={zone.zoneId}>
+  <Card
+    sx={{
+      position: 'relative',   // ⬅️ IMPORTANT
+      height: '100%',
+      cursor: 'pointer',
+      transition: 'all 0.3s ease-in-out',
+      border: '1px solid',
+      borderColor: 'divider',
+      borderRadius: 3,
+      background: 'linear-gradient(135deg, #ffffff 0%, #f8faff 100%)',
+      '&:hover': {
+        transform: 'translateY(-8px)',
+        boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
+        borderColor: 'primary.main'
+      }
+    }}
+    onClick={() => handleBoxClick(zone)}
+  >
+    {/* ⭐ TOP-RIGHT BADGE ⭐ */}
+    <Box
+      sx={{
+        position: 'absolute',
+        top: 12,
+        right: 12,
+        px: 1.5,
+        py: 0.5,
+        backgroundColor: 'rgba(250, 180, 30, 1)',
+        color: 'white',
+        borderRadius: '20px',
+        fontSize: '0.75rem',
+        fontWeight: 600,
+        boxShadow: '0 3px 8px rgba(0,0,0,0.15)'
+      }}
+    >
+      {zone.zoneType}
+    </Box>
+
+    <CardContent
+      sx={{
+        p: 3,
+        textAlign: 'center',
+        '&:last-child': { pb: 3 }
+      }}
+    >
+      <Box
+        sx={{
+          width: 60,
+          height: 60,
+          borderRadius: '50%',
+          backgroundColor: 'primary.light',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 16px',
+          color: 'primary.main'
+        }}
+      >
+        <LocationOn sx={{ fontSize: 30 }} />
+      </Box>
+
+      <Typography
+        variant="h6"
+        sx={{
+          fontWeight: 600,
+          color: 'text.primary',
+          mb: 1
+        }}
+      >
+        {zone.zoneNameEn}
+      </Typography>
+
+      <Box sx={{ mt: 2 }}>
+        <Chip
+          label={zone.districtName}
+          size="small"
+          variant="outlined"
+          sx={{ mr: 1, mb: 1 }}
+        />
+        <Chip
+          label={zone.talukName}
+          size="small"
+          variant="outlined"
+          color="secondary"
+        />
+      </Box>
+    </CardContent>
+  </Card>
+</Grid>
+
                   ))}
                 </Grid>
               )}
             </Box>
           </Card>
         </Grid>
-      </Grid>
+      
 
       {/* Dialog */}
       <Dialog 
@@ -523,7 +555,7 @@ function AdminsZonelistUI() {
           </Box>
         </DialogContent>
       </Dialog>
-    </Box>
+    </Grid>
   );
 }
 

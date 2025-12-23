@@ -35,6 +35,9 @@ import mainapi from 'api/mainapi';
 import Autocomplete from '@mui/material/Autocomplete';
 import authservice from 'pages/authentication/services/authservice';
 import Breadcrumb from 'routes/Breadcrumb';
+import { is } from 'date-fns/locale';
+// Add this import at the top
+import { useNavigate } from 'react-router-dom';
 
 const BASE_URL = mainapi.BASE_URL;
 const FORM_URL = mainapi.FORM_API;
@@ -59,7 +62,9 @@ const isSamePlot = (rowA, rowB) => {
 };
 
 const ClusterFormUI = () => {
+     const navigate = useNavigate();
     const [keyplotsData, setKeyplotsData] = useState([]);
+    const [currentLabels, setCurrentLabels] = useState(['K', 'S1', 'E1', 'N1', 'W1']);
     const [clusterInfo, setClusterInfo] = useState({
         clusterNo: '',
         localBody: '',
@@ -91,6 +96,16 @@ const ClusterFormUI = () => {
     const [submitError, setSubmitError] = useState('');
     
     const [currentFormPlots, setCurrentFormPlots] = useState(new Map());
+    const [openLimitDialog, setOpenLimitDialog] = useState(false);
+const [limitDialogMessage, setLimitDialogMessage] = useState('');
+const [limitSeverity, setLimitSeverity] = useState('info'); // warning | error | success
+const [pendingSubmit, setPendingSubmit] = useState(false);
+const [submitMode, setSubmitMode] = useState(null);
+const [remarks, setRemarks] = useState('');
+const [remarksError, setRemarksError] = useState('');
+const [isedit, setEdit] = useState(false);
+const [status, setStatus] = useState(false);
+
     
     const nextRowId = useRef(0);
     const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -528,6 +543,7 @@ const fetchApiCceCrops = useCallback(async () => {
         }
         
         const data = await response.json();
+        console.log('Fetched API CCE crops:', data);
         setApiCropsData(data);
         
     } catch (error) {
@@ -661,9 +677,9 @@ useEffect(() => {
             setMaxCluster(data.payload.clusterMax);
             setMeanCluster(data.payload.clusterMean);
             setDefaultLbcode(data.payload.lbcode);
-            
-            console.log("data >>>> ", data.payload);
-            
+            setEdit(data.payload.iseditable);
+            setStatus(data.payload.status);
+            // console.log("data >>>> ", data.payload);
             setDefaultBlock(data.payload.villageBlock);
             setDefaultVillageId(data.payload.kvillageId);
             setDefaultVillage(data.payload.kvillageName);
@@ -743,16 +759,18 @@ useEffect(() => {
                 const sideplots = [...existing, ...uniqueDefaults].slice(0, 4);
                 const allDirections = [...fixed, ...sideplots];
 
-                const mergedKeyplots = allDirections.map(dir => {
-                    return existingSidePlots[dir] || {
-                        id: dir,
-                        label: dir,
-                        rows: []
-                    };
-                });
+              const mergedKeyplots = allDirections.map(dir => {
+                return existingSidePlots[dir] || {
+                            id: dir,
+                            label: dir,
+                            rows: []
+                        };
+                    });
 
                 setKeyplotsData(mergedKeyplots);
-                setLoading(false);
+                const initialLabels = mergedKeyplots.map(kp => kp.label);
+setCurrentLabels(initialLabels);
+setLoading(false);
             }
         } catch (error) {
             console.error("Error fetching keyplot details:", error);
@@ -777,7 +795,7 @@ useEffect(() => {
                 const data = await response.json();
                 setVillageOptions(data);
                 setAllVillageData(data);
-                console.log("village >>> ", data);
+                
                 
                 if (data.length > 0) {
                     setBlockOptions(data[0].blocks.map(b => b.blockCode));
@@ -799,13 +817,88 @@ useEffect(() => {
         setClusterInfo(prevInfo => ({ ...prevInfo, totalArea: newTotalArea }));
     }, [keyplotsData]);
 
-    // ✅ WORKING: Submit functionality with proper API integration from paste.txt
-    // ✅ FIXED: Submit functionality with proper plot_id handling
-const handleSubmit = async () => {
+const validateClusterLimits = () => {
+  const total = parseFloat(clusterInfo.totalArea || 0);
+  const min = parseFloat(mincluster);
+  const max = parseFloat(maxcluster);
+  const mean = parseFloat(meanCluster);
+
+  // ❌ Above MAX → BLOCK
+  if (max && total > max) {
+    setLimitSeverity('error');
+    setLimitDialogMessage(
+      `Total area ${total.toFixed(2)} exceeds maximum allowed (${max}).`
+    );
+    return { type: 'BLOCK' };
+  }
+
+  // ⚠️ Below MIN → Ongoing
+  if (min && total < min) {
+    setLimitSeverity('info');
+    setLimitDialogMessage(
+      `Total area ${total.toFixed(2)} is below minimum required (${min}).`
+    );
+    return { type: 'BELOW_MIN' };
+  }
+
+  // ⚠️ Between MIN & MEAN → Under process
+  if (mean && total < mean) {
+    setLimitSeverity('warning');
+    setLimitDialogMessage(
+      `Total area ${total.toFixed(2)} is below cluster mean (${mean}).`
+    );
+    return { type: 'BELOW_MEAN' };
+  }
+
+  // ✅ Above MEAN
+  setLimitSeverity('success');
+  setLimitDialogMessage(
+    `Total area ${total.toFixed(2)} meets cluster mean.`
+  );
+  return { type: 'ABOVE_MEAN' };
+};
+
+const handleSubmit = () => {
+  const result = validateClusterLimits();
+
+  if (result.type === 'BLOCK') {
+    setOpenLimitDialog(true);
+    return;
+  }
+
+  setOpenLimitDialog(true);
+};
+
+
+const proceedSubmit = async (mode) => {
+   const kPlot = keyplotsData.find(kp => kp.label === 'K');
+    const kHasValidRow = kPlot && kPlot.rows.some(row => 
+        row.villageName && row.block && row.svNo && row.area && row.enumeratedArea
+    );
+    
+    if (!kHasValidRow) {
+        setSnackbarMessage("Keyplot (K) must have at least one valid row");
+        setSnackbarOpen(true);
+        return;
+    }
+    
+    // Check that at least 4 other labels have valid rows
+    const otherLabelsWithRows = keyplotsData
+        .filter(kp => kp.label !== 'K')
+        .filter(kp => kp.rows.some(row => 
+            row.villageName && row.block && row.svNo && row.area && row.enumeratedArea
+        ))
+        .length;
+    
+    if (otherLabelsWithRows < 4) {
+        setSnackbarMessage(`Need rows in at least 4 side plots (currently: ${otherLabelsWithRows})`);
+        setSnackbarOpen(true);
+        return;
+    }
     try {
         setSubmitting(true);
         setSubmitError('');
-
+        
         // Get user info
         const userId = authservice.userid();
         const token = authservice.gettoken();
@@ -830,6 +923,13 @@ const handleSubmit = async () => {
             userId: userId,
             keyplotId: keyplotId,
             clusterNo: clusterId,
+            status:
+        mode === 'COMPLETED'
+          ? 'Completed'
+          : mode === 'Under Review'
+          ? 'Under Review'
+          : 'On Going',
+      remarks: mode === 'Under Review' ? remarks : null,
             sidePlots: keyplotsData
                 .filter(keyplot => keyplot.rows.length > 0)
                 .map(keyplot => ({
@@ -875,6 +975,7 @@ const handleSubmit = async () => {
                         return rowData;
                     })
                 }))
+                
         };
 
         console.log('✅ Final request data being sent:', JSON.stringify(requestData, null, 2));
@@ -913,6 +1014,12 @@ const handleSubmit = async () => {
         setSubmitSuccess(true);
         setSnackbarMessage('Cluster data saved successfully!');
         setSnackbarOpen(true);
+
+        if (mode === 'COMPLETED' || mode === 'Under Review') {
+            setTimeout(() => {
+                navigate('/schemes/earas/clusters');
+            }, 1500);
+        } 
 
     } catch (error) {
         console.error('❌ Error submitting cluster data:', error.message);
@@ -1022,6 +1129,7 @@ const handleCloseCropsModal = async () => {
 
         // Prepare the crop assignment data with proper data types
         const cropAssignments = selectedCropIds.map(cropId => {
+            
             return {
                 cropId: parseInt(cropId),
                 clusterId: clusterIdNumber,
@@ -1440,36 +1548,149 @@ useEffect(() => {
     setRemovedRows([]);
 }, [keyplotId]);
 
-    const handleLabelChange = (newLabel, keyplotId) => {
-        setKeyplotsData(prevData =>
-            prevData.map(kp =>
-                kp.id === keyplotId ? { ...kp, label: newLabel } : kp
-            )
+   // Update the handleLabelChange function
+const handleLabelChange = (newLabel, keyplotId) => {
+    setKeyplotsData(prevData => {
+        const updatedData = prevData.map(kp =>
+            kp.id === keyplotId ? { ...kp, label: newLabel } : kp
         );
-    };
+        
+        // Update currentLabels with the new set of labels
+        const labels = updatedData.map(kp => kp.label);
+        setCurrentLabels(labels);
+        
+        return updatedData;
+    });
+};
 
     const hasAnyError = Object.values(errors).some(error => error !== null && error !== '');
 
-    // ✅ Validation for submit button
-    const isSubmitDisabled = () => {
-        if (hasAnyError || submitting) return true;
+    const getLabelStatus = (label) => {
+    const keyplot = keyplotsData.find(kp => kp.label === label);
+
+    // No plot or no rows → incomplete
+    if (!keyplot || !Array.isArray(keyplot.rows) || keyplot.rows.length === 0) {
+        return 'incomplete';
+    }
+
+    // At least one valid row → complete
+    const hasValidRow = keyplot.rows.some(row => {
+        return (
+            row.villageName &&
+            row.block &&
+            row.svNo &&
+            row.area &&
+            row.enumeratedArea
+        );
+    });
+
+    return hasValidRow ? 'complete' : 'incomplete';
+};
+
+const isSubmitDisabled = () => {
+    if (hasAnyError || submitting) return true;
+    if (!isedit) {
+        return true;
+    }
+    
+    // Check if all current labels have at least one row
+    // We need exactly 5 labels to have rows (K + 4 side plots)
+    const labelsWithValidRows = new Set();
+    
+    // Check each keyplot
+    for (const keyplot of keyplotsData) {
+        // Count rows that have all required data (not empty rows)
+        const hasValidRow = keyplot.rows.some(row => {
+            // For existing rows, we need all fields
+            if (row.isExisting || row.isNew) {
+                return row.villageName && 
+                       row.block && 
+                       row.svNo && 
+                       row.area && 
+                       row.enumeratedArea;
+            }
+            return false;
+        });
         
-        // Check if keyplot has at least one row
-        const keyplotData = keyplotsData.find(kp => kp.label === 'K');
-        if (!keyplotData || keyplotData.rows.length === 0) return true;
-        
-        // Check if all rows have required data
-        for (const keyplot of keyplotsData) {
-            for (const row of keyplot.rows) {
+        if (hasValidRow) {
+            labelsWithValidRows.add(keyplot.label);
+        }
+    }
+    
+    // We need at least 5 labels with valid rows (K + 4 others)
+    // First, ensure K has at least one valid row
+    const kHasRow = labelsWithValidRows.has('K');
+    
+    // Count other labels with rows (excluding K)
+    const otherLabelsWithRows = [...labelsWithValidRows].filter(label => label !== 'K').length;
+    
+    // Requirement: K must have a row + at least 4 other labels must have rows
+    if (!kHasRow || otherLabelsWithRows < 4) {
+        return true;
+    }
+    
+    // Original validation - check if all rows have required data
+    const keyplotData = keyplotsData.find(kp => kp.label === 'K');
+    if (!keyplotData || keyplotData.rows.length === 0) return true;
+    
+    // Check if all rows have required data
+    for (const keyplot of keyplotsData) {
+        for (const row of keyplot.rows) {
+            if (row.isExisting || row.isNew) {
                 if (!row.villageName || !row.block || !row.svNo || !row.area || !row.enumeratedArea) {
                     return true;
                 }
             }
         }
-        
-        return false;
-    };
+    }
+    
+    return false;
+};
 
+// Get labels that are missing valid rows
+const getMissingLabels = () => {
+    const labelsWithValidRows = new Set();
+    
+    // Check each keyplot
+    for (const keyplot of keyplotsData) {
+        const hasValidRow = keyplot.rows.some(row => {
+            if (row.isExisting || row.isNew) {
+                return row.villageName && 
+                       row.block && 
+                       row.svNo && 
+                       row.area && 
+                       row.enumeratedArea;
+            }
+            return false;
+        });
+        
+        if (hasValidRow) {
+            labelsWithValidRows.add(keyplot.label);
+        }
+    }
+    
+    // K must have a row
+    const missing = [];
+    if (!labelsWithValidRows.has('K')) {
+        missing.push('K');
+    }
+    
+    // Need at least 4 other labels with rows
+    const otherLabelsWithRows = [...labelsWithValidRows].filter(label => label !== 'K').length;
+    const missingOtherCount = 4 - otherLabelsWithRows;
+    
+    if (missingOtherCount > 0) {
+        // Find which other labels don't have rows
+        const otherLabels = currentLabels.filter(label => label !== 'K');
+        otherLabels.forEach(label => {
+            if (!labelsWithValidRows.has(label) && missingOtherCount > 0) {
+                missing.push(label);
+            }
+        });
+    }
+    
+    return missing;
+};
     totalAreaRef.current = clusterInfo.totalArea;
     const firstInstanceMap = new Map();
     keyplotsData.forEach(kp => {
@@ -1489,7 +1710,40 @@ useEffect(() => {
        <Grid container spacing={3}>
       <Breadcrumb></Breadcrumb>
             {/* Floating Summary Bar - ORIGINAL UI PRESERVED */}
+            
            <Grid item xs={12}>
+           {getMissingLabels().length > 0 && (
+            <Box sx={{ position: 'fixed', top: '15%', left: 0, zIndex: 1000, borderRight: '4px solid #05307a', borderRadius: '0 1rem 0 1rem', backgroundColor: 'rgba(247, 236, 186, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
+<Typography variant="h6" fontWeight="bold" gutterBottom>SidePlots Requirements</Typography>
+    <Typography variant="body2" color="textSecondary">
+        <strong>Requirements:</strong> 
+        <Box component="span" sx={{ ml: 1 }}>
+            • <strong>K</strong> (Keyplot) must have at least one row<br />
+            • <strong>4 other plots</strong> must each have at least one row
+        </Box>
+    </Typography>
+    
+    {/* Show current labels */}
+    <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+        <strong>Current plots:</strong> {currentLabels.join(', ')}
+    </Typography>
+    
+    {/* Show missing labels */}
+    {getMissingLabels().length > 0 && (
+        <Typography variant="body2" color="error" sx={{ mt: 1, fontWeight: 'bold' }}>
+            <strong>Missing rows in:</strong> {getMissingLabels().join(', ')}
+        </Typography>
+    )}
+    
+    {/* Show progress */}
+    <Box sx={{ mt: 1 }}>
+        <Typography variant="body2" color="textSecondary">
+            <strong>Progress:</strong> K: {getLabelStatus('K') === 'complete' ? '✓' : '✗'} | 
+            Other plots: {[...currentLabels].filter(l => l !== 'K').filter(l => getLabelStatus(l) === 'complete').length}/4
+        </Typography>
+ 
+</Box>
+            </Box>)}
            . <Box sx={{ position: 'fixed', top: '15%', right: 0, zIndex: 1000, borderRadius: '1rem 0 0 1rem', backgroundColor: 'rgba(212, 228, 231, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
                 <Typography variant="subtitle1" fontWeight="bold">Cluster: {slNo} | {clusterInfo.localBody}</Typography>
                 <Box sx={{ width: '100%', mt: 1 }}>
@@ -1522,18 +1776,20 @@ useEffect(() => {
                         <Tooltip title="View FMB"><Button variant="contained" color="secondary"><MapIcon />FMB</Button></Tooltip>
                         {/* <Tooltip title="Reject Cluster"><Button variant="contained" color="error"><WarningAmberIcon /></Button></Tooltip> */}
                          {role === 'Field Data Collector' && (
-                        <Tooltip title="Submit">
-                            <Button 
-                                onClick={handleSubmit} 
-                                variant="contained" 
-                                color="primary" 
-                                disabled={isSubmitDisabled()}
-                                startIcon={submitting ? <CircularProgress size={20} /> : <SaveIcon />}
-                            >
-                                {submitting ? 'Saving...' : 'Submit'}
-                            </Button>
-                        </Tooltip>
-                         )}
+                       // In your floating save button:
+<Tooltip title={getMissingLabels().length > 0 ? 
+    `Required: ${getMissingLabels().length} more plot(s) need rows (K + 4 others)` : 
+    "Save cluster"}>
+    <Button 
+        onClick={handleSubmit} 
+        variant="contained" 
+        color="primary" 
+        disabled={isSubmitDisabled()}
+        startIcon={submitting ? <CircularProgress size={20} /> : <SaveIcon />}
+    >
+        {submitting ? 'Saving...' : 'Save'}
+    </Button>
+</Tooltip>)}
                     </Box>
                 </Box>
             </Box>
@@ -1580,6 +1836,13 @@ useEffect(() => {
                               </Grid>
                     
                 </Grid>
+                
+                 {status == "Under Review" && (
+    <Box sx={{ width: '100%', mt: 1, textAlign: 'center',color: 'warning.main' }}><WarningAmberIcon/>
+    <Typography >This Cluster is Under Review. after the Approval Edit is active</Typography></Box>  )}
+              {status == "Completed" && (
+    <Box sx={{ width: '100%', mt: 1, textAlign: 'center',color: 'warning.main' }}><WarningAmberIcon/>
+    <Typography >This Cluster is Completed. Editing is not allowed</Typography></Box>  )}
 <Grid 
   container 
   spacing={2} // Increased spacing between the light boxes
@@ -1741,7 +2004,7 @@ useEffect(() => {
                 <Box sx={{ maxWidth: 900, margin: '0 auto', mb: 3 }}>
                     <Grid container spacing={2} alignItems="center" justifyContent="center">
                      {role === 'Field Data Collector' && (
-                        <Grid item><Button variant="contained" color="info" onClick={handleOpenCropsModal}>Add CCE crops</Button></Grid>)}
+                        <Grid item><Button variant="contained" color="info" onClick={handleOpenCropsModal} disabled={!isedit}>Add CCE crops</Button></Grid>)}
                         <Grid item><Button variant="contained" color="secondary" startIcon={<MapIcon />}>View FMB</Button></Grid>
                         {/* <Grid item><Button variant="contained" color="error" startIcon={<DeleteForeverIcon />}>Reject Cluster</Button></Grid> */}
                     </Grid>
@@ -1749,6 +2012,7 @@ useEffect(() => {
 
                 {/* Keyplot Sections - ORIGINAL UI PRESERVED */}
                 {keyplotsData.map((keyplot) => {
+                    
                     const isNewRowIncomplete = keyplot.rows.filter(r => r.isNew).some(r => !r.villageName || !r.block || !r.svNo || !r.area || !r.enumeratedArea);
 
                     const entryRecommed = keyplot.rows
@@ -1930,7 +2194,7 @@ useEffect(() => {
                                 })}
                                   {role === 'Field Data Collector' && (
                                 <Grid item xs={12} sx={{ textAlign: 'center', mt: 1 }}>
-                                    <Button startIcon={<AddCircleOutlineIcon />} size="small" variant="contained" color="success" onClick={() => handleAddRow(keyplot.id)} disabled={isNewRowIncomplete || hasErrorInKeyplot}>Add Row</Button>
+                                    <Button startIcon={<AddCircleOutlineIcon />} size="small" variant="contained" color="success" onClick={() => handleAddRow(keyplot.id)} disabled={isNewRowIncomplete || hasErrorInKeyplot || !isedit}>Add Row</Button>
                                 </Grid>)}
                             </Grid>
                         </Box>
@@ -1940,33 +2204,109 @@ useEffect(() => {
                 {/* ✅ Main Submit Button - ORIGINAL UI PRESERVED */}
                  {role === 'Field Data Collector' && (
                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2 }}>
-                    <Button 
-                        variant="contained" 
-                        size="large" 
-                        color="primary" 
-                        startIcon={submitting ? <CircularProgress size={20} /> : <SaveIcon />}
-                        onClick={handleSubmit}
-                        disabled={isSubmitDisabled()}
-                        sx={{ minWidth: 200, height: 48 }}
-                    >
-                        {submitting ? 'Saving Cluster...' : 'Submit Cluster'}
-                    </Button>
-                </Box>
+    <Tooltip title={getMissingLabels().length > 0 ? 
+        `Add rows to: ${getMissingLabels().join(', ')}` : 
+        "Save cluster data"}>
+        <Button 
+            variant="contained" 
+            size="large" 
+            color="primary" 
+            startIcon={submitting ? <CircularProgress size={20} /> : <SaveIcon />}
+            onClick={handleSubmit}
+            disabled={isSubmitDisabled()}
+            sx={{ minWidth: 200, height: 48 }}
+        >
+            {submitting ? 'Saving Cluster...' : 'Save Cluster'}
+        </Button>
+    </Tooltip>
+</Box>
                  )}
-                {/* ✅ Submit Error Display - ORIGINAL UI PRESERVED */}
-                {/* {submitError && (
-                    <Box sx={{ mt: 2, p: 2, bgcolor: 'error.light', borderRadius: 1, color: 'error.contrastText' }}>
-                        <Typography variant="body2">
-                            <strong>Submit Error:</strong> {submitError}
-                        </Typography>
-                    </Box>
-                )} */}
+             
             </Box>
 
-            {/* CCE Crops Modal - ORIGINAL UI PRESERVED */}
-            {/* ✅ UPDATED: CCE Crops Modal with API integration */}
-            {/* ✅ CCE Crops Modal - FIXED */}
-        {/* CCE Crops Modal - UPDATED to handle API response without isActive field */}
+
+<Dialog open={openLimitDialog} onClose={() => setOpenLimitDialog(false)} maxWidth="sm" fullWidth>
+  <DialogTitle sx={{background:'#05307a',color:'white'}}>Cluster Submission</DialogTitle>
+
+  <DialogContent mt={2} sx={{ display: 'flex', flexDirection: 'column', gap: 2 ,marginTop:'10px'}}>
+    <Alert severity={limitSeverity}>{limitDialogMessage}</Alert>
+    {limitSeverity === 'success' && (
+        <Typography variant="h5">
+          Your cluster's total reach {meanCluster} cents. You can mark this cluster as Completed then Edit not Possible.
+        </Typography>
+    )}
+    {limitSeverity === 'warning' && (
+        <Typography variant="h5">
+          Your cluster's total reach {mincluster} cents. You can submit for approval, and after approval, only edits will be allowed.if you want to continue edit click save.
+        </Typography>
+    )}
+
+    {/* Remarks ONLY for BELOW MEAN */}
+    {limitSeverity === 'warning' && (
+      <TextField
+        label="Remarks"
+        fullWidth
+        multiline
+        rows={3}
+        margin="dense"
+        value={remarks}
+        onChange={(e) => {
+          setRemarks(e.target.value);
+          setRemarksError('');
+        }}
+        error={!!remarksError}
+        helperText={remarksError}
+      />
+    )}
+  </DialogContent>
+
+  <DialogActions>
+    <Button onClick={() => setOpenLimitDialog(false)}>Cancel</Button>
+
+    {/* BELOW MIN → Save only */}
+    {limitSeverity === 'info' && (
+      <Button onClick={() => proceedSubmit('ON_GOING')}>
+        Save
+      </Button>
+    )}
+
+    {/* BETWEEN MIN & MEAN */}
+    {limitSeverity === 'warning' && (
+      <>
+        <Button onClick={() => proceedSubmit('SAVE')}>
+          Save
+        </Button>
+
+        <Button
+          variant="contained"
+          color="warning"
+          onClick={() => proceedSubmit('Under Review')}
+        >
+          Send for Approval
+        </Button>
+      </>
+    )}
+
+    {/* ABOVE MEAN */}
+    {limitSeverity === 'success' && (
+      <>
+        <Button onClick={() => proceedSubmit('SAVE')}>
+          Save
+        </Button>
+
+        <Button
+          variant="contained"
+          color="success"
+          onClick={() => proceedSubmit('COMPLETED')}
+        >
+          Completed
+        </Button>
+      </>
+    )}
+  </DialogActions>
+</Dialog>
+
+         
 <Dialog open={isCropsModalOpen} onClose={() => setCropsModalOpen(false)} maxWidth="md" fullWidth>
     <DialogTitle>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -2093,9 +2433,6 @@ useEffect(() => {
 
 </Dialog>
 
-
-{/* Subdivision Selection Dialog */}
-{/* Validation Dialog */}
 <Dialog 
     open={isValidationDialogOpen} 
     onClose={() => setIsValidationDialogOpen(false)}

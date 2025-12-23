@@ -767,7 +767,7 @@ const handleUseRecommendedPlot = (type) => {
                         case 'House List':
                           baseRowData.ownername = row.ownername || '';
                           baseRowData.address = row.address || '';
-                          baseRowData.houseno = row.houseno ? parseInt(row.houseno) : null;
+                          baseRowData.houseno = row.houseno?.trim() || '';
                           baseRowData.ward_number = row.ward_number ? parseInt(row.ward_number) : null;
                           break;
                         case 'Cultivators List':
@@ -1935,7 +1935,7 @@ const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
                     label={<> House No.<span style={{ color: 'red' }}> *</span></>}
                     size="small"
                     fullWidth
-                    type="number"
+                    // type="number"
                     value={row.houseno || ''}
                     InputProps={{ readOnly }}
                     onBlur={() => handlePlotValidation(keyplot.id, row.uniqueId)}
@@ -2401,6 +2401,7 @@ const handlePlotValidation2 = async (keyplotId, rowUniqueId) => {
                     </Button>
                 </Box>
                   )}
+                  
                 
                 {/* Submit Error Display */}
                 {/* {submitError && (

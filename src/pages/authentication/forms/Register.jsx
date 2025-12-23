@@ -517,7 +517,7 @@ const Register = ({ onBack }) => {
           value={penNumber}
           onChange={handlePenChange}
           onBlur={handlePenBlur}
-          inputProps={{ maxLength: 10 }}
+          inputProps={{ maxLength: 7 }}
           error={!!errors.idNumber}
           helperText={errors.idNumber ? errors.idNumber : ' '}
           sx={{
@@ -536,7 +536,7 @@ const Register = ({ onBack }) => {
           label="TEN"
           value={tenNumber}
           onChange={handleTenChange}
-          inputProps={{ maxLength: 10 }}
+          inputProps={{ maxLength: 7 }}
           error={!!errors.idNumber}
           helperText={errors.idNumber ? errors.idNumber : ' '}
           sx={{

@@ -48,9 +48,9 @@ export default function Header() {
       >
         {!drawerOpen ? <MenuIcon /> : <MenuOpenIcon />}
       </IconButton>
-       {/* <Typography variant="p" color="white" sx={{width:'50%', ml:4,border:'1px solid white',borderRadius:2,padding:1, alignItems:'center', justifyContent:'center', display:'flex',background: 'rgba(0, 0, 0, 0.2)'}}>
+       <Typography variant="p" color="white" sx={{width:'50%', ml:4,border:'1px solid white',borderRadius:2,padding:1, alignItems:'center', justifyContent:'center', display:'flex',background: 'rgba(0, 0, 0, 0.2)'}}>
         {designation}
-      </Typography> */}
+      </Typography>
       {headerContent}
     </Toolbar>
   );

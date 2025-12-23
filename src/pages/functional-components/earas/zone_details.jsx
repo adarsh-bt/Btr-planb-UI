@@ -6,7 +6,7 @@ import authservice from 'pages/authentication/services/authservice';
 function ZoneDetailsWrapper() {
   const role = authservice.getrole();
 
-  if (!role) return <p>Checking role...</p>;
+  if (!role) return <p>No Roles Assigned so please contact admin</p>;
 
   // You can customize this logic based on actual roles used in your app
   if (role == 'Super Admin' || role === 'Taluk Level Approver' || role === "IT Admin" || role === "District Level Approver") {

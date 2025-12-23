@@ -515,6 +515,7 @@ useEffect(() => {
       try {
         console.log("user data  ",userData)
         const response = await approvalservice.zoneslist(userData.officeType, userData.officeId);
+        console.log("available zones response ",response)
         if (response) {
           setAvailableZones(response);
           
