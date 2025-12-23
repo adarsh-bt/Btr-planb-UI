@@ -68,6 +68,7 @@ const KeyPlotEntry = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [mainerror, setMainError] = useState(""); 
 
     const [listTypes, setListTypes] = useState({});
 
@@ -432,37 +433,64 @@ const handleLocalBodyChange = (tabLbId, rowId, selectedLbId) => {
   );
 
       const result = await response.json();
-      if (!response.ok) {
-        // Handle different types of error responses from backend
-        if (result.status === "Validation Failed" && result.errors) {
-          // Backend validation errors - Map duplicate errors to specific rows
-          const backendDuplicateErrors = {};
-          result.errors.forEach((error) => {
-            // Find matching row and create error key
-            const matchingRow = allKeyplots.find(row => 
-              row.surveyNo === error.resvno?.toString() &&
-              row.subDivNo === error.resbdno
-            );
-            if (matchingRow) {
-              const duplicateKey = `${matchingRow.lbId}_${matchingRow.id}`;
-              backendDuplicateErrors[duplicateKey] = error.message;
-            }
-          });
-                    
-          setDuplicateErrors(backendDuplicateErrors);
-          toast.error(`Validation failed: ${result.errors.length} duplicate error(s) found`);
-          // Show error modal for duplicate errors
-          setShowErrorModal(true);
-        } else {
-          // Other API errors
-          const errorMessage = result.message || `API Error: ${response.status}`;
-          toast.error(errorMessage);
-          // Show error modal for other API errors
-          setShowErrorModal(true);
-        }
-        setIsSaving(false);
+      console.log("API response:", result);
+     if (!response.ok) {
+  if (result.status === "Validation Failed" && result.errors) {
+
+    const backendDuplicateErrors = {};
+    let globalErrorMessage = null;
+
+    result.errors.forEach((error) => {
+
+      // ✅ LIMIT REACHED / GLOBAL ERROR
+      if (
+        error.resvno === 0 &&
+        error.resbdno === null &&
+        error.message
+      ) {
+      console.log("Setting global error message:", error.message);
+        globalErrorMessage = error.message;
+        setMainError(error.message);
         return;
       }
+
+      // ✅ DUPLICATE ROW ERROR
+      const matchingRow = allKeyplots.find(row =>
+        row.surveyNo === error.resvno?.toString() &&
+        row.subDivNo === error.resbdno
+      );
+
+      if (matchingRow) {
+        const duplicateKey = `${matchingRow.lbId}_${matchingRow.id}`;
+        backendDuplicateErrors[duplicateKey] = error.message;
+      }
+    });
+
+    // Show duplicate row errors
+    if (Object.keys(backendDuplicateErrors).length > 0) {
+      setDuplicateErrors(backendDuplicateErrors);
+      toast.error(
+        `Validation failed: ${Object.keys(backendDuplicateErrors).length} duplicate error(s) found`
+      );
+      setShowErrorModal(true);
+    }
+
+    // 🔥 Show LIMIT REACHED message
+    if (globalErrorMessage) {
+      toast.error(globalErrorMessage);
+      setShowErrorModal(true);
+    }
+
+  } else {
+    const errorMessage = result.message || `API Error: ${response.status}`;
+    toast.error(errorMessage);
+    setShowErrorModal(true);
+  }
+
+  setIsSaving(false);
+  return;
+}
+
       // Success response
       console.log("API save response:", result);
       if (result.status === "Success") {
@@ -1089,9 +1117,10 @@ const areAllFieldsFilled = (lbId) => {
           </DialogTitle>
           <DialogContent>
             <DialogContentText sx={{ textAlign: 'center', fontSize: '1.1rem' }}>
-              Error saving keyplots!
+               Save failed!
               <br />
-              Please check the form for errors and try again.
+              {mainerror ? mainerror : "Please check the form for errors and try again."}
+             
             </DialogContentText>
           </DialogContent>
           <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
