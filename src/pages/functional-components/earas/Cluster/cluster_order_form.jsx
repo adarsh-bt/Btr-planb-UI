@@ -41,11 +41,11 @@ import mainapi from 'api/mainapi';
 
 function ClusterSeatForm({ zoneId }) {
   const [clusters, setClusters] = useState([]);
-  const [summary, setSummary] = useState({ 
-    completed: 0, 
-    ongoing: 0, 
-    notStarted: 0, 
-    underreview: 0 
+  const [summary, setSummary] = useState({
+    completed: 0,
+    ongoing: 0,
+    notStarted: 0,
+    underreview: 0
   });
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [loading, setLoading] = useState(true);
@@ -77,38 +77,38 @@ function ClusterSeatForm({ zoneId }) {
     const token = localStorage.getItem('token');
     setLoading(true);
     setError(null);
-    
+
     if (!resolvedZoneId || resolvedZoneId === "null") {
       setError("No zones are assigned to you. Please contact your administrator.");
       setZonestatus(true);
       setLoading(false);
       return;
     }
-    
+
     axios.get(`${BASE_URL}/btr-service/cluster-api/cluster-form-status/${resolvedZoneId}`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
     })
-    .then(res => {
-      // Store the raw payload directly - One object per cluster
-      setClusters(res.data.payload || []);
-      
-      setSummary({
-        completed: res.data.completed || 0,
-        ongoing: res.data.ongoing || 0,
-        notStarted: res.data.notStarted || 0,
-        underreview: res.data.underreview || 0,
+      .then(res => {
+        // Store the raw payload directly - One object per cluster
+        setClusters(res.data.payload || []);
+
+        setSummary({
+          completed: res.data.completed || 0,
+          ongoing: res.data.ongoing || 0,
+          notStarted: res.data.notStarted || 0,
+          underreview: res.data.underreview || 0,
+        });
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch data:', err);
+        setClusters([]);
+        setSummary({ completed: 0, ongoing: 0, notStarted: 0, underreview: 0 });
+        setError('Failed to load cluster data. Please try again later.');
+        setLoading(false);
       });
-      setLoading(false);
-    })
-    .catch(err => {
-      console.error('Failed to fetch data:', err);
-      setClusters([]);
-      setSummary({ completed: 0, ongoing: 0, notStarted: 0, underreview: 0 });
-      setError('Failed to load cluster data. Please try again later.');
-      setLoading(false);
-    });
   };
 
   // --- Helper Functions ---
@@ -159,7 +159,13 @@ function ClusterSeatForm({ zoneId }) {
     e.stopPropagation(); // Prevent triggering parent card click if any
     const encodedSyNo = encodeURIComponent(cluster.keyplotId); // keyplotId maps to 'No'
     const encodedSlNo = encodeURIComponent(seasonId);          // seasonId maps to 'slno'
-    navigate(`/schemes/earas/Clusters_Form/ClusterFormView?No=${encodedSyNo}&slno=${encodedSlNo}`);
+
+    // Check if we have a resolvedZoneId (Admin context or specific zone view)
+    if (resolvedZoneId) {
+      navigate(`/schemes/earas/Zone_Details/Clusters_Form/${resolvedZoneId}/ClusterFormView?No=${encodedSyNo}&slno=${encodedSlNo}`);
+    } else {
+      navigate(`/schemes/earas/Clusters_Form/ClusterFormView?No=${encodedSyNo}&slno=${encodedSlNo}`);
+    }
   };
 
   // --- Filtering ---
@@ -170,11 +176,11 @@ function ClusterSeatForm({ zoneId }) {
     const matchesStatus = selectedStatus === 'All' || normalizedRootStatus === selectedStatus;
 
     // 2. Filter by Search
-    const matchesSearch = 
-      cluster.clusterNo?.toString().includes(searchTerm) || 
+    const matchesSearch =
+      cluster.clusterNo?.toString().includes(searchTerm) ||
       cluster.localbody?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cluster.village?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     return matchesStatus && matchesSearch;
   });
 
@@ -196,7 +202,7 @@ function ClusterSeatForm({ zoneId }) {
               loop
               autoplay
             />
-             {zonestatus && (
+            {zonestatus && (
               <Alert severity="warning" sx={{ mt: 2, mb: 2 }}>{error}</Alert>
             )}
             <Button variant="contained" startIcon={<Refresh />} onClick={fetchClusterData}>
@@ -279,13 +285,13 @@ function ClusterSeatForm({ zoneId }) {
 
             {/* --- Cluster Grid --- */}
             <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
-                <LocalFlorist sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="h6" fontWeight="bold">
-                    {selectedStatus === 'All' ? 'All Clusters' : `${selectedStatus} Clusters`}
-                    <Typography component="span" sx={{ ml: 1, color: 'text.secondary', fontSize: '0.9rem' }}>
-                        ({filteredClusters.length} found)
-                    </Typography>
+              <LocalFlorist sx={{ mr: 1, color: 'primary.main' }} />
+              <Typography variant="h6" fontWeight="bold">
+                {selectedStatus === 'All' ? 'All Clusters' : `${selectedStatus} Clusters`}
+                <Typography component="span" sx={{ ml: 1, color: 'text.secondary', fontSize: '0.9rem' }}>
+                  ({filteredClusters.length} found)
                 </Typography>
+              </Typography>
             </Box>
 
             {filteredClusters.length === 0 ? (
@@ -318,128 +324,128 @@ function ClusterSeatForm({ zoneId }) {
                         {/* CCE Badge if applicable */}
                         {cluster.cce && (
                           <Tooltip title={`CCE Required: ${cluster.cceCrops?.join(', ')}`}>
-                             <Badge 
-                                badgeContent="CCE" 
-                                color="error" 
-                                sx={{ 
-                                    position: 'absolute', 
-                                    top: 15, 
-                                    right: 15,
-                                    '& .MuiBadge-badge': { fontSize: '0.65rem', height: 18, minWidth: 18 }
-                                }} 
-                             />
+                            <Badge
+                              badgeContent="CCE"
+                              color="error"
+                              sx={{
+                                position: 'absolute',
+                                top: 15,
+                                right: 15,
+                                '& .MuiBadge-badge': { fontSize: '0.65rem', height: 18, minWidth: 18 }
+                              }}
+                            />
                           </Tooltip>
                         )}
 
                         <CardContent sx={{ flexGrow: 1, p: 2 }}>
-                            {/* Header: ID and Status */}
-                            <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
-                                <Box>
-                                    <Typography variant="overline" sx={{ color: 'text.secondary', lineHeight: 1 }}>
-                                        Cluster
-                                    </Typography>
-                                    <Typography variant="h4" sx={{ fontWeight: 800, color: typeStyles.color }}>
-                                        {cluster.clusterNo}
-                                    </Typography>
-                                </Box>
-                                <Chip 
-                                    size="small" 
-                                    label={normalizeStatus(cluster.status)}
-                                    sx={{ 
-                                        bgcolor: rootStatusConfig.main, 
-                                        color: '#fff',
-                                        fontSize: '0.65rem',
-                                        fontWeight: 'bold',
-                                        height: 22
-                                    }} 
-                                />
+                          {/* Header: ID and Status */}
+                          <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
+                            <Box>
+                              <Typography variant="overline" sx={{ color: 'text.secondary', lineHeight: 1 }}>
+                                Cluster
+                              </Typography>
+                              <Typography variant="h4" sx={{ fontWeight: 800, color: typeStyles.color }}>
+                                {cluster.clusterNo}
+                              </Typography>
                             </Box>
+                            <Chip
+                              size="small"
+                              label={normalizeStatus(cluster.status)}
+                              sx={{
+                                bgcolor: rootStatusConfig.main,
+                                color: '#fff',
+                                fontSize: '0.65rem',
+                                fontWeight: 'bold',
+                                height: 22
+                              }}
+                            />
+                          </Box>
 
-                            {/* Details */}
-                            <Box sx={{ mb: 2 }}>
-                                <Typography variant="body2" fontWeight="bold" noWrap title={cluster.localbody}>
-                                    {cluster.localbody}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary" display="block">
-                                    Village: {cluster.village}
-                                </Typography>
-                                <Stack direction="row" spacing={1} mt={1}>
-                                    <Chip 
-                                        label={cluster.clusterType} 
-                                        size="small" 
-                                        sx={{ 
-                                            borderRadius: 1, 
-                                            height: 20, 
-                                            fontSize: '0.65rem',
-                                            bgcolor: `${typeStyles.color}20`,
-                                            color: typeStyles.color,
-                                            fontWeight: 'bold',
-                                            textTransform: 'uppercase'
-                                        }} 
-                                    />
-                                    {/* <Typography variant="caption" sx={{ alignSelf: 'center', color: 'text.secondary' }}>
+                          {/* Details */}
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="body2" fontWeight="bold" noWrap title={cluster.localbody}>
+                              {cluster.localbody}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Village: {cluster.village}
+                            </Typography>
+                            <Stack direction="row" spacing={1} mt={1}>
+                              <Chip
+                                label={cluster.clusterType}
+                                size="small"
+                                sx={{
+                                  borderRadius: 1,
+                                  height: 20,
+                                  fontSize: '0.65rem',
+                                  bgcolor: `${typeStyles.color}20`,
+                                  color: typeStyles.color,
+                                  fontWeight: 'bold',
+                                  textTransform: 'uppercase'
+                                }}
+                              />
+                              {/* <Typography variant="caption" sx={{ alignSelf: 'center', color: 'text.secondary' }}>
                                         Area: {cluster.area} 
                                     </Typography> */}
-                                </Stack>
-                            </Box>
+                            </Stack>
+                          </Box>
 
-                            <Divider sx={{ mb: 2, borderStyle: 'dashed' }} />
+                          <Divider sx={{ mb: 2, borderStyle: 'dashed' }} />
 
-                            {/* Seasons Action Area */}
-                            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', mb: 1, display: 'block' }}>
-                                SELECT SEASON TO VIEW:
-                            </Typography>
-                            
-                            <Grid container spacing={1}>
-                                {SEASONS.map((seasonDef) => {
-                                    // Find status for this season from the 'seasons' array
-                                    const seasonData = cluster.seasons?.find(s => s.seasonId === seasonDef.id);
-                                    const sStatus = seasonData ? seasonData.status : 'NOT STARTED';
-                                    const sConfig = getStatusColorConfig(sStatus);
+                          {/* Seasons Action Area */}
+                          <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', mb: 1, display: 'block' }}>
+                            SELECT SEASON TO VIEW:
+                          </Typography>
 
-                                    return (
-                                        <Grid item xs={4} key={seasonDef.id}>
-                                            <Tooltip title={`${seasonDef.name}: ${normalizeStatus(sStatus)}`}>
-                                                <Button
-                                                    fullWidth
-                                                    variant="outlined"
-                                                    size="small"
-                                                    onClick={(e) => handleSeasonClick(e, cluster, seasonDef.id)}
-                                                    sx={{
-                                                        flexDirection: 'column',
-                                                        p: 0.5,
-                                                        borderColor: sConfig.border,
-                                                        bgcolor: sConfig.light,
-                                                        color: '#444',
-                                                        minHeight: 55,
-                                                        '&:hover': {
-                                                            bgcolor: sConfig.border,
-                                                            borderColor: sConfig.main
-                                                        }
-                                                    }}
-                                                >
-                                                    <Box sx={{ color: sConfig.main, mb: 0.5 }}>
-                                                        {seasonDef.icon}
-                                                    </Box>
-                                                    <Typography variant="caption" sx={{ lineHeight: 1, fontWeight: 'bold', fontSize: '0.65rem' }}>
-                                                        {seasonDef.short}
-                                                        {seasonData.status}
-                                                    </Typography>
-                                                    <Box 
-                                                        sx={{ 
-                                                            mt: 0.5, 
-                                                            width: 6, 
-                                                            height: 6, 
-                                                            borderRadius: '50%', 
-                                                            bgcolor: sConfig.main 
-                                                        }} 
-                                                    />
-                                                </Button>
-                                            </Tooltip>
-                                        </Grid>
-                                    );
-                                })}
-                            </Grid>
+                          <Grid container spacing={1}>
+                            {SEASONS.map((seasonDef) => {
+                              // Find status for this season from the 'seasons' array
+                              const seasonData = cluster.seasons?.find(s => s.seasonId === seasonDef.id);
+                              const sStatus = seasonData ? seasonData.status : 'NOT STARTED';
+                              const sConfig = getStatusColorConfig(sStatus);
+
+                              return (
+                                <Grid item xs={4} key={seasonDef.id}>
+                                  <Tooltip title={`${seasonDef.name}: ${normalizeStatus(sStatus)}`}>
+                                    <Button
+                                      fullWidth
+                                      variant="outlined"
+                                      size="small"
+                                      onClick={(e) => handleSeasonClick(e, cluster, seasonDef.id)}
+                                      sx={{
+                                        flexDirection: 'column',
+                                        p: 0.5,
+                                        borderColor: sConfig.border,
+                                        bgcolor: sConfig.light,
+                                        color: '#444',
+                                        minHeight: 55,
+                                        '&:hover': {
+                                          bgcolor: sConfig.border,
+                                          borderColor: sConfig.main
+                                        }
+                                      }}
+                                    >
+                                      <Box sx={{ color: sConfig.main, mb: 0.5 }}>
+                                        {seasonDef.icon}
+                                      </Box>
+                                      <Typography variant="caption" sx={{ lineHeight: 1, fontWeight: 'bold', fontSize: '0.65rem' }}>
+                                        {seasonDef.short}
+                                        {seasonData.status}
+                                      </Typography>
+                                      <Box
+                                        sx={{
+                                          mt: 0.5,
+                                          width: 6,
+                                          height: 6,
+                                          borderRadius: '50%',
+                                          bgcolor: sConfig.main
+                                        }}
+                                      />
+                                    </Button>
+                                  </Tooltip>
+                                </Grid>
+                              );
+                            })}
+                          </Grid>
                         </CardContent>
                       </Card>
                     </Grid>

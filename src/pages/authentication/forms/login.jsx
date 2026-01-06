@@ -32,7 +32,7 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import Register from './Register';
 import des_logo from "../images/des.png"; 
-import deslogo from "../images/des.png"; // Import the CDTI logo image
+import deslogo from "../images/des2.png"; // Import the CDTI logo image
 import logo from "../images/gok_logo1.png"; // Import the logo image
 import loginimg from "../images/login.png"; // Import the login image
 import bg1 from "../images/bg1.jpg"; // Import the background image
@@ -672,13 +672,18 @@ const [showShowcase, setShowShowcase] = useState(false);
                     <Stack spacing={1} sx={{ mt: 5 }}>
                         
                        
-                        <Stack direction="row" spacing={2} justifyContent="center">
-      <img className="cdti_logo" src={cdtilogo} alt="CDTI Logo" />
-                         <img className='des_logo' src={deslogo} alt="DES Logo" />
-      <img className="duk_logo" src={duklogo} alt="DUK Logo" />
-    </Stack>
+         <Stack
+  direction="row"
+  spacing={3}
+  justifyContent="center"
+  alignItems="center"
+>
+  <img className="header-logo des_logo" src={deslogo} alt="DES Logo" />
+  <img className="header-logo duk_logo" src={duklogo} alt="DUK Logo" />
+  <img className="header-logo cdti_logo" src={cdtilogo} alt="CDTI Logo" />
+</Stack>
      <Box className="copy_right" sx={{ color: 'text.disabled' }}>
-                            © 2025 AIDEA CDTI-DUK. All rights reserved.
+                            © 2026 AIDEA CDTI-DUK. All rights reserved.
                         </Box>
                     </Stack>
                 </Stack>
@@ -830,6 +835,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
     };
 
 
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -907,6 +913,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
             setIsLoading(false);
         }
     };
+
 
 
     return (
@@ -1006,6 +1013,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
 
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
                 <Button
+              
                     type="submit"
                     variant="contained"
                     color="primary"

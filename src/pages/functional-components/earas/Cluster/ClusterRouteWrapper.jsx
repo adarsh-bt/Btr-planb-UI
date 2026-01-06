@@ -8,16 +8,16 @@ const ClusterRouteWrapper = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  
+
   const syNo = searchParams.get('No');
   const slNo = searchParams.get('slno');
-  
+
   useEffect(() => {
     const determineRoute = async () => {
       try {
         const token = localStorage.getItem('token');
         const zoneId = localStorage.getItem('activeZone');
-        
+
         if (!zoneId) {
           console.error('No active zone found');
           // Fallback to default route
@@ -26,8 +26,12 @@ const ClusterRouteWrapper = () => {
         }
 
         // Fetch BTR type for the zone
+        // If query params has zoneId, use it (Admin context), else use localStorage (Field User)
+        const queryZoneId = searchParams.get('zoneId');
+        const activeZoneId = queryZoneId || zoneId;
+
         const response = await axios.get(
-          `${mainapi.BTR_API}/btr-service/localbodies/${zoneId}/btr-type`,
+          `${mainapi.BTR_API}/btr-service/localbodies/${activeZoneId}/btr-type`,
           {
             headers: {
               'Authorization': `Bearer ${token}`
@@ -37,28 +41,38 @@ const ClusterRouteWrapper = () => {
 
         const btrTypeId = response.data.btrTypeId;
         console.log('Fetched BTR Type ID:', response.data);
-        // Route based on btrTypeId
+
         let targetRoute;
+
+        // Helper to construct route based on context (Admin/Nested vs Field/Flat)
+        const getRoute = (basePath, nestedPath) => {
+          if (queryZoneId) {
+            return `/schemes/earas/Zone_Details/Clusters/${queryZoneId}/${nestedPath}?No=${syNo}&slno=${slNo}`;
+          }
+          return `/schemes/earas/${basePath}?No=${syNo}&slno=${slNo}`;
+        };
+
+        // Route based on btrTypeId
         switch (btrTypeId) {
           case 1:
             // BTR route
-            targetRoute = `/schemes/earas/cluster_manual_entry?No=${syNo}&slno=${slNo}`;
+            targetRoute = getRoute('cluster_manual_entry', 'Manual_Entry');
             break;
           case 2:
             // Non-BTR route
-            targetRoute = `/schemes/earas/cluster_manual_entry_Non_BTR?No=${syNo}&slno=${slNo}`;
+            targetRoute = getRoute('cluster_manual_entry_Non_BTR', 'Manual_Entry_Non_BTR');
             break;
           case 3:
             // BTR with minor circuit route (you may need to define this route)
-            targetRoute = `/schemes/earas/cluster_manual_entry?No=${syNo}&slno=${slNo}`;
+            targetRoute = getRoute('cluster_manual_entry', 'Manual_Entry');
             break;
           default:
             // Default fallback to original route
-            targetRoute = `/schemes/earas/cluster_manual_entry?No=${syNo}&slno=${slNo}`;
+            targetRoute = getRoute('cluster_manual_entry', 'Manual_Entry');
         }
 
         navigate(targetRoute, { replace: true });
-        
+
       } catch (error) {
         console.error('Error determining route:', error);
         // Fallback to default route on error
@@ -75,11 +89,11 @@ const ClusterRouteWrapper = () => {
   }, [syNo, slNo, navigate]);
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
-      minHeight: '50vh' 
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      minHeight: '50vh'
     }}>
       <LoadingScreen message="Determining route..." />
     </div>

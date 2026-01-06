@@ -119,34 +119,40 @@ useEffect(() => {
               <Table sx={{ minWidth: 650 }} aria-label="cce table">
                 <TableHead sx={{ backgroundColor: theme.palette.primary.light }}>
                   <TableRow>
+                    <TableCell sx={{ color: '#fff', fontWeight: 'bold' }}>Sl.NO</TableCell>
                     <TableCell sx={{ color: '#fff', fontWeight: 'bold' }}>Crop Name</TableCell>
-                    <TableCell sx={{ color: '#fff', fontWeight: 'bold' }}>Source Type</TableCell>
-                    <TableCell sx={{ color: '#fff', fontWeight: 'bold' }}>Cluster ID</TableCell>
+                    {/* <TableCell sx={{ color: '#fff', fontWeight: 'bold' }}>Source Type</TableCell> */}
+                    <TableCell sx={{ color: '#fff', fontWeight: 'bold' }}>Number of CCE</TableCell>
+                    {/* <TableCell sx={{ color: '#fff', fontWeight: 'bold' }}>Cluster ID</TableCell> */}
                     <TableCell sx={{ color: '#fff', fontWeight: 'bold' }}>Agri Year</TableCell>
                     <TableCell sx={{ color: '#fff', fontWeight: 'bold' }}>Status</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {plotData.map((row) => (
+                  {plotData.map((row,key) => (
                     <TableRow
                       key={row.cceAvailablePlotId}
                       sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
                     >
+                    <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>
+                        {key + 1}
+                      </TableCell>
                       <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>
                         {row.cropName}
                       </TableCell>
                       <TableCell>
                         <Chip 
-                          label={row.cceSourceType} 
+                          label={row.noOfCce} 
                           color="info" 
                           variant="outlined" 
                           size="small" 
                         />
                       </TableCell>
-                      <TableCell>{row.clusterId}</TableCell>
+                      {/* <TableCell>{row.clusterId}</TableCell> */}
                       <TableCell>
                         {/* Format dates nicely: 2025-07-01 -> 2025/2026 */}
-                        {new Date(row.agriStartYear).getFullYear()} - {new Date(row.agriEndYear).getFullYear()}
+                        {/* {new Date(row.agriStartYear).getFullYear()} - {new Date(row.agriEndYear).getFullYear()} */}
+                        2025 - 2026
                       </TableCell>
                       <TableCell>
                         <Chip 
