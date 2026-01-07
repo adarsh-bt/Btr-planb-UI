@@ -1505,11 +1505,15 @@ const ClusterFormUI = () => {
     const handleAddRow = (keyplotId) => {
         const newData = JSON.parse(JSON.stringify(keyplotsData));
         const keyplot = newData.find(k => k.id === keyplotId);
+        // alert(defaultBlock)
         const newRow = {
             uniqueId: nextRowId.current++,
-            villageName: '',
-            villageId: null,
-            block: '',
+            // villageName: defaultVillage || '',
+            villageName:  '',
+            // villageId: defaultVillageId || null,
+            villageId:  null,
+            // block: defaultBlock || '',
+            block:  '',
             svNo: '',
             sub: '',
             area: '',
@@ -1675,8 +1679,6 @@ const ClusterFormUI = () => {
                 labelsWithValidRows.add(keyplot.label);
             }
         }
-
-        // K must have a row
         const missing = [];
         if (!labelsWithValidRows.has('K')) {
             missing.push('K');
@@ -1720,7 +1722,7 @@ const ClusterFormUI = () => {
 
             <Grid item xs={12}>
                 {getMissingLabels().length > 0 && (
-                    <Box sx={{ position: 'fixed', top: '15%', left: 0, zIndex: 1000, borderRight: '4px solid #05307a', borderRadius: '0 1rem 0 1rem', backgroundColor: 'rgba(247, 236, 186, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
+                    <Box sx={{ position: 'fixed', top: '12%', left: 0, zIndex: 1000, borderRight: '4px solid #05307a', borderRadius: '0 1rem 0 1rem', backgroundColor: 'rgba(247, 236, 186, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
                         <Typography variant="h6" fontWeight="bold" gutterBottom>SidePlots Requirements</Typography>
                         <Typography variant="body2" color="textSecondary">
                             <strong>Requirements:</strong>
@@ -1743,13 +1745,13 @@ const ClusterFormUI = () => {
                         )}
 
                         {/* Show progress */}
-                        <Box sx={{ mt: 1 }}>
+                        {/* <Box sx={{ mt: 1 }}>
                             <Typography variant="body2" color="textSecondary">
                                 <strong>Progress:</strong> K: {getLabelStatus('K') === 'complete' ? '✓' : '✗'} |
                                 Other plots: {[...currentLabels].filter(l => l !== 'K').filter(l => getLabelStatus(l) === 'complete').length}/4
                             </Typography>
 
-                        </Box>
+                        </Box> */}
                     </Box>)}
                 . <Box sx={{ position: 'fixed', top: '15%', right: 0, zIndex: 1000, borderRadius: '1rem 0 0 1rem', backgroundColor: 'rgba(212, 228, 231, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
                     <Typography variant="subtitle1" fontWeight="bold">Cluster: {slNo} | {clusterInfo.localBody}</Typography>
@@ -2213,7 +2215,6 @@ const ClusterFormUI = () => {
                             </Box>
                         );
                     })}
-
                     {/* ✅ Main Submit Button - ORIGINAL UI PRESERVED */}
                     {role === 'Field Data Collector' && (
                         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2 }}>

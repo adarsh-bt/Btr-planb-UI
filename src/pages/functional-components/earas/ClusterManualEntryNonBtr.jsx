@@ -59,6 +59,14 @@ const isSamePlot = (rowA, rowB) => {
 
 const ClusterManualEntryNonBtr = () => {
   const [keyplotsData, setKeyplotsData] = useState([]);
+  const [currentLabels, setCurrentLabels] = useState(['K', 'S1', 'E1', 'N1', 'W1']);
+   const navigate = useNavigate();
+    const { zoneId: paramZoneId } = useParams();
+
+    // Helper to get effective zone ID
+    const getEffectiveZoneId = () => {
+        return paramZoneId || authservice.getzone();
+    };
   const [clusterInfo, setClusterInfo] = useState({
     clusterNo: '',
     localBody: '',
@@ -413,7 +421,6 @@ const ClusterManualEntryNonBtr = () => {
       console.log("response >> ", data)
       const keyplotBTypeId = data.payload.btr_id;
       const keyplotBTypeName = data.payload.btr_type;
-
       setCurrentBType({
         id: keyplotBTypeId,
         name: keyplotBTypeName
@@ -1411,6 +1418,29 @@ const ClusterManualEntryNonBtr = () => {
   };
 
   const hasAnyError = Object.values(errors).some(error => error !== null && error !== '');
+    const getLabelStatus = (label) => {
+        const keyplot = keyplotsData.find(kp => kp.label === label);
+
+        // No plot or no rows → incomplete
+        if (!keyplot || !Array.isArray(keyplot.rows) || keyplot.rows.length === 0) {
+            return 'incomplete';
+        }
+const requiredFieldsByType = {
+  2: ['villageName', 'block', 'houseno', 'ward_number', 'area', 'enumeratedArea'],
+  3: ['villageName', 'block', 'ownername', 'address', 'area', 'enumeratedArea'],
+  4: ['villageName', 'block', 'tpno', 'area', 'enumeratedArea'],
+  5: ['villageName', 'block', 'oldsvno', 'oldsubno', 'area', 'enumeratedArea']
+};
+        // At least one valid row → complete
+       const hasValidRow = keyplot.rows.some(row => {
+  const requiredFields = requiredFieldsByType[BtrTypeId];
+  if (!requiredFields) return false;
+
+  return requiredFields.every(field => row[field]);
+});
+
+        return hasValidRow ? 'complete' : 'incomplete';
+    };
   const checkPlotUsageInCurrentForm = (plotIdentifier, currentRowUniqueId) => {
     const allRows = keyplotsData.flatMap(kp => kp.rows);
     const duplicateRows = allRows.filter(row => {
@@ -1708,7 +1738,49 @@ const ClusterManualEntryNonBtr = () => {
 
     return false;
   };
+   const getMissingLabels = () => {
+        const labelsWithValidRows = new Set();
 
+        // Check each keyplot
+        for (const keyplot of keyplotsData) {
+            const hasValidRow = keyplot.rows.some(row => {
+                if (row.isExisting || row.isNew) {
+                    return row.villageName &&
+                        row.block &&
+                        row.svNo &&
+                        row.area &&
+                        row.enumeratedArea;
+                }
+                return false;
+            });
+
+            if (hasValidRow) {
+                labelsWithValidRows.add(keyplot.label);
+            }
+        }
+
+        // K must have a row
+        const missing = [];
+        if (!labelsWithValidRows.has('K')) {
+            missing.push('K');
+        }
+
+        // Need at least 4 other labels with rows
+        const otherLabelsWithRows = [...labelsWithValidRows].filter(label => label !== 'K').length;
+        const missingOtherCount = 4 - otherLabelsWithRows;
+
+        if (missingOtherCount > 0) {
+            // Find which other labels don't have rows
+            const otherLabels = currentLabels.filter(label => label !== 'K');
+            otherLabels.forEach(label => {
+                if (!labelsWithValidRows.has(label) && missingOtherCount > 0) {
+                    missing.push(label);
+                }
+            });
+        }
+
+        return missing;
+    };
   const firstInstanceMap = new Map();
   keyplotsData.forEach(kp => {
     kp.rows.forEach(r => {
@@ -2158,6 +2230,32 @@ const ClusterManualEntryNonBtr = () => {
   return (
     <Container maxWidth="xl" sx={{ mt: 4, bgcolor: '#f4f4f9', p: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
       {/* Floating Summary Bar */}
+       {/* {getMissingLabels().length > 0 && (
+                          <Box sx={{ position: 'fixed', top: '15%', left: 0, zIndex: 1000, borderRight: '4px solid #05307a', borderRadius: '0 1rem 0 1rem', backgroundColor: 'rgba(247, 236, 186, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
+                              <Typography variant="h6" fontWeight="bold" gutterBottom>SidePlots Requirements</Typography>
+                              <Typography variant="body2" color="textSecondary">
+                                  <strong>Requirements:</strong>
+                                  <Box component="span" sx={{ ml: 1 }}>
+                                      • <strong>K</strong> (Keyplot) must have at least one row<br />
+                                      • <strong>4 other plots</strong> must each have at least one row
+                                  </Box>
+                              </Typography>
+                              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                                  <strong>Current plots:</strong> {currentLabels.join(', ')}
+                              </Typography>
+                              {getMissingLabels().length > 0 && (
+                                  <Typography variant="body2" color="error" sx={{ mt: 1, fontWeight: 'bold' }}>
+                                      <strong>Missing rows in:</strong> {getMissingLabels().join(', ')}
+                                  </Typography>
+                              )}
+                              <Box sx={{ mt: 1 }}>
+                                  <Typography variant="body2" color="textSecondary">
+                                      <strong>Progress:</strong> K: {getLabelStatus('K') === 'complete' ? '✓' : '✗'} |
+                                      Other plots: {[...currentLabels].filter(l => l !== 'K').filter(l => getLabelStatus(l) === 'complete').length}/4
+                                  </Typography>
+                              </Box>
+                          </Box>)} */}
+
       <Box sx={{ position: 'fixed', top: '15%', right: 0, zIndex: 1000, borderRadius: '1rem 0 0 1rem', backgroundColor: 'rgba(212, 228, 231, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
         <Typography variant="subtitle1" fontWeight="bold">Cluster: {slNo} | {clusterInfo.localBody}</Typography>
         <Box sx={{ width: '100%', mt: 1 }}>
@@ -2264,6 +2362,7 @@ const ClusterManualEntryNonBtr = () => {
         {/* Keyplot Sections - REFACTORED TO STACKED FORM FIELDS */}
         {keyplotsData.map((keyplot) => {
           let isNewRowIncomplete = false;
+          
           if (BtrTypeId === 2) {
             isNewRowIncomplete = keyplot.rows
               .filter(r => r.isNew)
