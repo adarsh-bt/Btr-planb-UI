@@ -72,6 +72,9 @@ const KeyplotListing = Loadable(lazy(() => import('pages/functional-components/e
 const ClusterManualEntry = Loadable(lazy(() => import('pages/functional-components/earas/ClusterManualEntry')));
 const ClusterManualEntryNonBtr = Loadable(lazy(() => import('pages/functional-components/earas/ClusterManualEntryNonBtr')));
 
+const CceView = Loadable(lazy(() => import('pages/functional-components/earas/cce/cceview')));
+const CceReport = Loadable(lazy(() => import('pages/functional-components/earas/cce/CceReport')));
+
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
@@ -484,7 +487,23 @@ const MainRoutes = {
           <ClusterApprovals />
         </PrivateRoute>
       )
-    }
+    },
+     {
+  path: '/schemes/earas/cce/cceview',
+  element: (
+    <PrivateRoute>
+      <CceView />
+    </PrivateRoute>
+  )
+},
+   {
+  path: '/schemes/earas/cce/CceReport',
+  element: (
+    <PrivateRoute>
+      <CceReport />
+    </PrivateRoute>
+  )
+},
   ]
 };
 

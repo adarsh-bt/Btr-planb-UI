@@ -725,7 +725,7 @@ setPanchayathAreaSummary(panchayathSummary);
               <Table stickyHeader sx={{ tableLayout: 'fixed' }}>
                 <TableHead>
                   <TableRow>
-                    {['slNo', 'syNo', 'panchayth', 'village','villageBlock', 'area','landType'].map((col) => (
+                    {['slNo', 'panchayth', 'village','villageBlock', 'syNo','area','landType'].map((col) => (
                       <TableCell
                         key={col}
                         align="center"

@@ -303,7 +303,96 @@ export default function DashboardDefault() {
             </Box>
           </Card>
         </Grid>
-      
+
+         {(authservice.getrole() === "Field Data Collector" && (
+        <Grid item xs={12} sm={4} md={4} lg={4}>
+          <Card
+          component={Link}
+            to="/profile"
+            sx={{
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '2rem',
+              textDecoration: 'none',
+              borderRadius: '1rem',
+              background: 'linear-gradient(135deg, rgba(255, 99, 185, 0.57), rgba(253, 51, 253, 1))',
+              transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+              overflow: 'hidden',
+              '&:hover': {
+                transform: 'scale(1.05)',
+                boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
+              },
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                width: '200px',
+                height: '200px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.2)',
+                top: '-50px',
+                right: '-50px'
+              },
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                width: '150px',
+                height: '150px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.15)',
+                bottom: '-40px',
+                left: '-40px'
+              }
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
+              -
+            </Typography>
+            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
+              Profile
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: '#f3f3f3',
+                fontWeight: 'lighter',
+                marginTop: '0.5rem',
+                textAlign: 'center',
+                marginBottom: '1.2rem'
+              }}
+            >
+              Details
+            </Typography>
+            <Box
+              sx={{
+                position: 'absolute',
+                top: '1rem',
+                right: '1rem',
+                background: 'rgba(255, 255, 255, 0.3)',
+                padding: '0.5rem',
+                borderRadius: '50%',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}
+            >
+              <CardMedia
+                component="img"
+                sx={{
+                  width: '3rem',
+                  height: '3rem',
+                  borderRadius: '50%'
+                }}
+                image={usermanage} // <-- Use the imported image here
+                alt="Cluster Logo"
+              />
+            </Box>
+          </Card>
+        </Grid>
+      ))}
 {/* {["Super Admin", "District Level Approver", "IT Admin",].includes(authservice.getrole()) && (
         <Grid item xs={12} sm={4} md={4} lg={4}>
           <Card
@@ -576,10 +665,11 @@ export default function DashboardDefault() {
               )}
       </Grid>
 
+
       <Grid item md={8} sx={{ display: { sm: 'none', md: 'block', lg: 'none' } }} />
 
       {/* row 2 */}
-      <Grid item xs={12} md={7} lg={8}>
+      <Grid item xs={12} md={12} lg={12}>
         <UniqueVisitorCard />
       </Grid>
       {/* <Grid item xs={12} md={5} lg={4}>

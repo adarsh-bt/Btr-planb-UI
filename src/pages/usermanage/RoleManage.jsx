@@ -14,6 +14,18 @@ const RoleManage = () => {
   const [selectedPermissionIds, setSelectedPermissionIds] = useState([]);
   const [editingRoleId, setEditingRoleId] = useState(null);
 
+  // ✅ Dummy Assignable Roles
+const [assignableRoles] = useState([
+  { id: 1, roleName: 'Admin' },
+  { id: 2, roleName: 'Manager' },
+  { id: 3, roleName: 'Supervisor' },
+  { id: 4, roleName: 'Officer' },
+  { id: 5, roleName: 'Staff' }
+]);
+
+const [selectedAssignableRoleIds, setSelectedAssignableRoleIds] = useState([]);
+
+
   // ✅ Fetch Schemes
   useEffect(() => {
     const fetchSchemes = async () => {
@@ -274,6 +286,50 @@ const RoleManage = () => {
             )}
           </Grid>
         )}
+
+        {/* Assignable Roles Section */}
+{selectedScheme && (
+  <Grid item xs={12}>
+    <Typography variant="h6" sx={{ mb: 1 }}>
+      Assignable Roles:
+    </Typography>
+
+    <Box
+      sx={{
+        maxHeight: 200,
+        overflowY: 'auto',
+        border: '1px solid #ccc',
+        borderRadius: 1,
+        padding: 1,
+        backgroundColor: '#fafafa'
+      }}
+    >
+      <Grid container spacing={1}>
+        {assignableRoles.map((role) => (
+          <Grid item xs={12} sm={6} md={4} key={role.id}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={selectedAssignableRoleIds.includes(role.id)}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setSelectedAssignableRoleIds((prev) =>
+                      checked
+                        ? [...prev, role.id]
+                        : prev.filter((id) => id !== role.id)
+                    );
+                  }}
+                />
+              }
+              label={role.roleName}
+            />
+          </Grid>
+        ))}
+      </Grid>
+    </Box>
+  </Grid>
+)}
+
 
         {/* Cancel Edit Button */}
         {editingRoleId && (

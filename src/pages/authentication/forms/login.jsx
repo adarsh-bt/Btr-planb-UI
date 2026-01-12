@@ -31,13 +31,13 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import Register from './Register';
-import des_logo from "../images/DES_logo.png"; 
-import logo from "../images/logo.png"; // Import the logo image
+import des_logo from "../images/des.png"; 
+import deslogo from "../images/des.png"; // Import the CDTI logo image
+import logo from "../images/gok_logo1.png"; // Import the logo image
 import loginimg from "../images/login.png"; // Import the login image
 import bg1 from "../images/bg1.jpg"; // Import the background image
 import duklogo from "../images/duk_icon.png"; // Import the DUK logo image
 import cdtilogo from "../images/cdti_icon.png"; // Import the CDTI logo image
-import deslogo from "../images/des.png"; // Import the CDTI logo image
 import { keyframes } from '@emotion/react';
 import '../login.css'
 // import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext'
@@ -45,6 +45,10 @@ import IconButton from '@mui/material/IconButton';
 import authservice from '../services/authservice';
 import mainapi from 'api/mainapi';
 import CelebrationIcon from '@mui/icons-material/Celebration';
+import InaugurationLandingPage from './InaugurationLandingPage';
+import TheatricalCurtain from './TheatricalCurtain';
+import InaugurationShowcase from './InaugurationShowcase';
+
 
 const fadeIn = keyframes`
 0% { opacity: 0; transform: translateY(50px); }
@@ -88,9 +92,10 @@ const curtainOpenRight = keyframes`
 // ------------------ Inauguration overlay ------------------
 
 const InaugurationCeremony = ({ onComplete }) => {
-  const [step, setStep] = useState(-1);          // -1 = text not started yet
+  const [step, setStep] = useState(-1);
   const [showConfetti, setShowConfetti] = useState(false);
   const [curtainDone, setCurtainDone] = useState(false);
+  const [curtainOpening, setCurtainOpening] = useState(false);
 
   const steps = [
     {
@@ -103,7 +108,7 @@ const InaugurationCeremony = ({ onComplete }) => {
             fontWeight: "bold",
             textShadow: "0 0 12px rgba(255,210,63,0.9)"
           }}
-        >
+        ><br></br>
           Application for Intelligent Data Engineering and Analytics (AIDEA)
         </span>
       </>
@@ -129,7 +134,7 @@ const InaugurationCeremony = ({ onComplete }) => {
           textShadow: "0 0 10px rgba(198,40,40,0.8)"
         }}
       >
-        Hon&apos;ble Chief Minister Pinarayi Vijayan
+        Hon&apos;ble Chief Minister <br></br>Sree Pinarayi Vijayan
       </span>
     ),
     delay: 1100
@@ -468,6 +473,15 @@ const SignInSide = () => {
     const [isRegister, setIsRegister] = useState(false);
     const [showInauguration, setShowInauguration] = useState(false);
     const [showInaugurateButton, setShowInaugurateButton] = useState(true);
+    //   const [showCurtain, setShowCurtain] = useState(true);
+    const [screen, setScreen] = useState("curtain");
+/*
+curtain → showcase → login
+*/
+
+      
+const [showShowcase, setShowShowcase] = useState(false);
+
 
     const handleForgotPasswordClick = () => {
         setIsForgotPassword(true);
@@ -494,106 +508,116 @@ const SignInSide = () => {
     // first screen: inauguration button only
   if (showInaugurateButton) {
     return (
-      <Box
-        sx={{
-          height: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          textAlign: 'center',
-          background: 'linear-gradient(135deg, #edeef0ff 0%, #f8f8f8ff 100%)',
-          flexDirection: 'column',
-          gap: 1.5,
-          px: 2
-        }}
-      >
-        <Box sx={{ mb: 1 }}>
-          <img
-            src={des_logo}
-            alt="AIDEA Logo"
-            style={{ width: '200px', height: '200px' }}
-          />
-        </Box>
-        <Typography
-          variant="h2"
-          sx={{
-            color: '#0e0c21ff',
-            textAlign: 'center',
-            fontWeight: 'bold',
-            textShadow: '2px 2px 8px rgba(0,0,0,0.6)',
-            mb: 0.5, // Reduced from 2
-          lineHeight: 1.1 // Tighter line height
-          }}
-        >
-          AIDEA
-        </Typography>
-        <Typography
-        variant="h4" // Smaller than h4
-        sx={{ 
-          color: 'rgba(11, 48, 19, 0.95)', 
-          textAlign: 'center', 
-          mb: 0.5, // Reduced from 4
-          fontWeight: 500,
-          lineHeight: 1.2
-        }}
-      >
-        Department of Economics & Statistics
-      </Typography>
-        <Typography
-        variant="h5" // Smaller than h4
-        sx={{ 
-          color: 'rgba(153, 28, 22, 0.95)', 
-          textAlign: 'center', 
-          mb: 2, // Reduced from 4
-          fontWeight: 600,
-          lineHeight: 1.2
-        }}
-      >
-        Inauguration by Hon'ble Chief Minister Pinarayi Vijayan
-      </Typography>
-        <Button
-          onClick={handleInaugurate}
-          variant="contained"
-          size="large"
-          sx={{
-            px: 6,
-            py: 2,
-            borderRadius: '50px',
-            fontSize: '1.3rem',
-            fontWeight: 'bold',
-            background: 'linear-gradient(45deg, #ff6b35, #ffd23f)',
-            boxShadow: '0 12px 40px rgba(255,107,53,0.5)',
-            '&:hover': {
-              background: 'linear-gradient(45deg, #ffd23f, #ff6b35)',
-              transform: 'translateY(-2px)',
-              boxShadow: '0 16px 48px rgba(255,107,53,0.7)'
-            }
-          }}
-          startIcon={<CelebrationIcon />}
-        >
-          🪔 Start Ceremony
-        </Button>
-        <Typography
-          variant="body2"
-          sx={{
-            color: 'rgba(32, 29, 29, 0.85)',
-            textAlign: 'center',
-            maxWidth: 600
-          }}
-        >
-          Experience the inauguration curtain opening before entering the application.
-        </Typography>
-      </Box>
+          <InaugurationLandingPage onInaugurate={handleInaugurate} />
+      // <Box
+      //   sx={{
+      //     height: '100vh',
+      //     display: 'flex',
+      //     alignItems: 'center',
+      //     justifyContent: 'center',
+      //     textAlign: 'center',
+      //     background: 'linear-gradient(135deg, #edeef0ff 0%, #f8f8f8ff 100%)',
+      //     flexDirection: 'column',
+      //     gap: 1.5,
+      //     px: 2
+      //   }}
+      // >
+      //   <Box sx={{ mb: 1 }}>
+      //     <img
+      //       src={des_logo}
+      //       alt="AIDEA Logo"
+      //       style={{ width: '200px', height: '200px' }}
+      //     />
+      //   </Box>
+      //   <Typography
+      //     variant="h2"
+      //     sx={{
+      //       color: '#0e0c21ff',
+      //       textAlign: 'center',
+      //       fontWeight: 'bold',
+      //       textShadow: '2px 2px 8px rgba(0,0,0,0.6)',
+      //       mb: 0.5, // Reduced from 2
+      //     lineHeight: 1.1 // Tighter line height
+      //     }}
+      //   >
+      //     AIDEA
+      //   </Typography>
+      //   <Typography
+      //   variant="h4" // Smaller than h4
+      //   sx={{ 
+      //     color: 'rgba(11, 48, 19, 0.95)', 
+      //     textAlign: 'center', 
+      //     mb: 0.5, // Reduced from 4
+      //     fontWeight: 500,
+      //     lineHeight: 1.2
+      //   }}
+      // >
+      //   Department of Economics & Statistics
+      // </Typography>
+      //   <Typography
+      //   variant="h5" // Smaller than h4
+      //   sx={{ 
+      //     color: 'rgba(153, 28, 22, 0.95)', 
+      //     textAlign: 'center', 
+      //     mb: 2, // Reduced from 4
+      //     fontWeight: 600,
+      //     lineHeight: 1.2
+      //   }}
+      // >
+      //   Inauguration by Hon'ble Chief Minister Pinarayi Vijayan
+      // </Typography>
+      //   <Button
+      //     onClick={handleInaugurate}
+      //     variant="contained"
+      //     size="large"
+      //     sx={{
+      //       px: 6,
+      //       py: 2,
+      //       borderRadius: '50px',
+      //       fontSize: '1.3rem',
+      //       fontWeight: 'bold',
+      //       background: 'linear-gradient(45deg, #ff6b35, #ffd23f)',
+      //       boxShadow: '0 12px 40px rgba(255,107,53,0.5)',
+      //       '&:hover': {
+      //         background: 'linear-gradient(45deg, #ffd23f, #ff6b35)',
+      //         transform: 'translateY(-2px)',
+      //         boxShadow: '0 16px 48px rgba(255,107,53,0.7)'
+      //       }
+      //     }}
+      //     startIcon={<CelebrationIcon />}
+      //   >
+      //     🪔 Start Ceremony
+      //   </Button>
+      //   <Typography
+      //     variant="body2"
+      //     sx={{
+      //       color: 'rgba(32, 29, 29, 0.85)',
+      //       textAlign: 'center',
+      //       maxWidth: 600
+      //     }}
+      //   >
+      //     Experience the inauguration curtain opening before entering the application.
+      //   </Typography>
+      // </Box>
     );
   }
 
     return (
         <>
-    {showInauguration && (
-      <InaugurationCeremony onComplete={handleInaugurationComplete} />
+   {screen === "curtain" && (
+      <TheatricalCurtain
+        onFinish={() => setScreen("showcase")}
+      />
     )}
 
-    {!showInauguration && (
+    {screen === "showcase" && (
+      <InaugurationShowcase
+        onFinish={() => setScreen("login")}
+      />
+    )}
+
+
+   {screen === "login" && (
         <Grid className="main" container>
             {isRegister}
             <Grid
@@ -646,12 +670,14 @@ const SignInSide = () => {
                         Application for Intelligent Data Engineering and Analytics (AIDEA)
                     </Typography>
                     <Stack spacing={1} sx={{ mt: 5 }}>
-                        <Typography className='duk_logo_typ'>
-                            <img className='duk_logo' src={duklogo} alt="DUK Logo" />
-                            <img className='des_logo' src={deslogo} alt="DES Logo" />
-                            <img className='cdti_logo' src={cdtilogo} alt="CDTI Logo" />
-                        </Typography>
-                        <Box className="copy_right" sx={{ color: 'text.disabled' }}>
+                        
+                       
+                        <Stack direction="row" spacing={2} justifyContent="center">
+      <img className="cdti_logo" src={cdtilogo} alt="CDTI Logo" />
+                         <img className='des_logo' src={deslogo} alt="DES Logo" />
+      <img className="duk_logo" src={duklogo} alt="DUK Logo" />
+    </Stack>
+     <Box className="copy_right" sx={{ color: 'text.disabled' }}>
                             © 2025 AIDEA CDTI-DUK. All rights reserved.
                         </Box>
                     </Stack>

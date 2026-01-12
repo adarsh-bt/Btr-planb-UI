@@ -14,8 +14,9 @@ import {
   ClusterOutlined ,    
    UsergroupAddOutlined,
   UserSwitchOutlined,        
-  DeliveredProcedureOutlined 
- 
+  DeliveredProcedureOutlined ,
+ AppstoreOutlined,
+ ProfileOutlined
 } from '@ant-design/icons';
 import authservice from 'pages/authentication/services/authservice';
 
@@ -35,7 +36,9 @@ const icons = {
   ClusterOutlined,
    UsergroupAddOutlined,
   UserSwitchOutlined,
-  DeliveredProcedureOutlined
+  DeliveredProcedureOutlined,
+  AppstoreOutlined,
+  ProfileOutlined
 };
 
 // ==============================|| MENU ITEMS - UTILITIES ||============================== //
@@ -115,6 +118,21 @@ const userManagement = {
       icon: icons.FormOutlined
     };
 
+    const cceview = {
+  id: 'util-cceview',
+  title: 'Crop Cutting Experiment',
+  type: 'item',
+  url: '/schemes/earas/cce/cceview',
+  icon: icons.AppstoreOutlined
+};
+   const ccereport = {
+  id: 'util-ccereport',
+  title: 'CCE Report',
+  type: 'item',
+  url: '/schemes/earas/cce/CceReport',
+  icon: icons.ProfileOutlined
+};
+
 // Role-based logic with fallback
 if (role == 'Super Admin' ||role === 'IT Admin' || role === 'District Level Approver' || role === 'Taluk Level Approver' ) {
   utilities.children.push(
@@ -132,7 +150,9 @@ if (role == 'Super Admin' ||role === 'IT Admin' || role === 'District Level Appr
     keyPlot,
     clusterFormation,
     ClusterFormView,
-    workallocation
+    workallocation,
+    cceview,
+    ccereport
   );
 } else {
   // Fallback for undefined/empty/other roles
