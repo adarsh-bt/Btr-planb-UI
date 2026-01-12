@@ -2644,9 +2644,10 @@ const requiredFieldsByType = {
           {renderValidationDialogContent()}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setIsValidationDialogOpen(false)} color="secondary">
-            Cancel
-          </Button>
+               {/* <Button onClick={() => setIsValidationDialogOpen(false)} color="secondary"> */}
+                        {/*<Button onClick={handleRejectPlot} color="secondary">
+                            Cancel
+                        </Button>*/}
 
           {validationInfo && (
             <>
@@ -2683,7 +2684,7 @@ const requiredFieldsByType = {
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="alert-dialog-description">
-            This row is already saved in the database. Do you want to delete it permanently?
+            This row is already saved in the Cluster. Do you want to delete it permanently?
             {rowToDelete && (
               <Box sx={{ mt: 1, p: 1, bgcolor: 'grey.100', borderRadius: 1 }}>
                 <Typography variant="body2">

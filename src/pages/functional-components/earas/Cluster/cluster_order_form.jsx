@@ -55,6 +55,7 @@ function ClusterSeatForm({ zoneId }) {
 
   const [resolvedZoneId] = useState(() => {
     const role = authservice.getrole();
+ 
     return role === 'Field Data Collector' ? authservice.getzone() : zoneId;
   });
 
@@ -162,7 +163,7 @@ function ClusterSeatForm({ zoneId }) {
 
     // Check if we have a resolvedZoneId (Admin context or specific zone view)
     if (resolvedZoneId) {
-      navigate(`/schemes/earas/Zone_Details/Clusters_Form/${resolvedZoneId}/ClusterFormView?No=${encodedSyNo}&slno=${encodedSlNo}`);
+      navigate(`/schemes/earas/Clusters_Form/${resolvedZoneId}/ClusterFormView?No=${encodedSyNo}&slno=${encodedSlNo}`);
     } else {
       navigate(`/schemes/earas/Clusters_Form/ClusterFormView?No=${encodedSyNo}&slno=${encodedSlNo}`);
     }

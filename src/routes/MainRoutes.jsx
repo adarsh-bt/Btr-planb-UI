@@ -343,7 +343,7 @@ const MainRoutes = {
       )
     },
     {
-      path: '/schemes/earas/Zone_Details/Clusters/:zoneId/Manual_Entry',
+      path: '/schemes/earas/Clusters/:zoneId/Manual_Entry',
       element: (
         <PrivateRoute>
           <ClusterManualEntry />
@@ -351,7 +351,7 @@ const MainRoutes = {
       )
     },
     {
-      path: '/schemes/earas/Zone_Details/Clusters/:zoneId/Manual_Entry_Non_BTR',
+      path: '/schemes/earas/Clusters/:zoneId/Manual_Entry_Non_BTR',
       element: (
         <PrivateRoute>
           <ClusterManualEntryNonBtr />
@@ -411,6 +411,14 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
+{
+  path: '/schemes/earas/Clusters_Form/:zoneId/ClusterFormView',
+  element: (
+    <PrivateRoute>
+      <Form1_menus />
+    </PrivateRoute>
+  )
+},
 
     {
       path: '/schemes/earas/Clusters_Form/ClusterFormView',

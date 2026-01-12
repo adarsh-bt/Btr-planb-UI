@@ -47,7 +47,7 @@ const ClusterRouteWrapper = () => {
         // Helper to construct route based on context (Admin/Nested vs Field/Flat)
         const getRoute = (basePath, nestedPath) => {
           if (queryZoneId) {
-            return `/schemes/earas/Zone_Details/Clusters/${queryZoneId}/${nestedPath}?No=${syNo}&slno=${slNo}`;
+            return `/schemes/earas/Clusters/${queryZoneId}/${nestedPath}?No=${syNo}&slno=${slNo}`;
           }
           return `/schemes/earas/${basePath}?No=${syNo}&slno=${slNo}`;
         };

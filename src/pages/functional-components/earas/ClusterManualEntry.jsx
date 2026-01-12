@@ -35,6 +35,7 @@ import mainapi from 'api/mainapi';
 import Autocomplete from '@mui/material/Autocomplete';
 import authservice from 'pages/authentication/services/authservice';
 import Breadcrumb from 'routes/Breadcrumb';
+import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest';
 import { is } from 'date-fns/locale';
 // Add this import at the top
 import { useNavigate, useParams } from 'react-router-dom';
@@ -1852,6 +1853,20 @@ const ClusterFormUI = () => {
                     {status == "Completed" && (
                         <Box sx={{ width: '100%', mt: 1, textAlign: 'center', color: 'warning.main' }}><WarningAmberIcon />
                             <Typography >This Cluster is Completed. Editing is not allowed</Typography></Box>)}
+{(
+  role === 'Super Admin' ||
+  role === 'IT Admin' ||
+  role === 'District Level Approver' ||
+  role === 'Taluk Level Approver'
+) && (
+  <Grid container justifyContent="center" sx={{ mt: 2 }}>
+    <Button variant="contained" color="primary">
+      <SettingsSuggestIcon sx={{ mr: 1 }} />
+      Cluster Manage
+    </Button>
+  </Grid>
+)}
+
                     <Grid
                         container
                         spacing={2} // Increased spacing between the light boxes
@@ -2472,9 +2487,9 @@ const ClusterFormUI = () => {
 
                     <DialogActions>
                         {/* <Button onClick={() => setIsValidationDialogOpen(false)} color="secondary"> */}
-                        <Button onClick={handleRejectPlot} color="secondary">
+                        {/*<Button onClick={handleRejectPlot} color="secondary">
                             Cancel
-                        </Button>
+                        </Button>*/}
 
                         {validationInfo && (
                             <>
@@ -2513,7 +2528,7 @@ const ClusterFormUI = () => {
                     </DialogTitle>
                     <DialogContent>
                         <DialogContentText id="alert-dialog-description">
-                            This row is already saved in the database. Do you want to delete it permanently?
+                            This row is already saved in the Cluster. Do you want to delete it permanently?
                             {rowToDelete && (
                                 <Box sx={{ mt: 1, p: 1, bgcolor: 'grey.100', borderRadius: 1 }}>
                                     <Typography variant="body2">
