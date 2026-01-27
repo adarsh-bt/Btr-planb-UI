@@ -325,7 +325,7 @@ const fetchCropDetails = async () => {
   try {
     const token = localStorage.getItem('token');
     const BASE_URL = mainapi.BASE_URL;
-
+alert("Fetching crop details for Cluster ID: " + clusterId + " and Season ID: " + seasonId);
     const response = await axios.get(
       `${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${clusterId}/season/${seasonId}`,
       {

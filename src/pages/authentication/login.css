@@ -58,7 +58,7 @@ body{
   .duk_logo{
      width: 140px;
           height: 80px;
-          padding:.7rem;
+          /* padding:.7rem; */
           border-radius: 5px;
           
   }
@@ -66,7 +66,7 @@ body{
   .cdti_logo{
      width: 140px;
           height: 80px;
-          padding: .7rem;
+          /* padding: .7rem; */
           border-radius: 5px;
           /* margin-top: -8px; */
   }
@@ -74,7 +74,7 @@ body{
     .des_logo{
      width: 100px;
           height: 100px;
-          background: white;
+         
           /* padding: .7rem; */
           border-radius: 50%;
           /* margin-top: -8px; */
@@ -100,15 +100,15 @@ body{
     .duk_logo{
      width: 60px;
           height: 40px;
-          padding:.7rem;
+          /* padding:.7rem; */
           border-radius: 5px;
   }
    .cdti_logo{
      width: 85px;
           height: 50px;
-          padding: .7rem;
+          /* padding: .7rem; */
           border-radius: 5px;
-          margin-top: -8px;
+          /* margin-top: -8px; */
   }
   .copy_right{
     font-size: .7rem;
@@ -132,30 +132,33 @@ body{
       margin-bottom:1rem;
   }
     .duk_logo{
-    height: 4rem;
-          padding: .7rem;
-          padding:.7rem;
+    height: 3rem;
+    width: 7.5rem;
+         
+          padding:.1rem;
           border-radius: 5px;
   }
    .cdti_logo{
-     width: 8rem;
-          height: 4rem;
-          padding: .7rem;
+     width: 7.5rem;
+          height: 3rem;
+          padding: .1rem;
           border-radius: 5px;
-          margin-top: -8px;
+          /* margin-top: -8px; */
   }
-  .copy_right{
-    font-size: .7rem;
-    position: relative;
-    top: 5rem;
-  }
+
       .des_logo{
      width: 70px;
           height: 70px;
-          background: white;
+         
           /* padding: .7rem; */
           border-radius: 50%;
           /* margin-top: -8px; */
+  }
+
+    .copy_right{
+    font-size: .7rem;
+    position: relative;
+    top: 3rem;
   }
   }
 
@@ -237,7 +240,7 @@ body{
 
 
 /* Add these styles to your existing login.css */
-
+/* 
 @import url("https://fonts.googleapis.com/css?family=Open+Sans:800|Roboto+Condensed:700i");
 
 .theatrical-curtain-container {
@@ -293,7 +296,7 @@ body{
   margin-left: -5000px;
   border-radius: 100%;
   box-shadow: 0 0 100px 100px white;
-}
+} */
 
 /* .theatrical-title {
   position: absolute;

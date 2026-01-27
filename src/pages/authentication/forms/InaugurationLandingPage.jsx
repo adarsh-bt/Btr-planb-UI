@@ -12,6 +12,7 @@ import {
 import CelebrationIcon from '@mui/icons-material/Celebration';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import des_logo from "../images/des.png"; // Ensure this path is correct
+import deslogo from "../images/des2.png"; 
 import logo from "../images/gok_logo1.png";
 import duk_logo from "../images/Duk-Logo.png";
 import cdti_logo from "../images/cdti_icon.png"
@@ -63,12 +64,27 @@ const InaugurationLandingPage = ({ onInaugurate }) => {
     return () => clearInterval(timer);
 }, []);
 
+useEffect(() => {
+    const handleKeyDown = (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            onInaugurate(); // same action as button click
+        }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+        window.removeEventListener('keydown', handleKeyDown);
+    };
+}, [onInaugurate]);
+
     return (
         <>
           <ConfettiCanvas />
         <Box
             sx={{
-                height: '100dvh', // Dynamic viewport height (fixes mobile scroll issues)
+                height: '100%', // Dynamic viewport height (fixes mobile scroll issues)
                 width: '100vw',
                 overflow: 'hidden', // Strictly no scroll
                 position: 'relative',
@@ -218,9 +234,9 @@ const InaugurationLandingPage = ({ onInaugurate }) => {
     >
         <Box sx={{ width: 70, height: 70, borderRadius: '50%', overflow: 'hidden' }}>
             <img
-                src={des_logo}
+                src={deslogo}
                 alt="Logo"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', background: 'white' }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover',}}
             />
         </Box>
         <Typography variant="body2" sx={{ color: 'white', fontWeight: 500 }}>
@@ -241,7 +257,7 @@ const InaugurationLandingPage = ({ onInaugurate }) => {
             py: 1,
         }}
     >
-        <Box sx={{ width: 160, height: 60, borderRadius: '4%', overflow: 'hidden' }}>
+        <Box sx={{ width: 150, height: 50, borderRadius: '4%', overflow: 'hidden' }}>
             <img
                 src={duk_logo}
                 alt="Logo"
@@ -266,11 +282,11 @@ const InaugurationLandingPage = ({ onInaugurate }) => {
             py: 1,
         }}
     >
-        <Box sx={{ width: 200, height: 50, borderRadius: '4%', overflow: 'hidden' }}>
+        <Box sx={{ width: 200, height: 60, borderRadius: '4%', overflow: 'hidden' }}>
             <img
                 src={cdti_logo}
                 alt="Logo"
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                style={{ width: '10rem', height: '3.5rem', objectFit: 'cover' }}
             />
         </Box>
         {/* <Typography variant="body2" sx={{ color: 'white', fontWeight: 500 }}>
@@ -350,13 +366,14 @@ const InaugurationLandingPage = ({ onInaugurate }) => {
                             Hon'ble Chief Minister
                         </Typography>
                         
-                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.4)', mt: 2, fontStyle: 'italic' }}>
-                            December 24, 2025 • Thiruvananthapuram
+                        <Typography variant="h6" sx={{ color: 'rgba(255, 255, 255, 1)', mt: 2, fontStyle: 'italic' }}>
+                            January 03, 2026 • Thiruvananthapuram
                         </Typography>
                     </Paper>
 
                     {/* Launch Button */}
                     <Button
+                    autoFocus
                         onClick={onInaugurate}
                         variant="contained"
                         size="large"

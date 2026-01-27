@@ -25,12 +25,13 @@ import {
   LocationOn,
   Map,
   Key,
-  Apartment,
   Search,
   Clear,
   Close,
   SearchOff
 } from '@mui/icons-material';
+import AppsIcon from '@mui/icons-material/Apps';
+import SummarizeIcon from '@mui/icons-material/Summarize';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
 import mainapi from 'api/mainapi';
@@ -70,6 +71,7 @@ function AdminsZonelistUI() {
       'view-zone-details': `/schemes/earas/Zone_Details/${selectedZone.zoneId}`,
       'view-keyplots': `/schemes/earas/Zone_Details/Key_plots/${selectedZone.zoneId}`,
       'view-clusters': `/schemes/earas/Zone_Details/clusters/${selectedZone.zoneId}`,
+      'view-forms': `/schemes/earas/Zone_Details/Clusters_Form/${selectedZone.zoneId}`,
     };
 
     if (routes[menuItem]) {
@@ -512,12 +514,18 @@ function AdminsZonelistUI() {
                 },
                 { 
                   key: 'view-clusters', 
-                  icon: <Apartment sx={{ fontSize: 32 }} />, 
+                  icon: <AppsIcon sx={{ fontSize: 32 }} />, 
                   label: 'View Cluster',
+                  color: '#1a237e'
+                },
+                { 
+                  key: 'view-forms', 
+                  icon: <SummarizeIcon sx={{ fontSize: 32 }} />, 
+                  label: 'View Forms',
                   color: '#1a237e'
                 }
               ].map((item) => (
-                <Grid item xs={6} key={item.key}>
+                <Grid item xs={4} key={item.key}>
                   <Paper
                     onClick={() => handleMenuItemClick(item.key)}
                     sx={{

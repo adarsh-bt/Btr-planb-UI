@@ -14,14 +14,10 @@ const RoleManage = () => {
   const [selectedPermissionIds, setSelectedPermissionIds] = useState([]);
   const [editingRoleId, setEditingRoleId] = useState(null);
 
-  // ✅ Dummy Assignable Roles
-const [assignableRoles] = useState([
-  { id: 1, roleName: 'Admin' },
-  { id: 2, roleName: 'Manager' },
-  { id: 3, roleName: 'Supervisor' },
-  { id: 4, roleName: 'Officer' },
-  { id: 5, roleName: 'Staff' }
-]);
+const assignableRoles = roles.filter(
+  (role) => role.id !== editingRoleId // prevent assigning itself
+);
+
 
 const [selectedAssignableRoleIds, setSelectedAssignableRoleIds] = useState([]);
 
@@ -84,7 +80,8 @@ const [selectedAssignableRoleIds, setSelectedAssignableRoleIds] = useState([]);
       roleName,
       schemesId: Number(selectedScheme),
       isActive: true,
-      permissions: selectedPermissionIds
+      permissions: selectedPermissionIds,
+      childRoleId: selectedAssignableRoleIds
     };
 
     const result = await roleManageService.saveOrUpdateRole(userData);
@@ -167,6 +164,7 @@ const [selectedAssignableRoleIds, setSelectedAssignableRoleIds] = useState([]);
                 setEditingRoleId(data.id);
                 setRoleName(data.roleName);
                 setSelectedPermissionIds(data.permissions);
+                setSelectedAssignableRoleIds(data.childRoleId || []);
               } else {
                 Swal.fire(
                   'Error',
@@ -288,47 +286,53 @@ const [selectedAssignableRoleIds, setSelectedAssignableRoleIds] = useState([]);
         )}
 
         {/* Assignable Roles Section */}
+{/* Assignable Roles Section */}
 {selectedScheme && (
   <Grid item xs={12}>
     <Typography variant="h6" sx={{ mb: 1 }}>
       Assignable Roles:
     </Typography>
 
-    <Box
-      sx={{
-        maxHeight: 200,
-        overflowY: 'auto',
-        border: '1px solid #ccc',
-        borderRadius: 1,
-        padding: 1,
-        backgroundColor: '#fafafa'
-      }}
-    >
-      <Grid container spacing={1}>
-        {assignableRoles.map((role) => (
-          <Grid item xs={12} sm={6} md={4} key={role.id}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={selectedAssignableRoleIds.includes(role.id)}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    setSelectedAssignableRoleIds((prev) =>
-                      checked
-                        ? [...prev, role.id]
-                        : prev.filter((id) => id !== role.id)
-                    );
-                  }}
-                />
-              }
-              label={role.roleName}
-            />
-          </Grid>
-        ))}
-      </Grid>
-    </Box>
+    {assignableRoles.length > 0 ? (
+      <Box
+        sx={{
+          maxHeight: 200,
+          overflowY: 'auto',
+          border: '1px solid #ccc',
+          borderRadius: 1,
+          padding: 1,
+          backgroundColor: '#fafafa'
+        }}
+      >
+        <Grid container spacing={1}>
+          {assignableRoles.map((role) => (
+            <Grid item xs={12} sm={6} md={4} key={role.id}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={selectedAssignableRoleIds.includes(role.id)}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setSelectedAssignableRoleIds((prev) =>
+                        checked
+                          ? [...prev, role.id]
+                          : prev.filter((id) => id !== role.id)
+                      );
+                    }}
+                  />
+                }
+                label={role.roleName || role.name}
+              />
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
+    ) : (
+      <Typography>No assignable roles available.</Typography>
+    )}
   </Grid>
 )}
+
 
 
         {/* Cancel Edit Button */}
@@ -342,6 +346,7 @@ const [selectedAssignableRoleIds, setSelectedAssignableRoleIds] = useState([]);
                 setEditingRoleId(null);
                 setRoleName('');
                 setSelectedPermissionIds([]);
+                setSelectedAssignableRoleIds([]);
               }}
               sx={{ mt: 1 }}
             >
