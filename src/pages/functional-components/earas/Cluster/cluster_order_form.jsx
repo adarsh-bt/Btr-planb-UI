@@ -159,8 +159,8 @@ function ClusterSeatForm({ zoneId }) {
   const handleSeasonClick = (e, cluster, seasonId) => {
     e.stopPropagation(); // Prevent triggering parent card click if any
     const encodedSyNo = encodeURIComponent(cluster.keyplotId); // keyplotId maps to 'No'
-    const encodedSlNo = encodeURIComponent(seasonId);          // seasonId maps to 'slno'
-
+    const encodedSlNo = encodeURIComponent(cluster.clusterNo);          // seasonId maps to 'slno'
+console.Console
     // Check if we have a resolvedZoneId (Admin context or specific zone view)
     if (resolvedZoneId) {
       navigate(`/schemes/earas/Clusters_Form/${resolvedZoneId}/ClusterFormView?No=${encodedSyNo}&slno=${encodedSlNo}`);
@@ -168,9 +168,7 @@ function ClusterSeatForm({ zoneId }) {
       navigate(`/schemes/earas/Clusters_Form/ClusterFormView?No=${encodedSyNo}&slno=${encodedSlNo}`);
     }
   };
-
   // --- Filtering ---
-
   const filteredClusters = clusters.filter(cluster => {
     // 1. Filter by Status (Check Root Status)
     const normalizedRootStatus = normalizeStatus(cluster.status);

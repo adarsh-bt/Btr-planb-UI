@@ -69,6 +69,9 @@ const KeyPlotEntry = () => {
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [mainerror, setMainError] = useState(""); 
+  const [keyplotLimit, setKeyplotLimit] = useState(null);
+const [remainingKeyplots, setRemainingKeyplots] = useState(0);
+
 
     const [listTypes, setListTypes] = useState({});
 
@@ -91,6 +94,8 @@ const KeyPlotEntry = () => {
   /**
    * Safely parses user info from localStorage to prevent JSON parsing errors.
    */
+
+
   const getUserInfo = () => {
     if (typeof window === "undefined") return null;
     try {
@@ -122,6 +127,40 @@ const KeyPlotEntry = () => {
       }
     };
   }, [showSuccessModal]);
+useEffect(() => {
+  const savedZone = localStorage.getItem('activeZone');
+  if (!savedZone) return;
+
+ const fetchKeyplotLimit = async () => {
+  const savedZone = localStorage.getItem('activeZone');
+  if (!savedZone) return;
+
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(
+      `${BASE_URL}/btr-service/api/keyplots/limit-status/${savedZone}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!res.ok) throw new Error('Failed to fetch keyplot limit');
+
+    const data = await res.json();
+    setKeyplotLimit(data);
+    setRemainingKeyplots(data.remainingKeyplots);
+  } catch (err) {
+    console.error(err);
+    toast.error('Unable to refresh keyplot limit');
+  }
+};
+
+
+  fetchKeyplotLimit();
+}, [BASE_URL]);
 
   // Auto-close error modal after 4 seconds
   useEffect(() => {
@@ -343,8 +382,43 @@ const handleLocalBodyChange = (tabLbId, rowId, selectedLbId) => {
   }
 };
 
+const fetchKeyplotLimit = async () => {
+  const savedZone = localStorage.getItem('activeZone');
+  if (!savedZone) return;
+
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(
+      `${BASE_URL}/btr-service/api/keyplots/limit-status/${savedZone}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!res.ok) throw new Error('Failed to fetch keyplot limit');
+
+    const data = await res.json();
+    setKeyplotLimit(data);
+    setRemainingKeyplots(data.remainingKeyplots);
+  } catch (err) {
+    console.error(err);
+    toast.error('Unable to refresh keyplot limit');
+  }
+};
+
 
   const handleActualSave = async () => {
+    if (totalKeyplots > remainingKeyplots) {
+  toast.error(
+    `You can only save ${remainingKeyplots} keyplots for this zone`
+  );
+  setIsSaving(false);
+  return;
+}
+
     if (!districtInfo || talukInfo.length === 0) {
       toast.error("District or Taluk data is not yet loaded. Please wait.");
       return;
@@ -364,6 +438,7 @@ const handleLocalBodyChange = (tabLbId, rowId, selectedLbId) => {
       setIsSaving(false);
       return;
     }
+
 
     // Client-side field validation
     let hasValidationErrors = false;
@@ -503,6 +578,7 @@ const handleLocalBodyChange = (tabLbId, rowId, selectedLbId) => {
           setLocalBodyData({});
         setDuplicateErrors({});
         setClientDuplicateErrors({});
+         await fetchKeyplotLimit();
         setFieldErrors({});
         clearValidationErrors();
         
@@ -586,33 +662,42 @@ const handleLocalBodyChange = (tabLbId, rowId, selectedLbId) => {
     });
   };
 
-  const handleAddRow = (lbId) => {
-    if (totalKeyplots >= TOTAL_REQUIRED) return;
-    setLocalBodyData((prev) => {
-      const currentRows = prev[lbId] || [];
-      const newId = Date.now();
-      const newSlNo = currentRows.length > 0 ? Math.max(...currentRows.map((r) => r.slNo)) + 1 : 1;
-      return {
-        ...prev,
-        [lbId]: [
-          ...currentRows,
-          {
-            id: newId,
-            slNo: newSlNo,
-            lbIdSelected: lbId,     // default to tab local body id
-            localBody: localBodies.find(b => b.id === lbId)?.name || '',
-            village: "",
-            villageBlock: "",
-            villageBlockOptions: [],
-            surveyNo: "",
-            subDivNo: "",
-            area: "",
-            landType: "Wet",
-          },
-        ],
-      };
-    });
-  };
+const handleAddRow = (lbId) => {
+  if (totalKeyplots >= remainingKeyplots) {
+    toast.warn(`Only ${remainingKeyplots} keyplots can be added for this zone`);
+    return;
+  }
+
+  setLocalBodyData((prev) => {
+    const currentRows = prev[lbId] || [];
+    const newId = Date.now();
+    const newSlNo =
+      currentRows.length > 0
+        ? Math.max(...currentRows.map((r) => r.slNo)) + 1
+        : 1;
+
+    return {
+      ...prev,
+      [lbId]: [
+        ...currentRows,
+        {
+          id: newId,
+          slNo: newSlNo,
+          lbIdSelected: lbId,
+          localBody: localBodies.find(b => b.id === lbId)?.name || '',
+          village: "",
+          villageBlock: "",
+          villageBlockOptions: [],
+          surveyNo: "",
+          subDivNo: "",
+          area: "",
+          landType: "",
+        },
+      ],
+    };
+  });
+};
+
 
   // Add this function after your existing helper functions, around line 280
 const areAllFieldsFilled = (lbId) => {
@@ -720,6 +805,14 @@ const areAllFieldsFilled = (lbId) => {
           KeyPlot Entry 
           {/* (Total Required: {TOTAL_REQUIRED}) */}
         </Typography>
+        {keyplotLimit && (
+  <Alert severity="info" sx={{ mb: 2 }}>
+    Zone Limit: <b>{keyplotLimit.allowedKeyplotsLimit}</b> | 
+    Formed Count: <b>{keyplotLimit.usedKeyplotsCount}</b> | 
+    Remaining: <b>{keyplotLimit.remainingKeyplots}</b>
+  </Alert>
+)}
+
         {/* {localBodies.length > 0 && (
   <Paper elevation={3} sx={{ mb: 2 }}>
     <Box sx={{ 
@@ -965,9 +1058,10 @@ const areAllFieldsFilled = (lbId) => {
                               color="success"
                               onClick={() => handleAddRow(lb.id)}
                               disabled={
-                                totalKeyplots >= TOTAL_REQUIRED || 
-                                !areAllFieldsFilled(lb.id)
-                              }
+  totalKeyplots >= remainingKeyplots ||
+  !areAllFieldsFilled(lb.id)
+}
+
                             >
                               Add Keyplot
                             </Button>

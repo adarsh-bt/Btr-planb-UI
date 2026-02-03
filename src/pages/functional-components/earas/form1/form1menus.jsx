@@ -25,7 +25,7 @@ import {
   IconButton,
   Tooltip,
   Menu,
-  MenuItem,
+  MenuItem,CardHeader,Stack
 } from '@mui/material';
 import {
   Circle,
@@ -37,6 +37,10 @@ import {
   Visibility,
   GetApp,
 } from '@mui/icons-material';
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import AppRegistrationIcon from '@mui/icons-material/AppRegistration';
+import CrisisAlertIcon from '@mui/icons-material/CrisisAlert';
+import EventIcon from "@mui/icons-material/Event";
 import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
 import mainapi from 'api/mainapi'; 
@@ -193,8 +197,9 @@ function Form1_menus() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [seasonId, setSeasonId] = useState(1); 
-
-
+const [nucData, setNucData] = useState(null);
+const [availableSeasons, setAvailableSeasons] = useState([]);
+const [availableCropSeasons, setAvailableCropSeasons] = useState([]);
   // Sorting and Filtering States
   const [order, setOrder] = useState('asc');
   const [orderBy, setOrderBy] = useState('');
@@ -204,7 +209,24 @@ function Form1_menus() {
   const CLUSTER_ID_63 = '63';
   const IRRIGATION_CLUSTER_ID_108 = '108';
 
-
+const StyledDetailItem = ({ label, value, icon }) => (
+  <Stack spacing={0.5}>
+    <Stack direction="row" spacing={1} alignItems="center">
+      {icon}
+      <Typography 
+        variant="caption" 
+        fontWeight={700} 
+        color="text.secondary" 
+        sx={{ textTransform: 'uppercase', letterSpacing: 1 }}
+      >
+        {label}
+      </Typography>
+    </Stack>
+    <Box sx={{ pl: 3.2 }}>
+      {value}
+    </Box>
+  </Stack>
+);
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
@@ -230,7 +252,7 @@ function Form1_menus() {
     console.log(`Downloading ${filename} as ${format}`);
     // Here you would implement actual download logic
     // For now, we'll just show an alert
-    alert(`Downloading ${filename} as ${format} format`);
+    // alert(`Downloading ${filename} as ${format} format`);
     
     // Example implementation for CSV:
     if (format === 'csv') {
@@ -298,16 +320,16 @@ useEffect(() => {
 
 
       const data = response.data;
-      
+      console.log("Keyplot details response:", data);
       if (data && data.payload) {
         setKeyplotData({
           ...data.payload,
           plot_no: 'N/A (Field Missing)', 
-          area: 'N/A (Field Missing)',
+          
           location: 'N/A (Field Missing)',
         });
         setClusterId(data.payload.cluster_id);
-        console.log("Keyplot details payload:", data.payload.cluster_id);
+  
       } else {
         throw new Error('Invalid Keyplot API response structure or empty payload.');
       }
@@ -325,9 +347,13 @@ const fetchCropDetails = async () => {
   try {
     const token = localStorage.getItem('token');
     const BASE_URL = mainapi.BASE_URL;
-alert("Fetching crop details for Cluster ID: " + clusterId + " and Season ID: " + seasonId);
+    const distId = localStorage.getItem('activeDistId');
+    
+    const activeDistId = localStorage.getItem('activeDistId');
+    console.log("Fetching crop details for Cluster ID:", clusterId, "Season ID:", seasonId,activeDistId);
+    
     const response = await axios.get(
-      `${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${clusterId}/season/${seasonId}`,
+      `${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${clusterId}/season/${seasonId}/district/${activeDistId}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -337,18 +363,19 @@ alert("Fetching crop details for Cluster ID: " + clusterId + " and Season ID: " 
     );
 
     const data = response.data;
-
-    if (data && Array.isArray(data.payload)) {
+console.log("Crop details response:", data);
+    
+    if (data && Array.isArray(data.payload) && data.payload.length > 0) {
       setCropData(data.payload);
     } else {
-      throw new Error('Invalid Crop API response structure');
+      setCropData([]);
+      console.log("No crop data found for season:", seasonId);
     }
   } catch (err) {
     console.error('Error fetching crop details:', err);
     setCropData([]);
   }
 };
-
 
   const fetchIrrigationDetails = async () => {
     try {
@@ -400,9 +427,145 @@ alert("Fetching crop details for Cluster ID: " + clusterId + " and Season ID: " 
     }
   };
 
+const fetchNucDetails = async (season = seasonId) => {
+  try {
+    const token = localStorage.getItem('token');
+    const BASE_URL = mainapi.BASE_URL;
+    
+    console.log(`Fetching NUC details for Cluster: ${clusterId}, Season: ${season}`);
+    
+    const response = await axios.get(
+      `${BASE_URL}/earas-form1-entry/nuc-details/fetch-by-clusterId/${clusterId}/season/${season}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const data = response.data;
+    console.log("NUC details response:", data);
+    
+    if (data && data.payload) {
+      setNucData(data.payload);
+      setError(null);
+    } else {
+      setNucData(null);
+      setError("No NUC data available for this season.");
+    }
+  } catch (err) {
+    console.error('Error fetching NUC details:', err);
+    setNucData(null);
+    setError(`Failed to fetch NUC details for season ${season}. Try another season.`);
+  }
+};
+const getSeasonLabel = (seasonId) =>
+  seasonId === 1 ? "Autumn" :
+  seasonId === 2 ? "Winter" : "Summer";
+// Function to check available seasons
+const checkAvailableSeasons = async () => {
+  const seasons = [1, 2, 3]; // Autumn, Winter, Summer
+  const available = [];
+  
+  for (const season of seasons) {
+    try {
+      const token = localStorage.getItem('token');
+      const BASE_URL = mainapi.BASE_URL;
+     
+      const response = await axios.get(
+        `${BASE_URL}/earas-form1-entry/nuc-details/fetch-by-clusterId/${clusterId}/season/${season}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data && response.data.payload) {
+        available.push({
+          id: season,
+          name: season === 1 ? 'Autumn' : season === 2 ? 'Winter' : 'Summer'
+        });
+      }
+    } catch (err) {
+      console.log(`No data for season ${season}`);
+    }
+  }
+  
+  setAvailableSeasons(available);
+  
+  // Set default season to first available if current season has no data
+  if (available.length > 0 && !available.some(s => s.id === seasonId)) {
+    setSeasonId(available[0].id);
+    fetchNucDetails(available[0].id);
+  }
+};
+
+const checkAvailableCropSeasons = async () => {
+  const seasons = [1, 2, 3]; // Autumn, Winter, Summer
+  const available = [];
+  
+  for (const season of seasons) {
+    try {
+      const token = localStorage.getItem('token');
+      const BASE_URL = mainapi.BASE_URL;
+      const distId = localStorage.getItem('activeDistId');
+      
+      const response = await axios.get(
+        `${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${clusterId}/season/${season}/district/${distId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data && Array.isArray(response.data.payload) && response.data.payload.length > 0) {
+        available.push({
+          id: season,
+          name: season === 1 ? 'Autumn' : season === 2 ? 'Winter' : 'Summer'
+        });
+      }
+    } catch (err) {
+      console.log(`No crop data for season ${season}:`, err.message);
+    }
+  }
+  
+  setAvailableCropSeasons(available);
+  
+  // Set default season to first available season
+  if (available.length > 0 && !available.some(s => s.id === seasonId)) {
+    setSeasonId(available[0].id);
+  }
+};
+
+// Update useEffect to check available seasons
+useEffect(() => {
+  if (clusterId) {
+    fetchCropDetails();
+    checkAvailableSeasons(); // Check which seasons have data
+  }
+}, [clusterId]);
+// Update useEffect to fetch NUC data
+useEffect(() => {
+  if (clusterId && seasonId) {
+    fetchCropDetails();
+    fetchNucDetails(); // Add this line
+  }
+}, [seasonId, clusterId]);
+
   const fetchOtherDetails = () => {
     setFarmerData({ id: 1, name: 'Ravi Kumar', age: 45, contact: '9876543210', aadhaar: '1234-5678-9012' });
   };
+
+  useEffect(() => {
+  if (clusterId) {
+    checkAvailableCropSeasons();
+  }
+}, [clusterId]);
 
   // Enhanced Loading Component
   const renderLoading = () => (
@@ -427,9 +590,29 @@ alert("Fetching crop details for Cluster ID: " + clusterId + " and Season ID: " 
           <Grid container spacing={3}>
             <DetailItem label="Owner Name" value={keyplotData?.owner_name} />
             <DetailItem label="Contact Number" value={keyplotData?.phone_number} />
-            <DetailItem label="Plot No" value={keyplotData?.plot_no} />
-            <DetailItem label="Area" value={keyplotData?.area} />
-            <DetailItem label="Location" value={keyplotData?.location} />
+            <DetailItem label="Survey No" value={keyplotData?.plotno} />
+            <DetailItem label="Area" value={keyplotData?.area+" cent"} />
+            <DetailItem
+  label="Location"
+  value={
+    keyplotData?.geocoordinate ? (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography variant="body2">
+          {keyplotData.geocoordinate}
+        </Typography>
+        <Button
+          size="small"
+          variant="outlined"
+          href={`https://www.google.com/maps?q=${keyplotData.geocoordinate}`}
+          target="_blank"
+        >
+          View Map
+        </Button>
+      </Box>
+    ) : 'N/A'
+  }
+/>
+
             <DetailItem label="Address" value={keyplotData?.address} />
           </Grid>
           <Divider sx={{ my: 3 }} />
@@ -448,7 +631,6 @@ alert("Fetching crop details for Cluster ID: " + clusterId + " and Season ID: " 
       </Card>
     );
   };
-
   // 2. Enhanced Farmer Details with Download
   const renderFarmerDetails = () => {
     if (!farmerData) return <Alert severity="warning">No farmer data available.</Alert>;
@@ -476,95 +658,138 @@ alert("Fetching crop details for Cluster ID: " + clusterId + " and Season ID: " 
   };
 
   // 3. Enhanced Crop Details with Sorting, Filtering and Download
-  const renderCropDetails = () => {
-    if (isLoading && activeTab === 2) return renderLoading();
-    if (!cropData || cropData.length === 0) return <Alert severity="warning">No Crop details found for this cluster.</Alert>;
-
-    const columns = [
-      { id: 'clusterLabel', label: 'Cluster Label', sortable: true },
-      // { id: 'seasonId', label: 'Season ID', sortable: true },
-      { id: 'seasonName', label: 'Season Name', sortable: true },
-      { id: 'cropName', label: 'Crop Name', sortable: true },
-      { id: 'cropType', label: 'Crop Type', sortable: true },
-      // { id: 'cropId', label: 'Crop ID', sortable: true },
-      { id: 'cropArea', label: 'Area', sortable: true, numeric: true },
-      { id: 'isIrrigated', label: 'Irrigation Status', sortable: true },
-    ];
-
-    // Flatten and filter data
-    const flattenedData = cropData.flatMap((cluster) => 
-      cluster.crops.map((crop) => ({
-        ...crop,
-        clusterLabel: cluster.clusterLabel,
-        seasonId: cluster.seasonId,
-        cropTypeId: cluster.cropTypeId,
-        seasonName: crop.season,
-        cropName: crop.cropNameEn,
-        cropType: crop.cropType,
-      }))
-    );
-
-    const filteredData = flattenedData.filter(item =>
-      Object.values(item).some(value =>
-        String(value).toLowerCase().includes(searchTerm)
-      )
-    );
-
-    const sortedData = filteredData.sort((a, b) => {
-      if (orderBy) {
-        const aValue = a[orderBy];
-        const bValue = b[orderBy];
-        if (order === 'asc') {
-          return aValue < bValue ? -1 : 1;
-        }
-        return aValue > bValue ? -1 : 1;
-      }
-      return 0;
-    });
-    
-
-    const totalArea = sortedData.reduce((sum, item) => sum + item.cropArea, 0);
-
+const renderCropDetails = () => {
+  if (isLoading && activeTab === 2) return renderLoading();
+  
+  // Check if we have seasons available
+  if (availableCropSeasons.length === 0) {
+    return <Alert severity="info">No crop data available for any season in this cluster.</Alert>;
+  }
+  
+  if (!cropData || cropData.length === 0) {
     return (
-                    <Box>
-                    <Box 
-                sx={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center', 
-                  mb: 2, 
-                  flexWrap: 'wrap', 
-                  gap: 2 
-                }}
-              >
-                <SearchFilter onFilter={handleFilter} placeholder="Search crops..." />
+      <Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+          <SearchFilter onFilter={handleFilter} placeholder="Search crops..." />
+          
+          {/* Season dropdown */}
+          <TextField
+            select
+            label="Season"
+            size="small"
+            sx={{ minWidth: 150 }}
+            value={seasonId}
+            onChange={(e) => {
+              setSeasonId(e.target.value);
+              fetchCropDetails();
+            }}
+          >
+            {availableCropSeasons.map((season) => (
+              <MenuItem key={season.id} value={season.id}>
+                {season.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <DownloadMenu 
+              onDownload={(format) => handleDownload(format, [], 'crop-details')}
+            />
+          </Box>
+        </Box>
+        <Alert severity="warning">
+          No crop details found for {availableCropSeasons.find(s => s.id === seasonId)?.name || 'selected'} season.
+        </Alert>
+      </Box>
+    );
+  }
 
-                {/* ⭐ SEASON DROPDOWN ADDED HERE */}
-                <TextField
-                  select
-                  label="Season"
-                  size="small"
-                  sx={{ minWidth: 150 }}
-                  value={seasonId}
-                  onChange={(e) => {
-                    setSeasonId(e.target.value);
-                    fetchCropDetails();    // reload data
-                  }}
-                >
-                  <MenuItem value={1}>Autumn</MenuItem>
-                  <MenuItem value={2}>Winter</MenuItem>
-                  <MenuItem value={3}>Summer</MenuItem>
-                </TextField>
+  const columns = [
+    { id: 'clusterLabel', label: 'Cluster Label', sortable: true },
+    { id: 'seasonName', label: 'Season Name', sortable: true },
+    { id: 'cropName', label: 'Crop Name', sortable: true },
+    { id: 'cropType', label: 'Crop Type', sortable: true },
+    { id: 'cropArea', label: 'Area', sortable: true, numeric: true },
+    { id: 'centPerTree', label: 'Count', sortable: true, numeric: true },
+    { id: 'isIrrigated', label: 'Irrigation Status', sortable: true },
+  ];
 
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                  <DownloadMenu 
-                    onDownload={(format) => handleDownload(format, sortedData, 'crop-details')}
-                  />
-                </Box>
-              </Box>
+  // Flatten and filter data
+  const flattenedData = cropData.flatMap((cluster) => 
+    cluster.crops.map((crop) => ({
+      ...crop,
+      clusterLabel: cluster.clusterLabel,
+      seasonId: cluster.seasonId,
+      cropTypeId: cluster.cropTypeId,
+      seasonName: crop.season,
+      cropName: crop.cropNameEn,
+      cropStage: crop.cropGrowthStage,
+      cropType: crop.cropType,
+    }))
+  );
 
+  const filteredData = flattenedData.filter(item =>
+    Object.values(item).some(value =>
+      String(value).toLowerCase().includes(searchTerm)
+    )
+  );
 
-        <TableContainer component={Paper} sx={{ border: '1px solid #e0e0e0', boxShadow: 1 }}>
+  const sortedData = filteredData.sort((a, b) => {
+    if (orderBy) {
+      const aValue = a[orderBy];
+      const bValue = b[orderBy];
+      if (order === 'asc') {
+        return aValue < bValue ? -1 : 1;
+      }
+      return aValue > bValue ? -1 : 1;
+    }
+    return 0;
+  });
+
+  const totalArea = sortedData.reduce((sum, item) => sum + item.cropArea, 0);
+
+  return (
+    <Box>
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          mb: 2, 
+          flexWrap: 'wrap', 
+          gap: 2 
+        }}
+      >
+        <SearchFilter onFilter={handleFilter} placeholder="Search crops..." />
+
+        {/* Season dropdown - only show available seasons */}
+        <TextField
+          select
+          label="Season"
+          size="small"
+          sx={{ minWidth: 150 }}
+          value={seasonId}
+          onChange={(e) => {
+            setSeasonId(e.target.value);
+            fetchCropDetails();
+          }}
+        >
+          {availableCropSeasons.map((season) => (
+            <MenuItem key={season.id} value={season.id}>
+              {season.name}
+            </MenuItem>
+          ))}
+        </TextField>
+
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <DownloadMenu 
+            onDownload={(format) => handleDownload(format, sortedData, 'crop-details')}
+          />
+        </Box>
+      </Box>
+
+      {/* Rest of your existing crop details table code... */}
+      <TableContainer component={Paper} sx={{ border: '1px solid #e0e0e0', boxShadow: 1 }}>
           <Table aria-label="crop details table" size="small">
             <EnhancedTableHead 
               columns={columns} 
@@ -584,14 +809,29 @@ alert("Fetching crop details for Cluster ID: " + clusterId + " and Season ID: " 
                   <TableCell>
                     <Chip label={row.clusterLabel} size="small" variant="outlined" />
                   </TableCell>
-                  <TableCell>{row.seasonName}</TableCell>
-                  <TableCell>{row.cropName}</TableCell>
+                  <TableCell>{row.seasonName} </TableCell>
+                  <TableCell>{row.cropName} ({row.cropStage})</TableCell>
                   <TableCell>{row.cropType}</TableCell>
-                  <TableCell align="right">
-                    <Typography variant="body2" fontWeight="medium">
-                      {row.cropArea.toFixed(2)}
-                    </Typography>
-                  </TableCell>
+<TableCell align="right">
+  <Typography variant="body2" fontWeight="medium">
+    {row.cropArea != null
+      ? row.centPerTree != null
+        ?  Number((row.cropArea)).toFixed(2)
+        : Number(row.cropArea).toFixed(2)
+      : "NA"}
+  </Typography>
+</TableCell>
+
+
+<TableCell align="right">
+  <Typography variant="body2" fontWeight="medium">
+    {row.centPerTree != null
+      ? (Number(row.cropArea).toFixed(2) / Number(row.centPerTree).toFixed(2)).toFixed(2)
+      : "NA"}
+  </Typography>
+</TableCell>
+
+
                   <TableCell align="center">
                     {row.isIrrigated ? (
                       <Chip 
@@ -660,6 +900,7 @@ alert("Fetching crop details for Cluster ID: " + clusterId + " and Season ID: " 
           irrigationType: source.irrigationType,
           irrigatedArea: sourceItem.irrigatedArea,
           sourceCount: sourceItem.sourceCount,
+          centPerTree: source.centPerTree,
         }))
       )
     );
@@ -709,7 +950,7 @@ alert("Fetching crop details for Cluster ID: " + clusterId + " and Season ID: " 
                   </TableCell>
                   <TableCell align="right">
                     <Typography variant="body2" fontWeight="medium">
-                      {item.irrigatedArea.toFixed(2)}
+                      {/* {item.irrigatedArea.toFixed(2) || ''} */}
                     </Typography>
                   </TableCell>
                   <TableCell align="center">
@@ -923,7 +1164,7 @@ alert("Fetching crop details for Cluster ID: " + clusterId + " and Season ID: " 
         </TableContainer>
 
         <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="caption" color="textSecondary">
+          {/* <Typography variant="caption" color="textSecondary">
             Showing {filteredData.length} of {landUtilizationData.length} records
           </Typography>
           <Chip 
@@ -931,12 +1172,182 @@ alert("Fetching crop details for Cluster ID: " + clusterId + " and Season ID: " 
             size="small" 
             color="primary" 
             variant="outlined" 
-          />
+          /> */}
         </Box>
       </Box>
     );
   };
+const renderNucDetails = () => {
+  // Define all seasons clearly so they always show
+  const ALL_SEASONS = [
+    { id: 1, name: 'Autumn' },
+    { id: 2, name: 'Winter' },
+    { id: 3, name: 'Summer' }
+  ];
 
+  const hasData = !!nucData;
+
+  return (
+    <Box>
+      {/* 1. Permanent Season Selector */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 700, color: 'text.secondary', mb: 1.5 }}>
+          SELECT VIEWING SEASON:
+        </Typography>
+        <Stack direction="row" spacing={2}>
+          {ALL_SEASONS.map((s) => (
+            <Button
+              key={s.id}
+              variant={seasonId === s.id ? "contained" : "outlined"}
+              onClick={() => {
+                setSeasonId(s.id);
+                fetchNucDetails(s.id);
+              }}
+              sx={{
+                px: 4,
+                borderRadius: 2,
+                fontWeight: 600,
+                backgroundColor: seasonId === s.id ? TABLE_HEADER_BG : 'transparent',
+                borderColor: seasonId === s.id ? TABLE_HEADER_BG : 'divider',
+                '&:hover': {
+                  backgroundColor: seasonId === s.id ? '#031a45' : '#f5f5f5'
+                }
+              }}
+            >
+              {s.name}
+            </Button>
+          ))}
+        </Stack>
+      </Box>
+
+      {/* 2. Numeric Stat Cards */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        {[
+          { label: 'NUC AREA', value: nucData?.nucArea, color: '#4CAF50', char: 'N' },
+          { label: 'FFS AREA', value: nucData?.ffsArea, color: '#2196F3', char: 'F' },
+          { label: 'COS AREA', value: nucData?.cosArea, color: '#FF9800', char: 'C' }
+        ].map((stat, i) => (
+          <Grid item xs={12} md={4} key={i}>
+            <Card sx={{ 
+              borderLeft: `5px solid ${stat.color}`,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+              borderRadius: 2
+            }}>
+              <CardContent>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Box>
+                    <Typography variant="caption" fontWeight={700} color="text.secondary">{stat.label}</Typography>
+                    <Typography variant="h3" sx={{ color: stat.color, fontWeight: 800 }}>
+                      {hasData ? stat.value.toFixed(2) : "0.00"}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">Hectares</Typography>
+                  </Box>
+                  <Box sx={{ 
+                    width: 45, height: 45, borderRadius: '12px', 
+                    bgcolor: `${stat.color}15`, display: 'flex', 
+                    alignItems: 'center', justifyContent: 'center' 
+                  }}>
+                    <Typography variant="h6" sx={{ color: stat.color, fontWeight: 900 }}>{stat.char}</Typography>
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      {!hasData && (
+        <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+          No records found for the <strong>{getSeasonLabel(seasonId)}</strong> season in this cluster. Showing placeholders below.
+        </Alert>
+      )}
+
+      {/* 3. Enhanced Additional Information Card */}
+      <Card
+        elevation={0}
+        sx={{
+          borderRadius: 3,
+          border: "1px solid",
+          borderColor: "divider",
+          background: "#fff",
+          position: 'relative',
+          overflow: 'hidden',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0, left: 0, width: '100%', height: '4px',
+            backgroundColor: TABLE_HEADER_BG
+          }
+        }}
+      >
+        <CardHeader
+          avatar={<InfoOutlinedIcon sx={{ color: TABLE_HEADER_BG }} />}
+          title={<Typography variant="subtitle1" fontWeight={700}>Detailed Metadata</Typography>}
+          sx={{ pb: 1, pt: 2 }}
+        />
+        <Divider sx={{ mx: 2 }} />
+        <CardContent sx={{ p: 3 }}>
+          <Grid container spacing={4}>
+            <Grid item xs={12} sm={6} md={3}>
+              <StyledDetailItem
+                label="Cluster Label"
+                icon={<CrisisAlertIcon sx={{ fontSize: 18, color: 'action.active' }} />}
+                value={<Typography variant="body2" fontWeight={600}>{nucData?.clusterLabel || "—"}</Typography>}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={3}>
+              <StyledDetailItem
+                label="Cluster No."
+                icon={<AppRegistrationIcon sx={{ fontSize: 18, color: 'action.active' }} />}
+                value={
+                  <Chip 
+                    size="small" 
+                    label={slNo || "N/A"} 
+                    sx={{ bgcolor: 'primary.lighter', color: 'primary.dark', fontWeight: 700, borderRadius: 1 }} 
+                  />
+                }
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={3}>
+              <StyledDetailItem
+                label="Active Season"
+                icon={<EventIcon sx={{ fontSize: 18, color: 'action.active' }} />}
+                value={<Chip size="small" variant="outlined" label={getSeasonLabel(seasonId)} sx={{ fontWeight: 600 }} />}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={3}>
+              <StyledDetailItem
+                label="Last Modified"
+                icon={<Refresh sx={{ fontSize: 18, color: 'action.active' }} />}
+                value={<Typography variant="body2">—</Typography>}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <StyledDetailItem
+                label="Official Remarks"
+                icon={<Search sx={{ fontSize: 18, color: 'action.active' }} />}
+                value={
+                  <Box sx={{ 
+                    p: 2, bgcolor: 'grey.50', borderRadius: 2, 
+                    borderLeft: '4px solid', borderColor: hasData ? 'primary.main' : 'grey.300', mt: 1 
+                  }}>
+                    <Typography variant="body2" color={hasData ? "text.primary" : "text.secondary"} sx={{ fontStyle: hasData ? 'normal' : 'italic' }}>
+                      {nucData?.remark || "No specific remarks or notes have been logged for this entry."}
+                    </Typography>
+                  </Box>
+                }
+              />
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+};
   return (
     <Grid container spacing={3}>
       <Breadcrumb />
@@ -993,6 +1404,7 @@ alert("Fetching crop details for Cluster ID: " + clusterId + " and Season ID: " 
             <Tab label="Crop Details" id="tab-1" aria-controls="tabpanel-1" />
             <Tab label="Irrigation Details" id="tab-2" aria-controls="tabpanel-2" />
             <Tab label="Land Utilization" id="tab-3" aria-controls="tabpanel-3" />
+              <Tab label="NUC/FFS/COS" id="tab-4" aria-controls="tabpanel-4" />
           </Tabs>
           <Divider sx={{ mb: 2 }} />
 
@@ -1016,6 +1428,9 @@ alert("Fetching crop details for Cluster ID: " + clusterId + " and Season ID: " 
           <TabPanel value={activeTab} index={3}>
             {renderLandUtilizationDetails()}
           </TabPanel>
+          <TabPanel value={activeTab} index={4}>
+            {renderNucDetails()}
+        </TabPanel>
         </MainCard>
       </Grid>
     </Grid>

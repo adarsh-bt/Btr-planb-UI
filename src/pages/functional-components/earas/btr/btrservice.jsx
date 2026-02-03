@@ -43,6 +43,67 @@ console.log("ressss ",response)
   }
 }
 
+// In your btrservice.js file, add:
+static async getPlotUsageData(plotId) {
+  try {
+    // Get token manually
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('Authorization token missing');
+    }
+console.log("Plot ID in btr service:", plotId);
+    // Build URL manually
+    const BASE_URL = mainapi.BASE_URL; // manually using BASE_URL
+    const url = `${BASE_URL}/btr-service/cluster-api/${plotId}/btrplot-usage`;
+
+    // Make request manually with headers
+    const response = await axios.get(url, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    console.log("Plot usage response:", response);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching plot usage:', error);
+    return {
+      message: error?.response?.data?.message || error.message || 'Unknown error'
+    };
+  }
+}
+
+static async updatePlotTotalArea(btrId, totCent) {
+  try {
+    // Get token manually
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('Authorization token missing');
+    }
+alert("btrId "+btrId+" totCent "+totCent)
+    // Build URL manually
+    const BASE_URL = mainapi.BASE_URL; // manually using BASE_URL
+    const url = `${BASE_URL}/btr-service/api/btr-data/${btrId}/update-totcent?totCent=${encodeURIComponent(totCent)}`;
+
+    // Make PUT request manually with headers
+    const response = await axios.put(url, null, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    console.log("Update plot total area response:", response);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating plot total area:', error);
+    return {
+      message: error?.response?.data?.message || error.message || 'Unknown error'
+    };
+  }
+}
+
+
+
   static btrservice_download = {
     // Existing functions like btr_lists_data...
 

@@ -69,7 +69,8 @@ const KeyPlotEntryNonBtr = () => {
   const [listTypeOptions, setListTypeOptions] = useState([]);
   const [nonBtrTypeMapping, setNonBtrTypeMapping] = useState({});
   const [btypesLoading, setBtypesLoading] = useState(false);
-  
+  const [keyplotLimit, setKeyplotLimit] = useState(null);
+const [remainingKeyplots, setRemainingKeyplots] = useState(0);
   // Modal States
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -362,9 +363,9 @@ const KeyPlotEntryNonBtr = () => {
   }, [zoneId, localBodies, villageOptions, listTypeOptions]);
 
   const totalKeyplots = Object.values(localBodyData).reduce(
-    (sum, lbData) => sum + Object.values(lbData).reduce((villageSum, rows) => villageSum + (rows?.length || 0), 0),
-    0
-  );
+  (sum, lbData) => sum + Object.values(lbData).reduce((villageSum, rows) => villageSum + (rows?.length || 0), 0),
+  0
+);
 
   const descendingComparator = (a, b, orderBy) => {
     if (b[orderBy] < a[orderBy]) return -1;
@@ -466,53 +467,57 @@ const getRequiredFieldsForRow = (currentListType) => {
     }));
   };
 
-  const handleAddRow = (lbId, villageName) => {
-    if (totalKeyplots >= TOTAL_REQUIRED) return;
-    setLocalBodyData((prev) => {
-      const current = prev[lbId]?.[villageName] || [];
-      const newId =
-        current.length > 0 ? Math.max(...current.map((r) => r.id)) + 1 : 1;
-      const newSlNo =
-        current.length > 0 ? Math.max(...current.map((r) => r.slNo)) + 1 : 1;
-      
-      // Get village blocks for the current village
-      const villageBlocks = villageToBlocks[villageName] || [];
-      const defaultBlock = villageBlocks.length > 0 ? villageBlocks[0] : "";
-      
-      return {
-        ...prev,
-        [lbId]: {
-          ...prev[lbId],
-          [villageName]: [
-            ...current,
-            {
-              id: newId,
-              slNo: newSlNo,
-              village: villageName,
-              villageBlock: defaultBlock,
-              villageBlockOptions: villageBlocks,
-              // Required fields for backend
-              dcode: null,
-              tcode: null,
-              vcode: null,
-              name: "",
-              address: "",
-              houseNo: "",
-              thandaperNo: "",
-              thandapersubNo:"",
-              oldsvno: "",
-              oldsubno: "",
-              surveyNo: "",
-              subDivNo: "",
-              area: "",
-              landType: "",
-            },
-          ],
-        },
-      };
-    });
-  };
-
+ const handleAddRow = (lbId, villageName) => {
+  // Check against remaining keyplots instead of TOTAL_REQUIRED
+  if (totalKeyplots >= remainingKeyplots) {
+    toast.warn(`Only ${remainingKeyplots} keyplots can be added for this zone`);
+    return;
+  }
+  
+  setLocalBodyData((prev) => {
+    const current = prev[lbId]?.[villageName] || [];
+    const newId =
+      current.length > 0 ? Math.max(...current.map((r) => r.id)) + 1 : 1;
+    const newSlNo =
+      current.length > 0 ? Math.max(...current.map((r) => r.slNo)) + 1 : 1;
+    
+    // Get village blocks for the current village
+    const villageBlocks = villageToBlocks[villageName] || [];
+    const defaultBlock = villageBlocks.length > 0 ? villageBlocks[0] : "";
+    
+    return {
+      ...prev,
+      [lbId]: {
+        ...prev[lbId],
+        [villageName]: [
+          ...current,
+          {
+            id: newId,
+            slNo: newSlNo,
+            village: villageName,
+            villageBlock: defaultBlock,
+            villageBlockOptions: villageBlocks,
+            // Required fields for backend
+            dcode: null,
+            tcode: null,
+            vcode: null,
+            name: "",
+            address: "",
+            houseNo: "",
+            thandaperNo: "",
+            thandapersubNo:"",
+            oldsvno: "",
+            oldsubno: "",
+            surveyNo: "",
+            subDivNo: "",
+            area: "",
+            landType: "",
+          },
+        ],
+      },
+    };
+  });
+};
   const handleDeleteRow = (lbId, villageName, id) => {
     setLocalBodyData((prev) => ({
       ...prev,
@@ -558,12 +563,50 @@ const getRequiredFieldsForRow = (currentListType) => {
   const handleCancelSave = () => {
     setShowConfirmModal(false);
   };
+useEffect(() => {
+  const savedZone = localStorage.getItem('activeZone');
+  if (!savedZone) return;
+  
+  fetchKeyplotLimit();
+}, [BASE_URL]);
+  const fetchKeyplotLimit = async () => {
+  const savedZone = localStorage.getItem('activeZone');
+  if (!savedZone) return;
 
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(
+      `${BASE_URL}/btr-service/api/keyplots/limit-status/${savedZone}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!res.ok) throw new Error('Failed to fetch keyplot limit');
+
+    const data = await res.json();
+    setKeyplotLimit(data);
+    setRemainingKeyplots(data.remainingKeyplots);
+  } catch (err) {
+    console.error(err);
+    toast.error('Unable to refresh keyplot limit');
+  }
+};
     // Form-level validation per row based on current list type
   const handleActualSave = async () => {
 
     // CHANGE START: guard on reference data load and form validation using localBodyData (remove sortedRows usage here)
     // Check if required reference data is loaded
+     if (totalKeyplots > remainingKeyplots) {
+    toast.error(
+      `You can only save ${remainingKeyplots} keyplots for this zone`
+    );
+    setIsSaving(false);
+    return;
+  }
     if (!districtInfo || talukInfo.length === 0) {
       toast.error("District or Taluk data is not yet loaded. Please wait.");
       return;
@@ -692,7 +735,7 @@ const getRequiredFieldsForRow = (currentListType) => {
         // Optional: Clear the form data after successful save
         setLocalBodyData({});
         setListTypes({});
-        
+        await fetchKeyplotLimit();
       } else if (result.status === 'Validation Failed') {
         setValidationErrors(result.errors || []);
         console.log("ress  ",result)
@@ -789,7 +832,13 @@ const getRequiredFieldsForRow = (currentListType) => {
         <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
           Non-BTR Key Plot Entry
         </Typography>
-
+{keyplotLimit && (
+  <Alert severity="info" sx={{ mb: 2 }}>
+    Zone Limit: <b>{keyplotLimit.allowedKeyplotsLimit}</b> | 
+    Formed Count: <b>{keyplotLimit.usedKeyplotsCount}</b> | 
+    Remaining: <b>{keyplotLimit.remainingKeyplots}</b>
+  </Alert>
+)}
         {/* Loading state for btypes */}
         {btypesLoading && (
           <Box display="flex" justifyContent="center" mt={2}>
@@ -1398,14 +1447,14 @@ const allRequiredFilled = sortedRows.every(row =>
                       <TableRow>
                         <TableCell colSpan={colSpan} align="right">
                           <Button
-                            startIcon={<AddCircle />}
-                            variant="outlined"
-                            color="success"
-                            onClick={() => handleAddRow(lb.id, currentVillageName)}
-                            disabled={totalKeyplots >= TOTAL_REQUIRED || !allRequiredFilled}
-                          >
-                            Add Keyplot
-                          </Button>
+                             startIcon={<AddCircle />}
+                              variant="outlined"
+                          color="success"
+                          onClick={() => handleAddRow(lb.id, currentVillageName)}
+                          disabled={totalKeyplots >= remainingKeyplots || !allRequiredFilled}
+                            >
+                              Add Keyplot
+                            </Button>
                         </TableCell>
                       </TableRow>
                     </TableBody>

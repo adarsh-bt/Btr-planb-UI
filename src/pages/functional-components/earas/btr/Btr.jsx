@@ -13,10 +13,10 @@ import {
   DialogContentText,
   DialogTitle,
   CircularProgress,
-  Grid, Card, CardContent,Chip
+  Grid, Card, CardContent,Chip, TableContainer, Table, TableCell, Alert
 } from '@mui/material';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
-
+import EditIcon from '@mui/icons-material/Edit';
 import Breadcrumb from 'routes/Breadcrumb';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import btrservice from './btrservice';
@@ -30,8 +30,11 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import InfoOutlineIcon from '@mui/icons-material/InfoOutlined';
 import IconButton from '@mui/material/IconButton';
 
+
+
 // Define the columns for the data table
-const columns = (handleEdit, handleView,page,size) => [
+// const columns = (handleEdit, handleView,page,size) => [
+  const columns = (handleEdit, handleView, handlePlotUsage, page, size) => [
 {
   name: 'SL. NO',
   selector: (row) => row.indexOffset,   // use the stored serial
@@ -121,12 +124,35 @@ const columns = (handleEdit, handleView,page,size) => [
         <VisibilityIcon />
      
       </Button>
+      
     ),
     style: {
       padding: '0px',
       textAlign: 'center',
     },
   },
+  // In your columns definition, add this column after the View Details column
+{
+  name: 'Plot Edit',
+  cell: (row) => (
+    <Button 
+      color="primary" 
+      onClick={() => handlePlotUsage(row)}
+      // variant="outlined"
+      size="small"
+    >
+      <EditIcon fontSize="small" />
+      
+    </Button>
+  ),
+  style: {
+    padding: '0px',
+    textAlign: 'center',
+    width: '130px',
+    minWidth: '130px',
+  },
+},
+  
 ];
 
 const Btr = ({ zoneId }) => {
@@ -155,6 +181,16 @@ const Btr = ({ zoneId }) => {
   const [downloading, setDownloading] = useState(false);
     // const [zoneId, setZoneId] = useState(() => propZoneId || localStorage.getItem('zoneId'));
   const [loading, setLoading] = useState(false);
+  const [plotUsageData, setPlotUsageData] = useState([]);
+const [plotUsageDialogOpen, setPlotUsageDialogOpen] = useState(false);
+const [plotUsageLoading, setPlotUsageLoading] = useState(false);
+const [selectedPlotRow, setSelectedPlotRow] = useState(null);
+// Add these with your other state declarations
+const [editDialogOpen, setEditDialogOpen] = useState(false);
+const [editTotCent, setEditTotCent] = useState('');
+const [editLoading, setEditLoading] = useState(false);
+const [editMessage, setEditMessage] = useState('');
+const [editError, setEditError] = useState('');
 
   const [order, setOrder] = useState('asc');
 const [orderBy, setOrderBy] = useState('indexOffset');
@@ -202,7 +238,107 @@ const handleRequestSort = (columnKey) => {
     setSelectedRow(row);
     setOpenViewModal(true);
   };
+const validateEditArea = (value) => {
+  if (!value) return '';
+  
+  const numValue = parseFloat(value);
+  const totalEnumeratedArea = plotUsageData.reduce((sum, plot) => 
+    sum + (parseFloat(plot.totalEnumeratedArea) || 0), 0);
+  
+  if (isNaN(numValue)) return 'Please enter a valid number';
+  if (numValue <= 0) return 'Area must be greater than zero';
+  if (numValue < totalEnumeratedArea) {
+    return `Minimum allowed: ${totalEnumeratedArea.toFixed(2)} cents`;
+  }
+  return '';
+};
+const handlePlotUsage = async (row) => {
+  setSelectedPlotRow(row);
+  setPlotUsageLoading(true);
+  setPlotUsageDialogOpen(true);
+  console.log("Selected Row for Plot Usage:", row);
+  try {
+    // Assuming you have the bcode from the row
+    const plotId = row.id; // Adjust this based on your actual ID field
+    const response = await btrservice.getPlotUsageData(plotId);
+    setPlotUsageData(response || []);
+  } catch (error) {
+    console.error("Error fetching plot usage data:", error);
+    setPlotUsageData([]);
+  } finally {
+    setPlotUsageLoading(false);
+  }
+};
 
+const handleEditTotCent = async () => {
+  if (!selectedPlotRow?.id) {
+    setEditError('No plot selected');
+    return;
+  }
+
+  const newTotCent = parseFloat(editTotCent);
+  if (isNaN(newTotCent) || newTotCent <= 0) {
+    setEditError('Please enter a valid positive number');
+    return;
+  }
+
+  // Calculate total enumerated area from plotUsageData
+  const totalEnumeratedArea = plotUsageData.reduce((sum, plot) => 
+    sum + (parseFloat(plot.totalEnumeratedArea) || 0), 0);
+  
+  // Validate that new total area is not less than total enumerated area
+if (newTotCent < totalEnumeratedArea) {
+  const deficit = totalEnumeratedArea - newTotCent;
+  setEditError(
+    `Cannot reduce total area! New total area (${newTotCent} cents) is less than total enumerated area (${totalEnumeratedArea.toFixed(2)} cents). 
+    You need to reduce enumerated area by ${deficit.toFixed(2)} cents in one or more clusters first.`
+  );
+  return;
+}
+
+  setEditLoading(true);
+  setEditMessage('');
+  setEditError('');
+
+  try {
+    // Call the backend API
+    const response = await btrservice.updatePlotTotalArea(selectedPlotRow.id, newTotCent);
+    
+    setEditMessage(response || 'Area updated successfully');
+    
+    // Refresh plot usage data
+    if (selectedPlotRow?.id) {
+      const refreshedData = await btrservice.getPlotUsageData(selectedPlotRow.id);
+      setPlotUsageData(refreshedData || []);
+    }
+    
+    // Update the selected row in the main table data
+    setData(prevData => 
+      prevData.map(item => 
+        item.id === selectedPlotRow.id 
+          ? { ...item, totalCent: newTotCent }
+          : item
+      )
+    );
+    
+    // Also update the selectedPlotRow for immediate UI feedback
+    setSelectedPlotRow(prev => ({
+      ...prev,
+      totalCent: newTotCent
+    }));
+    
+    // Optionally close the dialog after success
+    setTimeout(() => {
+      setEditDialogOpen(false);
+      setEditTotCent('');
+    }, 2000);
+    
+  } catch (error) {
+    setEditError(error.response?.data?.message || 'Failed to update area');
+  } finally {
+    setEditLoading(false);
+  }
+};
   // Function to close modals
   const handleCloseModals = () => {
     setOpenEditModal(false);
@@ -337,8 +473,8 @@ if (disposition) {
 };
 
 
-  const columnDefs = useMemo(() => columns(undefined, handleView, page, size), [handleView, page, size]);
-
+  // const columnDefs = useMemo(() => columns(undefined, handleView, page, size), [handleView, page, size]);
+const columnDefs = useMemo(() => columns(undefined, handleView, handlePlotUsage, page, size), [handleView, handlePlotUsage, page, size]);
   const columnDefsMapped = useMemo(
   () => columnDefs.map(col => ({ ...col, sortField: col.sortKey || col.name })),
   [columnDefs]
@@ -744,6 +880,316 @@ const handleSort = (column, direction) => {
   </DialogActions>
 </Dialog>
 
+ <Dialog
+        open={plotUsageDialogOpen}
+        onClose={() => setPlotUsageDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Plot Usage Details
+          {selectedPlotRow && (
+            <Typography variant="body2" color="text.secondary">
+              Block No: {selectedPlotRow.bcode} | Survey: {selectedPlotRow.resvno}
+            </Typography>
+          )}
+        </DialogTitle>
+        
+        <DialogContent>
+          {plotUsageData.length > 0 && plotUsageData.reduce((sum, plot) => sum + (parseFloat(plot.totalEnumeratedArea) || 0), 0) > (selectedPlotRow?.totalCent || 0) && (
+    <Alert severity="warning" sx={{ mb: 2 }}>
+      <Typography variant="body2">
+        <strong>Warning:</strong> Total enumerated area from clusters exceeds plot area. 
+        You cannot reduce plot area until you reduce enumerated area in clusters.
+      </Typography>
+    </Alert>
+  )}
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Plot usage information - User wants to edit plot usage data
+          </Alert>
+          
+    {plotUsageLoading ? (
+  <Box display="flex" justifyContent="center" p={3}>
+    <CircularProgress />
+  </Box>
+) : plotUsageData.length > 0 ? (
+  <TableContainer component={Paper} variant="outlined">
+    <Table>
+      <thead>
+        <tr>
+          <th>Plot Label</th>
+          <th>Cluster Number</th>
+          <th>Total Area (Cents)</th>
+          <th>Enumerated Area</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {plotUsageData.map((plot, index) => {
+          const plotTotal = parseFloat(plot.totCent) || 0;
+          const enumerated = parseFloat(plot.totalEnumeratedArea) || 0;
+          const isExceeding = enumerated > plotTotal;
+          
+          return (
+            <tr key={index}>
+              <TableCell>{plot.plotLabel || 'N/A'}</TableCell>
+              <TableCell>{plot.clusterNumber || 'N/A'}</TableCell>
+              <TableCell>{plotTotal.toFixed(2)}</TableCell>
+              <TableCell>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    fontWeight: isExceeding ? 'bold' : 'normal',
+                    color: isExceeding ? 'error.main' : 'inherit'
+                  }}
+                >
+                  {enumerated.toFixed(2)}
+                  {isExceeding && (
+                    <Typography 
+                      component="span" 
+                      variant="caption" 
+                      sx={{ ml: 1, color: 'error.main' }}
+                    >
+                      (Exceeds plot area)
+                    </Typography>
+                  )}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                {isExceeding ? (
+                  <Chip 
+                    label="Warning" 
+                    size="small" 
+                    color="error" 
+                    variant="outlined"
+                  />
+                ) : (
+                  <Chip 
+                    label="OK" 
+                    size="small" 
+                    color="success" 
+                    variant="outlined"
+                  />
+                )}
+              </TableCell>
+            </tr>
+          );
+        })}
+      </tbody>
+      <tfoot>
+        <tr>
+          <TableCell colSpan={2} align="right">
+            <Typography variant="body2" fontWeight="bold">
+              Total Enumerated Area:
+            </Typography>
+          </TableCell>
+          <TableCell></TableCell>
+          <TableCell>
+            <Typography variant="body2" fontWeight="bold">
+              {plotUsageData.reduce((sum, plot) => sum + (parseFloat(plot.totalEnumeratedArea) || 0), 0).toFixed(2)}
+            </Typography>
+          </TableCell>
+          <TableCell>
+            {plotUsageData.reduce((sum, plot) => sum + (parseFloat(plot.totalEnumeratedArea) || 0), 0) > (selectedPlotRow?.totalCent || 0) ? (
+              <Chip 
+                label="Total Exceeds Plot" 
+                size="small" 
+                color="error" 
+                variant="filled"
+              />
+            ) : (
+              <Chip 
+                label="Within Limit" 
+                size="small" 
+                color="success" 
+                variant="filled"
+              />
+            )}
+          </TableCell>
+        </tr>
+      </tfoot>
+    </Table>
+  </TableContainer>
+) : (
+  <Typography color="text.secondary" align="center" p={3}>
+    No plot usage data available
+  </Typography>
+)}
+
+        </DialogContent>
+        
+        <DialogActions>
+          <Button onClick={() => setPlotUsageDialogOpen(false)}>Close</Button>
+          {/* Changed Edit button here */}
+          <Button 
+            variant="contained" 
+            color="primary"
+            onClick={() => {
+              setEditDialogOpen(true);
+              setEditTotCent(selectedPlotRow?.totalCent?.toString() || '');
+              setEditMessage('');
+              setEditError('');
+            }}
+          >
+            Edit Total Area
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ADD THE EDIT DIALOG HERE */}
+      <Dialog
+        open={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          Edit Total Area
+          {selectedPlotRow && (
+            <Typography variant="body2" color="text.secondary">
+              Block: {selectedPlotRow.bcode} | Survey: {selectedPlotRow.resvno}
+            </Typography>
+          )}
+        </DialogTitle>
+        
+    {/* UPDATE THE EDIT DIALOG CONTENT */}
+<DialogContent>
+  {editMessage && (
+    <Alert severity="success" sx={{ mb: 2 }}>
+      {editMessage}
+    </Alert>
+  )}
+  
+  {editError && (
+    <Alert severity="error" sx={{ mb: 2 }}>
+      {editError}
+    </Alert>
+  )}
+  
+  <Box sx={{ mt: 2 }}>
+    <Typography variant="body1" sx={{ mb: 1, fontWeight: 'bold' }}>
+      Current Total Area: {selectedPlotRow?.totalCent || 0} Cents
+    </Typography>
+    
+    <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
+      Total Enumerated Area from Clusters: { 
+        plotUsageData.reduce((sum, plot) => sum + (parseFloat(plot.totalEnumeratedArea) || 0), 0).toFixed(2)
+      } Cents
+    </Typography>
+    
+<TextField
+  fullWidth
+  label="New Total Area (Cents)"
+  type="number"
+  value={editTotCent}
+  onChange={(e) => {
+    const value = e.target.value;
+    setEditTotCent(value);
+    
+    // Real-time validation
+    const validationError = validateEditArea(value);
+    if (validationError) {
+      setEditError(validationError);
+    } else {
+      setEditError('');
+    }
+    setEditMessage('');
+  }}
+  disabled={editLoading}
+  InputProps={{
+    inputProps: { 
+      min: plotUsageData.reduce((sum, plot) => sum + (parseFloat(plot.totalEnumeratedArea) || 0), 0),
+      step: 0.01 
+    }
+  }}
+  error={!!editError}
+  helperText={editError || `Minimum allowed: ${plotUsageData.reduce((sum, plot) => sum + (parseFloat(plot.totalEnumeratedArea) || 0), 0).toFixed(2)} cents`}
+  sx={{ mb: 2 }}
+/>
+    
+    {editTotCent && parseFloat(editTotCent) > 0 && (
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="body2" color="text.secondary">
+          New total area: <strong>{parseFloat(editTotCent).toFixed(2)} cents</strong>
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Available for new clusters: <strong>
+            {(parseFloat(editTotCent) - plotUsageData.reduce((sum, plot) => sum + (parseFloat(plot.totalEnumeratedArea) || 0), 0)).toFixed(2)} cents
+          </strong>
+        </Typography>
+        {/* Add this after the TextField in edit dialog */}
+{editTotCent && parseFloat(editTotCent) > 0 && (
+  <Box sx={{ mb: 2 }}>
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+      <Typography variant="body2" color="text.secondary">
+        Used: {plotUsageData.reduce((sum, plot) => sum + (parseFloat(plot.totalEnumeratedArea) || 0), 0).toFixed(2)} cents
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        Available: {(parseFloat(editTotCent) - plotUsageData.reduce((sum, plot) => sum + (parseFloat(plot.totalEnumeratedArea) || 0), 0)).toFixed(2)} cents
+      </Typography>
+    </Box>
+    <Box sx={{ 
+      height: 8, 
+      bgcolor: '#e0e0e0',
+      borderRadius: 4,
+      overflow: 'hidden',
+      position: 'relative'
+    }}>
+      <Box sx={{ 
+        position: 'absolute',
+        height: '100%',
+        width: `${Math.min(100, (plotUsageData.reduce((sum, plot) => sum + (parseFloat(plot.totalEnumeratedArea) || 0), 0) / parseFloat(editTotCent)) * 100)}%`,
+        bgcolor: parseFloat(editTotCent) < plotUsageData.reduce((sum, plot) => sum + (parseFloat(plot.totalEnumeratedArea) || 0), 0) 
+          ? '#f44336' 
+          : '#4caf50',
+        transition: 'width 0.3s ease'
+      }} />
+    </Box>
+    <Typography variant="caption" color="text.secondary">
+      {Math.min(100, (plotUsageData.reduce((sum, plot) => sum + (parseFloat(plot.totalEnumeratedArea) || 0), 0) / parseFloat(editTotCent)) * 100).toFixed(1)}% of new area is already allocated
+    </Typography>
+  </Box>
+)}
+      </Box>
+    )}
+    
+    <Alert severity="info" sx={{ mb: 2 }}>
+      <Typography variant="body2">
+        <strong>Validation Rule:</strong> New total area cannot be less than current enumerated area from clusters.
+        To reduce total area below {plotUsageData.reduce((sum, plot) => sum + (parseFloat(plot.totalEnumeratedArea) || 0), 0).toFixed(2)} cents, 
+        you must first reduce the enumerated area in one or more clusters.
+      </Typography>
+    </Alert>
+  </Box>
+</DialogContent>
+        
+        <DialogActions>
+          <Button 
+            onClick={() => {
+              setEditDialogOpen(false);
+              setEditTotCent('');
+              setEditMessage('');
+              setEditError('');
+            }}
+            disabled={editLoading}
+          >
+            Cancel
+          </Button>
+       <Button 
+  variant="contained" 
+  color="primary"
+  onClick={handleEditTotCent}
+  disabled={
+    editLoading || 
+    !editTotCent || 
+    parseFloat(editTotCent) < plotUsageData.reduce((sum, plot) => sum + (parseFloat(plot.totalEnumeratedArea) || 0), 0)
+  }
+  startIcon={editLoading ? <CircularProgress size={20} /> : null}
+>
+  {editLoading ? 'Updating...' : 'Update Area'}
+</Button>
+        </DialogActions>
+      </Dialog>
 
       </Grid>
     </Grid>
