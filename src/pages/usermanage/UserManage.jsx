@@ -717,6 +717,7 @@ const handleSaveDesignationClick = () => {
       setRolesLoading(true);
       try {
         const roles = await ApprovedUserService.getRolesbySchemes(schemeId);
+       
         setRolesByScheme((prev) => ({
           ...prev,
           [schemeId]: roles.error ? [] : roles || []
@@ -753,10 +754,11 @@ const handleSaveDesignationClick = () => {
       id: pair.id,
       isActive: pair.isActive, // Use the correct property name
     }));
-
+console.log("roleScheme ",roleScheme)
    try {
+    
     const result = await ApprovedUserService.updateUserRoleScheme({
-      userId,
+      userId: userId,
       isActive: userStatus === 'active',
       roleScheme
     });
@@ -1152,8 +1154,13 @@ const handleSaveDesignationClick = () => {
                               </Grid>
                             ))
                           )}
-                          <Grid item xs={12}>
+                          {/* <Grid item xs={12}>
                             <Button variant="outlined" disabled={true}  startIcon={<EditIcon />} onClick={handleEditSchemes} sx={{ mt: 2 }}>
+                              Edit Schemes & Roles
+                            </Button>
+                          </Grid> */}
+                          <Grid item xs={12}>
+                            <Button variant="outlined"  startIcon={<EditIcon />} onClick={handleEditSchemes} sx={{ mt: 2 }}>
                               Edit Schemes & Roles
                             </Button>
                           </Grid>
@@ -1230,28 +1237,28 @@ const handleSaveDesignationClick = () => {
 
                                 
                                 {/* Remove Button */}
-                                <IconButton 
+                                  {/* Replace with a more visible delete icon */}
+                                {/* <IconButton 
                                   aria-label="remove" 
                                   onClick={() => handleRemovePair(idx)} 
                                   color="error"
                                   sx={{ flexShrink: 0, ml: { xs: 0, sm: 2 } }}
                                 >
-                                  {/* Replace with a more visible delete icon */}
                                   <span style={{ fontSize: '1rem' }}>❌</span>
-                                </IconButton>
+                                </IconButton> */}
                               </Paper>
                             </Grid>
                           ))}
                           
                           {/* Action Buttons */}
                           <Grid item xs={12}>
-                            <Button 
+                            {/* <Button 
                               startIcon={<AddCircleOutlineIcon />} 
                               onClick={handleAddPair}
                               variant="outlined"
                             >
                               Add Scheme/Role
-                            </Button>
+                            </Button> */}
                           </Grid>
                           <Grid item xs={12}>
                             <Button variant="contained" color="primary" onClick={handleSaveSchemes}>
