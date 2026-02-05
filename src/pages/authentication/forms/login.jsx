@@ -40,7 +40,7 @@ import duklogo from "../images/duk_icon.png"; // Import the DUK logo image
 import cdtilogo from "../images/cdti_icon.png"; // Import the CDTI logo image
 import { keyframes } from '@emotion/react';
 import '../login.css'
-// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext'
+
 import IconButton from '@mui/material/IconButton';
 import authservice from '../services/authservice';
 import mainapi from 'api/mainapi';
@@ -48,6 +48,8 @@ import CelebrationIcon from '@mui/icons-material/Celebration';
 import InaugurationLandingPage from './InaugurationLandingPage';
 import TheatricalCurtain from './TheatricalCurtain';
 import InaugurationShowcase from './InaugurationShowcase';
+import { usePermissionContext } from 'contexts/PermissionContext';
+
 
 
 const fadeIn = keyframes`
@@ -57,6 +59,7 @@ const fadeIn = keyframes`
 
 
 const SignInSide = () => {
+    
     const [isForgotPassword, setIsForgotPassword] = useState(false);
     const [isRegister, setIsRegister] = useState(false);
     const handleForgotPasswordClick = () => {
@@ -186,6 +189,7 @@ const SignInSide = () => {
     
 };
 const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
+    const { savePermissions } = usePermissionContext();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
@@ -247,7 +251,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     try {
                         const BASE_URL = mainapi.USER_API;
                         const permissionsResponse = await fetch(
-                            `${BASE_URL}/user-accesss/user-state/userpremissions`,
+                            `${BASE_URL}/user-access/user-state/user-permissions`,
                             {
                                 headers: {
                                     Authorization: `Bearer ${token}`,
@@ -261,10 +265,9 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     //     }
 
                         const permissionsData = await permissionsResponse.json();
-                        setPermissions(permissionsData);
+                        savePermissions(permissionsData);
                         setIsLoading(false);
-                        // navigate('/');
-                          window.location.href = '/';
+                        window.location.href = '/';
                     } catch (permissionsError) {
                         console.error('Error fetching permissions:', permissionsError);
                         setError(permissionsError.message || 'Failed to load permissions');
@@ -325,11 +328,10 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     localStorage.removeItem('rememberMe');
                 }
 
-                setIsLoading(true);
+                // Fetch and save permissions
                 try {
-                    const BASE_URL = mainapi.USER_API;
                     const permissionsResponse = await fetch(
-                        `${BASE_URL}/user-accesss/user-state/userpremissions`,
+                        `${mainapi.USER_API}/user-access/user-state/user-permissions`,
                         {
                             headers: {
                                 Authorization: `Bearer ${token}`,
@@ -338,23 +340,17 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                         }
                     );
 
-                    if (!permissionsResponse.ok) {
-                        throw new Error(`HTTP error! status: ${permissionsResponse.status}`);
-                    }
-
                     const permissionsData = await permissionsResponse.json();
-                    setPermissions(permissionsData);
-                    setIsLoading(false);
-                    // navigate('/');
-                     window.location.href = '/';
+                    savePermissions(permissionsData);
 
-                } catch (permissionsError) {
-                    console.error('Error fetching permissions:', permissionsError);
-                    // setError(permissionsError.message || 'Failed to load permissions');
-                    setIsLoading(false);
-                    // navigate('/');
-                     window.location.href = '/';
+                    // Navigate to home
+                    window.location.href = '/';
+                } catch (permError) {
+                    console.error("Error fetching permissions:", permError);
+                    savePermissions({ schemes: [] }); // fallback empty
+                    window.location.href = '/';
                 }
+
             } else {
                 setError(userData.message || 'Login failed');
             }

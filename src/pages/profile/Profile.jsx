@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Grid, Box, Typography, Paper, Tabs, Tab, CircularProgress } from '@mui/material';
+import { 
+  Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, 
+  Grid, Box, Typography, Paper, Tabs, Tab, CircularProgress, Alert, Snackbar 
+} from '@mui/material';
+  import EditIcon from '@mui/icons-material/Edit';
+import authservice from 'pages/authentication/services/authservice';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import BadgeIcon from '@mui/icons-material/Badge';
 import LockIcon from '@mui/icons-material/Lock';
@@ -22,6 +27,8 @@ import { jwtDecode } from 'jwt-decode';
 import Breadcrumb from 'routes/Breadcrumb';
 import ChangePassword from './ChangePassword';
 import profileService from 'pages/profile/profileservice';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
 // Reusable InfoRow Component
 const InfoRow = ({ label, value, icon }) => (
@@ -101,9 +108,129 @@ const CustomTabPanel = ({ children, value, index, ...other }) => {
   );
 };
 
+const EditProfileModal = ({ open, onClose, formData, setFormData, onSubmit }) => {
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth="sm"
+      PaperProps={{ sx: { borderRadius: 3 } }}
+    >
+      <DialogTitle sx={{ fontWeight: 700 }}>
+        Edit Profile
+      </DialogTitle>
+
+      <DialogContent sx={{ pt: 2 }}>
+        <TextField
+          fullWidth
+          label="Full Name"
+          margin="normal"
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+        />
+
+        <TextField
+          fullWidth
+          label="Personal Email"
+          margin="normal"
+          type="email"
+          value={formData.email}
+          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+        />
+
+        <TextField
+          fullWidth
+          label="Mobile Number"
+          margin="normal"
+          value={formData.mobileNumber}
+          onChange={(e) =>
+            setFormData({ ...formData, mobileNumber: e.target.value })
+          }
+        />
+      </DialogContent>
+
+      <DialogActions sx={{ p: 3 }}>
+        <Button onClick={onClose} variant="outlined">
+          Cancel
+        </Button>
+        <Button onClick={onSubmit} variant="contained">
+          Save Changes
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// Reusable Alert Modal Component
+const AlertModal = ({ open, onClose, title, message, severity = "success" }) => {
+  return (
+    <Snackbar
+      open={open}
+      autoHideDuration={6000}
+      onClose={onClose}
+      anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+    >
+      <Alert 
+        onClose={onClose}
+        severity={severity}
+        sx={{ 
+          width: '100%',
+          fontWeight: 600,
+          '& .MuiAlert-icon': {
+            fontSize: 28
+          }
+        }}
+        icon={
+          severity === 'success' ? (
+            <CheckCircleOutlineIcon fontSize="inherit" />
+          ) : (
+            <ErrorOutlineIcon fontSize="inherit" />
+          )
+        }
+      >
+        <Typography variant="body1" sx={{ fontWeight: 500 }}>
+          {title}
+        </Typography>
+        {message && (
+          <Typography variant="body2" sx={{ mt: 0.5, fontSize: '0.875rem' }}>
+            {message}
+          </Typography>
+        )}
+      </Alert>
+    </Snackbar>
+  );
+};
+
 const Profile = () => {
   const [value, setValue] = useState(0);
   const [userData, setUserData] = useState(null);
+
+  const [editOpen, setEditOpen] = useState(false);
+  // Add these new state variables
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({
+    severity: 'success',
+    title: '',
+    message: ''
+  });
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+    mobileNumber: ''
+  });
+
+
+useEffect(() => {
+  if (userData && editOpen) {
+    setEditForm({
+      name: userData.name || '',
+      email: userData.email || '',
+      mobileNumber: userData.mobileNumber || ''
+    });
+  }
+}, [editOpen, userData]);
+
 
   useEffect(() => {
     const fetchUserDetails = async () => {
@@ -130,7 +257,74 @@ const Profile = () => {
     // Handle password change logic
   };
 
+  const handleProfileUpdate = async () => {
+  try {
+    const userId = authservice.userid();
+    if (!userId) {
+      throw new Error('Session expired. Please login again.');
+    }
+
+    const payload = {
+      userId: userId,
+      name: editForm.name,
+      email: editForm.email,
+      mobileNumber: editForm.mobileNumber
+    };
+
+    // Show loading in modal/UI
+    // (Add loading state if needed: const [updating, setUpdating] = useState(false);)
+
+    const response = await profileService.updateProfile(payload);
+
+    if (!response.success) {
+      throw new Error(response.message || 'Update failed');
+    }
+
+    // CRITICAL: Refetch fresh data instead of optimistic update
+    const refreshedResponse = await profileService.fetchUserById(userId);
+    setUserData(refreshedResponse.payload);  // Use real server data
+
+    setEditOpen(false);
+    // Show success modal instead of alert
+      setAlertConfig({
+        severity: 'success',
+        title: 'Profile Updated!',
+        message: response.message || 'Your profile has been successfully updated.'
+      });
+      setAlertOpen(true);
+
+    } catch (err) {
+      console.error('Profile update error:', err);
+      
+      // Rollback form to original if needed
+      if (userData && editOpen) {
+        setEditForm({
+          name: userData.name || '',
+          email: userData.email || '',
+          mobileNumber: userData.mobileNumber || ''
+        });
+      }
+      
+      // Show error modal instead of alert
+      setAlertConfig({
+        severity: 'error',
+        title: 'Update Failed',
+        message: err.message || 'Profile update failed. Email may already exist.'
+      });
+      setAlertOpen(true);
+    }
+  };
+
+  // Alert close handler
+  const handleAlertClose = () => {
+    setAlertOpen(false);
+  };
+
+
+
+
   return (
+    
     <Grid container spacing={3}>
       <Breadcrumb />
       <Grid item xs={12}>
@@ -267,10 +461,43 @@ const Profile = () => {
                         height: '100%'
                       }}
                     >
-                      <Typography variant="h6" sx={{ fontWeight: 600, mb: 3, color: 'primary.dark', display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <PersonIcon sx={{ fontSize: 20 }} />
-                        Personal Information
-                      </Typography>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                        <Typography
+                          variant="h6"
+                          sx={{ fontWeight: 600, color: 'primary.dark', display: 'flex', alignItems: 'center', gap: 1 }}
+                        >
+                          <PersonIcon sx={{ fontSize: 20 }} />
+                          Personal Information
+                        </Typography>
+
+                        {/* Improved Edit Profile Button */}
+  <Button
+    variant="contained"
+    size="small"
+    startIcon={<EditIcon />} // Add this import at top
+    onClick={() => setEditOpen(true)}
+    sx={{
+      borderRadius: 2,
+      py: 0.75,
+      px: 2,
+      fontWeight: 600,
+      fontSize: '0.875rem',
+      textTransform: 'none',
+      boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      '&:hover': {
+        background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+        boxShadow: '0 4px 16px rgba(102, 126, 234, 0.4)',
+        transform: 'translateY(-1px)',
+      },
+      color: 'white',
+      height: 36,
+    }}
+  >
+    Edit Profile
+  </Button>
+                      </Box>
+
                       
                       <Box sx={{ space: 2 }}>
                         <InfoRow label="Full Name" value={userData.name} icon={<PersonOutlineIcon />} />
@@ -387,8 +614,27 @@ const Profile = () => {
           </CustomTabPanel>
         </Paper>
       </Grid>
+      <AlertModal
+        open={alertOpen}
+        onClose={handleAlertClose}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        severity={alertConfig.severity}
+      />
+      <EditProfileModal
+      open={editOpen}
+      onClose={() => setEditOpen(false)}
+      formData={editForm}
+      setFormData={setEditForm}
+      onSubmit={handleProfileUpdate}
+    />
     </Grid>
+
+    
+
   );
+  
+
 };
 
 export default Profile;

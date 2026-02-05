@@ -168,7 +168,7 @@ const[zoneVisble, setzoneVisble] = useState(false);
            
             // Fetch roles and zones in parallel
             const [rolesResponse, zonesResponse] = await Promise.all([
-              approvalservice.allrolesBySchems(value),
+              approvalservice.selectedrolesBySchems(value),
               approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
             ]);
            console.log("okkkkkk" ,zonesResponse)
