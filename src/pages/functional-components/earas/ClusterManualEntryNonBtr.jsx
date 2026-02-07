@@ -320,6 +320,7 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
           headers: { 'Authorization': `Bearer ${token}` }
         }
       );
+      alert(clusterId)
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
