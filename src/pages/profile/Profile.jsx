@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Grid, Box, Typography, Paper, Tabs, Tab, CircularProgress } from '@mui/material';
+import { 
+  Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, 
+  Grid, Box, Typography, Paper, Tabs, Tab, CircularProgress, Alert, Snackbar 
+} from '@mui/material';
+  import EditIcon from '@mui/icons-material/Edit';
+import authservice from 'pages/authentication/services/authservice';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import BadgeIcon from '@mui/icons-material/Badge';
 import LockIcon from '@mui/icons-material/Lock';
@@ -22,6 +27,8 @@ import { jwtDecode } from 'jwt-decode';
 import Breadcrumb from 'routes/Breadcrumb';
 import ChangePassword from './ChangePassword';
 import profileService from 'pages/profile/profileservice';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
 // Reusable InfoRow Component
 const InfoRow = ({ label, value, icon }) => (
@@ -101,9 +108,308 @@ const CustomTabPanel = ({ children, value, index, ...other }) => {
   );
 };
 
+const EditProfileModal = ({ open, onClose, formData = {}, setFormData, onSubmit, errors = {}, onValidate }) => {
+  // Set default values if formData is undefined
+  const safeFormData = {
+    name: formData?.name || '',
+    email: formData?.email || '',
+    mobileNumber: formData?.mobileNumber || '',
+    dateOfBirth: formData?.dateOfBirth || '',
+    dateOfJoining: formData?.dateOfJoining || ''
+  };
+
+  const safeErrors = errors || {};
+
+  // Helper function for date validation
+  const isDateValid = (date, type) => {
+    if (!date) return true;
+    
+    const today = new Date();
+    const selectedDate = new Date(date);
+    
+    if (type === 'dob') {
+      const minAgeDate = new Date();
+      minAgeDate.setFullYear(today.getFullYear() - 18);
+      return selectedDate <= minAgeDate;
+    }
+    
+    if (type === 'doj') {
+      return selectedDate <= today;
+    }
+    
+    return true;
+  };
+
+  const handleFieldChange = (field, value) => {
+    const newFormData = { ...safeFormData, [field]: value };
+    if (setFormData) {
+      setFormData(newFormData);
+    }
+    
+    // Validate on change
+    if (onValidate) {
+      onValidate(field, value);
+    }
+  };
+
+  // Format date for input[type="date"]
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '';
+      return date.toISOString().split('T')[0];
+    } catch (error) {
+      return '';
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth="sm"
+      PaperProps={{ sx: { borderRadius: 3 } }}
+    >
+      <DialogTitle sx={{ fontWeight: 700 }}>
+        Edit Profile
+      </DialogTitle>
+
+      <DialogContent sx={{ pt: 2 }}>
+        {/* Name Field */}
+        <TextField
+          fullWidth
+          label="Full Name"
+          margin="normal"
+          value={safeFormData.name}
+          onChange={(e) => handleFieldChange('name', e.target.value)}
+          error={!!safeErrors.name}
+          helperText={safeErrors.name || "Max 100 characters"}
+          inputProps={{ maxLength: 100 }}
+        />
+
+        {/* Email Field */}
+        <TextField
+          fullWidth
+          label="Personal Email"
+          margin="normal"
+          type="email"
+          value={safeFormData.email}
+          onChange={(e) => handleFieldChange('email', e.target.value)}
+          error={!!safeErrors.email}
+          helperText={safeErrors.email || "Enter valid email address"}
+        />
+
+        {/* Mobile Number Field */}
+        <TextField
+          fullWidth
+          label="Mobile Number"
+          margin="normal"
+          value={safeFormData.mobileNumber}
+          onChange={(e) => handleFieldChange('mobileNumber', e.target.value)}
+          error={!!safeErrors.mobileNumber}
+          helperText={safeErrors.mobileNumber || "10 digits required"}
+          inputProps={{ maxLength: 10 }}
+        />
+
+        {/* Date of Birth Field */}
+        <TextField
+          fullWidth
+          label="Date of Birth"
+          margin="normal"
+          type="date"
+          value={formatDateForInput(safeFormData.dateOfBirth)}
+          onChange={(e) => handleFieldChange('dateOfBirth', e.target.value)}
+          InputLabelProps={{ shrink: true }}
+          error={!!safeErrors.dateOfBirth}
+          helperText={safeErrors.dateOfBirth || "Must be 18+ years old"}
+          InputProps={{
+            inputProps: {
+              max: new Date(new Date().setFullYear(new Date().getFullYear() - 18))
+                .toISOString().split('T')[0]
+            }
+          }}
+        />
+
+        {/* Date of Joining Field */}
+        <TextField
+          fullWidth
+          label="Date of Joining"
+          margin="normal"
+          type="date"
+          value={formatDateForInput(safeFormData.dateOfJoining)}
+          onChange={(e) => handleFieldChange('dateOfJoining', e.target.value)}
+          InputLabelProps={{ shrink: true }}
+          error={!!safeErrors.dateOfJoining}
+          helperText={safeErrors.dateOfJoining || "Cannot be a future date"}
+          InputProps={{
+            inputProps: {
+              max: new Date().toISOString().split('T')[0]
+            }
+          }}
+        />
+      </DialogContent>
+
+      <DialogActions sx={{ p: 3 }}>
+        <Button onClick={onClose} variant="outlined">
+          Cancel
+        </Button>
+        <Button 
+          onClick={() => onSubmit && onSubmit()} 
+          variant="contained"
+          disabled={Object.keys(safeErrors).length > 0}
+        >
+          Save Changes
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// Reusable Alert Modal Component
+const AlertModal = ({ open, onClose, title, message, severity = "success" }) => {
+  return (
+    <Snackbar
+      open={open}
+      autoHideDuration={6000}
+      onClose={onClose}
+      anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+    >
+      <Alert 
+        onClose={onClose}
+        severity={severity}
+        sx={{ 
+          width: '100%',
+          fontWeight: 600,
+          '& .MuiAlert-icon': {
+            fontSize: 28
+          }
+        }}
+        icon={
+          severity === 'success' ? (
+            <CheckCircleOutlineIcon fontSize="inherit" />
+          ) : (
+            <ErrorOutlineIcon fontSize="inherit" />
+          )
+        }
+      >
+        <Typography variant="body1" sx={{ fontWeight: 500 }}>
+          {title}
+        </Typography>
+        {message && (
+          <Typography variant="body2" sx={{ mt: 0.5, fontSize: '0.875rem' }}>
+            {message}
+          </Typography>
+        )}
+      </Alert>
+    </Snackbar>
+  );
+};
+
 const Profile = () => {
   const [value, setValue] = useState(0);
   const [userData, setUserData] = useState(null);
+    const [validationErrors, setValidationErrors] = useState({});
+
+  const [editOpen, setEditOpen] = useState(false);
+  // Add these new state variables
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({
+    severity: 'success',
+    title: '',
+    message: ''
+  });
+ const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+    mobileNumber: '',
+    dateOfBirth: '',
+    dateOfJoining: ''
+  });
+    const validateField = (field, value) => {
+    const newErrors = { ...validationErrors };
+    
+    switch (field) {
+      case 'name':
+        if (value && value.length > 100) {
+          newErrors.name = 'Name must be less than 100 characters';
+        } else if (value && !/^[a-zA-Z\s]*$/.test(value)) {
+          newErrors.name = 'Name can only contain letters and spaces';
+        } else {
+          delete newErrors.name;
+        }
+        break;
+        
+      case 'email':
+        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          newErrors.email = 'Please enter a valid email address';
+        } else {
+          delete newErrors.email;
+        }
+        break;
+        
+      case 'mobileNumber':
+        if (value && !/^\d{10}$/.test(value)) {
+          newErrors.mobileNumber = 'Mobile number must be 10 digits';
+        } else {
+          delete newErrors.mobileNumber;
+        }
+        break;
+        
+      case 'dateOfBirth':
+        if (value) {
+          const dob = new Date(value);
+          const today = new Date();
+          const minAgeDate = new Date();
+          minAgeDate.setFullYear(today.getFullYear() - 18);
+          
+          if (dob > minAgeDate) {
+            newErrors.dateOfBirth = 'Must be at least 18 years old';
+          } else {
+            delete newErrors.dateOfBirth;
+          }
+        } else {
+          delete newErrors.dateOfBirth;
+        }
+        break;
+        
+      case 'dateOfJoining':
+        if (value) {
+          const doj = new Date(value);
+          const today = new Date();
+          
+          if (doj > today) {
+            newErrors.dateOfJoining = 'Date of joining cannot be in the future';
+          } else {
+            delete newErrors.dateOfJoining;
+          }
+        } else {
+          delete newErrors.dateOfJoining;
+        }
+        break;
+        
+      default:
+        break;
+    }
+    
+    setValidationErrors(newErrors);
+  };
+
+  useEffect(() => {
+    if (userData && editOpen) {
+      setEditForm({
+        name: userData.name || '',
+        email: userData.email || '',
+        mobileNumber: userData.mobileNumber || '',
+        dateOfBirth: userData.dateOfBirth || '',
+        dateOfJoining: userData.dateOfJoining || ''
+      });
+      // Clear validation errors when modal opens
+      setValidationErrors({});
+    }
+  }, [editOpen, userData]);
+
 
   useEffect(() => {
     const fetchUserDetails = async () => {
@@ -129,8 +435,88 @@ const Profile = () => {
     console.log('Password change data:', data);
     // Handle password change logic
   };
+  const handleAlertClose = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setAlertOpen(false);
+  };
+const handleProfileUpdate = async () => {
+  // Validate all fields before submission
+  const fields = ['name', 'email', 'mobileNumber', 'dateOfBirth', 'dateOfJoining'];
+  fields.forEach(field => validateField(field, editForm[field]));
+  
+  if (Object.keys(validationErrors).length > 0) {
+    setAlertConfig({
+      severity: 'error',
+      title: 'Validation Error',
+      message: 'Please fix all validation errors before saving.'
+    });
+    setAlertOpen(true);
+    return;
+  }
+
+  try {
+    const userId = authservice.userid();
+    if (!userId) {
+      throw new Error('Session expired. Please login again.');
+    }
+
+    const payload = {
+      userId: userId,
+      name: editForm.name,
+      email: editForm.email,
+      mobileNumber: editForm.mobileNumber,
+      dateOfBirth: editForm.dateOfBirth || null,
+      dateOfJoining: editForm.dateOfJoining || null
+    };
+
+    const response = await profileService.updateProfile(payload);
+
+    // Check if response has success field
+    if (!response.success) {
+      // Check for specific backend error messages
+      let errorMessage = response.message || 'Update failed';
+      
+      if (response.message?.toLowerCase().includes('email already exists')) {
+        errorMessage = 'This email is already registered with another account.';
+      } else if (response.message?.toLowerCase().includes('mobile number already exists')) {
+        errorMessage = 'This mobile number is already registered with another account.';
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    // Refetch fresh data
+    const refreshedResponse = await profileService.fetchUserById(userId);
+    setUserData(refreshedResponse.payload);
+
+    setEditOpen(false);
+    setAlertConfig({
+      severity: 'success',
+      title: 'Profile Updated!',
+      message: response.message || 'Your profile has been successfully updated.'
+    });
+    setAlertOpen(true);
+
+  } catch (err) {
+    console.error('Profile update error:', err);
+    
+    // Show user-friendly error message
+    setAlertConfig({
+      severity: 'error',
+      title: 'Update Failed',
+      message: err.message || 'Profile update failed. Please try again.'
+    });
+    setAlertOpen(true);
+  }
+};
+
+
+
 
   return (
+    
     <Grid container spacing={3}>
       <Breadcrumb />
       <Grid item xs={12}>
@@ -267,10 +653,43 @@ const Profile = () => {
                         height: '100%'
                       }}
                     >
-                      <Typography variant="h6" sx={{ fontWeight: 600, mb: 3, color: 'primary.dark', display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <PersonIcon sx={{ fontSize: 20 }} />
-                        Personal Information
-                      </Typography>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                        <Typography
+                          variant="h6"
+                          sx={{ fontWeight: 600, color: 'primary.dark', display: 'flex', alignItems: 'center', gap: 1 }}
+                        >
+                          <PersonIcon sx={{ fontSize: 20 }} />
+                          Personal Information
+                        </Typography>
+
+                        {/* Improved Edit Profile Button */}
+  <Button
+    variant="contained"
+    size="small"
+    startIcon={<EditIcon />} // Add this import at top
+    onClick={() => setEditOpen(true)}
+    sx={{
+      borderRadius: 2,
+      py: 0.75,
+      px: 2,
+      fontWeight: 600,
+      fontSize: '0.875rem',
+      textTransform: 'none',
+      boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      '&:hover': {
+        background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+        boxShadow: '0 4px 16px rgba(102, 126, 234, 0.4)',
+        transform: 'translateY(-1px)',
+      },
+      color: 'white',
+      height: 36,
+    }}
+  >
+    Edit Profile
+  </Button>
+                      </Box>
+
                       
                       <Box sx={{ space: 2 }}>
                         <InfoRow label="Full Name" value={userData.name} icon={<PersonOutlineIcon />} />
@@ -387,8 +806,27 @@ const Profile = () => {
           </CustomTabPanel>
         </Paper>
       </Grid>
+  <AlertModal
+  open={alertOpen}
+  onClose={() => setAlertOpen(false)}
+  title={alertConfig.title}
+  message={alertConfig.message}
+  severity={alertConfig.severity}
+/>
+      <EditProfileModal
+      open={editOpen}
+      onClose={() => setEditOpen(false)}
+      formData={editForm}
+      setFormData={setEditForm}
+      onSubmit={handleProfileUpdate}
+    />
     </Grid>
+
+    
+
   );
+  
+
 };
 
 export default Profile;

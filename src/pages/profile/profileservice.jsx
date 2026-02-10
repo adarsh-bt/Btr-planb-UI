@@ -73,7 +73,42 @@ const profileService = {
         message: error.response.data.message
       };
     }
+  },
+
+updateProfile: async (payload) => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await axios.post(
+      `${USER_URL}/user-access/user-profile/update-profile`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    // Ensure response.data has success field
+    return {
+      success: response.data?.success || false,
+      message: response.data?.message || 'Profile updated successfully',
+      payload: response.data?.payload || null
+    };
+  } catch (error) {
+    console.error('Update profile error:', error);
+    return {
+      success: false,
+      message:
+        error.response?.data?.message ||
+        error.message ||
+        'Profile update failed due to server error'
+    };
   }
+},
+
+
+
 };
 
 export default profileService;
