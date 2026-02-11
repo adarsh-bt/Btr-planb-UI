@@ -53,6 +53,7 @@ import {
   LocationOn as LocationOnIcon,
   InfoOutlined as InfoOutlineIcon
 } from '@mui/icons-material';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import mainapi from 'api/mainapi';
 import authservice from 'pages/authentication/services/authservice';
 import { pl } from 'date-fns/locale';
@@ -72,7 +73,14 @@ const KeyPlotListing = ({zoneId}) => {
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [order, setOrder] = useState('asc');
   const [orderBy, setOrderBy] = useState('slNo');
-  
+  const [openEditEnumDialog, setOpenEditEnumDialog] = useState(false);
+const [enumAreaValue, setEnumAreaValue] = useState('');
+const [id, setId] = useState('');
+const [AreaValue, setAreaValue] = useState('');
+const [enumRemark, setEnumRemark] = useState('');
+const [enumError, setEnumError] = useState('');
+const [enumLoading, setEnumLoading] = useState(false);
+
   // Filter states  
   const [landTypeFilter, setLandTypeFilter] = useState('');
   const [villageFilter, setVillageFilter] = useState('');
@@ -114,6 +122,58 @@ const KeyPlotListing = ({zoneId}) => {
     : zoneId;                         // For Admin or other roles
 });
 
+const handleOpenEnumEdit = () => {
+  const enumArea = plotDetailsData.enumArea || '';
+  const areaCents = plotDetailsData.areaCents || '';
+  
+  setEnumAreaValue(enumArea);
+  setAreaValue(areaCents);
+  setId(plotDetailsData.keyplotId);
+  setEnumRemark('');
+  
+  // Validate on open if there's an existing value
+  if (enumArea) {
+    const error = validateEnumArea(enumArea, areaCents);
+    setEnumError(error);
+  } else {
+    setEnumError('');
+  }
+  
+  setOpenEditEnumDialog(true);
+};
+
+const handleEnumAreaChange = (e) => {
+  const value = e.target.value;
+  const totalArea = parseFloat(plotDetailsData.areaCents || plotDetailsData.area);
+  
+  // Validate the input
+  const error = validateEnumArea(value, totalArea);
+  setEnumError(error);
+  setEnumAreaValue(value);
+};
+
+const validateEnumArea = (value, totalArea) => {
+  if (!value || value === '') {
+    return "Enumerated area is required";
+  }
+  
+  const numValue = parseFloat(value);
+  const numTotalArea = parseFloat(totalArea);
+  
+  if (isNaN(numValue)) {
+    return "Please enter a valid number";
+  }
+  
+  if (numValue <= 0) {
+    return "Enumerated area must be greater than zero";
+  }
+  
+  if (numValue > numTotalArea) {
+    return `Enumerated area cannot exceed total area (${numTotalArea.toFixed(2)} cents)`;
+  }
+  
+  return '';
+};
   // Preset reasons for removal dialog
   const presetReasons = [
     'Duplicate Entry',
@@ -147,11 +207,70 @@ const KeyPlotListing = ({zoneId}) => {
       tpSubNo: plot.tpSubNo,
       oldsuvNo: plot.oldsuvNo,
       oldsubNo: plot.oldsubNo,
+      enumarea: plot.enumArea,
       action: "View Cluster"
     }));
   };
 
+
+const handleUpdateEnumeratedArea = async () => {
+  const totalArea = parseFloat(AreaValue);
+  const error = validateEnumArea(enumAreaValue, totalArea);
+  
+  if (error) {
+    setEnumError(error);
+    return;
+  }
+  
+  if (!enumAreaValue) {
+    setEnumError("Enumerated area is required");
+    return;
+  }
+
+  setEnumLoading(true);
+
+  try {
+    const BASE_URL = mainapi.BASE_URL;
+    const token = localStorage.getItem("token");
     
+    const response = await fetch(
+      `${BASE_URL}/btr-service/key-plots/update-enumerated-area`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          kpId: id,
+          enumeratedArea: parseFloat(enumAreaValue),
+          remark: enumRemark,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to update enumerated area");
+    }
+
+    setSnackbarMessage("Enumerated area updated successfully");
+    setSnackbarSeverity("success");
+    setSnackbarOpen(true);
+
+    setOpenEditEnumDialog(false);
+
+    // Refresh both list & modal
+    fetchKeyPlots();
+    fetchPlotDetails(id);
+
+  } catch (err) {
+    setSnackbarMessage(err.message || "Failed to update enumerated area");
+    setSnackbarSeverity("error");
+    setSnackbarOpen(true);
+  } finally {
+    setEnumLoading(false);
+  }
+};
   // Fetch keyplot data from API
   const fetchKeyPlots = useCallback(async () => {
     setLoading(true);
@@ -463,37 +582,6 @@ setPanchayathAreaSummary(panchayathSummary);
     }
   };
 
-  // Export to CSV
-  // const exportToCSV = () => {
-  //   const headers = ['Sl No', 'Sy No', 'Panchayth' ,'Village', 'Area (Cents)', 'Village Block', 'Land Type'];
-  //   const csvData = [
-  //     headers.join(','),
-  //     ...plotData.map((plot, index) => [
-  //       index + 1,
-  //       `"${plot.syNo}"`,
-  //       `"${plot.kvillageName}"`,
-  //       plot.area?.toFixed(2) || '0.00',
-  //       `"${plot.villageBlock}"`,
-  //       `"${plot.landType}"`
-  //     ].join(','))
-  //   ].join('\n');
-
-  //   const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-  //   const link = document.createElement('a');
-  //   const url = URL.createObjectURL(blob);
-  //   link.setAttribute('href', url);
-  //   link.setAttribute('download', `keyplots_${new Date().toISOString().split('T')[0]}.csv`);
-  //   link.style.visibility = 'hidden';
-  //   document.body.appendChild(link);
-  //   link.click();
-  //   document.body.removeChild(link);
-    
-  //   setSnackbarMessage(`Exported ${plotData.length} records to CSV`);
-  //   setSnackbarSeverity('success');
-  //   setSnackbarOpen(true);
-  // };
-
-  // Generate keyplot handler (placeholder)
   const handleGenerateKeyplot = async () => {
     setLoading(true);
     setDataVisible(false);
@@ -654,37 +742,7 @@ setPanchayathAreaSummary(panchayathSummary);
             {/* Filters */}
             <Box sx={{ mb: 3 }}>
               <Grid container spacing={2} alignItems="center">
-                {/* <Grid item xs={12} sm={6} md={2}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Land Type</InputLabel>
-                    <Select
-                      value={landTypeFilter}
-                      onChange={(e) => setLandTypeFilter(e.target.value)}
-                      label="Land Type"
-                    >
-                      <MenuItem value="">All</MenuItem>
-                      {uniqueLandTypes.map(type => (
-                        <MenuItem key={type} value={type}>{type}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid> */}
-
-                {/* <Grid item xs={12} sm={6} md={2}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Village</InputLabel>
-                    <Select
-                      value={villageFilter}
-                      onChange={(e) => setVillageFilter(e.target.value)}
-                      label="Village"
-                    >
-                      <MenuItem value="">All</MenuItem>
-                      {uniqueVillages.map(village => (
-                        <MenuItem key={village} value={village}>{village}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid> */}
+          
 
                 <Grid item xs={12} md={8}>
                   <Stack direction="row" spacing={1} sx={{ justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
@@ -785,7 +843,7 @@ setPanchayathAreaSummary(panchayathSummary);
                         <TableCell align="center">{row.kvillageName}</TableCell>
                         <TableCell align="center">{row.villageBlock}</TableCell>
                         <TableCell align="center">{row.syNo}</TableCell>
-                        <TableCell align="center">{parseFloat(row.area).toFixed(2)}</TableCell>
+                        <TableCell align="center">{parseFloat(row.enumarea).toFixed(2)}</TableCell>
                         <TableCell align="center">{row.landType}</TableCell>
                         <TableCell align="center">
                           <Button
@@ -841,10 +899,6 @@ setPanchayathAreaSummary(panchayathSummary);
             />
           </Paper>
         )}
-
-        {/* Plot Details Modal */}
-        {/* Plot Details Modal */}
-        {/* Plot Details Modal */}
 <Dialog 
   open={openPlotDetailsModal} 
   onClose={handleClosePlotDetailsModal}
@@ -938,7 +992,7 @@ setPanchayathAreaSummary(panchayathSummary);
     {/* Error State */}
     {plotDetailsError && (
       <Box sx={{ textAlign: 'center', py: 6, px: 3 }}>
-        <ErrorOutlineIcon 
+        <ErrorOutlineIcon
           sx={{ fontSize: 64, color: '#d32f2f', mb: 2, opacity: 0.7 }} 
         />
         <Typography variant="h6" color="error" gutterBottom sx={{ fontWeight: '600' }}>
@@ -1117,7 +1171,7 @@ setPanchayathAreaSummary(panchayathSummary);
                     color: 'success.dark',
                     mt: 0.5
                   }}>
-                    {parseFloat(plotDetailsData.areaCents).toFixed(2)} <Typography component="span" variant="h6" sx={{ fontWeight: '600' }}>Cents</Typography>
+                    {parseFloat(plotDetailsData.enumArea).toFixed(2)} <Typography component="span" variant="h6" sx={{ fontWeight: '600' }}>Cents</Typography>
                   </Typography>
                 </Paper>
               </Grid>
@@ -1325,6 +1379,14 @@ setPanchayathAreaSummary(panchayathSummary);
     borderTop: '1px solid',
     borderColor: 'divider'
   }}>
+  <Button
+  variant="outlined"
+  color="primary"
+  onClick={handleOpenEnumEdit}
+>
+  Edit Enumerated Area
+</Button>
+
     <Button 
       onClick={handleClosePlotDetailsModal}
       variant="contained"
@@ -1433,6 +1495,100 @@ setPanchayathAreaSummary(panchayathSummary);
             </Button>
           </DialogActions>
         </Dialog>
+       <Dialog open={openEditEnumDialog} onClose={() => setOpenEditEnumDialog(false)} fullWidth maxWidth="sm">
+  <DialogTitle>Edit Enumerated Area</DialogTitle>
+  
+  <DialogContent dividers>
+    <Box sx={{ mb: 2 }}>
+      <Typography variant="body2" color="text.secondary" gutterBottom>
+        Total Available Area
+      </Typography>
+      <Paper 
+        sx={{ 
+          p: 2, 
+          bgcolor: '#f5f5f5',
+          border: '1px solid #e0e0e0',
+          borderRadius: 1
+        }}
+      >
+        <Typography variant="h6" align="center">
+          {parseFloat(AreaValue).toFixed(2)} Cents
+        </Typography>
+      </Paper>
+    </Box>
+    
+    <TextField
+      label="Enumerated Area (Cents)"
+      type="number"
+      fullWidth
+      margin="dense"
+      value={enumAreaValue}
+      onChange={handleEnumAreaChange}
+      error={Boolean(enumError)}
+      helperText={enumError}
+      InputProps={{
+        inputProps: { 
+          min: 0,
+          step: 0.01,
+          max: parseFloat(AreaValue)
+        },
+        endAdornment: <InputAdornment position="end">Cents</InputAdornment>
+      }}
+    />
+    
+    {/* Optional: Add a progress indicator */}
+    {enumAreaValue && !enumError && parseFloat(AreaValue) > 0 && (
+      <Box sx={{ mt: 2, mb: 1 }}>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          Usage: {((parseFloat(enumAreaValue) / parseFloat(AreaValue)) * 100).toFixed(1)}%
+        </Typography>
+        <Box sx={{ 
+          height: 6, 
+          bgcolor: '#e0e0e0',
+          borderRadius: 3,
+          overflow: 'hidden'
+        }}>
+          <Box sx={{ 
+            height: '100%',
+            width: `${Math.min(100, (parseFloat(enumAreaValue) / parseFloat(AreaValue)) * 100)}%`,
+            bgcolor: enumError ? '#f44336' : '#4caf50',
+            transition: 'width 0.3s ease'
+          }} />
+        </Box>
+      </Box>
+    )}
+    
+    {/* <TextField
+      label="Remark (Optional)"
+      fullWidth
+      margin="dense"
+      multiline
+      rows={2}
+      value={enumRemark}
+      onChange={(e) => setEnumRemark(e.target.value)}
+      sx={{ mt: 2 }}
+    /> */}
+  </DialogContent>
+  
+  <DialogActions sx={{ p: 2 }}>
+    <Button 
+      onClick={() => setOpenEditEnumDialog(false)}
+      variant="outlined"
+    >
+      Cancel
+    </Button>
+    
+    <Button
+      variant="contained"
+      onClick={handleUpdateEnumeratedArea}
+      disabled={enumLoading || Boolean(enumError) || !enumAreaValue}
+      color={enumError ? "error" : "primary"}
+      startIcon={enumLoading ? <CircularProgress size={20} color="inherit" /> : null}
+    >
+      {enumLoading ? "Updating..." : "Update Area"}
+    </Button>
+  </DialogActions>
+</Dialog>
       </Box>
     </Grid>
   );

@@ -31,8 +31,14 @@ const RoleList = () => {
 
   const [districts, setDistricts] = useState([]);
   const [taluks, setTaluks] = useState([]);
+  
 
   const [loading, setLoading] = useState(false);
+  const [loggedDistrictId, setLoggedDistrictId] = useState(null);
+const [loggedTalukId, setLoggedTalukId] = useState(null);
+
+const role = authservice.getrole();
+const userId = authservice.userid();
 
   // Columns
   const columns = [
@@ -79,8 +85,11 @@ const fetchUsers = async () => {
   });
 
   if (!res.error && res.payload) {
+    console.log("Fetched Users:", res.payload.distId, res.payload.talukId);
     setUsers(res.payload.content);
     setTotalRows(res.payload.totalElements);
+     setLoggedDistrictId(res.payload.distId || null);
+  setLoggedTalukId(res.payload.talukId || null);
   } else {
     setUsers([]);
     setTotalRows(0);
@@ -97,6 +106,9 @@ useEffect(() => {
   setTaluk("");   // taluk always depends on district
 }, [district]);
 
+useEffect(() => {
+  setPage(0);
+}, [search]);
 
 // -------------------------
 // AUTO-SET LEVEL WHEN DISTRICT OR TALUK CHANGES
@@ -116,19 +128,34 @@ useEffect(() => {
 // RESET DISTRICT/TALUK WHEN LEVEL CHANGES
 // -------------------------
 useEffect(() => {
-  if (level === "ALL" || level === "DIRECTORATE") {
-    setDistrict("");
-    setTaluk("");
+  // IT Admin behaviour
+  if (role !== "District Level Approver") {
+    if (level === "ALL" || level === "DIRECTORATE") {
+      setDistrict("");
+      setTaluk("");
+    }
+
+    if (level === "DISTRICT") {
+      setTaluk("");
+    }
   }
 
-  if (level === "DISTRICT") {
-    setTaluk("");   // taluk must be empty at district level
+  // District Level Approver → DO NOTHING
+}, [level, role]);
+
+
+
+useEffect(() => {
+  if (
+    role === "District Level Approver" &&
+    loggedDistrictId &&
+    !district        // 🔥 IMPORTANT
+  ) {
+    setDistrict(loggedDistrictId);
+    setLevel("DISTRICT");
   }
+}, [role, loggedDistrictId, district]);
 
-  // level === "TALUK" → do nothing (district & taluk required)
-}, [level]);
-
-const role = authservice.getrole();
 
   // Fetch district list
   const loadDistricts = async () => {
@@ -179,7 +206,7 @@ const role = authservice.getrole();
    
 
     {/* LEVEL */}
-    {role != "Taluk Level Approver" && 
+    {(role != "Taluk Level Approver" && role != "District Level Approver") && 
     <TextField
       label="Office Type"
       select
@@ -195,23 +222,35 @@ const role = authservice.getrole();
     </TextField>}
 
     {/* DISTRICT */}
-    {role != "Taluk Level Approver" && 
-    <TextField
-      label="District"
-      select
-      size="small"
-      value={district}
-      onChange={(e) => setDistrict(e.target.value)}
-      style={{ width: "180px" }}
-      disabled={level === "DIRECTORATE"}
-    >
+  {role !== "Taluk Level Approver" && (
+  <TextField
+    label="District"
+    select
+    size="small"
+    value={district}
+    onChange={(e) => setDistrict(e.target.value)}
+    style={{ width: "180px" }}
+    disabled={
+      level === "DIRECTORATE" ||
+      role === "District Level Approver"
+    }
+  >
+    {/* "All" ONLY for IT Admin / Super Admin */}
+    {role !== "District Level Approver" && (
       <MenuItem value="">All</MenuItem>
-      {districts.map((d) => (
-        <MenuItem key={d.districtOfficeId} value={d.districtOfficeId}>
-          {d.districtOfficeNameEn}
-        </MenuItem>
-      ))}
-    </TextField>}
+    )}
+
+    {districts.map((d) => (
+      <MenuItem
+        key={d.districtOfficeId}
+        value={d.districtOfficeId}
+      >
+        {d.districtOfficeNameEn}
+      </MenuItem>
+    ))}
+  </TextField>
+)}
+
 
     {/* TALUK */}
     {role != "Taluk Level Approver" && 
@@ -224,7 +263,10 @@ const role = authservice.getrole();
       style={{ width: "180px" }}
       disabled={!district || level === "DIRECTORATE"}
     >
-      <MenuItem value="">All</MenuItem>
+      {role !== "District Level Approver" && (
+  <MenuItem value="">All</MenuItem>
+)}
+
       {taluks.map((t) => (
         <MenuItem key={t.desTalukId} value={t.desTalukId}>
           {t.talukOfficeNameEn}

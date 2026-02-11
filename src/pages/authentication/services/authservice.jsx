@@ -22,11 +22,12 @@ class authservice {
       const responseData = JSON.parse(decryptedJson);
       // localStorage.setItem('pression', response.payload.schmes);
       console.log('pression', response.payload);
+      // alert(responseData.payload.distid);
       // Store token/user
       localStorage.setItem('token', responseData.payload.token);
       localStorage.setItem('user', responseData.payload.username);
        localStorage.setItem('des', responseData.payload.designation);
-      console.log('>> >>>>> >>>>>> ', responseData);
+      //  localStorage.setItem('dis', responseData.payload.distid);
       return responseData;
     } catch (err) {
   if (err.response) {
@@ -52,8 +53,6 @@ console.log("err ",decryptedError.message)
   }
 }
   }
-
-
   
   static async fetchPermissions(token) {
     try {
@@ -154,6 +153,9 @@ static async logout(navigate) {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
   localStorage.removeItem('activeZone');
+  localStorage.removeItem('activeDistId');
+  localStorage.removeItem('des');
+  localStorage.removeItem('permissionsData');
   navigate('/login');
 
 }

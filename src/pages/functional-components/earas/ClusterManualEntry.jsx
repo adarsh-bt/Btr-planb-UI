@@ -73,6 +73,7 @@ const ClusterFormUI = () => {
 
     const [keyplotsData, setKeyplotsData] = useState([]);
     const [currentLabels, setCurrentLabels] = useState(['K', 'S1', 'E1', 'N1', 'W1']);
+    
     const [clusterInfo, setClusterInfo] = useState({
         clusterNo: '',
         localBody: '',
@@ -114,7 +115,7 @@ const ClusterFormUI = () => {
     const [isedit, setEdit] = useState(false);
     const [status, setStatus] = useState(false);
 
-
+const [showSummaryBox, setShowSummaryBox] = useState(false);
     const nextRowId = useRef(0);
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [snackbarOpen1, setSnackbarOpen1] = useState(false);
@@ -760,20 +761,29 @@ const ClusterFormUI = () => {
 
                 console.log("existed plots ", existingSidePlots);
 
-                const fixed = ['K'];
-                const existing = Object.keys(existingSidePlots).filter(l => l !== 'K');
-                const defaults = ['S1', 'E1', 'N1', 'W1'];
-                const uniqueDefaults = defaults.filter(d => !existing.includes(d));
-                const sideplots = [...existing, ...uniqueDefaults].slice(0, 4);
-                const allDirections = [...fixed, ...sideplots];
-
-                const mergedKeyplots = allDirections.map(dir => {
-                    return existingSidePlots[dir] || {
-                        id: dir,
-                        label: dir,
-                        rows: []
-                    };
-                });
+               const fixed = ['K'];
+// Start with just the keyplot
+const mergedKeyplots = [
+  existingSidePlots['K'] || {
+    id: 'K',
+    label: 'K',
+    rows: []
+  },
+  // Add empty slots for 4 side plots
+  ...Array(4).fill(null).map((_, index) => {
+    // Try to use existing side plots first
+    const existingLabels = Object.keys(existingSidePlots).filter(l => l !== 'K');
+    if (index < existingLabels.length) {
+      return existingSidePlots[existingLabels[index]];
+    }
+    // Otherwise create empty slot
+    return {
+      id: `sideplot-${index}`,
+      label: '', // Empty label initially
+      rows: []
+    };
+  })
+].filter(Boolean);
 
                 setKeyplotsData(mergedKeyplots);
                 const initialLabels = mergedKeyplots.map(kp => kp.label);
@@ -866,16 +876,35 @@ const ClusterFormUI = () => {
         return { type: 'ABOVE_MEAN' };
     };
 
-    const handleSubmit = () => {
-        const result = validateClusterLimits();
+  const handleSubmit = () => {
+  // First validate labels
+  const labelValidation = validateSidePlotLabels();
+  if (!labelValidation.isValid) {
+    setSnackbarMessage(labelValidation.message);
+    setSnackbarOpen(true);
+    return;
+  }
+  
+  // Then proceed with existing validation
+  const result = validateClusterLimits();
 
-        if (result.type === 'BLOCK') {
-            setOpenLimitDialog(true);
-            return;
-        }
+  if (result.type === 'BLOCK') {
+    setOpenLimitDialog(true);
+    return;
+  }
+  setOpenLimitDialog(true);
+};
+const hasValidRow = (keyplot) => {
+  if (!keyplot || !Array.isArray(keyplot.rows)) return false;
 
-        setOpenLimitDialog(true);
-    };
+  return keyplot.rows.some(row =>
+    row.villageName &&
+    row.block &&
+    row.svNo &&
+    row.area &&
+    row.enumeratedArea
+  );
+};
 
 
     const proceedSubmit = async (mode) => {
@@ -987,7 +1016,7 @@ const ClusterFormUI = () => {
             };
 
             console.log('✅ Final request data being sent:', JSON.stringify(requestData, null, 2));
-
+            console.log("res  ",requestData)
             // ✅ STEP 4: Send main save request
             const response = await fetch(`${BASE_URL}/btr-service/cluster-api/save-cluster`, {
                 method: 'POST',
@@ -1504,27 +1533,44 @@ const ClusterFormUI = () => {
     };
 
     const handleAddRow = (keyplotId) => {
-        const newData = JSON.parse(JSON.stringify(keyplotsData));
-        const keyplot = newData.find(k => k.id === keyplotId);
-        // alert(defaultBlock)
-        const newRow = {
-            uniqueId: nextRowId.current++,
-            // villageName: defaultVillage || '',
-            villageName:  '',
-            // villageId: defaultVillageId || null,
-            villageId:  null,
-            // block: defaultBlock || '',
-            block:  '',
-            svNo: '',
-            sub: '',
-            area: '',
-            enumeratedArea: '',
-            plot_id: '', // Will be set when plot details are fetched
-            isNew: true
-        };
-        keyplot.rows.push(newRow);
-        setKeyplotsData(newData);
+    const newData = JSON.parse(JSON.stringify(keyplotsData));
+    const keyplot = newData.find(k => k.id === keyplotId);
+
+    const newRow = {
+        uniqueId: nextRowId.current++,
+
+        // ✅ DEFAULT VALUES FROM KEYPLOT
+        villageName: defaultVillage || '',
+        villageId: defaultVillageId || null,
+        block: defaultBlock || '',
+
+        svNo: '',
+        sub: '',
+        area: '',
+        enumeratedArea: '',
+        plot_id: '',
+        isNew: true
     };
+
+    // ✅ set block options automatically for this village
+    if (defaultVillageId) {
+        const selectedVillage = allVillageData.find(
+            v => v.villageId === defaultVillageId
+        );
+
+        if (selectedVillage) {
+            const rowKey = `${keyplotId}-${newRow.uniqueId}`;
+            setRowBlockOptions(prev => ({
+                ...prev,
+                [rowKey]: selectedVillage.blocks.map(b => b.blockCode)
+            }));
+        }
+    }
+
+    keyplot.rows.push(newRow);
+    setKeyplotsData(newData);
+};
+
     const [removedRows, setRemovedRows] = useState([]);
     const handleRemoveRow = (keyplotId, rowUniqueId) => {
         const keyplot = keyplotsData.find(k => k.id === keyplotId);
@@ -1561,19 +1607,31 @@ const ClusterFormUI = () => {
     }, [keyplotId]);
 
     // Update the handleLabelChange function
-    const handleLabelChange = (newLabel, keyplotId) => {
-        setKeyplotsData(prevData => {
-            const updatedData = prevData.map(kp =>
-                kp.id === keyplotId ? { ...kp, label: newLabel } : kp
-            );
+  const handleLabelChange = (newLabel, keyplotId) => {
+  // If selecting empty option, don't allow
+  if (!newLabel.trim()) return;
+  
+  // Check if label is already used
+  const isAlreadyUsed = keyplotsData.some(kp => kp.label === newLabel && kp.id !== keyplotId);
+  if (isAlreadyUsed) {
+    setSnackbarMessage(`Label "${newLabel}" is already selected. Please choose a different label.`);
+    setSnackbarOpen(true);
+    return;
+  }
 
-            // Update currentLabels with the new set of labels
-            const labels = updatedData.map(kp => kp.label);
-            setCurrentLabels(labels);
+  
+  setKeyplotsData(prevData => {
+    const updatedData = prevData.map(kp =>
+      kp.id === keyplotId ? { ...kp, label: newLabel } : kp
+    );
 
-            return updatedData;
-        });
-    };
+    // Update currentLabels with the new set of labels
+    const labels = updatedData.map(kp => kp.label).filter(label => label);
+    setCurrentLabels(labels);
+
+    return updatedData;
+  });
+};
 
     const hasAnyError = Object.values(errors).some(error => error !== null && error !== '');
 
@@ -1599,66 +1657,49 @@ const ClusterFormUI = () => {
         return hasValidRow ? 'complete' : 'incomplete';
     };
 
-    const isSubmitDisabled = () => {
-        if (hasAnyError || submitting) return true;
-        if (!isedit) {
-            return true;
-        }
+const isSubmitDisabled = () => {
+  if (hasAnyError || submitting || !isedit) return true;
 
-        // Check if all current labels have at least one row
-        // We need exactly 5 labels to have rows (K + 4 side plots)
-        const labelsWithValidRows = new Set();
+  // ✅ Check K (Keyplot)
+  const kPlot = keyplotsData.find(kp => kp.label === 'K');
+  if (!hasValidRow(kPlot)) return true;
 
-        // Check each keyplot
-        for (const keyplot of keyplotsData) {
-            // Count rows that have all required data (not empty rows)
-            const hasValidRow = keyplot.rows.some(row => {
-                // For existing rows, we need all fields
-                if (row.isExisting || row.isNew) {
-                    return row.villageName &&
-                        row.block &&
-                        row.svNo &&
-                        row.area &&
-                        row.enumeratedArea;
-                }
-                return false;
-            });
-
-            if (hasValidRow) {
-                labelsWithValidRows.add(keyplot.label);
-            }
-        }
-
-        // We need at least 5 labels with valid rows (K + 4 others)
-        // First, ensure K has at least one valid row
-        const kHasRow = labelsWithValidRows.has('K');
-
-        // Count other labels with rows (excluding K)
-        const otherLabelsWithRows = [...labelsWithValidRows].filter(label => label !== 'K').length;
-
-        // Requirement: K must have a row + at least 4 other labels must have rows
-        if (!kHasRow || otherLabelsWithRows < 4) {
-            return true;
-        }
-
-        // Original validation - check if all rows have required data
-        const keyplotData = keyplotsData.find(kp => kp.label === 'K');
-        if (!keyplotData || keyplotData.rows.length === 0) return true;
-
-        // Check if all rows have required data
-        for (const keyplot of keyplotsData) {
-            for (const row of keyplot.rows) {
-                if (row.isExisting || row.isNew) {
-                    if (!row.villageName || !row.block || !row.svNo || !row.area || !row.enumeratedArea) {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
+  // ✅ Check if all 4 side plots have labels selected
+  const sidePlots = keyplotsData.filter(kp => kp.label !== 'K');
+  const sidePlotsWithLabels = sidePlots.filter(kp => kp.label && kp.label.trim() !== '');
+  
+  // Need exactly 4 side plots with labels
+  if (sidePlotsWithLabels.length < 4) return true;
+  
+  // ✅ Check side plots have valid rows
+  const validSidePlotCount = sidePlotsWithLabels.filter(kp => hasValidRow(kp)).length;
+  
+  // Need at least 4 side plots with valid rows
+  return validSidePlotCount < 4;
+};
+const validateSidePlotLabels = () => {
+  const sidePlots = keyplotsData.filter(kp => kp.label !== 'K');
+  const emptyLabelPlots = sidePlots.filter(kp => !kp.label || kp.label.trim() === '');
+  
+  if (emptyLabelPlots.length > 0) {
+    return {
+      isValid: false,
+      message: `${emptyLabelPlots.length} side plot(s) need label selection`
     };
-
+  }
+  
+  // Check for duplicate labels
+  const labels = sidePlots.map(kp => kp.label).filter(label => label);
+  const uniqueLabels = new Set(labels);
+  if (labels.length !== uniqueLabels.size) {
+    return {
+      isValid: false,
+      message: 'Duplicate labels detected. Please use unique labels for each side plot.'
+    };
+  }
+  
+  return { isValid: true };
+};
     // Get labels that are missing valid rows
     const getMissingLabels = () => {
         const labelsWithValidRows = new Set();
@@ -1722,8 +1763,8 @@ const ClusterFormUI = () => {
             {/* Floating Summary Bar - ORIGINAL UI PRESERVED */}
 
             <Grid item xs={12}>
-                {getMissingLabels().length > 0 && (
-                    <Box sx={{ position: 'fixed', top: '12%', left: 0, zIndex: 1000, borderRight: '4px solid #05307a', borderRadius: '0 1rem 0 1rem', backgroundColor: 'rgba(247, 236, 186, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
+                {/* {getMissingLabels().length > 0 && ( */}
+                    {/* <Box sx={{ position: 'fixed', top: '12%', left: 0, zIndex: 1000, borderRight: '4px solid #05307a', borderRadius: '0 1rem 0 1rem', backgroundColor: 'rgba(247, 236, 186, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
                         <Typography variant="h6" fontWeight="bold" gutterBottom>SidePlots Requirements</Typography>
                         <Typography variant="body2" color="textSecondary">
                             <strong>Requirements:</strong>
@@ -1733,17 +1774,16 @@ const ClusterFormUI = () => {
                             </Box>
                         </Typography>
 
-                        {/* Show current labels */}
+                  
                         <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
                             <strong>Current plots:</strong> {currentLabels.join(', ')}
                         </Typography>
 
-                        {/* Show missing labels */}
                         {getMissingLabels().length > 0 && (
                             <Typography variant="body2" color="error" sx={{ mt: 1, fontWeight: 'bold' }}>
                                 <strong>Missing rows in:</strong> {getMissingLabels().join(', ')}
                             </Typography>
-                        )}
+                        )} */}
 
                         {/* Show progress */}
                         {/* <Box sx={{ mt: 1 }}>
@@ -1753,59 +1793,64 @@ const ClusterFormUI = () => {
                             </Typography>
 
                         </Box> */}
-                    </Box>)}
-                . <Box sx={{ position: 'fixed', top: '15%', right: 0, zIndex: 1000, borderRadius: '1rem 0 0 1rem', backgroundColor: 'rgba(212, 228, 231, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
-                    <Typography variant="subtitle1" fontWeight="bold">Cluster: {slNo} | {clusterInfo.localBody}</Typography>
-                    <Box sx={{ width: '100%', mt: 1 }}>
-                        <Typography variant="subtitle1"><strong>Total Enumerated Area:</strong> {clusterInfo.totalArea.toFixed(2)} Cent</Typography>
-
-                        <LinearProgress
-                            variant="determinate"
-                            value={(parseFloat(clusterInfo.totalArea) / maxcluster) * 100} // Assuming 600 cents is 6 acres
-                            sx={{
-                                height: 10,
-                                borderRadius: 5,
-                                '& .MuiLinearProgress-bar': {
-                                    backgroundColor: () => {
-                                        const totalCents = parseFloat(clusterInfo.totalArea);
-                                        if (totalCents > maxcluster) { // Example: Warning when close to limit (e.g., over 5.5 acres)
-                                            return 'error.main'; // Red
-                                        } else if (totalCents > meanCluster) { // Example: Approaching limit (e.g., over 4.5 acres)
-                                            return 'warning.main'; // Orange/Yellow
-                                        }
-                                        return 'success.main'; // Green
-                                    },
-                                },
-                            }}
-                        />
-
-                        <Typography variant="caption" display="block" sx={{ mt: 0.5, textAlign: 'right', color: 'text.secondary' }}>
-                            {clusterInfo.totalArea.toFixed(2)} / {maxcluster} Cents (Max {maxcluster / 100} Acres)
-                        </Typography>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                            <Tooltip title="View FMB"><Button variant="contained" color="secondary"><MapIcon />FMB</Button></Tooltip>
-                            {/* <Tooltip title="Reject Cluster"><Button variant="contained" color="error"><WarningAmberIcon /></Button></Tooltip> */}
-                            {role === 'Field Data Collector' && (
-                                // In your floating save button:
-                                <Tooltip title={getMissingLabels().length > 0 ?
-                                    `Required: ${getMissingLabels().length} more plot(s) need rows (K + 4 others)` :
-                                    "Save cluster"}>
-                                    <Button
-                                        onClick={handleSubmit}
-                                        variant="contained"
-                                        color="primary"
-                                        disabled={isSubmitDisabled()}
-                                        startIcon={submitting ? <CircularProgress size={20} /> : <SaveIcon />}
-                                    >
-                                        {submitting ? 'Saving...' : 'Save'}
-                                    </Button>
-                                </Tooltip>)}
-                        </Box>
-                    </Box>
-                </Box>
+                    {/* </Box>)} */}
+               {!showSummaryBox && (
+      <Box sx={{ position: 'fixed', top: '15%', right: 0, zIndex: 1000, borderRadius: '1rem 0 0 1rem', backgroundColor: 'rgba(212, 228, 231, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
+        <Grid container alignItems="center" justifyContent="space-between">
+        <Typography variant="subtitle1" fontWeight="bold">Cluster: {slNo} | {clusterInfo.localBody}</Typography>  
+         <IconButton 
+        size="small" 
+        onClick={() => setShowSummaryBox(true)}
+        sx={{ color: '#05307a' }}
+      >
+        <CloseIcon fontSize="small" />
+      </IconButton></Grid>
+        <Box sx={{ width: '100%', mt: 1 }}>
+          <Typography variant="subtitle1"><strong>Total Enumerated Area:</strong> {clusterInfo.totalArea.toFixed(2)} Cent</Typography>
+          <LinearProgress variant="determinate" value={totalAreaProgress} sx={{ height: 8, borderRadius: 4, mt: 0.5 }} />
+          <Typography variant="caption" display="block" sx={{ mt: 0.5, textAlign: 'right', color: 'text.secondary' }}>
+            {clusterInfo.totalArea.toFixed(2)} / {clusterInfo.maxArea} Cents
+          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+            <Tooltip title="View FMB"><Button variant="contained" color="secondary"><MapIcon /></Button></Tooltip>
+            {/* <Tooltip title="Reject Cluster"><Button variant="contained" color="error"><WarningAmberIcon /></Button></Tooltip> */}
+            <Tooltip title="Submit">
+            <span>
+              {role === 'Field Data Collector' && (
+                <Button
+                  onClick={handleSubmit}
+                  variant="contained"
+                  color="primary"
+                  disabled={isSubmitDisabled()}
+                  startIcon={submitting ? <CircularProgress size={20} /> : <SaveIcon />}
+                >
+                  {submitting ? 'Saving...' : 'Submit'}
+                </Button>
+              )}</span>
+            </Tooltip>
+          </Box>
+        </Box>
+      </Box>
+)}
 
                 <Typography variant="h4" align="center" gutterBottom color="primary" sx={{ mb: 2 }}>Cluster Land Form</Typography>
 
+<Box sx={{ position: 'fixed', top: '20%', right: 0, zIndex: 999 }}>
+  <Tooltip title={showSummaryBox ? "Hide Summary" : "Show Summary"}>
+    <IconButton
+      onClick={() => setShowSummaryBox(!showSummaryBox)}
+      sx={{
+        bgcolor: 'primary.main',
+        color: 'white',
+        '&:hover': { bgcolor: 'primary.dark' },
+        boxShadow: 2,
+        borderRadius: '8px 0 0 8px'
+      }}
+    >
+      {showSummaryBox ? <CloseIcon /> : <InfoIcon />}
+    </IconButton>
+  </Tooltip>
+</Box>
                 <Box sx={{ maxWidth: '1400px', mx: 'auto' }}>
                     {/* Cluster Info Section - ORIGINAL UI PRESERVED */}
                     <Box sx={{ bgcolor: '#05307a', color: 'white', p: 1, borderRadius: 1, mb: 2, fontWeight: 'bold', textAlign: 'center' }}>Cluster Info</Box>
@@ -2072,31 +2117,45 @@ const ClusterFormUI = () => {
                                             </Paper>
                                         </Box>
                                     ) : (
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <Typography variant="h6">Side Plot -</Typography>
-                                            <FormControl size="small" sx={{ minWidth: 90 }}>
-                                                <Select
-                                                    value={keyplot.label}
-                                                    onChange={(e) => handleLabelChange(e.target.value, keyplot.id)}
-                                                    sx={{
-                                                        color: 'white',
-                                                        '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                                                        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
-                                                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
-                                                        '& .MuiSvgIcon-root': { color: 'white' },
-                                                    }}
-                                                >
-                                                    {SIDE_PLOT_OPTIONS.map(option => {
-                                                        const isDisabled = selectedLabels.includes(option) && option !== keyplot.label;
-                                                        return (
-                                                            <MenuItem key={option} value={option} disabled={isDisabled}>
-                                                                {option}
-                                                            </MenuItem>
-                                                        );
-                                                    })}
-                                                </Select>
-                                            </FormControl>
-                                        </Box>
+                                       
+<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+  <Typography variant="h6">Side Plot -</Typography>
+  <FormControl size="small" sx={{ minWidth: 120 }} error={!keyplot.label}>
+    {/* <InputLabel>Select Label</InputLabel> */}
+    <Select
+      value={keyplot.label || ''}
+      onChange={(e) => handleLabelChange(e.target.value, keyplot.id)}
+      displayEmpty
+    //   label="Select Label"
+      sx={{
+        color: keyplot.label ? 'white' : 'rgba(255, 255, 255, 0.7)',
+        '& .MuiOutlinedInput-notchedOutline': { 
+          borderColor: keyplot.label ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.3)' 
+        },
+        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
+        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
+        '& .MuiSvgIcon-root': { color: 'white' },
+      }}
+    >
+      <MenuItem value="" disabled>
+        <em>Select a label</em>
+      </MenuItem>
+      {SIDE_PLOT_OPTIONS.map(option => {
+        const isDisabled = keyplotsData.some(kp => kp.label === option);
+        return (
+          <MenuItem key={option} value={option} disabled={isDisabled}>
+            {option} {isDisabled && option !== keyplot.label && ' (Already selected)'}
+          </MenuItem>
+        );
+      })}
+    </Select>
+    {/* {!keyplot.label && (
+      <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.8)', mt: 0.5 }}>
+        Please select a label
+      </Typography>
+    )} */}
+  </FormControl>
+</Box>
                                     )}
 
                                     {/* RIGHT SIDE: Total enumerated area for this section */}
@@ -2212,7 +2271,9 @@ const ClusterFormUI = () => {
                                                         <Grid item xs={1}><TextField value={row.sub} InputProps={{ readOnly: true }} fullWidth size="small" /></Grid>
                                                         <Grid item xs={2}><TextField value={row.area} InputProps={{ readOnly: !isKeyPlotFirstRow && isAreaReadOnly || row.isExisting }} fullWidth size="small" type="number" onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'area')} /></Grid>
                                                         <Grid item xs={2}><TextField label="Enum. Area" size="small" InputProps={{ readOnly: row.isExisting }} fullWidth type="number" value={row.enumeratedArea} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')} onBlur={(e) => handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')} error={hasError} helperText={hasError ? errors[errorKey] : ''} /></Grid>
+                                                         {(status != "Completed" && status != "Under Review") && (
                                                         <Grid item xs={1}>{!isKeyPlotFirstRow && (<Tooltip title="Remove Row"><IconButton onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)} size="small" color="error"><RemoveCircleOutlineIcon /></IconButton></Tooltip>)}</Grid>
+                                                         )}
                                                         <Grid item xs={1}>
                                                             {row.isExisting && (
                                                                 <Chip label="Saved" size="small" color="success" variant="outlined" />

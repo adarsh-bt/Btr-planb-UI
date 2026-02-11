@@ -23,34 +23,50 @@ export default function ZoneOptions() {
   const user_id = authservice.userid();
   
   // Fetch zones and restore last selected zone
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    axios
-      axios
+useEffect(() => {
+  const token = localStorage.getItem('token');
+
+  axios
     .get(`${BASE_URL}/btr-service/btr-api/zones/assigned/${user_id}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     })
-      .then((response) => {
-        const data = response.data;
-        setZones(data);
+    .then((response) => {
+      const data = response.data;
+      setZones(data);
 
-        if (data.length > 0) {
-          const savedZone = localStorage.getItem('activeZone');
-          if (savedZone && data.some((z) => z.zoneId.toString() === savedZone)) {
-            setZone(savedZone);
-          } else {
-            const firstZone = data[0].zoneId.toString();
-            setZone(firstZone);
-            localStorage.setItem('activeZone', firstZone);
-          }
+      if (data.length > 0) {
+        const savedZone = localStorage.getItem('activeZone');
+
+        let selectedZoneObj;
+
+        if (savedZone) {
+          selectedZoneObj = data.find(
+            (z) => z.zoneId.toString() === savedZone
+          );
         }
-      })
-      .catch((error) => {
-        console.error('Error fetching zones:', error);
-      });
-  }, [BASE_URL, user_id]);
+
+        // fallback to first zone
+        if (!selectedZoneObj) {
+          selectedZoneObj = data[0];
+        }
+
+        setZone(selectedZoneObj.zoneId.toString());
+
+        // 🔑 SAVE BOTH
+        localStorage.setItem('activeZone', selectedZoneObj.zoneId.toString());
+        localStorage.setItem(
+          'activeDistId',
+          selectedZoneObj.dist_id.toString()
+        );
+      }
+    })
+    .catch((error) => {
+      console.error('Error fetching zones:', error);
+    });
+}, [BASE_URL, user_id]);
+
 
   const handleOpenDialog = (event) => {
     const newZone = event.target.value;
@@ -60,11 +76,24 @@ export default function ZoneOptions() {
     }
   };
 
- const handleConfirmSwitch = () => {
-  setZone(pendingZone);
-  localStorage.setItem('activeZone', pendingZone);
+const handleConfirmSwitch = () => {
+  const selectedZoneObj = zones.find(
+    (z) => z.zoneId.toString() === pendingZone
+  );
+
+  if (selectedZoneObj) {
+    setZone(pendingZone);
+
+    // 🔑 SAVE BOTH VALUES
+    localStorage.setItem('activeZone', pendingZone);
+    localStorage.setItem(
+      'activeDistId',
+      selectedZoneObj.dist_id.toString()
+    );
+  }
+
   setOpenDialog(false);
-  window.location.reload(); // Force reload to apply new zone everywhere
+  window.location.reload();
 };
 
 

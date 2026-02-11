@@ -629,12 +629,7 @@ useEffect(() => {
       onSubmit={handleProfileUpdate}
     />
     </Grid>
-
-    
-
   );
-  
-
 };
 
 export default Profile;
