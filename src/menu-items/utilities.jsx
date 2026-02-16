@@ -92,6 +92,13 @@ const zoneDetails = {
   url: '/schemes/earas/zone_details',
   icon: icons.EnvironmentOutlined
 };
+const earasManagement = {
+  id: 'util-earasmanagement',
+  title: 'Earas Management',
+  type: 'item',
+  url: '/schemes/earas/earas_management',
+  icon: icons.DeliveredProcedureOutlined
+};
 
 const userApproval = {
   id: 'util-userapproval',
@@ -153,6 +160,11 @@ if (role == 'Super Admin' ||role === 'IT Admin' || role === 'District Level Appr
     workallocation,
     cceview,
     ccereport
+  );
+} else if (role === 'EARAS Admin') {
+  utilities.children.push(
+    zoneDetails,
+    earasManagement
   );
 } else {
   // Fallback for undefined/empty/other roles

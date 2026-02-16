@@ -413,7 +413,7 @@ const handleSubmitAction = async (isApprove) => {
           </Box>
 
           {/* Error Display */}
-          {error && (
+          {/* {error && (
             <Alert 
               severity="error" 
               sx={{ mb: 3 }}
@@ -429,7 +429,7 @@ const handleSubmitAction = async (isApprove) => {
             >
               {error}
             </Alert>
-          )}
+          )} */}
 
           {/* Filters Section */}
           <Box sx={{ 

@@ -957,8 +957,11 @@ const proceedSubmit = async (mode) => {
     setSubmitSuccess(true);
     setSnackbarMessage('Cluster data saved successfully!');
     setSnackbarOpen(true);
-    setOpenLimitDialog(false);
-
+    // setOpenLimitDialog(false);
+  if (mode === 'ON_GOING') {
+                    setOpenLimitDialog(false)
+                     window.location.reload();
+            }
     // Update local status
     setStatus(mode === 'COMPLETED' ? 'Completed' : mode === 'Under Review' ? 'Under Review' : 'On Going');
 
