@@ -23,7 +23,7 @@ import {
 import BusinessIcon from '@mui/icons-material/Business';
 import CheckIcon from '@mui/icons-material/Check';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-
+import { Alert } from '@mui/material';
 import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import SaveIcon from '@mui/icons-material/Save';
@@ -412,16 +412,40 @@ const handleSchemeRoleActiveChange = (index, value) => {
         });
         console.log("role  dddd ",payload.roleSchemeResponses)
       // Other state updates...
-      setSchemeRolePairs(
-        (payload.roleSchemeResponses || []).map((r) => ({
-          id:r.id,
-          schemeId: r.schemeId,
-          schemeName: r.schemeName,
-          roleId: r.roleId,
-          roleName: r.roleName,
-          isActive:r.isActive
-        }))
-      );
+      // setSchemeRolePairs(
+      //   (payload.roleSchemeResponses || []).map((r) => ({
+      //     id:r.id,
+      //     schemeId: r.schemeId,
+      //     schemeName: r.schemeName,
+      //     roleId: r.roleId,
+      //     roleName: r.roleName,
+      //     isActive:r.isActive
+      //   }))
+      // );
+      // Replace the setSchemeRolePairs line with:
+setSchemeRolePairs(
+  (payload.roleSchemeResponses || []).slice(0, 1).map((r) => ({
+    id: r.id,
+    schemeId: r.schemeId,
+    schemeName: r.schemeName,
+    roleId: r.roleId,
+    roleName: r.roleName,
+    isActive: r.isActive
+  }))
+);
+
+// If no role exists, initialize with an empty pair
+if ((payload.roleSchemeResponses || []).length === 0) {
+  setSchemeRolePairs([{
+    id: null,
+    schemeId: '',
+    schemeName: '',
+    roleId: '',
+    roleName: '',
+    isActive: true
+  }]);
+}
+
       setOffice(payload.officeLocation || '');
       setOfficeType(payload.officeType || '');
       setUserStatus(payload.active ? 'active' : 'inactive');
@@ -677,9 +701,27 @@ const handleSaveDesignationClick = () => {
     setIsEditingDesignation(false);
     setDesignationError('');
   };
+// Add this useEffect to debug state changes
+useEffect(() => {
+  console.log('schemeRolePairs updated:', schemeRolePairs);
+  console.log('rolesByScheme updated:', rolesByScheme);
+}, [schemeRolePairs, rolesByScheme]);
 
+// Also add this to debug when editing mode changes
+useEffect(() => {
+  console.log('isEditingSchemes:', isEditingSchemes);
+  console.log('Current schemeRolePairs in edit mode:', schemeRolePairs);
+}, [isEditingSchemes]);
+
+useEffect(() => {
+  if (isEditingSchemes && schemeRolePairs[0]?.schemeId) {
+    console.log('Current scheme in edit mode:', schemeRolePairs[0].schemeId);
+    console.log('Available roles for this scheme:', rolesByScheme[schemeRolePairs[0].schemeId]);
+    console.log('Current roleId:', schemeRolePairs[0].roleId);
+  }
+}, [isEditingSchemes, schemeRolePairs, rolesByScheme]);
   // --- Scheme and Role Handlers ---
-  const handleEditSchemes = async () => {
+const handleEditSchemes = async () => {
   setSchemesLoading(true);
   try {
     const schemes = await ApprovedUserService.getSchemes();
@@ -687,14 +729,46 @@ const handleSaveDesignationClick = () => {
       setAllSchemes(schemes || []);
     }
 
-    // For each current scheme-role pair, fetch roles if not already loaded
-    for (const pair of schemeRolePairs) {
-      if (!rolesByScheme[pair.schemeId]) {
-        const roles = await ApprovedUserService.getRolesbySchemes(pair.schemeId);
-        setRolesByScheme((prev) => ({
-          ...prev,
-          [pair.schemeId]: roles.error ? [] : roles || []
-        }));
+    // If no role exists or the array is empty, ensure we have a pair
+    if (schemeRolePairs.length === 0 || !schemeRolePairs[0]) {
+      setSchemeRolePairs([{
+        id: null,
+        schemeId: '',
+        schemeName: '',
+        roleId: '',
+        roleName: '',
+        isActive: true
+      }]);
+    } else {
+      // Preload roles for existing scheme if not already loaded
+      const existingPair = schemeRolePairs[0];
+      if (existingPair.schemeId && !rolesByScheme[existingPair.schemeId]) {
+        try {
+          const roles = await ApprovedUserService.getRolesbySchemes(existingPair.schemeId);
+          let rolesList = [];
+          
+          if (Array.isArray(roles)) {
+            rolesList = roles;
+          } else if (roles?.payload && Array.isArray(roles.payload)) {
+            rolesList = roles.payload;
+          } else if (roles?.data && Array.isArray(roles.data)) {
+            rolesList = roles.data;
+          }
+          
+          // Transform roles to consistent format
+          const transformedRoles = rolesList.map(role => ({
+            id: role.id || role.roleId || role.value,
+            name: role.name || role.roleName || role.label || '',
+            roleName: role.roleName || role.name || role.label || ''
+          }));
+          
+          setRolesByScheme((prev) => ({
+            ...prev,
+            [existingPair.schemeId]: transformedRoles
+          }));
+        } catch (err) {
+          console.error('Failed to preload roles:', err);
+        }
       }
     }
 
@@ -704,90 +778,208 @@ const handleSaveDesignationClick = () => {
   }
   setSchemesLoading(false);
 };
+  // const handleSchemeChange = async (idx, schemeId) => {
+  //   // Update the selected scheme in the pair
+  //   const schemeObj = allSchemes.find((s) => s.id === schemeId);
+  //   setSchemeRolePairs((pairs) =>
+  //     pairs.map((pair, i) => (i === idx ? { ...pair, schemeId, schemeName: schemeObj?.schemeName || '', roleId: '', roleName: '' } : pair))
+  //   );
 
-  const handleSchemeChange = async (idx, schemeId) => {
-    // Update the selected scheme in the pair
-    const schemeObj = allSchemes.find((s) => s.id === schemeId);
-    setSchemeRolePairs((pairs) =>
-      pairs.map((pair, i) => (i === idx ? { ...pair, schemeId, schemeName: schemeObj?.schemeName || '', roleId: '', roleName: '' } : pair))
-    );
+  //   // Fetch roles for this scheme if not already fetched
+  //   if (!rolesByScheme[schemeId]) {
+  //     setRolesLoading(true);
+  //     try {
+  //       const roles = await ApprovedUserService.getRolesbySchemes(schemeId);
+  //       setRolesByScheme((prev) => ({
+  //         ...prev,
+  //         [schemeId]: roles.error ? [] : roles || []
+  //       }));
+  //     } catch (err) {
+  //       console.error('Failed to fetch roles:', err);
+  //       setRolesByScheme((prev) => ({ ...prev, [schemeId]: [] }));
+  //     } finally {
+  //       setRolesLoading(false);
+  //     }
+  //   }
+  // };
+const handleSchemeChange = async (idx, schemeId) => {
+  // Update the selected scheme in the pair
+  const schemeObj = allSchemes.find((s) => s.id === schemeId);
+  
+  const updatedPair = { 
+    ...(schemeRolePairs[0] || {}), 
+    schemeId, 
+    schemeName: schemeObj?.schemeName || '', 
+    roleId: '', 
+    roleName: '' 
+  };
+  
+  setSchemeRolePairs([updatedPair]);
 
-    // Fetch roles for this scheme if not already fetched
-    if (!rolesByScheme[schemeId]) {
-      setRolesLoading(true);
-      try {
-        const roles = await ApprovedUserService.getRolesbySchemes(schemeId);
-        setRolesByScheme((prev) => ({
-          ...prev,
-          [schemeId]: roles.error ? [] : roles || []
-        }));
-      } catch (err) {
-        console.error('Failed to fetch roles:', err);
-        setRolesByScheme((prev) => ({ ...prev, [schemeId]: [] }));
-      } finally {
-        setRolesLoading(false);
-      }
+  // If roles for this scheme are already cached, use them
+  if (rolesByScheme[schemeId]) {
+    console.log(`Using cached roles for scheme ${schemeId}:`, rolesByScheme[schemeId]);
+    return;
+  }
+  
+  // Otherwise fetch them
+  console.log(`Fetching roles for scheme ${schemeId}...`);
+  setRolesLoading(true);
+  try {
+    const roles = await ApprovedUserService.getRolesbySchemes(schemeId);
+    console.log(`Fetched roles for scheme ${schemeId}:`, roles);
+    
+    let rolesList = [];
+    if (Array.isArray(roles)) {
+      rolesList = roles;
+    } else if (roles?.payload && Array.isArray(roles.payload)) {
+      rolesList = roles.payload;
+    } else if (roles?.data && Array.isArray(roles.data)) {
+      rolesList = roles.data;
+    } else if (roles?.error) {
+      console.error('Error in roles response:', roles.message);
     }
-  };
+    
+    // Transform roles to consistent format
+    const transformedRoles = rolesList.map(role => ({
+      id: role.id || role.roleId || role.value,
+      name: role.name || role.roleName || role.label || '',
+      roleName: role.roleName || role.name || role.label || ''
+    }));
+    
+    setRolesByScheme((prev) => ({
+      ...prev,
+      [schemeId]: transformedRoles
+    }));
+    
+    console.log(`Stored transformed roles for scheme ${schemeId}:`, transformedRoles);
+  } catch (err) {
+    console.error('Failed to fetch roles:', err);
+    setRolesByScheme((prev) => ({ ...prev, [schemeId]: [] }));
+  } finally {
+    setRolesLoading(false);
+  }
+};
 
-  const handleRoleChange = (idx, roleId) => {
-    const pair = schemeRolePairs[idx];
-    const roleObj = (rolesByScheme[pair.schemeId] || []).find((r) => r.id === roleId);
-    setSchemeRolePairs((pairs) => pairs.map((pair, i) => (i === idx ? { ...pair, roleId, roleName: roleObj?.name || '' } : pair)));
+const handleRoleChange = (idx, roleId) => {
+  const pair = schemeRolePairs[0] || {};
+  // First try to find role in rolesByScheme with the current schemeId
+  const availableRoles = rolesByScheme[pair.schemeId] || [];
+  
+  // Try different property names
+  const roleObj = availableRoles.find((r) => 
+    r.id === roleId || 
+    r.roleId === roleId ||
+    r.value === roleId
+  );
+  
+  const updatedPair = {
+    ...pair,
+    roleId,
+    roleName: roleObj?.name || roleObj?.roleName || roleObj?.label || ''
   };
+  
+  setSchemeRolePairs([updatedPair]);
+};
 
-  const handleAddPair = () => {
-    setSchemeRolePairs((pairs) => [...pairs, { schemeId: '', schemeName: '', roleId: '', roleName: '' }]);
-  };
+  // const handleSaveSchemes = async () => {
+  //   const roleScheme = schemeRolePairs
+  //   .filter((pair) => pair.schemeId && pair.roleId)
+  //   .map((pair) => ({
+  //     schemeId: pair.schemeId,
+  //     roleId: pair.roleId,
+  //     id: pair.id,
+  //     isActive: pair.isActive, // Use the correct property name
+  //   }));
 
-  const handleRemovePair = (idx) => {
-    setSchemeRolePairs((pairs) => pairs.filter((_, i) => i !== idx));
-  };
+  //  try {
+  //   const result = await ApprovedUserService.updateUserRoleScheme({
+  //     userId,
+  //     isActive: userStatus === 'active',
+  //     roleScheme
+  //   });
 
+  //     if (result.error) {
+  //      setConfirmMessage(`Failed to update schemes/roles: ${result.message}`);
+  //     } else {
+  //       setConfirmMessage('Schemes and roles updated!');
+  //       setIsEditingSchemes(false);
+
+  //       // Refresh user data
+  //       const updatedRes = await ApprovedUserService.fetchUserById(userId);
+        
+  //       if (!updatedRes.error) {
+  //         setUserData(updatedRes.payload);
+  //         console.log("schemes rolesss "+updatedRes.payload)
+  //         setSchemeRolePairs(
+  //           (updatedRes.payload.roleSchemeResponses || []).map((r) => ({
+  //             schemeId: r.schemeId,
+  //             schemeName: r.schemeName,
+  //             roleId: r.roleId,
+  //             roleName: r.roleName
+  //           }))
+  //         );
+  //       }
+  //     }
+  //     setConfirmOpen(true);
+  //   } catch (err) {
+  //     setConfirmMessage('Failed to update schemes/roles');
+  //   }
+  // };
   const handleSaveSchemes = async () => {
-    const roleScheme = schemeRolePairs
+  // Ensure we only have one role
+  const roleScheme = schemeRolePairs
     .filter((pair) => pair.schemeId && pair.roleId)
+    .slice(0, 1) // Only take the first one
     .map((pair) => ({
       schemeId: pair.schemeId,
       roleId: pair.roleId,
       id: pair.id,
-      isActive: pair.isActive, // Use the correct property name
+      isActive: pair.isActive,
     }));
 
-   try {
+  if (roleScheme.length === 0) {
+    setConfirmMessage('Please select both scheme and role');
+    setConfirmOpen(true);
+    return;
+  }
+
+  try {
     const result = await ApprovedUserService.updateUserRoleScheme({
       userId,
       isActive: userStatus === 'active',
       roleScheme
     });
 
-      if (result.error) {
-       setConfirmMessage(`Failed to update schemes/roles: ${result.message}`);
-      } else {
-        setConfirmMessage('Schemes and roles updated!');
-        setIsEditingSchemes(false);
+    if (result.error) {
+      setConfirmMessage(`Failed to update role: ${result.message}`);
+    } else {
+      setConfirmMessage('Role updated successfully!');
+      setIsEditingSchemes(false);
 
-        // Refresh user data
-        const updatedRes = await ApprovedUserService.fetchUserById(userId);
-        
-        if (!updatedRes.error) {
-          setUserData(updatedRes.payload);
-          console.log("schemes rolesss "+updatedRes.payload)
-          setSchemeRolePairs(
-            (updatedRes.payload.roleSchemeResponses || []).map((r) => ({
-              schemeId: r.schemeId,
-              schemeName: r.schemeName,
-              roleId: r.roleId,
-              roleName: r.roleName
-            }))
-          );
-        }
+      // Refresh user data
+      const updatedRes = await ApprovedUserService.fetchUserById(userId);
+      
+      if (!updatedRes.error) {
+        setUserData(updatedRes.payload);
+      setSchemeRolePairs(
+  (payload.roleSchemeResponses || []).slice(0, 1).map((r) => ({
+    id: r.id,
+    schemeId: r.schemeId,
+    schemeName: r.schemeName,
+    roleId: r.roleId,
+    roleName: r.roleName,
+    isActive: r.isActive
+  }))
+);
+
       }
-      setConfirmOpen(true);
-    } catch (err) {
-      setConfirmMessage('Failed to update schemes/roles');
     }
-  };
+    setConfirmOpen(true);
+  } catch (err) {
+    setConfirmMessage('Failed to update role');
+  }
+};
 
   if (loading) return <div>Loading user details...</div>;
   if (error) return <div style={{ color: 'red' }}>{error}</div>;
@@ -1114,157 +1306,195 @@ const handleSaveDesignationClick = () => {
 
                   {/* Change Schemes & Roles */}
                   <hr></hr>
-                  {innerTabValue === 0 && (
-          <Grid container spacing={3}>
-                   {!isEditingSchemes ? (
-                        <>
-                          {/* --- VIEW MODE --- */}
-                          {schemeRolePairs.length === 0 ? (
-                            <Grid item xs={12}>
-                              <Typography color="text.secondary">No schemes or roles assigned.</Typography>
-                            </Grid>
-                          ) : (
-                            schemeRolePairs.map((pair, idx) => (
-                              <Grid item xs={12} sm={6} md={4} key={idx} >
-                                <Paper elevation={2} sx={{ p: 2, borderLeft: pair.active === false ? '4px solid red' : '4px solid green',background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', }}>
-                                  <Typography variant="subtitle1" fontWeight="bold">{pair.schemeName}</Typography>
-                                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Role: {pair.roleName}</Typography>
-                                  
-                                  {/* Container for Status and Date on the same row */}
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
-                                    
-                                    {/* Status Chip */}
-                                 
-                                    <Chip
-                                      label={pair.isActive === false ? 'Inactive' : 'Active'} // Use isActive
-                                      color={pair.isActive === false ? 'error' : 'success'}
-                                      size="small"
-                                      sx={{ color: '#fff' }}
-                                    />
-                                    
-                                    {/* 💥 NEW: Sample Date Display 💥 */}
-                                    <Typography variant="caption" color="text.secondary">
-                                      2024-10-25 {/* Note: If 'pair' had a date field (e.g., pair.startDate), you would use that here. */}
-                                    </Typography>
-                                  </Box>
-                                  
-                                </Paper>
-                              </Grid>
-                            ))
-                          )}
-                          <Grid item xs={12}>
-                            <Button variant="outlined" disabled={true}  startIcon={<EditIcon />} onClick={handleEditSchemes} sx={{ mt: 2 }}>
-                              Edit Schemes & Roles
-                            </Button>
-                          </Grid>
-                        </>
-                      ) : (
-                        <>
-                          {/* --- EDIT MODE --- */}
-                          <Grid item xs={12}>
-                            <Typography variant="h6" gutterBottom>Edit Scheme & Role Assignments</Typography>
-                          </Grid>
-                          
-                          {/* Dynamic Scheme/Role Pair Cards */}
-                          {schemeRolePairs.map((pair, idx) => (
-                            <Grid item xs={12} key={idx}>
-                              <Paper elevation={3} sx={{ p: 3, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: 'center', border: '1px solid #ddd' }}>
-                                
-                                {/* Scheme Select */}
-                                <FormControl fullWidth size="small" sx={{ flex: 1 }}>
-                                  <InputLabel id={`scheme-label-${idx}`}>Scheme</InputLabel>
-                                  <Select
-                                    labelId={`scheme-label-${idx}`}
-                                    value={pair.schemeId}
-                                    onChange={(e) => handleSchemeChange(idx, e.target.value)}
-                                    disabled={schemesLoading}
-                                    label="Scheme"
-                                  >
-                                    {allSchemes.map((s) => (
-                                      <MenuItem key={s.id} value={s.id}>
-                                        {s.schemeName}
-                                      </MenuItem>
-                                    ))}
-                                  </Select>
-                                </FormControl>
+               {innerTabValue === 0 && (
+  <Grid container spacing={3}>
+    {/* --- VIEW MODE --- */}
+   {/* --- VIEW MODE --- */}
+{!isEditingSchemes ? (
+  <>
+    {schemeRolePairs.length === 0 || !schemeRolePairs[0]?.schemeId || !schemeRolePairs[0]?.roleId ? (
+      // No role assigned - show Add Role button
+      <Grid item xs={12}>
+        <Paper elevation={2} sx={{ p: 3, textAlign: 'center', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
+          <Typography variant="subtitle1" gutterBottom>
+            No role assigned to this user
+          </Typography>
+          <Button 
+            variant="contained" 
+            startIcon={<AddCircleOutlineIcon />} 
+            onClick={handleEditSchemes}
+            sx={{ mt: 2 }}
+          >
+            Add Role
+          </Button>
+        </Paper>
+      </Grid>
+    ) : (
+      // One role assigned - show role details with edit button
+      <>
+        {schemeRolePairs.map((pair, idx) => (
+          <Grid item xs={12} sm={6} md={4} key={idx}>
+            <Paper elevation={2} sx={{ p: 2, borderLeft: '4px solid green', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
+              <Typography variant="subtitle1" fontWeight="bold">{pair.schemeName}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Role: {pair.roleName}</Typography>
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+                <Chip
+                  label={pair.isActive === false ? 'Inactive' : 'Active'}
+                  color={pair.isActive === false ? 'error' : 'success'}
+                  size="small"
+                  sx={{ color: '#fff' }}
+                />
+                
+                <Typography variant="caption" color="text.secondary">
+                  {/* Display date if available */}
+                </Typography>
+              </Box>
+            </Paper>
+          </Grid>
+        ))}
+        
+        <Grid item xs={12}>
+          <Button 
+            variant="outlined"   
+            startIcon={<EditIcon />} 
+            onClick={handleEditSchemes} 
+            sx={{ mt: 2 }}
+          >
+            Edit Role
+          </Button>
+        </Grid>
+      </>
+    )}
+  </>
+) : (
+      /* --- EDIT MODE --- */
+      <>
+        <Grid item xs={12}>
+          <Typography variant="h6" gutterBottom>
+            {schemeRolePairs.length === 0 ? 'Add Role' : 'Edit Role'}
+          </Typography>
+        </Grid>
+        
+        {/* Single Scheme/Role Pair Card */}
+        <Grid item xs={12}>
+          <Paper elevation={3} sx={{ p: 3, border: '1px solid #ddd' }}>
+            <Grid container spacing={2} alignItems="center">
+              {/* Scheme Select */}
+              <Grid item xs={12} md={5}>
+                <FormControl fullWidth size="small">
+                  <InputLabel id="scheme-label">Scheme</InputLabel>
+                  <Select
+                    labelId="scheme-label"
+                    value={schemeRolePairs[0]?.schemeId || ''}
+                    onChange={(e) => handleSchemeChange(0, e.target.value)}
+                    disabled={schemesLoading}
+                    label="Scheme"
+                  >
+                    {allSchemes.map((s) => (
+                      <MenuItem key={s.id} value={s.id}>
+                        {s.schemeName}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
 
-                                {/* Role Select */}
-                                <FormControl fullWidth size="small" sx={{ flex: 1 }}>
-                                  <InputLabel id={`role-label-${idx}`}>Role</InputLabel>
-                                  <Select
-                                    labelId={`role-label-${idx}`}
-                                    value={pair.roleId}
-                                    onChange={(e) => handleRoleChange(idx, e.target.value)}
-                                    disabled={!pair.schemeId || rolesLoading}
-                                    label="Role"
-                                  >
-                                    {/* The "rolesByScheme" state should handle loading the roles */}
-                                    {(rolesByScheme[pair.schemeId] || []).map((r) => (
-                                      <MenuItem key={r.id} value={r.id}>
-                                        {r.name}
-                                      </MenuItem>
-                                    ))}
-                                  </Select>
-                                </FormControl>
-                                
-                                {/* Status Radio Buttons */}
-
-<FormControl component="fieldset" sx={{ flex: '0 0 auto', minWidth: 160 }}>
-  <RadioGroup
-    row
-    value={pair.isActive ? "active" : "inactive"} // Convert boolean to string
-    onChange={(e) => handleSchemeRoleActiveChange(idx, e.target.value)}
-  >
-    <FormControlLabel
-      value="active"
-      control={<Radio size="small" color="primary" />}
-      label="Active"
-    />
-    <FormControlLabel
-      value="inactive"
-      control={<Radio size="small" color="error" />}
-      label="Inactive"
-    />
-  </RadioGroup>
-</FormControl>
-
-                                
-                                {/* Remove Button */}
-                                <IconButton 
-                                  aria-label="remove" 
-                                  onClick={() => handleRemovePair(idx)} 
-                                  color="error"
-                                  sx={{ flexShrink: 0, ml: { xs: 0, sm: 2 } }}
-                                >
-                                  {/* Replace with a more visible delete icon */}
-                                  <span style={{ fontSize: '1rem' }}>❌</span>
-                                </IconButton>
-                              </Paper>
-                            </Grid>
-                          ))}
-                          
-                          {/* Action Buttons */}
-                          <Grid item xs={12}>
-                            <Button 
-                              startIcon={<AddCircleOutlineIcon />} 
-                              onClick={handleAddPair}
-                              variant="outlined"
-                            >
-                              Add Scheme/Role
-                            </Button>
-                          </Grid>
-                          <Grid item xs={12}>
-                            <Button variant="contained" color="primary" onClick={handleSaveSchemes}>
-                              Save Changes
-                            </Button>
-                            <Button sx={{ ml: 2 }} onClick={() => setIsEditingSchemes(false)} variant="outlined" color="secondary">
-                              Cancel
-                            </Button>
-                          </Grid>
-                        </>
-                      )}
-                    </Grid>
-                  )}
+              {/* Role Select */}
+              {/* <Grid item xs={12} md={5}>
+                <FormControl fullWidth size="small">
+                  <InputLabel id="role-label">Role</InputLabel>
+                  <Select
+                    labelId="role-label"
+                    value={schemeRolePairs[0]?.roleId || ''}
+                    onChange={(e) => handleRoleChange(0, e.target.value)}
+                    disabled={!schemeRolePairs[0]?.schemeId || rolesLoading}
+                    label="Role"
+                  >
+                    {(rolesByScheme[schemeRolePairs[0]?.schemeId] || []).map((r) => (
+                      <MenuItem key={r.id} value={r.id}>
+                        {r.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid> */}
+              {/* Role Select */}
+<Grid item xs={12} md={5}>
+  <FormControl fullWidth size="small">
+    <InputLabel id="role-label">Role</InputLabel>
+    <Select
+      labelId="role-label"
+      value={schemeRolePairs[0]?.roleId || ''}
+      onChange={(e) => handleRoleChange(0, e.target.value)}
+      disabled={!schemeRolePairs[0]?.schemeId || rolesLoading}
+      label="Role"
+    >
+      <MenuItem value="" disabled>
+        {rolesLoading ? 'Loading roles...' : 'Select role'}
+      </MenuItem>
+      {(rolesByScheme[schemeRolePairs[0]?.schemeId] || []).map((r) => (
+        <MenuItem key={r.id} value={r.id}>
+          {r.name || r.roleName}
+        </MenuItem>
+      ))}
+      {!rolesLoading && rolesByScheme[schemeRolePairs[0]?.schemeId]?.length === 0 && (
+        <MenuItem value="" disabled>
+          No roles available for this scheme
+        </MenuItem>
+      )}
+    </Select>
+  </FormControl>
+</Grid>
+              
+              {/* Status Radio Buttons */}
+              <Grid item xs={12} md={2}>
+                <FormControl component="fieldset" fullWidth>
+                  <RadioGroup
+                    row
+                    value={schemeRolePairs[0]?.isActive ? "active" : "inactive"}
+                    onChange={(e) => handleSchemeRoleActiveChange(0, e.target.value)}
+                  >
+                    <FormControlLabel
+                      value="active"
+                      control={<Radio size="small" color="primary" />}
+                      label="Active"
+                    />
+                    <FormControlLabel
+                      value="inactive"
+                      control={<Radio size="small" color="error" />}
+                      label="Inactive"
+                    />
+                  </RadioGroup>
+                </FormControl>
+              </Grid>
+            </Grid>
+          </Paper>
+        </Grid>
+        
+        {/* Action Buttons */}
+        <Grid item xs={12}>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={handleSaveSchemes}
+            disabled={!schemeRolePairs[0]?.schemeId || !schemeRolePairs[0]?.roleId}
+          >
+            {schemeRolePairs.length === 0 ? 'Add Role' : 'Save Changes'}
+          </Button>
+          <Button 
+            sx={{ ml: 2 }} 
+            onClick={() => setIsEditingSchemes(false)} 
+            variant="outlined" 
+            color="secondary"
+          >
+            Cancel
+          </Button>
+        </Grid>
+      </>
+    )}
+  </Grid>
+)}
 
                   {/* Change Designations */}
                   {innerTabValue === 1 && (

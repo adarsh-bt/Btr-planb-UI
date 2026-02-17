@@ -75,12 +75,11 @@ const profileService = {
     }
   },
 
-  updateProfile: async (payload) => {
+updateProfile: async (payload) => {
   try {
     const token = localStorage.getItem('token');
-
     const response = await axios.post(
-      `${USER_URL}/user-access/api/users/update-profile`,
+      `${USER_URL}/user-access/user-profile/update-profile`,
       payload,
       {
         headers: {
@@ -90,16 +89,19 @@ const profileService = {
       }
     );
 
+    // Ensure response.data has success field
     return {
-      success: true,
+      success: response.data?.success || false,
       message: response.data?.message || 'Profile updated successfully',
       payload: response.data?.payload || null
     };
   } catch (error) {
+    console.error('Update profile error:', error);
     return {
       success: false,
       message:
         error.response?.data?.message ||
+        error.message ||
         'Profile update failed due to server error'
     };
   }
