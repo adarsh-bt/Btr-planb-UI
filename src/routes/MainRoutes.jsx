@@ -9,6 +9,8 @@ const Color = Loadable(lazy(() => import('pages/component-overview/color')));
 const WorkAllocation = Loadable(lazy(() => import('pages/component-overview/WorkAllocationForm')));
 const Shadow = Loadable(lazy(() => import('pages/component-overview/shadows')));
 const DashboardDefault = Loadable(lazy(() => import('pages/dashboard/index')));
+const TourDiary = Loadable(lazy(() => import('pages/dashboard/TourDiary')));
+const TourDiaryMenu = Loadable(lazy(() => import('pages/dashboard/TourDiaryMenu')));
 
 // Schems Sub menus
 const Schemes = Loadable(lazy(() => import('pages/functional-components/schemas')));
@@ -128,6 +130,30 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <WorkAllocation />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'tourdiary',
+      element: (
+        <PrivateRoute>
+          <TourDiaryMenu />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'tourdiary/advanced',
+      element: (
+        <PrivateRoute>
+          <TourDiary />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'tourdiary/basic',
+      element: (
+        <PrivateRoute>
+          <TourDiary />
         </PrivateRoute>
       )
     },
@@ -393,10 +419,15 @@ const MainRoutes = {
     //     </PrivateRoute>
     //   )
     // },
+<<<<<<< Updated upstream
 
 
     {
       path: '/schemes/earas/Zone_Details/Clusters_Form/:zoneId',
+=======
+    {
+      path: '/schemes/earas/Clusters',
+>>>>>>> Stashed changes
       element: (
         <PrivateRoute>
           <ClustersWrapperForm />
@@ -407,6 +438,7 @@ const MainRoutes = {
       path: '/schemes/earas/Clusters_Form',
       element: (
         <PrivateRoute>
+<<<<<<< Updated upstream
           <ClusterFormView />
         </PrivateRoute>
       )
@@ -450,6 +482,8 @@ const MainRoutes = {
       path: '/schemes/earas/earas_management/CCE_crop_selection',
       element: (
         <PrivateRoute>
+=======
+>>>>>>> Stashed changes
           <CCE_crop_selection />
         </PrivateRoute>
       )
