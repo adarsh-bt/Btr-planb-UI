@@ -140,17 +140,29 @@ const EditProfileModal = ({ open, onClose, formData = {}, setFormData, onSubmit,
     return true;
   };
 
-  const handleFieldChange = (field, value) => {
-    const newFormData = { ...safeFormData, [field]: value };
-    if (setFormData) {
-      setFormData(newFormData);
+const handleFieldChange = (field, value) => {
+  let processedValue = value;
+  
+  // Clean mobile number input - remove non-digits and enforce exactly 10 digits
+  if (field === 'mobileNumber') {
+    // Remove all non-digit characters
+    processedValue = value.replace(/\D/g, '');
+    // Limit to exactly 10 digits
+    if (processedValue.length > 10) {
+      processedValue = processedValue.slice(0, 10);
     }
-    
-    // Validate on change
-    if (onValidate) {
-      onValidate(field, value);
-    }
-  };
+  }
+  
+  const newFormData = { ...safeFormData, [field]: processedValue };
+  if (setFormData) {
+    setFormData(newFormData);
+  }
+  
+  // Validate on change
+  if (onValidate) {
+    onValidate(field, processedValue);
+  }
+};
 
   // Format date for input[type="date"]
   const formatDateForInput = (dateString) => {
@@ -162,6 +174,19 @@ const EditProfileModal = ({ open, onClose, formData = {}, setFormData, onSubmit,
     } catch (error) {
       return '';
     }
+  };
+
+  // Check if form has any validation errors
+  const hasErrors = () => {
+    return Object.keys(safeErrors).length > 0;
+  };
+
+  // Check if mobile number is exactly 10 digits
+  const isMobileNumberValid = () => {
+    const mobileNumber = safeFormData.mobileNumber;
+    if (!mobileNumber) return false;
+    const cleanedNumber = mobileNumber.replace(/\D/g, '');
+    return cleanedNumber.length === 10;
   };
 
   return (
@@ -178,16 +203,42 @@ const EditProfileModal = ({ open, onClose, formData = {}, setFormData, onSubmit,
 
       <DialogContent sx={{ pt: 2 }}>
         {/* Name Field */}
-        <TextField
-          fullWidth
-          label="Full Name"
-          margin="normal"
-          value={safeFormData.name}
-          onChange={(e) => handleFieldChange('name', e.target.value)}
-          error={!!safeErrors.name}
-          helperText={safeErrors.name || "Max 100 characters"}
-          inputProps={{ maxLength: 100 }}
-        />
+<TextField
+  fullWidth
+  label="Full Name"
+  margin="normal"
+  value={safeFormData.name}
+  onChange={(e) => handleFieldChange('name', e.target.value)}
+  error={!!safeErrors.name}
+  helperText={safeErrors.name || "Max 255 characters, letters and spaces only (e.g., John Michael Smith)"}
+  inputProps={{ 
+    maxLength: 255,
+    pattern: "[A-Za-z\\s]*"
+  }}
+  onKeyDown={(e) => {
+    // Allow: Backspace, Delete, Tab, Escape, Enter, Arrow keys, Home, End
+    const allowedKeys = [
+      'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+      'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+      'Home', 'End', 'Space'
+    ];
+    
+    if (allowedKeys.includes(e.key)) {
+      return; // Allow these keys
+    }
+    
+    // Allow Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+    if (e.ctrlKey && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) {
+      return;
+    }
+    
+    // Prevent entering numbers and special characters in name
+    // But allow letters (both uppercase and lowercase)
+    if (!/^[a-zA-Z]$/.test(e.key) && e.key !== ' ') {
+      e.preventDefault();
+    }
+  }}
+/>
 
         {/* Email Field */}
         <TextField
@@ -202,16 +253,57 @@ const EditProfileModal = ({ open, onClose, formData = {}, setFormData, onSubmit,
         />
 
         {/* Mobile Number Field */}
-        <TextField
-          fullWidth
-          label="Mobile Number"
-          margin="normal"
-          value={safeFormData.mobileNumber}
-          onChange={(e) => handleFieldChange('mobileNumber', e.target.value)}
-          error={!!safeErrors.mobileNumber}
-          helperText={safeErrors.mobileNumber || "10 digits required"}
-          inputProps={{ maxLength: 10 }}
-        />
+<TextField
+  fullWidth
+  label="Mobile Number"
+  margin="normal"
+  value={safeFormData.mobileNumber}
+  onChange={(e) => handleFieldChange('mobileNumber', e.target.value)}
+  error={!!safeErrors.mobileNumber || (safeFormData.mobileNumber && safeFormData.mobileNumber.replace(/\D/g, '').length !== 10)}
+  helperText={
+    safeErrors.mobileNumber || 
+    (safeFormData.mobileNumber && safeFormData.mobileNumber.replace(/\D/g, '').length !== 10 
+      ? 'Mobile number must be exactly 10 digits' 
+      : 'Exactly 10 digits required (e.g., 9876543210)')
+  }
+  inputProps={{ 
+    maxLength: 10,
+    pattern: "[0-9]*",
+    inputMode: "numeric"
+  }}
+  onKeyDown={(e) => {
+    // Allow: Backspace, Delete, Tab, Escape, Enter, Arrow keys
+    const allowedKeys = [
+      'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+      'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+      'Home', 'End'
+    ];
+    
+    if (allowedKeys.includes(e.key)) {
+      return; // Allow these keys
+    }
+    
+    // Allow Ctrl+A, Ctrl+C, Ctrl+V, Ctrl/X for copy/paste
+    if (e.ctrlKey && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) {
+      return;
+    }
+    
+    // Only allow numbers (0-9)
+    if (!/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
+    }
+  }}
+  onBlur={(e) => {
+    // Additional validation on blur to ensure exactly 10 digits
+    const value = e.target.value;
+    if (value) {
+      // Trigger validation in parent component
+      if (onValidate) {
+        onValidate('mobileNumber', value);
+      }
+    }
+  }}
+/>
 
         {/* Date of Birth Field */}
         <TextField
@@ -258,7 +350,7 @@ const EditProfileModal = ({ open, onClose, formData = {}, setFormData, onSubmit,
         <Button 
           onClick={() => onSubmit && onSubmit()} 
           variant="contained"
-          disabled={Object.keys(safeErrors).length > 0}
+          disabled={hasErrors() || !isMobileNumberValid()}
         >
           Save Changes
         </Button>
@@ -327,74 +419,85 @@ const Profile = () => {
     dateOfBirth: '',
     dateOfJoining: ''
   });
-    const validateField = (field, value) => {
-    const newErrors = { ...validationErrors };
-    
-    switch (field) {
-      case 'name':
-        if (value && value.length > 100) {
-          newErrors.name = 'Name must be less than 100 characters';
-        } else if (value && !/^[a-zA-Z\s]*$/.test(value)) {
-          newErrors.name = 'Name can only contain letters and spaces';
-        } else {
-          delete newErrors.name;
-        }
-        break;
+const validateField = (field, value) => {
+  const newErrors = { ...validationErrors };
+  
+  switch (field) {
+    case 'name':
+      if (!value || value.trim() === '') {
+        newErrors.name = 'Name is required';
+      } else if (value.length > 255) {
+        newErrors.name = 'Name must be less than 255 characters';
+      } else if (!/^[A-Za-z\s]+$/.test(value)) {
+        newErrors.name = 'Name can only contain letters and spaces';
+      } else {
+        delete newErrors.name;
+      }
+      break;
+      
+    case 'email':
+      if (!value || value.trim() === '') {
+        newErrors.email = 'Email is required';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        newErrors.email = 'Please enter a valid email address';
+      } else {
+        delete newErrors.email;
+      }
+      break;
+      
+    case 'mobileNumber':
+      // Remove any non-digit characters first for validation
+      const cleanedValue = value.replace(/\D/g, '');
+      
+      if (!value || value.trim() === '') {
+        newErrors.mobileNumber = 'Mobile number is required';
+      } else if (cleanedValue.length !== 10) {
+        newErrors.mobileNumber = 'Mobile number must be exactly 10 digits';
+      } else if (!/^\d{10}$/.test(cleanedValue)) {
+        newErrors.mobileNumber = 'Mobile number can only contain numbers';
+      } else {
+        delete newErrors.mobileNumber;
+      }
+      break;
+      
+    case 'dateOfBirth':
+      if (value) {
+        const dob = new Date(value);
+        const today = new Date();
+        const minAgeDate = new Date();
+        minAgeDate.setFullYear(today.getFullYear() - 18);
         
-      case 'email':
-        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-          newErrors.email = 'Please enter a valid email address';
-        } else {
-          delete newErrors.email;
-        }
-        break;
-        
-      case 'mobileNumber':
-        if (value && !/^\d{10}$/.test(value)) {
-          newErrors.mobileNumber = 'Mobile number must be 10 digits';
-        } else {
-          delete newErrors.mobileNumber;
-        }
-        break;
-        
-      case 'dateOfBirth':
-        if (value) {
-          const dob = new Date(value);
-          const today = new Date();
-          const minAgeDate = new Date();
-          minAgeDate.setFullYear(today.getFullYear() - 18);
-          
-          if (dob > minAgeDate) {
-            newErrors.dateOfBirth = 'Must be at least 18 years old';
-          } else {
-            delete newErrors.dateOfBirth;
-          }
+        if (dob > minAgeDate) {
+          newErrors.dateOfBirth = 'Must be at least 18 years old';
         } else {
           delete newErrors.dateOfBirth;
         }
-        break;
+      } else {
+        delete newErrors.dateOfBirth;
+      }
+      break;
+      
+    case 'dateOfJoining':
+      if (value) {
+        const doj = new Date(value);
+        const today = new Date();
         
-      case 'dateOfJoining':
-        if (value) {
-          const doj = new Date(value);
-          const today = new Date();
-          
-          if (doj > today) {
-            newErrors.dateOfJoining = 'Date of joining cannot be in the future';
-          } else {
-            delete newErrors.dateOfJoining;
-          }
+        if (doj > today) {
+          newErrors.dateOfJoining = 'Date of joining cannot be in the future';
         } else {
           delete newErrors.dateOfJoining;
         }
-        break;
-        
-      default:
-        break;
-    }
-    
-    setValidationErrors(newErrors);
-  };
+      } else {
+        delete newErrors.dateOfJoining;
+      }
+      break;
+      
+    default:
+      break;
+  }
+  
+  setValidationErrors(newErrors);
+};
 
   useEffect(() => {
     if (userData && editOpen) {

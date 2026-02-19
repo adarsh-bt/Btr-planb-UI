@@ -1050,7 +1050,11 @@ const hasValidRow = (keyplot) => {
             setSubmitSuccess(true);
             setSnackbarMessage('Cluster data saved successfully!');
             setSnackbarOpen(true);
-
+         
+            if (mode === 'ON_GOING') {
+                    setOpenLimitDialog(false)
+                     window.location.reload();
+            }
             if (mode === 'COMPLETED' || mode === 'Under Review') {
                 setTimeout(() => {
                     navigate('/schemes/earas/clusters');
