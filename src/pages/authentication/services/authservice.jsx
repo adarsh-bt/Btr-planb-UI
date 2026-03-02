@@ -25,8 +25,8 @@ class authservice {
       // alert(responseData.payload.distid);
       // Store token/user
       localStorage.setItem('token', responseData.payload.token);
-      localStorage.setItem('user', responseData.payload.username);
-       localStorage.setItem('des', responseData.payload.designation);
+      // localStorage.setItem('user', responseData.payload.username);
+      //  localStorage.setItem('des', responseData.payload.designation);
       //  localStorage.setItem('dis', responseData.payload.distid);
       return responseData;
     } catch (err) {
@@ -151,10 +151,10 @@ static async logout(navigate) {
     console.log("api   ????? ",authservice.BASE_URL);
     if (response.status === 200) {
   localStorage.removeItem('token');
-  localStorage.removeItem('user');
+  // localStorage.removeItem('user');
   localStorage.removeItem('activeZone');
   localStorage.removeItem('activeDistId');
-  localStorage.removeItem('des');
+  // localStorage.removeItem('des');
   localStorage.removeItem('permissionsData');
   navigate('/login');
 
@@ -198,15 +198,17 @@ static async logout(navigate) {
 
   static getdesignation() {
     try{
-      const designation = localStorage.getItem('des');
-      return designation;
+      const token = localStorage.getItem('token');
+      const decodedToken = jwtDecode(token);
+      return decodedToken.des;
     } catch (error) {
       console.error('Error decoding token:', error);
     }
   }
   static getusername() {
-    const user_name = localStorage.getItem('user');
-    return user_name;
+    const token = localStorage.getItem('token');
+    const decodedToken = jwtDecode(token);
+    return decodedToken.username;
   }
   static gettoken() {
     return localStorage.getItem('token');

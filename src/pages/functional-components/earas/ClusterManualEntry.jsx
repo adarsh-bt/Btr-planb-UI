@@ -670,12 +670,13 @@ console.log('Fetched CCE crop details:', data);
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
+          
             const response = await fetch(`${BASE_URL}/btr-service/key-plots/get-keyplot/${id}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
-
+console.log(">> >> "+response.payload)
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -1051,7 +1052,7 @@ const hasValidRow = (keyplot) => {
             setSnackbarMessage('Cluster data saved successfully!');
             setSnackbarOpen(true);
          
-            if (mode === 'ON_GOING') {
+            if (mode === 'ON_GOING' || mode === 'SAVE') {
                     setOpenLimitDialog(false)
                      window.location.reload();
             }

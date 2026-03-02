@@ -500,7 +500,7 @@ function ClusterSeatMap({ zoneId }) {
                               flexDirection: 'column',
                               justifyContent: 'center',
                             }}
-                            onClick={() => handleClusterClick(cluster.keyplotId, index + 1)}
+                            onClick={() => handleClusterClick(cluster.keyplotId, cluster.clusterNo) }
                           >
                             <CardContent sx={{
                               p: 2,

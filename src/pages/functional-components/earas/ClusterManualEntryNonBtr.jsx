@@ -320,7 +320,7 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
           headers: { 'Authorization': `Bearer ${token}` }
         }
       );
-      alert(clusterId)
+    
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -958,7 +958,7 @@ const proceedSubmit = async (mode) => {
     setSnackbarMessage('Cluster data saved successfully!');
     setSnackbarOpen(true);
     // setOpenLimitDialog(false);
-  if (mode === 'ON_GOING') {
+  if (mode === 'ON_GOING' ||  mode === 'SAVE') {
                     setOpenLimitDialog(false)
                      window.location.reload();
             }

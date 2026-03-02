@@ -140,7 +140,7 @@ export default function Notification() {
                             <Typography component="span" variant="subtitle1">
                               Test Meassage&apos;s
                             </Typography>{' '}
-                            for AIEDA.
+                            for aidea.
                           </Typography>
                         }
                         secondary="2 min ago"

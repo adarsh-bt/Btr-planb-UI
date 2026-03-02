@@ -44,6 +44,30 @@ static async fetchPagedApprovedUsers(params) {
     }
   }
 
+static async changeEmail(data) {
+  try {
+    const token = localStorage.getItem('token');
+    console.log("data in service",data)
+    const response = await axios.post(
+      `${ApprovedUserService.USER_URL}/user-access/it-admin/change-email`,
+      data,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
+  } catch (err) {
+    console.error('Error changing email:', err);
+    return {
+      message: err?.response?.data?.message || 'Failed to update email',
+      success: false,
+      error: true
+    };
+  }
+}
   // Fetch Super admin approved users
   static async fetchSuperAdminApprovedUsers() {
     try {

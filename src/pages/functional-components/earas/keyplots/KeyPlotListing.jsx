@@ -194,6 +194,7 @@ const validateEnumArea = (value, totalArea) => {
   : 'NA',
 
       panchayth: plot.panchayath,
+      cluster_number: plot.cluster_no,
       area: plot.areaCents,
       btyType: plot.btr_type,
       villageBlock: plot.villageBlock,
@@ -300,6 +301,7 @@ const handleUpdateEnumeratedArea = async () => {
       }
       const data = await response.json();
       const plots = data.payload || [];
+      
       const transformedPlots = transformPlotData(plots);
       // console.log("key >>>> "+transformedPlots);
       console.log("key >>>> ",transformedPlots);
@@ -433,7 +435,7 @@ setPanchayathAreaSummary(panchayathSummary);
 
   // Filter and sort data
   const filteredSortedAndPaginatedData = useMemo(() => {
-    const visibleKeys = ['slNo', 'panchayth', 'village','area', 'syNo','villageBlock', 'landType'];
+    const visibleKeys = ['slNo', 'cluster_number', 'panchayth', 'village','area', 'syNo','villageBlock', 'landType'];
 
     let filtered = plotData.filter((row) => {
       const matchesSearch = !searchTerm || 
@@ -453,7 +455,7 @@ setPanchayathAreaSummary(panchayathSummary);
 
   // Get filtered count for pagination
   const filteredCount = useMemo(() => {
-    const visibleKeys = ['slNo', 'panchayth', 'village','area', 'syNo','villageBlock', 'landType'];
+    const visibleKeys = ['slNo', 'cluster_number', 'panchayth', 'village','area', 'syNo','villageBlock', 'landType'];
     
     return plotData.filter((row) => {
       const matchesSearch = !searchTerm || 
@@ -783,7 +785,7 @@ setPanchayathAreaSummary(panchayathSummary);
               <Table stickyHeader sx={{ tableLayout: 'fixed' }}>
                 <TableHead>
                   <TableRow>
-                    {['slNo', 'panchayth', 'village','villageBlock', 'syNo','area','landType'].map((col) => (
+                    {['slNo',  'panchayth', 'village','villageBlock', 'cluster number','syNo','area','landType'].map((col) => (
                       <TableCell
                         key={col}
                         align="center"
@@ -842,6 +844,24 @@ setPanchayathAreaSummary(panchayathSummary);
                         <TableCell align="center">{row.panchayth}</TableCell>
                         <TableCell align="center">{row.kvillageName}</TableCell>
                         <TableCell align="center">{row.villageBlock}</TableCell>
+                     <TableCell align="center">
+  <Box
+    sx={{
+      width: 20,
+      height: 20,
+      borderRadius: "50%",
+      backgroundColor: "blue",
+      color: "white",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      margin: "0 auto",
+      fontWeight: "bold",
+    }}
+  >
+    {row.cluster_number}
+  </Box>
+</TableCell>
                         <TableCell align="center">{row.syNo}</TableCell>
                         <TableCell align="center">{parseFloat(row.enumarea).toFixed(2)}</TableCell>
                         <TableCell align="center">{row.landType}</TableCell>
