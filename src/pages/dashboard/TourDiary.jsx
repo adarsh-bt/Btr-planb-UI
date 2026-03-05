@@ -1,8 +1,4 @@
-import React, { useState } from 'react';
-import { FormControl, InputLabel, Select, MenuItem } from '@mui/material';
-import { useEffect } from 'react';
-import tourDiaryService from 'pages/authentication/services/tourdiaryservice';
-import authservice from 'pages/authentication/services/authservice';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Button,
@@ -26,11 +22,14 @@ import {
     Dialog,
     DialogTitle,
     DialogContent,
-    DialogActions
+    DialogActions,
+    FormControl,
+    InputLabel,
+    Select,
+    Menu,
+    MenuItem
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import MainCard from 'components/MainCard';
-import Breadcrumb from 'routes/Breadcrumb';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
@@ -38,16 +37,38 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import EventIcon from '@mui/icons-material/Event';
 import AddIcon from '@mui/icons-material/Add';
+import InfoIcon from '@mui/icons-material/Info';
+
+import MainCard from 'components/MainCard';
+import Breadcrumb from 'routes/Breadcrumb';
+import tourDiaryService from 'pages/authentication/services/tourdiaryservice';
+import authservice from 'pages/authentication/services/authservice';
 
 const TourDiary = () => {
     const theme = useTheme();
+
+    // ============================ STATE MANAGEMENT ============================
+    // Date states
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(null);
+
+    // Event states
+    const [tourEvents, setTourEvents] = useState([]);
+    const [selectedDayEvents, setSelectedDayEvents] = useState([]);
+    const [selectedEvent, setSelectedEvent] = useState(null);
+
+    // Active halves state
+    const [activeHalves, setActiveHalves] = useState({
+        firstHalf: 0,
+        secondHalf: 0
+    });
+
+    // Modal states
     const [modalOpen, setModalOpen] = useState(false);
     const [editModalOpen, setEditModalOpen] = useState(false);
-    const [tourEvents, setTourEvents] = useState([]); // Store all events from API
-    const [selectedDayEvents, setSelectedDayEvents] = useState([]); // Events for selected day
-    const [selectedEvent, setSelectedEvent] = useState(null); // Event being edited
+    const [activeTab, setActiveTab] = useState(0);
+
+    // Form states
     const [formData, setFormData] = useState({
         place: '',
         purpose: '',
@@ -59,26 +80,66 @@ const TourDiary = () => {
         purpose: '',
         remarks: ''
     });
-    const [activeTab, setActiveTab] = useState(0); // 0 for add new, 1 for view existing
 
+    // Entry type states
+    const [entryType, setEntryType] = useState('WORKING');
+    const [editEntryType, setEditEntryType] = useState('WORKING');
+
+    // Selection states
+    const [selectedScheme, setSelectedScheme] = useState('');
+    const [editSelectedScheme, setEditSelectedScheme] = useState('');
+
+    // Data states
+    const [schemes, setSchemes] = useState([]);
+    const [purposes, setPurposes] = useState([]);
+
+    // Loading states
     const [loading, setLoading] = useState(false);
     const [editLoading, setEditLoading] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
+    const [halvesLoading, setHalvesLoading] = useState(false);
 
-    const [schemes, setSchemes] = useState([]);
-    const [purposes, setPurposes] = useState([]);
-    const [selectedScheme, setSelectedScheme] = useState('');
-    const [editSelectedScheme, setEditSelectedScheme] = useState(''); // Separate state for edit modal
+    // Add these half submission states
+    const [submitLoading, setSubmitLoading] = useState(false);
+    const [submitDialog, setSubmitDialog] = useState({
+        open: false,
+        half: null
+    });
 
+    // Menu states
+    const [submitAnchorEl, setSubmitAnchorEl] = useState(null);
+
+    // Notification state
+    const [notification, setNotification] = useState({
+        open: false,
+        type: 'success',
+        message: ''
+    });
+
+    // Delete dialog state
+    const [deleteDialog, setDeleteDialog] = useState({
+        open: false,
+        eventId: null
+    });
+
+    // ============================ CONSTANTS ============================
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    // Helper function to check if a date is a Sunday
+    const ENTRY_TYPES = [
+        { value: 'WORKING', label: 'WORKING' },
+        { value: 'WEEK_OFF', label: 'WEEK OFF' },
+        { value: 'HOLIDAY', label: 'Holiday' },
+        { value: 'LEAVE', label: 'Leave' },
+        { value: 'TRAINING', label: 'Training' },
+        { value: 'OTHER', label: 'Others' },
+    ];
+
+    // ============================ HELPER FUNCTIONS ============================
     const isSunday = (year, month, day) => {
         const date = new Date(year, month, day);
         return date.getDay() === 0;
     };
 
-    // Helper function to check if a date is second Saturday
     const isSecondSaturday = (year, month, day) => {
         const date = new Date(year, month, day);
         if (date.getDay() !== 6) return false;
@@ -90,25 +151,47 @@ const TourDiary = () => {
         return day === secondSaturday;
     };
 
-    // Helper function to format date key
     const formatDateKey = (year, month, day) => {
         return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     };
 
-    // Helper function to parse date from key
     const parseDateKey = (dateKey) => {
         const [year, month, day] = dateKey.split('-').map(Number);
         return { year, month: month - 1, day };
     };
 
-    // Fetch tour data when month changes
+    const hasEventsOnDay = (year, month, day) => {
+        return tourEvents.some(event => {
+            const eventDate = new Date(event.createdAt);
+            return eventDate.getFullYear() === year &&
+                eventDate.getMonth() === month &&
+                eventDate.getDate() === day;
+        });
+    };
+
+    const getEventCountForDay = (year, month, day) => {
+        return tourEvents.filter(event => {
+            const eventDate = new Date(event.createdAt);
+            return eventDate.getFullYear() === year &&
+                eventDate.getMonth() === month &&
+                eventDate.getDate() === day;
+        }).length;
+    };
+
+    const getPreviousMonth = () => {
+        const prevDate = new Date(currentDate);
+        prevDate.setMonth(currentDate.getMonth() - 1);
+        return prevDate.toLocaleString('default', { month: 'long' });
+    };
+
+    // ============================ API CALLS ============================
     const fetchTourData = async () => {
         const zoneId = Number(authservice.getzone());
         if (!zoneId) return;
 
         setLoading(true);
         const year = currentDate.getFullYear();
-        const month = currentDate.getMonth() + 1; // API expects 1-based month
+        const month = currentDate.getMonth() + 1;
 
         try {
             const data = await tourDiaryService.getAdvancedTourByFilter(zoneId, month, year);
@@ -126,18 +209,41 @@ const TourDiary = () => {
         }
     };
 
-    // Fetch schemes on component mount
-    useEffect(() => {
-        const fetchSchemes = async () => {
-            const data = await tourDiaryService.getAllSchemes();
+    const fetchSchemes = async () => {
+        const data = await tourDiaryService.getAllSchemes();
+        if (!data.message) {
+            setSchemes(data);
+        }
+    };
+
+    const fetchActiveHalves = async () => {
+        setHalvesLoading(true);
+        try {
+            const data = await tourDiaryService.getActiveHalves();
             if (!data.message) {
-                setSchemes(data);
+                setActiveHalves({
+                    firstHalf: data.firstHalf || 0,
+                    secondHalf: data.secondHalf || 0
+                });
             }
-        };
+        } catch (error) {
+            console.error("Error fetching active halves:", error);
+        } finally {
+            setHalvesLoading(false);
+        }
+    };
+
+    // ============================ EFFECTS ============================
+    useEffect(() => {
         fetchSchemes();
+        fetchActiveHalves();
     }, []);
 
-    // Fetch purposes when scheme changes for main modal
+    // Add another useEffect to refresh active halves when month changes
+useEffect(() => {
+    fetchActiveHalves(); // Refresh when month changes
+}, [currentDate.getFullYear(), currentDate.getMonth()]);
+
     useEffect(() => {
         const fetchPurposes = async () => {
             if (selectedScheme) {
@@ -152,7 +258,6 @@ const TourDiary = () => {
         fetchPurposes();
     }, [selectedScheme]);
 
-    // Fetch purposes when scheme changes for edit modal
     useEffect(() => {
         const fetchPurposesForEdit = async () => {
             if (editSelectedScheme) {
@@ -167,11 +272,128 @@ const TourDiary = () => {
         fetchPurposesForEdit();
     }, [editSelectedScheme]);
 
-    // Fetch tour data when month/year changes
     useEffect(() => {
         fetchTourData();
     }, [currentDate.getFullYear(), currentDate.getMonth()]);
 
+    // ============================ NOTIFICATION HANDLERS ============================
+    const showNotification = (type, message) => {
+        setNotification({
+            open: true,
+            type,
+            message
+        });
+    };
+
+    const closeNotification = () => {
+        setNotification({
+            ...notification,
+            open: false
+        });
+    };
+
+    // ============================ DELETE DIALOG HANDLERS ============================
+    const openDeleteDialog = (id) => {
+        setDeleteDialog({
+            open: true,
+            eventId: id
+        });
+    };
+
+    const closeDeleteDialog = () => {
+        setDeleteDialog({
+            open: false,
+            eventId: null
+        });
+    };
+    
+
+    // ============================ MENU HANDLERS ============================
+    const openSubmitMenu = (event) => {
+        setSubmitAnchorEl(event.currentTarget);
+    };
+
+    const closeSubmitMenu = () => {
+        setSubmitAnchorEl(null);
+    };
+
+    // ============================ HALF SUBMIT ============================
+
+    // const handleSubmitHalf = (half) => {
+    //     console.log("Submitting:", half);
+    //     // TODO: Call your API here
+    //     closeSubmitMenu();
+    //     showNotification('success', `${half} submitted successfully`);
+    // };
+
+    // Add submit function
+const handleSubmitHalf = async (half) => {
+    setSubmitDialog({
+        open: true,
+        half: half
+    });
+    closeSubmitMenu();
+};
+
+// Add confirmation submit function
+const confirmSubmit = async () => {
+    const zoneId = Number(authservice.getzone());
+    const userId = authservice.userid();
+    
+    if (!zoneId || !userId) {
+        showNotification('error', 'User session expired. Please login again.');
+        return;
+    }
+
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth() + 1;
+    
+    // Determine the half key based on the selected half
+    const firstHalfKey = submitDialog.half === 'First Half' ? 'FIRST_HALF' : 'SECOND_HALF';
+
+    const payload = {
+        firstHalfKey: firstHalfKey,
+        zoneId: zoneId,
+        month: month,
+        year: year,
+        userId: userId
+    };
+
+    console.log("Submitting payload:", payload);
+
+    try {
+        setSubmitLoading(true);
+        const response = await tourDiaryService.submitTourHalf(payload);
+        
+        if (typeof response === 'string') {
+            // Check if it's a success message (even with LATE status)
+            if (response.includes('successfully')) {
+                showNotification('success', response);
+                // Refresh active halves after successful submission
+                await fetchActiveHalves();
+                // Optionally refresh tour data
+                await fetchTourData();
+            } else {
+                showNotification('error', response);
+            }
+        } else if (response.message) {
+            showNotification('error', response.message);
+        } else {
+            showNotification('success', 'Submitted successfully');
+            await fetchActiveHalves();
+            await fetchTourData();
+        }
+        
+        setSubmitDialog({ open: false, half: null });
+    } catch (error) {
+        console.error("Submit error:", error);
+        showNotification('error', error.response?.data || 'Failed to submit');
+    } finally {
+        setSubmitLoading(false);
+    }
+};
+
+    // ============================ CALENDAR HANDLERS ============================
     const changeMonth = (offset) => {
         const newDate = new Date(currentDate);
         newDate.setMonth(currentDate.getMonth() + offset);
@@ -179,20 +401,21 @@ const TourDiary = () => {
     };
 
     const openModal = (dateKey) => {
+        setEntryType('WORKING');
+        setSelectedScheme('');
         setSelectedDate(dateKey);
-        
-        // Filter events for the selected day
+
         const { year, month, day } = parseDateKey(dateKey);
         const dayEvents = tourEvents.filter(event => {
             const eventDate = new Date(event.createdAt);
             return eventDate.getFullYear() === year &&
-                   eventDate.getMonth() === month &&
-                   eventDate.getDate() === day;
+                eventDate.getMonth() === month &&
+                eventDate.getDate() === day;
         });
-        
+
         setSelectedDayEvents(dayEvents);
         setFormData({ place: '', purpose: '', remarks: '' });
-        setActiveTab(dayEvents.length > 0 ? 1 : 0); // Show existing events tab if there are events
+        setActiveTab(dayEvents.length > 0 ? 1 : 0);
         setModalOpen(true);
     };
 
@@ -202,39 +425,40 @@ const TourDiary = () => {
         setSelectedDayEvents([]);
         setFormData({ place: '', purpose: '', remarks: '' });
         setActiveTab(0);
-        setSelectedScheme(''); // Reset scheme selection
+        setSelectedScheme('');
     };
 
     const openEditModal = async (event) => {
         setSelectedEvent(event);
+        setEditEntryType(event.entryType || 'WORKING');
+
         setEditFormData({
             id: event.id,
-            place: event.location,
-            purpose: event.purposeId,
+            place: event.location || '',
+            purpose: event.purposeId || '',
             remarks: event.remark || ''
         });
-        
-        // Find the scheme for this purpose
-        // First, fetch all purposes to find which scheme this purpose belongs to
-        try {
-            // You might need to fetch all purposes or have a mapping
-            // For now, we'll try to find the scheme by fetching purposes for each scheme
-            // This is a workaround - ideally you'd have an API to get purpose details or a mapping
-            const allSchemes = schemes;
-            for (const scheme of allSchemes) {
-                const purposesData = await tourDiaryService.getActivePurposes(scheme.id);
-                if (purposesData && !purposesData.message) {
-                    const purposeExists = purposesData.some(p => p.id === event.purposeId);
-                    if (purposeExists) {
-                        setEditSelectedScheme(scheme.id);
-                        break;
+
+        if (event.entryType === 'WORKING' && event.purposeId) {
+            try {
+                const allSchemes = schemes;
+                for (const scheme of allSchemes) {
+                    const purposesData = await tourDiaryService.getActivePurposes(scheme.id);
+                    if (purposesData && !purposesData.message) {
+                        const purposeExists = purposesData.some(p => p.id === event.purposeId);
+                        if (purposeExists) {
+                            setEditSelectedScheme(scheme.id);
+                            break;
+                        }
                     }
                 }
+            } catch (error) {
+                console.error("Error finding scheme for purpose:", error);
             }
-        } catch (error) {
-            console.error("Error finding scheme for purpose:", error);
+        } else {
+            setEditSelectedScheme('');
         }
-        
+
         setEditModalOpen(true);
     };
 
@@ -247,124 +471,70 @@ const TourDiary = () => {
             purpose: '',
             remarks: ''
         });
-        setEditSelectedScheme(''); // Reset edit scheme selection
+        setEditSelectedScheme('');
     };
 
+    // ============================ CRUD OPERATIONS ============================
     const saveEvent = async () => {
-    if (!selectedDate) return;
+        if (!selectedDate) return;
 
-    if (!formData.purpose || !formData.place || !selectedScheme) {
-        alert("Please fill all required fields");
-        return;
-    }
-
-    const userId = authservice.userid();
-    const zoneId = Number(authservice.getzone());
-
-    if (!userId || !zoneId) {
-        alert("User session expired. Please login again.");
-        return;
-    }
-
-    // Parse the selected date and format it for the API
-    const { year, month, day } = parseDateKey(selectedDate);
-    
-    // Create a date object for the selected date at a specific time (e.g., 10:30 AM)
-    // You can adjust the time as needed
-    const selectedDateTime = new Date(year, month, day, 10, 30, 0);
-    
-    // Format the date as ISO string (or the format your API expects)
-    // The API expects "2026-02-22T10:30:00" format
-    const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T10:30:00`;
-
-    const payload = {
-        purposeId: Number(formData.purpose),
-        userId: userId,
-        location: formData.place,
-        remark: formData.remarks,
-        status: "DRAFT",
-        zoneId: zoneId,
-        createdAt: formattedDate // Add the selected date here
-    };
-
-    console.log("Saving Payload:", payload);
-
-    try {
-        setLoading(true);
-        const response = await tourDiaryService.saveOrUpdateTour(payload);
-
-        if (response.id) {
-            // Update tourEvents with the new event
-            const updatedTourEvents = [...tourEvents, response];
-            setTourEvents(updatedTourEvents);
-            
-            // Update selected day events
-            const { year, month, day } = parseDateKey(selectedDate);
-            const updatedDayEvents = updatedTourEvents.filter(event => {
-                const eventDate = new Date(event.createdAt);
-                return eventDate.getFullYear() === year &&
-                       eventDate.getMonth() === month &&
-                       eventDate.getDate() === day;
-            });
-            
-            setSelectedDayEvents(updatedDayEvents);
-            setFormData({ place: '', purpose: '', remarks: '' });
-            setActiveTab(1); // Switch to view tab after saving
-            alert("Tour saved successfully ✅");
-        } else {
-            alert(response.message || "Failed to save tour");
+        if (entryType === 'WORKING') {
+            if (!formData.purpose || !formData.place || !selectedScheme) {
+                showNotification('error', 'Please fill all required fields');
+                return;
+            }
         }
-    } catch (error) {
-        alert("Something went wrong");
-    } finally {
-        setLoading(false);
-    }
-};
-    const updateEvent = async () => {
-    if (!editFormData.purpose || !editFormData.place || !editSelectedScheme) {
-        alert("Please fill all required fields");
-        return;
-    }
 
-    const userId = authservice.userid();
-    const zoneId = Number(authservice.getzone());
+        const userId = authservice.userid();
+        const zoneId = Number(authservice.getzone());
 
-    if (!userId || !zoneId) {
-        alert("User session expired. Please login again.");
-        return;
-    }
+        if (!userId || !zoneId) {
+            showNotification('error', 'User session expired. Please login again.');
+            return;
+        }
 
-    // For update, we can either keep the original createdAt or allow changing it
-    // Here we're keeping the original date from the event being edited
-    const originalEvent = selectedEvent;
-    const createdAt = originalEvent?.createdAt;
+        const { year, month, day } = parseDateKey(selectedDate);
+        const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T10:30:00`;
 
-    const payload = {
-        id: editFormData.id,
-        purposeId: Number(editFormData.purpose),
-        userId: userId,
-        location: editFormData.place,
-        remark: editFormData.remarks,
-        status: "DRAFT",
-        zoneId: zoneId,
-        createdAt: createdAt // Preserve the original date
-    };
+        const payload = {
+            purposeId: entryType === 'WORKING' ? Number(formData.purpose) : null,
+            userId: userId,
+            location: entryType === 'WORKING' ? formData.place : '',
+            remark: formData.remarks,
+            status: "DRAFT",
+            zoneId: zoneId,
+            createdAt: formattedDate,
+            entryType: entryType
+        };
 
-    console.log("Updating Payload:", payload);
+        if (entryType === 'WORKING') {
+            payload.purposeId = Number(formData.purpose);
+            payload.location = formData.place;
+        }
 
-    try {
-        setEditLoading(true);
-        const response = await tourDiaryService.saveOrUpdateTour(payload);
+        console.log("Saving Payload:", payload);
 
-        if (response.id) {
-            // Update the tourEvents array with the updated event
-            const updatedTourEvents = tourEvents.map(event => 
-                event.id === response.id ? response : event
-            );
-            setTourEvents(updatedTourEvents);
+        try {
+            setLoading(true);
+            const response = await tourDiaryService.saveOrUpdateTour(payload);
 
-            // If the modal is open, update selectedDayEvents
-            if (selectedDate) {
+            if (response.id) {
+                // ✅ FIX: Create a complete event object with ALL data
+            const completeEvent = {
+                id: response.id,
+                purposeId: entryType === 'WORKING' ? Number(formData.purpose) : null,
+                location: entryType === 'WORKING' ? formData.place : '',
+                remark: formData.remarks,
+                userId: userId,
+                zoneId: zoneId,
+                createdAt: formattedDate,
+                entryType: entryType,
+                status: "DRAFT"
+            };
+
+                const updatedTourEvents = [...tourEvents, completeEvent];
+                setTourEvents(updatedTourEvents);
+
                 const { year, month, day } = parseDateKey(selectedDate);
                 const updatedDayEvents = updatedTourEvents.filter(event => {
                     const eventDate = new Date(event.createdAt);
@@ -372,59 +542,146 @@ const TourDiary = () => {
                         eventDate.getMonth() === month &&
                         eventDate.getDate() === day;
                 });
-                setSelectedDayEvents(updatedDayEvents);
-            }
 
-            closeEditModal();
-            alert("Tour updated successfully ✅");
-        } else {
-            alert(response.message || "Failed to update tour");
+                setSelectedDayEvents(updatedDayEvents);
+                setFormData({ place: '', purpose: '', remarks: '' });
+                setActiveTab(1);
+                showNotification('success', 'Tour saved successfully');
+            } else {
+                alert(response.message || "Failed to save tour");
+            }
+        } catch (error) {
+            showNotification('error', 'Something went wrong');
+        } finally {
+            setLoading(false);
         }
-    } catch (error) {
-        alert("Something went wrong");
-    } finally {
-        setEditLoading(false);
-    }
-};
-    const handleDeleteEvent = async (eventId) => {
-        if (!window.confirm("Are you sure you want to delete this tour?")) {
+    };
+
+    const updateEvent = async () => {
+        if (editEntryType === 'WORKING') {
+            if (!editFormData.purpose || !editFormData.place || !editSelectedScheme) {
+                showNotification('error', 'Please fill all required fields');
+                return;
+            }
+        }
+
+        const userId = authservice.userid();
+        const zoneId = Number(authservice.getzone());
+
+        if (!userId || !zoneId) {
+            alert("User session expired. Please login again.");
             return;
         }
+
+        const originalEvent = selectedEvent;
+        const createdAt = originalEvent?.createdAt;
+
+        const payload = {
+            id: editFormData.id,
+            purposeId: editEntryType === 'WORKING' ? Number(editFormData.purpose) : null,
+            userId: userId,
+            location: editEntryType === 'WORKING' ? editFormData.place : '',
+            remark: editFormData.remarks,
+            status: "DRAFT",
+            zoneId: zoneId,
+            createdAt: createdAt,
+            entryType: editEntryType
+        };
+
+        if (editEntryType === 'WORKING') {
+            payload.purposeId = Number(editFormData.purpose);
+            payload.location = editFormData.place;
+        }
+
+        console.log("Updating Payload:", payload);
+
+        try {
+            setEditLoading(true);
+            const response = await tourDiaryService.saveOrUpdateTour(payload);
+
+            if (response.id) {
+                // ✅ FIX: Create a complete updated event object with ALL data
+            const completeEvent = {
+                id: response.id,
+                purposeId: editEntryType === 'WORKING' ? Number(editFormData.purpose) : null,
+                location: editEntryType === 'WORKING' ? editFormData.place : '',
+                remark: editFormData.remarks,
+                userId: userId,
+                zoneId: zoneId,
+                createdAt: createdAt,
+                entryType: editEntryType,
+                status: "DRAFT"
+            };
+
+                const updatedTourEvents = tourEvents.map(event =>
+                    event.id === completeEvent.id ? completeEvent : event
+                );
+                setTourEvents(updatedTourEvents);
+
+                if (selectedDate) {
+                    const { year, month, day } = parseDateKey(selectedDate);
+                    const updatedDayEvents = updatedTourEvents.filter(event => {
+                        const eventDate = new Date(event.createdAt);
+                        return eventDate.getFullYear() === year &&
+                            eventDate.getMonth() === month &&
+                            eventDate.getDate() === day;
+                    });
+                    setSelectedDayEvents(updatedDayEvents);
+                }
+
+                closeEditModal();
+                showNotification('success', 'Tour updated successfully');
+            } else {
+                showNotification('error', response.message || "Failed to update tour");
+            }
+        } catch (error) {
+            showNotification('error', 'Something went wrong');
+        } finally {
+            setEditLoading(false);
+        }
+    };
+
+    const handleDeleteEvent = async (eventId) => {
+        if (!eventId) return;
 
         try {
             setDeleteLoading(true);
             const response = await tourDiaryService.deleteAdvancedTour(eventId);
-            
+
             if (!response.message) {
-                // Refresh the tour data
-                await fetchTourData();
-                
-                // Update selected day events
-                const { year, month, day } = parseDateKey(selectedDate);
-                const updatedDayEvents = tourEvents.filter(event => {
-                    const eventDate = new Date(event.createdAt);
-                    return eventDate.getFullYear() === year &&
-                           eventDate.getMonth() === month &&
-                           eventDate.getDate() === day;
-                });
-                
-                setSelectedDayEvents(updatedDayEvents);
-                alert("Tour deleted successfully");
-                
-                // If no events left for the day, close the modal
-                if (updatedDayEvents.length === 0) {
-                    closeModal();
+                const updatedTourEvents = tourEvents.filter(
+                    event => event.id !== eventId
+                );
+                setTourEvents(updatedTourEvents);
+
+                if (selectedDate) {
+                    const { year, month, day } = parseDateKey(selectedDate);
+                    const updatedDayEvents = updatedTourEvents.filter(event => {
+                        const eventDate = new Date(event.createdAt);
+                        return eventDate.getFullYear() === year &&
+                            eventDate.getMonth() === month &&
+                            eventDate.getDate() === day;
+                    });
+                    setSelectedDayEvents(updatedDayEvents);
+
+                    if (updatedDayEvents.length === 0) {
+                        closeModal();
+                    }
                 }
+
+                showNotification('success', 'Tour deleted successfully');
+                closeDeleteDialog();
             } else {
-                alert(response.message);
+                showNotification('error', response.message);
             }
         } catch (error) {
-            alert("Failed to delete tour");
+            showNotification('error', 'Failed to delete tour');
         } finally {
             setDeleteLoading(false);
         }
     };
 
+    // ============================ FORM HANDLERS ============================
     const handleInputChange = (field, value) => {
         setFormData({
             ...formData,
@@ -439,26 +696,7 @@ const TourDiary = () => {
         });
     };
 
-    // Check if a specific day has events
-    const hasEventsOnDay = (year, month, day) => {
-        return tourEvents.some(event => {
-            const eventDate = new Date(event.createdAt);
-            return eventDate.getFullYear() === year &&
-                   eventDate.getMonth() === month &&
-                   eventDate.getDate() === day;
-        });
-    };
-
-    // Get event count for a specific day
-    const getEventCountForDay = (year, month, day) => {
-        return tourEvents.filter(event => {
-            const eventDate = new Date(event.createdAt);
-            return eventDate.getFullYear() === year &&
-                   eventDate.getMonth() === month &&
-                   eventDate.getDate() === day;
-        }).length;
-    };
-
+    // ============================ RENDER FUNCTIONS ============================
     const renderCalendar = () => {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
@@ -482,11 +720,9 @@ const TourDiary = () => {
             const hasEvents = hasEventsOnDay(year, month, day);
             const eventCount = getEventCountForDay(year, month, day);
 
-            // Check holiday types
             const isSun = isSunday(year, month, day);
             const is2ndSat = isSecondSaturday(year, month, day);
 
-            // Determine background color based on holiday type
             let backgroundColor = theme.palette.background.paper;
             let hoverColor = theme.palette.mode === 'dark' ? theme.palette.grey[800] : '#f5f9ff';
 
@@ -529,7 +765,7 @@ const TourDiary = () => {
                         >
                             {day}
                         </Typography>
-                        
+
                         {hasEvents && (
                             <Box
                                 sx={{
@@ -555,11 +791,11 @@ const TourDiary = () => {
                                         }
                                     }}
                                 >
-                                    Duty
+                                    Report
                                 </Button>
                                 {eventCount > 1 && (
                                     <Chip
-                                        label={`${eventCount} tours`}
+                                        label={`${eventCount}Nos`}
                                         size="small"
                                         sx={{
                                             position: 'absolute',
@@ -583,76 +819,78 @@ const TourDiary = () => {
     };
 
     const renderEventList = () => {
-    if (selectedDayEvents.length === 0) {
+        if (selectedDayEvents.length === 0) {
+            return (
+                <Alert severity="info" sx={{ mt: 2 }}>
+                    No tours planned for this day.
+                </Alert>
+            );
+        }
+
         return (
-            <Alert severity="info" sx={{ mt: 2 }}>
-                No tours planned for this day.
-            </Alert>
-        );
-    }
-
-    return (
-        <List sx={{ mt: 2 }} key={`event-list-${selectedDayEvents.length}`}>
-            {selectedDayEvents.map((event, index) => (
-                <React.Fragment key={event.id}>
-                    {index > 0 && <Divider />}
-                    <ListItem>
-                        <ListItemText
-                            primary={
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <EventIcon fontSize="small" color="action" />
-                                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                        {event.location}
-                                    </Typography>
-                                </Box>
-                            }
-                            secondary={
-                                <Box sx={{ mt: 0.5 }}>
-                                    <Typography variant="body2" color="text.secondary">
-                                        Purpose ID: {event.purposeId}
-                                    </Typography>
-                                    {event.remark && (
-                                        <Typography variant="body2" color="text.secondary">
-                                            Remark: {event.remark}
+            <List sx={{ mt: 2 }} key={`event-list-${selectedDayEvents.length}`}>
+                {selectedDayEvents.map((event, index) => (
+                    <React.Fragment key={event.id}>
+                        {index > 0 && <Divider />}
+                        <ListItem>
+                            <ListItemText
+                                primary={
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <EventIcon fontSize="small" color="action" />
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                                            {event.location}
                                         </Typography>
-                                    )}
-                                    <Typography variant="caption" color="text.secondary">
-                                        {new Date(event.createdAt).toLocaleTimeString()}
-                                    </Typography>
-                                </Box>
-                            }
-                        />
-                        <ListItemSecondaryAction>
-                            <Tooltip title="Edit">
-                                <IconButton 
-                                    edge="end" 
-                                    onClick={() => openEditModal(event)}
-                                    sx={{ mr: 1 }}
-                                    disabled={deleteLoading}
-                                >
-                                    <EditIcon />
-                                </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Delete">
-                                <IconButton 
-                                    edge="end" 
-                                    onClick={() => handleDeleteEvent(event.id)}
-                                    disabled={deleteLoading}
-                                >
-                                    <DeleteIcon />
-                                </IconButton>
-                            </Tooltip>
-                        </ListItemSecondaryAction>
-                    </ListItem>
-                </React.Fragment>
-            ))}
-        </List>
-    );
-};
+                                    </Box>
+                                }
+                                secondary={
+                                    <Box sx={{ mt: 0.5 }}>
+                                        <Typography variant="body2" color="text.secondary">
+                                            Location: {event.location}
+                                        </Typography>
+                                        {event.remark && (
+                                            <Typography variant="body2" color="text.secondary">
+                                                Remark: {event.remark}
+                                            </Typography>
+                                        )}
+                                        <Typography variant="caption" color="text.secondary">
+                                            {new Date(event.createdAt).toLocaleTimeString()}
+                                        </Typography>
+                                    </Box>
+                                }
+                            />
+                            <ListItemSecondaryAction>
+                                <Tooltip title="Edit">
+                                    <IconButton
+                                        edge="end"
+                                        onClick={() => openEditModal(event)}
+                                        sx={{ mr: 1 }}
+                                        disabled={deleteLoading}
+                                    >
+                                        <EditIcon />
+                                    </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Delete">
+                                    <IconButton
+                                        edge="end"
+                                        onClick={() => openDeleteDialog(event.id)}
+                                        disabled={deleteLoading}
+                                    >
+                                        <DeleteIcon />
+                                    </IconButton>
+                                </Tooltip>
+                            </ListItemSecondaryAction>
+                        </ListItem>
+                    </React.Fragment>
+                ))}
+            </List>
+        );
+    };
 
+    // ============================ MAIN RENDER ============================
     return (
         <Grid container spacing={3}>
             <Breadcrumb />
+
             <Grid item xs={12}>
                 <MainCard>
                     <Box sx={{ maxWidth: '1000px', margin: '0 auto' }}>
@@ -674,41 +912,130 @@ const TourDiary = () => {
                                 display: 'flex',
                                 justifyContent: 'space-between',
                                 alignItems: 'center',
-                                marginBottom: 2
+                                marginBottom: 2,
+                                position: 'relative',
+                                minHeight: '70px'
                             }}
                         >
-                            <Button
-                                variant="contained"
-                                onClick={() => changeMonth(-1)}
-                                startIcon={<ArrowBackIosNewIcon />}
-                                sx={{
-                                    backgroundColor: '#2980b9',
-                                    '&:hover': {
-                                        backgroundColor: '#1f6391'
-                                    }
+                            {/* Left section with fixed width to match right section */}
+                            <Box sx={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: 2,
+                                width: '350px', // Fixed width to match right section
+                                justifyContent: 'flex-start'
+                            }}>
+                                <Button
+                                    variant="contained"
+                                    onClick={() => changeMonth(-1)}
+                                    startIcon={<ArrowBackIosNewIcon />}
+                                    sx={{
+                                        backgroundColor: '#2980b9',
+                                        '&:hover': { backgroundColor: '#1f6391' },
+                                        whiteSpace: 'nowrap',
+                                        minWidth: '80px'
+                                    }}
+                                >
+                                    Prev
+                                </Button>
+
+                                {/* Active Halves Card */}
+                                <Paper
+                                    elevation={2}
+                                    sx={{
+                                        p: 1.5,
+                                        minWidth: '240px',
+                                        backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : '#f8f9fa',
+                                        border: `1px solid ${theme.palette.divider}`,
+                                        borderRadius: 2
+                                    }}
+                                >
+                                    {halvesLoading ? (
+                                        <Typography variant="body2" color="text.secondary" align="center">
+                                            Loading...
+                                        </Typography>
+                                    ) : (
+                                        <Box>
+                                            <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
+                                                First Half submit on {getPreviousMonth()} {activeHalves.firstHalf}
+                                            </Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
+                                                Second Half submit on {currentDate.toLocaleString('default', { month: 'long' })} {activeHalves.secondHalf}
+                                            </Typography>
+                                        </Box>
+                                    )}
+                                </Paper>
+                            </Box>
+
+                            {/* Center - Month/Year - absolutely positioned for perfect centering */}
+                            <Typography 
+                                variant="h4" 
+                                sx={{ 
+                                    color: theme.palette.text.primary,
+                                    textAlign: 'center',
+                                    fontWeight: 500,
+                                    position: 'absolute',
+                                    left: '50%',
+                                    transform: 'translateX(-50%)',
+                                    whiteSpace: 'nowrap'
                                 }}
                             >
-                                Prev
-                            </Button>
-                            <Typography variant="h4" sx={{ color: theme.palette.text.primary }}>
                                 {currentDate.toLocaleString('default', {
                                     month: 'long',
                                     year: 'numeric'
                                 })}
                             </Typography>
-                            <Button
-                                variant="contained"
-                                onClick={() => changeMonth(1)}
-                                endIcon={<ArrowForwardIosIcon />}
-                                sx={{
-                                    backgroundColor: '#2980b9',
-                                    '&:hover': {
-                                        backgroundColor: '#1f6391'
-                                    }
-                                }}
-                            >
-                                Next
-                            </Button>
+
+                            {/* Right section with fixed width to match left section */}
+                            <Box sx={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: 2,
+                                width: '350px', // Fixed width to match left section
+                                justifyContent: 'flex-end'
+                            }}>
+                                {/* Submit button with menu */}
+                                <Box>
+    <Button
+        variant="contained"
+        onClick={openSubmitMenu}
+        sx={{
+            backgroundColor: '#27ae60',
+            '&:hover': { backgroundColor: '#1e8449' },
+            whiteSpace: 'nowrap',
+            minWidth: '90px'
+        }}
+    >
+        Submit
+    </Button>
+    <Menu
+        anchorEl={submitAnchorEl}
+        open={Boolean(submitAnchorEl)}
+        onClose={closeSubmitMenu}
+    >
+        <MenuItem onClick={() => handleSubmitHalf('First Half')}>
+            First Half
+        </MenuItem>
+        <MenuItem onClick={() => handleSubmitHalf('Second Half')}>
+            Second Half
+        </MenuItem>
+    </Menu>
+</Box>
+
+                                <Button
+                                    variant="contained"
+                                    onClick={() => changeMonth(1)}
+                                    endIcon={<ArrowForwardIosIcon />}
+                                    sx={{
+                                        backgroundColor: '#2980b9',
+                                        '&:hover': { backgroundColor: '#1f6391' },
+                                        whiteSpace: 'nowrap',
+                                        minWidth: '80px'
+                                    }}
+                                >
+                                    Next
+                                </Button>
+                            </Box>
                         </Box>
 
                         {/* Holiday Legend */}
@@ -788,7 +1115,7 @@ const TourDiary = () => {
                 </MainCard>
             </Grid>
 
-            {/* Main Modal for Event Entry and View */}
+            {/* ==================== MAIN MODAL ==================== */}
             <Modal
                 open={modalOpen}
                 onClose={closeModal}
@@ -822,9 +1149,9 @@ const TourDiary = () => {
                     <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
                         <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
                             <Tab label="Add New Tour" icon={<AddIcon />} iconPosition="start" />
-                            <Tab 
-                                label={`View Tours (${selectedDayEvents.length})`} 
-                                icon={<EventIcon />} 
+                            <Tab
+                                label={`View Tours (${selectedDayEvents.length})`}
+                                icon={<EventIcon />}
                                 iconPosition="start"
                                 disabled={selectedDayEvents.length === 0}
                             />
@@ -835,44 +1162,71 @@ const TourDiary = () => {
                         // Add New Tour Form
                         <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             <FormControl fullWidth size="small">
-                                <InputLabel>Scheme</InputLabel>
+                                <InputLabel>Entry Type</InputLabel>
                                 <Select
-                                    value={selectedScheme}
-                                    label="Scheme"
-                                    onChange={(e) => setSelectedScheme(e.target.value)}
+                                    value={entryType}
+                                    label="Entry Type"
+                                    onChange={(e) => setEntryType(e.target.value)}
                                 >
-                                    {schemes.map((scheme) => (
-                                        <MenuItem key={scheme.id} value={scheme.id}>
-                                            {scheme.schemeName}
+                                    {ENTRY_TYPES.map((type) => (
+                                        <MenuItem key={type.value} value={type.value}>
+                                            {type.label}
                                         </MenuItem>
                                     ))}
                                 </Select>
                             </FormControl>
 
-                            <FormControl fullWidth size="small">
-                                <InputLabel>Purpose of Tour</InputLabel>
-                                <Select
-                                    value={formData.purpose}
-                                    label="Purpose of Tour"
-                                    onChange={(e) => handleInputChange('purpose', e.target.value)}
-                                    disabled={!selectedScheme}
-                                >
-                                    {purposes.map((purpose) => (
-                                        <MenuItem key={purpose.id} value={purpose.id}>
-                                            {purpose.purposeName}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
+                            <Divider sx={{ my: 1 }} />
 
-                            <TextField
-                                fullWidth
-                                label="Place of Visit"
-                                value={formData.place}
-                                onChange={(e) => handleInputChange('place', e.target.value)}
-                                variant="outlined"
-                                size="small"
-                            />
+                            {entryType === 'WORKING' ? (
+                                <>
+                                    <FormControl fullWidth size="small">
+                                        <InputLabel>Scheme</InputLabel>
+                                        <Select
+                                            value={selectedScheme}
+                                            label="Scheme"
+                                            onChange={(e) => setSelectedScheme(e.target.value)}
+                                        >
+                                            {schemes.map((scheme) => (
+                                                <MenuItem key={scheme.id} value={scheme.id}>
+                                                    {scheme.schemeName}
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+
+                                    <FormControl fullWidth size="small">
+                                        <InputLabel>Purpose of Tour</InputLabel>
+                                        <Select
+                                            value={formData.purpose}
+                                            label="Purpose of Tour"
+                                            onChange={(e) => handleInputChange('purpose', e.target.value)}
+                                            disabled={!selectedScheme}
+                                        >
+                                            {purposes.map((purpose) => (
+                                                <MenuItem key={purpose.id} value={purpose.id}>
+                                                    {purpose.purposeName}
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+
+                                    <TextField
+                                        fullWidth
+                                        label="Place of Visit"
+                                        value={formData.place}
+                                        onChange={(e) => handleInputChange('place', e.target.value)}
+                                        variant="outlined"
+                                        size="small"
+                                    />
+                                </>
+                            // ) : (
+                            //     <Alert severity="info" sx={{ mb: 2 }}>
+                            //         {entryType} entry - only remarks can be added
+                            //     </Alert>
+                            // )}
+
+                            ) : null}
 
                             <TextField
                                 fullWidth
@@ -882,6 +1236,7 @@ const TourDiary = () => {
                                 value={formData.remarks}
                                 onChange={(e) => handleInputChange('remarks', e.target.value)}
                                 variant="outlined"
+                                placeholder={entryType !== 'WORKING' ? "Add remarks for this entry" : "Add remarks (optional)"}
                             />
 
                             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 1 }}>
@@ -901,9 +1256,7 @@ const TourDiary = () => {
                                     disabled={loading}
                                     sx={{
                                         backgroundColor: '#27ae60',
-                                        '&:hover': {
-                                            backgroundColor: '#1e8449'
-                                        }
+                                        '&:hover': { backgroundColor: '#1e8449' }
                                     }}
                                 >
                                     {loading ? "Saving..." : "Save"}
@@ -914,11 +1267,18 @@ const TourDiary = () => {
                         // View Existing Tours
                         <Box>
                             {renderEventList()}
-                            
+
                             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
                                 <Button
                                     variant="outlined"
-                                    onClick={() => setActiveTab(0)}
+                                    onClick={() => {
+                                        // Reset form data when adding another
+                                        setFormData({ place: '', purpose: '', remarks: '' });
+                                        setSelectedScheme('');
+                                        setEntryType('WORKING');
+                                        setActiveTab(0);
+                                    }}
+                                    // onClick={() => setActiveTab(0)}
                                     startIcon={<AddIcon />}
                                 >
                                     Add Another
@@ -928,9 +1288,7 @@ const TourDiary = () => {
                                     onClick={closeModal}
                                     sx={{
                                         backgroundColor: '#2980b9',
-                                        '&:hover': {
-                                            backgroundColor: '#1f6391'
-                                        }
+                                        '&:hover': { backgroundColor: '#1f6391' }
                                     }}
                                 >
                                     Close
@@ -941,7 +1299,7 @@ const TourDiary = () => {
                 </Card>
             </Modal>
 
-            {/* Edit Modal for Updating Tour */}
+            {/* ==================== EDIT MODAL ==================== */}
             <Modal
                 open={editModalOpen}
                 onClose={closeEditModal}
@@ -972,44 +1330,70 @@ const TourDiary = () => {
 
                     <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <FormControl fullWidth size="small">
-                            <InputLabel>Scheme</InputLabel>
+                            <InputLabel>Entry Type</InputLabel>
                             <Select
-                                value={editSelectedScheme}
-                                label="Scheme"
-                                onChange={(e) => setEditSelectedScheme(e.target.value)}
+                                value={editEntryType}
+                                label="Entry Type"
+                                onChange={(e) => setEditEntryType(e.target.value)}
+                                /* disabled={selectedEvent?.entryType === 'WORKING'} */
                             >
-                                {schemes.map((scheme) => (
-                                    <MenuItem key={scheme.id} value={scheme.id}>
-                                        {scheme.schemeName}
+                                {ENTRY_TYPES.map((type) => (
+                                    <MenuItem key={type.value} value={type.value}>
+                                        {type.label}
                                     </MenuItem>
                                 ))}
                             </Select>
                         </FormControl>
 
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Purpose of Tour</InputLabel>
-                            <Select
-                                value={editFormData.purpose}
-                                label="Purpose of Tour"
-                                onChange={(e) => handleEditInputChange('purpose', e.target.value)}
-                                disabled={!editSelectedScheme}
-                            >
-                                {purposes.map((purpose) => (
-                                    <MenuItem key={purpose.id} value={purpose.id}>
-                                        {purpose.purposeName}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+                        <Divider sx={{ my: 1 }} />
 
-                        <TextField
-                            fullWidth
-                            label="Place of Visit"
-                            value={editFormData.place}
-                            onChange={(e) => handleEditInputChange('place', e.target.value)}
-                            variant="outlined"
-                            size="small"
-                        />
+                        {editEntryType === 'WORKING' ? (
+                            <>
+                                <FormControl fullWidth size="small">
+                                    <InputLabel>Scheme</InputLabel>
+                                    <Select
+                                        value={editSelectedScheme}
+                                        label="Scheme"
+                                        onChange={(e) => setEditSelectedScheme(e.target.value)}
+                                    >
+                                        {schemes.map((scheme) => (
+                                            <MenuItem key={scheme.id} value={scheme.id}>
+                                                {scheme.schemeName}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+
+                                <FormControl fullWidth size="small">
+                                    <InputLabel>Purpose of Tour</InputLabel>
+                                    <Select
+                                        value={editFormData.purpose}
+                                        label="Purpose of Tour"
+                                        onChange={(e) => handleEditInputChange('purpose', e.target.value)}
+                                        disabled={!editSelectedScheme}
+                                    >
+                                        {purposes.map((purpose) => (
+                                            <MenuItem key={purpose.id} value={purpose.id}>
+                                                {purpose.purposeName}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+
+                                <TextField
+                                    fullWidth
+                                    label="Place of Visit"
+                                    value={editFormData.place}
+                                    onChange={(e) => handleEditInputChange('place', e.target.value)}
+                                    variant="outlined"
+                                    size="small"
+                                />
+                            </>
+                        ) : (
+                            <Alert severity="info" sx={{ mb: 2 }}>
+                                {editEntryType} entry - only remarks can be edited
+                            </Alert>
+                        )}
 
                         <TextField
                             fullWidth
@@ -1019,6 +1403,7 @@ const TourDiary = () => {
                             value={editFormData.remarks}
                             onChange={(e) => handleEditInputChange('remarks', e.target.value)}
                             variant="outlined"
+                            placeholder={editEntryType !== 'WORKING' ? "Add remarks for this entry" : "Add remarks (optional)"}
                         />
 
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 1 }}>
@@ -1038,9 +1423,7 @@ const TourDiary = () => {
                                 disabled={editLoading}
                                 sx={{
                                     backgroundColor: '#2980b9',
-                                    '&:hover': {
-                                        backgroundColor: '#1f6391'
-                                    }
+                                    '&:hover': { backgroundColor: '#1f6391' }
                                 }}
                             >
                                 {editLoading ? "Updating..." : "Update"}
@@ -1049,6 +1432,184 @@ const TourDiary = () => {
                     </Box>
                 </Card>
             </Modal>
+
+            {/* ==================== NOTIFICATION DIALOG ==================== */}
+            <Dialog
+                open={notification.open}
+                onClose={closeNotification}
+                maxWidth="xs"
+                fullWidth
+            >
+                <DialogContent sx={{ textAlign: 'center', py: 4 }}>
+                    {notification.type === 'success' ? (
+                        <>
+                            <Box
+                                sx={{
+                                    width: 70,
+                                    height: 70,
+                                    borderRadius: '50%',
+                                    backgroundColor: '#e8f5e9',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    margin: '0 auto',
+                                    mb: 2
+                                }}
+                            >
+                                <Typography sx={{ fontSize: 40, color: '#2e7d32', fontWeight: 'bold' }}>
+                                    ✓
+                                </Typography>
+                            </Box>
+                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                Success
+                            </Typography>
+                        </>
+                    ) : (
+                        <>
+                            <Box
+                                sx={{
+                                    width: 70,
+                                    height: 70,
+                                    borderRadius: '50%',
+                                    backgroundColor: '#fdecea',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    margin: '0 auto',
+                                    mb: 2
+                                }}
+                            >
+                                <Typography sx={{ fontSize: 40, color: '#d32f2f', fontWeight: 'bold' }}>
+                                    ✕
+                                </Typography>
+                            </Box>
+                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                Error
+                            </Typography>
+                        </>
+                    )}
+
+                    <Typography sx={{ mt: 1 }}>
+                        {notification.message}
+                    </Typography>
+                </DialogContent>
+
+                <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
+                    <Button
+                        variant="contained"
+                        onClick={closeNotification}
+                        sx={{
+                            backgroundColor: notification.type === 'success' ? '#2e7d32' : '#d32f2f'
+                        }}
+                    >
+                        OK
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* ==================== DELETE CONFIRMATION DIALOG ==================== */}
+            <Dialog
+                open={deleteDialog.open}
+                onClose={closeDeleteDialog}
+                maxWidth="xs"
+                fullWidth
+            >
+                <DialogTitle sx={{ fontWeight: 600 }}>
+                    Confirm Delete
+                </DialogTitle>
+
+                <DialogContent>
+                    <Typography>
+                        Are you sure you want to delete this tour?
+                    </Typography>
+                </DialogContent>
+
+                <DialogActions sx={{ px: 3, pb: 2 }}>
+                    <Button onClick={closeDeleteDialog} variant="outlined">
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={() => handleDeleteEvent(deleteDialog.eventId)}
+                        variant="contained"
+                        color="error"
+                    >
+                        Delete
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* ==================== SUBMIT CONFIRMATION DIALOG ==================== */}
+<Dialog
+    open={submitDialog.open}
+    onClose={() => setSubmitDialog({ open: false, half: null })}
+    maxWidth="xs"
+    fullWidth
+>
+    <DialogTitle sx={{ fontWeight: 600 }}>
+        Confirm {submitDialog.half} Submission
+    </DialogTitle>
+
+    <DialogContent>
+        <Typography sx={{ mb: 2 }}>
+            Are you sure you want to submit {submitDialog.half?.toLowerCase()} for{' '}
+            {currentDate.toLocaleString('default', { 
+                month: 'long', 
+                year: 'numeric' 
+            })}?
+        </Typography>
+        
+        <Alert severity="info" sx={{ mt: 2 }}>
+            <Typography variant="body2">
+                This will validate and submit all tour entries for this period.
+            </Typography>
+        </Alert>
+        
+        {/* Show warning if late submission */}
+        {activeHalves && submitDialog.half === 'First Half' && 
+         activeHalves.firstHalf < currentDate.getDate() && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+                <Typography variant="body2">
+                    Note: First Half submission deadline was on {getPreviousMonth()} {activeHalves.firstHalf}. 
+                    This may be marked as LATE.
+                </Typography>
+            </Alert>
+        )}
+        
+        {activeHalves && submitDialog.half === 'Second Half' && 
+         activeHalves.secondHalf < currentDate.getDate() && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+                <Typography variant="body2">
+                    Note: Second Half submission deadline is on {currentDate.toLocaleString('default', { month: 'long' })} {activeHalves.secondHalf}. 
+                    This may be marked as LATE.
+                </Typography>
+            </Alert>
+        )}
+    </DialogContent>
+
+    <DialogActions sx={{ px: 3, pb: 3 }}>
+        <Button 
+            onClick={() => setSubmitDialog({ open: false, half: null })} 
+            variant="outlined"
+            disabled={submitLoading}
+        >
+            Cancel
+        </Button>
+        <Button
+            onClick={confirmSubmit}
+            variant="contained"
+            disabled={submitLoading}
+            sx={{
+                backgroundColor: '#27ae60',
+                '&:hover': { backgroundColor: '#1e8449' },
+                minWidth: '100px'
+            }}
+        >
+            {submitLoading ? "Submitting..." : "Confirm Submit"}
+        </Button>
+    </DialogActions>
+</Dialog>
+
+
         </Grid>
     );
 };
