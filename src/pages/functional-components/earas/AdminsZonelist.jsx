@@ -44,7 +44,7 @@ function AdminsZonelistUI() {
   };
 
   const handleMenuItemClick = (menuItem) => {
-    console.log(`Clicked on ${menuItem} for Zone ID: ${selectedZone?.zoneId}`);
+
     // Here you would add your navigation logic
     // For example, navigate to a new page based on the selected zone ID and menu item
     handleCloseDialog();

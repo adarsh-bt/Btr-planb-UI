@@ -55,7 +55,7 @@ function ClusterSeatMap({ zoneId }) {
     })
       .then(res => {
         setClusters(res.data.payload || []);
-        console.log("cluster data  ", res.data.payload);
+     
         setSummary({
           completed: res.data.completed || 0,
           ongoing: res.data.ongoing || 0,

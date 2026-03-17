@@ -49,7 +49,7 @@ useEffect(() => {
       });
 
       const result = await response.json(); // Always parse response body
-
+console.log('API response:', result); // Log the entire response for debugging
       if (!response.ok) {
         // Handle specific case: "No value present"
         if (result?.response === "No value present") {
@@ -58,13 +58,12 @@ useEffect(() => {
           throw new Error(result?.message || 'Failed to fetch data');
         }
       } else {
-        console.log('data', result.payload);
+      
         setResult(result.payload);
         setZoneName(result.payload.zone_name)
         setData(result.payload.data);
       }
     } catch (error) {
-      console.log(">>>", error);
       setError(error.message+". Please try refreshing the page." || 'An unexpected error occurred');
     } finally {
       setLoading(false);

@@ -46,6 +46,10 @@ const ZoneSettings = Loadable(lazy(() => import('pages/functional-components/ear
 const SettingsMenu = Loadable(lazy(() => import('pages/functional-components/earas/SettingsMenu')));
 const CCE_crop_selection = Loadable(lazy(() => import('pages/functional-components/earas/CceCropSelection')));
 
+const MappingManagement = Loadable(lazy(() => import('pages/functional-components/earas/MappingSettings/MappingMenus')));
+const ZoneList = Loadable(lazy(() => import('pages/functional-components/earas/MappingSettings/ZoneListing')));
+const ZoneManage = Loadable(lazy(() => import('pages/functional-components/earas/MappingSettings/ZoneManage')));
+
 const Form1_menus = Loadable(lazy(() => import('pages/functional-components/earas/form1/form1menus')));
 // const LandUtilization = Loadable(lazy(() => import('pages/functional-components/earas/form1/Form1Wrapper')));
 
@@ -534,6 +538,30 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
+    {
+      path: '/schemes/earas/Mapping_Management',
+      element: (
+        <PrivateRoute>
+          <MappingManagement />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/earas_management/ZoneListing',
+      element: (
+        <PrivateRoute>
+          <ZoneList />
+        </PrivateRoute>
+      )
+    },
+     {
+      path: '/schemes/earas/earas_management/ZoneListing/ZoneManage/:zoneId',
+      element: (
+        <PrivateRoute>
+          <ZoneManage />
+        </PrivateRoute>
+      )
+    }
   ]
 };
 

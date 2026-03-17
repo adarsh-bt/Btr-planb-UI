@@ -232,7 +232,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     const { token, username: userNameFromApi } = userData.payload;
                     localStorage.setItem('token', token);
                     // localStorage.setItem('user', userNameFromApi);
-                    console.log("  >   name   > "+userNameFromApi)
+                   
                     if (rememberMe) {
                         localStorage.setItem('rememberedUsername', username);
                         localStorage.setItem('rememberedPassword', password);

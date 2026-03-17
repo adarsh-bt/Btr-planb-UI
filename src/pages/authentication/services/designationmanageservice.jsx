@@ -12,7 +12,7 @@ const DesignationManageService = {
            Authorization: `Bearer ${token}`
         }
       });
-      console.log("designations: ",response.designationName)
+   
       return { payload: response.data.payload };
     } catch (err) {
       return {
@@ -29,7 +29,7 @@ const DesignationManageService = {
            Authorization: `Bearer ${token}`
         }
       });
-      console.log("designations: ",response.designationName)
+      
       return { payload: response.data.payload };
     } catch (err) {
       return {

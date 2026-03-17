@@ -40,7 +40,7 @@ const ClusterRouteWrapper = () => {
         );
 
         const btrTypeId = response.data.btrTypeId;
-        console.log('Fetched BTR Type ID:', response.data);
+      
 
         let targetRoute;
 

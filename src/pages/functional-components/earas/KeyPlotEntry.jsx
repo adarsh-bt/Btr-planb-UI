@@ -216,7 +216,7 @@ useEffect(() => {
       );
 
       const [lbData, villageData, distData, talukData] = await Promise.all(requests);
-
+console.log("Fetched Data:", { lbData, villageData, distData, talukData });
       setLocalBodies(lbData || []);
       setVillageOptions(villageData || []);
       setDistrictInfo(distData);
@@ -231,7 +231,7 @@ useEffect(() => {
       });
 
     } catch (err) {
-      console.error("Data fetching error:", err);
+     
       setError(err.message);
       toast.error(`Data loading failed: ${err.message}`);
     } finally {
@@ -350,6 +350,7 @@ useEffect(() => {
     setShowConfirmModal(true);
   };
 
+
   const handleConfirmSave = () => {
     setShowConfirmModal(false);
     handleActualSave();
@@ -457,7 +458,7 @@ const fetchKeyplotLimit = async () => {
       setIsSaving(false);
       return;
     }
-    console.log(">     >> ---  ", localBodyInfoMap);
+  
     const zoneId = authservice.getzone();
     const payload = allKeyplots.map((row) => {
   const villageData = villageInfoMap.get(row.village);
@@ -479,6 +480,7 @@ const fetchKeyplotLimit = async () => {
     bcode: row.villageBlock ?? null,
     ltype: row.landType.toUpperCase(),
     resvno: parseInt(row.surveyNo, 10),
+    user_id: userId,
     resbdno: row.subDivNo,
     totCent: row.area,
     btrtype: 1,
@@ -508,7 +510,7 @@ const fetchKeyplotLimit = async () => {
   );
 
       const result = await response.json();
-      console.log("API response:", result);
+
      if (!response.ok) {
   if (result.status === "Validation Failed" && result.errors) {
 
@@ -523,7 +525,7 @@ const fetchKeyplotLimit = async () => {
         error.resbdno === null &&
         error.message
       ) {
-      console.log("Setting global error message:", error.message);
+
         globalErrorMessage = error.message;
         setMainError(error.message);
         return;
@@ -567,13 +569,13 @@ const fetchKeyplotLimit = async () => {
 }
 
       // Success response
-      console.log("API save response:", result);
+      
       if (result.status === "Success") {
         const savedKeyplotCount = result.ids?.length || totalKeyplots;
         setSavedCount(savedKeyplotCount);
         setShowSuccessModal(true);
         toast.success(`Successfully saved! All ${savedKeyplotCount} keyplots have been saved successfully.`);
-        console.log("Save successful:", result);
+      
         // Optional: Reset form state after successful save
           setLocalBodyData({});
         setDuplicateErrors({});

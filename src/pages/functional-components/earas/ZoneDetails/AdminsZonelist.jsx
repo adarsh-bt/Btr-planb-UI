@@ -106,7 +106,7 @@ function AdminsZonelistUI() {
         );
 
         const result = await response.json();
-        console.log("Fetched zones:", result);
+     
         if (!response.ok) {
           if (result?.response === "No value present") {
             setError("No zones are currently assigned to you.");
@@ -220,7 +220,7 @@ function AdminsZonelistUI() {
               WebkitBackgroundClip: 'text',
               color: 'transparent'
             }}>
-              Zone Management
+              Zone Lists
             </Typography>
             
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>

@@ -40,7 +40,7 @@ function Earas_menus() {
   const [btrLoading, setBtrLoading] = useState(true); // Rename to avoid conflict with permissions loading
 
   const zoneId = localStorage.getItem('activeZone');
-  console.log(zoneId);
+
 const role = authservice.getrole();
   useEffect(() => {
     const fetchBtrType = async () => {
@@ -63,7 +63,7 @@ const role = authservice.getrole();
           throw new Error('Failed to fetch BTR type');
         }
         const data = await response.json();
-        console.log("jjjj ",data)
+    
         setBtrData(data);
       } catch (error) {
         console.error('Error fetching BTR type:', error);
@@ -76,7 +76,7 @@ const role = authservice.getrole();
   }, [zoneId]);
 
   const renderKeyPlotGrids = () => {
-console.log("okk",btrData)
+
     if (!btrData) return null;
 
     const { btrTypeId } = btrData;
@@ -249,6 +249,62 @@ console.log("okk",btrData)
                 </Box>
               </Card>
             </Grid>
+{role === 'IT Admin' && (
+              <Grid item xs={12} sm={4} md={3} lg={3}>
+              <Card
+                component={Link}
+                to="/schemes/earas/Mapping_Management"
+                sx={{
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '1rem',
+                  borderRadius: '1rem',
+                  background: 'linear-gradient(135deg, rgba(79, 81, 208, 0.45), rgb(106, 98, 218))', // Gradient color
+                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
+                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
+                  '&:hover': {
+                    transform: 'scale(1.05)', // Hover scale effect
+                    // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
+                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
+                  }
+                }}
+              >
+                <CardMedia
+                  component="img"
+                  sx={{
+                    width: '5rem',
+                    height: '5rem',
+                    borderRadius: '.5rem',
+                    marginRight: '1rem' // Space between image and text
+                  }}
+                  image={ZoneSettings} // <-- Use the imported image here
+                  alt="zone details"
+                />
+
+                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
+                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
+                      Mapping
+                    </Typography>
+                    <Typography
+                      variant="subtitle1"
+                      component="div"
+                      sx={{
+                        color: '#f3f3f3',
+                        fontStyle: 'italic',
+                        fontWeight: 'lighter',
+                        marginTop: '0.5rem'
+                      }}
+                    >
+                     Management
+                    </Typography>
+                  </CardContent>
+                </Box>
+              </Card>
+            </Grid>
+            )}
 {role === 'EARAS Admin' && (
              <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card

@@ -59,7 +59,7 @@ const handleEmailSubmit = async (e) => {
   const input = email.trim();
 
   if (!input) {
-    setGlobalError('Please enter your email or mobile number.');
+    setGlobalError('Please enter your email');
     return;
   }
 
@@ -82,7 +82,7 @@ const handleEmailSubmit = async (e) => {
 
   try {
     const userData = await authservice.email_verification(input);
-    console.log('Email verification response:', userData.paylod);
+   
 
     setIsLoading(false);
 
@@ -144,7 +144,7 @@ const handleEmailSubmit = async (e) => {
       setGlobalError('An error occurred while verifying OTP.');
     }
 
-    console.log('OTP submitted:', otp.join(''));
+    
     // setStep(3); // Move to the next step for entering new password
   };
 
@@ -221,7 +221,7 @@ const handleEmailSubmit = async (e) => {
         {step === 1 && (
           <>
             <Typography variant="body2" sx={{ color: '#666', textAlign: 'center', fontSize: '0.9rem' }}>
-              Enter your registered Email or Mobile Number to receive a One-Time Password (OTP).
+              Enter your registered Email to receive a One-Time Password (OTP).
             </Typography>
             {globalError && (
               <Stack sx={{ width: '100%', background: '#fff1f0' }} spacing={2}>
@@ -236,7 +236,7 @@ const handleEmailSubmit = async (e) => {
             <TextField
               fullWidth
               variant="outlined"
-              label="Email or Mobile Number"
+              label="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoFocus

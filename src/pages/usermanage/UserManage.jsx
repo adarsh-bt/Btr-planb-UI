@@ -356,7 +356,7 @@ const handleChangeEmail = async () => {
         // Optionally refresh user data
         const updatedRes = await ApprovedUserService.fetchUserById(userId);
         if (!updatedRes.error) {
-        console.log("updatedRes.payload ",updatedRes.payload )
+       
           setUserData(updatedRes.payload);
           setOfficeType(updatedRes.payload.officeType || '');
         }
@@ -448,7 +448,7 @@ const handleSchemeRoleActiveChange = (index, value) => {
     } else {
       const payload = res.payload;
       setUserData(payload);
-     console.log("ooo ",payload)
+     
 
       const logid = payload.logid || '';
       setLoginId(logid); // still store it in state if needed elsewhere
@@ -475,7 +475,7 @@ const handleSchemeRoleActiveChange = (index, value) => {
         .catch((error) => {
           console.error('Error fetching zones:', error);
         });
-        console.log("role  dddd ",payload.roleSchemeResponses)
+        
       // Other state updates...
       // setSchemeRolePairs(
       //   (payload.roleSchemeResponses || []).map((r) => ({
@@ -602,9 +602,9 @@ useEffect(() => {
   if (isAddZoneOpen) {
     const fetchZones = async () => {
       try {
-        console.log("user data  ",userData)
+      
         const response = await approvalservice.zoneslist(userData.officeType, userData.officeId);
-        console.log("available zones response ",response)
+       
         if (response) {
           setAvailableZones(response);
           
@@ -635,7 +635,7 @@ const handleSaveAddZone = async () => {
   try {
     setAddZoneSaving(true);
     setAddZoneError('');
-console.log("selectedZoneIdToAdd", selectedZoneIdToAdd);
+
     // Find the selected zone
     const addedZone = availableZones.find(zone => zone.zoneId === selectedZoneIdToAdd);
 
@@ -768,21 +768,19 @@ const handleSaveDesignationClick = () => {
   };
 // Add this useEffect to debug state changes
 useEffect(() => {
-  console.log('schemeRolePairs updated:', schemeRolePairs);
-  console.log('rolesByScheme updated:', rolesByScheme);
+
 }, [schemeRolePairs, rolesByScheme]);
 
 // Also add this to debug when editing mode changes
 useEffect(() => {
   console.log('isEditingSchemes:', isEditingSchemes);
-  console.log('Current schemeRolePairs in edit mode:', schemeRolePairs);
+  
 }, [isEditingSchemes]);
 
 useEffect(() => {
   if (isEditingSchemes && schemeRolePairs[0]?.schemeId) {
     console.log('Current scheme in edit mode:', schemeRolePairs[0].schemeId);
-    console.log('Available roles for this scheme:', rolesByScheme[schemeRolePairs[0].schemeId]);
-    console.log('Current roleId:', schemeRolePairs[0].roleId);
+    
   }
 }, [isEditingSchemes, schemeRolePairs, rolesByScheme]);
   // --- Scheme and Role Handlers ---
@@ -883,16 +881,16 @@ const handleSchemeChange = async (idx, schemeId) => {
 
   // If roles for this scheme are already cached, use them
   if (rolesByScheme[schemeId]) {
-    console.log(`Using cached roles for scheme ${schemeId}:`, rolesByScheme[schemeId]);
+    
     return;
   }
   
   // Otherwise fetch them
-  console.log(`Fetching roles for scheme ${schemeId}...`);
+ 
   setRolesLoading(true);
   try {
     const roles = await ApprovedUserService.getRolesbySchemes(schemeId);
-    console.log(`Fetched roles for scheme ${schemeId}:`, roles);
+   
     
     let rolesList = [];
     if (Array.isArray(roles)) {
@@ -917,7 +915,7 @@ const handleSchemeChange = async (idx, schemeId) => {
       [schemeId]: transformedRoles
     }));
     
-    console.log(`Stored transformed roles for scheme ${schemeId}:`, transformedRoles);
+  
   } catch (err) {
     console.error('Failed to fetch roles:', err);
     setRolesByScheme((prev) => ({ ...prev, [schemeId]: [] }));

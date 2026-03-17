@@ -256,7 +256,7 @@ const handlePlotUsage = async (row) => {
   setSelectedPlotRow(row);
   setPlotUsageLoading(true);
   setPlotUsageDialogOpen(true);
-  console.log("Selected Row for Plot Usage:", row);
+  
   try {
     // Assuming you have the bcode from the row
     const plotId = row.id; // Adjust this based on your actual ID field
@@ -379,7 +379,7 @@ if (newTotCent < totalEnumeratedArea) {
       // Adjust page to 0-based if your API expects it
       const apiPage = page - 1;
       const response = await btrservice.btr_lists_data(apiPage, size, filterText,resolvedZoneId);
-        console.log("response ",response)
+      
       if (response?.payload?.data) {
         
         // after fetching data

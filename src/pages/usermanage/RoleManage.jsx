@@ -76,7 +76,7 @@ const RoleManage = () => {
     };
 
     const result = await roleManageService.saveOrUpdateRole(userData);
-    console.log('Save/Update Role Result:', result);
+   
     if (result?.message === 'Successfully created' || result?.message === 'Successfully updated') {
       Swal.fire({
         icon: 'success',

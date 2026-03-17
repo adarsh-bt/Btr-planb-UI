@@ -16,7 +16,7 @@ static async fetchPagedApprovedUsers(params) {
         params,
       }
     );
-    console.log("response ",response)
+    
     return response.data;
   } catch (err) {
     return {
@@ -47,7 +47,7 @@ static async fetchPagedApprovedUsers(params) {
 static async changeEmail(data) {
   try {
     const token = localStorage.getItem('token');
-    console.log("data in service",data)
+    
     const response = await axios.post(
       `${ApprovedUserService.USER_URL}/user-access/it-admin/change-email`,
       data,
@@ -94,7 +94,7 @@ static async changeEmail(data) {
           Authorization: `Bearer ${token}`
         }
       });
-      console.log(response.data);
+   
       return response.data;
     } catch (err) {
       return {
@@ -112,7 +112,7 @@ static async changeEmail(data) {
           Authorization: `Bearer ${token}`
         }
       });
-      console.log(response.data);
+     
       return response.data;
     } catch (err) {
       return {
@@ -207,7 +207,7 @@ static async changeEmail(data) {
           'Content-Type': 'application/json'
         }
     });
-      console.log('schemes >>', response.data);
+   
       return response.data.payload; // Add fallback for different response structures
     } catch (err) {
       console.error('Error fetching schemes:', err);
@@ -223,7 +223,7 @@ static async changeEmail(data) {
           'Content-Type': 'application/json'
         }
       });
-      console.log('rolesbyscheme > ', response.data);
+    
       return response.data.payload || response.data;
     } catch (err) {
       console.error('Error fetching roles by scheme:', err);
@@ -330,7 +330,7 @@ static async changeEmail(data) {
           'Content-Type': 'application/json'
         }
       });
-      console.log("response in getZonesByUserId",response);
+   
       return response;
     } catch (err) {
       return {
@@ -346,7 +346,7 @@ static async updateZoneAssignmentStatus(userdata) {
   try {
     const token = localStorage.getItem('token');
 
-   console.log("userdata in service",userdata)
+  
 
 
     const response = await axios.post(`${ApprovedUserService.BTR_URL}/btr-service/btr-api/zone-assignment/update-status`, userdata, {

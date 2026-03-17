@@ -69,7 +69,7 @@ useEffect(() => {
         // C. Parse Response
         if (response.ok) {
           const data = await response.json();
-          console.log("Fetched CCE Plot Data:", data);
+         
           // Check if payload exists and has data
           if (data && data.payload && Array.isArray(data.payload)) {
             setPlotData(data.payload);

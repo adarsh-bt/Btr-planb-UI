@@ -61,7 +61,7 @@ class approvalservice {
           }
         }
       );
-      console.log("district admin",response.data)
+     
       return response.data; // Return a consistent object on success
     } catch (err) {
       return {
@@ -134,7 +134,7 @@ class approvalservice {
   static async saveDisApproval(payload) {
     try {
       const token = localStorage.getItem('token');
-      console.log('payload: ', payload);
+     
       const response = await axios.post(
         `${approvalservice.USER_URL}/user-access/district-admin/save-approvals`,
         payload, // Send payload as the body
@@ -234,7 +234,7 @@ class approvalservice {
     // console.log("okk")
     try {
       const token = localStorage.getItem('token');
-      console.log("office _id ",officeId,"office typr >>",officeId)
+      
       const response = await axios.get(
         `${approvalservice.BTR_URL}/btr-service/btr-api/zones/${officeType}/${officeId}`
           , {
