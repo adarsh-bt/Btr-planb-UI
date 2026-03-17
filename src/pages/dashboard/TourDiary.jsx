@@ -38,7 +38,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import EventIcon from '@mui/icons-material/Event';
 import AddIcon from '@mui/icons-material/Add';
 import InfoIcon from '@mui/icons-material/Info';
-
+import CheckIcon from '@mui/icons-material/Check';
 import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
 import tourDiaryService from 'pages/authentication/services/tourdiaryservice';
@@ -91,7 +91,8 @@ const TourDiary = () => {
 
     // Data states
     const [schemes, setSchemes] = useState([]);
-    const [purposes, setPurposes] = useState([]);
+    const [purposes, setPurposes] = useState([]); // For form dropdowns
+    const [allPurposes, setAllPurposes] = useState([]); // For displaying in lists
 
     // Loading states
     const [loading, setLoading] = useState(false);
@@ -186,16 +187,17 @@ const TourDiary = () => {
 
     // ============================ API CALLS ============================
     const fetchTourData = async () => {
-        const zoneId = Number(authservice.getzone());
-        if (!zoneId) return;
+        const userId = authservice.userid();
+        if (!userId) return;
 
         setLoading(true);
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth() + 1;
 
         try {
-            const data = await tourDiaryService.getAdvancedTourByFilter(zoneId, month, year);
+            const data = await tourDiaryService.getAdvancedTourByFilter(userId, month, year);
             if (Array.isArray(data)) {
+                console.log("Fetched tour data:", data);
                 setTourEvents(data);
             } else if (data.message) {
                 console.error("Error fetching tour data:", data.message);
@@ -233,16 +235,49 @@ const TourDiary = () => {
         }
     };
 
+    // Fetch all purposes from all schemes
+    const fetchAllPurposes = async () => {
+        if (schemes.length === 0) return;
+        
+        try {
+            const allPurposesData = [];
+            // Fetch purposes for each scheme
+            for (const scheme of schemes) {
+                const data = await tourDiaryService.getActivePurposes(scheme.id);
+                if (data && !data.message && Array.isArray(data)) {
+                    allPurposesData.push(...data);
+                }
+            }
+            
+            // Remove duplicates based on id
+            const uniquePurposes = Array.from(
+                new Map(allPurposesData.map(p => [p.id, p])).values()
+            );
+            
+            setAllPurposes(uniquePurposes);
+            console.log("All purposes loaded:", uniquePurposes);
+        } catch (error) {
+            console.error("Error fetching all purposes:", error);
+        }
+    };
+
     // ============================ EFFECTS ============================
     useEffect(() => {
         fetchSchemes();
         fetchActiveHalves();
     }, []);
 
+    // Fetch all purposes when schemes are loaded
+    useEffect(() => {
+        if (schemes.length > 0) {
+            fetchAllPurposes();
+        }
+    }, [schemes]);
+
     // Add another useEffect to refresh active halves when month changes
-useEffect(() => {
-    fetchActiveHalves(); // Refresh when month changes
-}, [currentDate.getFullYear(), currentDate.getMonth()]);
+    useEffect(() => {
+        fetchActiveHalves(); // Refresh when month changes
+    }, [currentDate.getFullYear(), currentDate.getMonth()]);
 
     useEffect(() => {
         const fetchPurposes = async () => {
@@ -327,71 +362,75 @@ useEffect(() => {
     // };
 
     // Add submit function
-const handleSubmitHalf = async (half) => {
-    setSubmitDialog({
-        open: true,
-        half: half
-    });
-    closeSubmitMenu();
-};
-
-// Add confirmation submit function
-const confirmSubmit = async () => {
-    const zoneId = Number(authservice.getzone());
-    const userId = authservice.userid();
-    
-    if (!zoneId || !userId) {
-        showNotification('error', 'User session expired. Please login again.');
-        return;
-    }
-
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth() + 1;
-    
-    // Determine the half key based on the selected half
-    const firstHalfKey = submitDialog.half === 'First Half' ? 'FIRST_HALF' : 'SECOND_HALF';
-
-    const payload = {
-        firstHalfKey: firstHalfKey,
-        zoneId: zoneId,
-        month: month,
-        year: year,
-        userId: userId
+    const handleSubmitHalf = async (half) => {
+        setSubmitDialog({
+            open: true,
+            half: half
+        });
+        closeSubmitMenu();
     };
 
-    console.log("Submitting payload:", payload);
-
-    try {
-        setSubmitLoading(true);
-        const response = await tourDiaryService.submitTourHalf(payload);
+    // Add confirmation submit function
+    // Add this function to handle the response correctly
+    const confirmSubmit = async () => {
+        const zoneId = Number(authservice.getzone());
+        const userId = authservice.userid();
         
-        if (typeof response === 'string') {
-            // Check if it's a success message (even with LATE status)
-            if (response.includes('successfully')) {
-                showNotification('success', response);
-                // Refresh active halves after successful submission
-                await fetchActiveHalves();
-                // Optionally refresh tour data
-                await fetchTourData();
-            } else {
-                showNotification('error', response);
-            }
-        } else if (response.message) {
-            showNotification('error', response.message);
-        } else {
-            showNotification('success', 'Submitted successfully');
-            await fetchActiveHalves();
-            await fetchTourData();
+        if (!zoneId || !userId) {
+            showNotification('error', 'User session expired. Please login again.');
+            return;
         }
+
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth() + 1;
         
-        setSubmitDialog({ open: false, half: null });
-    } catch (error) {
-        console.error("Submit error:", error);
-        showNotification('error', error.response?.data || 'Failed to submit');
-    } finally {
-        setSubmitLoading(false);
-    }
-};
+        // Map "First Half"/"Second Half" to API expected values
+        const periodType = submitDialog.half === 'First Half' ? 'FIRST_HALF' : 'SECOND_HALF';
+
+        const payload = {
+            periodType: periodType,
+            zoneId: zoneId,
+            month: month,
+            year: year,
+            userId: userId
+        };
+
+        console.log("Submitting payload:", payload);
+
+        try {
+            setSubmitLoading(true);
+            const response = await tourDiaryService.submitTourHalf(payload);
+            
+            // Handle string response (success or error message)
+            if (typeof response === 'string') {
+                // Check if it's a success message (contains 'successfully')
+                if (response.toLowerCase().includes('successfully')) {
+                    showNotification('success', response);
+                    // Refresh active halves after successful submission
+                    await fetchActiveHalves();
+                    // Optionally refresh tour data
+                    await fetchTourData();
+                } else {
+                    showNotification('error', response);
+                }
+            } 
+            // Handle object response (if your API returns objects for errors)
+            else if (response.message) {
+                showNotification('error', response.message);
+            } else {
+                showNotification('success', 'Submitted successfully');
+                await fetchActiveHalves();
+                await fetchTourData();
+            }
+            
+            setSubmitDialog({ open: false, half: null });
+        } catch (error) {
+            console.error("Submit error:", error);
+            showNotification('error', error.response?.data || 'Failed to submit');
+        } finally {
+            setSubmitLoading(false);
+        }
+    };
 
     // ============================ CALENDAR HANDLERS ============================
     const changeMonth = (offset) => {
@@ -520,17 +559,17 @@ const confirmSubmit = async () => {
 
             if (response.id) {
                 // ✅ FIX: Create a complete event object with ALL data
-            const completeEvent = {
-                id: response.id,
-                purposeId: entryType === 'WORKING' ? Number(formData.purpose) : null,
-                location: entryType === 'WORKING' ? formData.place : '',
-                remark: formData.remarks,
-                userId: userId,
-                zoneId: zoneId,
-                createdAt: formattedDate,
-                entryType: entryType,
-                status: "DRAFT"
-            };
+                const completeEvent = {
+                    id: response.id,
+                    purposeId: entryType === 'WORKING' ? Number(formData.purpose) : null,
+                    location: entryType === 'WORKING' ? formData.place : '',
+                    remark: formData.remarks,
+                    userId: userId,
+                    zoneId: zoneId,
+                    createdAt: formattedDate,
+                    entryType: entryType,
+                    status: "DRAFT"
+                };
 
                 const updatedTourEvents = [...tourEvents, completeEvent];
                 setTourEvents(updatedTourEvents);
@@ -601,17 +640,17 @@ const confirmSubmit = async () => {
 
             if (response.id) {
                 // ✅ FIX: Create a complete updated event object with ALL data
-            const completeEvent = {
-                id: response.id,
-                purposeId: editEntryType === 'WORKING' ? Number(editFormData.purpose) : null,
-                location: editEntryType === 'WORKING' ? editFormData.place : '',
-                remark: editFormData.remarks,
-                userId: userId,
-                zoneId: zoneId,
-                createdAt: createdAt,
-                entryType: editEntryType,
-                status: "DRAFT"
-            };
+                const completeEvent = {
+                    id: response.id,
+                    purposeId: editEntryType === 'WORKING' ? Number(editFormData.purpose) : null,
+                    location: editEntryType === 'WORKING' ? editFormData.place : '',
+                    remark: editFormData.remarks,
+                    userId: userId,
+                    zoneId: zoneId,
+                    createdAt: createdAt,
+                    entryType: editEntryType,
+                    status: "DRAFT"
+                };
 
                 const updatedTourEvents = tourEvents.map(event =>
                     event.id === completeEvent.id ? completeEvent : event
@@ -703,6 +742,9 @@ const confirmSubmit = async () => {
         const firstDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
 
+        // Calculate the 15th day of the month
+        const fifteenthDay = 15;
+
         const calendarDays = [];
 
         // Empty cells for days before the first day of the month
@@ -723,8 +765,21 @@ const confirmSubmit = async () => {
             const isSun = isSunday(year, month, day);
             const is2ndSat = isSecondSaturday(year, month, day);
 
+            // Determine if day is in First Half (1-15) or Second Half (16 onwards)
+            const isFirstHalf = day <= fifteenthDay;
+            const isSecondHalf = day > fifteenthDay;
+
             let backgroundColor = theme.palette.background.paper;
             let hoverColor = theme.palette.mode === 'dark' ? theme.palette.grey[800] : '#f5f9ff';
+
+            // Apply half-specific background colors
+            if (isFirstHalf) {
+                // Light blue for First Half
+                backgroundColor = theme.palette.mode === 'dark' ? '#1a2a3a' : '#e3f2fd';
+            } else if (isSecondHalf) {
+                // Light green for Second Half
+                backgroundColor = theme.palette.mode === 'dark' ? '#1a3a2a' : '#e8f5e9';
+            }
 
             if (isSun) {
                 backgroundColor = theme.palette.mode === 'dark' ? '#4a2a2a' : '#ffe6e6';
@@ -738,7 +793,7 @@ const confirmSubmit = async () => {
                 <Grid item xs={12 / 7} key={day}>
                     <Paper
                         onClick={() => openModal(dateKey)}
-                        title={isSun ? 'Sunday' : is2ndSat ? 'Second Saturday' : ''}
+                        title={`${isFirstHalf ? 'First Half' : 'Second Half'}${isSun ? ' - Sunday' : is2ndSat ? ' - Second Saturday' : ''}`}
                         sx={{
                             minHeight: '90px',
                             padding: '10px',
@@ -754,6 +809,7 @@ const confirmSubmit = async () => {
                             }
                         }}
                     >
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <Typography
                             variant="body1"
                             sx={{
@@ -765,6 +821,27 @@ const confirmSubmit = async () => {
                         >
                             {day}
                         </Typography>
+
+                        {/* Add FH/SH label */}
+                        <Chip
+                            label={isFirstHalf ? 'FH' : 'SH'}
+                            size="small"
+                            sx={{
+                                height: '20px',
+                                fontSize: '0.65rem',
+                                fontWeight: 'bold',
+                                backgroundColor: isFirstHalf 
+                                    ? (theme.palette.mode === 'dark' ? '#1976d2' : '#bbdefb')
+                                    : (theme.palette.mode === 'dark' ? '#2e7d32' : '#c8e6c9'),
+                                color: isFirstHalf 
+                                    ? (theme.palette.mode === 'dark' ? '#fff' : '#0d47a1')
+                                    : (theme.palette.mode === 'dark' ? '#fff' : '#1b5e20'),
+                                '& .MuiChip-label': {
+                                    px: 0.5
+                                }
+                            }}
+                        />
+                    </Box>
 
                         {hasEvents && (
                             <Box
@@ -783,19 +860,21 @@ const confirmSubmit = async () => {
                                     size="small"
                                     sx={{
                                         backgroundColor: '#27ae60',
-                                        fontSize: '0.7rem',
-                                        minWidth: '60px',
+                                        minWidth: '28px',
+                                        width: '28px',
                                         height: '28px',
+                                        borderRadius: '4px',
+                                        padding: 0,
                                         '&:hover': {
                                             backgroundColor: '#1e8449'
                                         }
                                     }}
                                 >
-                                    Report
+                                    <CheckIcon sx={{ fontSize: '18px' }} />
                                 </Button>
                                 {eventCount > 1 && (
                                     <Chip
-                                        label={`${eventCount}Nos`}
+                                        label={`${eventCount}`}
                                         size="small"
                                         sx={{
                                             position: 'absolute',
@@ -803,8 +882,16 @@ const confirmSubmit = async () => {
                                             right: -20,
                                             backgroundColor: '#e74c3c',
                                             color: 'white',
-                                            fontSize: '0.6rem',
-                                            height: '20px'
+                                            fontSize: '0.7rem',
+                                            fontWeight: 'bold',
+                                            height: '22px',
+                                            minWidth: '22px',
+                                            width: 'auto',
+                                            padding: eventCount >= 10 ? '0 4px' : '0 6px',
+                                            borderRadius: '12px',
+                                            '& .MuiChip-label': {
+                                                padding: '0 4px'
+                                            }
                                         }}
                                     />
                                 )}
@@ -827,33 +914,89 @@ const confirmSubmit = async () => {
             );
         }
 
+        // Helper function to get purpose name by ID from allPurposes
+        const getPurposeName = (purposeId) => {
+            if (!purposeId) return null;
+            const purpose = allPurposes.find(p => p.id === purposeId);
+            return purpose ? purpose.purposeName : 'Unknown Purpose';
+        };
+
+        // Helper function to get scheme name by purpose ID
+        const getSchemeNameForPurpose = (purposeId) => {
+            if (!purposeId) return null;
+            // Find the scheme that contains this purpose
+            for (const scheme of schemes) {
+                if (scheme.purposes && scheme.purposes.some(p => p.id === purposeId)) {
+                    return scheme.schemeName;
+                }
+            }
+            return null;
+        };
+
         return (
             <List sx={{ mt: 2 }} key={`event-list-${selectedDayEvents.length}`}>
                 {selectedDayEvents.map((event, index) => (
                     <React.Fragment key={event.id}>
                         {index > 0 && <Divider />}
-                        <ListItem>
+                        <ListItem alignItems="flex-start">
                             <ListItemText
                                 primary={
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                                         <EventIcon fontSize="small" color="action" />
                                         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                            {event.location}
+                                            {/* {event.entryType === 'WORKING' 
+                                                ? (event.entryType || 'No Entry Type')
+                                                : event.entryType || 'No Type'} */}
+                                            {event.entryType == 'WORKING' && (
+                                                    <Chip 
+                                                        label={event.entryType} 
+                                                        size="small"
+                                                        color="default"
+                                                        variant="outlined"
+                                                    />
+                                                )}
+                                                
                                         </Typography>
+                                        {event.entryType && event.entryType !== 'WORKING' && (
+                                            <Chip 
+                                                label={event.entryType} 
+                                                size="small"
+                                                color="default"
+                                                variant="outlined"
+                                            />
+                                        )}
                                     </Box>
                                 }
                                 secondary={
                                     <Box sx={{ mt: 0.5 }}>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Location: {event.location}
-                                        </Typography>
+                                        {/* Show purpose and scheme for WORKING entries */}
+                                        {event.entryType === 'WORKING' && (
+                                            <>
+                                                {event.purposeId && (
+                                                    <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap', mb: 0.5 }}>
+                                                        <strong>Purpose:</strong> 
+                                                        {getPurposeName(event.purposeId)}
+                                                    </Typography>
+                                                )}
+                                                
+                                                {event.location && (
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        <strong>Location:</strong> {event.location}
+                                                    </Typography>
+                                                )}
+                                            </>
+                                        )}
+                                        
+                                        {/* Show remarks if available */}
                                         {event.remark && (
-                                            <Typography variant="body2" color="text.secondary">
-                                                Remark: {event.remark}
+                                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                                <strong>Remark:</strong> {event.remark}
                                             </Typography>
                                         )}
-                                        <Typography variant="caption" color="text.secondary">
-                                            {new Date(event.createdAt).toLocaleTimeString()}
+                                        
+                                        {/* Show creation date/time */}
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                                            {new Date(event.createdAt).toLocaleDateString()}
                                         </Typography>
                                     </Box>
                                 }
@@ -996,31 +1139,31 @@ const confirmSubmit = async () => {
                             }}>
                                 {/* Submit button with menu */}
                                 <Box>
-    <Button
-        variant="contained"
-        onClick={openSubmitMenu}
-        sx={{
-            backgroundColor: '#27ae60',
-            '&:hover': { backgroundColor: '#1e8449' },
-            whiteSpace: 'nowrap',
-            minWidth: '90px'
-        }}
-    >
-        Submit
-    </Button>
-    <Menu
-        anchorEl={submitAnchorEl}
-        open={Boolean(submitAnchorEl)}
-        onClose={closeSubmitMenu}
-    >
-        <MenuItem onClick={() => handleSubmitHalf('First Half')}>
-            First Half
-        </MenuItem>
-        <MenuItem onClick={() => handleSubmitHalf('Second Half')}>
-            Second Half
-        </MenuItem>
-    </Menu>
-</Box>
+                                    <Button
+                                        variant="contained"
+                                        onClick={openSubmitMenu}
+                                        sx={{
+                                            backgroundColor: '#27ae60',
+                                            '&:hover': { backgroundColor: '#1e8449' },
+                                            whiteSpace: 'nowrap',
+                                            minWidth: '90px'
+                                        }}
+                                    >
+                                        Submit
+                                    </Button>
+                                    <Menu
+                                        anchorEl={submitAnchorEl}
+                                        open={Boolean(submitAnchorEl)}
+                                        onClose={closeSubmitMenu}
+                                    >
+                                        <MenuItem onClick={() => handleSubmitHalf('First Half')}>
+                                            First Half
+                                        </MenuItem>
+                                        <MenuItem onClick={() => handleSubmitHalf('Second Half')}>
+                                            Second Half
+                                        </MenuItem>
+                                    </Menu>
+                                </Box>
 
                                 <Button
                                     variant="contained"
@@ -1122,7 +1265,8 @@ const confirmSubmit = async () => {
                 sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center'
+                    justifyContent: 'center',
+                    backdropFilter: 'blur(5px)'
                 }}
             >
                 <Card
@@ -1137,9 +1281,14 @@ const confirmSubmit = async () => {
                         overflow: 'auto'
                     }}
                 >
+                    
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h4" sx={{ color: theme.palette.text.primary }}>
-                            Tour Plan – {selectedDate}
+                            Tour Plan – {new Date(selectedDate).toLocaleDateString('en-US', { 
+                                month: 'long', 
+                                day: 'numeric', 
+                                year: 'numeric' 
+                            })}
                         </Typography>
                         <IconButton onClick={closeModal} size="small">
                             <CloseIcon />
@@ -1220,12 +1369,6 @@ const confirmSubmit = async () => {
                                         size="small"
                                     />
                                 </>
-                            // ) : (
-                            //     <Alert severity="info" sx={{ mb: 2 }}>
-                            //         {entryType} entry - only remarks can be added
-                            //     </Alert>
-                            // )}
-
                             ) : null}
 
                             <TextField
@@ -1278,7 +1421,6 @@ const confirmSubmit = async () => {
                                         setEntryType('WORKING');
                                         setActiveTab(0);
                                     }}
-                                    // onClick={() => setActiveTab(0)}
                                     startIcon={<AddIcon />}
                                 >
                                     Add Another
@@ -1539,77 +1681,75 @@ const confirmSubmit = async () => {
             </Dialog>
 
             {/* ==================== SUBMIT CONFIRMATION DIALOG ==================== */}
-<Dialog
-    open={submitDialog.open}
-    onClose={() => setSubmitDialog({ open: false, half: null })}
-    maxWidth="xs"
-    fullWidth
->
-    <DialogTitle sx={{ fontWeight: 600 }}>
-        Confirm {submitDialog.half} Submission
-    </DialogTitle>
+            <Dialog
+                open={submitDialog.open}
+                onClose={() => setSubmitDialog({ open: false, half: null })}
+                maxWidth="xs"
+                fullWidth
+            >
+                <DialogTitle sx={{ fontWeight: 600 }}>
+                    Confirm {submitDialog.half} Submission
+                </DialogTitle>
 
-    <DialogContent>
-        <Typography sx={{ mb: 2 }}>
-            Are you sure you want to submit {submitDialog.half?.toLowerCase()} for{' '}
-            {currentDate.toLocaleString('default', { 
-                month: 'long', 
-                year: 'numeric' 
-            })}?
-        </Typography>
-        
-        <Alert severity="info" sx={{ mt: 2 }}>
-            <Typography variant="body2">
-                This will validate and submit all tour entries for this period.
-            </Typography>
-        </Alert>
-        
-        {/* Show warning if late submission */}
-        {activeHalves && submitDialog.half === 'First Half' && 
-         activeHalves.firstHalf < currentDate.getDate() && (
-            <Alert severity="warning" sx={{ mt: 2 }}>
-                <Typography variant="body2">
-                    Note: First Half submission deadline was on {getPreviousMonth()} {activeHalves.firstHalf}. 
-                    This may be marked as LATE.
-                </Typography>
-            </Alert>
-        )}
-        
-        {activeHalves && submitDialog.half === 'Second Half' && 
-         activeHalves.secondHalf < currentDate.getDate() && (
-            <Alert severity="warning" sx={{ mt: 2 }}>
-                <Typography variant="body2">
-                    Note: Second Half submission deadline is on {currentDate.toLocaleString('default', { month: 'long' })} {activeHalves.secondHalf}. 
-                    This may be marked as LATE.
-                </Typography>
-            </Alert>
-        )}
-    </DialogContent>
+                <DialogContent>
+                    <Typography sx={{ mb: 2 }}>
+                        Are you sure you want to submit {submitDialog.half?.toLowerCase()} for{' '}
+                        {currentDate.toLocaleString('default', { 
+                            month: 'long', 
+                            year: 'numeric' 
+                        })}?
+                    </Typography>
+                    
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                        <Typography variant="body2">
+                            This will validate and submit all tour entries for this period.
+                        </Typography>
+                    </Alert>
+                    
+                    {/* Show warning if late submission */}
+                    {activeHalves && submitDialog.half === 'First Half' && 
+                    activeHalves.firstHalf < currentDate.getDate() && (
+                        <Alert severity="warning" sx={{ mt: 2 }}>
+                            <Typography variant="body2">
+                                Note: First Half submission deadline was on {getPreviousMonth()} {activeHalves.firstHalf}. 
+                                This may be marked as LATE.
+                            </Typography>
+                        </Alert>
+                    )}
+                    
+                    {activeHalves && submitDialog.half === 'Second Half' && 
+                    activeHalves.secondHalf < currentDate.getDate() && (
+                        <Alert severity="warning" sx={{ mt: 2 }}>
+                            <Typography variant="body2">
+                                Note: Second Half submission deadline is on {currentDate.toLocaleString('default', { month: 'long' })} {activeHalves.secondHalf}. 
+                                This may be marked as LATE.
+                            </Typography>
+                        </Alert>
+                    )}
+                </DialogContent>
 
-    <DialogActions sx={{ px: 3, pb: 3 }}>
-        <Button 
-            onClick={() => setSubmitDialog({ open: false, half: null })} 
-            variant="outlined"
-            disabled={submitLoading}
-        >
-            Cancel
-        </Button>
-        <Button
-            onClick={confirmSubmit}
-            variant="contained"
-            disabled={submitLoading}
-            sx={{
-                backgroundColor: '#27ae60',
-                '&:hover': { backgroundColor: '#1e8449' },
-                minWidth: '100px'
-            }}
-        >
-            {submitLoading ? "Submitting..." : "Confirm Submit"}
-        </Button>
-    </DialogActions>
-</Dialog>
-
-
+                <DialogActions sx={{ px: 3, pb: 3 }}>
+                    <Button 
+                        onClick={() => setSubmitDialog({ open: false, half: null })} 
+                        variant="outlined"
+                        disabled={submitLoading}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={confirmSubmit}
+                        variant="contained"
+                        disabled={submitLoading}
+                        sx={{
+                            backgroundColor: '#27ae60',
+                            '&:hover': { backgroundColor: '#1e8449' },
+                            minWidth: '100px'
+                        }}
+                    >
+                        {submitLoading ? "Submitting..." : "Confirm Submit"}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Grid>
     );
 };

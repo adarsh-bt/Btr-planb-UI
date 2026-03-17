@@ -16,13 +16,12 @@ class mainapi {
   // static BTR_API = 'http://3.108.98.206:8080';
   // static FORM_API = 'http://3.108.98.206:8080';
   
-  // //Form API
   static BASE_URL = 'http://localhost:8080';
   static USER_API = 'http://localhost:8080';
   static BTR_API = 'http://localhost:8080';
   static FORM_API = 'http://localhost:8080';
   static DIARY_API = 'http://localhost:8080';
-  //  static BASE_URL = 'http://103.156.188.49:8080';
+  // static BASE_URL = 'http://103.156.188.49:8080';
   // static USER_API = 'http://103.156.188.49:8080';
   // static BTR_API = 'http://103.156.188.49:8080';
   // static FORM_API = 'http://103.156.188.49:8080';

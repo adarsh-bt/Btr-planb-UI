@@ -84,7 +84,7 @@ async saveOrUpdateTour(data) {
   }
 },
 // ✅ Get Advanced Tour By Filter (Month + Year)
-async getAdvancedTourByFilter(zoneId, month, year) {
+async getAdvancedTourByFilter(userId, month, year) {
   const token = localStorage.getItem('token');
 
   try {
@@ -92,7 +92,7 @@ async getAdvancedTourByFilter(zoneId, month, year) {
       `${this.DIARY_URL}/tour-diary/api/advanced-tour/filter`,
       {
         params: {
-          zoneId: zoneId,
+          userId: userId,
           month: month,
           year: year
         },
@@ -203,7 +203,112 @@ async submitTourHalf(data) {
       message: err.message || "An error occurred while submitting."
     };
   }
-}
+},
+
+// ✅ NEW METHOD: Get admin submission view for a specific user and year
+  async getAdminSubmissionView(userId, year) {
+    const token = localStorage.getItem('token');
+
+    try {
+      const response = await axios.get(
+        `${this.DIARY_URL}/tour-diary/api/purposes/admin/submission-view`,
+        {
+          params: {
+            userId,
+            year
+          },
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      return {
+        data: response.data,
+        error: false
+      };
+
+    } catch (err) {
+      return {
+        error: true,
+        message: err.response?.data?.message || err.message || "Failed to fetch submission data",
+        status: err.response?.status
+      };
+    }
+  },
+
+  // Add these methods to your existing tourDiaryService object
+
+// ✅ Get admin submission details for a specific user, year, and month
+async getAdminSubmissionDetails(userId, year, month) {
+  const token = localStorage.getItem('token');
+
+  try {
+    const response = await axios.get(
+      `${this.DIARY_URL}/tour-diary/api/purposes/admin/submission-details`,
+      {
+        params: {
+          userId,
+          year,
+          month
+        },
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
+
+    return {
+      data: response.data,
+      error: false
+    };
+
+  } catch (err) {
+    return {
+      error: true,
+      message: err.response?.data?.message || err.message || "Failed to fetch submission details",
+      status: err.response?.status
+    };
+  }
+},
+
+// ✅ Submit admin approval for a submission (first half or second half)
+async submitAdminApproval(payload) {
+  const token = localStorage.getItem('token');
+
+  try {
+    const response = await axios.post(
+      `${this.DIARY_URL}/tour-diary/api/purposes/admin/approval`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    // If response.data is a string (like "Submission APPROVED successfully")
+    if (typeof response.data === 'string') {
+      return {
+        data: response.data,
+        error: false
+      };
+    }
+    
+    return {
+      data: response.data,
+      error: false
+    };
+
+  } catch (err) {
+    return {
+      error: true,
+      message: err.response?.data?.message || err.message || "Failed to submit approval",
+      status: err.response?.status
+    };
+  }
+},
 
 };
 

@@ -11,6 +11,8 @@ const Shadow = Loadable(lazy(() => import('pages/component-overview/shadows')));
 const DashboardDefault = Loadable(lazy(() => import('pages/dashboard/index')));
 const TourDiary = Loadable(lazy(() => import('pages/dashboard/TourDiary')));
 const TourDiaryMenu = Loadable(lazy(() => import('pages/dashboard/TourDiaryMenu')));
+const AdminTourDiaryApprovals = Loadable(lazy(() => import('pages/dashboard/AdminTourDiary')));
+
 
 // Schems Sub menus
 const Schemes = Loadable(lazy(() => import('pages/functional-components/schemas')));
@@ -21,14 +23,11 @@ const DesignationManage = Loadable(lazy(() => import('pages/usermanage/Designati
 
 const RoleDesignation = Loadable(lazy(() => import('pages/usermanage/RoleDesignationTabs')));
 
-// const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_list')));
 const Earas = Loadable(lazy(() => import('pages/functional-components/earas/earas_menus')));
 const Zone_Details = Loadable(lazy(() => import('pages/functional-components/earas/ZoneDetails/Zonecontrol')));
 const BTR = Loadable(lazy(() => import('pages/functional-components/earas/btr/Btr')));
-// const BTR = Loadable(lazy(() => import('pages/functional-components/earas/btr/BtrListing')));
 const BtrListing = Loadable(lazy(() => import('pages/functional-components/earas/BtrListing')));
 const BTRWrapper = Loadable(lazy(() => import('pages/functional-components/earas/btr/BTRWrapper')));
-const ZoneSeasonSheduleList = Loadable(lazy(() => import('pages/functional-components/earas/zoneSeasonSheduleList')));
 const BTRClassifyWrapper = Loadable(lazy(() => import('pages/functional-components/earas/btr/BTRClassifyWrapper')));
 const ZoneDetailsWrapper = Loadable(lazy(() => import('pages/functional-components/earas/ZoneDetails/ZoneDetailsWrapper')));
 
@@ -42,15 +41,12 @@ const ClusterRouteWrapper = Loadable(lazy(() => import('pages/functional-compone
 
 const ClusterFormView = Loadable(lazy(() => import('pages/functional-components/earas/Cluster/cluster_order_form')));
 const ClustersWrapperForm = Loadable(lazy(() => import('pages/functional-components/earas/Cluster/clusterWrapperform')));
-// const Form1_menus = Loadable(lazy(() => import('pages/functional-components/earas/form1/form1menus')));
-
 
 const ZoneSettings = Loadable(lazy(() => import('pages/functional-components/earas/ZoneDetails/ZoneSettings')));
 const SettingsMenu = Loadable(lazy(() => import('pages/functional-components/earas/SettingsMenu')));
 const CCE_crop_selection = Loadable(lazy(() => import('pages/functional-components/earas/CceCropSelection')));
 
 const Form1_menus = Loadable(lazy(() => import('pages/functional-components/earas/form1/form1menus')));
-// const LandUtilization = Loadable(lazy(() => import('pages/functional-components/earas/form1/Form1Wrapper')));
 
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
 
@@ -70,7 +66,6 @@ const AvailableCcePlots = Loadable(lazy(() => import('pages/functional-component
 const KeyPlotEntry = Loadable(lazy(() => import('pages/functional-components/earas/KeyPlotEntry')));
 const KeyPlotEntryNonBtr = Loadable(lazy(() => import('pages/functional-components/earas/KeyPlotEntryNonBtr')));
 const KeyplotListing = Loadable(lazy(() => import('pages/functional-components/earas/keyplots/KeyPlotListing')));
-// const ClusterManualEntryList = Loadable(lazy(() => import('pages/functional-components/earas/ClusterManualEntryList')));
 
 const ClusterManualEntry = Loadable(lazy(() => import('pages/functional-components/earas/ClusterManualEntry')));
 const ClusterManualEntryNonBtr = Loadable(lazy(() => import('pages/functional-components/earas/ClusterManualEntryNonBtr')));
@@ -78,6 +73,8 @@ const ClusterManualEntryNonBtr = Loadable(lazy(() => import('pages/functional-co
 const CceView = Loadable(lazy(() => import('pages/functional-components/earas/cce/cceview')));
 const CceReport = Loadable(lazy(() => import('pages/functional-components/earas/cce/CceReport')));
 
+const UserTourDiarySubmissions = Loadable(lazy(() => import('pages/dashboard/UserTourDiarySubmissions')));
+const UserTourDiaryDetail = Loadable(lazy(() => import('pages/dashboard/UserTourDiaryDetail')));
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
@@ -104,20 +101,6 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-    // {
-    //   path: 'dashboard',
-    //   children: [
-    //     {
-    //       path: 'default',
-    //       element: (
-    //         <PrivateRoute>
-    //           <DashboardDefault />
-    //         </PrivateRoute>
-    //       ),
-    //     },
-    //   ],
-    // },
-    // Add more routes with PrivateRoute as needed
     {
       path: 'shadow',
       element: (
@@ -159,6 +142,14 @@ const MainRoutes = {
       )
     },
     {
+      path: 'approval_manage/tourdiary',
+      element: (
+        <PrivateRoute>
+          <AdminTourDiaryApprovals />
+        </PrivateRoute>
+      )
+    },
+    {
       path: 'schemes',
       element: (
         <PrivateRoute>
@@ -166,7 +157,6 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-
     {
       path: 'User_Manage',
       element: (
@@ -183,7 +173,6 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-
     {
       path: 'profile',
       element: (
@@ -192,7 +181,6 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-
     {
       path: '/User_Manage/Manage_Users',
       element: (
@@ -201,7 +189,6 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-
     {
       path: '/User_Manage/Manage_Users/User_Details',
       element: (
@@ -210,7 +197,6 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-
     {
       path: '/rolemanage',
       element: (
@@ -227,7 +213,6 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-
     {
       path: '/User_Manage/RoleDesignation',
       element: (
@@ -236,7 +221,6 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-
     {
       path: '/schemes/earas/btr_list',
       element: (
@@ -245,7 +229,6 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-
     {
       path: '/schemes/earas/btr',
       element: (
@@ -254,28 +237,11 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-    // {
-    //   path: '/schemes/earas/Non_btr',
-    //   element: (
-    //     <PrivateRoute>
-    //       <NonBTR />
-    //     </PrivateRoute>
-    //   )
-    // },
-
     {
       path: '/schemes/earas/Zone_Details/btr/:zoneId',
       element: (
         <PrivateRoute>
           <BTRWrapper />
-        </PrivateRoute>
-      )
-    },
-    {
-      path: '/schemes/earas/zone_season_shedule_list',
-      element: (
-        <PrivateRoute>
-          <ZoneSeasonSheduleList />
         </PrivateRoute>
       )
     },
@@ -287,9 +253,6 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-
-
-
     {
       path: '/schemes/earas/Zone_Details',
       element: (
@@ -298,7 +261,6 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-
     {
       path: '/schemes/earas/Zone_Details/:zoneId',
       element: (
@@ -307,7 +269,6 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-
     {
       path: '/schemes/earas/cluster',
       element: (
@@ -316,7 +277,6 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-
     {
       path: '/schemes/earas/Zone_Details/Key_plots/:zoneId',
       element: (
@@ -341,7 +301,6 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-
     {
       path: '/schemes/earas/Non_BTR_Key_plot_entry',
       element: (
@@ -350,7 +309,6 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-
     {
       path: '/schemes/earas/Key_plot_Listing',
       element: (
@@ -359,7 +317,6 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-
     {
       path: '/schemes/earas/Zone_Details/Clusters/:zoneId',
       element: (
@@ -368,7 +325,6 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-
     {
       path: '/schemes/earas/cluster-route-wrapper',
       element: (
@@ -393,9 +349,6 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-
-
-
     {
       path: '/schemes/earas/Clusters',
       element: (
@@ -420,16 +373,8 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-    // {
-    //   path: '/schemes/earas/cluster_manual_entry_List',
-    //   element: (
-    //     <PrivateRoute>
-    //       <ClusterManualEntryList />
-    //     </PrivateRoute>
-    //   )
-    // },
     {
-      path: '/schemes/earas/Clusters',
+      path: '/schemes/earas/Zone_Details/Clusters_Form/:zoneId',
       element: (
         <PrivateRoute>
           <ClustersWrapperForm />
@@ -438,6 +383,46 @@ const MainRoutes = {
     },
     {
       path: '/schemes/earas/Clusters_Form',
+      element: (
+        <PrivateRoute>
+          <ClusterFormView />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Clusters_Form/:zoneId/ClusterFormView',
+      element: (
+        <PrivateRoute>
+          <Form1_menus />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Clusters_Form/ClusterFormView',
+      element: (
+        <PrivateRoute>
+          <Form1_menus />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Zone_Details/Clusters_Form/:zoneId/ClusterFormView',
+      element: (
+        <PrivateRoute>
+          <Form1_menus />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/form1',
+      element: (
+        <PrivateRoute>
+          <Form1_menus />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/earas_management/CCE_crop_selection',
       element: (
         <PrivateRoute>
           <CCE_crop_selection />
@@ -517,13 +502,29 @@ const MainRoutes = {
       )
     },
     {
+  path: 'approval_manage/tourdiary/user-submissions',
+  element: (
+    <PrivateRoute>
+      <UserTourDiarySubmissions />
+    </PrivateRoute>
+  )
+},
+{
+  path: 'approval_manage/tourdiary/user-details',
+  element: (
+    <PrivateRoute>
+      <UserTourDiaryDetail />
+    </PrivateRoute>
+  )
+},
+    {
       path: '/schemes/earas/cce/CceReport',
       element: (
         <PrivateRoute>
           <CceReport />
         </PrivateRoute>
       )
-    },
+    }
   ]
 };
 
