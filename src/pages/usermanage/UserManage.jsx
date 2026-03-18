@@ -1377,15 +1377,22 @@ const handleRoleChange = (idx, roleId) => {
               {/* Actions Tab */}
               {tabValue === 1 && (
                 <Box sx={{ mt: 3 }}>
-                  <Tabs value={innerTabValue} onChange={(e, newValue) => setInnerTabValue(newValue)} sx={{ mb: 2 }}>
-                    <Tab label="Change Schemes & Roles" />
-                    <Tab label="Change Designations" />
-                    <Tab label="Change Office Type" />
-                    {userData.roleSchemeResponses?.[0]?.roleId === 1 && (
-                      <Tab label="Zone Manage" />
-                    )}
-                    <Tab label="Change user status" />
-                  </Tabs>
+                 <Tabs
+  value={innerTabValue}
+  onChange={(e, newValue) => setInnerTabValue(newValue)}
+  variant="scrollable"
+  scrollButtons="auto"
+  allowScrollButtonsMobile
+  sx={{ mb: 2 }}
+>
+  <Tab label="Change Schemes & Roles" />
+  <Tab label="Change Designations" />
+  <Tab label="Change Office Type" />
+  {userData.roleSchemeResponses?.[0]?.roleId === 1 && (
+    <Tab label="Zone Manage" />
+  )}
+  <Tab label="Change user status" />
+</Tabs>
 
                   {/* Change Schemes & Roles */}
                   <hr></hr>

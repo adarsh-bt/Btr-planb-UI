@@ -37,7 +37,7 @@ export default function HeaderContent() {
       </IconButton> */}
       {role === "Field Data Collector" && <ZoneOptions />}
 
-      <Notification />
+      {/* <Notification /> */}
       {!downLG && <Profile />}
       {downLG && <MobileSection />}
     </>

@@ -5,7 +5,18 @@
 
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#04255e" />
+<style>
+  /* Hide spinner arrows for all number inputs */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
 
+input[type="number"] {
+  -moz-appearance: textfield; /* Firefox */
+}
+</style>
     <title>
       AIDEA – Application for Intelligent Data Engineering and Analytics | Government of Kerala
     </title>

@@ -547,7 +547,7 @@ const MainRoutes = {
       )
     },
     {
-      path: '/schemes/earas/earas_management/ZoneListing',
+      path: '/schemes/earas/Mapping_Management/ZoneListing',
       element: (
         <PrivateRoute>
           <ZoneList />

@@ -102,7 +102,7 @@ const handleConfirmSwitch = () => {
   };
 
   return (
-    <Box sx={{ minWidth: 120, mr: 2, mt: 0.5 }}>
+    <Box sx={{   mt: 0.5 }}>
       <FormControl size="small" fullWidth sx={{ minWidth: 180 }}>
   <Select
     id="zone-select"

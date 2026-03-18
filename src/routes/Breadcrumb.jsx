@@ -8,20 +8,29 @@ import { emphasize, styled } from "@mui/material/styles";
 // Styled Chip for Breadcrumb
 const StyledBreadcrumb = styled(Chip)(({ theme, isLast }) => {
   const backgroundColor = isLast
-    ? "#e3f2fd" // Light blue for current path
+    ? "#e3f2fd"
     : theme.palette.grey[200];
+
   return {
     backgroundColor,
     height: theme.spacing(3),
     color: isLast ? "#1e88e5" : theme.palette.text.primary,
     fontWeight: theme.typography.fontWeightMedium,
-    fontSize: theme.typography.pxToRem(16), // <-- Increase font size here
+    fontSize: theme.typography.pxToRem(16),
+
+    // 👇 Add this
+    cursor: isLast ? "default" : "pointer",
+
     '&:hover, &:focus': {
-      backgroundColor: emphasize(backgroundColor, 0.1),
+      backgroundColor: !isLast
+        ? emphasize(backgroundColor, 0.1)
+        : backgroundColor, // prevent hover effect on last if needed
     },
     '&:active': {
       boxShadow: theme.shadows[1],
-      backgroundColor: emphasize(backgroundColor, 0.2),
+      backgroundColor: !isLast
+        ? emphasize(backgroundColor, 0.2)
+        : backgroundColor,
     },
   };
 });

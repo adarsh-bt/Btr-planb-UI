@@ -628,7 +628,7 @@ const handleOpenPanchayatDialog = async () => {
 };
 
 // ================= HANDLE ADD PANCHAYAT =================
-// ================= HANDLE ADD PANCHAYAT =================
+
 const handleAddPanchayat = async () => {
   if (!selectedPanchayat) {
     showSnackbar("Please select a panchayat", "warning");
@@ -835,7 +835,7 @@ useEffect(() => {
             }}
           >
             <Tab label="Taluk - Village Mapping" />
-            <Tab label="Panchayat Mapping" />
+            <Tab label="Local Body Mapping" />
           </Tabs>
         </Box>
 
@@ -967,7 +967,7 @@ useEffect(() => {
         onClick={handleOpenPanchayatDialog}
         disabled={panchayatLoading}
       >
-        Add Panchayat Mapping
+        Add Local Body Mapping
       </Button>
     </Box>
     
@@ -976,7 +976,7 @@ useEffect(() => {
         <TableHead>
           <TableRow>
             <TableCell sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}>
-              Panchayat Name
+              Local Body Name
             </TableCell>
           
             <TableCell sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold", textAlign: 'center' }}>
@@ -989,13 +989,13 @@ useEffect(() => {
             <TableRow>
               <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
                 <CircularProgress size={30} />
-                <Typography sx={{ mt: 1 }}>Loading panchayat mappings...</Typography>
+                <Typography sx={{ mt: 1 }}>Loading local body mappings...</Typography>
               </TableCell>
             </TableRow>
           ) : panchayatMappings.length === 0 ? (
             <TableRow>
               <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
-                No panchayat mappings available
+                No local body mappings available
               </TableCell>
             </TableRow>
           ) : (
@@ -1003,7 +1003,7 @@ useEffect(() => {
               <TableRow key={mapping.mappingId || mapping.localbodyId}>
                 <TableCell>
                   <Typography variant="body1">
-                    {mapping.localbodyName}
+                    {mapping.localbodyName} {mapping.localbodyType}
                   </Typography>
                 </TableCell>
                 
@@ -1013,7 +1013,7 @@ useEffect(() => {
                     size="small"
                     color="error"
                     onClick={() => handleRemovePanchayat(mapping.mappingId)}
-                    title="Remove Panchayat"
+                    title="Remove Local Body"
                     disabled={panchayatLoading || !mapping.mappingId}
                     sx={{ 
                       bgcolor: '#ffebee',
@@ -1225,6 +1225,7 @@ useEffect(() => {
                     margin="normal"
                     variant="outlined"
                     required
+                     inputProps={{ maxLength: 200 }}
                   />
 
                   {/* Zone Name (Malayalam) */}
@@ -1238,10 +1239,11 @@ useEffect(() => {
                     InputProps={{
                       style: { fontFamily: '"Noto Sans Malayalam", "Malayalam MN", sans-serif' }
                     }}
+                    inputProps={{ maxLength: 200 }}
                   />
 
                   {/* District */}
-                  <FormControl fullWidth margin="normal" required>
+                  {/* <FormControl fullWidth margin="normal" required>
                     <InputLabel>District</InputLabel>
                     {districtsLoading ? (
                       <Box sx={{ display: 'flex', alignItems: 'center', py: 1 }}>
@@ -1265,10 +1267,10 @@ useEffect(() => {
                         )}
                       </Select>
                     )}
-                  </FormControl>
+                  </FormControl> */}
 
                   {/* Taluk */}
-                  <FormControl fullWidth margin="normal" required disabled={!editFormData.distId}>
+                  {/* <FormControl fullWidth margin="normal" required disabled={!editFormData.distId}>
                     <InputLabel>Taluk</InputLabel>
                     {taluksLoading ? (
                       <Box sx={{ display: 'flex', alignItems: 'center', py: 1 }}>
@@ -1296,7 +1298,7 @@ useEffect(() => {
                         )}
                       </Select>
                     )}
-                  </FormControl>
+                  </FormControl> */}
 
                   {/* BTR Type - Hardcoded options */}
                   <FormControl fullWidth margin="normal" required>
@@ -1388,29 +1390,29 @@ useEffect(() => {
     {/* Add Panchayat Dialog */}
  {/* Add Panchayat Dialog */}
 <Dialog open={openPanchayatDialog} onClose={() => !editLoading && setOpenPanchayatDialog(false)} maxWidth="sm" fullWidth>
-  <DialogTitle>Add Panchayat Mapping</DialogTitle>
+  <DialogTitle>Add Local Body Mapping</DialogTitle>
   <DialogContent>
     <FormControl fullWidth sx={{ mt: 2 }}>
-      <InputLabel>Select Panchayat</InputLabel>
+      <InputLabel>Select Local Body</InputLabel>
       <Select
         value={selectedPanchayat}
-        label="Select Panchayat"
+        label="Select Local Body"
         onChange={(e) => setSelectedPanchayat(e.target.value)}
         disabled={editLoading}
       >
         {availablePanchayats.length === 0 ? (
-          <MenuItem disabled>No panchayats available</MenuItem>
+          <MenuItem disabled>No local bodies available</MenuItem>
         ) : (
           availablePanchayats.map((panchayat) => (
             <MenuItem key={panchayat.localbodyId} value={panchayat.localbodyId}>
-              {panchayat.localbodyName}
+              {panchayat.localbodyName} ({panchayat.localbodyType})
             </MenuItem>
           ))
         )}
       </Select>
       {availablePanchayats.length === 0 && (
         <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-          All panchayats are already mapped to this zone
+          All local bodies are already mapped to this zone
         </Typography>
       )}
     </FormControl>
@@ -1434,7 +1436,7 @@ useEffect(() => {
     <Dialog open={confirmPanchayatOpen} onClose={() => setConfirmPanchayatOpen(false)}>
       <DialogTitle>Confirm Removal</DialogTitle>
       <DialogContent>
-        <Typography>Are you sure you want to remove this panchayat mapping?</Typography>
+        <Typography>Are you sure you want to remove this local body mapping?</Typography>
       </DialogContent>
       <DialogActions>
         <Button onClick={() => setConfirmPanchayatOpen(false)}>Cancel</Button>
