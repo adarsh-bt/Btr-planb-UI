@@ -80,7 +80,7 @@ const [AreaValue, setAreaValue] = useState('');
 const [enumRemark, setEnumRemark] = useState('');
 const [enumError, setEnumError] = useState('');
 const [enumLoading, setEnumLoading] = useState(false);
-
+const [clusterChanges, setClusterChanges] = useState({});
   // Filter states  
   const [landTypeFilter, setLandTypeFilter] = useState('');
   const [villageFilter, setVillageFilter] = useState('');
@@ -186,13 +186,12 @@ const validateEnumArea = (value, totalArea) => {
   // Transform API data to match table format
   const transformPlotData = (apiData) => {
     return apiData.map((plot, index) => ({
-      id: plot.keyplotId,
+      id: plot.clusterId,
       plot_id: plot.keyplotId,
       slNo: index + 1,
       syNo: plot.syNo && !['null', 'null/', 'undefined', ''].includes(plot.syNo.trim().toLowerCase())
   ? plot.syNo
   : 'NA',
-
       panchayth: plot.panchayath,
       cluster_number: plot.cluster_no,
       area: plot.areaCents,
@@ -212,8 +211,6 @@ const validateEnumArea = (value, totalArea) => {
       action: "View Cluster"
     }));
   };
-
-
 const handleUpdateEnumeratedArea = async () => {
   const totalArea = parseFloat(AreaValue);
   const error = validateEnumArea(enumAreaValue, totalArea);
@@ -353,6 +350,26 @@ setPanchayathAreaSummary(panchayathSummary);
     }
   }, []);
 
+  const hasDuplicateWithExisting = () => {
+  const currentValues = plotData.map(row => row.cluster_number);
+
+  const updatedValues = plotData.map(row => {
+    return clusterChanges[row.id] ?? row.cluster_number;
+  });
+
+  const unique = new Set(updatedValues);
+
+  return updatedValues.length !== unique.size;
+};
+const getFinalClusterValues = () => {
+  return plotData.map(row => {
+    return clusterChanges[row.id] ?? row.cluster_number;
+  });
+};
+const hasDuplicateClusters = () => {
+  const values = getFinalClusterValues();
+  return new Set(values).size !== values.length;
+};
   // Fetch individual plot details
   const fetchPlotDetails = async (plotId) => {
     setPlotDetailsLoading(true);
@@ -393,14 +410,7 @@ setPanchayathAreaSummary(panchayathSummary);
     fetchKeyPlots();
   }, [fetchKeyPlots]);
 
-  // Get unique values for filters
-  const uniqueVillages = useMemo(() => {
-    return [...new Set(plotData.map(plot => plot.kvillageName))].sort();
-  }, [plotData]);
 
-  const uniqueLandTypes = useMemo(() => {
-    return [...new Set(plotData.map(plot => plot.landType))].sort();
-  }, [plotData]);
 
   // Sorting logic
   const handleRequestSort = (property) => {
@@ -584,24 +594,107 @@ setPanchayathAreaSummary(panchayathSummary);
     }
   };
 
-  const handleGenerateKeyplot = async () => {
-    setLoading(true);
-    setDataVisible(false);
-    
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      fetchKeyPlots();
-    } catch (error) {
-      console.error("Failed to generate keyplot data", error);
-      setSnackbarMessage("Failed to generate keyplot data");
-      setSnackbarSeverity('error');
-      setSnackbarOpen(true);
-    } finally {
-      setLoading(false);
-    }
-  };
 
+  const handleSaveClusterChanges = async () => {
+  try {
+    const BASE_URL = mainapi.BASE_URL;
+    const token = localStorage.getItem("token");
+
+  const updates = Object.keys(clusterChanges)
+  .filter(id => clusterChanges[id] && !isNaN(clusterChanges[id]))
+  .map(id => ({
+    clusterId: parseInt(id),
+    newClusterNumber: clusterChanges[id]
+  }));
+
+    const response = await fetch(
+      `${BASE_URL}/btr-service/cluster-api/cluster/number-update`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updates),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to update clusters");
+    }
+
+    setSnackbarMessage("Cluster numbers updated successfully");
+    setSnackbarSeverity("success");
+    setSnackbarOpen(true);
+
+    setClusterChanges({}); // reset
+
+    fetchKeyPlots(); // refresh data
+
+  } catch (err) {
+    setSnackbarMessage(err.message);
+    setSnackbarSeverity("error");
+    setSnackbarOpen(true);
+  }
+};
+const handleClusterChange = (clusterId, newValue) => {
+  const num = parseInt(newValue);
+
+  // ✅ Handle empty / invalid input
+  if (isNaN(num)) {
+    setClusterChanges(prev => ({
+      ...prev,
+      [clusterId]: ""
+    }));
+
+    setPlotData(prev =>
+      prev.map(row =>
+        row.id === clusterId
+          ? { ...row, cluster_number: "" }
+          : row
+      )
+    );
+    return;
+  }
+
+  // ✅ Build updated list
+  const updatedValues = plotData.map(row => {
+    if (row.id === clusterId) return num;
+    return clusterChanges[row.id] ?? row.cluster_number;
+  });
+
+  // ✅ Duplicate check
+  const hasDuplicate = new Set(updatedValues).size !== updatedValues.length;
+
+  if (hasDuplicate) {
+    setSnackbarMessage("Duplicate cluster number not allowed!");
+    setSnackbarSeverity("error");
+    setSnackbarOpen(true);
+    return;
+  }
+
+  // ✅ Save change
+  setClusterChanges(prev => ({
+    ...prev,
+    [clusterId]: num
+  }));
+
+  // ✅ Update UI
+  setPlotData(prev =>
+    prev.map(row =>
+      row.id === clusterId
+        ? { ...row, cluster_number: num }
+        : row
+    )
+  );
+};
+const hasDuplicateClusterNumbers = () => {
+  const values = Object.values(clusterChanges);
+
+  const unique = new Set(values);
+
+  return values.length !== unique.size;
+};
   const totalArea = plotData.reduce((sum, row) => sum + parseFloat(row.area || 0), 0).toFixed(2);
 
   return (
@@ -782,6 +875,22 @@ setPanchayathAreaSummary(panchayathSummary);
 
             {/* Table */}
     <TableContainer component={Paper} sx={{ maxHeight: '50%', border: '1px solid #e0e0e0', borderRadius: 1 }}>
+<Button
+  variant="contained"
+  color="primary"
+disabled={
+  Object.keys(clusterChanges).length === 0 ||
+  hasDuplicateClusters()
+}
+  onClick={handleSaveClusterChanges}
+>
+  Save Cluster Changes
+</Button>
+{hasDuplicateClusterNumbers() && (
+  <Typography color="error" sx={{ mb: 1 }}>
+    Duplicate cluster numbers are not allowed
+  </Typography>
+)}
   <Table stickyHeader sx={{ tableLayout: 'fixed' }}>
     <TableHead>
       <TableRow>
@@ -872,22 +981,16 @@ setPanchayathAreaSummary(panchayathSummary);
             <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.kvillageName}</TableCell>
             <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.villageBlock}</TableCell>
             <TableCell align="center">
-              <Box
-                sx={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: "50%",
-                  backgroundColor: "blue",
-                  color: "white",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  margin: "0 auto",
-                  fontWeight: "bold",
-                }}
-              >
-                {row.cluster_number}
-              </Box>
+             
+<TextField
+  size="small"
+  type="number"
+  value={row.cluster_number || ""}
+  onChange={(e) => handleClusterChange(row.id, e.target.value)}
+  inputProps={{ min: 1 }}
+  sx={{ width: 60 }}
+/>
+             
             </TableCell>
             <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.syNo}</TableCell>
             <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{!row.wardNo ? '--' : row.wardNo}</TableCell>
@@ -902,7 +1005,7 @@ setPanchayathAreaSummary(panchayathSummary);
               <Button
                 size="small"
                 color="primary"
-                onClick={() => handleViewPlot(row.id)}
+                onClick={() => handleViewPlot(row.plot_id)}
                 sx={{ minWidth: 'unset', px: 0.5 }}
               >
                 <ViewIcon fontSize="small" />

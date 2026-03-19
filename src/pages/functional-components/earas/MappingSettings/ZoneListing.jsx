@@ -406,6 +406,7 @@ const handleViewZone = (zone) => {
                           active={orderBy === col}
                           direction={orderBy === col ? order : 'asc'}
                           onClick={createSortHandler(col)}
+                           hideSortIcon={true}
                           sx={{
                             color: 'white',
                             '&.Mui-active': { color: '#a7ffeb' },
