@@ -235,8 +235,8 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                 if (userData.payload && typeof userData.payload.token === 'string') {
                     const { token, username: userNameFromApi } = userData.payload;
                     localStorage.setItem('token', token);
-                    localStorage.setItem('user', userNameFromApi);
-                    console.log("  >   name   > "+userNameFromApi)
+                    // localStorage.setItem('user', userNameFromApi);
+                   
                     if (rememberMe) {
                         localStorage.setItem('rememberedUsername', username);
                         localStorage.setItem('rememberedPassword', password);
@@ -316,7 +316,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
             if (userData.payload && typeof userData.payload.token === 'string') {
                 const { token, username: userNameFromApi } = userData.payload;
                 localStorage.setItem('token', token);
-                localStorage.setItem('user', userNameFromApi);
+                // localStorage.setItem('user', userNameFromApi);
 
                 if (rememberMe) {
                     localStorage.setItem('rememberedUsername', username);

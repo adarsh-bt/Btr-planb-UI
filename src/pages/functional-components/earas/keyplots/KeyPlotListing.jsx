@@ -194,6 +194,7 @@ const validateEnumArea = (value, totalArea) => {
   : 'NA',
 
       panchayth: plot.panchayath,
+      cluster_number: plot.cluster_no,
       area: plot.areaCents,
       btyType: plot.btr_type,
       villageBlock: plot.villageBlock,
@@ -203,7 +204,7 @@ const validateEnumArea = (value, totalArea) => {
       address: plot.address,
       wardNo: plot.wardNo,
       houseNo: plot.houseNo,
-      tpNo: plot.tpNo,
+      tpNo: plot.tpno,
       tpSubNo: plot.tpSubNo,
       oldsuvNo: plot.oldsuvNo,
       oldsubNo: plot.oldsubNo,
@@ -299,10 +300,11 @@ const handleUpdateEnumeratedArea = async () => {
         throw new Error(`Failed to fetch data (${response.status})`);
       }
       const data = await response.json();
+      console.log("API Response:", data);
       const plots = data.payload || [];
+      
       const transformedPlots = transformPlotData(plots);
-      // console.log("key >>>> "+transformedPlots);
-      console.log("key >>>> ",transformedPlots);
+      
       setPlotData(transformedPlots);
       setDataVisible(plots.length > 0);
       
@@ -372,7 +374,7 @@ setPanchayathAreaSummary(panchayathSummary);
       }
       
       const data = await response.json();
-      console.log("plot details >>>> ",data);
+      
       setPlotDetailsData(data.payload);
       
       
@@ -433,7 +435,7 @@ setPanchayathAreaSummary(panchayathSummary);
 
   // Filter and sort data
   const filteredSortedAndPaginatedData = useMemo(() => {
-    const visibleKeys = ['slNo', 'panchayth', 'village','area', 'syNo','villageBlock', 'landType'];
+    const visibleKeys = ['slNo', 'cluster', 'panchayth', 'village','area', 'syNo','villageBlock', 'landType'];
 
     let filtered = plotData.filter((row) => {
       const matchesSearch = !searchTerm || 
@@ -453,7 +455,7 @@ setPanchayathAreaSummary(panchayathSummary);
 
   // Get filtered count for pagination
   const filteredCount = useMemo(() => {
-    const visibleKeys = ['slNo', 'panchayth', 'village','area', 'syNo','villageBlock', 'landType'];
+    const visibleKeys = ['slNo', 'cluster', 'panchayth', 'village','area', 'syNo','Ward No','villageBlock', 'landType'];
     
     return plotData.filter((row) => {
       const matchesSearch = !searchTerm || 
@@ -720,7 +722,7 @@ setPanchayathAreaSummary(panchayathSummary);
 
 
               <Box sx={{ display: 'flex', gap: 2, ml: { xs: 0, sm: 2 }, mt: { xs: 2, sm: 0 } }}>
-                <Chip label="AY 2024 - 2025" variant="outlined" color="info" />
+                <Chip label="AY 2025 - 2026" variant="outlined" color="info" />
                 <TextField
                   label="Search Data"
                   variant="outlined"
@@ -779,96 +781,147 @@ setPanchayathAreaSummary(panchayathSummary);
             <Divider />
 
             {/* Table */}
-            <TableContainer component={Paper} sx={{ maxHeight: '50%', border: '1px solid #e0e0e0', borderRadius: 1 }}>
-              <Table stickyHeader sx={{ tableLayout: 'fixed' }}>
-                <TableHead>
-                  <TableRow>
-                    {['slNo', 'panchayth', 'village','villageBlock', 'syNo','area','landType'].map((col) => (
-                      <TableCell
-                        key={col}
-                        align="center"
-                        sx={{
-                          bgcolor: '#05307a',
-                          color: 'white',
-                          fontWeight: 'bold',
-                          '&:hover': { backgroundColor: '#032050' }
-                        }}
-                      >
-                        <TableSortLabel
-                          active={orderBy === col}
-                          direction={orderBy === col ? order : 'asc'}
-                          onClick={createSortHandler(col)}
-                          sx={{
-                            color: 'white',
-                            '&.Mui-active': { color: '#a7ffeb' },
-                            '& .MuiTableSortLabel-icon': { color: 'white !important' },
-                            '& .MuiTableSortLabel-icon.Mui-active': { color: '#a7ffeb !important' }
-                          }}
-                        >
-                          {col === 'area' ? 'Area (Cents)' : col.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
-                        </TableSortLabel>
-                      </TableCell>
-                    ))}
-                    <TableCell
-                      align="center"
-                      sx={{
-                        bgcolor: '#05307a',
-                        color: 'white',
-                        fontWeight: 'bold',
-                        '&:hover': { backgroundColor: '#032050' }
-                      }}
-                    >
-                      Action
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredSortedAndPaginatedData.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} align="center" sx={{ py: 3, color: 'text.secondary' }}>
-                        No data found for the current filter.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredSortedAndPaginatedData.map((row, index) => (
-                      <TableRow
-                        key={`${row.syNo}-${index}`}
-                        sx={{
-                          '&:nth-of-type(odd)': { backgroundColor: '#f5f5f5' },
-                          '&:hover': { backgroundColor: '#e0f2f7' }
-                        }}
-                      >
-                        <TableCell align="center">{row.slNo}</TableCell>
-                        <TableCell align="center">{row.panchayth}</TableCell>
-                        <TableCell align="center">{row.kvillageName}</TableCell>
-                        <TableCell align="center">{row.villageBlock}</TableCell>
-                        <TableCell align="center">{row.syNo}</TableCell>
-                        <TableCell align="center">{parseFloat(row.enumarea).toFixed(2)}</TableCell>
-                        <TableCell align="center">{row.landType}</TableCell>
-                        <TableCell align="center">
-                          <Button
-                            size="small"
-                            color="primary"
-                            onClick={() => handleViewPlot(row.id)}
-                            sx={{ minWidth: 'unset', px: 0.5 }}
-                          >
-                            <ViewIcon fontSize="small" />
-                          </Button>
-                          <Button
-                          disabled={true}
-                            sx={{ color: 'error.main', minWidth: 'unset', px: 0.5 }}
-                            size="small"
-                            onClick={() => handleOpenRemoveDialog(row)}
-                          >
-                            <RemoveIcon fontSize="small" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+    <TableContainer component={Paper} sx={{ maxHeight: '50%', border: '1px solid #e0e0e0', borderRadius: 1 }}>
+  <Table stickyHeader sx={{ tableLayout: 'fixed' }}>
+    <TableHead>
+      <TableRow>
+        {['slNo', 'panchayth', 'village', 'villageBlock', 'cluster', 'syNo', 'Ward No', 'House No', 'Thandaper Syno', 'Cultivator Name', 'Address', 'Old SyNo', 'area', 'landType'].map((col) => (
+          <TableCell
+            key={col}
+            align="center"
+            sx={{
+              bgcolor: '#05307a',
+              color: 'white',
+              fontWeight: 'bold',
+              whiteSpace: 'nowrap', // Prevent text wrapping
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              '&:hover': { backgroundColor: '#032050' },
+              // Set specific widths for columns
+              ...(col === 'slNo' && { width: '50px' }),
+              ...(col === 'panchayth' && { width: '100px' }),
+              ...(col === 'village' && { width: '100px' }),
+              ...(col === 'villageBlock' && { width: '100px' }),
+              ...(col === 'cluster' && { width: '80px' }),
+              ...(col === 'syNo' && { width: '80px' }),
+              ...(col === 'Ward No' && { width: '70px' }),
+              ...(col === 'House No' && { width: '80px' }),
+              ...(col === 'Thandaper Syno' && { width: '100px' }),
+              ...(col === 'Cultivator Name' && { width: '150px' }),
+              ...(col === 'Address' && { width: '200px' }),
+              ...(col === 'Old SyNo' && { width: '100px' }),
+              ...(col === 'area' && { width: '100px' }),
+              ...(col === 'landType' && { width: '100px' })
+            }}
+          >
+            <TableSortLabel
+              active={orderBy === col}
+              direction={orderBy === col ? order : 'asc'}
+              onClick={createSortHandler(col)}
+              sx={{
+                color: 'white',
+                '&.Mui-active': { color: '#a7ffeb' },
+                '& .MuiTableSortLabel-icon': { color: 'white !important' },
+                '& .MuiTableSortLabel-icon.Mui-active': { color: '#a7ffeb !important' },
+                '& .MuiTableSortLabel-root': {
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: 'flex',
+                  width: '100%'
+                }
+              }}
+            >
+              {col === 'area' ? 'Area (Cents)' : col.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
+            </TableSortLabel>
+          </TableCell>
+        ))}
+        <TableCell
+          align="center"
+          sx={{
+            bgcolor: '#05307a',
+            color: 'white',
+            fontWeight: 'bold',
+            whiteSpace: 'nowrap',
+            width: '100px', // Fixed width for action column
+            '&:hover': { backgroundColor: '#032050' }
+          }}
+        >
+          Action
+        </TableCell>
+      </TableRow>
+    </TableHead>
+    <TableBody>
+      {filteredSortedAndPaginatedData.length === 0 ? (
+        <TableRow>
+          <TableCell colSpan={15} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+            No data found for the current filter.
+          </TableCell>
+        </TableRow>
+      ) : (
+        filteredSortedAndPaginatedData.map((row, index) => (
+          <TableRow
+            key={`${row.syNo}-${index}`}
+            sx={{
+              '&:nth-of-type(odd)': { backgroundColor: '#f5f5f5' },
+              '&:hover': { backgroundColor: '#e0f2f7' }
+            }}
+          >
+            <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.slNo}</TableCell>
+            <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.panchayth}</TableCell>
+            <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.kvillageName}</TableCell>
+            <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.villageBlock}</TableCell>
+            <TableCell align="center">
+              <Box
+                sx={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: "50%",
+                  backgroundColor: "blue",
+                  color: "white",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  margin: "0 auto",
+                  fontWeight: "bold",
+                }}
+              >
+                {row.cluster_number}
+              </Box>
+            </TableCell>
+            <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.syNo}</TableCell>
+            <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{!row.wardNo ? '--' : row.wardNo}</TableCell>
+            <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{!row.houseNo ? '--' : row.houseNo}</TableCell>
+            <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{!row.tpNo ? '--' : `${row.tpNo}/${row.tpSubNo}`}</TableCell>
+            <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{!row.ownerName ? '--' : row.ownerName}</TableCell>
+            <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{!row.address ? '--' : row.address}</TableCell>
+            <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{!row.oldsuvNo ? '--' : `${row.oldsuvNo}/${row.oldsubNo}`}</TableCell>
+            <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{parseFloat(row.enumarea).toFixed(2)}</TableCell>
+            <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.landType}</TableCell>
+            <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
+              <Button
+                size="small"
+                color="primary"
+                onClick={() => handleViewPlot(row.id)}
+                sx={{ minWidth: 'unset', px: 0.5 }}
+              >
+                <ViewIcon fontSize="small" />
+              </Button>
+              <Button
+                disabled={true}
+                sx={{ color: 'error.main', minWidth: 'unset', px: 0.5 }}
+                size="small"
+                onClick={() => handleOpenRemoveDialog(row)}
+              >
+                <RemoveIcon fontSize="small" />
+              </Button>
+            </TableCell>
+          </TableRow>
+        ))
+      )}
+    </TableBody>
+  </Table>
+</TableContainer>
 
             {/* Updated Total Area Box */}
             {plotData.length > 0 && (

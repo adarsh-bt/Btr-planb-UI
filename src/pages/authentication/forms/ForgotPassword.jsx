@@ -51,32 +51,53 @@ const ForgotPassword = ({ onBack }) => {
   };
 
   // Email submit handler with validation
-  const handleEmailSubmit = async (e) => {
-    e.preventDefault();
-    setGlobalError('');
-    setSuccess('');
-    const trimmedEmail = email.trim();
+const handleEmailSubmit = async (e) => {
+  e.preventDefault();
+  setGlobalError('');
+  setSuccess('');
 
-    if (!trimmedEmail) {
-      setGlobalError('Please enter your email address.');
+  const input = email.trim();
+
+  if (!input) {
+    setGlobalError('Please enter your email');
+    return;
+  }
+
+  // ✅ If only digits → validate phone
+  if (/^\d+$/.test(input)) {
+    if (input.length !== 10) {
+      setGlobalError('Phone number must be exactly 10 digits.');
       return;
     }
-    if (!isValidEmail(trimmedEmail)) {
+  } 
+  // ✅ Otherwise validate email
+  else {
+    if (!isValidEmail(input)) {
       setGlobalError('Please enter a valid email address.');
       return;
     }
-    setIsLoading(true);
+  }
 
-    const userData = await authservice.email_verification(trimmedEmail);
+  setIsLoading(true);
+
+  try {
+    const userData = await authservice.email_verification(input);
+   
+
     setIsLoading(false);
-    if (userData.payload && userData.payload.id) {
-      setEmail(userData.payload.id);
+
+    if (userData && userData.payload.id) {
+      setEmail(userData.payload.id); 
       setGlobalError('');
       setStep(2);
     } else {
-      setGlobalError(userData.message);
+      setGlobalError(userData?.message || 'Something went wrong');
     }
-  };
+  } catch (error) {
+    setIsLoading(false);
+    setGlobalError('Server error. Please try again.');
+  }
+};
 
   const handleOtpChange = (index) => async (e) => {
     const value = e.target.value;
@@ -123,7 +144,7 @@ const ForgotPassword = ({ onBack }) => {
       setGlobalError('An error occurred while verifying OTP.');
     }
 
-    console.log('OTP submitted:', otp.join(''));
+    
     // setStep(3); // Move to the next step for entering new password
   };
 
@@ -200,7 +221,7 @@ const ForgotPassword = ({ onBack }) => {
         {step === 1 && (
           <>
             <Typography variant="body2" sx={{ color: '#666', textAlign: 'center', fontSize: '0.9rem' }}>
-              Enter your registered email address to receive a One-Time Password (OTP).
+              Enter your registered Email to receive a One-Time Password (OTP).
             </Typography>
             {globalError && (
               <Stack sx={{ width: '100%', background: '#fff1f0' }} spacing={2}>
@@ -215,7 +236,7 @@ const ForgotPassword = ({ onBack }) => {
             <TextField
               fullWidth
               variant="outlined"
-              label="Email Address"
+              label="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoFocus

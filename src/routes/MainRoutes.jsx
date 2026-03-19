@@ -46,6 +46,10 @@ const ZoneSettings = Loadable(lazy(() => import('pages/functional-components/ear
 const SettingsMenu = Loadable(lazy(() => import('pages/functional-components/earas/SettingsMenu')));
 const CCE_crop_selection = Loadable(lazy(() => import('pages/functional-components/earas/CceCropSelection')));
 
+const MappingManagement = Loadable(lazy(() => import('pages/functional-components/earas/MappingSettings/MappingMenus')));
+const ZoneList = Loadable(lazy(() => import('pages/functional-components/earas/MappingSettings/ZoneListing')));
+const ZoneManage = Loadable(lazy(() => import('pages/functional-components/earas/MappingSettings/ZoneManage')));
+
 const Form1_menus = Loadable(lazy(() => import('pages/functional-components/earas/form1/form1menus')));
 
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
@@ -75,6 +79,9 @@ const CceReport = Loadable(lazy(() => import('pages/functional-components/earas/
 
 const UserTourDiarySubmissions = Loadable(lazy(() => import('pages/dashboard/UserTourDiarySubmissions')));
 const UserTourDiaryDetail = Loadable(lazy(() => import('pages/dashboard/UserTourDiaryDetail')));
+
+const KeralaReportList = Loadable(lazy(() => import('pages/functional-components/earas/Report/KeralaReportList')));
+
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
@@ -114,6 +121,14 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <WorkAllocation />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'kerala_report',
+      element: (
+        <PrivateRoute>
+          <KeralaReportList />
         </PrivateRoute>
       )
     },
@@ -522,6 +537,30 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <CceReport />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Mapping_Management',
+      element: (
+        <PrivateRoute>
+          <MappingManagement />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/earas_management/ZoneListing',
+      element: (
+        <PrivateRoute>
+          <ZoneList />
+        </PrivateRoute>
+      )
+    },
+     {
+      path: '/schemes/earas/earas_management/ZoneListing/ZoneManage/:zoneId',
+      element: (
+        <PrivateRoute>
+          <ZoneManage />
         </PrivateRoute>
       )
     }

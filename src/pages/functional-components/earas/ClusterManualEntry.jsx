@@ -173,7 +173,7 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
             const data = await response.json();
-console.log('Fetched CCE crop details:', data);
+
             // Ensure data is always an array
             const cropData = Array.isArray(data) ? data : (data.crops || data.payload || []);
 
@@ -348,7 +348,7 @@ console.log('Fetched CCE crop details:', data);
         // First check if this plot is already used in the current form
         const plotIdentifier = `${row.villageId}-${row.block}-${row.svNo}-${row.sub || ''}`;
         const existingUsageInForm = checkPlotUsageInCurrentForm(plotIdentifier, rowUniqueId);
-        console.log("plot idec  " + plotIdentifier)
+       
         if (existingUsageInForm.isUsed) {
             // Plot is already used in current form - show UI validation
             setValidationInfo({
@@ -376,7 +376,7 @@ console.log('Fetched CCE crop details:', data);
                 zoneId: parseInt(zoneId, 10),
             };
 
-            console.log('Sending validation payload:', payload);
+       
 
             const response = await fetch(`${BASE_URL}/btr-service/api/btr-data/validate-duplicate`, {
                 method: 'POST',
@@ -398,7 +398,7 @@ console.log('Fetched CCE crop details:', data);
             }
 
             if (response.status === 409 || response.ok) {
-                console.log('Validation result:', data);
+              
 
                 if (response.status === 409) {
                     if (data.availableSubdivisions && data.availableSubdivisions.length > 0) {
@@ -446,7 +446,6 @@ console.log('Fetched CCE crop details:', data);
             }
         } catch (error) {
             console.error("Error validating duplicate plot:", error);
-            console.log("Validation error response:", responseText);
             setSnackbarMessage(`Error: ${error.message}`);
             setSnackbarOpen(true);
         }
@@ -466,8 +465,6 @@ console.log('Fetched CCE crop details:', data);
                 zoneId: parseInt(zoneId, 10),
             };
 
-            console.log('Fetching subdivisions with payload:', payload);
-
             const response = await fetch(`${BASE_URL}/btr-service/api/btr-data/validate-duplicate`, {
                 method: 'POST',
                 headers: {
@@ -480,7 +477,7 @@ console.log('Fetched CCE crop details:', data);
             if (response.status === 409) {
                 const data = await response.json();
                 if (data.availableSubdivisions && data.availableSubdivisions.length > 0) {
-                    console.log('Found subdivisions for survey number:', data.availableSubdivisions);
+                
                     setAvailableSubdivisions(data.availableSubdivisions);
 
                     setPendingPlot({
@@ -551,7 +548,7 @@ console.log('Fetched CCE crop details:', data);
             }
 
             const data = await response.json();
-            console.log('Fetched API CCE crops:', data);
+      
             setApiCropsData(data);
 
         } catch (error) {
@@ -670,17 +667,18 @@ console.log('Fetched CCE crop details:', data);
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
+          
             const response = await fetch(`${BASE_URL}/btr-service/key-plots/get-keyplot/${id}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
-
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
             const data = await response.json();
+            console.log("Keyplot details response:", data);
             setMinCluster(data.payload.clusterMin);
             setMaxCluster(data.payload.clusterMax);
             setMeanCluster(data.payload.clusterMean);
@@ -692,11 +690,8 @@ console.log('Fetched CCE crop details:', data);
             setDefaultVillageId(data.payload.kvillageId);
             setDefaultVillage(data.payload.kvillageName);
             setClusterId(data.payload.clusterId);
-
-
             if (data.payload) {
                 setKeyplotDetails(data.payload);
-                console.log("keyplot details >>> ", data.payload);
                 setClusterInfo(prevInfo => ({
                     ...prevInfo,
                     clusterNo: slNo || '1',
@@ -758,7 +753,7 @@ console.log('Fetched CCE crop details:', data);
                     });
                 }
 
-                console.log("existed plots ", existingSidePlots);
+                
 
                const fixed = ['K'];
 // Start with just the keyplot
@@ -1006,16 +1001,12 @@ const hasValidRow = (keyplot) => {
                                 bcode: row.block,
                                 village: row.villageId
                             };
-
-                            console.log(`Row data for ${keyplot.label}:`, rowData);
                             return rowData;
                         })
                     }))
 
             };
 
-            console.log('✅ Final request data being sent:', JSON.stringify(requestData, null, 2));
-            console.log("res  ",requestData)
             // ✅ STEP 4: Send main save request
             const response = await fetch(`${BASE_URL}/btr-service/cluster-api/save-cluster`, {
                 method: 'POST',
@@ -1025,8 +1016,6 @@ const hasValidRow = (keyplot) => {
                 },
                 body: JSON.stringify(requestData)
             });
-
-            console.log('Response status:', response.status);
 
             if (!response.ok) {
                 let errorMessage = `HTTP error! status: ${response.status}`;
@@ -1045,13 +1034,11 @@ const hasValidRow = (keyplot) => {
             }
 
             const result = await response.json();
-            console.log('✅ Cluster saved successfully:', result);
-
             setSubmitSuccess(true);
             setSnackbarMessage('Cluster data saved successfully!');
             setSnackbarOpen(true);
          
-            if (mode === 'ON_GOING') {
+            if (mode === 'ON_GOING' || mode === 'SAVE') {
                     setOpenLimitDialog(false)
                      window.location.reload();
             }
@@ -1072,8 +1059,6 @@ const hasValidRow = (keyplot) => {
     };
 
     const removeDeletedRows = async (token) => {
-        console.log('Removing deleted rows:', removedRows);
-
         for (const removedRow of removedRows) {
             try {
                 if (!removedRow.b_id) {
@@ -1088,14 +1073,12 @@ const hasValidRow = (keyplot) => {
                     }
                 });
 
-                console.log(`DELETE response for row ${removedRow.b_id}:`, response.status);
-
                 if (!response.ok) {
                     const errorText = await response.text();
                     throw new Error(`Failed to remove row ${removedRow.b_id}: ${response.status} - ${errorText}`);
                 }
 
-                console.log(`✅ Successfully removed row: ${removedRow.b_id}`);
+                
             } catch (error) {
                 console.error(`❌ Error removing row ${removedRow.b_id}:`, error);
                 throw new Error(`Failed to remove deleted plot: ${removedRow.villageName}-${removedRow.block}-${removedRow.svNo}-${removedRow.sub}`);
@@ -1104,7 +1087,7 @@ const hasValidRow = (keyplot) => {
 
         // Clear removed rows after successful deletion
         setRemovedRows([]);
-        console.log('✅ All deleted rows removed successfully');
+       
     };
 
     const getRemovedRowsInfo = () => {
@@ -1178,13 +1161,14 @@ const hasValidRow = (keyplot) => {
                     landType: clusterInfo.landType || "WET",
                     isLimitExceeded: false,
                     isCurrentAssignment: true,
+                    addedBy: authservice.userid(),
                     rejectedBy: null,
                     rejectedAt: null,
                     assignedOn: new Date().toISOString().slice(0, 19) // Format: YYYY-MM-DDTHH:mm:ss
                 };
             });
 
-            console.log('Saving crop assignments:', cropAssignments);
+          
 
             // Make the API call with proper error handling
             const response = await fetch(`${BASE_URL}/btr-service/crop-assignment-trail/save`, {
@@ -1196,13 +1180,13 @@ const hasValidRow = (keyplot) => {
                 body: JSON.stringify(cropAssignments)
             });
 
-            console.log('Response status:', response.status);
+          
 
             if (!response.ok) {
                 let errorMessage = `HTTP error! status: ${response.status}`;
                 try {
                     const errorText = await response.text();
-                    console.log('Error response:', errorText);
+                 
 
                     try {
                         const errorData = JSON.parse(errorText);
@@ -1431,7 +1415,7 @@ const hasValidRow = (keyplot) => {
 
                 if (!response.ok) throw new Error('Failed to delete row from server');
 
-                console.log(`✅ Successfully removed saved row: ${rowData.b_id}`);
+                
             }
 
             // Remove row from UI after successful deletion (or if it was never saved)

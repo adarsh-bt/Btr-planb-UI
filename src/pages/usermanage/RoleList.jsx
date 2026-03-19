@@ -85,7 +85,7 @@ const fetchUsers = async () => {
   });
 
   if (!res.error && res.payload) {
-    console.log("Fetched Users:", res.payload.distId, res.payload.talukId);
+  
     setUsers(res.payload.content);
     setTotalRows(res.payload.totalElements);
      setLoggedDistrictId(res.payload.distId || null);

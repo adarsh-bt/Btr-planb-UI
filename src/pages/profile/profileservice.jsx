@@ -9,12 +9,12 @@ const profileService = {
   fetchUserById: async (userId) => {
     const token = localStorage.getItem('token');
     // const userId1 = "05041486-30f1-4620-ae6a-998c40881981"
-    console.log(userId);
+
     try {
       const response = await axios.get(`${USER_URL}/user-access/user-profile/user/fetch-by-id/${userId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      console.log("response usersss",response)
+     
       return response.data; // Return the entire response payload
     } catch (error) {
       console.error('Error fetching user by ID:', error);
@@ -31,7 +31,7 @@ const profileService = {
          
         }
       });
-      console.log("result ",response)
+    
       return response;
     } catch (err) {
       return {
@@ -41,8 +41,8 @@ const profileService = {
   },
 
   verifyOtp: async (userid, otp) => {
-    console.log('otp >>', otp);
-    console.log('usernamess :', userid);
+  
+   
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(`${USER_URL}/user-access/user-profile/validateOtp`, { userid, otp },{
@@ -51,7 +51,7 @@ const profileService = {
           
         }
       });
-      console.log(response.data);
+    
       return response.data;
     } catch (err) {
       throw err;

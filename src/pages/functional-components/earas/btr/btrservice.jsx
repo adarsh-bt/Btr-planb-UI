@@ -23,7 +23,7 @@ static async btr_lists_data(page = 0, size = 10, filter = '', zoneId = null) {
       throw new Error('Zone ID missing');
     }
 
-    console.log("Zone ID in btr service:", zone);
+   
     const BASE_URL = mainapi.BASE_URL;
     // const url = `${BASE_URL}/btr-service/api/fetch-btr/zone/${zone}/data?page=${page}&size=${size}&filter=${encodeURIComponent(filter)}`;
     const url = `${BASE_URL}/btr-service/btr-api/btr-data/${zone}?page=${page}&size=${size}&filter=${filter}`;
@@ -33,7 +33,7 @@ static async btr_lists_data(page = 0, size = 10, filter = '', zoneId = null) {
         Authorization: `Bearer ${token}`
       }
     });
-console.log("ressss ",response)
+
     return response.data;
   } catch (err) {
     console.error('API Error:', err);
@@ -51,7 +51,7 @@ static async getPlotUsageData(plotId) {
     if (!token) {
       throw new Error('Authorization token missing');
     }
-console.log("Plot ID in btr service:", plotId);
+
     // Build URL manually
     const BASE_URL = mainapi.BASE_URL; // manually using BASE_URL
     const url = `${BASE_URL}/btr-service/cluster-api/${plotId}/btrplot-usage`;
@@ -63,7 +63,7 @@ console.log("Plot ID in btr service:", plotId);
       }
     });
 
-    console.log("Plot usage response:", response);
+  
     return response.data;
   } catch (error) {
     console.error('Error fetching plot usage:', error);
@@ -92,7 +92,7 @@ alert("btrId "+btrId+" totCent "+totCent)
       }
     });
 
-    console.log("Update plot total area response:", response);
+    
     return response.data;
   } catch (error) {
     console.error('Error updating plot total area:', error);

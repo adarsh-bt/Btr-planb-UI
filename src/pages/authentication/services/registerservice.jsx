@@ -9,7 +9,7 @@ const RegisterService = {
 async getDistricts() {
   try {
     const url = `${this.USER_URL}/user-access/api/districts`;
-    console.log("Calling URL:", url);
+  
     const response = await axios.get(url);
     return response.data;
   } catch (err) {
@@ -35,7 +35,6 @@ async getDistricts() {
   async getDesignations() {
     try {
       const response = await axios.get(`${this.USER_URL}/user-access/api/fetch-designations`);
-      console.log('designationss: ', response.data.payload);
       return response.data;
     } catch (err) {
       return {

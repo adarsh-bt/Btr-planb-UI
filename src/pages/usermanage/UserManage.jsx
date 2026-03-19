@@ -30,7 +30,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import CloseIcon from '@mui/icons-material/Close';
 import EditIcon from '@mui/icons-material/Edit';
 import CircularProgress from '@mui/material/CircularProgress';
-
+import SettingsIcon from '@mui/icons-material/Settings';
 import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
 import { useLocation } from 'react-router-dom';
@@ -78,6 +78,11 @@ const Roles = () => {
   const [zoneSaving, setZoneSaving] = useState(false);
   const [savedZone, setSavedZone] = useState(false);
   
+  const [showEmailModal, setShowEmailModal] = useState(false);
+const [newEmail, setNewEmail] = useState('');
+const [emailError, setEmailError] = useState('');
+const [emailUpdating, setEmailUpdating] = useState(false);
+const [emailSuccess, setEmailSuccess] = useState('');
 
 const [modalOpen, setModalOpen] = useState(false);
 
@@ -189,6 +194,64 @@ const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
     }
   };
 
+const handleChangeEmail = async () => {
+  // Reset messages
+  setEmailError('');
+  setEmailSuccess('');
+  
+  // Validation
+  if (!newEmail || newEmail.trim() === '') {
+    setEmailError('Email is required');
+    return;
+  }
+  
+  // Basic email format validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(newEmail)) {
+    setEmailError('Please enter a valid email address');
+    return;
+  }
+  
+  // Check if email is same as current
+  if (newEmail.toLowerCase() === userData.email.toLowerCase()) {
+    setEmailError('New email is same as current email');
+    return;
+  }
+  
+  setEmailUpdating(true);
+  
+  try {
+    const response = await ApprovedUserService.changeEmail({
+      userId: userId,
+      newEmail: newEmail.trim()
+    });
+    
+    if (response.success) {
+      setEmailSuccess(response.message || 'Email updated successfully');
+      
+      // Update local user data
+      setUserData(prev => ({
+        ...prev,
+        email: newEmail.trim()
+      }));
+      
+      // Close modal after 2 seconds
+      setTimeout(() => {
+        setShowEmailModal(false);
+        setNewEmail('');
+        setEmailSuccess('');
+      }, 2000);
+    } else {
+      setEmailError(response.message || 'Failed to update email');
+    }
+  } catch (error) {
+    setEmailError(error.message || 'An error occurred while updating email');
+  } finally {
+    setEmailUpdating(false);
+  }
+};
+
+
   // Event handlers (same logic as Register component)
   const handleDistrictChange = (event, newValue) => {
     setSelectedDistrict(newValue);
@@ -226,6 +289,8 @@ const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
       setErrors((prevErrors) => ({ ...prevErrors, office: '' }));
     }
   };
+
+
 
   const handleEditOffice = () => {
     setIsEditingOffice(true);
@@ -291,7 +356,7 @@ const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
         // Optionally refresh user data
         const updatedRes = await ApprovedUserService.fetchUserById(userId);
         if (!updatedRes.error) {
-        console.log("updatedRes.payload ",updatedRes.payload )
+       
           setUserData(updatedRes.payload);
           setOfficeType(updatedRes.payload.officeType || '');
         }
@@ -383,7 +448,7 @@ const handleSchemeRoleActiveChange = (index, value) => {
     } else {
       const payload = res.payload;
       setUserData(payload);
-     console.log("ooo ",payload)
+     
 
       const logid = payload.logid || '';
       setLoginId(logid); // still store it in state if needed elsewhere
@@ -410,7 +475,7 @@ const handleSchemeRoleActiveChange = (index, value) => {
         .catch((error) => {
           console.error('Error fetching zones:', error);
         });
-        console.log("role  dddd ",payload.roleSchemeResponses)
+        
       // Other state updates...
       // setSchemeRolePairs(
       //   (payload.roleSchemeResponses || []).map((r) => ({
@@ -537,9 +602,9 @@ useEffect(() => {
   if (isAddZoneOpen) {
     const fetchZones = async () => {
       try {
-        console.log("user data  ",userData)
+      
         const response = await approvalservice.zoneslist(userData.officeType, userData.officeId);
-        console.log("available zones response ",response)
+       
         if (response) {
           setAvailableZones(response);
           
@@ -570,7 +635,7 @@ const handleSaveAddZone = async () => {
   try {
     setAddZoneSaving(true);
     setAddZoneError('');
-console.log("selectedZoneIdToAdd", selectedZoneIdToAdd);
+
     // Find the selected zone
     const addedZone = availableZones.find(zone => zone.zoneId === selectedZoneIdToAdd);
 
@@ -652,7 +717,7 @@ console.log("selectedZoneIdToAdd", selectedZoneIdToAdd);
       });
     }
   };
-
+const role = authservice.getrole();
   // --- Designation Change Handlers ---
   const handleEditDesignation = async () => {
     setDesignationLoading(true);
@@ -703,21 +768,19 @@ const handleSaveDesignationClick = () => {
   };
 // Add this useEffect to debug state changes
 useEffect(() => {
-  console.log('schemeRolePairs updated:', schemeRolePairs);
-  console.log('rolesByScheme updated:', rolesByScheme);
+
 }, [schemeRolePairs, rolesByScheme]);
 
 // Also add this to debug when editing mode changes
 useEffect(() => {
   console.log('isEditingSchemes:', isEditingSchemes);
-  console.log('Current schemeRolePairs in edit mode:', schemeRolePairs);
+  
 }, [isEditingSchemes]);
 
 useEffect(() => {
   if (isEditingSchemes && schemeRolePairs[0]?.schemeId) {
     console.log('Current scheme in edit mode:', schemeRolePairs[0].schemeId);
-    console.log('Available roles for this scheme:', rolesByScheme[schemeRolePairs[0].schemeId]);
-    console.log('Current roleId:', schemeRolePairs[0].roleId);
+    
   }
 }, [isEditingSchemes, schemeRolePairs, rolesByScheme]);
   // --- Scheme and Role Handlers ---
@@ -778,32 +841,88 @@ const handleEditSchemes = async () => {
   }
   setSchemesLoading(false);
 };
+  // const handleSchemeChange = async (idx, schemeId) => {
+  //   // Update the selected scheme in the pair
+  //   const schemeObj = allSchemes.find((s) => s.id === schemeId);
+  //   setSchemeRolePairs((pairs) =>
+  //     pairs.map((pair, i) => (i === idx ? { ...pair, schemeId, schemeName: schemeObj?.schemeName || '', roleId: '', roleName: '' } : pair))
+  //   );
 
-  const handleSchemeChange = async (idx, schemeId) => {
-    // Update the selected scheme in the pair
-    const schemeObj = allSchemes.find((s) => s.id === schemeId);
-    setSchemeRolePairs((pairs) =>
-      pairs.map((pair, i) => (i === idx ? { ...pair, schemeId, schemeName: schemeObj?.schemeName || '', roleId: '', roleName: '' } : pair))
-    );
-
-    // Fetch roles for this scheme if not already fetched
-    if (!rolesByScheme[schemeId]) {
-      setRolesLoading(true);
-      try {
-        const roles = await ApprovedUserService.getRolesbySchemes(schemeId);
-       
-        setRolesByScheme((prev) => ({
-          ...prev,
-          [schemeId]: roles.error ? [] : roles || []
-        }));
-      } catch (err) {
-        console.error('Failed to fetch roles:', err);
-        setRolesByScheme((prev) => ({ ...prev, [schemeId]: [] }));
-      } finally {
-        setRolesLoading(false);
-      }
-    }
+  //   // Fetch roles for this scheme if not already fetched
+  //   if (!rolesByScheme[schemeId]) {
+  //     setRolesLoading(true);
+  //     try {
+  //       const roles = await ApprovedUserService.getRolesbySchemes(schemeId);
+  //       setRolesByScheme((prev) => ({
+  //         ...prev,
+  //         [schemeId]: roles.error ? [] : roles || []
+  //       }));
+  //     } catch (err) {
+  //       console.error('Failed to fetch roles:', err);
+  //       setRolesByScheme((prev) => ({ ...prev, [schemeId]: [] }));
+  //     } finally {
+  //       setRolesLoading(false);
+  //     }
+  //   }
+  // };
+const handleSchemeChange = async (idx, schemeId) => {
+  // Update the selected scheme in the pair
+  const schemeObj = allSchemes.find((s) => s.id === schemeId);
+  
+  const updatedPair = { 
+    ...(schemeRolePairs[0] || {}), 
+    schemeId, 
+    schemeName: schemeObj?.schemeName || '', 
+    roleId: '', 
+    roleName: '' 
   };
+  
+  setSchemeRolePairs([updatedPair]);
+
+  // If roles for this scheme are already cached, use them
+  if (rolesByScheme[schemeId]) {
+    
+    return;
+  }
+  
+  // Otherwise fetch them
+ 
+  setRolesLoading(true);
+  try {
+    const roles = await ApprovedUserService.getRolesbySchemes(schemeId);
+   
+    
+    let rolesList = [];
+    if (Array.isArray(roles)) {
+      rolesList = roles;
+    } else if (roles?.payload && Array.isArray(roles.payload)) {
+      rolesList = roles.payload;
+    } else if (roles?.data && Array.isArray(roles.data)) {
+      rolesList = roles.data;
+    } else if (roles?.error) {
+      console.error('Error in roles response:', roles.message);
+    }
+    
+    // Transform roles to consistent format
+    const transformedRoles = rolesList.map(role => ({
+      id: role.id || role.roleId || role.value,
+      name: role.name || role.roleName || role.label || '',
+      roleName: role.roleName || role.name || role.label || ''
+    }));
+    
+    setRolesByScheme((prev) => ({
+      ...prev,
+      [schemeId]: transformedRoles
+    }));
+    
+  
+  } catch (err) {
+    console.error('Failed to fetch roles:', err);
+    setRolesByScheme((prev) => ({ ...prev, [schemeId]: [] }));
+  } finally {
+    setRolesLoading(false);
+  }
+};
 
 const handleRoleChange = (idx, roleId) => {
   const pair = schemeRolePairs[0] || {};
@@ -1047,6 +1166,26 @@ console.log("roleScheme ",roleScheme)
       {/* Details Tab Content */}
       {tabValue === 0 && (
         <Box sx={{ p: 3, minHeight: '400px' }}>
+        {role === 'IT Admin' && (
+       <Grid container spacing={3} sx={{ mb: 2 }}>
+  <Box
+    sx={{
+      width: '100%',
+      mb: 2,
+      display: 'flex',
+      justifyContent: 'flex-end',  // 👈 pushes button right
+    }}
+  >
+    <Button
+      variant="contained"
+      color="error"
+      onClick={() => setShowEmailModal(true)}
+    >
+      <SettingsIcon sx={{ mr: 1 }} /> Edit Email
+    </Button>
+  </Box>
+</Grid>
+)}
           <Grid container spacing={3}>
             {/* Contact Information */}
             <Grid item xs={12} md={6}>
@@ -2053,7 +2192,151 @@ console.log("roleScheme ",roleScheme)
     </Button>
   </DialogActions>
 </Dialog>
+<Dialog 
+  open={showEmailModal} 
+  onClose={() => !emailUpdating && setShowEmailModal(false)}
+  maxWidth="sm"
+  fullWidth
+  PaperProps={{
+    sx: {
+      borderRadius: '12px',
+      overflow: 'hidden'
+    }
+  }}
+>
+  <DialogTitle sx={{ 
+    backgroundColor: '#04255e', 
+    color: 'white',
+    fontSize: '1.25rem',
+    fontWeight: 'bold',
+    py: 2
+  }}>
+    Edit Email Address
+  </DialogTitle>
+  
+  <DialogContent sx={{ p: 3 }}>
+    {/* Warning Message */}
+    <Box sx={{
+      backgroundColor: '#fff3cd',
+      border: '1px solid #ffeeba',
+      borderRadius: '8px',
+      p: 2,
+      mb: 3,
+      mt:3,
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 1.5
+    }}>
+      <Box component="span" sx={{ fontSize: '1.5rem',  }}>⚠️</Box>
+      <Typography sx={{ color: '#856404', fontSize: '0.95rem' }}>
+        <strong>Admin Responsibility:</strong> Changing email is your full responsibility. 
+        Please verify the new email address is correct before saving.
+      </Typography>
+    </Box>
 
+    {/* Email Input */}
+    <TextField
+      fullWidth
+      label="New Email Address"
+      type="email"
+      value={newEmail}
+      onChange={(e) => {
+        setNewEmail(e.target.value);
+        setEmailError('');
+        setEmailSuccess('');
+      }}
+      disabled={emailUpdating}
+      error={!!emailError}
+      helperText={emailError}
+      placeholder="Enter new email address"
+      variant="outlined"
+      sx={{
+        '& .MuiOutlinedInput-root': {
+          borderRadius: '8px',
+          '&.Mui-focused fieldset': {
+            borderColor: '#04255e',
+            borderWidth: '2px'
+          }
+        },
+        '& .MuiInputLabel-root.Mui-focused': {
+          color: '#04255e'
+        }
+      }}
+    />
+
+    {/* Success Message */}
+    {emailSuccess && (
+      <Box sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+        mt: 2,
+        p: 1.5,
+        backgroundColor: '#d4edda',
+        border: '1px solid #c3e6cb',
+        borderRadius: '6px',
+        color: '#155724'
+      }}>
+        <CheckCircleIcon sx={{ fontSize: '1.2rem' }} />
+        <Typography variant="body2">{emailSuccess}</Typography>
+      </Box>
+    )}
+  </DialogContent>
+  
+  <DialogActions sx={{ p: 3, pt: 0, gap: 1 }}>
+    <Button
+      onClick={() => {
+        setShowEmailModal(false);
+        setNewEmail('');
+        setEmailError('');
+        setEmailSuccess('');
+      }}
+      disabled={emailUpdating}
+      variant="outlined"
+      sx={{
+        borderRadius: '6px',
+        px: 3,
+        py: 1,
+        borderColor: '#ced4da',
+        color: '#495057',
+        '&:hover': {
+          borderColor: '#adb5bd',
+          backgroundColor: '#f8f9fa'
+        }
+      }}
+    >
+      Cancel
+    </Button>
+    <Button
+      onClick={handleChangeEmail}
+      disabled={emailUpdating || !newEmail.trim()}
+      variant="contained"
+      sx={{
+        backgroundColor: '#04255e',
+        borderRadius: '6px',
+        px: 3,
+        py: 1,
+        '&:hover': {
+          backgroundColor: '#05307a',
+          transform: 'translateY(-1px)',
+          boxShadow: '0 4px 12px rgba(4,37,94,0.2)'
+        },
+        '&:disabled': {
+          backgroundColor: '#6c757d'
+        }
+      }}
+    >
+      {emailUpdating ? (
+        <>
+          <CircularProgress size={16} sx={{ mr: 1, color: 'white' }} />
+          Updating...
+        </>
+      ) : (
+        'Save Changes'
+      )}
+    </Button>
+  </DialogActions>
+</Dialog>
     </Grid>
   );
 };

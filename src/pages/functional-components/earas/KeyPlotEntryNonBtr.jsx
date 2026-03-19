@@ -712,36 +712,37 @@ const KeyPlotEntryNonBtr = () => {
     }
   };
 
-  const getTableHeaders = (lbId, villageName) => {
-    const currentListType = getCurrentListType();
-    const baseHeaders = ["Sl. No", "Village"];
-    const villageBlockHeaders = ["Village Block"];
-    const houseListHeaders = ["Name", "Address", "Ward No.", "House No."];
-    const cultivatorListHeaders = ["Name", "Address"];
-    const thandaperHeaders = ["Name", "Address", "Thandaper No.", "Thandaper Sub No."];
-    const othersHeaders = ["Old Survey No.", "Old Sub No."];
-    const finalHeaders = [
-      "Survey No.",
-      "Sub Div No.",
-      "Area (Cents)",
-      "Land Type",
-      "Actions",
-    ];
+const getTableHeaders = (lbId, villageName) => {
+  const currentListType = getCurrentListType();
+  const baseHeaders = ["Sl. No", "Village"];
+  const villageBlockHeaders = ["Village Block"];
+  const houseListHeaders = ["Name", "Address", "Ward No.", "House No."];
+  const cultivatorListHeaders = ["Name", "Address"];
+  const thandaperHeaders = ["Name", "Address", "Thandaper No.", "Thandaper Sub No."];
+  const oldSurveyHeaders = ["Old Survey No.", "Old Sub No."]; // Renamed for clarity
+  const finalHeaders = [
+    "Survey No.",
+    "Sub Div No.",
+    "Area (Cents)",
+    "Land Type",
+    "Actions",
+  ];
 
-    if (currentListType === "House List") {
-      return [...baseHeaders, ...villageBlockHeaders, ...houseListHeaders, ...finalHeaders];
-    }
-    if (currentListType === "Cultivators List") {
-      return [...baseHeaders, ...villageBlockHeaders, ...cultivatorListHeaders, ...finalHeaders];
-    }
-    if (currentListType === "Thandaper Number") {
-      return [...baseHeaders, ...villageBlockHeaders, ...thandaperHeaders, ...finalHeaders];
-    }
-    if (currentListType === "Old Survey Number") {
-      return [...baseHeaders, ...villageBlockHeaders, ...othersHeaders, ...finalHeaders];
-    }
-    return [...baseHeaders, ...villageBlockHeaders, ...finalHeaders];
-  };
+  if (currentListType === "House List") {
+    return [...baseHeaders, ...villageBlockHeaders, ...houseListHeaders, ...finalHeaders];
+  }
+  if (currentListType === "Cultivators List") {
+    return [...baseHeaders, ...villageBlockHeaders, ...cultivatorListHeaders, ...finalHeaders];
+  }
+  if (currentListType === "Thandaper Number") {
+    return [...baseHeaders, ...villageBlockHeaders, ...thandaperHeaders, ...finalHeaders];
+  }
+  if (currentListType === "Old Survey Number") {
+    // Only include Old Survey headers, NOT Name and Address
+    return [...baseHeaders, ...villageBlockHeaders, ...oldSurveyHeaders, ...finalHeaders];
+  }
+  return [...baseHeaders, ...villageBlockHeaders, ...finalHeaders];
+};
 
   const getVillageRowCount = (lbId, villageName) => {
     return localBodyData[lbId]?.[villageName]?.length || 0;
@@ -1053,69 +1054,71 @@ const KeyPlotEntryNonBtr = () => {
                             </TableCell>
 
                             {/* Dynamic columns based on list type */}
-                            {(currentListType === "House List" ||
-                              currentListType === "Cultivators List" ||
-                              currentListType === "Thandaper Number" ||
-                              currentListType === "Old Survey Number") && (
-                              <>
-                                <TableCell align="center">
-                                  <TextField
-                                    value={row.name ?? ""}
-                                    onChange={(e) => {
-                                      const raw = e.target.value ?? "";
-                                      const v = raw.slice(0, 60);
-                                      if (v === "" || /^[A-Za-z ]*$/.test(v)) {
-                                        handleChange(lb.id, currentVillageName, row.id, "name", v);
-                                      }
-                                    }}
-                                    placeholder="Name"
-                                    inputProps={{
-                                      maxLength: 60,
-                                      pattern: "^[A-Za-z ]*$",
-                                      title: "Only alphabets and spaces, up to 60 characters",
-                                    }}
-                                    required={requiredFields.some((f) => f.field === "name")}
-                                    error={
-                                      requiredFields.some((f) => f.field === "name") &&
-                                      (!(row.name ?? "").trim() || (!!row.name && !/^[A-Za-z ]{1,60}$/.test(row.name)))
-                                    }
-                                    helperText={
-                                      requiredFields.some((f) => f.field === "name")
-                                        ? (!(row.name ?? "").trim()
-                                            ? "Required"
-                                            : (!!row.name && !/^[A-Za-z ]{1,60}$/.test(row.name)
-                                                ? "Only alphabets and spaces, max 60"
-                                                : ""))
-                                        : ""
-                                    }
-                                  />
-                                </TableCell>
+     {/* Name and Address fields - only for lists that need them */}
+{(currentListType === "House List" ||
+  currentListType === "Cultivators List" ||
+  currentListType === "Thandaper Number") && (
+  <>
+    <TableCell align="center">
+      <TextField
+        value={row.name ?? ""}
+        onChange={(e) => {
+          const raw = e.target.value ?? "";
+          const v = raw.slice(0, 60);
+          if (v === "" || /^[A-Za-z ]*$/.test(v)) {
+            handleChange(lb.id, currentVillageName, row.id, "name", v);
+          }
+        }}
+        placeholder="Name"
+        sx={{ minWidth: 140 }}
+        inputProps={{
+          maxLength: 60,
+          pattern: "^[A-Za-z ]*$",
+          title: "Only alphabets and spaces, up to 60 characters",
+        }}
+        required={requiredFields.some((f) => f.field === "name")}
+        error={
+          requiredFields.some((f) => f.field === "name") &&
+          (!(row.name ?? "").trim() || (!!row.name && !/^[A-Za-z ]{1,60}$/.test(row.name)))
+        }
+        helperText={
+          requiredFields.some((f) => f.field === "name")
+            ? (!(row.name ?? "").trim()
+                ? "Required"
+                : (!!row.name && !/^[A-Za-z ]{1,60}$/.test(row.name)
+                    ? "Only alphabets and spaces, max 60"
+                    : ""))
+            : ""
+        }
+      />
+    </TableCell>
 
-                                <TableCell align="center">
-                                  <TextField
-                                    value={row.address || ""}
-                                    onChange={(e) => {
-                                      const v = e.target.value.slice(0, 250);
-                                      handleChange(lb.id, currentVillageName, row.id, "address", v);
-                                    }}
-                                    placeholder="Address"
-                                    inputProps={{
-                                      maxLength: 250,
-                                      title: "Up to 250 characters",
-                                    }}
-                                    required={requiredFields.some((f) => f.field === "address")}
-                                    error={
-                                      requiredFields.some((f) => f.field === "address") &&
-                                      !row.address?.trim()
-                                    }
-                                    helperText={
-                                      requiredFields.some((f) => f.field === "address") &&
-                                      (!row.address?.trim() ? "Required" : `${(row.address || "").length}/250`)
-                                    }
-                                  />
-                                </TableCell>
-                              </>
-                            )}
+    <TableCell align="center">
+      <TextField
+        value={row.address || ""}
+        onChange={(e) => {
+          const v = e.target.value.slice(0, 250);
+          handleChange(lb.id, currentVillageName, row.id, "address", v);
+        }}
+        placeholder="Address"
+        sx={{ minWidth: 140 }}
+        inputProps={{
+          maxLength: 250,
+          title: "Up to 250 characters",
+        }}
+        required={requiredFields.some((f) => f.field === "address")}
+        error={
+          requiredFields.some((f) => f.field === "address") &&
+          !row.address?.trim()
+        }
+        helperText={
+          requiredFields.some((f) => f.field === "address") &&
+          (!row.address?.trim() ? "Required" : `${(row.address || "").length}/250`)
+        }
+      />
+    </TableCell>
+  </>
+)}
 
                             {currentListType === "House List" && (
                               <>
@@ -1128,6 +1131,7 @@ const KeyPlotEntryNonBtr = () => {
                                     }}
                                     placeholder="Ward No."
                                     inputMode="numeric"
+                                     sx={{ minWidth: 70 }}
                                     inputProps={{
                                       pattern: "^\\d{0,5}$",
                                       maxLength: 5,
@@ -1153,6 +1157,7 @@ const KeyPlotEntryNonBtr = () => {
                                       handleChange(lb.id, currentVillageName, row.id, "houseNo", value);
                                     }}
                                     placeholder="House No."
+                                      sx={{ minWidth: 100 }}
                                     inputProps={{
                                       maxLength: 10,
                                       title: "Up to 10 characters",
@@ -1238,11 +1243,12 @@ const KeyPlotEntryNonBtr = () => {
                                     }}
                                     placeholder="Old Survey No."
                                     inputMode="numeric"
-                                    inputProps={{
-                                      pattern: "^\\d{0,5}$",
-                                      maxLength: 5,
-                                      title: "Up to 5 digits",
-                                    }}
+                                 sx={{ minWidth: 100 }}
+                                inputProps={{
+                                  pattern: "^\\d{0,5}$",
+                                  maxLength: 5,
+                                  title: "Up to 5 digits",
+                                }}
                                     required={requiredFields.some((f) => f.field === "oldsvno")}
                                     error={
                                       requiredFields.some((f) => f.field === "oldsvno") &&
@@ -1263,6 +1269,7 @@ const KeyPlotEntryNonBtr = () => {
                                       handleChange(lb.id, currentVillageName, row.id, "oldsubno", v);
                                     }}
                                     placeholder="Old Sub No."
+                                      sx={{ minWidth: 100 }}
                                     inputProps={{
                                       maxLength: 5,
                                       title: "Up to 5 characters",
@@ -1290,6 +1297,7 @@ const KeyPlotEntryNonBtr = () => {
                                 }}
                                 placeholder="Survey No."
                                 inputMode="numeric"
+                                 sx={{ minWidth: 100 }}
                                 inputProps={{
                                   pattern: "^\\d{0,5}$",
                                   maxLength: 5,
@@ -1302,13 +1310,14 @@ const KeyPlotEntryNonBtr = () => {
                               <TextField
                                 value={row.subDivNo ?? ""}
                                 onChange={(e) => {
-                                  const v = (e.target.value || "").slice(0, 5);
+                                  const v = (e.target.value || "").slice(0, 15);
                                   handleChange(lb.id, currentVillageName, row.id, "subDivNo", v);
                                 }}
                                 placeholder="Sub Div No."
+                                  sx={{ minWidth: 100 }}
                                 inputProps={{
-                                  maxLength: 5,
-                                  title: "Up to 5 characters",
+                                  maxLength: 15,
+                                  title: "Up to 15 characters",
                                 }}
                               />
                             </TableCell>
@@ -1340,6 +1349,7 @@ const KeyPlotEntryNonBtr = () => {
                                   title: "Up to 5 digits, optional decimal with 2 digits",
                                 }}
                                 required={requiredFields.some((f) => f.field === "area")}
+                                 sx={{ minWidth: 100 }}
                                 error={
                                   requiredFields.some((f) => f.field === "area") &&
                                   !(String(row.area || "").trim())

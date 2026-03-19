@@ -320,7 +320,7 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
           headers: { 'Authorization': `Bearer ${token}` }
         }
       );
-      alert(clusterId)
+    
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -431,7 +431,7 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
       }
 
       const data = await response.json();
-      console.log("response >> ", data)
+  
       const keyplotBTypeId = data.payload.btr_id;
       const keyplotBTypeName = data.payload.btr_type;
       setCurrentBType({
@@ -914,15 +914,12 @@ const proceedSubmit = async (mode) => {
               }
             }
 
-            console.log(`Row data for ${keyplot.label}:`, baseRowData);
+           
             return baseRowData;
           })
         }))
     };
 
-    console.log('✅ Final request data being sent:', JSON.stringify(requestData, null, 2));
- 
-            console.log("res  ",requestData)
     // ✅ STEP 3: Send main save request
     const response = await fetch(`${BASE_URL}/btr-service/cluster-api/save-cluster`, {
       method: 'POST',
@@ -932,8 +929,6 @@ const proceedSubmit = async (mode) => {
       },
       body: JSON.stringify(requestData)
     });
-
-    console.log('Response status:', response.status);
 
     if (!response.ok) {
       let errorMessage = `HTTP error! status: ${response.status}`;
@@ -952,13 +947,11 @@ const proceedSubmit = async (mode) => {
     }
 
     const result = await response.json();
-    console.log('✅ Cluster saved successfully:', result);
-
     setSubmitSuccess(true);
     setSnackbarMessage('Cluster data saved successfully!');
     setSnackbarOpen(true);
     // setOpenLimitDialog(false);
-  if (mode === 'ON_GOING') {
+  if (mode === 'ON_GOING' ||  mode === 'SAVE') {
                     setOpenLimitDialog(false)
                      window.location.reload();
             }
@@ -984,8 +977,7 @@ const proceedSubmit = async (mode) => {
 
 
   const removeDeletedRows = async (token) => {
-    console.log('Removing deleted rows:', removedRows);
-
+   
     for (const removedRow of removedRows) {
       try {
         if (!removedRow.b_id) {
@@ -1000,14 +992,13 @@ const proceedSubmit = async (mode) => {
           }
         });
 
-        console.log(`DELETE response for row ${removedRow.b_id}:`, response.status);
-
+      
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(`Failed to remove row ${removedRow.b_id}: ${response.status} - ${errorText}`);
         }
 
-        console.log(`✅ Successfully removed row: ${removedRow.b_id}`);
+      
       } catch (error) {
         console.error(`❌ Error removing row ${removedRow.b_id}:`, error);
         throw new Error(`Failed to remove deleted plot: ${removedRow.villageName}-${removedRow.block}-${removedRow.svNo}-${removedRow.sub}`);
@@ -1016,7 +1007,7 @@ const proceedSubmit = async (mode) => {
 
     // Clear removed rows after successful deletion
     setRemovedRows([]);
-    console.log('✅ All deleted rows removed successfully');
+   
   };
   const handleOpenCropsModal = () => {
     const preSelected = {};
@@ -1066,6 +1057,7 @@ const proceedSubmit = async (mode) => {
           landType: clusterInfo.landType || "WET",
           isLimitExceeded: false,
           isCurrentAssignment: true,
+          addedBy: authservice.userid(),
           rejectedBy: null,
           rejectedAt: null,
           assignedOn: new Date().toISOString().slice(0, 19)
@@ -1293,7 +1285,7 @@ const proceedSubmit = async (mode) => {
 
         if (!response.ok) throw new Error('Failed to delete row from server');
 
-        console.log(`✅ Successfully removed saved row: ${rowData.b_id}`);
+      
       }
 
       // Remove row from UI after successful deletion (or if it was never saved)
@@ -1555,7 +1547,6 @@ const handleAddRow = (keyplotId) => {
         oldsubno: rowToRemove.oldsubno
       }]);
 
-      console.log('Added to removed rows:', rowToRemove.b_id);
     }
 
     // Remove the row from UI
@@ -1629,11 +1620,11 @@ const requiredFieldsByType = {
   const checkPlotUsageInCurrentForm = (plotIdentifier, currentRowUniqueId) => {
     const allRows = keyplotsData.flatMap(kp => kp.rows);
     const duplicateRows = allRows.filter(row => {
-      console.log('Checking row:', BtrTypeId);
+
       let rowPlotIdentifier ='';
       if (BtrTypeId == 2 && row.ward_number && row.houseno) {
     rowPlotIdentifier = `${row.villageId}-${row.block}-${row.ward_number}-${row.houseno || ''}`;
-    console.log('Row Plot Identifier (BtrTypeId 2):', rowPlotIdentifier);
+    
   } else if (BtrTypeId == 3 && row.ownername && row.address && row.area) {
     rowPlotIdentifier = `${row.villageId}-${row.block}-${row.ownername}-${row.address}-${row.area}`;
   } else if (BtrTypeId == 4 && row.tpno) {
@@ -1770,7 +1761,7 @@ const requiredFieldsByType = {
         };
       }
 
-      console.log('Sending validation payload:', payload);
+     
 
       const response = await fetch(`${BASE_URL}/btr-service/api/btr-data/validate-duplicate-nonbtr`, {
         method: 'POST',
@@ -1792,7 +1783,7 @@ const requiredFieldsByType = {
       }
 
       if (response.status === 409 || response.ok) {
-        console.log('Validation result:', data);
+        
 
         if (response.status === 409) {
           if (data.availableSubdivisions && data.availableSubdivisions.length > 0) {
@@ -1858,7 +1849,7 @@ const requiredFieldsByType = {
         zoneId: parseInt(zoneId, 10),
       };
 
-      console.log('Sending validation payload:', payload);
+    
 
       const response = await fetch(`${BASE_URL}/btr-service/api/btr-data/validate-duplicate`, {
         method: 'POST',
@@ -1880,7 +1871,7 @@ const requiredFieldsByType = {
       }
 
       if (response.status === 409 || response.ok) {
-        console.log('Validation result:', data);
+       
 
         if (response.status === 409) {
           if (data.availableSubdivisions && data.availableSubdivisions.length > 0) {
@@ -1922,9 +1913,9 @@ const isSubmitDisabled = () => {
 
   for (const keyplot of keyplotsData) {
     for (const row of keyplot.rows) {
-      console.log('===>  Validating row for BtrTypeId 2:', row);
+    
       if (BtrTypeId == 2) {
-console.log('===>  Checking required fields for BtrTypeId 2:', row);
+
         if (!row.villageName || !row.block || !row.houseno || !row.ward_number || !row.area || !row.enumeratedArea) {
           return true;
         }

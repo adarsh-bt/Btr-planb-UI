@@ -535,7 +535,7 @@ const validateField = (field, value) => {
   };
 
   const handlePasswordSubmit = (data) => {
-    console.log('Password change data:', data);
+  
     // Handle password change logic
   };
   const handleAlertClose = (event, reason) => {

@@ -55,7 +55,7 @@ function ClusterSeatMap({ zoneId }) {
     })
       .then(res => {
         setClusters(res.data.payload || []);
-        console.log("cluster data  ", res.data.payload);
+     
         setSummary({
           completed: res.data.completed || 0,
           ongoing: res.data.ongoing || 0,
@@ -500,7 +500,7 @@ function ClusterSeatMap({ zoneId }) {
                               flexDirection: 'column',
                               justifyContent: 'center',
                             }}
-                            onClick={() => handleClusterClick(cluster.keyplotId, index + 1)}
+                            onClick={() => handleClusterClick(cluster.keyplotId, cluster.clusterNo) }
                           >
                             <CardContent sx={{
                               p: 2,

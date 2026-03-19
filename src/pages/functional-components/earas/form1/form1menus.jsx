@@ -249,7 +249,7 @@ const StyledDetailItem = ({ label, value, icon }) => (
 
   // Download Handler
   const handleDownload = (format, data, filename) => {
-    console.log(`Downloading ${filename} as ${format}`);
+   
     // Here you would implement actual download logic
     // For now, we'll just show an alert
     // alert(`Downloading ${filename} as ${format} format`);
@@ -307,7 +307,6 @@ useEffect(() => {
     const token = localStorage.getItem('token');
     const BASE_URL = mainapi.BASE_URL;
 
-    console.log("Fetching Keyplot details for SubNo:", idFromUrl);
     const response = await axios.get(
       `${BASE_URL}/btr-service/key-plots/fetch-by-keyplotsdetails/${idFromUrl}`,
       {
@@ -320,7 +319,7 @@ useEffect(() => {
 
 
       const data = response.data;
-      console.log("Keyplot details response:", data);
+    
       if (data && data.payload) {
         setKeyplotData({
           ...data.payload,
@@ -350,7 +349,7 @@ const fetchCropDetails = async () => {
     const distId = localStorage.getItem('activeDistId');
     
     const activeDistId = localStorage.getItem('activeDistId');
-    console.log("Fetching crop details for Cluster ID:", clusterId, "Season ID:", seasonId,activeDistId);
+   
     
     const response = await axios.get(
       `${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${clusterId}/season/${seasonId}/district/${activeDistId}`,
@@ -363,13 +362,13 @@ const fetchCropDetails = async () => {
     );
 
     const data = response.data;
-console.log("Crop details response:", data);
+
     
     if (data && Array.isArray(data.payload) && data.payload.length > 0) {
       setCropData(data.payload);
     } else {
       setCropData([]);
-      console.log("No crop data found for season:", seasonId);
+     
     }
   } catch (err) {
     console.error('Error fetching crop details:', err);
@@ -432,7 +431,7 @@ const fetchNucDetails = async (season = seasonId) => {
     const token = localStorage.getItem('token');
     const BASE_URL = mainapi.BASE_URL;
     
-    console.log(`Fetching NUC details for Cluster: ${clusterId}, Season: ${season}`);
+ 
     
     const response = await axios.get(
       `${BASE_URL}/earas-form1-entry/nuc-details/fetch-by-clusterId/${clusterId}/season/${season}`,
@@ -445,7 +444,7 @@ const fetchNucDetails = async (season = seasonId) => {
     );
 
     const data = response.data;
-    console.log("NUC details response:", data);
+   
     
     if (data && data.payload) {
       setNucData(data.payload);

@@ -142,7 +142,7 @@ useEffect(() => {
         throw new Error('Failed to fetch data');
       }
       const result = await response.json();
-      console.log('Zone details data:', result.payload);
+     
       setResult(result.payload);
       setZoneData(result.payload.data || []);
       
@@ -168,7 +168,7 @@ useEffect(() => {
       });
       
       const apiData = res.data;
-      console.log("Work allocation data >>> ", apiData);
+    
       
       // Check if data is in payload or directly in response
       if (apiData) {
@@ -196,15 +196,13 @@ useEffect(() => {
 
 // Merge zone data with work allocation data
 useEffect(() => {
-  console.log("zone data   ",zoneData)
-  console.log("work all >>>>> data   ",workAllocationData)
+ 
   if (zoneData.length > 0 && workAllocationData.length > 0) {
     const merged = zoneData.map(zoneItem => {
      
       // Find matching work allocation data by lbcode
       const workItem = workAllocationData.find(work => work.lbcode === zoneItem.lbcode);
-      console.log("A   ",workAllocationData)
-       console.log("work      ",zoneItem.lbcode)
+   
       // console.log("zoneITM         ",work.lbcode)
       return {
         // Zone details
@@ -236,7 +234,6 @@ useEffect(() => {
       };
     });
     
-    console.log("Merged data:", merged);
     setData(merged);
   } else if (zoneData.length > 0) {
     // If no work allocation data, just use zone data with empty form fields
@@ -347,8 +344,6 @@ const handleSubmit = async () => {
       isActive: true
     }));
 
-    console.log("🧾 Rows ready to save:", rowsToSave);
-
     const response = await fetch(`${BASE_URL}/btr-service/btr-api/work-allocation-save`, {
       method: 'POST',
       headers: {
@@ -360,8 +355,7 @@ const handleSubmit = async () => {
 
     if (!response.ok) throw new Error('Failed to save work allocation');
     const saveResponse = await response.json();
-    alert('✅ Work allocation rows saved successfully!');
-    console.log(saveResponse.payload);
+   
 
   } catch (error) {
     console.error('❌ Error:', error);

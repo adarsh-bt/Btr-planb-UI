@@ -99,7 +99,7 @@ const [snackbar, setSnackbar] = useState({
         );
 
         const result = await response.json();
-        console.log('Cluster Approvals:', result);
+    
         if (!response.ok) {
           throw new Error(result?.message || "Failed to fetch cluster approvals");
         } else {
@@ -219,7 +219,7 @@ const handleSubmitAction = async (isApprove) => {
       is_edit: isEditEnabled // Add this parameter
     };
 
-    console.log('Submitting action:', requestBody);
+   
 
     const response = await fetch(
       `${BASE_URL}/btr-service/admin-manage/approve-reject`,
