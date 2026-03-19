@@ -638,10 +638,8 @@ const hasDuplicateClusters = () => {
   }
 };
 const handleClusterChange = (clusterId, newValue) => {
-  const num = parseInt(newValue);
-
-  // ✅ Handle empty / invalid input
-  if (isNaN(num)) {
+  // allow empty input
+  if (newValue === "") {
     setClusterChanges(prev => ({
       ...prev,
       [clusterId]: ""
@@ -657,29 +655,16 @@ const handleClusterChange = (clusterId, newValue) => {
     return;
   }
 
-  // ✅ Build updated list
-  const updatedValues = plotData.map(row => {
-    if (row.id === clusterId) return num;
-    return clusterChanges[row.id] ?? row.cluster_number;
-  });
+  const num = parseInt(newValue);
 
-  // ✅ Duplicate check
-  const hasDuplicate = new Set(updatedValues).size !== updatedValues.length;
+  if (isNaN(num)) return;
 
-  if (hasDuplicate) {
-    setSnackbarMessage("Duplicate cluster number not allowed!");
-    setSnackbarSeverity("error");
-    setSnackbarOpen(true);
-    return;
-  }
-
-  // ✅ Save change
+  // ✅ ONLY update state (NO duplicate check here)
   setClusterChanges(prev => ({
     ...prev,
     [clusterId]: num
   }));
 
-  // ✅ Update UI
   setPlotData(prev =>
     prev.map(row =>
       row.id === clusterId
@@ -687,6 +672,31 @@ const handleClusterChange = (clusterId, newValue) => {
         : row
     )
   );
+};
+const handleClusterBlur = (clusterId) => {
+  const updatedValues = plotData.map(row => {
+    if (row.id === clusterId) {
+      return clusterChanges[row.id] ?? row.cluster_number;
+    }
+    return clusterChanges[row.id] ?? row.cluster_number;
+  });
+
+  const hasDuplicate = new Set(updatedValues).size !== updatedValues.length;
+
+  if (hasDuplicate) {
+    setSnackbarMessage("Duplicate cluster number not allowed!");
+    setSnackbarSeverity("error");
+    setSnackbarOpen(true);
+
+    // ❗ revert only that field
+    setClusterChanges(prev => {
+      const updated = { ...prev };
+      delete updated[clusterId];
+      return updated;
+    });
+
+    fetchKeyPlots(); // or manual revert
+  }
 };
 const hasDuplicateClusterNumbers = () => {
   const values = Object.values(clusterChanges);
@@ -993,16 +1003,9 @@ const hasDuplicateClusterNumbers = () => {
 <TextField
   size="small"
   type="number"
-  value={row.cluster_number || ""}
-  onChange={(e) => {
-    let value = e.target.value;
-
-    // Allow only up to 3 digits
-    if (value.length <= 3) {
-      handleClusterChange(row.id, value);
-    }
-  }}
-  inputProps={{ min: 1 }}
+  value={clusterChanges[row.id] ?? row.cluster_number ?? ""}
+  onChange={(e) => handleClusterChange(row.id, e.target.value)}
+  onBlur={() => handleClusterBlur(row.id)}
   sx={{ width: 60 }}
 />
              
