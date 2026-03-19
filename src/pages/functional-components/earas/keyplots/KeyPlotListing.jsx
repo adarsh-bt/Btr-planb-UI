@@ -690,9 +690,7 @@ const handleClusterChange = (clusterId, newValue) => {
 };
 const hasDuplicateClusterNumbers = () => {
   const values = Object.values(clusterChanges);
-
   const unique = new Set(values);
-
   return values.length !== unique.size;
 };
   const totalArea = plotData.reduce((sum, row) => sum + parseFloat(row.area || 0), 0).toFixed(2);
@@ -700,7 +698,7 @@ const hasDuplicateClusterNumbers = () => {
   return (
     <Grid container spacing={3}>
       <Breadcrumb />
-      <Box sx={{ p: 3, maxWidth: 1200, margin: '0 auto' }}>
+       <Grid item xs={12}>
         <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
           KeyPlot Details
         </Typography>
@@ -841,22 +839,22 @@ const hasDuplicateClusterNumbers = () => {
 
                 <Grid item xs={12} md={8}>
                   <Stack direction="row" spacing={1} sx={{ justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
-                    <Button
+                    {/* <Button
                       startIcon={<RefreshIcon />}
                       onClick={fetchKeyPlots}
                       variant="outlined"
                       size="small"
                     >
                       Refresh
-                    </Button>
-                    <Button
+                    </Button> */}
+                    {/* <Button
                       startIcon={<FilterIcon />}
                       onClick={clearFilters}
                       variant="outlined"
                       size="small"
                     >
                       Clear Filters
-                    </Button>
+                    </Button> */}
                     {/* <Button
                       startIcon={<ExportIcon />}
                       onClick={exportToCSV}
@@ -870,22 +868,32 @@ const hasDuplicateClusterNumbers = () => {
                 </Grid>
               </Grid>
             </Box>
-
-            <Divider />
-
-            {/* Table */}
-    <TableContainer component={Paper} sx={{ maxHeight: '50%', border: '1px solid #e0e0e0', borderRadius: 1 }}>
 <Button
   variant="contained"
   color="primary"
-disabled={
-  Object.keys(clusterChanges).length === 0 ||
-  hasDuplicateClusters()
-}
+  disabled={
+    Object.keys(clusterChanges).length === 0 ||
+    hasDuplicateClusters()
+  }
   onClick={handleSaveClusterChanges}
+  sx={{
+    marginBottom: 2,
+    opacity: 1, // 👈 keep visible
+    '&.Mui-disabled': {
+      backgroundColor: '#90caf9', // light blue
+      color: '#ffffff',
+      opacity: 0.7, // still looks disabled but visible
+    }
+  }}
 >
-  Save Cluster Changes
+  Submit Cluster Number
 </Button>
+            <Divider />
+
+            {/* Table */}
+            
+    <TableContainer component={Paper} sx={{ maxHeight: '50%', border: '1px solid #e0e0e0', borderRadius: 1 }}>
+
 {hasDuplicateClusterNumbers() && (
   <Typography color="error" sx={{ mb: 1 }}>
     Duplicate cluster numbers are not allowed
@@ -986,7 +994,14 @@ disabled={
   size="small"
   type="number"
   value={row.cluster_number || ""}
-  onChange={(e) => handleClusterChange(row.id, e.target.value)}
+  onChange={(e) => {
+    let value = e.target.value;
+
+    // Allow only up to 3 digits
+    if (value.length <= 3) {
+      handleClusterChange(row.id, value);
+    }
+  }}
   inputProps={{ min: 1 }}
   sx={{ width: 60 }}
 />
@@ -1745,7 +1760,7 @@ disabled={
     </Button>
   </DialogActions>
 </Dialog>
-      </Box>
+      </Grid>
     </Grid>
   );
 };
