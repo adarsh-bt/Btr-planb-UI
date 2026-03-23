@@ -34,6 +34,7 @@ import GrassIcon from '@mui/icons-material/Grass';
 import mainapi from 'api/mainapi';
 import Autocomplete from '@mui/material/Autocomplete';
 import authservice from 'pages/authentication/services/authservice';
+import { set } from 'lodash';
 
 const BASE_URL = mainapi.BASE_URL;
 const FORM_URL = mainapi.FORM_API;
@@ -93,6 +94,7 @@ const ClusterManualEntryNonBtr = () => {
   const [keyplotSubNo, setKeyplotSubNo] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingResvno, setLoadingResvno] = useState(false);
+   const [zoneId, setZoneId] = useState('');
 
   // Add these state variables with your existing states (around line 75-95)
 const [isedit, setEdit] = useState(false);
@@ -443,6 +445,7 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
       setMeanCluster(data.payload.clusterMean);
       setDefaultLbcode(data.payload.lbcode);
       setEdit(data.payload.iseditable);
+      setZoneId(parseInt(data.payload.zoneId));
       setStatus(data.payload.status || 'On Going');
       setDefaultBlock(data.payload.villageBlock);
       setDefaultVillageId(data.payload.kvillageId);
@@ -837,6 +840,7 @@ const proceedSubmit = async (mode) => {
     // ✅ STEP 2: Prepare request data with proper plot_id handling
     const requestData = {
       userId: userId,
+      zoneId: zoneId,
       keyplotId: keyplotId,
       clusterNo: clusterId,
       btrType: currentBType?.id,
@@ -879,6 +883,7 @@ const proceedSubmit = async (mode) => {
               ...(row.b_id ? { id: row.b_id } : {}),
               plot_id: plot_id,
               actual: actual,
+              zoneId:zoneId,
               svNo: svNo,
               subNo: row.sub,
               area: area,

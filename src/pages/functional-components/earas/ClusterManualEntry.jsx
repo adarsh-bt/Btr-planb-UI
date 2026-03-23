@@ -145,6 +145,7 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
     const [subdivisionDialogOpen, setSubdivisionDialogOpen] = useState(false);
     const [availableSubdivisions, setAvailableSubdivisions] = useState([]);
     const [selectedSubdivision, setSelectedSubdivision] = useState('');
+    const [zoneId, setZoneId] = useState('');
     const [pendingPlot, setPendingPlot] = useState(null);
     // Add this with your other state declarations
     const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
@@ -685,6 +686,7 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
             setDefaultLbcode(data.payload.lbcode);
             setEdit(data.payload.iseditable);
             setStatus(data.payload.status);
+            setZoneId(parseInt(data.payload.zoneId));
             // console.log("data >>>> ", data.payload);
             setDefaultBlock(data.payload.villageBlock);
             setDefaultVillageId(data.payload.kvillageId);
@@ -954,6 +956,7 @@ const hasValidRow = (keyplot) => {
                 userId: userId,
                 keyplotId: keyplotId,
                 clusterNo: clusterId,
+                zoneId: parseInt(zoneId),
                 status:
                     mode === 'COMPLETED'
                         ? 'Completed'

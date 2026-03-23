@@ -33,7 +33,7 @@ static async btr_lists_data(page = 0, size = 10, filter = '', zoneId = null) {
         Authorization: `Bearer ${token}`
       }
     });
-
+console.log('API Response:', response.data); // Debug log for API response
     return response.data;
   } catch (err) {
     console.error('API Error:', err);
@@ -73,17 +73,17 @@ static async getPlotUsageData(plotId) {
   }
 }
 
-static async updatePlotTotalArea(btrId, totCent) {
+static async updatePlotTotalArea(btrId, totCent, userId) {
   try {
     // Get token manually
     const token = localStorage.getItem('token');
     if (!token) {
       throw new Error('Authorization token missing');
     }
-alert("btrId "+btrId+" totCent "+totCent)
+
     // Build URL manually
     const BASE_URL = mainapi.BASE_URL; // manually using BASE_URL
-    const url = `${BASE_URL}/btr-service/api/btr-data/${btrId}/update-totcent?totCent=${encodeURIComponent(totCent)}`;
+const url = `${BASE_URL}/btr-service/api/btr-data/${btrId}/update-totcent?totCent=${totCent}&userId=${userId}`;
 
     // Make PUT request manually with headers
     const response = await axios.put(url, null, {
