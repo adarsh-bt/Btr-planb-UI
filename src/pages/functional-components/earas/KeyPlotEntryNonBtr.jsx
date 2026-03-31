@@ -1266,14 +1266,14 @@ const getTableHeaders = (lbId, villageName) => {
                                   <TextField
                                     value={row.oldsubno ?? ""}
                                     onChange={(e) => {
-                                      const v = (e.target.value || "").slice(0, 5);
+                                      const v = (e.target.value || "").slice(0, 10);
                                       handleChange(lb.id, currentVillageName, row.id, "oldsubno", v);
                                     }}
                                     placeholder="Old Sub No."
                                       sx={{ minWidth: 100 }}
                                     inputProps={{
-                                      maxLength: 5,
-                                      title: "Up to 5 characters",
+                                      maxLength: 10,
+                                      title: "Up to 10 characters",
                                     }}
                                     required={requiredFields.some((f) => f.field === "oldsubno")}
                                     error={

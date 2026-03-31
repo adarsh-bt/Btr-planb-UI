@@ -1047,7 +1047,7 @@ const hasDuplicateClusterNumbers = () => {
               textOverflow: 'ellipsis',
               '&:hover': { backgroundColor: '#032050' },
               // Set specific widths for columns
-              ...(col === 'slNo' && { width: '50px' }),
+              ...(col === 'slNo' && { width: '70px' }),
               ...(col === 'panchayth' && { width: '100px' }),
               ...(col === 'village' && { width: '100px' }),
               ...(col === 'villageBlock' && { width: '100px' }),
@@ -1194,7 +1194,7 @@ const hasDuplicateClusterNumbers = () => {
               onPageChange={handleChangePage}
               rowsPerPage={rowsPerPage}
               onRowsPerPageChange={handleChangeRowsPerPage}
-              rowsPerPageOptions={[25, 50, 100, { label: 'All', value: -1 }]}
+              rowsPerPageOptions={[25, 50, 100]}
               sx={{ '.MuiTablePagination-toolbar': { justifyContent: 'center' } }}
             />
           </Paper>
