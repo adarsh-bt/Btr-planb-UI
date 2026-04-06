@@ -24,7 +24,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import tourDiaryService from "pages/authentication/services/tourdiaryservice";
 import Breadcrumb from "routes/Breadcrumb";
 
-const UserTourDiarySubmissions = () => {
+const UserAdvancedTourDiarySubmissions = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const userId = location.state?.userId;
@@ -81,15 +81,15 @@ const UserTourDiarySubmissions = () => {
   };
 
   const handleViewDetailedDiary = (month) => {
-    // Navigate to detailed calendar view for admin approval
-    navigate("/approval_manage/tourdiary/user-details", { 
-      state: { 
-        userId: userId,
-        month: month,
-        year: selectedYear
-      } 
-    });
-  };
+  // Navigate to detailed calendar view for admin approval
+  navigate("/approval_manage/advancedtourdiary/user-details", { 
+    state: { 
+      userId: userId,
+      month: month,
+      year: selectedYear
+    } 
+  });
+};
 
   // If no userId, show error
   if (!userId) {
@@ -121,6 +121,26 @@ const UserTourDiarySubmissions = () => {
     "July", "August", "September", "October", "November", "December"
   ];
 
+  const getStatusChip = (submitted) => {
+    return submitted ? (
+      <Chip
+        icon={<CheckCircleIcon />}
+        label="Submitted"
+        color="success"
+        size="small"
+        sx={{ fontWeight: "bold", width: "100%" }}
+      />
+    ) : (
+      <Chip
+        icon={<CancelIcon />}
+        label="Not Submitted"
+        color="default"
+        size="small"
+        sx={{ fontWeight: "bold", width: "100%" }}
+      />
+    );
+  };
+
   return (
     <Grid container spacing={3}>
       <Grid item xs={12}>
@@ -141,7 +161,7 @@ const UserTourDiarySubmissions = () => {
             </Button>
             
             <Typography variant="h4" sx={{ color: "#04255e", fontWeight: "bold" }}>
-              Tour Diary Submissions
+              Advanced Tour Diary Submissions
             </Typography>
             
             <FormControl sx={{ minWidth: 120 }} size="small">
@@ -196,40 +216,58 @@ const UserTourDiarySubmissions = () => {
                       "&:hover": {
                         transform: "translateY(-4px)",
                         boxShadow: 4
-                      }
+                      },
+                      position: "relative",
+                      border: item.firstHalfSubmitted && item.secondHalfSubmitted 
+                        ? "2px solid #4caf50" 
+                        : "none"
                     }}
                   >
                     <CardContent>
                       <Typography 
                         variant="h6" 
                         sx={{ 
-                          color: "#141514", 
+                          color: "#04255e", 
                           fontWeight: "bold",
-                          borderBottom: "2px solid #131412",
+                          borderBottom: "2px solid #04255e",
                           pb: 1,
                           mb: 2,
-                          textAlign: "center"
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center"
                         }}
                       >
                         {monthNames[item.month - 1]} {item.year}
+                        {item.firstHalfSubmitted && item.secondHalfSubmitted && (
+                          <CheckCircleIcon color="success" fontSize="small" />
+                        )}
                       </Typography>
                       
-                      <Button
-                            variant="contained"
-                            fullWidth
-                            size="large"
-                            startIcon={<VisibilityIcon />}
-                            onClick={() => handleViewDetailedDiary(item.month)}
-                            sx={{ 
-                                mt: 1,
-                                bgcolor: '#2e7d32', // Green color
-                                '&:hover': {
-                                bgcolor: '#1b5e20', // Darker green on hover
-                                }
-                            }}
-                            >
-                            View Details
-                            </Button>
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
+                            First Half (1st - 15th)
+                          </Typography>
+                          {getStatusChip(item.firstHalfSubmitted)}
+                        </Box>
+                        
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
+                            Second Half (16th - End)
+                          </Typography>
+                          {getStatusChip(item.secondHalfSubmitted)}
+                        </Box>
+
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<VisibilityIcon />}
+                          onClick={() => handleViewDetailedDiary(item.month)}
+                          sx={{ mt: 1 }}
+                        >
+                          View Details
+                        </Button>
+                      </Box>
                     </CardContent>
                   </Card>
                 </Grid>
@@ -242,4 +280,4 @@ const UserTourDiarySubmissions = () => {
   );
 };
 
-export default UserTourDiarySubmissions;
+export default UserAdvancedTourDiarySubmissions;

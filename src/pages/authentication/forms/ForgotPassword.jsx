@@ -221,7 +221,7 @@ const handleEmailSubmit = async (e) => {
         {step === 1 && (
           <>
             <Typography variant="body2" sx={{ color: '#666', textAlign: 'center', fontSize: '0.9rem' }}>
-              Enter your registered Email to receive a One-Time Password (OTP).
+              Enter your registered Email or Mobile Number to receive a One-Time Password (OTP).
             </Typography>
             {globalError && (
               <Stack sx={{ width: '100%', background: '#fff1f0' }} spacing={2}>
@@ -236,7 +236,7 @@ const handleEmailSubmit = async (e) => {
             <TextField
               fullWidth
               variant="outlined"
-              label="Email"
+              label="Email or Mobile Number"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoFocus

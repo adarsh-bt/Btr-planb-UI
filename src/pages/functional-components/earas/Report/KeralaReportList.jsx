@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Grid,
   Typography,
@@ -11,14 +11,24 @@ import {
   TableHead,
   TableRow,
   Chip,
-  LinearProgress,
   Card,
   CardContent,
   IconButton,
-  Tooltip
+  Tooltip,
+  TextField,
+  Stack,
+  InputAdornment,
+  TablePagination,
+  Tabs,
+  Tab,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
 import MainCard from 'components/MainCard';
 import { useTheme } from '@mui/material/styles';
+import { useNavigate } from 'react-router-dom';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PendingIcon from '@mui/icons-material/Pending';
@@ -26,72 +36,177 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import BarChartIcon from '@mui/icons-material/BarChart';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
+import WaterDropIcon from '@mui/icons-material/WaterDrop';
+import WbSunnyIcon from '@mui/icons-material/WbSunny';
+import FilterAltIcon from '@mui/icons-material/FilterAlt';
+import Breadcrumb from 'routes/Breadcrumb';
 
-function KeralaStatsTable() {
+function KeralaReportList() {
   const theme = useTheme();
-  
-  const stats = {
-    all: 5,
-    completed: 1,
-    ongoing: 2,
-    notStarted: 1,
-    underReview: 1
-  };
+  const navigate = useNavigate();
 
-  // Table data for districts (example data)
-  const districtData = [
+  // Tab state for WET/DRY/ALL
+  const [seasonTab, setSeasonTab] = useState('ALL');
+  
+  // Month filter state
+  const [fromMonth, setFromMonth] = useState('');
+  const [toMonth, setToMonth] = useState('');
+
+  // Define months for dropdown
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  // Sample data with monthly and seasonal breakdown
+  // In a real application, this would come from your API
+  const districtDataWithDetails = [
     { 
       id: 1,
-      district: 'Thiruvananthapuram', 
-      total: 1, 
-      completed: 0, 
-      ongoing: 1, 
-      notStarted: 0, 
-      underReview: 0,
-      progress: 0
+      district: 'Thiruvananthapuram',
+      monthlyData: {
+        'January': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 1, ongoing: 0, notStarted: 0, underReview: 0 } },
+        'February': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
+        'March': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
+        'April': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
+        'May': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
+        'June': { wet: { completed: 0, ongoing: 1, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
+        'July': { wet: { completed: 0, ongoing: 1, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
+        'August': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 1 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
+        'September': { wet: { completed: 1, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
+        'October': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
+        'November': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
+        'December': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } }
+      }
     },
     { 
       id: 2,
-      district: 'Kollam', 
-      total: 1, 
-      completed: 0, 
-      ongoing: 0, 
-      notStarted: 1, 
-      underReview: 0,
-      progress: 0
-    },
-    { 
-      id: 3,
-      district: 'Pathanamthitta', 
-      total: 1, 
-      completed: 1, 
-      ongoing: 0, 
-      notStarted: 0, 
-      underReview: 0,
-      progress: 100
-    },
-    { 
-      id: 4,
-      district: 'Alappuzha', 
-      total: 1, 
-      completed: 0, 
-      ongoing: 1, 
-      notStarted: 0, 
-      underReview: 0,
-      progress: 50
-    },
-    { 
-      id: 5,
-      district: 'Kottayam', 
-      total: 1, 
-      completed: 0, 
-      ongoing: 0, 
-      notStarted: 0, 
-      underReview: 1,
-      progress: 75
+      district: 'Kollam',
+      monthlyData: {
+        'January': { wet: { completed: 0, ongoing: 0, notStarted: 2, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 2, underReview: 0 } },
+        'February': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 2, underReview: 0 } },
+        'March': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 2, underReview: 0 } },
+        'April': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
+        'May': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
+        'June': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
+        'July': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
+        'August': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
+        'September': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
+        'October': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
+        'November': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
+        'December': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } }
+      }
     }
   ];
+
+  // Function to get data for a specific month range and season
+  const getFilteredData = () => {
+    const startIndex = fromMonth ? months.indexOf(fromMonth) : 0;
+    const endIndex = toMonth ? months.indexOf(toMonth) : months.length - 1;
+    
+    return districtDataWithDetails.map(district => {
+      let total = 0, completed = 0, ongoing = 0, notStarted = 0, underReview = 0;
+      
+      // Loop through months in range
+      for (let i = startIndex; i <= endIndex; i++) {
+        const month = months[i];
+        const monthData = district.monthlyData[month];
+        
+        if (monthData) {
+          const data = seasonTab === 'ALL' 
+            ? {
+                completed: monthData.wet.completed + monthData.dry.completed,
+                ongoing: monthData.wet.ongoing + monthData.dry.ongoing,
+                notStarted: monthData.wet.notStarted + monthData.dry.notStarted,
+                underReview: monthData.wet.underReview + monthData.dry.underReview
+              }
+            : monthData[seasonTab.toLowerCase()];
+          
+          completed += data.completed;
+          ongoing += data.ongoing;
+          notStarted += data.notStarted;
+          underReview += data.underReview;
+          total += data.completed + data.ongoing + data.notStarted + data.underReview;
+        }
+      }
+      
+      return {
+        id: district.id,
+        district: district.district,
+        total,
+        completed,
+        ongoing,
+        notStarted,
+        underReview
+      };
+    });
+  };
+
+  // Get filtered data based on month range and season
+  const districtData = useMemo(() => getFilteredData(), [fromMonth, toMonth, seasonTab]);
+
+  // Calculate statistics
+  const stats = useMemo(() => ({
+    all: districtData.reduce((sum, row) => sum + row.total, 0),
+    completed: districtData.reduce((sum, row) => sum + row.completed, 0),
+    ongoing: districtData.reduce((sum, row) => sum + row.ongoing, 0),
+    notStarted: districtData.reduce((sum, row) => sum + row.notStarted, 0),
+    underReview: districtData.reduce((sum, row) => sum + row.underReview, 0)
+  }), [districtData]);
+
+  // State for search and pagination
+  const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+
+  // Filter data based on search term
+  const filteredData = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return districtData;
+    }
+    return districtData.filter(row => 
+      row.district.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [districtData, searchTerm]);
+
+  // Get current page data
+  const paginatedData = useMemo(() => {
+    const startIndex = page * rowsPerPage;
+    return filteredData.slice(startIndex, startIndex + rowsPerPage);
+  }, [filteredData, page, rowsPerPage]);
+
+  // Handle page change
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  // Handle rows per page change
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setPage(0);
+  };
+
+  // Clear filters
+  const handleClearFilters = () => {
+    setFromMonth('');
+    setToMonth('');
+    setSeasonTab('ALL');
+    setPage(0);
+  };
+
+  const handleViewDetails = (districtName) => {
+    navigate(`/kerala_report/taluk_cluster_report/${districtName.toLowerCase()}`, {
+      state: { fromMonth, toMonth, seasonTab }
+    });
+  };
 
   const getStatusChip = (status) => {
     switch(status) {
@@ -110,24 +225,116 @@ function KeralaStatsTable() {
 
   return (
     <Grid container spacing={3}>
+      <Breadcrumb></Breadcrumb>
+      
       {/* Header Section */}
       <Grid item xs={12}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 2 }}>
           <Box>
             <Typography variant="h3" sx={{ color: '#1a237e', display: 'flex', alignItems: 'center', gap: 1 }}>
-              <LocationOnIcon sx={{ fontSize: 35 }} />
-              Kerala Project Statistics
+              <AssessmentIcon sx={{ fontSize: 35 }} />
+              Overall cluster report in Kerala
             </Typography>
             <Typography variant="subtitle1" sx={{ mt: 1, color: 'text.secondary' }}>
-              Overview of projects across districts in Kerala
+              Overall cluster report in Kerala
+              {(fromMonth || toMonth) && ` | ${fromMonth || 'Start'} - ${toMonth || 'End'}`}
+              {seasonTab !== 'ALL' && ` | ${seasonTab} Season`}
             </Typography>
           </Box>
-          <Chip 
-            label="Last Updated: March 2024" 
-            variant="outlined"
-            sx={{ fontWeight: 500 }}
-          />
+          {(fromMonth || toMonth || seasonTab !== 'ALL') && (
+            <Button 
+              variant="outlined" 
+              onClick={handleClearFilters}
+              startIcon={<ClearIcon />}
+              size="small"
+            >
+              Clear Filters
+            </Button>
+          )}
         </Box>
+      </Grid>
+
+      {/* Filter Section */}
+      <Grid item xs={12}>
+        <Paper sx={{ p: 2, borderRadius: 2, mb: 2 }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, minWidth: 100 }}>
+              <FilterAltIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+              Filters:
+            </Typography>
+            
+            {/* Season Tabs */}
+            <Tabs 
+              value={seasonTab} 
+              onChange={(e, newValue) => {
+                setSeasonTab(newValue);
+                setPage(0);
+              }}
+              sx={{ 
+                minHeight: 40,
+                '& .MuiTab-root': { minHeight: 40, py: 1 }
+              }}
+            >
+              <Tab 
+                label="ALL" 
+                value="ALL" 
+                icon={<AssessmentIcon />} 
+                iconPosition="start"
+              />
+              <Tab 
+                label="WET" 
+                value="WET" 
+                icon={<WaterDropIcon />} 
+                iconPosition="start"
+                sx={{ color: '#0288d1' }}
+              />
+              <Tab 
+                label="DRY" 
+                value="DRY" 
+                icon={<WbSunnyIcon />} 
+                iconPosition="start"
+                sx={{ color: '#f57c00' }}
+              />
+            </Tabs>
+            
+            {/* Month Range Filters */}
+            <FormControl size="small" sx={{ minWidth: 150 }}>
+              <InputLabel>From Month</InputLabel>
+              <Select
+                value={fromMonth}
+                label="From Month"
+                onChange={(e) => {
+                  setFromMonth(e.target.value);
+                  setPage(0);
+                }}
+              >
+                <MenuItem value="">None</MenuItem>
+                {months.map(month => (
+                  <MenuItem key={month} value={month}>{month}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            
+            <Typography variant="body2">to</Typography>
+            
+            <FormControl size="small" sx={{ minWidth: 150 }}>
+              <InputLabel>To Month</InputLabel>
+              <Select
+                value={toMonth}
+                label="To Month"
+                onChange={(e) => {
+                  setToMonth(e.target.value);
+                  setPage(0);
+                }}
+              >
+                <MenuItem value="">None</MenuItem>
+                {months.map(month => (
+                  <MenuItem key={month} value={month}>{month}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Stack>
+        </Paper>
       </Grid>
 
       {/* Summary Cards */}
@@ -140,7 +347,7 @@ function KeralaStatsTable() {
                   {stats.all}
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#1565c0' }}>
-                  Total Projects
+                  Total
                 </Typography>
               </CardContent>
             </Card>
@@ -164,7 +371,7 @@ function KeralaStatsTable() {
                   {stats.ongoing}
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#ed6c02' }}>
-                  On Going
+                  Ongoing
                 </Typography>
               </CardContent>
             </Card>
@@ -198,175 +405,174 @@ function KeralaStatsTable() {
 
       {/* Main Table */}
       <Grid item xs={12}>
-        <MainCard title="District-wise Project Status" secondary={<AssessmentIcon />}>
-          <TableContainer component={Paper} sx={{ borderRadius: 2, overflow: 'auto' }}>
+        <MainCard 
+          title="District-wise Cluster Status" 
+          secondary={<AssessmentIcon />}
+          sx={{
+            '& .MuiCardContent-root': {
+              p: 0
+            }
+          }}
+        >
+          {/* Search Bar */}
+          <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                District Reports
+              </Typography>
+              <TextField
+                placeholder="Search by district"
+                size="small"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPage(0);
+                }}
+                sx={{ minWidth: 250 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                  endAdornment: searchTerm && (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={handleClearSearch}>
+                        <ClearIcon fontSize="small" />
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+              />
+            </Stack>
+          </Box>
+
+          <TableContainer sx={{ borderRadius: 2, overflow: 'auto' }}>
             <Table sx={{ minWidth: 650 }}>
               <TableHead>
                 <TableRow sx={{ bgcolor: '#04255e' }}>
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>District</TableCell>
-                  <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Total</TableCell>
+                  <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Total Clusters</TableCell>
                   <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Completed</TableCell>
                   <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>On Going</TableCell>
                   <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Not Started</TableCell>
                   <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Under Review</TableCell>
-                  <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Progress</TableCell>
                   <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {districtData.map((row) => (
-                  <TableRow 
-                    key={row.id}
-                    sx={{ 
-                      '&:hover': { 
-                        bgcolor: '#f5f5f5',
-                        cursor: 'pointer'
-                      },
-                      transition: '0.2s'
-                    }}
-                  >
-                    <TableCell component="th" scope="row">
-                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                        {row.district}
+                {paginatedData.length > 0 ? (
+                  paginatedData.map((row) => (
+                    <TableRow 
+                      key={row.id}
+                      sx={{ 
+                        '&:hover': { 
+                          bgcolor: '#f5f5f5',
+                          cursor: 'pointer'
+                        },
+                        transition: '0.2s'
+                      }}
+                    >
+                      <TableCell component="th" scope="row">
+                        <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                          {row.district}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Chip label={row.total} size="small" variant="outlined" />
+                      </TableCell>
+                      <TableCell align="center">
+                        {row.completed > 0 ? (
+                          <Chip 
+                            label={row.completed} 
+                            size="small" 
+                            color="success" 
+                            variant="outlined"
+                          />
+                        ) : row.completed}
+                      </TableCell>
+                      <TableCell align="center">
+                        {row.ongoing > 0 ? (
+                          <Chip 
+                            label={row.ongoing} 
+                            size="small" 
+                            color="primary" 
+                            variant="outlined"
+                          />
+                        ) : row.ongoing}
+                      </TableCell>
+                      <TableCell align="center">
+                        {row.notStarted > 0 ? (
+                          <Chip 
+                            label={row.notStarted} 
+                            size="small" 
+                            variant="outlined"
+                          />
+                        ) : row.notStarted}
+                      </TableCell>
+                      <TableCell align="center">
+                        {row.underReview > 0 ? (
+                          <Chip 
+                            label={row.underReview} 
+                            size="small" 
+                            color="warning" 
+                            variant="outlined"
+                          />
+                        ) : row.underReview}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Tooltip title="View Taluk-wise Details">
+                          <IconButton 
+                            size="small"
+                            onClick={() => handleViewDetails(row.district)}
+                            sx={{ 
+                              color: '#04255e',
+                              '&:hover': { bgcolor: '#e3f2fd' }
+                            }}
+                          >
+                            <VisibilityIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                      <Typography variant="body1" color="text.secondary">
+                        No districts found matching the current filters
                       </Typography>
                     </TableCell>
-                    <TableCell align="center">
-                      <Chip label={row.total} size="small" variant="outlined" />
-                    </TableCell>
-                    <TableCell align="center">
-                      {row.completed > 0 ? (
-                        <Chip 
-                          label={row.completed} 
-                          size="small" 
-                          color="success" 
-                          variant="outlined"
-                        />
-                      ) : row.completed}
-                    </TableCell>
-                    <TableCell align="center">
-                      {row.ongoing > 0 ? (
-                        <Chip 
-                          label={row.ongoing} 
-                          size="small" 
-                          color="primary" 
-                          variant="outlined"
-                        />
-                      ) : row.ongoing}
-                    </TableCell>
-                    <TableCell align="center">
-                      {row.notStarted > 0 ? (
-                        <Chip 
-                          label={row.notStarted} 
-                          size="small" 
-                          variant="outlined"
-                        />
-                      ) : row.notStarted}
-                    </TableCell>
-                    <TableCell align="center">
-                      {row.underReview > 0 ? (
-                        <Chip 
-                          label={row.underReview} 
-                          size="small" 
-                          color="warning" 
-                          variant="outlined"
-                        />
-                      ) : row.underReview}
-                    </TableCell>
-                    <TableCell align="center" sx={{ minWidth: 120 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ width: '100%' }}>
-                          <LinearProgress 
-                            variant="determinate" 
-                            value={row.progress} 
-                            sx={{
-                              height: 8,
-                              borderRadius: 5,
-                              bgcolor: '#e0e0e0',
-                              '& .MuiLinearProgress-bar': {
-                                bgcolor: row.progress === 100 ? '#2e7d32' : '#1976d2'
-                              }
-                            }}
-                          />
-                        </Box>
-                        <Typography variant="body2" sx={{ minWidth: 35 }}>
-                          {row.progress}%
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell align="center">
-                      <Tooltip title="View Details">
-                        <IconButton 
-                          size="small"
-                          sx={{ 
-                            color: '#04255e',
-                            '&:hover': { bgcolor: '#e3f2fd' }
-                          }}
-                        >
-                          <VisibilityIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Statistics">
-                        <IconButton 
-                          size="small"
-                          sx={{ 
-                            color: '#04255e',
-                            '&:hover': { bgcolor: '#e3f2fd' }
-                          }}
-                        >
-                          <BarChartIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </TableContainer>
 
-          {/* Summary Row */}
-          <Box sx={{ mt: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 2 }}>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} sm={6}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                  Overall Status:
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 1 }}>
-                  {getStatusChip('completed')}
-                  {getStatusChip('ongoing')}
-                  {getStatusChip('notStarted')}
-                  {getStatusChip('underReview')}
-                </Box>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                  Overall Progress:
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
-                  <Box sx={{ width: '100%' }}>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={(stats.completed / stats.all) * 100} 
-                      sx={{ height: 10, borderRadius: 5 }}
-                    />
-                  </Box>
-                  <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                    {((stats.completed / stats.all) * 100).toFixed(1)}%
-                  </Typography>
-                </Box>
-              </Grid>
-            </Grid>
-          </Box>
+          {/* Pagination */}
+          {filteredData.length > 0 && (
+            <TablePagination
+              component="div"
+              count={filteredData.length}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={[5, 10, 25, 50]}
+              labelRowsPerPage="Rows per page:"
+              labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count}`}
+              sx={{
+                borderTop: `1px solid ${theme.palette.divider}`,
+                '& .MuiTablePagination-select': {
+                  borderRadius: 1
+                }
+              }}
+            />
+          )}
         </MainCard>
-      </Grid>
-
-      {/* Footer Note */}
-      <Grid item xs={12}>
-        <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center', mt: 2 }}>
-          Showing data for {districtData.length} districts in Kerala • Total Projects: {stats.all}
-        </Typography>
       </Grid>
     </Grid>
   );
 }
 
-export default KeralaStatsTable;
+export default KeralaReportList;

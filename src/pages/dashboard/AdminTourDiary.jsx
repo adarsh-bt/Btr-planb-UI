@@ -6,7 +6,9 @@ import {
   Stack,
   MenuItem,
   Box,
-  Grid
+  Grid,
+  Modal,
+  Button
 } from "@mui/material";
 import DataTable from "react-data-table-component";
 import { useNavigate } from "react-router-dom";
@@ -37,26 +39,46 @@ const AdminTourDiary = () => {
   const [loggedDistrictId, setLoggedDistrictId] = useState(null);
   const [loggedTalukId, setLoggedTalukId] = useState(null);
 
+
+  // Modal state
+  const [openModal, setOpenModal] = useState(false);
+  const [selectedRow, setSelectedRow] = useState(null);
+
   const role = authservice.getrole();
   const userId = authservice.userid();
 
-  // Handle navigation to user's tour diary view
-  const handleViewTourDiary = (row) => {
-    // Try multiple possible ID fields to get the userId
-    const selectedUserId = row.userId || row.id || row.user_id || row.empId;
+  // Handle modal close
+  const handleCloseModal = () => {
+    setOpenModal(false);
+    setSelectedRow(null);
+  };
+
+  // Handle menu selection for tour diary type
+  const handleMenuSelect = (type) => {
+    if (!selectedRow) return;
     
-    console.log("Navigating to tour diary with userId:", selectedUserId, "from row:", row);
+    const selectedUserId = selectedRow.userId || selectedRow.id || selectedRow.user_id || selectedRow.empId;
+    
+    console.log("Navigating with userId:", selectedUserId, "from row:", selectedRow);
     
     if (!selectedUserId) {
-      console.error("No valid user ID found in row:", row);
+      console.error("No valid user ID found in row:", selectedRow);
       alert("Cannot view tour diary: User ID not found");
+      handleCloseModal();
       return;
     }
     
-    // Navigate to the tour diary detail page with the userId in state
-    navigate("/approval_manage/tourdiary/user-submissions", { 
-      state: { userId: selectedUserId } 
-    });
+    if (type === 'advanced') {
+      navigate("/approval_manage/advancedtourdiary/user-submissions", { 
+        state: { userId: selectedUserId } 
+      });
+    } else if (type === 'regular') {
+      navigate("/approval_manage/tourdiary/user-submissions", { 
+        state: { userId: selectedUserId } 
+      });
+    }
+    
+    handleCloseModal();
   };
 
   // Columns
@@ -79,7 +101,10 @@ const AdminTourDiary = () => {
             border: "none",
             cursor: "pointer"
           }}
-          onClick={() => handleViewTourDiary(row)}
+          onClick={() => {
+            setSelectedRow(row);
+            setOpenModal(true);
+          }}
         >
           <VisibilityIcon />
         </button>
@@ -308,6 +333,44 @@ const AdminTourDiary = () => {
             }}
           />
         </Box>
+        {/* Modal for Tour Diary Selection */}
+        <Modal
+          open={openModal}
+          onClose={handleCloseModal}
+          aria-labelledby="tour-diary-modal-title"
+        >
+          <Box sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 400,
+            bgcolor: 'background.paper',
+            borderRadius: 2,
+            boxShadow: 24,
+            p: 4,
+          }}>
+            <Typography id="tour-diary-modal-title" variant="h6" component="h2" sx={{ mb: 3 }}>
+              Select Tour Diary Type
+            </Typography>
+            <Stack direction="row" spacing={2} justifyContent="center">
+              <Button
+                variant="contained"
+                onClick={() => handleMenuSelect('advanced')}
+                sx={{ backgroundColor: '#1976d2' }}
+              >
+                Advanced Tour Diary
+              </Button>
+              <Button
+                variant="contained"
+                onClick={() => handleMenuSelect('regular')}
+                sx={{ backgroundColor: '#2e7d32' }}
+              >
+                Tour Diary
+              </Button>
+            </Stack>
+          </Box>
+        </Modal>
       </Grid>
     </Grid>
   );

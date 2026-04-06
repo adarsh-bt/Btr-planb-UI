@@ -27,7 +27,8 @@ import {
     InputLabel,
     Select,
     Menu,
-    MenuItem
+    MenuItem,
+    CircularProgress
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
@@ -88,6 +89,12 @@ const TourDiary = () => {
     // Selection states
     const [selectedScheme, setSelectedScheme] = useState('');
     const [editSelectedScheme, setEditSelectedScheme] = useState('');
+    
+    // NEW: Zone states
+    const [assignedZones, setAssignedZones] = useState([]);
+    const [selectedZoneId, setSelectedZoneId] = useState(null);
+    const [editSelectedZoneId, setEditSelectedZoneId] = useState(null);
+    const [zonesLoading, setZonesLoading] = useState(false);
 
     // Data states
     const [schemes, setSchemes] = useState([]);
@@ -186,6 +193,41 @@ const TourDiary = () => {
     };
 
     // ============================ API CALLS ============================
+    
+    // NEW: Fetch assigned zones for the user
+    const fetchAssignedZones = async () => {
+        const userId = authservice.userid();
+        if (!userId) return;
+
+        setZonesLoading(true);
+        try {
+            const response = await tourDiaryService.getAssignedZones(userId);
+            
+            if (response && Array.isArray(response) && response.length > 0) {
+                setAssignedZones(response);
+                
+                // If only one zone, set it as selected zone
+                if (response.length === 1) {
+                    setSelectedZoneId(response[0].zoneId);
+                    setEditSelectedZoneId(response[0].zoneId);
+                } else {
+                    // If multiple zones, let user select
+                    setSelectedZoneId(null);
+                    setEditSelectedZoneId(null);
+                }
+            } else {
+                console.error("No assigned zones found");
+                setAssignedZones([]);
+            }
+        } catch (error) {
+            console.error("Error fetching assigned zones:", error);
+            showNotification('error', 'Failed to fetch assigned zones');
+            setAssignedZones([]);
+        } finally {
+            setZonesLoading(false);
+        }
+    };
+
     const fetchTourData = async () => {
         const userId = authservice.userid();
         if (!userId) return;
@@ -195,17 +237,29 @@ const TourDiary = () => {
         const month = currentDate.getMonth() + 1;
 
         try {
-            const data = await tourDiaryService.getAdvancedTourByFilter(userId, month, year);
-            if (Array.isArray(data)) {
-                console.log("Fetched tour data:", data);
-                setTourEvents(data);
-            } else if (data.message) {
-                console.error("Error fetching tour data:", data.message);
+            const response = await tourDiaryService.getAdvancedTourByFilter(userId, month, year);
+            
+            if (response && response.payload && Array.isArray(response.payload)) {
+                console.log("Fetched tour data:", response.payload);
+                setTourEvents(response.payload);
+            } 
+            else if (Array.isArray(response)) {
+                console.log("Fetched tour data (direct array):", response);
+                setTourEvents(response);
+            } 
+            else if (response && response.message) {
+                console.error("Error fetching tour data:", response.message);
+                setTourEvents([]);
+                showNotification('error', response.message);
+            } 
+            else {
+                console.error("Unexpected response format:", response);
                 setTourEvents([]);
             }
         } catch (error) {
             console.error("Error fetching tour data:", error);
             setTourEvents([]);
+            showNotification('error', 'Failed to fetch tour data');
         } finally {
             setLoading(false);
         }
@@ -241,7 +295,6 @@ const TourDiary = () => {
         
         try {
             const allPurposesData = [];
-            // Fetch purposes for each scheme
             for (const scheme of schemes) {
                 const data = await tourDiaryService.getActivePurposes(scheme.id);
                 if (data && !data.message && Array.isArray(data)) {
@@ -249,7 +302,6 @@ const TourDiary = () => {
                 }
             }
             
-            // Remove duplicates based on id
             const uniquePurposes = Array.from(
                 new Map(allPurposesData.map(p => [p.id, p])).values()
             );
@@ -263,6 +315,7 @@ const TourDiary = () => {
 
     // ============================ EFFECTS ============================
     useEffect(() => {
+        fetchAssignedZones(); // Fetch zones first
         fetchSchemes();
         fetchActiveHalves();
     }, []);
@@ -274,9 +327,9 @@ const TourDiary = () => {
         }
     }, [schemes]);
 
-    // Add another useEffect to refresh active halves when month changes
+    // Refresh active halves when month changes
     useEffect(() => {
-        fetchActiveHalves(); // Refresh when month changes
+        fetchActiveHalves();
     }, [currentDate.getFullYear(), currentDate.getMonth()]);
 
     useEffect(() => {
@@ -342,7 +395,6 @@ const TourDiary = () => {
         });
     };
     
-
     // ============================ MENU HANDLERS ============================
     const openSubmitMenu = (event) => {
         setSubmitAnchorEl(event.currentTarget);
@@ -353,15 +405,6 @@ const TourDiary = () => {
     };
 
     // ============================ HALF SUBMIT ============================
-
-    // const handleSubmitHalf = (half) => {
-    //     console.log("Submitting:", half);
-    //     // TODO: Call your API here
-    //     closeSubmitMenu();
-    //     showNotification('success', `${half} submitted successfully`);
-    // };
-
-    // Add submit function
     const handleSubmitHalf = async (half) => {
         setSubmitDialog({
             open: true,
@@ -370,21 +413,18 @@ const TourDiary = () => {
         closeSubmitMenu();
     };
 
-    // Add confirmation submit function
-    // Add this function to handle the response correctly
     const confirmSubmit = async () => {
-        const zoneId = Number(authservice.getzone());
+        const zoneId = selectedZoneId || Number(authservice.getzone()); // Fallback to authservice if no zone selected
         const userId = authservice.userid();
         
         if (!zoneId || !userId) {
-            showNotification('error', 'User session expired. Please login again.');
+            showNotification('error', 'User session expired or no zone assigned. Please login again.');
             return;
         }
 
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth() + 1;
         
-        // Map "First Half"/"Second Half" to API expected values
         const periodType = submitDialog.half === 'First Half' ? 'FIRST_HALF' : 'SECOND_HALF';
 
         const payload = {
@@ -401,20 +441,15 @@ const TourDiary = () => {
             setSubmitLoading(true);
             const response = await tourDiaryService.submitTourHalf(payload);
             
-            // Handle string response (success or error message)
             if (typeof response === 'string') {
-                // Check if it's a success message (contains 'successfully')
                 if (response.toLowerCase().includes('successfully')) {
                     showNotification('success', response);
-                    // Refresh active halves after successful submission
                     await fetchActiveHalves();
-                    // Optionally refresh tour data
                     await fetchTourData();
                 } else {
                     showNotification('error', response);
                 }
             } 
-            // Handle object response (if your API returns objects for errors)
             else if (response.message) {
                 showNotification('error', response.message);
             } else {
@@ -478,6 +513,13 @@ const TourDiary = () => {
             remarks: event.remark || ''
         });
 
+        // Set zone ID for edit if available
+        if (event.zoneId) {
+            setEditSelectedZoneId(event.zoneId);
+        } else {
+            setEditSelectedZoneId(selectedZoneId);
+        }
+
         if (event.entryType === 'WORKING' && event.purposeId) {
             try {
                 const allSchemes = schemes;
@@ -517,18 +559,24 @@ const TourDiary = () => {
     const saveEvent = async () => {
         if (!selectedDate) return;
 
+        // Get the zone ID - if only one zone, it's already selected, otherwise validate
+        const zoneIdToUse = selectedZoneId || (assignedZones.length === 1 ? assignedZones[0].zoneId : null);
+        
         if (entryType === 'WORKING') {
             if (!formData.purpose || !formData.place || !selectedScheme) {
                 showNotification('error', 'Please fill all required fields');
                 return;
             }
+            if (!zoneIdToUse) {
+                showNotification('error', 'Please select a zone');
+                return;
+            }
         }
 
         const userId = authservice.userid();
-        const zoneId = Number(authservice.getzone());
-
-        if (!userId || !zoneId) {
-            showNotification('error', 'User session expired. Please login again.');
+        
+        if (!userId || !zoneIdToUse) {
+            showNotification('error', 'User session expired or no zone assigned. Please login again.');
             return;
         }
 
@@ -541,7 +589,7 @@ const TourDiary = () => {
             location: entryType === 'WORKING' ? formData.place : '',
             remark: formData.remarks,
             status: "DRAFT",
-            zoneId: zoneId,
+            zoneId: zoneIdToUse, // Use selected zone ID
             createdAt: formattedDate,
             entryType: entryType
         };
@@ -558,14 +606,13 @@ const TourDiary = () => {
             const response = await tourDiaryService.saveOrUpdateTour(payload);
 
             if (response.id) {
-                // ✅ FIX: Create a complete event object with ALL data
                 const completeEvent = {
                     id: response.id,
                     purposeId: entryType === 'WORKING' ? Number(formData.purpose) : null,
                     location: entryType === 'WORKING' ? formData.place : '',
                     remark: formData.remarks,
                     userId: userId,
-                    zoneId: zoneId,
+                    zoneId: zoneIdToUse,
                     createdAt: formattedDate,
                     entryType: entryType,
                     status: "DRAFT"
@@ -597,18 +644,23 @@ const TourDiary = () => {
     };
 
     const updateEvent = async () => {
+        const zoneIdToUse = editSelectedZoneId || selectedZoneId;
+        
         if (editEntryType === 'WORKING') {
             if (!editFormData.purpose || !editFormData.place || !editSelectedScheme) {
                 showNotification('error', 'Please fill all required fields');
                 return;
             }
+            if (!zoneIdToUse) {
+                showNotification('error', 'Please select a zone');
+                return;
+            }
         }
 
         const userId = authservice.userid();
-        const zoneId = Number(authservice.getzone());
-
-        if (!userId || !zoneId) {
-            alert("User session expired. Please login again.");
+        
+        if (!userId || !zoneIdToUse) {
+            alert("User session expired or no zone assigned. Please login again.");
             return;
         }
 
@@ -622,7 +674,7 @@ const TourDiary = () => {
             location: editEntryType === 'WORKING' ? editFormData.place : '',
             remark: editFormData.remarks,
             status: "DRAFT",
-            zoneId: zoneId,
+            zoneId: zoneIdToUse,
             createdAt: createdAt,
             entryType: editEntryType
         };
@@ -639,14 +691,13 @@ const TourDiary = () => {
             const response = await tourDiaryService.saveOrUpdateTour(payload);
 
             if (response.id) {
-                // ✅ FIX: Create a complete updated event object with ALL data
                 const completeEvent = {
                     id: response.id,
                     purposeId: editEntryType === 'WORKING' ? Number(editFormData.purpose) : null,
                     location: editEntryType === 'WORKING' ? editFormData.place : '',
                     remark: editFormData.remarks,
                     userId: userId,
-                    zoneId: zoneId,
+                    zoneId: zoneIdToUse,
                     createdAt: createdAt,
                     entryType: editEntryType,
                     status: "DRAFT"
@@ -742,12 +793,10 @@ const TourDiary = () => {
         const firstDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-        // Calculate the 15th day of the month
         const fifteenthDay = 15;
 
         const calendarDays = [];
 
-        // Empty cells for days before the first day of the month
         for (let i = 0; i < firstDay; i++) {
             calendarDays.push(
                 <Grid item xs={12 / 7} key={`empty-${i}`}>
@@ -756,7 +805,6 @@ const TourDiary = () => {
             );
         }
 
-        // Days of the month
         for (let day = 1; day <= daysInMonth; day++) {
             const dateKey = formatDateKey(year, month, day);
             const hasEvents = hasEventsOnDay(year, month, day);
@@ -765,19 +813,15 @@ const TourDiary = () => {
             const isSun = isSunday(year, month, day);
             const is2ndSat = isSecondSaturday(year, month, day);
 
-            // Determine if day is in First Half (1-15) or Second Half (16 onwards)
             const isFirstHalf = day <= fifteenthDay;
             const isSecondHalf = day > fifteenthDay;
 
             let backgroundColor = theme.palette.background.paper;
             let hoverColor = theme.palette.mode === 'dark' ? theme.palette.grey[800] : '#f5f9ff';
 
-            // Apply half-specific background colors
             if (isFirstHalf) {
-                // Light blue for First Half
                 backgroundColor = theme.palette.mode === 'dark' ? '#1a2a3a' : '#e3f2fd';
             } else if (isSecondHalf) {
-                // Light green for Second Half
                 backgroundColor = theme.palette.mode === 'dark' ? '#1a3a2a' : '#e8f5e9';
             }
 
@@ -810,38 +854,37 @@ const TourDiary = () => {
                         }}
                     >
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <Typography
-                            variant="body1"
-                            sx={{
-                                fontWeight: 600,
-                                color: (isSun || is2ndSat)
-                                    ? '#d32f2f'
-                                    : theme.palette.text.primary
-                            }}
-                        >
-                            {day}
-                        </Typography>
+                            <Typography
+                                variant="body1"
+                                sx={{
+                                    fontWeight: 600,
+                                    color: (isSun || is2ndSat)
+                                        ? '#d32f2f'
+                                        : theme.palette.text.primary
+                                }}
+                            >
+                                {day}
+                            </Typography>
 
-                        {/* Add FH/SH label */}
-                        <Chip
-                            label={isFirstHalf ? 'FH' : 'SH'}
-                            size="small"
-                            sx={{
-                                height: '20px',
-                                fontSize: '0.65rem',
-                                fontWeight: 'bold',
-                                backgroundColor: isFirstHalf 
-                                    ? (theme.palette.mode === 'dark' ? '#1976d2' : '#bbdefb')
-                                    : (theme.palette.mode === 'dark' ? '#2e7d32' : '#c8e6c9'),
-                                color: isFirstHalf 
-                                    ? (theme.palette.mode === 'dark' ? '#fff' : '#0d47a1')
-                                    : (theme.palette.mode === 'dark' ? '#fff' : '#1b5e20'),
-                                '& .MuiChip-label': {
-                                    px: 0.5
-                                }
-                            }}
-                        />
-                    </Box>
+                            <Chip
+                                label={isFirstHalf ? 'FH' : 'SH'}
+                                size="small"
+                                sx={{
+                                    height: '20px',
+                                    fontSize: '0.65rem',
+                                    fontWeight: 'bold',
+                                    backgroundColor: isFirstHalf 
+                                        ? (theme.palette.mode === 'dark' ? '#1976d2' : '#bbdefb')
+                                        : (theme.palette.mode === 'dark' ? '#2e7d32' : '#c8e6c9'),
+                                    color: isFirstHalf 
+                                        ? (theme.palette.mode === 'dark' ? '#fff' : '#0d47a1')
+                                        : (theme.palette.mode === 'dark' ? '#fff' : '#1b5e20'),
+                                    '& .MuiChip-label': {
+                                        px: 0.5
+                                    }
+                                }}
+                            />
+                        </Box>
 
                         {hasEvents && (
                             <Box
@@ -914,23 +957,10 @@ const TourDiary = () => {
             );
         }
 
-        // Helper function to get purpose name by ID from allPurposes
         const getPurposeName = (purposeId) => {
             if (!purposeId) return null;
             const purpose = allPurposes.find(p => p.id === purposeId);
             return purpose ? purpose.purposeName : 'Unknown Purpose';
-        };
-
-        // Helper function to get scheme name by purpose ID
-        const getSchemeNameForPurpose = (purposeId) => {
-            if (!purposeId) return null;
-            // Find the scheme that contains this purpose
-            for (const scheme of schemes) {
-                if (scheme.purposes && scheme.purposes.some(p => p.id === purposeId)) {
-                    return scheme.schemeName;
-                }
-            }
-            return null;
         };
 
         return (
@@ -942,22 +972,7 @@ const TourDiary = () => {
                             <ListItemText
                                 primary={
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                                        <EventIcon fontSize="small" color="action" />
-                                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                            {/* {event.entryType === 'WORKING' 
-                                                ? (event.entryType || 'No Entry Type')
-                                                : event.entryType || 'No Type'} */}
-                                            {event.entryType == 'WORKING' && (
-                                                    <Chip 
-                                                        label={event.entryType} 
-                                                        size="small"
-                                                        color="default"
-                                                        variant="outlined"
-                                                    />
-                                                )}
-                                                
-                                        </Typography>
-                                        {event.entryType && event.entryType !== 'WORKING' && (
+                                        {event.entryType == 'WORKING' && (
                                             <Chip 
                                                 label={event.entryType} 
                                                 size="small"
@@ -969,7 +984,16 @@ const TourDiary = () => {
                                 }
                                 secondary={
                                     <Box sx={{ mt: 0.5 }}>
-                                        {/* Show purpose and scheme for WORKING entries */}
+                                        {event.entryType !== 'WORKING' && event.entryType && (
+                                            <Chip 
+                                                label={event.entryType} 
+                                                size="small"
+                                                color="default"
+                                                variant="outlined"
+                                                sx={{ mb: 1 }}
+                                            />
+                                        )}
+                                        
                                         {event.entryType === 'WORKING' && (
                                             <>
                                                 {event.purposeId && (
@@ -987,14 +1011,12 @@ const TourDiary = () => {
                                             </>
                                         )}
                                         
-                                        {/* Show remarks if available */}
                                         {event.remark && (
                                             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                                                 <strong>Remark:</strong> {event.remark}
                                             </Typography>
                                         )}
                                         
-                                        {/* Show creation date/time */}
                                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
                                             {new Date(event.createdAt).toLocaleDateString()}
                                         </Typography>
@@ -1060,12 +1082,11 @@ const TourDiary = () => {
                                 minHeight: '70px'
                             }}
                         >
-                            {/* Left section with fixed width to match right section */}
                             <Box sx={{ 
                                 display: 'flex', 
                                 alignItems: 'center', 
                                 gap: 2,
-                                width: '350px', // Fixed width to match right section
+                                width: '350px',
                                 justifyContent: 'flex-start'
                             }}>
                                 <Button
@@ -1082,7 +1103,6 @@ const TourDiary = () => {
                                     Prev
                                 </Button>
 
-                                {/* Active Halves Card */}
                                 <Paper
                                     elevation={2}
                                     sx={{
@@ -1110,7 +1130,6 @@ const TourDiary = () => {
                                 </Paper>
                             </Box>
 
-                            {/* Center - Month/Year - absolutely positioned for perfect centering */}
                             <Typography 
                                 variant="h4" 
                                 sx={{ 
@@ -1129,15 +1148,13 @@ const TourDiary = () => {
                                 })}
                             </Typography>
 
-                            {/* Right section with fixed width to match left section */}
                             <Box sx={{ 
                                 display: 'flex', 
                                 alignItems: 'center', 
                                 gap: 2,
-                                width: '350px', // Fixed width to match left section
+                                width: '350px',
                                 justifyContent: 'flex-end'
                             }}>
-                                {/* Submit button with menu */}
                                 <Box>
                                     <Button
                                         variant="contained"
@@ -1310,6 +1327,41 @@ const TourDiary = () => {
                     {activeTab === 0 ? (
                         // Add New Tour Form
                         <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {/* NEW: Zone Selection Dropdown */}
+                            {!zonesLoading && assignedZones.length > 1 && (
+                                <FormControl fullWidth size="small">
+                                    <InputLabel>Zone</InputLabel>
+                                    <Select
+                                        value={selectedZoneId || ''}
+                                        label="Zone"
+                                        onChange={(e) => setSelectedZoneId(e.target.value)}
+                                    >
+                                        {assignedZones.map((zone) => (
+                                            <MenuItem key={zone.zoneId} value={zone.zoneId}>
+                                                {zone.zoneName}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            )}
+                            
+                            {/* Show loading state for zones */}
+                            {zonesLoading && (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', my: 1 }}>
+                                    <CircularProgress size={24} />
+                                    <Typography variant="body2" sx={{ ml: 1 }}>
+                                        Loading zones...
+                                    </Typography>
+                                </Box>
+                            )}
+                            
+                            {/* Show message if no zones found */}
+                            {!zonesLoading && assignedZones.length === 0 && (
+                                <Alert severity="error" sx={{ my: 1 }}>
+                                    No zones assigned to you. Please contact administrator.
+                                </Alert>
+                            )}
+
                             <FormControl fullWidth size="small">
                                 <InputLabel>Entry Type</InputLabel>
                                 <Select
@@ -1396,7 +1448,7 @@ const TourDiary = () => {
                                 <Button
                                     variant="contained"
                                     onClick={saveEvent}
-                                    disabled={loading}
+                                    disabled={loading || zonesLoading || assignedZones.length === 0}
                                     sx={{
                                         backgroundColor: '#27ae60',
                                         '&:hover': { backgroundColor: '#1e8449' }
@@ -1415,7 +1467,6 @@ const TourDiary = () => {
                                 <Button
                                     variant="outlined"
                                     onClick={() => {
-                                        // Reset form data when adding another
                                         setFormData({ place: '', purpose: '', remarks: '' });
                                         setSelectedScheme('');
                                         setEntryType('WORKING');
@@ -1471,13 +1522,30 @@ const TourDiary = () => {
                     </Box>
 
                     <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {/* Zone selection in edit modal */}
+                        {!zonesLoading && assignedZones.length > 1 && (
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Zone</InputLabel>
+                                <Select
+                                    value={editSelectedZoneId || ''}
+                                    label="Zone"
+                                    onChange={(e) => setEditSelectedZoneId(e.target.value)}
+                                >
+                                    {assignedZones.map((zone) => (
+                                        <MenuItem key={zone.zoneId} value={zone.zoneId}>
+                                            {zone.zoneName}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        )}
+
                         <FormControl fullWidth size="small">
                             <InputLabel>Entry Type</InputLabel>
                             <Select
                                 value={editEntryType}
                                 label="Entry Type"
                                 onChange={(e) => setEditEntryType(e.target.value)}
-                                /* disabled={selectedEvent?.entryType === 'WORKING'} */
                             >
                                 {ENTRY_TYPES.map((type) => (
                                     <MenuItem key={type.value} value={type.value}>
@@ -1706,7 +1774,6 @@ const TourDiary = () => {
                         </Typography>
                     </Alert>
                     
-                    {/* Show warning if late submission */}
                     {activeHalves && submitDialog.half === 'First Half' && 
                     activeHalves.firstHalf < currentDate.getDate() && (
                         <Alert severity="warning" sx={{ mt: 2 }}>

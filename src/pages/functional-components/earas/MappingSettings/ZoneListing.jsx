@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback,useRef } from 'react';
 import Breadcrumb from 'routes/Breadcrumb';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -32,7 +32,9 @@ import {
   Card,
   CardContent,
   Pagination,
-  PaginationItem
+  PaginationItem,
+
+
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -59,13 +61,13 @@ const ZoneListing = () => {
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const searchRef = useRef(null);
   
   // Table states
   const [searchTerm, setSearchTerm] = useState('');
   const [order, setOrder] = useState('asc');
   const [orderBy, setOrderBy] = useState('zoneId');
   
-
   // Snackbar states
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -86,53 +88,57 @@ const ZoneListing = () => {
     }));
   };
 
+
+
   // Fetch zones from API with pagination
-  const fetchZones = useCallback(async (currentPage = page, size = rowsPerPage) => {
-    setLoading(true);
-    setFetchError(null);
+const fetchZones = useCallback(async (currentPage, size, search) => {
+  setLoading(true);
+  setFetchError(null);
 
-    try {
-      const BASE_URL = mainapi.BASE_URL;
-      const token = localStorage.getItem('token');
-      
-      const response = await fetch(
-        `${BASE_URL}/btr-service/admin-manage/GetZones?page=${currentPage}&size=${size}`, 
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          }
-        }
-      );
-     
-      if (!response.ok) {
-        throw new Error(`Failed to fetch zones (${response.status})`);
+  try {
+    const BASE_URL = mainapi.BASE_URL;
+    const token = localStorage.getItem('token');
+
+    const response = await fetch(
+      `${BASE_URL}/btr-service/admin-manage/GetZones?page=${currentPage}&size=${size}&search=${search}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       }
-      
-      const data = await response.json();
-      
-      
-      const zones = data.zones || [];
-      setTotalItems(data.totalItems || 0);
-      setTotalPages(data.totalPages || 0);
-      
-      // Transform the data using actual API response
-      const transformedZones = transformZoneData(zones);
-      setZoneData(transformedZones);
-      
-    } catch (err) {
-      setFetchError(`Failed to fetch zone data. ${err.message}`);
-      setSnackbarMessage(`Error loading data: ${err.message}`);
-      setSnackbarSeverity('error');
-      setSnackbarOpen(true);
-    } finally {
-      setLoading(false);
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch zones (${response.status})`);
     }
-  }, [page, rowsPerPage]);
 
-  useEffect(() => {
-    fetchZones(page, rowsPerPage);
-  }, [fetchZones, page, rowsPerPage]);
+    const data = await response.json();
 
+    const zones = data.zones || [];
+    setTotalItems(data.totalItems || 0);
+    setTotalPages(data.totalPages || 0);
+
+    setZoneData(transformZoneData(zones));
+  } catch (err) {
+    setFetchError(`Failed to fetch zone data. ${err.message}`);
+  } finally {
+    setLoading(false);
+  }
+}, [page, rowsPerPage]); // ✅ important
+
+useEffect(() => {
+  fetchZones(page, rowsPerPage, searchTerm);
+}, [page, rowsPerPage]);
+
+const handleSearchClick = () => {
+  setPage(0);
+  fetchZones(0, rowsPerPage, searchTerm);
+};
+const handleKeyDown = (e) => {
+  if (e.key === 'Enter') {
+    handleSearchClick();
+  }
+};
   // Get unique values for filters from actual data
   const uniqueDistricts = useMemo(() => {
     return [...new Set(zoneData.map(zone => zone.districtName).filter(name => name !== 'N/A'))].sort();
@@ -173,21 +179,7 @@ const ZoneListing = () => {
   };
 
   // Filter and sort data (client-side filtering since API doesn't support search)
-  const filteredAndSortedData = useMemo(() => {
-    const visibleKeys = ['slNo', 'zoneNameEn', 'districtName', 'talukName', 'zoneType'];
-
-    let filtered = zoneData.filter((row) => {
-      const matchesSearch = !searchTerm || 
-        visibleKeys.some((key) =>
-          row[key] && String(row[key]).toLowerCase().includes(searchTerm.toLowerCase())
-        );
-      
-      return matchesSearch;
-    });
-
-    const sorted = [...filtered].sort(getComparator(order, orderBy));
-    return sorted;
-  }, [zoneData, searchTerm, order, orderBy]);
+const filteredAndSortedData = zoneData;
 
   // Get filtered count for display
   const filteredCount = filteredAndSortedData.length;
@@ -306,43 +298,6 @@ const handleViewZone = (zone) => {
           Zone Lists
         </Typography>
 
-        {/* Summary Cards */}
-        {/* <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={12} md={4}>
-            <Card sx={{ bgcolor: '#e3f2fd', borderRadius: 2 }}>
-              <CardContent>
-                <Typography variant="h6" color="primary">Total Zones</Typography>
-                <Typography variant="h3">{totalZones}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Page {page + 1} of {totalPages}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Card sx={{ bgcolor: '#c8e6c9', borderRadius: 2 }}>
-              <CardContent>
-                <Typography variant="h6" color="success.dark">BTR Zones</Typography>
-                <Typography variant="h3">{btrZones}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  In current page
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Card sx={{ bgcolor: '#ffcdd2', borderRadius: 2 }}>
-              <CardContent>
-                <Typography variant="h6" color="error.dark">Non-BTR Zones</Typography>
-                <Typography variant="h3">{nonBtrZones}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  In current page
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid> */}
-
         {loading && (
           <Box display="flex" justifyContent="center" alignItems="center" height="200px" my={4}>
             <CircularProgress size={60} thickness={5} />
@@ -361,7 +316,7 @@ const handleViewZone = (zone) => {
             <Button
               variant="contained"
               color="error"
-              onClick={() => fetchZones(page, rowsPerPage)}
+              onClick={() => fetchZones(page, rowsPerPage, debouncedSearch)}
             >
               Retry
             </Button>
@@ -373,8 +328,10 @@ const handleViewZone = (zone) => {
             {/* Header with Search and Filters */}
             <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                <TextField
-                  label="Search in current page"
+                <TextField 
+                inputRef={searchRef}
+                onKeyDown={handleKeyDown}
+                  label="Search zones"
                   variant="outlined"
                   size="small"
                   value={searchTerm}
@@ -398,9 +355,17 @@ const handleViewZone = (zone) => {
                 />
                 
                 <Stack direction="row" spacing={1}>
+                <Button
+  startIcon={<SearchIcon />}
+  onClick={handleSearchClick}
+  variant="contained"
+  size="small"
+>
+  Search
+</Button>
                   <Button
                     startIcon={<RefreshIcon />}
-                    onClick={() => fetchZones(page, rowsPerPage)}
+                   onClick={() => fetchZones(page, rowsPerPage, debouncedSearch)}
                     variant="outlined"
                     size="small"
                   >
@@ -417,26 +382,6 @@ const handleViewZone = (zone) => {
                   </Button>
                 </Stack>
               </Box>
-
-              {/* District/Taluk Chips */}
-              {/* <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                {uniqueDistricts.slice(0, 3).map(district => (
-                  <Chip
-                    key={district}
-                    label={district}
-                    size="small"
-                    color="primary"
-                    variant="outlined"
-                  />
-                ))}
-                {uniqueDistricts.length > 3 && (
-                  <Chip
-                    label={`+${uniqueDistricts.length - 3} more`}
-                    size="small"
-                    variant="outlined"
-                  />
-                )}
-              </Box> */}
             </Box>
 
             <Divider sx={{ mb: 3 }} />
@@ -461,6 +406,7 @@ const handleViewZone = (zone) => {
                           active={orderBy === col}
                           direction={orderBy === col ? order : 'asc'}
                           onClick={createSortHandler(col)}
+                           hideSortIcon={true}
                           sx={{
                             color: 'white',
                             '&.Mui-active': { color: '#a7ffeb' },
@@ -564,65 +510,6 @@ const handleViewZone = (zone) => {
             </Box>
           </Paper>
         )}
-
-        {/* View Zone Dialog */}
-        {/* <Dialog open={openViewDialog} onClose={() => setOpenViewDialog(false)} maxWidth="sm" fullWidth>
-          <DialogTitle sx={{ 
-            bgcolor: '#05307a', 
-            color: 'white',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1
-          }}>
-            <LocationOnIcon />
-            Zone Details
-          </DialogTitle>
-          <DialogContent dividers>
-            {selectedZone && (
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <Paper sx={{ p: 2, bgcolor: '#f8f9fa' }}>
-                    <Typography variant="subtitle2" color="text.secondary">Zone ID</Typography>
-                    <Typography variant="body1" fontWeight="bold">{selectedZone.zoneId}</Typography>
-                  </Paper>
-                </Grid>
-                <Grid item xs={12}>
-                  <Paper sx={{ p: 2, bgcolor: '#f8f9fa' }}>
-                    <Typography variant="subtitle2" color="text.secondary">Zone Name</Typography>
-                    <Typography variant="body1" fontWeight="bold">{selectedZone.zoneNameEn}</Typography>
-                  </Paper>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Paper sx={{ p: 2, bgcolor: '#f8f9fa' }}>
-                    <Typography variant="subtitle2" color="text.secondary">District</Typography>
-                    <Typography variant="body1" fontWeight="bold">{selectedZone.districtName}</Typography>
-                  </Paper>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Paper sx={{ p: 2, bgcolor: '#f8f9fa' }}>
-                    <Typography variant="subtitle2" color="text.secondary">Taluk</Typography>
-                    <Typography variant="body1" fontWeight="bold">{selectedZone.talukName}</Typography>
-                  </Paper>
-                </Grid>
-                <Grid item xs={12}>
-                  <Paper sx={{ p: 2, bgcolor: '#f8f9fa' }}>
-                    <Typography variant="subtitle2" color="text.secondary">Zone Type</Typography>
-                    <Chip
-                      label={selectedZone.zoneType}
-                      color={selectedZone.zoneType === 'BTR' ? 'success' : 'default'}
-                      sx={{ mt: 1 }}
-                    />
-                  </Paper>
-                </Grid>
-              </Grid>
-            )}
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setOpenViewDialog(false)} variant="contained">
-              Close
-            </Button>
-          </DialogActions>
-        </Dialog> */}
 
         {/* Snackbar for notifications */}
         <Snackbar

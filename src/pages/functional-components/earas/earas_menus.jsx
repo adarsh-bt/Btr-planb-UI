@@ -249,7 +249,7 @@ const role = authservice.getrole();
                 </Box>
               </Card>
             </Grid>
-{role === 'IT Admin' && (
+{(role === 'IT Admin' || role === 'EARAS Admin') && (
               <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}

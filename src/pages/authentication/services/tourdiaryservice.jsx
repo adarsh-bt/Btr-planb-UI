@@ -5,6 +5,7 @@ import mainapi from 'api/mainapi';
 
 const tourDiaryService = {
     DIARY_URL: mainapi.DIARY_API,
+    BASE_URL: mainapi.BTR_API,
 
   // ✅ Get All Schemes
   async getAllSchemes() {
@@ -89,7 +90,7 @@ async getAdvancedTourByFilter(userId, month, year) {
 
   try {
     const response = await axios.get(
-      `${this.DIARY_URL}/tour-diary/api/advanced-tour/filter`,
+      `${this.DIARY_URL}/tour-diary/api/advanced-tour/filter-with-btr`,
       {
         params: {
           userId: userId,
@@ -309,6 +310,128 @@ async submitAdminApproval(payload) {
     };
   }
 },
+
+// Add this method to your tourDiaryService object
+async getTourEntries(userId, month, year) {
+  const token = localStorage.getItem('token');
+
+  try {
+    const response = await axios.get(
+      `${this.DIARY_URL}/tour-diary/api/tour/tours`,
+      {
+        params: {
+          userId: userId,
+          month: month,
+          year: year
+        },
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
+
+    return response.data;
+
+  } catch (err) {
+    console.error("Error fetching tour entries:", err);
+    return {
+      message: err.response?.data?.message || "An error occurred while fetching tour entries."
+    };
+  }
+},
+
+// In tourDiaryService.js, update the getAssignedZones method
+async getAssignedZones(userId) {
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+        console.error("No token found");
+        return { error: true, message: "No authentication token found" };
+    }
+
+    try {
+        console.log(`Fetching zones for user: ${userId}`);
+        const response = await axios.get(
+            `${this.BASE_URL}/btr-service/btr-api/zones/assigned/${userId}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+        
+        console.log("API Response Status:", response.status);
+        console.log("API Response Data:", response.data);
+        
+        // Return the data directly
+        return response.data;
+        
+    } catch (err) {
+        console.error("Error in getAssignedZones:", err);
+        console.error("Error response:", err.response?.data);
+        console.error("Error status:", err.response?.status);
+        
+        // Return a consistent error format
+        return {
+            error: true,
+            message: err.response?.data?.message || err.message || "Failed to fetch assigned zones",
+            status: err.response?.status
+        };
+    }
+},
+
+// Add this method to tourDiaryService for updating SYSTEM entries
+async updateSystemTourEntry(data) {
+  const token = localStorage.getItem('token');
+
+  try {
+    const response = await axios.post(
+      `${this.DIARY_URL}/tour-diary/api/tour/tour-save`,
+      data,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    return response.data;
+
+  } catch (err) {
+    console.error("Error updating system tour entry:", err);
+    return {
+      message: err.response?.data?.message || "An error occurred while updating tour entry."
+    };
+  }
+},
+
+// Add this method to your tourDiaryService object
+async saveOrUpdateManualEntry(data) {
+  const token = localStorage.getItem('token');
+
+  try {
+    const response = await axios.post(
+      `${this.DIARY_URL}/tour-diary/api/tour/tour-saveOrUpdate`,
+      data,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    return response.data;
+
+  } catch (err) {
+    console.error("Error saving/updating manual entry:", err);
+    return {
+      message: err.response?.data?.message || "An error occurred while saving manual entry."
+    };
+  }
+}
 
 };
 

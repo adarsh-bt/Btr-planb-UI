@@ -77,10 +77,15 @@ const ClusterManualEntryNonBtr = Loadable(lazy(() => import('pages/functional-co
 const CceView = Loadable(lazy(() => import('pages/functional-components/earas/cce/cceview')));
 const CceReport = Loadable(lazy(() => import('pages/functional-components/earas/cce/CceReport')));
 
+const UserAdvancedTourDiarySubmissions = Loadable(lazy(() => import('pages/dashboard/UserAdvancedTourDiarySubmissions')));
 const UserTourDiarySubmissions = Loadable(lazy(() => import('pages/dashboard/UserTourDiarySubmissions')));
+const UserAdvancedTourDiaryDetail = Loadable(lazy(() => import('pages/dashboard/UserAdvancedTourDiaryDetail')));
 const UserTourDiaryDetail = Loadable(lazy(() => import('pages/dashboard/UserTourDiaryDetail')));
+const ActualTourDiary = Loadable(lazy(() => import('pages/dashboard/ActualTourDiary')));
 
 const KeralaReportList = Loadable(lazy(() => import('pages/functional-components/earas/Report/KeralaReportList')));
+const TalukClusterReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/TalukClusterReport')));
+const ZoneClusterReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/ZoneClusterReport')));
 
 // ==============================|| MAIN ROUTING ||============================== //
 
@@ -129,6 +134,22 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <KeralaReportList />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'kerala_report/taluk_cluster_report/:districtName',
+      element: (
+        <PrivateRoute>
+          <TalukClusterReport />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'kerala_report/zone_cluster_report/:districtName/:talukName',
+      element: (
+        <PrivateRoute>
+          <ZoneClusterReport />
         </PrivateRoute>
       )
     },
@@ -517,6 +538,14 @@ const MainRoutes = {
       )
     },
     {
+  path: 'approval_manage/advancedtourdiary/user-submissions',
+  element: (
+    <PrivateRoute>
+      <UserAdvancedTourDiarySubmissions />
+    </PrivateRoute>
+  )
+},
+{
   path: 'approval_manage/tourdiary/user-submissions',
   element: (
     <PrivateRoute>
@@ -525,10 +554,26 @@ const MainRoutes = {
   )
 },
 {
+  path: 'approval_manage/advancedtourdiary/user-details',
+  element: (
+    <PrivateRoute>
+      <UserAdvancedTourDiaryDetail />
+    </PrivateRoute>
+  )
+},
+{
   path: 'approval_manage/tourdiary/user-details',
   element: (
     <PrivateRoute>
       <UserTourDiaryDetail />
+    </PrivateRoute>
+  )
+},
+{
+  path: 'tourdiary/actual_tour_diary',
+  element: (
+    <PrivateRoute>
+      <ActualTourDiary />
     </PrivateRoute>
   )
 },
@@ -549,7 +594,7 @@ const MainRoutes = {
       )
     },
     {
-      path: '/schemes/earas/earas_management/ZoneListing',
+      path: '/schemes/earas/Mapping_Management/ZoneListing',
       element: (
         <PrivateRoute>
           <ZoneList />

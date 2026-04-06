@@ -23,7 +23,7 @@ const TourDiaryMenu = () => {
             title: 'Tour Diary',
             description: 'Actual travel diary',
             icon: CalendarMonthIcon,
-            path: '/tourdiary/basic',
+            path: '/tourdiary/actual_tour_diary',
             gradient: 'linear-gradient(135deg, rgba(79, 208, 170, 0.57), rgb(37, 187, 142))'
         }
     ];

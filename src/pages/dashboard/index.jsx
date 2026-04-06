@@ -311,7 +311,7 @@ export default function DashboardDefault() {
           <Grid item xs={12} sm={4} md={4} lg={4}>
             <Card
               component={Link}
-              to="/rolelist"
+              to="/kerala_report"
               sx={{
                 textDecoration: 'none',
                 position: 'relative',
@@ -355,7 +355,7 @@ export default function DashboardDefault() {
                 -
               </Typography>
               <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
-                Role List
+                Reports
               </Typography>
               <Typography
                 variant="body2"
@@ -367,7 +367,7 @@ export default function DashboardDefault() {
                   marginBottom: '1.2rem'
                 }}
               >
-                List of Roles
+                List of Reports
               </Typography>
               <Box
                 sx={{
