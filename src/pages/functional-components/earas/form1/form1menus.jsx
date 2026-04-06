@@ -373,7 +373,7 @@ console.log('Fetching crop details with clusterId:', clusterId, 'seasonId:', sea
     );
 
     const data = response.data;
-
+console.log('Crop Details API response:', data);
     if (data?.payload?.length > 0) {
       setCropData(data.payload);
     } else {
@@ -1439,17 +1439,17 @@ const renderNucDetails = () => {
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="body2" fontWeight="medium">
-                        {item.nucArea.toFixed(2)}
+                        {(item.nucArea ?? 0).toFixed(2)}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="body2" fontWeight="medium">
-                        {item.ffsArea.toFixed(2)}
+                        {(item.ffsArea ?? 0).toFixed(2)}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="body2" fontWeight="medium">
-                        {item.cosArea.toFixed(2)}
+                        {(item.cosArea ?? 0).toFixed(2)}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">

@@ -1736,7 +1736,7 @@ const validateSidePlotLabels = () => {
 
         return missing;
     };
-    // ── Cluster Manage – Edit Allow ──────────────────────────────────────────
+    // ── Cluster Manage – Edit Allow
     const handleClusterManageConfirm = async () => {
         setClusterManageLoading(true);
         try {
@@ -1782,7 +1782,7 @@ const validateSidePlotLabels = () => {
             setClusterManageLoading(false);
         }
     };
-    // ─────────────────────────────────────────────────────────────────────────
+    //
 
     totalAreaRef.current = clusterInfo.totalArea;
     const firstInstanceMap = new Map();
@@ -2665,22 +2665,22 @@ const validateSidePlotLabels = () => {
                     maxWidth="xs"
                     fullWidth
                 >
-                    <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 ,background: '#05307a', color: 'white'}}>
                         <SettingsSuggestIcon color="primary" />
                         Cluster Edit Mode
                     </DialogTitle>
                     <DialogContent>
-                        <DialogContentText>
-                            Are you confirm to this cluster edit Mode ?
+                        <DialogContentText mt={2}>
+                            Are you sure you want to edit this cluster ?
                         </DialogContentText>
                         {clusterId && (
                             <Box sx={{ mt: 1.5, p: 1.5, bgcolor: 'grey.100', borderRadius: 1 }}>
                                 <Typography variant="body2">
                                     <strong>Cluster No:</strong> {slNo}
                                 </Typography>
-                                <Typography variant="body2">
+                                {/* <Typography variant="body2">
                                     <strong>Cluster ID:</strong> {clusterId}
-                                </Typography>
+                                </Typography> */}
                                 <Typography variant="body2">
                                     <strong>Total Area:</strong> {parseFloat(clusterInfo.totalArea).toFixed(2)} cents
                                 </Typography>

@@ -104,9 +104,10 @@ function AdminsZonelistUI() {
             }
           }
         );
-
+        console.log("Fetching zones with token:", token); // Debug log
+console.log("Fetching zones with token:", response); // Debug log
         const result = await response.json();
-     
+     console.log("Fetched zones:", result); // Debug log
         if (!response.ok) {
           if (result?.response === "No value present") {
             setError("No zones are currently assigned to you.");
