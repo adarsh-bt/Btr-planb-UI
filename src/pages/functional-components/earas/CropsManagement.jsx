@@ -28,8 +28,6 @@ const CropsManagement = () => {
         <Divider sx={{ mb: 3 }} />
        
       </Paper>
-
-  
       </Box>    
     </Grid>
     </Grid>
