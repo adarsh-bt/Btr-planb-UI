@@ -45,6 +45,7 @@ const ClustersWrapperForm = Loadable(lazy(() => import('pages/functional-compone
 const ZoneSettings = Loadable(lazy(() => import('pages/functional-components/earas/ZoneDetails/ZoneSettings')));
 const SettingsMenu = Loadable(lazy(() => import('pages/functional-components/earas/SettingsMenu')));
 const CCE_crop_selection = Loadable(lazy(() => import('pages/functional-components/earas/CceCropSelection')));
+const CropsManagement = Loadable(lazy(() => import('pages/functional-components/earas/CropsManagement')));
 
 const MappingManagement = Loadable(lazy(() => import('pages/functional-components/earas/MappingSettings/MappingMenus')));
 const ZoneList = Loadable(lazy(() => import('pages/functional-components/earas/MappingSettings/ZoneListing')));
@@ -458,6 +459,14 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
+     {
+      path: '/schemes/earas/earas_management/crops_management',
+      element: (
+        <PrivateRoute>
+          <CropsManagement />
+        </PrivateRoute>
+      )
+    },
     {
       path: '/schemes/earas/CCE_Menus',
       element: (
@@ -555,7 +564,7 @@ const MainRoutes = {
       )
     },
      {
-      path: '/schemes/earas/earas_management/ZoneListing/ZoneManage/:zoneId',
+      path: '/schemes/earas/Mapping_Management/ZoneListing/ZoneManage/:zoneId',
       element: (
         <PrivateRoute>
           <ZoneManage />

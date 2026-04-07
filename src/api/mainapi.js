@@ -21,20 +21,20 @@ class mainapi {
   // static USER_API = 'http://localhost:8080';
   // static BTR_API = 'http://localhost:8080';
   // static FORM_API = 'http://localhost:8080';
-  //  static BASE_URL = 'http://103.156.188.49:8080';
-  // static USER_API = 'http://103.156.188.49:8080';
-  // static BTR_API = 'http://103.156.188.49:8080';
-  // static FORM_API = 'http://103.156.188.49:8080';
+   static BASE_URL = 'http://103.156.188.49:8080';
+  static USER_API = 'http://103.156.188.49:8080';
+  static BTR_API = 'http://103.156.188.49:8080';
+  static FORM_API = 'http://103.156.188.49:8080';
 
   //   static BASE_URL = 'http://10.5.140.206:8080';
   // static USER_API = 'http://10.5.140.206:8080';
   // static BTR_API = 'http://10.5.140.206:8080';
   // static FORM_API = 'http://10.5.140.206:8080';
 
-  static BASE_URL = 'https://aidea.kerala.gov.in';
-  static USER_API = 'https://aidea.kerala.gov.in';
-  static BTR_API  = 'https://aidea.kerala.gov.in';
-  static FORM_API = 'https://aidea.kerala.gov.in';
+  // static BASE_URL = 'https://aidea.kerala.gov.in';
+  // static USER_API = 'https://aidea.kerala.gov.in';
+  // static BTR_API  = 'https://aidea.kerala.gov.in';
+  // static FORM_API = 'https://aidea.kerala.gov.in';
 }
 
 export default mainapi;
