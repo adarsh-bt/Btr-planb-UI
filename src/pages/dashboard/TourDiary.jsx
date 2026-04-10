@@ -64,6 +64,13 @@ const TourDiary = () => {
         secondHalf: 0
     });
 
+    // Submission status state
+    const [submissionStatus, setSubmissionStatus] = useState({
+        firstHalf: null,
+        secondHalf: null,
+        loading: false
+    });
+
     // Modal states
     const [modalOpen, setModalOpen] = useState(false);
     const [editModalOpen, setEditModalOpen] = useState(false);
@@ -405,16 +412,39 @@ const TourDiary = () => {
     };
 
     // ============================ HALF SUBMIT ============================
-    const handleSubmitHalf = async (half) => {
-        setSubmitDialog({
-            open: true,
-            half: half
-        });
+    // const handleSubmitHalf = async (half) => {
+    //     setSubmitDialog({
+    //         open: true,
+    //         half: half
+    //     });
+    //     closeSubmitMenu();
+    // };
+
+    // ============================ HALF SUBMIT ============================
+const handleSubmitHalf = async (half) => {
+    // Check if already submitted
+    if (half === 'First Half' && submissionStatus.firstHalf?.isSubmitted) {
+        showNotification('info', `First Half already submitted on ${new Date(submissionStatus.firstHalf.submittedAt).toLocaleString()}`);
         closeSubmitMenu();
-    };
+        return;
+    }
+    
+    if (half === 'Second Half' && submissionStatus.secondHalf?.isSubmitted) {
+        showNotification('info', `Second Half already submitted on ${new Date(submissionStatus.secondHalf.submittedAt).toLocaleString()}`);
+        closeSubmitMenu();
+        return;
+    }
+    
+    // If not submitted, show confirmation dialog
+    setSubmitDialog({
+        open: true,
+        half: half
+    });
+    closeSubmitMenu();
+};
 
     const confirmSubmit = async () => {
-        const zoneId = selectedZoneId || Number(authservice.getzone()); // Fallback to authservice if no zone selected
+        const zoneId = Number(authservice.getzone());
         const userId = authservice.userid();
         
         if (!zoneId || !userId) {
@@ -429,7 +459,7 @@ const TourDiary = () => {
 
         const payload = {
             periodType: periodType,
-            zoneId: zoneId,
+            zoneId: Number(zoneId),
             month: month,
             year: year,
             userId: userId
@@ -466,6 +496,64 @@ const TourDiary = () => {
             setSubmitLoading(false);
         }
     };
+
+
+    // Fetch submission details for current month
+const fetchSubmissionDetails = async () => {
+    const userId = authservice.userid();
+    if (!userId) return;
+
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth() + 1;
+
+    setSubmissionStatus(prev => ({ ...prev, loading: true }));
+    
+    try {
+        const response = await tourDiaryService.getAdminSubmissionDetails(userId, year, month);
+        
+        if (!response.error && response.data) {
+            setSubmissionStatus({
+                firstHalf: {
+                    id: response.data.firstHalfId,
+                    zoneId: response.data.firstHalfZoneId,
+                    startDate: response.data.firstHalfStartDate,
+                    endDate: response.data.firstHalfEndDate,
+                    isLate: response.data.firstHalfIsLate,
+                    submittedAt: response.data.firstHalfSubmittedAt,
+                    isSubmitted: !!response.data.firstHalfId
+                },
+                secondHalf: {
+                    id: response.data.secondHalfId,
+                    zoneId: response.data.secondHalfZoneId,
+                    startDate: response.data.secondHalfStartDate,
+                    endDate: response.data.secondHalfEndDate,
+                    isLate: response.data.secondHalfIsLate,
+                    submittedAt: response.data.secondHalfSubmittedAt,
+                    isSubmitted: !!response.data.secondHalfId
+                },
+                loading: false
+            });
+        } else {
+            setSubmissionStatus({
+                firstHalf: { isSubmitted: false },
+                secondHalf: { isSubmitted: false },
+                loading: false
+            });
+        }
+    } catch (error) {
+        console.error("Error fetching submission details:", error);
+        setSubmissionStatus({
+            firstHalf: { isSubmitted: false },
+            secondHalf: { isSubmitted: false },
+            loading: false
+        });
+    }
+};
+
+// Fetch submission details when month/year changes
+useEffect(() => {
+    fetchSubmissionDetails();
+}, [currentDate.getFullYear(), currentDate.getMonth()]);
 
     // ============================ CALENDAR HANDLERS ============================
     const changeMonth = (offset) => {
@@ -1173,12 +1261,64 @@ const TourDiary = () => {
                                         open={Boolean(submitAnchorEl)}
                                         onClose={closeSubmitMenu}
                                     >
-                                        <MenuItem onClick={() => handleSubmitHalf('First Half')}>
-                                            First Half
-                                        </MenuItem>
-                                        <MenuItem onClick={() => handleSubmitHalf('Second Half')}>
-                                            Second Half
-                                        </MenuItem>
+                                        <MenuItem 
+        onClick={() => handleSubmitHalf('First Half')}
+        disabled={submissionStatus.firstHalf?.isSubmitted}
+        sx={{
+            opacity: submissionStatus.firstHalf?.isSubmitted ? 0.9 : 1,
+            backgroundColor: submissionStatus.firstHalf?.isSubmitted ? theme.palette.action.hover : 'transparent'
+        }}
+    >
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <span>First Half</span>
+            {submissionStatus.firstHalf?.isSubmitted && (
+                <Chip 
+                    label={`Submitted ${new Date(submissionStatus.firstHalf.submittedAt).toLocaleDateString()}`}
+                    size="small"
+                    sx={{ 
+                        ml: 1, 
+                        backgroundColor: '#4caf50', 
+                        color: 'white', 
+                        height: '24px',
+                        '& .MuiChip-label': {
+                            fontSize: '0.7rem',
+                            px: 1
+                        }
+                    }}
+                />
+            )}
+        </Box>
+    </MenuItem>
+    
+    <MenuItem 
+        onClick={() => handleSubmitHalf('Second Half')}
+        disabled={submissionStatus.secondHalf?.isSubmitted}
+        sx={{
+            opacity: submissionStatus.secondHalf?.isSubmitted ? 0.9 : 1,
+            backgroundColor: submissionStatus.secondHalf?.isSubmitted ? theme.palette.action.hover : 'transparent'
+        }}
+    >
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <span>Second Half</span>
+            {submissionStatus.secondHalf?.isSubmitted && (
+                <Chip 
+                    label={`Submitted ${new Date(submissionStatus.secondHalf.submittedAt).toLocaleDateString()}`}
+                    size="small"
+                    sx={{ 
+                        ml: 1, 
+                        backgroundColor: '#4caf50', 
+                        color: 'white', 
+                        height: '24px',
+                        '& .MuiChip-label': {
+                            fontSize: '0.7rem',
+                            px: 1
+                        }
+                    }}
+                />
+            )}
+        </Box>
+    </MenuItem>
+
                                     </Menu>
                                 </Box>
 

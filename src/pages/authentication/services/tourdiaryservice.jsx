@@ -181,7 +181,7 @@ async submitTourHalf(data) {
       }
     );
 
-    // If response.data is a string (like "Submitted successfully but marked as LATE")
+   
     if (typeof response.data === 'string') {
       return response.data;
     }
@@ -429,6 +429,44 @@ async saveOrUpdateManualEntry(data) {
     console.error("Error saving/updating manual entry:", err);
     return {
       message: err.response?.data?.message || "An error occurred while saving manual entry."
+    };
+  }
+},
+
+// Add this method to your tourDiaryService object
+async submitFullMonth(userId, month, year, zoneId) {
+  const token = localStorage.getItem('token');
+
+  try {
+    const response = await axios.post(
+      `${this.DIARY_URL}/tour-diary/api/tour/submit/full-month`,
+      {
+        periodType: "FULL_MONTH",
+        month: month,
+        year: year,
+        zoneId: zoneId,
+        userId: userId
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    return {
+      data: response.data,
+      error: false,
+      message: response.data.message || "Month submitted successfully"
+    };
+
+  } catch (err) {
+    console.error("Error submitting full month:", err);
+    return {
+      error: true,
+      message: err.response?.data?.message || err.message || "Failed to submit month",
+      status: err.response?.status
     };
   }
 }

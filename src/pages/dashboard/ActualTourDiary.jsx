@@ -35,9 +35,9 @@ import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import SaveIcon from "@mui/icons-material/Save";
 import tourDiaryService from "pages/authentication/services/tourdiaryservice";
-import authservice from "pages/authentication/services/authservice";
 import Breadcrumb from "routes/Breadcrumb";
 import MainCard from "components/MainCard";
+import authservice from "pages/authentication/services/authservice";
 
 const UserTourDiaryDetail = () => {
   const theme = useTheme();
@@ -64,6 +64,18 @@ const UserTourDiaryDetail = () => {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
+
+  // Add these state variables with your other useState declarations
+const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
+const [submittingMonth, setSubmittingMonth] = useState(false);
+const [zoneIdForSubmission, setZoneIdForSubmission] = useState("");
+const [availableZones, setAvailableZones] = useState([]);
+
+// Get the active zone from authservice
+const getActiveZone = () => {
+  const zoneId = authservice.getzone();
+  return zoneId;
+};
   
   // Edit form states
   const [editFormData, setEditFormData] = useState({
@@ -98,6 +110,7 @@ const UserTourDiaryDetail = () => {
     cropName: "",
     geoLocation: ""
   });
+  
   const [purposes, setPurposes] = useState([]);
   const [zones, setZones] = useState([]);
   const [schemes, setSchemes] = useState([]);
@@ -105,6 +118,8 @@ const UserTourDiaryDetail = () => {
   const [editSelectedScheme, setEditSelectedScheme] = useState(""); // For edit modal
   const [submitting, setSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+
+  
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const monthNames = [
@@ -119,6 +134,92 @@ const UserTourDiaryDetail = () => {
       navigate("/login");
     }
   }, [currentUserId, navigate]);
+
+  // Add this function to check if month can be submitted
+// Check if month can be submitted
+const canSubmitMonth = () => {
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
+  
+  // Allow submission only for past months
+  if (selectedYear > currentYear) return false;
+  if (selectedYear === currentYear && selectedMonth > currentMonth) return false;
+  
+  // Check if month is complete (passed the month end)
+  const lastDayOfMonth = new Date(selectedYear, selectedMonth, 0);
+  return today > lastDayOfMonth;
+};
+
+// // Get submission status message
+// const getSubmissionStatusMessage = () => {
+//   const today = new Date();
+//   const lastDayOfMonth = new Date(selectedYear, selectedMonth, 0);
+  
+//   if (today <= lastDayOfMonth) {
+//     return `⚠️ Month not yet complete. Submission will be available after ${monthNames[selectedMonth - 1]} ${selectedYear} ends.`;
+//   }
+//   return "✓ Month is complete and ready for submission";
+// };
+
+// Handle submit month
+const handleSubmitMonth = async () => {
+  const zoneId = authservice.getzone();
+  
+  if (!zoneId) {
+    setSnackbar({ 
+      open: true, 
+      message: "No active zone found. Please select a zone first.", 
+      severity: "error" 
+    });
+    return;
+  }
+
+  // Confirm submission
+  const confirmed = window.confirm(
+    `Are you sure you want to submit ${monthNames[selectedMonth - 1]} ${selectedYear}?\n\n` +
+    `Zone ID: ${zoneId}\n` +
+    `This action cannot be undone.`
+  );
+  
+  if (!confirmed) return;
+
+  setSubmittingMonth(true);
+  
+  try {
+    const response = await tourDiaryService.submitFullMonth(
+      selectedUserId,
+      selectedMonth,
+      selectedYear,
+      zoneId
+    );
+    
+    if (response.error) {
+      setSnackbar({ 
+        open: true, 
+        message: response.message || "Failed to submit month", 
+        severity: "error" 
+      });
+    } else {
+      setSnackbar({ 
+        open: true, 
+        message: response.data || "Month submitted successfully", 
+        severity: "success" 
+      });
+      // Refresh tour entries after submission
+      await fetchUserTourEntries();
+    }
+  } catch (error) {
+    console.error("Error submitting month:", error);
+    setSnackbar({ 
+      open: true, 
+      message: error.message || "An error occurred during submission", 
+      severity: "error" 
+    });
+  } finally {
+    setSubmittingMonth(false);
+  }
+};
 
   const fetchUserTourEntries = async () => {
     if (!selectedUserId) {
@@ -165,6 +266,7 @@ const UserTourDiaryDetail = () => {
     try {
       const schemesRes = await tourDiaryService.getAllSchemes();
       if (schemesRes && !schemesRes.message) {
+        console.log("Fetched schemes:>>>>>>>>", schemesRes);
         setSchemes(Array.isArray(schemesRes) ? schemesRes : []);
       }
     } catch (error) {
@@ -195,6 +297,7 @@ const UserTourDiaryDetail = () => {
     try {
       const zonesRes = await tourDiaryService.getAssignedZones(selectedUserId);
       if (zonesRes && !zonesRes.error && Array.isArray(zonesRes)) {
+        console.log("Fetched zones:>>>>>>>>", zonesRes);
         setZones(zonesRes);
       } else if (zonesRes && zonesRes.data && Array.isArray(zonesRes.data)) {
         setZones(zonesRes.data);
@@ -296,7 +399,7 @@ const UserTourDiaryDetail = () => {
         purposeId: entry.purposeId || "",
         zoneId: entry.zoneId || "",
         clusterId: entry.clusterId || "",
-        seasonId: entry.seasonId || entry.seasonNo || "",
+        seasonId: entry.seasonNo || entry.seasonId || "",
         landType: entry.landType || "",
         cropName: entry.cropName || "",
         geoLocation: entry.geoLocation || ""
@@ -348,7 +451,8 @@ const UserTourDiaryDetail = () => {
   const handleSaveManualEdit = async () => {
     setSubmitting(true);
     try {
-      // For UPDATE existing manual entry - MUST include id field
+      // For UPDATE existing manual entry - preserve original createdAt or don't send it
+      // Most backends ignore createdAt on update, but if you need to keep it:
       const payload = {
         id: editFormData.id,  // This is crucial for updates
         userId: selectedUserId,
@@ -363,6 +467,7 @@ const UserTourDiaryDetail = () => {
         distance: editFormData.distance ? parseFloat(editFormData.distance) : null,
         hours: editFormData.hours ? parseFloat(editFormData.hours) : null,
         cropName: editFormData.cropName
+        // Do NOT include createdAt on update unless your backend expects it
       };
 
       console.log("Updating manual entry with payload:", payload);
@@ -371,7 +476,7 @@ const UserTourDiaryDetail = () => {
       
       console.log("API Response:", response);
       
-      // Check for success (response has id or message indicates success)
+      // Check for success
       if (response && (response.id || response.message === "Tour updated successfully")) {
         setSnackbar({ 
           open: true, 
@@ -423,63 +528,86 @@ const UserTourDiaryDetail = () => {
   };
 
   const handleSaveManualEntry = async () => {
-    if (!manualFormData.purposeId || !manualFormData.zoneId || !manualFormData.clusterId || !selectedScheme) {
-      setSnackbar({ open: true, message: "Please fill all required fields", severity: "error" });
-      return;
+  if (!manualFormData.purposeId || !manualFormData.zoneId || !manualFormData.clusterId || !selectedScheme) {
+    setSnackbar({ open: true, message: "Please fill all required fields", severity: "error" });
+    return;
+  }
+
+  setSubmitting(true);
+  try {
+    // Format the selected date for the createdAt field
+    let formattedDate = null;
+    if (manualEntryDate) {
+      // manualEntryDate is the date string from the calendar (e.g., "2026-04-07")
+      // Or it could be a Date object
+      const dateToUse = new Date(manualEntryDate);
+      
+      // Check if date is valid
+      if (!isNaN(dateToUse.getTime())) {
+        // Format as ISO string (e.g., "2026-04-07T11:21:31.379662")
+        // You can set the time to a default like noon or keep the current time
+        // For consistency with backend, let's set to noon to avoid timezone issues
+        dateToUse.setHours(12, 0, 0, 0);
+        formattedDate = dateToUse.toISOString();
+      }
+    }
+    
+    // If no date is selected, use current date
+    if (!formattedDate) {
+      formattedDate = new Date().toISOString();
     }
 
-    setSubmitting(true);
-    try {
-      // For NEW manual entry - NO id field
-      const payload = {
-        userId: selectedUserId,
-        schemeId: Number(selectedScheme),
-        purposeId: Number(manualFormData.purposeId),
-        zoneId: Number(manualFormData.zoneId),
-        clusterId: Number(manualFormData.clusterId),
-        seasonId: Number(manualFormData.seasonId || 1),
-        landType: manualFormData.landType,
-        geoLocation: manualFormData.geoLocation || "10.8505,76.2711",
-        remark: manualFormData.remark,
-        distance: manualFormData.distance ? parseFloat(manualFormData.distance) : null,
-        hours: manualFormData.hours ? parseFloat(manualFormData.hours) : null,
-        cropName: manualFormData.cropName
-      };
+    // For NEW manual entry - NO id field
+    const payload = {
+      userId: selectedUserId,
+      schemeId: Number(selectedScheme),
+      purposeId: Number(manualFormData.purposeId),
+      zoneId: Number(manualFormData.zoneId),
+      clusterId: Number(manualFormData.clusterId),
+      seasonId: Number(manualFormData.seasonId || 1),
+      landType: manualFormData.landType,
+      geoLocation: manualFormData.geoLocation || "10.8505,76.2711",
+      remark: manualFormData.remark,
+      distance: manualFormData.distance ? parseFloat(manualFormData.distance) : null,
+      hours: manualFormData.hours ? parseFloat(manualFormData.hours) : null,
+      cropName: manualFormData.cropName,
+      createdAt: formattedDate  // Add the createdAt field
+    };
 
-      console.log("Creating new manual entry with payload:", payload);
-      
-      const response = await tourDiaryService.saveOrUpdateManualEntry(payload);
-      
-      console.log("API Response:", response);
-      
-      // Check for success (response has id or message indicates success)
-      if (response && (response.id || response.message === "Tour saved successfully")) {
-        setSnackbar({ 
-          open: true, 
-          message: response.message || "Tour entry added successfully", 
-          severity: "success" 
-        });
-        setManualEntryOpen(false);
-        await fetchUserTourEntries();
-        closeDayModal();
-      } else {
-        setSnackbar({ 
-          open: true, 
-          message: response.message || "Failed to add tour entry", 
-          severity: "error" 
-        });
-      }
-    } catch (error) {
-      console.error("Error creating entry:", error);
+    console.log("Creating new manual entry with payload:", payload);
+    
+    const response = await tourDiaryService.saveOrUpdateManualEntry(payload);
+    
+    console.log("API Response:", response);
+    
+    // Check for success (response has id or message indicates success)
+    if (response && (response.id || response.message === "Tour saved successfully")) {
       setSnackbar({ 
         open: true, 
-        message: error.message || "Failed to add tour entry", 
+        message: response.message || "Tour entry added successfully", 
+        severity: "success" 
+      });
+      setManualEntryOpen(false);
+      await fetchUserTourEntries();
+      closeDayModal();
+    } else {
+      setSnackbar({ 
+        open: true, 
+        message: response.message || "Failed to add tour entry", 
         severity: "error" 
       });
-    } finally {
-      setSubmitting(false);
     }
-  };
+  } catch (error) {
+    console.error("Error creating entry:", error);
+    setSnackbar({ 
+      open: true, 
+      message: error.message || "Failed to add tour entry", 
+      severity: "error" 
+    });
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   const closeDayModal = () => {
     setDayModalOpen(false);
@@ -671,116 +799,131 @@ const UserTourDiaryDetail = () => {
   };
 
   const renderEventList = (entries) => {
-    if (entries.length === 0) {
-      return (
-        <Alert severity="info" sx={{ mt: 2 }}>
-          No entries found for this category.
-        </Alert>
-      );
-    }
-
+  if (entries.length === 0) {
     return (
-      <List sx={{ mt: 2 }}>
-        {entries.map((event, index) => (
-          <React.Fragment key={event.id || index}>
-            {index > 0 && <Divider />}
-            <ListItem>
-              <ListItemText
-                primary={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                    <EventIcon fontSize="small" color="action" />
-                    <Typography variant="body2" color="text.secondary">
-                      {new Date(event.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Typography>
-                    <Chip 
-                      label={event.reportEntryType} 
-                      size="small"
-                      sx={{
-                        backgroundColor: event.reportEntryType === "SYSTEM" ? '#2196f3' : '#ff9800',
-                        color: 'white',
-                        fontSize: '0.7rem'
-                      }}
-                    />
-                  </Box>
-                }
-                secondary={
-                  <Box sx={{ mt: 0.5 }}>
-                    {event.purposeName && (
-                      <Typography variant="body2" color="text.secondary">
-                        <strong>Purpose:</strong> {event.purposeName}
-                      </Typography>
-                    )}
-                    {event.zoneId && (
-                      <Typography variant="body2" color="text.secondary">
-                        <strong>Zone ID:</strong> {event.zoneId}
-                      </Typography>
-                    )}
-                    {event.clusterId && (
-                      <Typography variant="body2" color="text.secondary">
-                        <strong>Cluster ID:</strong> {event.clusterId}
-                      </Typography>
-                    )}
-                    {event.cropName && (
-                      <Typography variant="body2" color="text.secondary">
-                        <strong>Crop:</strong> {event.cropName}
-                      </Typography>
-                    )}
-                    {event.distance && (
-                      <Typography variant="body2" color="text.secondary">
-                        <strong>Distance:</strong> {event.distance} km
-                      </Typography>
-                    )}
-                    {event.hours && (
-                      <Typography variant="body2" color="text.secondary">
-                        <strong>Hours:</strong> {event.hours}
-                      </Typography>
-                    )}
-                    {event.remark && (
-                      <Typography variant="body2" color="text.secondary">
-                        <strong>Remark:</strong> {event.remark}
-                      </Typography>
-                    )}
-                    {event.geoLocation && (
-                      <Typography variant="body2" color="text.secondary">
-                        <strong>Location:</strong> {event.geoLocation}
-                      </Typography>
-                    )}
-                  </Box>
-                }
-              />
-              <ListItemSecondaryAction>
-                <IconButton
-                  edge="end"
-                  onClick={() => handleViewEntryDetails(event)}
-                  sx={{
-                    color: theme.palette.primary.main,
-                    '&:hover': {
-                      backgroundColor: theme.palette.primary.light + '20'
-                    }
-                  }}
-                >
-                  <VisibilityIcon />
-                </IconButton>
-                <IconButton
-                  edge="end"
-                  onClick={() => handleEditEntry(event)}
-                  sx={{
-                    color: theme.palette.warning.main,
-                    '&:hover': {
-                      backgroundColor: theme.palette.warning.light + '20'
-                    },
-                    ml: 1
-                  }}
-                >
-                  <EditIcon />
-                </IconButton>
-              </ListItemSecondaryAction>
-            </ListItem>
-          </React.Fragment>
-        ))}
-      </List>
+      <Alert severity="info" sx={{ mt: 2 }}>
+        No entries found for this category.
+      </Alert>
     );
-  };
+  }
+
+  return (
+    <List sx={{ mt: 2 }}>
+      {entries.map((event, index) => (
+        <React.Fragment key={event.id || index}>
+          {index > 0 && <Divider />}
+          <ListItem>
+            <ListItemText
+              primary={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                  <EventIcon fontSize="small" color="action" />
+                  <Typography variant="body2" color="text.secondary">
+                    {new Date(event.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Typography>
+                  <Chip 
+                    label={event.reportEntryType} 
+                    size="small"
+                    sx={{
+                      backgroundColor: event.reportEntryType === "SYSTEM" ? '#2196f3' : '#ff9800',
+                      color: 'white',
+                      fontSize: '0.7rem'
+                    }}
+                  />
+                </Box>
+              }
+              secondary={
+                <Box sx={{ mt: 0.5 }}>
+                  {event.purposeName && (
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Purpose:</strong> {event.purposeName}
+                    </Typography>
+                  )}
+                  {event.zoneName && (
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Zone Name:</strong> {event.zoneName}
+                    </Typography>
+                  )}
+                  {event.zoneId && (
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Zone ID:</strong> {event.zoneId}
+                    </Typography>
+                  )}
+                  {event.clusterId && (
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Cluster ID:</strong> {event.clusterId}
+                    </Typography>
+                  )}
+                  {event.clusterNo && (
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Cluster No:</strong> {event.clusterNo}
+                    </Typography>
+                  )}
+                  {event.cropName && (
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Crop:</strong> {event.cropName}
+                    </Typography>
+                  )}
+                  {event.distance && (
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Distance:</strong> {event.distance} km
+                    </Typography>
+                  )}
+                  {event.hours && (
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Hours:</strong> {event.hours}
+                    </Typography>
+                  )}
+                  {event.landType && (
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Land Type:</strong> {event.landType}
+                    </Typography>
+                  )}
+                  {event.remark && (
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Remark:</strong> {event.remark}
+                    </Typography>
+                  )}
+                  {event.geoLocation && (
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Location:</strong> {event.geoLocation}
+                    </Typography>
+                  )}
+                </Box>
+              }
+            />
+            <ListItemSecondaryAction>
+              <IconButton
+                edge="end"
+                onClick={() => handleViewEntryDetails(event)}
+                sx={{
+                  color: theme.palette.primary.main,
+                  '&:hover': {
+                    backgroundColor: theme.palette.primary.light + '20'
+                  }
+                }}
+              >
+                <VisibilityIcon />
+              </IconButton>
+              <IconButton
+                edge="end"
+                onClick={() => handleEditEntry(event)}
+                sx={{
+                  color: theme.palette.warning.main,
+                  '&:hover': {
+                    backgroundColor: theme.palette.warning.light + '20'
+                  },
+                  ml: 1
+                }}
+              >
+                <EditIcon />
+              </IconButton>
+            </ListItemSecondaryAction>
+          </ListItem>
+        </React.Fragment>
+      ))}
+    </List>
+  );
+};
 
   if (!currentUserId) {
     return (
@@ -921,6 +1064,23 @@ const UserTourDiaryDetail = () => {
                 >
                   Prev
                 </Button>
+
+                {/* NEW SUBMIT MONTH BUTTON */}
+
+    <Button
+      variant="contained"
+      onClick={handleSubmitMonth}
+      disabled={!canSubmitMonth() || submittingMonth}
+      sx={{
+        backgroundColor: '#27ae60',
+        '&:hover': { backgroundColor: '#229954' },
+        whiteSpace: 'nowrap',
+        minWidth: '120px'
+      }}
+      startIcon={submittingMonth ? <CircularProgress size={20} color="inherit" /> : null}
+    >
+      {submittingMonth ? "Submitting..." : "Submit Month"}
+    </Button>
                 <Button
                   variant="contained"
                   onClick={() => handleMonthChange(1)}
@@ -935,6 +1095,12 @@ const UserTourDiaryDetail = () => {
                 </Button>
               </Box>
             </Box>
+            {/* Add submission status message */}
+{/* {!canSubmitMonth() && (
+  <Alert severity="info" sx={{ mb: 2 }}>
+    {getSubmissionStatusMessage()}
+  </Alert>
+)} */}
 
             <Box
               sx={{
@@ -999,11 +1165,11 @@ const UserTourDiaryDetail = () => {
               <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
             )}
 
-            {!loading && !error && tourEntries.length === 0 && (
+            {/* {!loading && !error && tourEntries.length === 0 && (
               <Alert severity="info" sx={{ mb: 2 }}>
                 No tour entries found for this user in {monthNames[selectedMonth - 1]} {selectedYear}.
               </Alert>
-            )}
+            )} */}
 
             {!loading && !error && (
               <>
@@ -1208,6 +1374,15 @@ const UserTourDiaryDetail = () => {
                   <Typography variant="body2" color="text.secondary">Zone ID</Typography>
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>
                     {selectedEntry.zoneId}
+                  </Typography>
+                </Grid>
+              )}
+
+              {selectedEntry.zoneName && (
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary">Zone Name</Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {selectedEntry.zoneName}
                   </Typography>
                 </Grid>
               )}
@@ -1454,8 +1629,8 @@ const UserTourDiaryDetail = () => {
                   label="Zone"
                 >
                   {zones.map((zone) => (
-                    <MenuItem key={zone.id} value={zone.id}>
-                      {zone.zoneName || zone.name || `Zone ${zone.id}`}
+                    <MenuItem key={zone.zoneId} value={zone.zoneId}>
+                      {zone.zoneName || zone.name || `Zone ${zone.zoneId}`}
                     </MenuItem>
                   ))}
                 </Select>
@@ -1492,9 +1667,8 @@ const UserTourDiaryDetail = () => {
                   onChange={(e) => setEditFormData({ ...editFormData, landType: e.target.value })}
                   label="Land Type"
                 >
-                  <MenuItem value="Wet">Wet</MenuItem>
-                  <MenuItem value="Dry">Dry</MenuItem>
-                  <MenuItem value="Garden">Garden</MenuItem>
+                  <MenuItem value="WET">WET</MenuItem>
+                  <MenuItem value="DRY">DRY</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -1652,8 +1826,8 @@ const UserTourDiaryDetail = () => {
                     <MenuItem disabled>Loading zones...</MenuItem>
                   ) : (
                     zones.map((zone) => (
-                      <MenuItem key={zone.id} value={zone.id}>
-                        {zone.zoneName || zone.name || `Zone ${zone.id}`}
+                      <MenuItem key={zone.id} value={zone.zoneId}>
+                        {zone.zoneName || zone.name || `Zone ${zone.zoneId}`}
                       </MenuItem>
                     ))
                   )}
@@ -1691,9 +1865,8 @@ const UserTourDiaryDetail = () => {
                   onChange={(e) => setManualFormData({ ...manualFormData, landType: e.target.value })}
                   label="Land Type"
                 >
-                  <MenuItem value="Wet">Wet</MenuItem>
-                  <MenuItem value="Dry">Dry</MenuItem>
-                  <MenuItem value="Garden">Garden</MenuItem>
+                  <MenuItem value="WET">WET</MenuItem>
+                  <MenuItem value="DRY">DRY</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -1780,6 +1953,76 @@ const UserTourDiaryDetail = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* ZONE SELECTION DIALOG FOR SUBMISSION */}
+<Modal
+  open={submitDialogOpen}
+  onClose={() => setSubmitDialogOpen(false)}
+  sx={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  }}
+>
+  <Card
+    sx={{
+      width: '90%',
+      maxWidth: '500px',
+      padding: 3,
+      borderRadius: 2,
+      backgroundColor: theme.palette.background.paper,
+      boxShadow: theme.shadows[24]
+    }}
+  >
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Typography variant="h4" sx={{ color: theme.palette.text.primary }}>
+        Select Zone for Submission
+      </Typography>
+      <IconButton onClick={() => setSubmitDialogOpen(false)} size="small">
+        <CloseIcon />
+      </IconButton>
+    </Box>
+
+    <Divider sx={{ mb: 2 }} />
+
+    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+      Multiple zones found for this user. Please select the zone for {monthNames[selectedMonth - 1]} {selectedYear} submission.
+    </Typography>
+
+    <List>
+      {availableZones.map((zone) => (
+        <React.Fragment key={zone.zoneId}>
+          <ListItem
+            button
+            onClick={() => performSubmitMonth(zone.zoneId)}
+            sx={{
+              borderRadius: 1,
+              mb: 1,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover
+              }
+            }}
+          >
+            <ListItemText
+              primary={zone.zoneName || `Zone ${zone.zoneId}`}
+              secondary={`Zone ID: ${zone.zoneId}`}
+            />
+          </ListItem>
+          <Divider />
+        </React.Fragment>
+      ))}
+    </List>
+
+    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
+      <Button
+        variant="outlined"
+        onClick={() => setSubmitDialogOpen(false)}
+      >
+        Cancel
+      </Button>
+    </Box>
+  </Card>
+</Modal>
     </Grid>
   );
 };
