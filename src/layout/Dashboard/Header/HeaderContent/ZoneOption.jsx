@@ -26,6 +26,8 @@ export default function ZoneOptions() {
 useEffect(() => {
   const token = localStorage.getItem('token');
 
+  if (!token || !user_id) return;
+
   axios
     .get(`${BASE_URL}/btr-service/btr-api/zones/assigned/${user_id}`, {
       headers: {
@@ -33,37 +35,55 @@ useEffect(() => {
       },
     })
     .then((response) => {
-      const data = response.data;
+      const data = response.data || [];
       setZones(data);
 
-      if (data.length > 0) {
-        const savedZone = localStorage.getItem('activeZone');
+      // 🚨 CASE 1: No zones assigned
+      if (data.length === 0) {
+        setZone('');
+        localStorage.removeItem('activeZone');
+        localStorage.removeItem('activeDistId');
+        return;
+      }
 
-        let selectedZoneObj;
+      const savedZone = localStorage.getItem('activeZone');
 
-        if (savedZone) {
-          selectedZoneObj = data.find(
-            (z) => z.zoneId.toString() === savedZone
-          );
-        }
+      // ✅ Validate saved zone
+      const selectedZoneObj = data.find(
+        (z) => z.zoneId.toString() === savedZone
+      );
 
-        // fallback to first zone
-        if (!selectedZoneObj) {
-          selectedZoneObj = data[0];
-        }
+      let finalZone;
 
-        setZone(selectedZoneObj.zoneId.toString());
+      if (savedZone && selectedZoneObj) {
+        // ✅ valid zone
+        finalZone = selectedZoneObj;
+      } else {
+        // ❌ invalid / removed zone → fallback
+        finalZone = data[0];
 
-        // 🔑 SAVE BOTH
-        localStorage.setItem('activeZone', selectedZoneObj.zoneId.toString());
-        localStorage.setItem(
-          'activeDistId',
-          selectedZoneObj.dist_id.toString()
+        console.warn(
+          '⚠️ Stored zone is invalid or removed. Resetting to default.'
         );
       }
+
+      // ✅ Set state
+      setZone(finalZone.zoneId.toString());
+
+      // 🔑 Sync localStorage with backend truth
+      localStorage.setItem('activeZone', finalZone.zoneId.toString());
+      localStorage.setItem(
+        'activeDistId',
+        finalZone.dist_id.toString()
+      );
     })
     .catch((error) => {
       console.error('Error fetching zones:', error);
+
+      // 🚨 Optional: clear invalid state on error
+      setZone('');
+      localStorage.removeItem('activeZone');
+      localStorage.removeItem('activeDistId');
     });
 }, [BASE_URL, user_id]);
 

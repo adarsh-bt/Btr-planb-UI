@@ -923,7 +923,7 @@ const hasDuplicateClusterNumbers = () => {
         {!loading && dataVisible && (
           <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
             {/* Panchayath Summary and Search */}
-            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
               {panchayathAreaSummary.map((item, index) => (
                   <Chip
                     key={index}
@@ -936,22 +936,8 @@ const hasDuplicateClusterNumbers = () => {
 
 
               <Box sx={{ display: 'flex', gap: 2, ml: { xs: 0, sm: 2 }, mt: { xs: 2, sm: 0 } }}>
-                <Chip label="AY 2025 - 2026" variant="outlined" color="info" />
-                <TextField
-                  label="Search Data"
-                  variant="outlined"
-                  size="small"
-                  value={searchTerm}
-                  onChange={handleSearchChange}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon />
-                      </InputAdornment>
-                    )
-                  }}
-                  sx={{ width: '100%', maxWidth: '250px' }}
-                />
+                {/* <Chip label="AY 2025 - 2026" variant="outlined" color="info" /> */}
+                
               </Box>
             </Box>
 
@@ -995,6 +981,15 @@ const hasDuplicateClusterNumbers = () => {
             <Divider />
 
             {/* Table */}
+            <Box
+  sx={{
+    display: "flex",
+    justifyContent: "space-between", 
+    alignItems: "center",
+    flexWrap: "wrap",        
+    gap: 2
+  }}
+>
 <Button
   variant="contained"
   color="primary"
@@ -1030,6 +1025,23 @@ const hasDuplicateClusterNumbers = () => {
 >
   Submit Cluster number
 </Button>
+<TextField
+                  label="Search Data"
+                  variant="outlined"
+                  size="small"
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                    )
+                  }}
+                  sx={{ width: '100%', maxWidth: '250px' }}
+                />
+
+               </Box> 
     <TableContainer component={Paper} sx={{ maxHeight: '50%', border: '1px solid #e0e0e0', borderRadius: 1 }}>
   <Table stickyHeader sx={{ tableLayout: 'fixed' }}>
     <TableHead>

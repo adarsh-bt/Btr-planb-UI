@@ -1251,7 +1251,7 @@ const hasValidRow = (keyplot) => {
 
             setSnackbarMessage("CCE crops saved successfully!");
             setSnackbarOpen(true);
-            // setCropsModalOpen(false);
+            setCropsModalOpen(false);
 
         } catch (error) {
             console.error('Error saving CCE crops:', error);
@@ -2447,14 +2447,14 @@ const validateSidePlotLabels = () => {
 
 
                 <Dialog open={isCropsModalOpen} onClose={() => setCropsModalOpen(false)} maxWidth="md" fullWidth>
-                    <DialogTitle>
+                    <DialogTitle sx={{background:"#05307a", color: 'white'}}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <GrassIcon />
                             <Typography variant="h6">Select CCE Crops</Typography>
                         </Box>
                     </DialogTitle>
                     <DialogContent>
-                        <DialogContentText sx={{ mb: 2 }}>
+                        <DialogContentText sx={{ my: 2 }}>
                             Please select the crops for Crop Cutting Experiment (CCE). Only active crops are available for selection.
                         </DialogContentText>
 

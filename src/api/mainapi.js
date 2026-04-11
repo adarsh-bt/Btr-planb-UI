@@ -3,10 +3,10 @@ class mainapi {
 
   // Main API
 
-  //   static BASE_URL = 'http://65.2.110.20:8080';
-  //     static USER_API = 'http://65.2.110.20:8080';
-  // static BTR_API = 'http://65.2.110.20:8080';
-  // static FORM_API = 'http://65.2.110.20:8080';
+    static BASE_URL = 'http://65.2.110.20:8080';
+      static USER_API = 'http://65.2.110.20:8080';
+  static BTR_API = 'http://65.2.110.20:8080';
+  static FORM_API = 'http://65.2.110.20:8080';
   // static BASE_URL = 'http://3.108.98.206:8080';
   // 
   // // User API
@@ -21,10 +21,10 @@ class mainapi {
   // static USER_API = 'http://localhost:8080';
   // static BTR_API = 'http://localhost:8080';
   // static FORM_API = 'http://localhost:8080';
-   static BASE_URL = 'http://103.156.188.49:8080';
-  static USER_API = 'http://103.156.188.49:8080';
-  static BTR_API = 'http://103.156.188.49:8080';
-  static FORM_API = 'http://103.156.188.49:8080';
+  //  static BASE_URL = 'http://103.156.188.49:8080';
+  // static USER_API = 'http://103.156.188.49:8080';
+  // static BTR_API = 'http://103.156.188.49:8080';
+  // static FORM_API = 'http://103.156.188.49:8080';
 
   //   static BASE_URL = 'http://10.5.140.206:8080';
   // static USER_API = 'http://10.5.140.206:8080';
