@@ -981,10 +981,10 @@ const role = authservice.getrole();
               </Card>
             </Grid> */}
 
-            {/* <Grid item xs={12} sm={4} md={3} lg={3}>
+            <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                to="/schemes/earas/zonesettings"
+                to="/schemes/earas/earas_management"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',
@@ -1034,7 +1034,7 @@ const role = authservice.getrole();
                   </CardContent>
                 </Box>
               </Card>
-            </Grid> */}
+            </Grid>
 
             {/* {canViewCCE && ( */}
             {/* <Grid item xs={12} sm={4} md={3} lg={3}>

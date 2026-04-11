@@ -227,6 +227,22 @@ class approvalservice {
     }
   }
 
+  static async selectedrolesBySchems(schemeId) {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${approvalservice.USER_URL}/user-access/api/user-approval/fetch/schemes/${schemeId}/rolespermissions`, {
+        headers: {
+          Authorization: `Bearer ${token}` // Ensure token is included
+        }
+      });
+      return response.data; // Return response data on success
+    } catch (err) {
+      return {
+        message: err.response ? err.response.data.message : 'An error occurred'
+      }; // Return error message if the API call fails
+    }
+  }
+
   // end
 
   // zone services

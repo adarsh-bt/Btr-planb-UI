@@ -5,8 +5,7 @@ import router from 'routes';
 import ThemeCustomization from 'themes';
 
 import ScrollTop from 'components/ScrollTop';
-
-// import { UserAccessProvider } from './contexts/auth-reducer/universal/UserAccessContext';
+// import { PermissionProvider } from 'contexts/PermissionContext';
 
 
 
@@ -15,11 +14,11 @@ import ScrollTop from 'components/ScrollTop';
 export default function App() {
   return (
     <ThemeCustomization>
-      {/* <UserAccessProvider> */}
+      {/* <PermissionProvider> */}
         <ScrollTop>
           <RouterProvider router={router} />
-        </ScrollTop>
-      {/* </UserAccessProvider> */}
+      </ScrollTop>
+      {/* </PermissionProvider> */}
     </ThemeCustomization>
   );
 }

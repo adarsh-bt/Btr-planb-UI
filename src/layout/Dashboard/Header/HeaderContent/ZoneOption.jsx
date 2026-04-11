@@ -13,6 +13,7 @@ import Button from '@mui/material/Button';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import mainapi from 'api/mainapi';
 import authservice from 'pages/authentication/services/authservice';
+import { useNavigate } from "react-router-dom";
 
 export default function ZoneOptions() {
   const [zones, setZones] = useState([]);
@@ -21,7 +22,7 @@ export default function ZoneOptions() {
   const [pendingZone, setPendingZone] = useState('');
   const BASE_URL = mainapi.BTR_API;
   const user_id = authservice.userid();
-  
+  const navigate = useNavigate();
   // Fetch zones and restore last selected zone
 useEffect(() => {
   const token = localStorage.getItem('token');
@@ -113,7 +114,9 @@ const handleConfirmSwitch = () => {
   }
 
   setOpenDialog(false);
-  window.location.reload();
+
+  navigate('/schemes/earas');
+
 };
 
 
