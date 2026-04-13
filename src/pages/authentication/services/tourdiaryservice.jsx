@@ -240,7 +240,7 @@ async submitTourHalf(data) {
 
   // Add these methods to your existing tourDiaryService object
 
-// ✅ Get admin submission details for a specific user, year, and month
+// ✅ Get admin submission details for a specific user, year, and month for Advanced tour diary
 async getAdminSubmissionDetails(userId, year, month) {
   const token = localStorage.getItem('token');
 
@@ -468,6 +468,54 @@ async submitFullMonth(userId, month, year, zoneId) {
       message: err.response?.data?.message || err.message || "Failed to submit month",
       status: err.response?.status
     };
+  }
+},
+
+// Get full year view with month statuses
+async getFullYearView(userId, year) {
+  const token = localStorage.getItem('token');
+  
+  try {
+    const response = await axios.get(
+      `${this.DIARY_URL}/tour-diary/api/purposes/admin/full-year-view`,
+      {
+        params: { userId, year },
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching full year view:", error);
+    return { error: true, message: error.response?.data?.message || error.message };
+  }
+},
+
+// Approve full month submission
+async approveFullMonth(fullMonthId, adminId, adminRemark, adminStatus) {
+  const token = localStorage.getItem('token');
+  
+  try {
+    const response = await axios.post(
+      `${this.DIARY_URL}/tour-diary/api/purposes/admin/full-month-submit`,
+      {
+        id: fullMonthId,
+        adminId: adminId,
+        adminRemark: adminRemark,
+        adminStatus: adminStatus
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error approving month:", error);
+    return { error: true, message: error.response?.data?.message || error.message };
   }
 }
 

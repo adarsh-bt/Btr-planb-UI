@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
+  Snackbar,
   Grid,
   Paper,
   Typography,
@@ -16,7 +17,10 @@ import {
   Modal,
   Card,
   CardContent,
-  CircularProgress
+  CircularProgress,
+  TextField,
+  Tabs,
+  Tab
 } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
@@ -27,6 +31,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import tourDiaryService from "pages/authentication/services/tourdiaryservice";
 import Breadcrumb from "routes/Breadcrumb";
 import MainCard from "components/MainCard";
+import authservice from "pages/authentication/services/authservice";
 
 const UserTourDiaryDetail = () => {
   const theme = useTheme();
@@ -56,6 +61,20 @@ const UserTourDiaryDetail = () => {
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
   ];
+
+  // Add these state variables
+  const [fullMonthStatus, setFullMonthStatus] = useState(null);
+  const [approvalModalOpen, setApprovalModalOpen] = useState(false);
+  const [approvingMonth, setApprovingMonth] = useState(false);
+  const [adminRemark, setAdminRemark] = useState("");
+  const [selectedFullMonthId, setSelectedFullMonthId] = useState(null);
+
+  // ADD THIS MISSING STATE - Snackbar for notifications
+  const [snackbar, setSnackbar] = useState({ 
+    open: false, 
+    message: "", 
+    severity: "info" 
+  });
 
   // Fetch tour entries
   const fetchUserTourEntries = async () => {
@@ -178,6 +197,233 @@ const UserTourDiaryDetail = () => {
       }
     }).length;
   };
+
+  // Fetch full month status for the current month
+const fetchFullMonthStatus = async () => {
+  if (!userId) return;
+  
+  try {
+    const response = await tourDiaryService.getFullYearView(userId, selectedYear);
+    
+    if (response && !response.error && Array.isArray(response)) {
+      const currentMonthData = response.find(
+        item => item.month === selectedMonth && item.year === selectedYear
+      );
+      
+      if (currentMonthData) {
+        setFullMonthStatus(currentMonthData);
+      } else {
+        setFullMonthStatus(null);
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching month status:", error);
+  }
+};
+
+// Handle approve button click
+const handleApproveClick = () => {
+  if (!fullMonthStatus || !fullMonthStatus.fullMonthId) {
+    setSnackbar({ 
+      open: true, 
+      message: "No submission found for this month to approve", 
+      severity: "warning" 
+    });
+    return;
+  }
+  
+  if (fullMonthStatus.status !== "SUBMIT") {
+    setSnackbar({ 
+      open: true, 
+      message: `Month is in ${fullMonthStatus.status || "DRAFT"} status. Only SUBMITTED months can be approved.`, 
+      severity: "warning" 
+    });
+    return;
+  }
+  
+  setSelectedFullMonthId(fullMonthStatus.fullMonthId);
+  setAdminRemark("");
+  setApprovalModalOpen(true);
+};
+
+// Perform the approval
+// Perform the approval - FIXED VERSION
+const performApproval = async () => {
+  const adminId = authservice.userid();
+  
+  if (!adminId) {
+    setSnackbar({ 
+      open: true, 
+      message: "Admin ID not found. Please login again.", 
+      severity: "error" 
+    });
+    return;
+  }
+  
+  if (!selectedFullMonthId) {
+    setSnackbar({ 
+      open: true, 
+      message: "No month selected for approval", 
+      severity: "error" 
+    });
+    return;
+  }
+  
+  setApprovingMonth(true);
+  
+  try {
+    const response = await tourDiaryService.approveFullMonth(
+      selectedFullMonthId,
+      adminId,
+      adminRemark || "Approved by admin",
+      "APPROVED"
+    );
+    
+    console.log("Approval response:", response);
+    
+    // Check if response has error property
+    if (response && response.error === true) {
+      setSnackbar({ 
+        open: true, 
+        message: response.message || "Failed to approve month", 
+        severity: "error" 
+      });
+    } 
+    // Check if response is a success message string
+    else if (typeof response === 'string' && response.includes("successfully")) {
+      setSnackbar({ 
+        open: true, 
+        message: response, 
+        severity: "success" 
+      });
+      setApprovalModalOpen(false);
+      // Refresh the month status
+      await fetchFullMonthStatus();
+      // Refresh tour entries
+      await fetchUserTourEntries();
+    }
+    // Check if response has data property
+    else if (response && response.data && typeof response.data === 'string') {
+      setSnackbar({ 
+        open: true, 
+        message: response.data, 
+        severity: "success" 
+      });
+      setApprovalModalOpen(false);
+      await fetchFullMonthStatus();
+      await fetchUserTourEntries();
+    }
+    // Handle other success cases
+    else if (response && !response.error) {
+      setSnackbar({ 
+        open: true, 
+        message: "Month approved successfully", 
+        severity: "success" 
+      });
+      setApprovalModalOpen(false);
+      await fetchFullMonthStatus();
+      await fetchUserTourEntries();
+    }
+    else {
+      throw new Error("Invalid response from server");
+    }
+  } catch (error) {
+    console.error("Error approving month:", error);
+    setSnackbar({ 
+      open: true, 
+      message: error.message || "An error occurred during approval", 
+      severity: "error" 
+    });
+  } finally {
+    setApprovingMonth(false);
+  }
+};
+
+// Add this function to close snackbar
+const handleCloseSnackbar = () => {
+  setSnackbar({ ...snackbar, open: false });
+};
+
+// Add Approval Modal Component
+const ApprovalModal = () => (
+  <Modal
+    open={approvalModalOpen}
+    onClose={() => setApprovalModalOpen(false)}
+    sx={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }}
+  >
+    <Card
+      sx={{
+        width: '90%',
+        maxWidth: '500px',
+        padding: 3,
+        borderRadius: 2,
+        backgroundColor: theme.palette.background.paper,
+        boxShadow: theme.shadows[24]
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h4" sx={{ color: theme.palette.text.primary }}>
+          Approve Month
+        </Typography>
+        <IconButton onClick={() => setApprovalModalOpen(false)} size="small">
+          <CloseIcon />
+        </IconButton>
+      </Box>
+
+      <Divider sx={{ mb: 2 }} />
+
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        Are you sure you want to approve the tour diary for {monthNames[selectedMonth - 1]} {selectedYear}?
+      </Typography>
+      
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        User: {userDetails?.name || 'N/A'}
+      </Typography>
+
+      <TextField
+        fullWidth
+        label="Admin Remark (Optional)"
+        multiline
+        rows={3}
+        value={adminRemark}
+        onChange={(e) => setAdminRemark(e.target.value)}
+        sx={{ mb: 2 }}
+      />
+      
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
+        <Button
+          variant="outlined"
+          onClick={() => setApprovalModalOpen(false)}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={performApproval}
+          disabled={approvingMonth}
+          sx={{
+            backgroundColor: '#8e44ad',
+            '&:hover': { backgroundColor: '#6c3483' }
+          }}
+        >
+          {approvingMonth ? <CircularProgress size={24} /> : "Confirm Approval"}
+        </Button>
+      </Box>
+    </Card>
+  </Modal>
+);
+
+useEffect(() => {
+  if (userId && selectedYear) {
+    fetchFullMonthStatus();
+  }
+}, [userId, selectedMonth, selectedYear]);
+
+
 
   const isSunday = (year, month, day) => {
     const date = new Date(year, month - 1, day);
@@ -314,6 +560,46 @@ const UserTourDiaryDetail = () => {
     return calendarDays;
   };
 
+  // Group events by reportEntryType
+  const groupEventsByEntryType = (events) => {
+    const groups = {};
+    events.forEach(event => {
+      const entryType = event.reportEntryType || "MANUAL"; // Default to "USER" if not specified
+      if (!groups[entryType]) {
+        groups[entryType] = [];
+      }
+      groups[entryType].push(event);
+    });
+    return groups;
+  };
+
+  // Get unique entry types for tabs
+  const getUniqueEntryTypes = (events) => {
+    const types = new Set();
+    events.forEach(event => {
+      types.add(event.reportEntryType || "MANUAL");
+    });
+    return Array.from(types).sort();
+  };
+
+  // Get tab label with count
+  const getTabLabel = (entryType, count) => {
+    let displayName = entryType;
+    if (entryType === "SYSTEM") displayName = "System Generated";
+    // if (entryType === "USER") displayName = "User Entered";
+    if (entryType === "MANUAL") displayName = "Manual Entry";
+    return `${displayName} (${count})`;
+  };
+
+  // Get chip color based on entry type
+  const getChipColor = (entryType) => {
+    if (entryType === "SYSTEM") {
+      return { bg: '#e3f2fd', color: '#1976d2' }; // Blue for system
+    } else {
+      return { bg: '#fff3e0', color: '#ed6c02' }; // Orange for manual
+    }
+  };
+
   const renderEventList = () => {
     if (selectedDayEvents.length === 0) {
       return (
@@ -323,59 +609,198 @@ const UserTourDiaryDetail = () => {
       );
     }
 
+    const groupedEvents = groupEventsByEntryType(selectedDayEvents);
+    const entryTypes = getUniqueEntryTypes(selectedDayEvents);
+
+    // If only one type, show simple list without tabs
+    if (entryTypes.length === 1) {
+      const events = groupedEvents[entryTypes[0]];
+      return (
+        <List sx={{ mt: 2 }}>
+          {events.map((event, index) => (
+            <React.Fragment key={event.id || index}>
+              {index > 0 && <Divider />}
+              <ListItem>
+                <ListItemText
+                  primary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                      <EventIcon fontSize="small" color="action" />
+                      <Typography variant="body2" color="text.secondary">
+                        {new Date(event.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </Typography>
+                      {event.reportEntryType && (
+                        <Chip
+                          label={event.reportEntryType === "SYSTEM" ? "System" : "User"}
+                          size="small"
+                          sx={{
+                            backgroundColor: event.reportEntryType === "SYSTEM" ? '#e3f2fd' : '#f3e5f5',
+                            fontSize: '0.7rem',
+                            height: '20px'
+                          }}
+                        />
+                      )}
+                    </Box>
+                  }
+                  secondary={
+                    <Box sx={{ mt: 0.5 }}>
+                      {event.purposeName && (
+                        <Typography variant="body2" color="text.secondary">
+                          <strong>Purpose:</strong> {event.purposeName}
+                        </Typography>
+                      )}
+                      {event.zoneName && (
+                        <Typography variant="body2" color="text.secondary">
+                          <strong>Zone:</strong> {event.zoneName}
+                        </Typography>
+                      )}
+                      {event.clusterNo && (
+                        <Typography variant="body2" color="text.secondary">
+                          <strong>Cluster:</strong> {event.clusterNo}
+                        </Typography>
+                      )}
+                      {event.landType && (
+                        <Typography variant="body2" color="text.secondary">
+                          <strong>Land Type:</strong> {event.landType}
+                        </Typography>
+                      )}
+                      {event.remark && (
+                        <Typography variant="body2" color="text.secondary">
+                          <strong>Remark:</strong> {event.remark}
+                        </Typography>
+                      )}
+                    </Box>
+                  }
+                />
+                <ListItemSecondaryAction>
+                  <IconButton
+                    edge="end"
+                    onClick={() => handleViewEntryDetails(event)}
+                    sx={{
+                      color: theme.palette.primary.main,
+                      '&:hover': {
+                        backgroundColor: theme.palette.primary.light + '20'
+                      }
+                    }}
+                  >
+                    <VisibilityIcon />
+                  </IconButton>
+                </ListItemSecondaryAction>
+              </ListItem>
+            </React.Fragment>
+          ))}
+        </List>
+      );
+    }
+
+    // Multiple types - show tabs
     return (
-      <List sx={{ mt: 2 }}>
-        {selectedDayEvents.map((event, index) => (
-          <React.Fragment key={event.id || index}>
-            {index > 0 && <Divider />}
-            <ListItem>
-              <ListItemText
-                primary={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                    <EventIcon fontSize="small" color="action" />
-                    <Typography variant="body2" color="text.secondary">
-                      {new Date(event.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Typography>
-                  </Box>
-                }
-                secondary={
-                  <Box sx={{ mt: 0.5 }}>
-                    {event.purposeName && (
-                      <Typography variant="body2" color="text.secondary">
-                        <strong>Purpose:</strong> {event.purposeName}
-                      </Typography>
-                    )}
-                    {event.zoneName && (
-                      <Typography variant="body2" color="text.secondary">
-                        <strong>Zone:</strong> {event.zoneName}
-                      </Typography>
-                    )}
-                    {event.remark && (
-                      <Typography variant="body2" color="text.secondary">
-                        <strong>Remark:</strong> {event.remark}
-                      </Typography>
-                    )}
-                  </Box>
-                }
-              />
-              <ListItemSecondaryAction>
-                <IconButton
-                  edge="end"
-                  onClick={() => handleViewEntryDetails(event)}
-                  sx={{
-                    color: theme.palette.primary.main,
-                    '&:hover': {
-                      backgroundColor: theme.palette.primary.light + '20'
-                    }
-                  }}
-                >
-                  <VisibilityIcon />
-                </IconButton>
-              </ListItemSecondaryAction>
-            </ListItem>
-          </React.Fragment>
+      <Box sx={{ mt: 2 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(e, newValue) => setActiveTab(newValue)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            borderBottom: 1,
+            borderColor: 'divider',
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontWeight: 500
+            }
+          }}
+        >
+          {entryTypes.map((type, index) => (
+            <Tab
+              key={type}
+              label={getTabLabel(type, groupedEvents[type].length)}
+              id={`tab-${index}`}
+            />
+          ))}
+        </Tabs>
+
+        {entryTypes.map((type, index) => (
+          <Box
+            key={type}
+            role="tabpanel"
+            hidden={activeTab !== index}
+            id={`tabpanel-${index}`}
+          >
+            {activeTab === index && (
+              <List>
+                {groupedEvents[type].map((event, eventIndex) => (
+                  <React.Fragment key={event.id || eventIndex}>
+                    {eventIndex > 0 && <Divider />}
+                    <ListItem>
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                            <EventIcon fontSize="small" color="action" />
+                            <Typography variant="body2" color="text.secondary">
+                              {new Date(event.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </Typography>
+                            <Chip
+                              label={type === "SYSTEM" ? "System Generated" : "User Entered"}
+                              size="small"
+                              sx={{
+                                backgroundColor: type === "SYSTEM" ? '#e3f2fd' : '#f3e5f5',
+                                fontSize: '0.7rem',
+                                height: '20px'
+                              }}
+                            />
+                          </Box>
+                        }
+                        secondary={
+                          <Box sx={{ mt: 0.5 }}>
+                            {event.purposeName && (
+                              <Typography variant="body2" color="text.secondary">
+                                <strong>Purpose:</strong> {event.purposeName}
+                              </Typography>
+                            )}
+                            {event.zoneName && (
+                              <Typography variant="body2" color="text.secondary">
+                                <strong>Zone:</strong> {event.zoneName}
+                              </Typography>
+                            )}
+                            {event.clusterNo && (
+                              <Typography variant="body2" color="text.secondary">
+                                <strong>Cluster:</strong> {event.clusterNo}
+                              </Typography>
+                            )}
+                            {event.landType && (
+                              <Typography variant="body2" color="text.secondary">
+                                <strong>Land Type:</strong> {event.landType}
+                              </Typography>
+                            )}
+                            {event.remark && (
+                              <Typography variant="body2" color="text.secondary">
+                                <strong>Remark:</strong> {event.remark}
+                              </Typography>
+                            )}
+                          </Box>
+                        }
+                      />
+                      <ListItemSecondaryAction>
+                        <IconButton
+                          edge="end"
+                          onClick={() => handleViewEntryDetails(event)}
+                          sx={{
+                            color: theme.palette.primary.main,
+                            '&:hover': {
+                              backgroundColor: theme.palette.primary.light + '20'
+                            }
+                          }}
+                        >
+                          <VisibilityIcon />
+                        </IconButton>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  </React.Fragment>
+                ))}
+              </List>
+            )}
+          </Box>
         ))}
-      </List>
+      </Box>
     );
   };
 
@@ -470,6 +895,23 @@ const UserTourDiaryDetail = () => {
                 width: '350px',
                 justifyContent: 'flex-end'
               }}>
+
+                
+    <Button
+      variant="contained"
+      onClick={handleApproveClick}
+      disabled={!fullMonthStatus || fullMonthStatus.status !== "SUBMIT" || approvingMonth}
+      sx={{
+        backgroundColor: '#8e44ad',
+        '&:hover': { backgroundColor: '#6c3483' },
+        whiteSpace: 'nowrap',
+        minWidth: '100px'
+      }}
+      startIcon={approvingMonth ? <CircularProgress size={20} color="inherit" /> : null}
+      title={fullMonthStatus?.status === "SUBMIT" ? "Approve this month" : "Month not submitted yet"}
+    >
+      {approvingMonth ? "Approving..." : "Approve"}
+    </Button>
                 <Button
                   variant="contained"
                   onClick={() => handleMonthChange(-1)}
@@ -697,6 +1139,20 @@ const UserTourDiaryDetail = () => {
                   {new Date(selectedEntry.createdAt).toLocaleString('en-GB')}
                 </Typography>
               </Grid>
+
+              {selectedEntry.reportEntryType && (
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary">Entry Type</Typography>
+                  <Chip
+                    label={selectedEntry.reportEntryType === "SYSTEM" ? "System Generated" : "User Entered"}
+                    size="small"
+                    sx={{
+                      backgroundColor: selectedEntry.reportEntryType === "SYSTEM" ? '#e3f2fd' : '#f3e5f5',
+                      mt: 0.5
+                    }}
+                  />
+                </Grid>
+              )}
               
               {selectedEntry.purposeName && (
                 <Grid item xs={12}>
@@ -712,6 +1168,33 @@ const UserTourDiaryDetail = () => {
                   <Typography variant="body2" color="text.secondary">Zone</Typography>
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>
                     {selectedEntry.zoneName}
+                  </Typography>
+                </Grid>
+              )}
+
+              {selectedEntry.clusterNo && (
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary">Cluster Number</Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {selectedEntry.clusterNo}
+                  </Typography>
+                </Grid>
+              )}
+              
+              {selectedEntry.landType && (
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary">Land Type</Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {selectedEntry.landType}
+                  </Typography>
+                </Grid>
+              )}
+              
+              {selectedEntry.geoLocation && (
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary">Geo Location</Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {selectedEntry.geoLocation}
                   </Typography>
                 </Grid>
               )}
@@ -749,6 +1232,21 @@ const UserTourDiaryDetail = () => {
           </Box>
         </Card>
       </Modal>
+
+      {/* === ADD APPROVAL MODAL HERE (before closing Grid) === */}
+    <ApprovalModal />
+    
+    {/* === ADD SNACKBAR HERE (before closing Grid) === */}
+    <Snackbar 
+      open={snackbar.open} 
+      autoHideDuration={6000} 
+      onClose={handleCloseSnackbar}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+    >
+      <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+        {snackbar.message}
+      </Alert>
+    </Snackbar>
     </Grid>
   );
 };
