@@ -760,9 +760,8 @@ useEffect(() => {
   }
 }, [resolvedZoneId]);
 // Fetch local bodies when local body type changes
-
 useEffect(() => {
-  if (selectedTypeCode === 2 && !selectedLocalBodyType) {
+  if (selectedTypeCode === 2 && selectedLocalBodyType) {
     fetchAvailableLocalBodies();
   } else if (selectedTypeCode === 2 && !selectedLocalBodyType) {
     setAvailableLocalBodies([]);
@@ -771,6 +770,7 @@ useEffect(() => {
 // ================= FETCH BLOCK MAPPING =================
 const fetchBlockMapping = async () => {
   if (!resolvedZoneId) return;
+  
   setBlockMappingLoading(true);
   try {
     const token = localStorage.getItem("token");
@@ -782,6 +782,7 @@ const fetchBlockMapping = async () => {
     );
 
     if (!response.ok) throw new Error("Failed to fetch block mapping");
+
     const data = await response.json();
     console.log("Block mapping data:", data);
     
@@ -798,11 +799,7 @@ const fetchBlockMapping = async () => {
     setBlockMappingLoading(false);
   }
 };
-useEffect(() => {
-  if (selectedTypeCode === 1 && openBlockDialog) {
-    fetchAvailableBlocks();
-  }
-}, [selectedTypeCode, openBlockDialog]);
+
 // ================= FETCH AVAILABLE BLOCKS (Based on Zone's District) =================
 const fetchAvailableBlocks = async () => {
   if (!resolvedZoneId) return;
@@ -835,7 +832,6 @@ const fetchAvailableBlocks = async () => {
 
 // ================= FETCH AVAILABLE LOCAL BODIES BY TYPE =================
 const fetchAvailableLocalBodies = async () => {
-  console.log("Fetching local bodies for type:", selectedLocalBodyType, "and zoneId:", resolvedZoneId);
   if (!selectedLocalBodyType) {
     setAvailableLocalBodies([]);
     return;
@@ -1345,9 +1341,9 @@ useEffect(() => {
                 <Typography variant="body1">
                   {blockMapping.name}
                 </Typography>
-                {/* <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" color="text.secondary">
                   ID: {blockMapping.id}
-                </Typography> */}
+                </Typography>
               </TableCell>
               <TableCell>
                 <Chip 
