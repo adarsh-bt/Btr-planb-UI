@@ -48,7 +48,7 @@ import CelebrationIcon from '@mui/icons-material/Celebration';
 import InaugurationLandingPage from './InaugurationLandingPage';
 import TheatricalCurtain from './TheatricalCurtain';
 import InaugurationShowcase from './InaugurationShowcase';
-import { usePermissionContext } from 'contexts/PermissionContext';
+// import { usePermissionContext } from 'contexts/PermissionContext';
 
 
 
@@ -189,7 +189,7 @@ const SignInSide = () => {
     
 };
 const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
-    const { savePermissions } = usePermissionContext();
+    // const { savePermissions } = usePermissionContext();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
@@ -265,12 +265,12 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     //     }
 
                         const permissionsData = await permissionsResponse.json();
-                        savePermissions(permissionsData);
+                        // savePermissions(permissionsData);
                         setIsLoading(false);
                         window.location.href = '/';
                     } catch (permissionsError) {
                         console.error('Error fetching permissions:', permissionsError);
-                        setError(permissionsError.message || 'Failed to load permissions');
+                        // setError(permissionsError.message || 'Failed to load permissions');
                         setIsLoading(false);
                         // navigate('/');
                           window.location.href = '/';
@@ -341,7 +341,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     );
 
                     const permissionsData = await permissionsResponse.json();
-                    savePermissions(permissionsData);
+                    // savePermissions(permissionsData);
 
                     // Navigate to home
                     window.location.href = '/';
