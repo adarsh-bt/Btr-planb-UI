@@ -378,14 +378,14 @@ const handleSubmitMonth = async () => {
         hours: entry.hours || "",
         remark: entry.remark || "",
         reportEntryType: entry.reportEntryType,
-        schemeId: "",
-        purposeId: "",
-        zoneId: "",
-        clusterId: "",
-        seasonId: "",
-        landType: "",
-        cropName: "",
-        geoLocation: ""
+        // schemeId: "",
+        // purposeId: "",
+        // zoneId: "",
+        // clusterId: "",
+        // seasonId: "",
+        // landType: "",
+        // cropName: "",
+        // geoLocation: ""
       });
     } else {
       // MANUAL entry - all fields
@@ -429,6 +429,8 @@ const handleSubmitMonth = async () => {
         distance: editFormData.distance ? parseFloat(editFormData.distance) : null,
         hours: editFormData.hours ? parseFloat(editFormData.hours) : null
       };
+
+      console.log("🔧 Updating system entry with payload:", payload); // ✅ Added debug log
 
       const response = await tourDiaryService.updateSystemTourEntry(payload);
       

@@ -3,7 +3,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Grid,
   Typography,
-  Paper,
   Box,
   Table,
   TableBody,
@@ -17,12 +16,11 @@ import {
   IconButton,
   Tooltip,
   Button,
-  Breadcrumbs,
-  Link,
   TextField,
   Stack,
   InputAdornment,
-  TablePagination
+  TablePagination,
+  alpha
 } from '@mui/material';
 import MainCard from 'components/MainCard';
 import { useTheme } from '@mui/material/styles';
@@ -35,7 +33,6 @@ import RateReviewIcon from '@mui/icons-material/RateReview';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import HomeIcon from '@mui/icons-material/Home';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import StoreIcon from '@mui/icons-material/Store';
@@ -46,12 +43,10 @@ function ZoneClusterReport() {
   const navigate = useNavigate();
   const { districtName, talukName } = useParams();
   
-  // State for pagination and search
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   
-  // State for location details
   const [locationInfo, setLocationInfo] = useState({
     district: '',
     taluk: '',
@@ -62,9 +57,7 @@ function ZoneClusterReport() {
     underReview: 0
   });
 
-  // Sample zone/panchayat data based on district and taluk
   const getZoneData = (district, taluk) => {
-    // Enhanced sample data with more entries for pagination demonstration
     const zoneDataMap = {
       'thiruvananthapuram': {
         'neyyattinkara': [
@@ -147,7 +140,6 @@ function ZoneClusterReport() {
           { id: 3, zone: 'Aymanam', total: 5, completed: 0, ongoing: 0, notStarted: 0, underReview: 5}
         ]
       },
-      // Adding more districts for completeness
       'idukki': {
         'thodupuzha': [
           { id: 1, zone: 'Thodupuzha', total: 6, completed: 1, ongoing: 2, notStarted: 2, underReview: 1},
@@ -168,45 +160,63 @@ function ZoneClusterReport() {
     return zoneDataMap[district?.toLowerCase()]?.[taluk?.toLowerCase()] || [];
   };
 
-  // Get all zone data
   const allZoneData = useMemo(() => getZoneData(districtName, talukName), [districtName, talukName]);
 
-  // Filter data based on search term
   const filteredData = useMemo(() => {
-    if (!searchTerm.trim()) {
-      return allZoneData;
-    }
+    if (!searchTerm.trim()) return allZoneData;
     return allZoneData.filter(row => 
       row.zone.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [allZoneData, searchTerm]);
 
-  // Get current page data
   const paginatedData = useMemo(() => {
     const startIndex = page * rowsPerPage;
     return filteredData.slice(startIndex, startIndex + rowsPerPage);
   }, [filteredData, page, rowsPerPage]);
 
-  // Handle page change
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
-
-  // Handle rows per page change
+  const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
-
-  // Clear search
   const handleClearSearch = () => {
     setSearchTerm('');
     setPage(0);
   };
+  const handleGoBack = () => navigate(`/kerala_report/taluk_cluster_report/${districtName}`);
+  const handleViewZoneDetails = (zoneName) => {
+    console.log(`View details for ${zoneName}`);
+    alert(`Viewing details for ${zoneName} (Feature coming soon)`);
+  };
+
+  const StatCard = ({ label, value, color, bgColor, icon }) => (
+    <Card sx={{ 
+      bgcolor: bgColor, 
+      borderRadius: 3,
+      transition: 'transform 0.2s, box-shadow 0.2s',
+      '&:hover': {
+        transform: 'translateY(-4px)',
+        boxShadow: theme.shadows[4]
+      }
+    }}>
+      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Box>
+            <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
+              {value}
+            </Typography>
+            <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>
+              {label}
+            </Typography>
+          </Box>
+          {icon}
+        </Stack>
+      </CardContent>
+    </Card>
+  );
 
   useEffect(() => {
     if (districtName && talukName) {
-      // Format names for display
       const formattedDistrict = districtName
         .split('-')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -217,13 +227,6 @@ function ZoneClusterReport() {
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
       
-      setLocationInfo(prev => ({ 
-        ...prev, 
-        district: formattedDistrict,
-        taluk: formattedTaluk 
-      }));
-      
-      // Calculate totals from zone data
       const totals = allZoneData.reduce((acc, zone) => ({
         totalZones: acc.totalZones + zone.total,
         completed: acc.completed + zone.completed,
@@ -232,115 +235,98 @@ function ZoneClusterReport() {
         underReview: acc.underReview + zone.underReview
       }), { totalZones: 0, completed: 0, ongoing: 0, notStarted: 0, underReview: 0 });
       
-      setLocationInfo(prev => ({
-        ...prev,
+      setLocationInfo({ 
+        district: formattedDistrict,
+        taluk: formattedTaluk,
         ...totals
-      }));
-
-      // Reset pagination and search when location changes
+      });
+      
       setPage(0);
       setSearchTerm('');
     }
   }, [districtName, talukName, allZoneData]);
 
-  const handleGoBack = () => {
-    navigate(`/kerala_report/taluk_cluster_report/${districtName}`);
-  };
-
-  const handleHome = () => {
-    navigate('/');
-  };
-
-  const handleViewZoneDetails = (zoneName) => {
-    // Navigate to village/ward level if needed
-    const formattedZoneName = zoneName.toLowerCase().replace(/\s+/g, '-');
-    const formattedDistrictName = districtName.toLowerCase().replace(/\s+/g, '-');
-    const formattedTalukName = talukName.toLowerCase().replace(/\s+/g, '-');
-    
-    // Uncomment to navigate to next level
-    // navigate(`/kerala_report/village_report/${formattedDistrictName}/${formattedTalukName}/${formattedZoneName}`);
-    console.log(`View details for ${zoneName} in ${talukName}, ${districtName}`);
-    
-    // Show info message
-    alert(`Viewing details for ${zoneName} (Feature coming soon)`);
-  };
-
-  
-
   return (
     <Grid container spacing={3}>
-      <Breadcrumb></Breadcrumb>
-      {/* Header Section with Breadcrumbs and Back Button */}
+      <Breadcrumb />
+      
+      {/* Header */}
       <Grid item xs={12}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-          <Box>
-            <Typography variant="subtitle1" sx={{ mt: 1, color: 'text.secondary' }}>
-              Overview of zone reports in {locationInfo.taluk} taluk, {locationInfo.district} district
-            </Typography>
-          </Box>
+        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <StoreIcon sx={{ fontSize: 40, color: '#1a237e' }} />
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1a237e' }}>
+                {locationInfo.taluk} - Zone wise Cluster Report
+              </Typography>
+              {/* <Typography variant="body2" color="text.secondary">
+                Zone/Panchayat-wise cluster performance in {locationInfo.district} district
+              </Typography> */}
+            </Box>
+          </Stack>
           <Chip 
             label={`Last Updated: ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`} 
             variant="outlined"
             sx={{ fontWeight: 500 }}
           />
-        </Box>
+        </Stack>
       </Grid>
 
-      {/* Zone/Panchayat Table */}
+      {/* Stats Cards */}
+      <Grid item xs={12}>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6} md={2.4}>
+            <StatCard label="Total Zones" value={locationInfo.totalZones} color="#1565c0" bgColor={alpha('#1565c0', 0.08)} icon={<StoreIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />} />
+          </Grid>
+          <Grid item xs={12} sm={6} md={2.4}>
+            <StatCard label="Completed" value={locationInfo.completed} color="#2e7d32" bgColor={alpha('#2e7d32', 0.08)} icon={<CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />} />
+          </Grid>
+          <Grid item xs={12} sm={6} md={2.4}>
+            <StatCard label="Ongoing" value={locationInfo.ongoing} color="#ed6c02" bgColor={alpha('#ed6c02', 0.08)} icon={<PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} />} />
+          </Grid>
+          <Grid item xs={12} sm={6} md={2.4}>
+            <StatCard label="Not Started" value={locationInfo.notStarted} color="#757575" bgColor={alpha('#757575', 0.08)} icon={<ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} />} />
+          </Grid>
+          <Grid item xs={12} sm={6} md={2.4}>
+            <StatCard label="Under Review" value={locationInfo.underReview} color="#b76e00" bgColor={alpha('#b76e00', 0.08)} icon={<RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} />} />
+          </Grid>
+        </Grid>
+      </Grid>
+
+      {/* Zone Table */}
       <Grid item xs={12}>
         <MainCard 
-          title={`Zones/Panchayats in ${locationInfo.taluk} Taluk`} 
-          secondary={<AssessmentIcon />}
-          sx={{
-            '& .MuiCardContent-root': {
-              p: 0
-            }
-          }}
+          title={`Zones in ${locationInfo.taluk}`} 
+          secondary={
+            <TextField
+              placeholder="Search zone/panchayat..."
+              size="small"
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
+              sx={{ width: 250 }}
+              InputProps={{
+                startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+                endAdornment: searchTerm && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch} edge="end">
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }}
+            />
+          }
+          sx={{ borderRadius: 3 }}
         >
-          {/* Search Bar */}
-          <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                Zone-wise Report
-              </Typography>
-              <TextField
-                placeholder="Search by zone"
-                size="small"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setPage(0);
-                }}
-                sx={{ minWidth: 250 }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                  endAdornment: searchTerm && (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={handleClearSearch}>
-                        <ClearIcon fontSize="small" />
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                }}
-              />
-            </Stack>
-          </Box>
-
-          <TableContainer sx={{ borderRadius: 2, overflow: 'auto' }}>
-            <Table sx={{ minWidth: 650 }}>
+          <TableContainer>
+            <Table>
               <TableHead>
                 <TableRow sx={{ bgcolor: '#04255e' }}>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Zone</TableCell>
-                  <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Total Clusters</TableCell>
-                  <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Completed</TableCell>
-                  <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>On Going</TableCell>
-                  <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Not Started</TableCell>
-                  <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Under Review</TableCell>
-                  <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Actions</TableCell>
+                  {['Zone / Panchayat', 'Total', 'Completed', 'Ongoing', 'Not Started', 'Under Review', 'Actions'].map((label, idx) => (
+                    <TableCell key={idx} align={idx === 0 ? 'left' : 'center'} sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>
+                      {label}
+                    </TableCell>
+                  ))}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -348,70 +334,36 @@ function ZoneClusterReport() {
                   paginatedData.map((row) => (
                     <TableRow 
                       key={row.id}
-                      sx={{ 
-                        '&:hover': { 
-                          bgcolor: '#f5f5f5',
-                          cursor: 'pointer'
-                        },
-                        transition: '0.2s'
-                      }}
+                      hover
+                      sx={{ '&:hover': { bgcolor: alpha('#04255e', 0.04) }, transition: '0.2s' }}
                     >
-                      <TableCell component="th" scope="row">
-                        <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                          {row.zone}
-                        </Typography>
+                      <TableCell>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <StoreIcon sx={{ fontSize: 18, color: '#04255e', opacity: 0.7 }} />
+                          <Typography fontWeight={500}>{row.zone}</Typography>
+                        </Stack>
                       </TableCell>
                       <TableCell align="center">
-                        <Chip label={row.total} size="small" variant="outlined" />
+                        <Chip label={row.total} size="small" variant="filled" sx={{ fontWeight: 600, bgcolor: alpha('#04255e', 0.1) }} />
                       </TableCell>
                       <TableCell align="center">
-                        {row.completed > 0 ? (
-                          <Chip 
-                            label={row.completed} 
-                            size="small" 
-                            color="success" 
-                            variant="outlined"
-                          />
-                        ) : row.completed}
+                        {row.completed > 0 ? <Chip label={row.completed} size="small" color="success" variant="outlined" /> : row.completed}
                       </TableCell>
                       <TableCell align="center">
-                        {row.ongoing > 0 ? (
-                          <Chip 
-                            label={row.ongoing} 
-                            size="small" 
-                            color="primary" 
-                            variant="outlined"
-                          />
-                        ) : row.ongoing}
+                        {row.ongoing > 0 ? <Chip label={row.ongoing} size="small" color="primary" variant="outlined" /> : row.ongoing}
                       </TableCell>
                       <TableCell align="center">
-                        {row.notStarted > 0 ? (
-                          <Chip 
-                            label={row.notStarted} 
-                            size="small" 
-                            variant="outlined"
-                          />
-                        ) : row.notStarted}
+                        {row.notStarted > 0 ? <Chip label={row.notStarted} size="small" variant="outlined" /> : row.notStarted}
                       </TableCell>
                       <TableCell align="center">
-                        {row.underReview > 0 ? (
-                          <Chip 
-                            label={row.underReview} 
-                            size="small" 
-                            color="warning" 
-                            variant="outlined"
-                          />
-                        ) : row.underReview}
+                        {row.underReview > 0 ? <Chip label={row.underReview} size="small" color="warning" variant="outlined" /> : row.underReview}
                       </TableCell>
                       <TableCell align="center">
-                        <Tooltip title="View details">
+                        <Tooltip title="View Details">
                           <IconButton 
                             size="small"
                             onClick={() => handleViewZoneDetails(row.zone)}
-                            sx={{ 
-                              color: '#04255e',
-                              '&:hover': { bgcolor: '#e3f2fd' }
-                            }}
+                            sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
                           >
                             <VisibilityIcon />
                           </IconButton>
@@ -421,11 +373,9 @@ function ZoneClusterReport() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                      <Typography variant="body1" color="text.secondary">
-                        {searchTerm 
-                          ? `No zones/panchayats found matching "${searchTerm}"` 
-                          : `No zone/panchayat data available for ${locationInfo.taluk} taluk`}
+                    <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                      <Typography color="text.secondary">
+                        {searchTerm ? `No zones found matching "${searchTerm}"` : `No zone data available for ${locationInfo.taluk} taluk`}
                       </Typography>
                     </TableCell>
                   </TableRow>
@@ -433,8 +383,6 @@ function ZoneClusterReport() {
               </TableBody>
             </Table>
           </TableContainer>
-
-          {/* Pagination */}
           {filteredData.length > 0 && (
             <TablePagination
               component="div"
@@ -443,28 +391,30 @@ function ZoneClusterReport() {
               onPageChange={handleChangePage}
               rowsPerPage={rowsPerPage}
               onRowsPerPageChange={handleChangeRowsPerPage}
-              rowsPerPageOptions={[5, 10, 25, 50]}
-              labelRowsPerPage="Rows per page:"
-              labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count}`}
-              sx={{
-                borderTop: `1px solid ${theme.palette.divider}`,
-                '& .MuiTablePagination-select': {
-                  borderRadius: 1
-                }
-              }}
+              rowsPerPageOptions={[5, 10, 25]}
+              sx={{ borderTop: `1px solid ${theme.palette.divider}` }}
             />
           )}
         </MainCard>
       </Grid>
 
-      {/* Footer Note */}
+      {/* Back Button */}
       <Grid item xs={12}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, gap: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
           <Button 
             variant="outlined" 
             onClick={handleGoBack}
             startIcon={<ArrowBackIcon />}
-            sx={{ color: '#04255e', borderColor: '#04255e' }}
+            sx={{ 
+              color: '#04255e', 
+              borderColor: '#04255e',
+              borderRadius: 2,
+              px: 4,
+              '&:hover': {
+                borderColor: '#04255e',
+                bgcolor: alpha('#04255e', 0.04)
+              }
+            }}
           >
             Back to Taluk Report
           </Button>
