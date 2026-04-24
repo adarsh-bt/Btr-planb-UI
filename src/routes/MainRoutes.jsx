@@ -87,6 +87,14 @@ const KeralaReportList = Loadable(lazy(() => import('pages/functional-components
 const TalukClusterReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/TalukClusterReport')));
 const ZoneClusterReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/ZoneClusterReport')));
 
+const DistrictSettings = Loadable(lazy(() => import('pages/functional-components/earas/settings/DistrictSettings')));
+const SettingsTabsPage = Loadable(lazy(() => import('pages/functional-components/earas/SettingsTabsPage')));
+const DistrictOfficeSettings = Loadable(lazy(() => import('pages/functional-components/earas/settings/DistrictOfficeSettings')));
+const TalukOfficeSettings = Loadable(lazy(() => import('pages/functional-components/earas/settings/TalukOfficeSettings')));
+const TalukSettings = Loadable(lazy(() => import('pages/functional-components/earas/settings/TalukSettings')));
+const RevenueTalukSettings = Loadable(lazy(() => import('pages/functional-components/earas/settings/RevenueTalukSettings')));
+const VillageSettings = Loadable(lazy(() => import('pages/functional-components/earas/settings/VillageSettings')));
+
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
@@ -608,7 +616,63 @@ const MainRoutes = {
           <ZoneManage />
         </PrivateRoute>
       )
-    }
+    },
+    {
+      path: '/schemes/earas/district_settings',
+      element: (
+        <PrivateRoute>
+          <DistrictSettings />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Settings_Tabs_Page',
+      element: (
+        <PrivateRoute>
+          <SettingsTabsPage />
+        </PrivateRoute>
+      )
+    },
+    {
+  path: '/schemes/earas/district_office_settings',
+  element: (
+    <PrivateRoute>
+      <DistrictOfficeSettings />
+    </PrivateRoute>
+  )
+  },
+  {
+  path: '/schemes/earas/taluk_office_settings',
+  element: (
+    <PrivateRoute> 
+      <TalukOfficeSettings />
+    </PrivateRoute>
+  )
+  },
+  {
+  path: '/schemes/earas/taluk_settings',
+  element: (
+    <PrivateRoute> 
+      <TalukSettings />
+    </PrivateRoute>
+  )
+  },
+  {
+  path: '/schemes/earas/revenue_taluk_settings',
+  element: (
+    <PrivateRoute> 
+      <RevenueTalukSettings />
+    </PrivateRoute>
+  )
+  },
+  {
+  path: '/schemes/earas/village_settings',
+  element: (
+    <PrivateRoute> 
+      <VillageSettings />
+    </PrivateRoute>
+  )
+  }
   ]
 };
 

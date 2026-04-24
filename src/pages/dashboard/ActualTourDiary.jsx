@@ -464,7 +464,7 @@ const handleSubmitMonth = async () => {
         clusterId: Number(editFormData.clusterId),
         seasonId: editFormData.seasonId ? Number(editFormData.seasonId) : 1,
         landType: editFormData.landType,
-        geoLocation: editFormData.geoLocation || "10.8505,76.2711",
+        geoLocation: editFormData.geoLocation,
         remark: editFormData.remark,
         distance: editFormData.distance ? parseFloat(editFormData.distance) : null,
         hours: editFormData.hours ? parseFloat(editFormData.hours) : null,
@@ -568,7 +568,7 @@ const handleSubmitMonth = async () => {
       clusterId: Number(manualFormData.clusterId),
       seasonId: Number(manualFormData.seasonId || 1),
       landType: manualFormData.landType,
-      geoLocation: manualFormData.geoLocation || "10.8505,76.2711",
+      geoLocation: manualFormData.geoLocation,
       remark: manualFormData.remark,
       distance: manualFormData.distance ? parseFloat(manualFormData.distance) : null,
       hours: manualFormData.hours ? parseFloat(manualFormData.hours) : null,
@@ -845,11 +845,11 @@ const handleSubmitMonth = async () => {
                       <strong>Zone Name:</strong> {event.zoneName}
                     </Typography>
                   )}
-                  {event.zoneId && (
+                  {/* {event.zoneId && (
                     <Typography variant="body2" color="text.secondary">
                       <strong>Zone ID:</strong> {event.zoneId}
                     </Typography>
-                  )}
+                  )} */}
                   {event.clusterId && (
                     <Typography variant="body2" color="text.secondary">
                       <strong>Cluster ID:</strong> {event.clusterId}
@@ -975,31 +975,16 @@ const handleSubmitMonth = async () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item xs={12}>
         <Breadcrumb />
+      <Grid item xs={12}>
+        <Typography variant="h3" sx={{ marginBottom: 2 }}>
+          Crop Cutting Experiment View
+        </Typography>
       </Grid>
 
       <Grid item xs={12}>
         <MainCard>
-          <Box sx={{ maxWidth: '1000px', margin: '0 auto' }}>
-            {userDetails && (
-              <Paper 
-                sx={{ 
-                  p: 2, 
-                  mb: 3, 
-                  backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : '#f5f5f5',
-                  borderRadius: 2
-                }}
-              >
-                <Typography variant="h5" sx={{ mb: 1 }}>
-                  User: {userDetails.name}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Employee Number: {userDetails.empNumber} | Designation: {userDetails.designation} | Location: {userDetails.officelocation}
-                </Typography>
-              </Paper>
-            )}
-            
+          <Box sx={{ maxWidth: '1000px', margin: '0 auto' }}> 
             <Box
               sx={{
                 display: 'flex',
@@ -1651,14 +1636,18 @@ const handleSubmitMonth = async () => {
             </Grid>
             
             <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Season ID"
-                type="number"
-                value={editFormData.seasonId}
-                onChange={(e) => setEditFormData({ ...editFormData, seasonId: e.target.value })}
-                placeholder="e.g., 1, 2, 3"
-              />
+              <FormControl fullWidth>
+                <InputLabel>Season</InputLabel>
+                <Select
+                  value={editFormData.seasonId}
+                  onChange={(e) => setEditFormData({ ...editFormData, seasonId: e.target.value })}
+                  label="Season"
+                >
+                  <MenuItem value={1}>Autumn</MenuItem>
+                  <MenuItem value={2}>Winter</MenuItem>
+                  <MenuItem value={3}>Summer</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
             
             <Grid item xs={12}>
