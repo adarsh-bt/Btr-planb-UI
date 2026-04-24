@@ -436,7 +436,7 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
       }
 
       const data = await response.json();
-  
+console.log("Fetched keyplot details:", data);
       const keyplotBTypeId = data.payload.btr_id;
       const keyplotBTypeName = data.payload.btr_type;
       setCurrentBType({

@@ -131,7 +131,7 @@ const MainRoutes = {
       )
     },
     {
-      path: 'kerala_report',
+      path: 'Report',
       element: (
         <PrivateRoute>
           <KeralaReportList />

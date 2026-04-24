@@ -233,7 +233,7 @@ const handleSubmitMonth = async () => {
     
     try {
       const response = await tourDiaryService.getTourEntries(selectedUserId, selectedMonth, selectedYear);
-      
+      console.log("Fetched tour entries:   <<>>>", response);
       if (response && Array.isArray(response) && !response.message) {
         setTourEntries(response);
         
@@ -378,14 +378,14 @@ const handleSubmitMonth = async () => {
         hours: entry.hours || "",
         remark: entry.remark || "",
         reportEntryType: entry.reportEntryType,
-        schemeId: "",
-        purposeId: "",
-        zoneId: "",
-        clusterId: "",
-        seasonId: "",
-        landType: "",
-        cropName: "",
-        geoLocation: ""
+        // schemeId: "",
+        // purposeId: "",
+        // zoneId: "",
+        // clusterId: "",
+        // seasonId: "",
+        // landType: "",
+        // cropName: "",
+        // geoLocation: ""
       });
     } else {
       // MANUAL entry - all fields
@@ -395,7 +395,7 @@ const handleSubmitMonth = async () => {
         hours: entry.hours || "",
         remark: entry.remark || "",
         reportEntryType: entry.reportEntryType,
-        schemeId: entry.schemeId || "",
+        schemeId: entry.schemesId || "",
         purposeId: entry.purposeId || "",
         zoneId: entry.zoneId || "",
         clusterId: entry.clusterId || "",
@@ -406,8 +406,8 @@ const handleSubmitMonth = async () => {
       });
       
       // Set the scheme for edit modal and fetch purposes
-      if (entry.schemeId) {
-        setEditSelectedScheme(entry.schemeId);
+      if (entry.schemesId) {
+        setEditSelectedScheme(entry.schemesId);
       } else {
         // If no scheme ID, try to find scheme from purpose
         setEditSelectedScheme("");
@@ -429,6 +429,8 @@ const handleSubmitMonth = async () => {
         distance: editFormData.distance ? parseFloat(editFormData.distance) : null,
         hours: editFormData.hours ? parseFloat(editFormData.hours) : null
       };
+
+      console.log("🔧 Updating system entry with payload:", payload); // ✅ Added debug log
 
       const response = await tourDiaryService.updateSystemTourEntry(payload);
       
@@ -462,7 +464,7 @@ const handleSubmitMonth = async () => {
         clusterId: Number(editFormData.clusterId),
         seasonId: editFormData.seasonId ? Number(editFormData.seasonId) : 1,
         landType: editFormData.landType,
-        geoLocation: editFormData.geoLocation || "10.8505,76.2711",
+        geoLocation: editFormData.geoLocation || "N/A",
         remark: editFormData.remark,
         distance: editFormData.distance ? parseFloat(editFormData.distance) : null,
         hours: editFormData.hours ? parseFloat(editFormData.hours) : null,
@@ -566,7 +568,7 @@ const handleSubmitMonth = async () => {
       clusterId: Number(manualFormData.clusterId),
       seasonId: Number(manualFormData.seasonId || 1),
       landType: manualFormData.landType,
-      geoLocation: manualFormData.geoLocation || "10.8505,76.2711",
+      geoLocation: manualFormData.geoLocation || "",
       remark: manualFormData.remark,
       distance: manualFormData.distance ? parseFloat(manualFormData.distance) : null,
       hours: manualFormData.hours ? parseFloat(manualFormData.hours) : null,
@@ -850,7 +852,7 @@ const handleSubmitMonth = async () => {
                   )}
                   {event.clusterId && (
                     <Typography variant="body2" color="text.secondary">
-                      <strong>Cluster ID:</strong> {event.clusterId}
+                      <strong>Cluster :</strong> {event.clusterId}
                     </Typography>
                   )}
                   {event.clusterNo && (
@@ -973,31 +975,15 @@ const handleSubmitMonth = async () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item xs={12}>
         <Breadcrumb />
+      <Grid item xs={12}>
       </Grid>
-
+<Typography variant="h3" sx={{ marginLeft: 2,marginBottom: 2 }}>
+          Crop Cutting Experiment View
+        </Typography>
       <Grid item xs={12}>
         <MainCard>
-          <Box sx={{ maxWidth: '1000px', margin: '0 auto' }}>
-            {userDetails && (
-              <Paper 
-                sx={{ 
-                  p: 2, 
-                  mb: 3, 
-                  backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : '#f5f5f5',
-                  borderRadius: 2
-                }}
-              >
-                <Typography variant="h5" sx={{ mb: 1 }}>
-                  User: {userDetails.name}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Employee Number: {userDetails.empNumber} | Designation: {userDetails.designation} | Location: {userDetails.officelocation}
-                </Typography>
-              </Paper>
-            )}
-            
+          <Box sx={{ maxWidth: '1000px', margin: '0 auto' }}> 
             <Box
               sx={{
                 display: 'flex',
@@ -1649,14 +1635,17 @@ const handleSubmitMonth = async () => {
             </Grid>
             
             <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Season ID"
-                type="number"
-                value={editFormData.seasonId}
-                onChange={(e) => setEditFormData({ ...editFormData, seasonId: e.target.value })}
-                placeholder="e.g., 1, 2, 3"
-              />
+<FormControl fullWidth>
+<InputLabel>Season</InputLabel>
+         <Select
+            value={editFormData.seasonId}
+            onChange={(e) => setEditFormData({ ...editFormData, seasonId: e.target.value })}
+            label="Season">
+            <MenuItem value={1}>Autumn</MenuItem>
+            <MenuItem value={2}>Winter</MenuItem>
+            <MenuItem value={3}>Summer</MenuItem>
+            </Select>
+            </FormControl>
             </Grid>
             
             <Grid item xs={12}>
@@ -1838,7 +1827,7 @@ const handleSubmitMonth = async () => {
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Cluster ID"
+                label="Cluster number"
                 type="number"
                 value={manualFormData.clusterId}
                 onChange={(e) => setManualFormData({ ...manualFormData, clusterId: e.target.value })}
