@@ -43,6 +43,66 @@ const UserTourDiaryDetail = () => {
   const theme = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
+
+  // ---------- Validation Helpers ----------
+  const validateDistance = (value, oldValue) => {
+    if (value === '') return '';
+    if (!/^\d*\.?\d*$/.test(value)) return oldValue;
+    if (value.length > 5) return oldValue;
+    if ((value.match(/\./g) || []).length > 1) return oldValue;
+    if (value.length > 1 && value[0] === '0' && value[1] !== '.' && !value.startsWith('0.')) {
+      return oldValue;
+    }
+  
+  const num = parseFloat(value);
+    if (!isNaN(num)) {
+      if (num <= 0 || num > 1000) return oldValue;
+      // If decimal exists, allow max 2 decimal places
+      if (value.includes('.') && value.split('.')[1]?.length > 2) return oldValue;
+    }
+    return value;
+  };
+
+  const validateHours = (value, oldValue) => {
+    if (value === '') return '';
+    if (!/^\d*\.?\d*$/.test(value)) return oldValue;
+    if (value.length > 5) return oldValue;
+    if ((value.match(/\./g) || []).length > 1) return oldValue;
+    if (value.length > 1 && value[0] === '0' && value[1] !== '.' && !value.startsWith('0.')) {
+      return oldValue;
+    }
+  
+  const num = parseFloat(value);
+    if (!isNaN(num)) {
+      if (num <= 0 || num > 24) return oldValue;
+      if (value.includes('.') && value.split('.')[1]?.length > 2) return oldValue;
+    }
+    return value;
+  };
+
+const validateClusterId = (value) => {
+  let filtered = value.replace(/[^0-9, ]/g, '');
+  filtered = filtered.replace(/,{2,}/g, ',').replace(/^,|,$/g, '');
+  const parts = filtered.split(/[ ,]+/);
+  for (let part of parts) {
+    if (part !== '' && !/^[1-9][0-9]{0,3}$/.test(part)) {
+      return oldValue !== undefined ? oldValue : filtered;
+    }
+  }
+  return filtered;
+};
+
+// Geo Location: max 256 chars, allow any characters but trim to limit
+const validateGeoLocation = (value) => {
+  if (value.length > 256) return value.slice(0, 256);
+  return value;
+};
+
+// Remarks: max 1000 chars, preserve all characters
+const validateRemarks = (value) => {
+  if (value.length > 1000) return value.slice(0, 1000);
+  return value;
+};
   
   const { userId: paramUserId, month: monthParam, year: yearParam } = location.state || {};
   const currentUserId = authservice.userid();
@@ -233,7 +293,7 @@ const handleSubmitMonth = async () => {
     
     try {
       const response = await tourDiaryService.getTourEntries(selectedUserId, selectedMonth, selectedYear);
-      
+      console.log("Fetched tour entries:   <<>>>", response);
       if (response && Array.isArray(response) && !response.message) {
         setTourEntries(response);
         
@@ -395,7 +455,7 @@ const handleSubmitMonth = async () => {
         hours: entry.hours || "",
         remark: entry.remark || "",
         reportEntryType: entry.reportEntryType,
-        schemeId: entry.schemeId || "",
+        schemeId: entry.schemesId || "",
         purposeId: entry.purposeId || "",
         zoneId: entry.zoneId || "",
         clusterId: entry.clusterId || "",
@@ -406,8 +466,8 @@ const handleSubmitMonth = async () => {
       });
       
       // Set the scheme for edit modal and fetch purposes
-      if (entry.schemeId) {
-        setEditSelectedScheme(entry.schemeId);
+      if (entry.schemesId) {
+        setEditSelectedScheme(entry.schemesId);
       } else {
         // If no scheme ID, try to find scheme from purpose
         setEditSelectedScheme("");
@@ -464,7 +524,7 @@ const handleSubmitMonth = async () => {
         clusterId: Number(editFormData.clusterId),
         seasonId: editFormData.seasonId ? Number(editFormData.seasonId) : 1,
         landType: editFormData.landType,
-        geoLocation: editFormData.geoLocation,
+        geoLocation: editFormData.geoLocation || "N/A",
         remark: editFormData.remark,
         distance: editFormData.distance ? parseFloat(editFormData.distance) : null,
         hours: editFormData.hours ? parseFloat(editFormData.hours) : null,
@@ -568,7 +628,7 @@ const handleSubmitMonth = async () => {
       clusterId: Number(manualFormData.clusterId),
       seasonId: Number(manualFormData.seasonId || 1),
       landType: manualFormData.landType,
-      geoLocation: manualFormData.geoLocation,
+      geoLocation: manualFormData.geoLocation || "",
       remark: manualFormData.remark,
       distance: manualFormData.distance ? parseFloat(manualFormData.distance) : null,
       hours: manualFormData.hours ? parseFloat(manualFormData.hours) : null,
@@ -845,14 +905,14 @@ const handleSubmitMonth = async () => {
                       <strong>Zone Name:</strong> {event.zoneName}
                     </Typography>
                   )}
-                  {/* {event.zoneId && (
+                  {event.zoneId && (
                     <Typography variant="body2" color="text.secondary">
                       <strong>Zone ID:</strong> {event.zoneId}
                     </Typography>
-                  )} */}
+                  )}
                   {event.clusterId && (
                     <Typography variant="body2" color="text.secondary">
-                      <strong>Cluster ID:</strong> {event.clusterId}
+                      <strong>Cluster :</strong> {event.clusterId}
                     </Typography>
                   )}
                   {event.clusterNo && (
@@ -977,11 +1037,10 @@ const handleSubmitMonth = async () => {
     <Grid container spacing={3}>
         <Breadcrumb />
       <Grid item xs={12}>
-        <Typography variant="h3" sx={{ marginBottom: 2 }}>
-          Crop Cutting Experiment View
-        </Typography>
       </Grid>
-
+<Typography variant="h3" sx={{ marginLeft: 2,marginBottom: 2 }}>
+          Crop Cutting Experiment View
+        </Typography>
       <Grid item xs={12}>
         <MainCard>
           <Box sx={{ maxWidth: '1000px', margin: '0 auto' }}> 
@@ -1493,20 +1552,23 @@ const handleSubmitMonth = async () => {
               <TextField
                 fullWidth
                 label="Distance (km)"
-                type="number"
                 value={editFormData.distance}
-                onChange={(e) => setEditFormData({ ...editFormData, distance: e.target.value })}
+                onChange={(e) => {
+                  const newValue = validateDistance(e.target.value, editFormData.distance);
+                  setEditFormData({ ...editFormData, distance: newValue });
+                }}
               />
             </Grid>
-            
+
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Hours"
-                type="number"
-                step="0.5"
                 value={editFormData.hours}
-                onChange={(e) => setEditFormData({ ...editFormData, hours: e.target.value })}
+                onChange={(e) => {
+                  const newValue = validateHours(e.target.value, editFormData.hours);
+                  setEditFormData({ ...editFormData, hours: newValue });
+                }}
               />
             </Grid>
           </Grid>
@@ -1628,26 +1690,27 @@ const handleSubmitMonth = async () => {
               <TextField
                 fullWidth
                 label="Cluster ID"
-                type="number"
                 value={editFormData.clusterId}
-                onChange={(e) => setEditFormData({ ...editFormData, clusterId: e.target.value })}
+                onChange={(e) => setEditFormData({
+                  ...editFormData,
+                  clusterId: validateClusterId(e.target.value)
+                })}
                 required
               />
             </Grid>
             
             <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Season</InputLabel>
-                <Select
-                  value={editFormData.seasonId}
-                  onChange={(e) => setEditFormData({ ...editFormData, seasonId: e.target.value })}
-                  label="Season"
-                >
-                  <MenuItem value={1}>Autumn</MenuItem>
-                  <MenuItem value={2}>Winter</MenuItem>
-                  <MenuItem value={3}>Summer</MenuItem>
-                </Select>
-              </FormControl>
+<FormControl fullWidth>
+<InputLabel>Season</InputLabel>
+         <Select
+            value={editFormData.seasonId}
+            onChange={(e) => setEditFormData({ ...editFormData, seasonId: e.target.value })}
+            label="Season">
+            <MenuItem value={1}>Autumn</MenuItem>
+            <MenuItem value={2}>Winter</MenuItem>
+            <MenuItem value={3}>Summer</MenuItem>
+            </Select>
+            </FormControl>
             </Grid>
             
             <Grid item xs={12}>
@@ -1668,9 +1731,11 @@ const handleSubmitMonth = async () => {
               <TextField
                 fullWidth
                 label="Distance (km)"
-                type="number"
                 value={editFormData.distance}
-                onChange={(e) => setEditFormData({ ...editFormData, distance: e.target.value })}
+                onChange={(e) => {
+                  const newValue = validateDistance(e.target.value, editFormData.distance);
+                  if (newValue !== undefined) setEditFormData({ ...editFormData, distance: newValue });
+                }}
               />
             </Grid>
             
@@ -1678,10 +1743,11 @@ const handleSubmitMonth = async () => {
               <TextField
                 fullWidth
                 label="Hours"
-                type="number"
-                step="0.5"
                 value={editFormData.hours}
-                onChange={(e) => setEditFormData({ ...editFormData, hours: e.target.value })}
+                onChange={(e) => {
+                  const newValue = validateHours(e.target.value, editFormData.hours);
+                  if (newValue !== undefined) setEditFormData({ ...editFormData, hours: newValue });
+                }}
               />
             </Grid>
             
@@ -1700,7 +1766,10 @@ const handleSubmitMonth = async () => {
                 label="Geo Location (latitude,longitude)"
                 placeholder="e.g., 10.8505,76.2711"
                 value={editFormData.geoLocation}
-                onChange={(e) => setEditFormData({ ...editFormData, geoLocation: e.target.value })}
+                onChange={(e) => setEditFormData({
+                  ...editFormData,
+                  geoLocation: validateGeoLocation(e.target.value)
+                })}
               />
             </Grid>
             
@@ -1711,7 +1780,10 @@ const handleSubmitMonth = async () => {
                 multiline
                 rows={3}
                 value={editFormData.remark}
-                onChange={(e) => setEditFormData({ ...editFormData, remark: e.target.value })}
+                onChange={(e) => setEditFormData({
+                  ...editFormData,
+                  remark: validateRemarks(e.target.value)
+                })}
               />
             </Grid>
           </Grid>
@@ -1829,23 +1901,28 @@ const handleSubmitMonth = async () => {
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Cluster ID"
-                type="number"
+                label="Cluster number"
                 value={manualFormData.clusterId}
-                onChange={(e) => setManualFormData({ ...manualFormData, clusterId: e.target.value })}
-                required
+                onChange={(e) => setManualFormData({
+                  ...manualFormData,
+                  clusterId: validateClusterId(e.target.value, manualFormData.clusterId)
+                })}
               />
             </Grid>
             
             <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Season ID"
-                type="number"
-                value={manualFormData.seasonId}
-                onChange={(e) => setManualFormData({ ...manualFormData, seasonId: e.target.value })}
-                placeholder="e.g., 1, 2, 3"
-              />
+              <FormControl fullWidth>
+                <InputLabel>Season</InputLabel>
+                <Select
+                  value={manualFormData.seasonId}
+                  onChange={(e) => setManualFormData({ ...manualFormData, seasonId: e.target.value })}
+                  label="Season"
+                >
+                  <MenuItem value={1}>Autumn</MenuItem>
+                  <MenuItem value={2}>Winter</MenuItem>
+                  <MenuItem value={3}>Summer</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
             
             <Grid item xs={12}>
@@ -1866,9 +1943,14 @@ const handleSubmitMonth = async () => {
               <TextField
                 fullWidth
                 label="Distance (km)"
-                type="number"
+                type="text"
                 value={manualFormData.distance}
-                onChange={(e) => setManualFormData({ ...manualFormData, distance: e.target.value })}
+                onChange={(e) => {
+                  const newValue = validateDistance(e.target.value, manualFormData.distance);
+                  if (newValue !== undefined) {
+                    setManualFormData({ ...manualFormData, distance: newValue });
+                  }
+                }}
               />
             </Grid>
             
@@ -1876,10 +1958,14 @@ const handleSubmitMonth = async () => {
               <TextField
                 fullWidth
                 label="Hours"
-                type="number"
-                step="0.5"
+                type="text"
                 value={manualFormData.hours}
-                onChange={(e) => setManualFormData({ ...manualFormData, hours: e.target.value })}
+                onChange={(e) => {
+                  const newValue = validateHours(e.target.value, manualFormData.hours);
+                  if (newValue !== undefined) {
+                    setManualFormData({ ...manualFormData, hours: newValue });
+                  }
+                }}
               />
             </Grid>
             
@@ -1898,7 +1984,10 @@ const handleSubmitMonth = async () => {
                 label="Geo Location (latitude,longitude)"
                 placeholder="e.g., 10.8505,76.2711"
                 value={manualFormData.geoLocation}
-                onChange={(e) => setManualFormData({ ...manualFormData, geoLocation: e.target.value })}
+                onChange={(e) => setManualFormData({
+                  ...manualFormData,
+                  geoLocation: validateGeoLocation(e.target.value)
+                })}
               />
             </Grid>
             
@@ -1909,7 +1998,10 @@ const handleSubmitMonth = async () => {
                 multiline
                 rows={3}
                 value={manualFormData.remark}
-                onChange={(e) => setManualFormData({ ...manualFormData, remark: e.target.value })}
+                onChange={(e) => setManualFormData({
+                  ...manualFormData,
+                  remark: validateRemarks(e.target.value)
+                })}
               />
             </Grid>
           </Grid>
