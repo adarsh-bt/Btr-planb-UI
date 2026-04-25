@@ -979,7 +979,7 @@ const handleSubmitMonth = async () => {
       <Grid item xs={12}>
       </Grid>
 <Typography variant="h3" sx={{ marginLeft: 2,marginBottom: 2 }}>
-          Crop Cutting Experiment View
+          Actual Tour Diary
         </Typography>
       <Grid item xs={12}>
         <MainCard>
