@@ -1169,7 +1169,7 @@ useEffect(() => {
                                 color: theme.palette.text.primary
                             }}
                         >
-                            Tour Diary
+                            Advanced Tour Program
                         </Typography>
 
                         {/* Calendar Header */}

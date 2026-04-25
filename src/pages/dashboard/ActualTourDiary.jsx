@@ -1037,10 +1037,10 @@ const handleSubmitMonth = async () => {
     <Grid container spacing={3}>
         <Breadcrumb />
       <Grid item xs={12}>
+        <Typography variant="h3" sx={{ textAlign: 'center', marginBottom: 2 }}>
+      Actual Tour Diary
+    </Typography>
       </Grid>
-<Typography variant="h3" sx={{ marginLeft: 2,marginBottom: 2 }}>
-          Crop Cutting Experiment View
-        </Typography>
       <Grid item xs={12}>
         <MainCard>
           <Box sx={{ maxWidth: '1000px', margin: '0 auto' }}> 
