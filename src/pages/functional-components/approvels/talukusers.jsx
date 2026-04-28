@@ -120,6 +120,7 @@ const [rolesMap, setRolesMap] = useState({});
   // Function to handle edit action
   const handleEdit = (row) => {
     setSelectedRow(row);
+
     setRadioState(row.approvalStatus.toLowerCase());
     setRemarks(row.remarks || ''); // Reset remarks to row's value or empty
     setSelectedScheme(''); // Reset scheme selection
@@ -152,12 +153,13 @@ const [rolesMap, setRolesMap] = useState({});
       updatedPairs[index].roleId = '';
       if (!rolesMap[value]) {
         try {
+          console.log("office id ",selectedRow)
           // Fetch roles and zones in parallel
           const [rolesResponse, zonesResponse] = await Promise.all([
             approvalservice.allrolesBySchems(value),
             approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
           ]);
-        
+        console.log("okkkkkk" ,zonesResponse)
           // Cache roles for the scheme
           setRolesMap((prev) => ({
             ...prev,
@@ -165,7 +167,7 @@ const [rolesMap, setRolesMap] = useState({});
           }));
         
           // Update zones list
-          setZonesList(zonesResponse.payload);
+          setZonesList(zonesResponse);
           setSelectedRole('');
           setZone('');
         } catch (error) {
@@ -187,96 +189,195 @@ const [rolesMap, setRolesMap] = useState({});
   };
 
   const [remarks, setRemarks] = useState("");
-    const handleSaveChanges = () => {
-      // Close the modal first
-      handleCloseModal();
+  
+  //   const handleSaveChanges = () => {
+  //     // Close the modal first
+  //     handleCloseModal();
     
-      // SweetAlert2 confirmation dialog
-      Swal.fire({
-        title: "Are you sure?",
-        text: "You are about to save changes. Do you want to proceed?",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonText: "Yes, save changes",
-        cancelButtonText: "No, cancel",
-      }).then((result) => {
-        if (result.isConfirmed) {
+  //     // SweetAlert2 confirmation dialog
+  //     Swal.fire({
+  //       title: "Are you sure?",
+  //       text: "You are about to save changes. Do you want to proceed?",
+  //       icon: "warning",
+  //       showCancelButton: true,
+  //       confirmButtonText: "Yes, save changes",
+  //       cancelButtonText: "No, cancel",
+  //     }).then((result) => {
+  //       if (result.isConfirmed) {
           
         
-          const admin_id = authservice.userid()
-          const approvalStatus = radioState; 
-          const filteredPairs = schemeRolePairs.filter(pair => pair.schemeId && pair.roleId);
+  //         const admin_id = authservice.userid()
+  //         const approvalStatus = radioState; 
+  //         const filteredPairs = schemeRolePairs.filter(pair => pair.schemeId && pair.roleId);
           
-          var payload = {
-            approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "pending" : "Rejected",
-            approvalDate: new Date().toISOString().split('T')[0],
-            remarks: remarks,
-            isApproved: approvalStatus === "approved", 
-            adminId: admin_id, 
-            userId: selectedRow ? selectedRow.userId : "", 
-            id:selectedRow.approvalId,
-            // roleId:selectedRole
-             roleSchemes: filteredPairs.map(pair => ({
-    roleId: pair.roleId,
-    schemeId: pair.schemeId
-  }))
-          };
+  //         var payload = {
+  //           approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "pending" : "Rejected",
+  //           approvalDate: new Date().toISOString().split('T')[0],
+  //           remarks: remarks,
+  //           isApproved: approvalStatus === "approved", 
+  //           adminId: admin_id, 
+  //           userId: selectedRow ? selectedRow.userId : "", 
+  //           id:selectedRow.approvalId,
+  //           // roleId:selectedRole
+  //            roleSchemes: filteredPairs.map(pair => ({
+  //   roleId: pair.roleId,
+  //   schemeId: pair.schemeId
+  // }))
+  //         };
          
-          // Call the API using the separate function
+  //         // Call the API using the separate function
           
-          if(admrole !== "Taluk Level Approver" && admrole !== "IT Admin" && admrole !== "Super Admin"){
+  //         if(admrole === "District Level Approver"){
         
-        var saveapi = approvalservice.saveDisApproval(payload)
-          }
-        else if (admrole === "IT Admin"){
+  //       var saveapi = approvalservice.saveDisApproval(payload)
+  //         }
+  //       else if (admrole === "IT Admin"){
     
-          console.log("IT payload ", payload);
-          var saveapi = approvalservice.saveItadminApproval(payload)
-        }else if (admrole === "Super Admin"){
-           var saveapi = approvalservice.saveSuperadminApproval(payload)
-        }else{
-         var payload={userId:selectedRow ? selectedRow.userId : "",adminId:admin_id,roleSchemes: filteredPairs.map(pair => ({
-    roleId: pair.roleId,
-    schemeId: pair.schemeId  }))}
-        var saveapi = approvalservice.saveTsoRolesAssign(payload)
-        }
-        console.log('paye TSO', payload);
-        saveapi
-          .then((data) => {
-            if (data.payload) {
-              Swal.fire('Saved!', 'Your changes have been saved.', 'success');
-              setUserList((prevUserList) =>
-                prevUserList.map((user) =>
-                  // Update only the selected user, keep the rest of the users unchanged
-                  user.userId === selectedRow.userId
-                    ? { ...user, approvalStatus: data.payload.approvalStatus, approvalId: data.payload.id }
-                    : user
-                )
-              );
+  //         console.log("IT payload ", payload);
+  //         var saveapi = approvalservice.saveItadminApproval(payload)
+  //       }else if (admrole === "Super Admin"){
+  //          var saveapi = approvalservice.saveSuperadminApproval(payload)
+  //       }else{
+  //        var payload={userId:selectedRow ? selectedRow.userId : "",adminId:admin_id,roleSchemes: filteredPairs.map(pair => ({
+  //   roleId: pair.roleId,
+  //   schemeId: pair.schemeId  }))}
+  //       var saveapi = approvalservice.saveTsoRolesAssign(payload)
+  //       }
+  //       console.log('paye TSO', payload);
+  //       saveapi
+  //         .then((data) => {
+  //           if (data.payload) {
+  //             Swal.fire('Saved!', 'Your changes have been saved.', 'success');
+  //             setUserList((prevUserList) =>
+  //               prevUserList.map((user) =>
+  //                 // Update only the selected user, keep the rest of the users unchanged
+  //                 user.userId === selectedRow.userId
+  //                   ? { ...user, approvalStatus: data.payload.approvalStatus, approvalId: data.payload.id }
+  //                   : user
+  //               )
+  //             );
+                
+  //             if (zone !== '' && data.payload.loginId !== null) {
+  //               // Call the zone_save API with required parameters
+  //               console.log("zone", zone," user_idssssss   ", data.payload[0].loginId, " admin_id ", admin_id);
+  //               approvalservice
+  //                 .zone_save(zone, data.payload[0].loginId, admin_id)
+  //                 .then((zoneResponse) => {
+  //                   // Optionally, handle zone save success, like showing a notification
+  //                 })
+  //                 .catch((zoneError) => {
+  //                   Swal.fire('Error', 'Failed to save zone information. Please try again later.', 'error');
+  //                 });
+  //             }
+  //           } else {
+  //             Swal.fire('Error', data.message || 'Something went wrong, please try again.', 'error');
+  //           }
+  //         })
+  //         .catch((error) => {
+  //           Swal.fire('Error', 'Failed to save changes. Please try again later.', 'error');
+  //         });
+  //     } else {
+  //       Swal.fire('Cancelled', 'Your changes have not been saved.', 'error');
+  //     }
+  //   });
+  // };
 
-              if (zone !== null && data.payload.loginId !== null) {
-                // Call the zone_save API with required parameters
-                approvalservice
-                  .zone_save(zone, data.payload.loginId, admin_id)
-                  .then((zoneResponse) => {
-                    // Optionally, handle zone save success, like showing a notification
-                  })
-                  .catch((zoneError) => {
-                    Swal.fire('Error', 'Failed to save zone information. Please try again later.', 'error');
-                  });
-              }
-            } else {
-              Swal.fire('Error', data.message || 'Something went wrong, please try again.', 'error');
-            }
-          })
-          .catch((error) => {
-            Swal.fire('Error', 'Failed to save changes. Please try again later.', 'error');
-          });
+const handleSaveChanges = () => {
+  // Close the modal first
+  handleCloseModal();
+
+  // SweetAlert2 confirmation dialog
+  Swal.fire({
+    title: "Are you sure?",
+    text: "You are about to save changes. Do you want to proceed?",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes, save changes",
+    cancelButtonText: "No, cancel",
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const admin_id = authservice.userid();
+      const approvalStatus = radioState;
+      const filteredPairs = schemeRolePairs.filter(pair => pair.schemeId && pair.roleId);
+
+      var payload = {
+        approvalStatus: approvalStatus === "approved" ? "Approved" : approvalStatus === "pending" ? "pending" : "Rejected",
+        approvalDate: new Date().toISOString().split('T')[0],
+        remarks: remarks,
+        isApproved: approvalStatus === "approved",
+        adminId: admin_id,
+        userId: selectedRow ? selectedRow.userId : "",
+        id: selectedRow.approvalId,
+        roleSchemes: filteredPairs.map(pair => ({
+          roleId: pair.roleId,
+          schemeId: pair.schemeId
+        }))
+      };
+
+      let saveapi;
+      if (admrole === "District Level Approver") {
+        saveapi = approvalservice.saveDisApproval(payload);
+      } else if (admrole === "IT Admin") {
+        saveapi = approvalservice.saveItadminApproval(payload);
+      } else if (admrole === "Super Admin") {
+        saveapi = approvalservice.saveSuperadminApproval(payload);
       } else {
-        Swal.fire('Cancelled', 'Your changes have not been saved.', 'error');
+        payload = {
+          userId: selectedRow ? selectedRow.userId : "",
+          adminId: admin_id,
+          roleSchemes: filteredPairs.map(pair => ({
+            roleId: pair.roleId,
+            schemeId: pair.schemeId
+          }))
+        };
+        saveapi = approvalservice.saveTsoRolesAssign(payload);
       }
-    });
-  };
+
+      // 🔹 Show loader before API call
+      Swal.fire({
+        title: "Saving...",
+        text: "Please wait while we save your changes.",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      saveapi
+        .then((data) => {
+          Swal.close(); // 🔹 Close loader
+          if (data.payload) {
+            Swal.fire("Saved!", "Your changes have been saved.", "success");
+            setUserList((prevUserList) =>
+              prevUserList.map((user) =>
+                user.userId === selectedRow.userId
+                  ? { ...user, approvalStatus: data.payload.approvalStatus, approvalId: data.payload.id }
+                  : user
+              )
+            );
+
+              if (zone !== "" && data.payload[0].loginId !== null) {
+              console.log("zone  ",zone,"   >>> ",data.payload[0].loginId,"admin ",admin_id)
+              approvalservice
+                .zone_save(zone, data.payload[0].loginId, admin_id)
+                .catch(() => {
+                  Swal.fire("Error", "Failed to save zone information. Please try again later.", "error");
+                });
+            }
+          } else {
+            Swal.fire("Error", data.message || "Something went wrong, please try again.", "error");
+          }
+        })
+        .catch(() => {
+          Swal.close();
+          Swal.fire("Error", "Failed to save changes. Please try again later.", "error");
+        });
+    } else {
+      Swal.fire("Cancelled", "Your changes have not been saved.", "error");
+    }
+  });
+};
+
 
   const handleChange = (event, newValue) => {
     setValue(newValue);
@@ -510,12 +611,12 @@ useEffect(() => {
         >
           {[{ label: "Name", value: selectedRow.name },
             { label: "Designation", value: selectedRow.designation },
-            { label: "Date Of birth", value: selectedRow.dateOfBirth },
+            { label: "Date Of birth", value: new Date(selectedRow.dateOfBirth).toLocaleDateString('en-GB'), sortable: true  },
             { label: "Email", value: selectedRow.email },
             { label: "Phone Number", value: selectedRow.mobileNumber },
-            { label: "Date of Joining", value: selectedRow.dateOfJoining },
-            { label: "Pen", value: selectedRow.penNumber },
-            { label: "Office", value: selectedRow.taluk }
+            { label: "Date of Joining", value: new Date(selectedRow.dateOfJoining).toLocaleDateString('en-GB'), sortable: true  },
+            { label: "Emp ID", value: selectedRow.empNumber },
+            { label: "Office", value: selectedRow.officelocation }
           ].map((field, index) => (
             <Box
               key={index}
@@ -612,8 +713,8 @@ useEffect(() => {
                     </Box>
                   )} */}
 
-                  {selectedRow.designation === 'Taluk Statistical Officer' && (
-
+                  {/* {selectedRow.designation === 'Taluk Statistical Officer' && ( */}
+{(selectedRow.designation_id === 3 || admrole === 'IT Admin' || admrole === 'Super Admin') && (
  <Box
   style={{
     display: "flex",
@@ -697,10 +798,35 @@ useEffect(() => {
       </div>
     </div>
   ))}
-</Box>
-)}
+</Box>)}
+{/* )} */}
 
                 </Box>
+                 { (zoneVisble === true && selectedRow.designation_id !== 3) && (
+                  <Box style={{ width: '30%', margin: 'auto' }}>
+                    <center>
+                      <strong>Select Zone</strong>
+                    </center>
+                    <TextField
+                      select
+                      fullWidth
+                      value={zone}
+                      onChange={(e) => setZone(e.target.value)}
+                      variant="outlined"
+                      style={{ marginTop: '8px' }}
+                    >
+                      {zonesList && zonesList.length > 0 ? ( // Add this check
+                             zonesList.map((zone) => (
+                               <MenuItem key={zone.zoneId} value={zone.zoneId}>
+                                 {zone.zoneNameEn}
+                               </MenuItem>
+                             ))
+                           ) : (
+                             <MenuItem disabled>No zones available</MenuItem>
+                           )}
+                    </TextField>
+                  </Box>
+                )}
 
                 {/* Status Radio Buttons */}
                 <Box
@@ -789,9 +915,9 @@ useEffect(() => {
             <Button onClick={handleCloseModal} color="secondary" variant="outlined">
               Close
             </Button>
-  {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow && selectedRow.designation === "Deputy Director -Districts") || (
+  {/* {(((admrole === "Super Admin" || admrole === "IT Admin") && selectedRow && selectedRow.designation === "Deputy Director -Districts") || (
       (admrole === "District Level Approver") || (selectedRow && selectedRow.designation === "Taluk Statistical Officer")
-    )) && (
+    )) && ( */}
             <Button
               onClick={handleSaveChanges}
               color="primary"
@@ -799,9 +925,9 @@ useEffect(() => {
               sx={{ background: '#04255e' }}
               disabled={!isSaveEnabled}
             >
-              Save Change
+              Save Changes
             </Button>
-            )}
+            {/* )} */}
           </DialogActions>
         </Dialog>
       )}
@@ -841,8 +967,8 @@ useEffect(() => {
             { label: "Email", value: selectedRow.email },
             { label: "Phone Number", value: selectedRow.mobileNumber },
             { label: "Date of Joining", value: selectedRow.dateOfJoining },
-            { label: "Pen", value: selectedRow.penNumber },
-            { label: "Office", value: selectedRow.taluk }
+            { label: "Emp number", value: selectedRow.empNumber },
+            { label: "Office", value: selectedRow.officelocation }
           ].map((field, index) => (
             <Box
               key={index}

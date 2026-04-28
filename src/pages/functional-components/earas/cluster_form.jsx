@@ -1,4 +1,4 @@
-import React, { useState, useEffect,useCallback ,useRef} from 'react';
+import React, { useState, useEffect,useCallback ,useRef,useMemo} from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Breadcrumb from 'routes/Breadcrumb';
 import {
@@ -15,6 +15,10 @@ import {
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 
+import InfoIcon from '@mui/icons-material/Info';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+
+
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import Autocomplete from '@mui/material/Autocomplete';
@@ -25,8 +29,15 @@ import authservice from 'pages/authentication/services/authservice';
 import LinearProgress from '@mui/material/LinearProgress';
 import MapIcon from '@mui/icons-material/Map';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
+import IconButton from '@mui/material/IconButton';
+import CloseIcon from '@mui/icons-material/Close';
+import Tooltip from '@mui/material/Tooltip'; 
+
+import SaveIcon from '@mui/icons-material/Save';
 import { FixedSizeList } from 'react-window';
 import mainapi from 'api/mainapi';
+
 
 
 // Placeholder for ListboxComponent if it's not provided externally.
@@ -91,6 +102,7 @@ const [defaultBlock, setDefaultBlock] = useState('');
 const [defaultLbcode, setDefaultLbcode] = useState('');
 const [mincluster, setMinCluster] = useState('');
 const [maxcluster, setMaxCluster] = useState('');
+const[meanCluster,setMeanCluster] = useState('');
  const [selectAllChecked, setSelectAllChecked] = useState(false);
 const [resvnoError, setResvnoError] = useState('');
 const [loadingResvno, setLoadingResvno] = useState(false);
@@ -100,6 +112,13 @@ const [rejectReason, setRejectReason] = useState('');
 const [customReason, setCustomReason] = useState('');
 const [openLimitDialog, setOpenLimitDialog] = useState(false);
 const [limitMessage, setLimitMessage] = useState('');
+// add these
+const [confirmLabel, setConfirmLabel] = useState('Save');
+const [confirmColor, setConfirmColor] = useState('primary'); // 'warning' | 'primary' | 'success'
+const [snackbarSeverity, setSnackbarSeverity] = useState("success"); 
+const [dialogIcon, setDialogIcon] = useState(null);
+const [dialogIconColor, setDialogIconColor] = useState("inherit");
+
 const [pendingSidePlots, setPendingSidePlots] = useState(null);
 
 
@@ -215,15 +234,17 @@ const[keyplotId,setKeyplotId] = useState('');
               headers: {
                   'Authorization': `Bearer ${token}` // Add token in Authorization header
               }
-                });
+                }
+              );
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log("keyplots ",data.payload)
+      
         setMinCluster(data.payload.clusterMin)
         setMaxCluster(data.payload.clusterMax)
+        setMeanCluster(data.payload.clusterMean)
         setDefaultLbcode(data.payload.lbcode)
         setDefaultBlock(data.payload.villageBlock);
         setDefaultVillageId(data.payload.kvillageId);
@@ -235,42 +256,64 @@ const[keyplotId,setKeyplotId] = useState('');
             // Prepare a map of existing side plots from the response
             const existingSidePlots = {};
             if (Array.isArray(data.payload.sidePlots)) {
-                data.payload.sidePlots.forEach(sp => {
-                    const directionKey = sp.label[0]; // e.g., 'N' from 'N2'
-                    existingSidePlots[directionKey] = {
-                        id: sp.label,
-                        label: sp.label,
-                        rows: (sp.rows || []).map(row => ({
-                            b_id: row.id,
-                            svNo: row.svNo || '',
-                            sub: row.subNo || '',
-                            block: row.bcode || '',
-                            villageName: row.village || '',
-                            enumeratedArea: row.actual || '',
-                            area: row.area || '',
-                            subOptions: [],
-                            plot_id: row.plot_id || '',
-                            isExisting: true
+               // ✅ Use full label instead of only first char
+data.payload.sidePlots.forEach(sp => {
+    const directionKey = sp.label;   // "N1", "E2", "S1", etc.
+    existingSidePlots[directionKey] = {
+        id: sp.label,
+        label: sp.label,
+        rows: (sp.rows || []).map(row => ({
+            b_id: row.id,
+            svNo: row.svNo || '',
+            sub: row.subNo || '',
+            block: row.bcode || '',
+            villageName: row.village || '',
+            enumeratedArea: row.actual || '',
+            area: row.area || '',
+            subOptions: [],
+            plot_id: row.plot_id || '',
+            isExisting: true
+        }))
+    };
+});
 
-                        }))
-                    };
-                });
             }
-            console.log("existed plotss ",existingSidePlots)
-            // Ensure exactly N, E, S, W side plots exist (override if present)
-            const defaultDirections = ['K','N1', 'E1', 'S1', 'W1'];
-            const mergedKeyplots = defaultDirections.map(dir => {
-                return existingSidePlots[dir] || {
-                    id: dir,
-                    label: dir,
-                    rows: []
-                };
-            });
-            const plotId = existingSidePlots?.['K']?.rows?.[0]?.plot_id || null;
-        
+            
+          
+// Always include keyplot "K"
+const fixed = ['K'];
+
+// Take all existing sideplots from backend (excluding K)
+const existing = Object.keys(existingSidePlots).filter(l => l !== 'K');
+
+// Define fallback defaults if backend has fewer than 4
+const defaults = ['N1','E1','S1','W1'];
+
+const uniqueDefaults = defaults.filter(d => !existing.includes(d));
+
+const sideplots = [...existing, ...uniqueDefaults].slice(0, 4);
+// Ensure exactly 4 sideplots
+// let sideplots = [];
+// if (existing.length >= 4) {
+//   sideplots = existing.slice(0, 4);
+// } else {
+//   sideplots = [...existing, ...defaults].slice(0, 4);
+// }
+
+// Final plot directions
+const allDirections = [...fixed, ...sideplots];
+
+// Merge backend + defaults
+const mergedKeyplots = allDirections.map(dir => {
+  return existingSidePlots[dir] || {
+    id: dir,
+    label: dir,
+    rows: []
+  };
+});
+setKeyplots(mergedKeyplots);
 
 
-            setKeyplots(mergedKeyplots);
 
             setLoading(false);
             // Parse syNo like "385/4"
@@ -295,6 +338,7 @@ const[keyplotId,setKeyplotId] = useState('');
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
+            alert(defaultLbcode)
             const response = await fetch(`${BASE_URL}/btr-service/cluster-api/${defaultLbcode}/villages`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -305,8 +349,6 @@ const[keyplotId,setKeyplotId] = useState('');
             }
 
             const data = await response.json();
-            console.log("Village data fetched: ", data);
-
             setAllVillageData(data);
             setVillageOptions(data);
         } catch (error) {
@@ -319,14 +361,30 @@ const[keyplotId,setKeyplotId] = useState('');
     fetchAllVillageDataForModal();
 }, [defaultLbcode]); // 👈 Now it listens for changes to lbcode
 
+const listRef = useRef();
+const preserveScrollPosition = useCallback(() => {
+  if (listRef.current) {
+    const currentScrollOffset = listRef.current._outerRef.scrollTop;
+    // After state update, restore the scroll position
+    setTimeout(() => {
+      if (listRef.current) {
+        listRef.current.scrollTo(currentScrollOffset);
+      }
+    }, 0);
+  }
+}, []);
  // Empty dependency array: runs only once on mount
-const handleSvNoSelection = (uniqueId) => { // uniqueId will be like "20-1" or the plotId
-  setSelectedSvNos((prevSelected) =>
-    prevSelected.includes(uniqueId)
-      ? prevSelected.filter((id) => id !== uniqueId)
-      : [...prevSelected, uniqueId]
-  );
-};
+const handleSvNoSelection = useCallback((id) => {
+  preserveScrollPosition();
+  
+  // Your existing selection logic
+  if (selectedSvNos.includes(id)) {
+    setSelectedSvNos(selectedSvNos.filter(item => item !== id));
+  } else {
+    setSelectedSvNos([...selectedSvNos, id]);
+  }
+}, [selectedSvNos, preserveScrollPosition]);
+
 
 
 
@@ -358,7 +416,6 @@ const closeModal = () => {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
-            console.log("Plot details response:", data);
 
             setModalRowData(prev => ({
                 ...prev,
@@ -419,7 +476,7 @@ useEffect(() => {
     // --- Main handler for all input changes in the Modal Form ---
     // This is a crucial function for updating modalRowData and triggering dependent fetches/updates.
 const handleModalInputChange = useCallback((value, field) => {
-  console.log("Changing field:", field, "to value:", value);
+  
 
   setModalRowData(prev => {
     let newState = { ...prev, [field]: value };
@@ -507,6 +564,7 @@ else if (field === 'resvnoStart' || field === 'resvnoEnd') {
       const kpId = keyplotId;
       const url = `${BASE_URL}/btr-service/cluster-api/${kpId}/resbdnos-by-village-block?villageId=${newState.village}&blockCode=${newState.modalBlock}&resvnoStart=${updatedStart}&resvnoEnd=${updatedEnd}`;
         const token = localStorage.getItem('token');
+      
     setLoadingResvno(true); // <== Start loader before fetch
 
 fetch(url,{
@@ -700,12 +758,13 @@ const handleOpenConfirmDialog = (keyplotIndex, rowIndexToRemove) => {
 
 const getRemainingArea = (villageId, blockCode, resvno, resbdno) => {
   // Find the plot details from the API response
-      console.log("vvv")
-  const detail = svNoDetails.find(d => 
-    d.resvno.toString() === resvno.toString() && 
-    d.resbdno.toString() === resbdno.toString()
-  );
-  
+
+const normalize = (val) => (val != null ? val.toString() : "NA");
+
+const detail = svNoDetails.find(d =>
+  normalize(d.resvno) === normalize(resvno) &&
+  normalize(d.resbdno) === normalize(resbdno)
+);
   if (!detail) return 0;
 
   // Get all rows that are using this plot from keyplots
@@ -741,65 +800,81 @@ const getRemainingArea = (villageId, blockCode, resvno, resbdno) => {
 const handleModalAddRow = () => {
   if (selectedKeyplotIndex === null) return;
 
-  const villageName = villageOptions.find(v => v.villageId === modalRowData.village)?.village || '';
-  const modalBlock = modalRowData.modalBlock;
-  const newRows = [];
-
-  if (svNoDetails.length > 0 && selectedSvNos.length > 0) {
-    selectedSvNos.forEach((selectedId) => {
-      const [resvno, resbdno] = selectedId.split('-');
-      const detail = svNoDetails.find(d => 
-        d.resvno.toString() === resvno && 
-        d.resbdno.toString() === resbdno
-      );
-
-      if (detail) {
-        const remainingArea = getRemainingArea(
-          modalRowData.village,
-          modalBlock,
-          resvno,
-          resbdno
-        );
-
-        if (remainingArea > 0) {
-          newRows.push({
-            village: modalRowData.village,
-            villageName,
-            block: modalBlock,
-            svNo: resvno,
-            sub: resbdno,
-            area: detail.area,
-            enumeratedArea: remainingArea.toFixed(2),
-            plot_id: detail.plotId.toString(),
-            isExisting: false,
-            isPending: true // Mark as pending
-          });
-        }
-      }
-    });
-  }
-
-  if (newRows.length === 0) {
-    setSnackbarMessage(
-      selectedSvNos.length > 0 
-        ? "Selected plots already exist or data is invalid." 
-        : "Please select at least one plot."
-    );
+  // safety: nothing selected
+  if (!svNoDetails.length || !selectedSvNos.length) {
+    setSnackbarMessage(selectedSvNos.length ? "Selected plots already exist or data is invalid." : "Please select at least one plot.");
     setSnackbarOpen(true);
     return;
   }
 
-  // Only update keyplots state
+  // safety cap
+  if (selectedSvNos.length > MAX_ALLOWED_ROWS) {
+    setSnackbarMessage(`Too many selected plots (${selectedSvNos.length}). Select up to ${MAX_ALLOWED_ROWS} at a time.`);
+    setSnackbarOpen(true);
+    return;
+  }
+
+  // 1) compute new rows & check cluster max
+  const currentTotal = parseFloat(calculateOverallTotalActual() || 0);
+  let newRowsTotal = 0;
+  const preparedRows = [];
+
+  selectedSvNos.forEach((selectedId) => {
+    const [resvno, resbdno] = selectedId.split('-');
+    const detail = svNoDetails.find(d =>
+      d.resvno?.toString() === resvno?.toString() && d.resbdno?.toString() === resbdno?.toString()
+    );
+
+    if (!detail) return;
+
+    const remainingArea = parseFloat(getRemainingArea(
+      modalRowData.village,
+      modalRowData.modalBlock,
+      resvno,
+      resbdno
+    ) || 0);
+
+    if (remainingArea > 0) {
+      newRowsTotal += remainingArea;
+      preparedRows.push({
+        village: modalRowData.village,
+        villageName: villageOptions.find(v => v.villageId === modalRowData.village)?.village || '',
+        block: modalRowData.modalBlock,
+        svNo: resvno,
+        sub: resbdno,
+        area: detail.area,
+        enumeratedArea: remainingArea.toFixed(2),
+        plot_id: detail.plotId?.toString(),
+        isExisting: false,
+        isPending: true
+      });
+    }
+  });
+
+  // Check cluster max
+  if (maxcluster && !isNaN(parseFloat(maxcluster)) && (currentTotal + newRowsTotal) > parseFloat(maxcluster)) {
+    setSnackbarMessage(`Cannot add selected plots — adding ${newRowsTotal.toFixed(2)} cents would exceed cluster max (${maxcluster}).`);
+    setSnackbarOpen(true);
+    return;
+  }
+
+  if (preparedRows.length === 0) {
+    setSnackbarMessage("No valid rows to add (maybe remaining area is 0).");
+    setSnackbarOpen(true);
+    return;
+  }
+
+  // 2) Add rows in one update (fast)
   setKeyplots(prevKeyplots => {
     const updated = [...prevKeyplots];
-    updated[selectedKeyplotIndex].rows = [
-      ...updated[selectedKeyplotIndex].rows,
-      ...newRows
-    ];
+    updated[selectedKeyplotIndex] = {
+      ...updated[selectedKeyplotIndex],
+      rows: [...updated[selectedKeyplotIndex].rows, ...preparedRows]
+    };
     return updated;
   });
 
-  // Reset modal
+  // 3) reset modal state
   setModalRowData({
     village: null,
     modalBlock: null,
@@ -819,6 +894,22 @@ const handleModalAddRow = () => {
   setModalOpen(false);
   setResvnoError('');
 };
+
+
+const totalSelectedArea = useMemo(() => {
+  return selectedSvNos.reduce((sum, id) => {
+    const [resvno, resbdno] = id.split("-");
+    const area = parseFloat(
+      getRemainingArea(
+        modalRowData.village,
+        modalRowData.modalBlock,
+        resvno,
+        resbdno
+      ) || 0
+    );
+    return sum + area;
+  }, 0);
+}, [selectedSvNos, modalRowData, getRemainingArea]);
 
 const isResbdnoAlreadyAdded = (itemResvno, itemResbdno) => { // Pass both parts
   if (selectedKeyplotIndex === null) return false;
@@ -852,7 +943,7 @@ const isAddButtonDisabled = () => {
         // This function was originally for direct input fields in the main form.
         // With modal, actual area formatting should occur within the modal's context or on submission.
         // If you keep direct input fields in the main form, this would still apply to them.
-        console.log("handleAreaInputBlur called. Consider if still needed with modal.");
+       
     };
 
     // Calculate total actual area for a specific side plot
@@ -1101,9 +1192,10 @@ const handleSubmit = async (event) => {
       const totalUsed = plotUsageMap.get(key) || 0;
       const plotArea = parseFloat(row.area || 0);
 
+      // Validation: must be a number
       if (row.enumeratedArea === '' || isNaN(enumeratedArea)) {
-        setKeyplots(prev => {
-          return prev.map((kp, idx) => {
+        setKeyplots(prev =>
+          prev.map((kp, idx) => {
             if (idx !== keyplots.indexOf(keyplot)) return kp;
             return {
               ...kp,
@@ -1119,31 +1211,42 @@ const handleSubmit = async (event) => {
                 return r;
               }),
             };
-          });
-        });
+          })
+        );
 
-        setSnackbarMessage(`Please enter a valid 'Actual Area' for Sv.No: ${row.svNo}/${row.sub} in ${keyplot.label}.`);
-        setSnackbarOpen(true);
-        hasValidationError = true;
-        break;
-      }
-
-      if (enumeratedArea <= 0) {
-        setSnackbarMessage(`Area must be greater than 0 for Sv.No: ${row.svNo}/${row.sub}.`);
-        setSnackbarOpen(true);
-        hasValidationError = true;
-        break;
-      }
-
-      if (totalUsed > plotArea) {
         setSnackbarMessage(
-          `Total enumerated area (${totalUsed.toFixed(2)}) exceeds plot area (${plotArea.toFixed(2)}) for ${row.svNo}/${row.sub}. Please reduce by ${(totalUsed - plotArea).toFixed(2)} cents.`
+          `Please enter a valid 'Actual Area' for Sv.No: ${row.svNo}/${row.sub} in ${keyplot.label}.`
         );
         setSnackbarOpen(true);
         hasValidationError = true;
         break;
       }
 
+      // Validation: must be > 0
+      if (enumeratedArea <= 0) {
+        setSnackbarMessage(
+          `Area must be greater than 0 for Sv.No: ${row.svNo}/${row.sub}.`
+        );
+        setSnackbarOpen(true);
+        hasValidationError = true;
+        break;
+      }
+
+      // Validation: not exceed plot area
+      if (totalUsed > plotArea) {
+        setSnackbarMessage(
+          `Total enumerated area (${totalUsed.toFixed(2)}) exceeds plot area (${plotArea.toFixed(
+            2
+          )}) for ${row.svNo}/${row.sub}. Please reduce by ${(
+            totalUsed - plotArea
+          ).toFixed(2)} cents.`
+        );
+        setSnackbarOpen(true);
+        hasValidationError = true;
+        break;
+      }
+
+      // Valid row
       validRows.push({
         actual: enumeratedArea.toFixed(2),
         plot_id: row.plot_id,
@@ -1163,46 +1266,79 @@ const handleSubmit = async (event) => {
   if (hasValidationError) return;
 
   if (sidePlotsToSubmit.length === 0) {
-    setSnackbarMessage('No valid side plots found to submit. Please ensure Sv.No, Sub, and Actual Area are filled for at least one row in a side plot.');
+    setSnackbarMessage(
+      'No valid side plots found to submit. Please ensure Sv.No, Sub, and Actual Area are filled for at least one row in a side plot.'
+    );
     setSnackbarOpen(true);
     return;
   }
 
   // Step 2: Now check total cluster area limits
-// ✅ Cluster area range checks
-const totalCents = parseFloat(calculateOverallTotalActual());
-const minCents = parseFloat(mincluster || 0);
-const maxCents = parseFloat(maxcluster || 0);
+  const totalCents = parseFloat(calculateOverallTotalActual() || 0);
+  const minCents = parseFloat(mincluster || 0);
+  const meanCents = parseFloat(meanCluster || 0);
+  const maxCents = parseFloat(maxcluster || 0);
 
-if (maxCents && totalCents > maxCents) {
-  setSnackbarMessage(
-    `❌ Error: Cluster area (${totalCents.toFixed(2)} cents) exceeds the maximum allowed (${maxCents} cents).`
-  );
-  setSnackbarOpen(true);
-  return; // ❌ Don't save
-}
+  // ❌ Block if over max
+  if (maxCents && totalCents > maxCents) {
+    setSnackbarMessage(
+      `❌ Error: Cluster area (${totalCents.toFixed(
+        2
+      )} cents) exceeds the maximum allowed (${maxCents} cents).`
+    );
+    setSnackbarOpen(true);
+    return;
+  }
+
+  // ✅ Decide dialog label & message
+  setPendingSidePlots(sidePlotsToSubmit);
 
 if (minCents && totalCents < minCents) {
   setLimitMessage(
-    `⚠️ Warning: Cluster area (${totalCents.toFixed(2)} cents) is below the minimum allowed (${minCents} cents). Saving anyway?`
+    `⚠️ Cluster area (${totalCents.toFixed(2)} cents) is below the minimum (${minCents}). 
+     Do you want to save this work as a Draft so you can continue later?`
   );
-  setPendingSidePlots(sidePlotsToSubmit); // ✅ Store sidePlots for later
-  setOpenLimitDialog(true);
-  return; // ✅ Wait for confirmation
+  setConfirmLabel("Save Draft");
+  setConfirmColor("warning");
+
+  // 🟡 Draft → warning icon
+  setDialogIcon(<WarningAmberIcon />);
+  setDialogIconColor("warning.main");
+
+} else if (meanCents && totalCents < meanCents) {
+  setLimitMessage(
+    `ℹ️ Cluster area (${totalCents.toFixed(2)} cents) reached the minimum (${minCents}) 
+     but has not yet reached the mean (${meanCents}). 
+     Do you want to Send this cluster for Approval?`
+  );
+  setConfirmLabel("Send for Approval");
+  setConfirmColor("primary");
+
+  // 🔵 Approval → info icon
+  setDialogIcon(<InfoIcon />);
+  setDialogIconColor("info.main");
+
 } else {
-  // ✅ Area is within range
-  setSnackbarMessage(
-    `✅ Cluster area (${totalCents.toFixed(2)} cents) is within the allowed range (${minCents} - ${maxCents} cents).`
+  setLimitMessage(
+    `✅ Cluster area (${totalCents.toFixed(2)} cents) is valid (≥ ${meanCents}, ≤ ${maxCents}). 
+     Do you want to Submit the Cluster now?`
   );
-  setSnackbarOpen(true);
+  setConfirmLabel("Submit the Cluster");
+  setConfirmColor("success");
+
+  // 🟢 Submit → check icon
+  setDialogIcon(<CheckCircleIcon />);
+  setDialogIconColor("success.main");
 }
-setOpenLimitDialog(true);
-// ✅ Save regardless of warning
-doSubmit(pendingSidePlots);
+
+
+  // 👉 Open dialog (doSubmit will be called only after user confirms)
+  setOpenLimitDialog(true);
 };
 
 
-const doSubmit = async (sidePlotsToSubmit) => {
+
+const doSubmit = async (sidePlotsToSubmit, actionLabel) => {
   if (!sidePlotsToSubmit || sidePlotsToSubmit.length === 0) {
     setSnackbarMessage('Nothing to submit.');
     setSnackbarOpen(true);
@@ -1216,7 +1352,6 @@ const doSubmit = async (sidePlotsToSubmit) => {
     sidePlots: sidePlotsToSubmit,
   };
 
-console.log("sss ",sidePlotsToSubmit)
   try {
     const token = localStorage.getItem('token');
     const response = await fetch(`${BASE_URL}/btr-service/cluster-api/save-cluster`, {
@@ -1231,13 +1366,34 @@ console.log("sss ",sidePlotsToSubmit)
     if (!response.ok) throw new Error('Save failed');
 
     const result = await response.json();
-    setSnackbarMessage('Form submitted successfully!');
-    setSnackbarOpen1(true);
+
+    // 🔹 Map actionLabel → friendly message
+// 🔹 Map actionLabel → friendly message + color
+let successMsg = "Form submitted successfully!";
+let severity = "success"; // default green
+
+if (actionLabel === "Save Draft") {
+  successMsg = "Draft saved successfully!";
+  severity = "warning"; // yellow
+} else if (actionLabel === "Send for Approval") {
+  successMsg = "Cluster sent for approval successfully!";
+  severity = "info"; // blue
+} else if (actionLabel === "Submit the Cluster") {
+  successMsg = "Cluster submitted successfully!";
+  severity = "success"; // green
+}
+
+setSnackbarMessage(successMsg);
+setSnackbarSeverity(severity);
+setSnackbarOpen1(true);
+
+
   } catch (err) {
     setSnackbarMessage(`Failed to submit form: ${err.message}`);
     setSnackbarOpen(true);
   }
 };
+
 
 
 // savee
@@ -1267,13 +1423,12 @@ const handleConfirmReject = async () => {
 
   // Logic to handle the rejection
   const reasonToSubmit = rejectReason === 'other' ? customReason : rejectReason;
-  console.log('Rejecting cluster with reason:', reasonToSubmit);
+ 
 
   try {
     const token = localStorage.getItem('token');
     const kPlotObj = keyplots.find(item => item.id === "K");
     const plotId = kPlotObj?.rows?.[0]?.plot_id || null;
-    console.log("plot id ",plotId);
 
     if (!plotId) {
       throw new Error("Plot ID not found.");
@@ -1294,7 +1449,7 @@ const handleConfirmReject = async () => {
     });
 
     const data = await response.json();
-    console.log("Response from backend in Rejected :", response.status, data);
+
 
     // Check if the response was successful
     if (response.ok) {
@@ -1436,37 +1591,249 @@ useEffect(() => {
 }, []);
 
 
- useEffect(() => {
-    if (svNoDetails.length > 0 && selectedSvNos.length === svNoDetails.length) {
-      setSelectAllChecked(true);
-    } else {
-      setSelectAllChecked(false);
-    }
-  }, [svNoDetails, selectedSvNos]);
-
-const handleSelectAll = (event) => {
-  const checked = event.target.checked;
-  setSelectAllChecked(checked);
-  
-  if (checked) {
-    // Only select plots with remaining area
-    const allSelectableIds = svNoDetails
-      .filter(item => {
-        const remaining = getRemainingArea(
+useEffect(() => {
+  const eligibleIds = svNoDetails
+    .filter(item => {
+      const remaining = parseFloat(
+        getRemainingArea(
           modalRowData.village,
           modalRowData.modalBlock,
-          item.resvno.toString(),
-          item.resbdno.toString()
-        );
+          item.resvno?.toString(),
+          item.resbdno?.toString()
+        ) || 0
+      );
+      return remaining > 0;
+    })
+    .map(item => `${item.resvno}-${item.resbdno}`);
+
+  const selectedEligible = selectedSvNos.filter(id => eligibleIds.includes(id));
+  setSelectAllChecked(eligibleIds.length > 0 && selectedEligible.length === eligibleIds.length);
+}, [svNoDetails, selectedSvNos, modalRowData, getRemainingArea]);
+
+
+const handleSelectAll = useCallback(() => {
+  if (selectAllChecked) {
+    setSelectedSvNos([]);
+  } else {
+    const allSelectableIds = svNoDetails
+      .filter(item => {
+        const remaining = parseFloat(getRemainingArea(
+          modalRowData.village,
+          modalRowData.modalBlock,
+          item.resvno?.toString(),
+          item.resbdno?.toString()
+        ) || 0);
         return remaining > 0;
       })
       .map(item => `${item.resvno}-${item.resbdno}`);
     
     setSelectedSvNos(allSelectableIds);
-  } else {
-    setSelectedSvNos([]);
   }
+}, [selectAllChecked, svNoDetails, modalRowData, getRemainingArea]);
+
+
+const Row = useCallback(({ index, style }) => {
+  const item = svNoDetails[index];
+  const id = `${item.resvno}-${item.resbdno}`;
+  const remaining = parseFloat(getRemainingArea(
+    modalRowData.village,
+    modalRowData.modalBlock,
+    item.resvno?.toString(),
+    item.resbdno?.toString()
+  ) || 0);
+  const disabled = remaining <= 0;
+  const checked = selectedSvNos.includes(id);
+
+  return (
+    <div style={style} key={id}>
+      <ListItem
+        disableGutters
+        sx={{
+          px: 1,
+          height: VIRTUAL_ITEM_SIZE,          // <-- fixed, matches list itemSize
+          alignItems: 'center',
+          borderBottom: '1px solid #eee'      // <-- replaces <Divider />
+        }}
+      >
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={checked}
+              onChange={() => handleSvNoSelection(id)}
+              disabled={disabled}
+              size="small"
+            />
+          }
+          label={
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+              <Box sx={{ pr: 1, overflowY: 'hidden' }}>
+                <Typography variant="h6" noWrap>
+                  <strong>{item.resvno}/{item.resbdno}</strong>
+                </Typography>
+                <Typography variant="p" noWrap>
+                  Area: {item.area} cent
+                  {/* | Balance: {remaining.toFixed(2)}c */}
+                </Typography>
+              </Box>
+              <Box sx={{ textAlign: 'right', minWidth: 120 }}>
+                {disabled ? (
+                  <Typography variant="caption" color="text.secondary">No remaining</Typography>
+                ) : (
+                  <Typography variant="p">Remaining {remaining.toFixed(2)}c</Typography>
+                )}
+              </Box>
+            </Box>
+          }
+          sx={{ width: '100%' }}
+        />
+      </ListItem>
+    </div>
+  );
+}, [selectedSvNos, handleSvNoSelection, modalRowData, svNoDetails]);
+
+
+
+// === Performance & limit constants ===
+const MAX_ALLOWED_ROWS = maxcluster; // safety cap for number of rows selected at once. adjust if needed.
+const VIRTUAL_ITEM_SIZE = 64; // px height for each row in virtual list
+const VIRTUAL_MAX_VISIBLE = 8; // show up to 8 items height in the modal before scrolling
+
+// Virtualized renderer for svNoDetails in modal
+const SvNoVirtualList = React.memo(() => {
+  const items = svNoDetails || [];
+  const itemSize = VIRTUAL_ITEM_SIZE;
+  const height = Math.min(items.length, VIRTUAL_MAX_VISIBLE) * itemSize || itemSize;
+
+  if (!items.length) {
+    return <Typography variant="body2" sx={{ mt: 1 }}>No plots found for the selected range.</Typography>;
+  }
+
+  return (
+    <FixedSizeList
+      ref={listRef}
+      height={height}
+      itemCount={items.length}
+      itemSize={itemSize}
+      width="100%"
+      style={{ marginTop: 8 }}
+    >
+      {Row}
+    </FixedSizeList>
+  );
+});
+
+
+const SvNoList = () => {
+  const itemSize = VIRTUAL_ITEM_SIZE;
+  const maxVisibleRows = 6;
+  const height = Math.min(svNoDetails.length, maxVisibleRows) * itemSize || itemSize;
+
+  if (!svNoDetails.length) {
+    return (
+      <Typography variant="body2" sx={{ mt: 1 }}>
+        No plots found for the selected range.
+      </Typography>
+    );
+  }
+
+  return (
+    <FixedSizeList
+      ref={listRef}           // <-- attach the ref you're using in preserveScrollPosition
+      height={height}
+      itemCount={svNoDetails.length}
+      itemSize={itemSize}
+      width="100%"
+      style={{ marginTop: 8 }}
+    >
+      {Row}
+    </FixedSizeList>
+  );
 };
+
+
+const combinedTotal = useMemo(() => {
+  const selectedTotal = selectedSvNos.reduce((sum, id) => {
+    const [resvno, resbdno] = id.split("-");
+    const area = parseFloat(
+      getRemainingArea(
+        modalRowData.village,
+        modalRowData.modalBlock,
+        resvno,
+        resbdno
+      ) || 0
+    );
+    return sum + area;
+  }, 0);
+
+  return parseFloat(calculateOverallTotalActual() || 0) + selectedTotal;
+}, [selectedSvNos, modalRowData, getRemainingArea, calculateOverallTotalActual]);
+
+
+
+// In your modal component, update the reservation selection section:
+{/* <>
+  <Divider sx={{ my: 2 }} />
+
+  <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main', mb: 1 }}>
+    ✅ Reservation Sub Numbers
+  </Typography>
+
+<Box
+  sx={{
+    minHeight: 150,
+    maxHeight: 350,
+    px: 2,
+    py: 1,
+    border: '1px dashed #ccc',
+    borderRadius: 2,
+    backgroundColor: '#fafafa',
+  }}
+>
+  {loadingResvno ? (
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100px' }}>
+      <CircularProgress size={30} />
+    </Box>
+  ) : svNoDetails.length > 0 ? (
+    <>
+  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+    <FormControlLabel
+      control={<Checkbox checked={selectAllChecked} onChange={handleSelectAll} />}
+      label="Select all visible (only with remaining > 0)"
+    />
+    <Typography variant="caption" color="text.secondary">{svNoDetails.length} results</Typography>
+  </Box>
+  <SvNoList />
+</>
+
+  ) : resvnoError ? (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '120px',
+        textAlign: 'center',
+        color: 'text.secondary',
+      }}
+    >
+      <img
+        src="https://cdn-icons-png.flaticon.com/512/6134/6134065.png"
+        alt="No Data"
+        width={50}
+        height={50}
+        style={{ marginBottom: 8, opacity: 0.6 }}
+      />
+      <Typography variant="body1" fontWeight="bold" color="error">
+        {resvnoError}
+      </Typography>
+      <Typography variant="body2">
+        Please adjust the Resvno range and try again.
+      </Typography>
+    </Box>
+  ) : null}
+</Box>
+</> */}
     // --- Loading State (before JSX) ---
     if (loading) {
         return (
@@ -1491,13 +1858,13 @@ const handleSelectAll = (event) => {
     right: 0,
     zIndex: 1000,
     borderRadius:'1rem 1rem',
-    backgroundColor: 'rgba(212, 228, 231, 0.8)', // This color might need adjustment for better contrast with progress bar
+    backgroundColor: 'rgba(212, 228, 231, 0.8)',
     p: 1.5,
     boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
     display: 'flex',
-    flexDirection: 'column', // Change to column to stack elements vertically
+    flexDirection: 'column',
     justifyContent: 'space-between',
-    alignItems: 'flex-start', // Align items to the start
+    alignItems: 'flex-start',
     mb: 2,
     borderBottom: '1px solid #e0e0e0',
     width: 'auto',
@@ -1506,27 +1873,26 @@ const handleSelectAll = (event) => {
     <Typography variant="subtitle1" fontWeight="bold">
       Cluster: {slNo || 'Not Available'} | {keyplotDetails.panchayath || ''}
     </Typography>
-    <Box sx={{ width: '100%', mt: 1 }}> {/* Added this Box to wrap the area info */}
+    <Box sx={{ width: '100%', mt: 1 }}>
       <Typography variant="subtitle1">
         <strong>Total Area:</strong> {calculateOverallTotalActual()} Cent
       </Typography>
-      {/* Add LinearProgress here for the floating summary */}
       <LinearProgress
         variant="determinate"
-        value={(parseFloat(calculateOverallTotalActual()) / 600) * 100} // Assuming 600 cents is 6 acres
+        value={(parseFloat(calculateOverallTotalActual()) / 600) * 100}
         sx={{
-          height: 8, // Slightly smaller height for floating bar
+          height: 8,
           borderRadius: 4,
-          mt: 0.5, // Margin top to separate from text
+          mt: 0.5,
           '& .MuiLinearProgress-bar': {
             backgroundColor: () => {
               const totalCents = parseFloat(calculateOverallTotalActual());
-              if (totalCents > maxcluster) { // Warning when close to limit (e.g., over 5.5 acres)
-                return 'error.main'; // Red
-              } else if (totalCents > mincluster) { // Approaching limit (e.g., over 4.5 acres)
-                return 'warning.main'; // Orange/Yellow
+              if (totalCents > maxcluster) {
+                return 'error.main';
+              } else if (totalCents > mincluster) {
+                return 'warning.main';
               }
-              return 'success.main'; // Green
+              return 'success.main';
             },
           },
         }}
@@ -1534,11 +1900,27 @@ const handleSelectAll = (event) => {
       <Typography variant="caption" display="block" sx={{ mt: 0.5, textAlign: 'right', color: 'text.secondary' }}>
         {parseFloat(calculateOverallTotalActual()).toFixed(2)} / {maxcluster} Cents
       </Typography>
+      
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+        <Tooltip title="View FMB">
+          <Button variant="contained" color="secondary" onClick={() => {/* handle view FMB */}}>
+            <MapIcon />
+          </Button>
+        </Tooltip>
+        <Tooltip title="Reject Cluster">
+          <Button variant="contained" color="error" onClick={handleOpenRejectDialog}>
+            <WarningAmberIcon />
+          </Button>
+        </Tooltip>
+        <Tooltip title="Submit">
+          <Button type="submit" variant="contained" color="primary" onClick={handleSubmit}>
+            <SaveIcon />
+          </Button>
+        </Tooltip>
+      </Box>
     </Box>
   </Box>
 )}
-
-
 
         <Typography variant="h4" align="center" gutterBottom color="primary">
           Cluster Land Form
@@ -1553,7 +1935,7 @@ const handleSelectAll = (event) => {
             <TextField label="Cluster No." value={slNo || 'Not Available'} InputProps={{ readOnly: true }} fullWidth />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <TextField label="LocalBody Name" value={keyplotDetails.panchayath || ''} InputProps={{ readOnly: true }} fullWidth />
+            <TextField label="Local Body" value={keyplotDetails.panchayath || ''} InputProps={{ readOnly: true }} fullWidth />
           </Grid>
           <Grid item xs={12} sm={6} md={2}>
             <TextField
@@ -1566,9 +1948,10 @@ const handleSelectAll = (event) => {
           </Grid> 
          
           <Grid item xs={12} sm={6} md={3} ref={totalAreaRef}>
-            <TextField label="TOTAL ACTUAL AREA (Cent)" value={calculateOverallTotalActual()} InputProps={{ readOnly: true }} fullWidth/>
+            <TextField label="Total Actual Area (in cents)" value={calculateOverallTotalActual()} InputProps={{ readOnly: true }} fullWidth/>
             {/* THIS IS WHERE THE NEW CODE FOR LinearProgress IS ADDED */}
             <Box sx={{ width: '100%', mt: 1 }}>
+
               <LinearProgress
                 variant="determinate"
                 value={(parseFloat(calculateOverallTotalActual()) / 600) * 100} // Assuming 600 cents is 6 acres
@@ -1610,7 +1993,7 @@ const handleSelectAll = (event) => {
         <Button variant="contained" color="error" onClick={handleOpenRejectDialog}>
           
         {/* <Button variant="contained" color="error"> */}
-          <WarningAmberIcon /> Reject Cluster
+          <DeleteForeverIcon /> Reject Cluster
         </Button>
       </Box>
     </Grid>
@@ -1635,26 +2018,47 @@ const handleSelectAll = (event) => {
         />
     ) : (
         // --- NEW: Using Select Component ---
-        <FormControl variant="outlined" size="small" sx={{ width: '100px', bgcolor: 'transparent', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'white' } }}>
-            <InputLabel id={`side-plot-label-${keyplot.id}`} sx={{ color: 'white' }}>Label</InputLabel>
-            <Select
-                labelId={`side-plot-label-${keyplot.id}`}
-                value={keyplot.label}
-                label="Label"
-                onChange={(e) => handleKeyplotLabelChange(e, index)}
-                sx={{
-                    color: 'white',
-                    fontWeight: 'bold',
-                    '& .MuiSelect-icon': { color: 'white' } // Color of the dropdown arrow
-                }}
-            >
-                {sidePlotLabelOptions.map((option) => (
-                    <MenuItem key={option} value={option}>
-                        {option}
-                    </MenuItem>
-                ))}
-            </Select>
-        </FormControl>
+ <FormControl
+  variant="outlined"
+  size="small"
+  sx={{
+    width: '100px',
+    bgcolor: 'transparent',
+    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'white' }
+  }}
+>
+  <InputLabel
+    id={`side-plot-label-${keyplot.id}`}
+    sx={{ color: 'white' }}
+  >
+    Label
+  </InputLabel>
+  <Select
+    labelId={`side-plot-label-${keyplot.id}`}
+    value={keyplot.label}
+    label="Label"
+    onChange={(e) => handleKeyplotLabelChange(e, index)}
+    sx={{
+      color: 'white',
+      fontWeight: 'bold',
+      '& .MuiSelect-icon': { color: 'white' }
+    }}
+  >
+    {sidePlotLabelOptions.map((option) => (
+      <MenuItem
+        key={option}
+        value={option}
+        // 🚀 disable if another row already has this option
+        disabled={keyplots.some(
+          (sp, i) => i !== index && sp.label === option
+        )}
+      >
+        {option}
+      </MenuItem>
+    ))}
+  </Select>
+</FormControl>
+
         // --- END NEW ---
     )}
 </Box>
@@ -1666,7 +2070,7 @@ const handleSelectAll = (event) => {
   <Grid item xs={2}> <Typography fontWeight="bold">Village</Typography> </Grid>
   <Grid item xs={2}> <Typography fontWeight="bold">Block</Typography> </Grid>
   <Grid item xs={2}> <Typography fontWeight="bold">SV.No / Sub</Typography> </Grid>
-  <Grid item xs={3}> <Typography fontWeight="bold">Total Area - Actual</Typography> </Grid>
+  <Grid item xs={3}> <Typography fontWeight="bold">Total Area Actual</Typography> </Grid>
   <Grid item xs={2}> <Typography fontWeight="bold">Total Area Enumerated</Typography> </Grid>
 
   {/* Dynamic Rows */}
@@ -1762,7 +2166,7 @@ const handleSelectAll = (event) => {
       {!(keyplot.label === "K" && rowIndex === 0) && (
   <Button 
     startIcon={<RemoveCircleOutlineIcon />}
-    onClick={() => removeKeyplotRow(index, rowIndex,row.id)}  // Pass both indices
+    onClick={() => removeKeyplotRow(index, rowIndex, row.id)}  // Pass both indices
     size="small"
     variant="contained"
     color="error"
@@ -1829,16 +2233,12 @@ const handleSelectAll = (event) => {
           </Alert>
         </Snackbar>
 
-             <Snackbar
-          open={snackbarOpen1}
-          autoHideDuration={3000}
-          onClose={handleSnackbarClose}
-          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        >
-          <Alert onClose={handleSnackbarClose} severity="success" sx={{ width: '100%' }}>
-            {snackbarMessage}
-          </Alert>
-        </Snackbar>
+       <Snackbar open={snackbarOpen1} autoHideDuration={4000}  anchorOrigin={{ vertical: 'top', horizontal: 'center' }} onClose={() => setSnackbarOpen1(false)}>
+  <Alert onClose={() => setSnackbarOpen1(false)} severity={snackbarSeverity} sx={{ width: '100%' }}>
+    {snackbarMessage}
+  </Alert>
+</Snackbar>
+
 
             {/* --- Modal for adding a new row --- */}
    <Modal
@@ -1909,31 +2309,39 @@ const handleSelectAll = (event) => {
       {/* Block Field */}
       <Grid item xs={12}>
         <Autocomplete
-          options={modalBlockOptions}
-          getOptionLabel={(option) => String(option)}
-          value={modalRowData.modalBlock}
-          onChange={(event, newValue) => {
-            handleModalInputChange(newValue, 'modalBlock');
-            setModalRowData((prev) => ({ ...prev, svNo: null }));
-            setSvNoOptions([]);
-            setSvNoDetails([]);
-            setSelectedSvNos([]);
-          }}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Block"
-              variant="outlined"
-              size="small"
-              fullWidth
-              inputProps={{
-                ...params.inputProps,
-                maxLength: 5, // Limit to 5 characters
-              }}
-            />
-          )}
-          disabled={!modalRowData.village || modalBlockOptions.length === 0}
-        />
+  options={modalBlockOptions}
+  getOptionLabel={(option) => String(option)}
+  value={modalRowData.modalBlock}
+  onChange={(event, newValue) => {
+    handleModalInputChange(newValue, 'modalBlock');
+
+    setModalRowData((prev) => ({
+      ...prev,
+      svNo: null,
+      resvnoStart: "",   // clear Resvno Start
+      resvnoEnd: ""      // clear Resvno End
+    }));
+
+    setSvNoOptions([]);
+    setSvNoDetails([]);
+    setSelectedSvNos([]);
+  }}
+  renderInput={(params) => (
+    <TextField
+      {...params}
+      label="Block"
+      variant="outlined"
+      size="small"
+      fullWidth
+      inputProps={{
+        ...params.inputProps,
+        maxLength: 5,
+      }}
+    />
+  )}
+  disabled={!modalRowData.village || modalBlockOptions.length === 0}
+/>
+
       </Grid>
 
       {/* Resvno Start */}
@@ -1981,79 +2389,106 @@ const handleSelectAll = (event) => {
     </Grid>
 
     {/* SECTION 2: Reservation Selection */}
+ {/* SECTION 2: Reservation Selection */}
+<>
+  <Divider sx={{ my: 2 }} />
+
+  <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main', mb: 1 }}>
+    ✅ Reservation Sub Numbers 
+  </Typography>
+
+<Box
+  sx={{
+    minHeight: 150,
+    maxHeight: 450,
+    px: 2,
+    py: 1,
+    border: '1px dashed #ccc',
+    borderRadius: 2,
+    backgroundColor: '#fafafa',
+     overflowY: 'auto',   // ✅ allow vertical scroll
+    overflowX: 'hidden', // Prevent container overflow
+  }}
+>
+  {loadingResvno ? (
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100px' }}>
+      <CircularProgress size={30} />
+    </Box>
+  ) : svNoDetails.length > 0 ? (
     <>
-      <Divider sx={{ my: 2 }} />
-
-      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-        ✅ Reservation Sub Numbers
-      </Typography>
-
-      <Box sx={{ minHeight: 150, px: 2, py: 1, border: '1px dashed #ccc', borderRadius: 2 }}>
-        {loadingResvno ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100px' }}>
-            <CircularProgress size={30} />
-          </Box>
-        ) : svNoDetails.length > 0 ? (
-          <FormGroup>
-            <FormControlLabel
-              control={<Checkbox checked={selectAllChecked} onChange={handleSelectAll} />}
-              label="Select All"
-            />
-            {svNoDetails.map((item) => {
-              const uniqueId = `${item.resvno}-${item.resbdno}`;
-              const remainingArea = getRemainingArea(
-                modalRowData.village,
-                modalRowData.modalBlock,
-                item.resvno,
-                item.resbdno
-              );
-
-              if (remainingArea <= 0) return null;
-
-              return (
-                <FormControlLabel
-                  key={uniqueId}
-                  control={
-                    <Checkbox
-                      checked={selectedSvNos.includes(uniqueId)}
-                      onChange={() => handleSvNoSelection(uniqueId)}
-                      disabled={remainingArea <= 0}
-                    />
-                  }
-                  label={`${item.resvno}/${item.resbdno} — ${item.area} cents (Remaining: ${remainingArea.toFixed(2)} cents)`}
-                />
-              );
-            })}
-          </FormGroup>
-        ) : resvnoError ? (
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '120px',
-              textAlign: 'center',
-              color: 'text.secondary',
-            }}
-          >
-            <img
-              src="https://cdn-icons-png.flaticon.com/512/6134/6134065.png"
-              alt="No Data"
-              width={50}
-              height={50}
-              style={{ marginBottom: 8, opacity: 0.6 }}
-            />
-            <Typography variant="body1" fontWeight="bold" color="error">
-              {resvnoError}
-            </Typography>
-            <Typography variant="body2">
-              Please adjust the Resvno range and try again.
-            </Typography>
-          </Box>
-        ) : null}
+      {/* Modal header actions: selectAll checkbox */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+        <FormControlLabel
+          control={<Checkbox checked={selectAllChecked} onChange={handleSelectAll} />}
+          label="Select all visible (only with remaining > 0)" 
+        />
+        <Typography variant="caption" color="text.secondary">{svNoDetails.length} results</Typography>
       </Box>
+
+<Box sx={{ mb: 1 }}>
+  <LinearProgress
+    variant="determinate"
+    value={Math.min((combinedTotal / maxcluster) * 100, 100)}
+    sx={{
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: '#eee',
+      '& .MuiLinearProgress-bar': {
+        backgroundColor: combinedTotal > maxcluster ? 'error.main' : 'primary.main',
+      },
+    }}
+  />
+  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+    <Typography variant="caption">
+      {combinedTotal.toFixed(2)}c / {maxcluster}c
+    </Typography>
+    {combinedTotal > maxcluster && (
+      <Typography variant="caption" color="error">
+        Limit exceeded!
+      </Typography>
+    )}
+  </Box>
+</Box>
+
+
+
+
+      {/* Virtualized list with fixed container */}
+    <Box sx={{ flex: 1, minHeight: 150, maxHeight: 300 }}>
+  <SvNoVirtualList />
+</Box>
+
     </>
+  ) : resvnoError ? (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '120px',
+        textAlign: 'center',
+        color: 'text.secondary',
+      }}
+    >
+      <img
+        src="https://cdn-icons-png.flaticon.com/512/6134/6134065.png"
+        alt="No Data"
+        width={50}
+        height={50}
+        style={{ marginBottom: 8, opacity: 0.6 }}
+      />
+      <Typography variant="body1" fontWeight="bold" color="error">
+        {resvnoError}
+      </Typography>
+      <Typography variant="body2">
+        Please adjust the Resvno range and try again.
+      </Typography>
+    </Box>
+  ) : null}
+</Box>
+</>
+
 
     {/* Action Buttons */}
     <Grid container justifyContent="flex-end" spacing={2} sx={{ mt: 3 }}>
@@ -2063,7 +2498,7 @@ const handleSelectAll = (event) => {
         </Button>
       </Grid>
       <Grid item>
-        <Button variant="contained" onClick={handleModalAddRow} disabled={isAddButtonDisabled()}>
+        <Button variant="contained" onClick={handleModalAddRow} disabled={combinedTotal === 0 || combinedTotal > maxcluster}>
           Add Row
         </Button>
       </Grid>
@@ -2171,44 +2606,51 @@ const handleSelectAll = (event) => {
 
             {/* --- End Modal --- */}
 
- <Dialog
-      open={openLimitDialog}
-      onClose={() => setOpenLimitDialog(false)}
-      sx={{ '& .MuiDialog-paper': { borderRadius: '12px' } }}
+<Dialog open={openLimitDialog} onClose={() => setOpenLimitDialog(false)}>
+ <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+    <Box sx={{ color: dialogIconColor, display: "flex", alignItems: "center" }}>
+      {dialogIcon}
+    </Box>
+    Confirm Action
+  </Box>
+
+  {/* Close Button */}
+  <IconButton
+    aria-label="close"
+    onClick={() => setOpenLimitDialog(false)}
+    sx={{ color: "grey.600" }}
+  >
+    <CloseIcon />
+  </IconButton>
+</DialogTitle>
+
+
+  <DialogContent>
+    <DialogContentText>{limitMessage}</DialogContentText>
+  </DialogContent>
+
+  <DialogActions>
+    <Button onClick={() => setOpenLimitDialog(false)}>Cancel</Button>
+    <Button
+      variant="contained"
+      color={confirmColor}
+      onClick={() => {
+        setOpenLimitDialog(false);
+        doSubmit(pendingSidePlots, confirmLabel);
+      }}
     >
-      <DialogTitle>
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <ReportProblemRoundedIcon color="warning" />
-          <Typography variant="h6">Cluster Not Complete</Typography>
-        </Stack>
-      </DialogTitle>
-      <DialogContent dividers>
-        <DialogContentText color="text.secondary" sx={{ py: 1 }}>
-          {limitMessage || "Are you sure you want to proceed? The cluster is not fully configured."}
-        </DialogContentText>
-      </DialogContent>
-      <DialogActions sx={{ p: 2, justifyContent: 'flex-end' }}>
-        <Button onClick={() => setOpenLimitDialog(false)} color="inherit">
-          Cancel
-        </Button>
-        <Button
-          onClick={() => {
-            setOpenLimitDialog(false);
-            doSubmit(pendingSidePlots);
-          }}
-          color="warning"
-          variant="contained"
-        >
-          Save Anyway
-        </Button>
-      </DialogActions>
-    </Dialog>
+      {confirmLabel}
+    </Button>
+  </DialogActions>
+</Dialog>
+
+
 
         </Container>
         </Grid>
     );
 };
-
 
 
 export default ClusterForm;

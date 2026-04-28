@@ -1,7 +1,4 @@
 import React, { useContext } from 'react';
-// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
-// import { hasAnyPermission, hasAllPermissions, hasPermission } from 'contexts/auth-reducer/permissionHelpers';
-// material-ui
 import Avatar from '@mui/material/Avatar';
 import AvatarGroup from '@mui/material/AvatarGroup';
 import Button from '@mui/material/Button';
@@ -46,8 +43,10 @@ import schemes from 'assets/images/logo/schemes.png';
 import approvals from 'assets/images/logo/approvals.png';
 import usermanage from 'assets/images/logo/usermanage.png';
 
-// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
-// avatar style
+//for permissions line
+import { useUserAccess, PermissionGate } from 'contexts/auth-reducer/universal/UserAccessContext';
+
+
 const avatarSX = {
   width: 36,
   height: 36,
@@ -70,6 +69,19 @@ const { children } = tabmenus.items2[0];
 export default function DashboardDefault() {
   const isauth = auth.isAdmin();
 
+  //for permissions line
+  // const { userAccessData, loading, hasPermission, hasPermissionByName } = useUserAccess();
+
+  // console.log('Dashboard Debug:');
+  // console.log('Loading:', loading);
+  // console.log('UserAccessData:', userAccessData);
+  // console.log('HasPermission function:', hasPermission);
+  // console.log('Permission 11 result:', hasPermission && hasPermission(11));
+
+  // if (loading) {
+  //   return <div>Loading permissions...</div>;
+  // }
+
   // const { permissions, loading, error } = useContext(PermissionsContext);
   // console.log("User Permissions:", permissions);
 
@@ -84,10 +96,9 @@ export default function DashboardDefault() {
       <Grid item xs={12}>
         <Typography variant="h4" align="center" sx={{ mb: 3 }}>
           Dashboard
-          {/* {isauth ? (
-        <h3>Welcome to your Dashboard</h3>
-      ) : (
-        <h3>Please log in to access the Dashboard</h3>
+          {/* Check by permission ID
+      {hasPermission(11) && (
+        <button>Cluster Formation</button>
       )} */}
         </Typography>
       </Grid>
@@ -210,7 +221,10 @@ export default function DashboardDefault() {
 
         <Grid item xs={12} sm={4} md={4} lg={4}>
           <Card
+            component={Link}
+            to="/tourdiary"
             sx={{
+              textDecoration: 'none',
               position: 'relative',
               display: 'flex',
               flexDirection: 'column',
@@ -293,275 +307,283 @@ export default function DashboardDefault() {
           </Card>
         </Grid>
 
-        {/* <Grid item xs={12} sm={4} md={4} lg={4}>
-          <Card
-            component={Link}
-            to="/rolelist"
-            sx={{
-              textDecoration: 'none',
-              position: 'relative',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '2rem',
-              borderRadius: '1rem',
-              background: 'linear-gradient(135deg, rgba(79, 208, 170, 0.57), rgb(37, 187, 142))',
-              transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-              overflow: 'hidden', // Ensure circles don't overflow the card
-              '&:hover': {
-                transform: 'scale(1.05)',
-                boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
-              },
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                width: '200px',
-                height: '200px',
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.2)',
-                top: '-50px',
-                right: '-50px'
-              },
-              '&::after': {
-                content: '""',
-                position: 'absolute',
-                width: '150px',
-                height: '150px',
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.15)',
-                bottom: '-40px',
-                left: '-40px'
-              }
-            }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
-              -
-            </Typography>
-            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
-              Role List
-            </Typography>
-            <Typography
-              variant="body2"
+        {["Super Admin", "District Level Approver", "IT Admin",].includes(authservice.getrole()) && (
+          <Grid item xs={12} sm={4} md={4} lg={4}>
+            <Card
+              component={Link}
+              to="/Report"
               sx={{
-                color: '#f3f3f3',
-                fontWeight: 'lighter',
-                marginTop: '0.5rem',
-                textAlign: 'center',
-                marginBottom: '1.2rem'
-              }}
-            >
-              List of Roles
-            </Typography>
-            <Box
-              sx={{
-                position: 'absolute',
-                top: '1rem',
-                right: '1rem',
-                background: 'rgba(255, 255, 255, 0.3)',
-                padding: '0.5rem',
-                borderRadius: '50%',
+                textDecoration: 'none',
+                position: 'relative',
                 display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
                 justifyContent: 'center',
-                alignItems: 'center'
+                padding: '2rem',
+                borderRadius: '1rem',
+                background: 'linear-gradient(135deg, rgba(79, 208, 170, 0.57), rgb(37, 187, 142))',
+                transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+                overflow: 'hidden', // Ensure circles don't overflow the card
+                '&:hover': {
+                  transform: 'scale(1.05)',
+                  boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
+                },
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  width: '200px',
+                  height: '200px',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  top: '-50px',
+                  right: '-50px'
+                },
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  width: '150px',
+                  height: '150px',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  bottom: '-40px',
+                  left: '-40px'
+                }
               }}
             >
-              <CardMedia
-                component="img"
+              <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
+                -
+              </Typography>
+              <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
+                Reports
+              </Typography>
+              <Typography
+                variant="body2"
                 sx={{
-                  width: '3rem',
-                  height: '3rem',
-                  borderRadius: '50%'
+                  color: '#f3f3f3',
+                  fontWeight: 'lighter',
+                  marginTop: '0.5rem',
+                  textAlign: 'center',
+                  marginBottom: '1.2rem'
                 }}
-                image="https://www.creativefabrica.com/wp-content/uploads/2021/06/30/Search-Engine-Icon-Graphics-14065623-1-1-580x386.jpg"
-                alt="Chart Icon"
-              />
-            </Box>
-          </Card>
-        </Grid> */}
+              >
+                List of Reports
+              </Typography>
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: '1rem',
+                  right: '1rem',
+                  background: 'rgba(255, 255, 255, 0.3)',
+                  padding: '0.5rem',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}
+              >
+                <CardMedia
+                  component="img"
+                  sx={{
+                    width: '3rem',
+                    height: '3rem',
+                    borderRadius: '50%'
+                  }}
+                  image="https://www.creativefabrica.com/wp-content/uploads/2021/06/30/Search-Engine-Icon-Graphics-14065623-1-1-580x386.jpg"
+                  alt="Chart Icon"
+                />
+              </Box>
+            </Card>
+          </Grid>
+        )}
 
-        {/* <Grid item xs={12} sm={4} md={4} lg={4}>
-          <Card
-            component={Link}
-            to="/approvals"
-            sx={{
-              textDecoration: 'none',
-              position: 'relative',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '2rem',
-              borderRadius: '1rem',
-              background: 'linear-gradient(135deg, rgba(255, 184, 97, 0.57), rgb(255, 189, 109))',
-              transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-              overflow: 'hidden', // Ensure circles don't overflow the card
-              '&:hover': {
-                transform: 'scale(1.05)',
-                boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
-              },
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                width: '200px',
-                height: '200px',
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.2)',
-                top: '-50px',
-                right: '-50px'
-              },
-              '&::after': {
-                content: '""',
-                position: 'absolute',
-                width: '150px',
-                height: '150px',
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.15)',
-                bottom: '-40px',
-                left: '-40px'
-              }
-            }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
-              -
-            </Typography>
-            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
-              Approvals
-            </Typography>
-            <Typography
-              variant="body2"
+        {["Super Admin", "District Level Approver", "IT Admin", "Taluk Level Approver"].includes(authservice.getrole()) && (
+          <Grid item xs={12} sm={4} md={4} lg={4}>
+            <Card
+              component={Link}
+              to="/approval_manage"
               sx={{
-                color: '#f3f3f3',
-                fontWeight: 'lighter',
-                marginTop: '0.5rem',
-                textAlign: 'center',
-                marginBottom: '1.2rem'
-              }}
-            >
-              Main menus
-            </Typography>
-            <Box
-              sx={{
-                position: 'absolute',
-                top: '1rem',
-                right: '1rem',
-                background: 'rgba(255, 255, 255, 0.3)',
-                padding: '0.5rem',
-                borderRadius: '50%',
+                textDecoration: 'none',
+                position: 'relative',
                 display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
                 justifyContent: 'center',
-                alignItems: 'center'
+                padding: '2rem',
+                borderRadius: '1rem',
+                background: 'linear-gradient(135deg, rgba(255, 184, 97, 0.57), rgb(255, 189, 109))',
+                transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+                overflow: 'hidden', // Ensure circles don't overflow the card
+                '&:hover': {
+                  transform: 'scale(1.05)',
+                  boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
+                },
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  width: '200px',
+                  height: '200px',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  top: '-50px',
+                  right: '-50px'
+                },
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  width: '150px',
+                  height: '150px',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  bottom: '-40px',
+                  left: '-40px'
+                }
               }}
             >
-              <CardMedia
-                component="img"
+              <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
+                -
+              </Typography>
+              <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
+                Approvals
+              </Typography>
+              <Typography
+                variant="body2"
                 sx={{
-                  width: '3rem',
-                  height: '3rem',
-                  borderRadius: '50%'
+                  color: '#f3f3f3',
+                  fontWeight: 'lighter',
+                  marginTop: '0.5rem',
+                  textAlign: 'center',
+                  marginBottom: '1.2rem'
                 }}
-                image={approvals} // <-- Use the imported image here
-                alt="Approvals Logo"
-              />
-            </Box>
-          </Card>
-        </Grid> */}
+              >
+                Main menus
+              </Typography>
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: '1rem',
+                  right: '1rem',
+                  background: 'rgba(255, 255, 255, 0.3)',
+                  padding: '0.5rem',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}
+              >
+                <CardMedia
+                  component="img"
+                  sx={{
+                    width: '3rem',
+                    height: '3rem',
+                    borderRadius: '50%'
+                  }}
+                  image={approvals} // <-- Use the imported image here
+                  alt="Approvals Logo"
+                />
+              </Box>
+            </Card>
+          </Grid>
+        )}
 
-        {/* <Grid item xs={12} sm={4} md={4} lg={4}>
-          <Card
-            component={Link}
-            to="/User_Manage"
-            sx={{
-              textDecoration: 'none',
-              position: 'relative',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '2rem',
-              borderRadius: '1rem',
-              background: 'linear-gradient(135deg, rgba(173, 97, 255, 0.57), rgb(175, 109, 255))',
-              transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-              overflow: 'hidden', // Ensure circles don't overflow the card
-              '&:hover': {
-                transform: 'scale(1.05)',
-                boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
-              },
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                width: '200px',
-                height: '200px',
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.2)',
-                top: '-50px',
-                right: '-50px'
-              },
-              '&::after': {
-                content: '""',
-                position: 'absolute',
-                width: '150px',
-                height: '150px',
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.15)',
-                bottom: '-40px',
-                left: '-40px'
-              }
-            }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
-              -
-            </Typography>
-            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
-              User Manage
-            </Typography>
-            <Typography
-              variant="body2"
+        {["Super Admin", "District Level Approver", "IT Admin"].includes(authservice.getrole()) && (
+          <Grid item xs={12} sm={4} md={4} lg={4}>
+            <Card
+              component={Link}
+              to="/User_Manage"
               sx={{
-                color: '#f3f3f3',
-                fontWeight: 'lighter',
-                marginTop: '0.5rem',
-                textAlign: 'center',
-                marginBottom: '1.2rem'
-              }}
-            >
-              Main menus
-            </Typography>
-            <Box
-              sx={{
-                position: 'absolute',
-                top: '1rem',
-                right: '1rem',
-                background: 'rgba(255, 255, 255, 0.3)',
-                padding: '0.5rem',
-                borderRadius: '50%',
+                textDecoration: 'none',
+                position: 'relative',
                 display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
                 justifyContent: 'center',
-                alignItems: 'center'
+                padding: '2rem',
+                borderRadius: '1rem',
+                background: 'linear-gradient(135deg, rgba(173, 97, 255, 0.57), rgb(175, 109, 255))',
+                transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+                overflow: 'hidden', // Ensure circles don't overflow the card
+                '&:hover': {
+                  transform: 'scale(1.05)',
+                  boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
+                },
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  width: '200px',
+                  height: '200px',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  top: '-50px',
+                  right: '-50px'
+                },
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  width: '150px',
+                  height: '150px',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  bottom: '-40px',
+                  left: '-40px'
+                }
               }}
             >
-              <CardMedia
-                component="img"
+              <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
+                -
+              </Typography>
+              <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
+                User Manage
+              </Typography>
+              <Typography
+                variant="body2"
                 sx={{
-                  width: '3rem',
-                  height: '3rem',
-                  borderRadius: '50%'
+                  color: '#f3f3f3',
+                  fontWeight: 'lighter',
+                  marginTop: '0.5rem',
+                  textAlign: 'center',
+                  marginBottom: '1.2rem'
                 }}
-                image={usermanage} // <-- Use the imported image here
-                alt="User Manage Logo"
-              />
-            </Box>
-          </Card>
-        </Grid> */}
+              >
+                Main menus
+              </Typography>
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: '1rem',
+                  right: '1rem',
+                  background: 'rgba(255, 255, 255, 0.3)',
+                  padding: '0.5rem',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}
+              >
+                <CardMedia
+                  component="img"
+                  sx={{
+                    width: '3rem',
+                    height: '3rem',
+                    borderRadius: '50%'
+                  }}
+                  image={usermanage} // <-- Use the imported image here
+                  alt="User Manage Logo"
+                />
+              </Box>
+            </Card>
+          </Grid>
+
+        )}
       </Grid>
+
 
       <Grid item md={8} sx={{ display: { sm: 'none', md: 'block', lg: 'none' } }} />
 
       {/* row 2 */}
-      <Grid item xs={12} md={7} lg={8}>
+      <Grid item xs={12} md={12} lg={12}>
         <UniqueVisitorCard />
       </Grid>
       {/* <Grid item xs={12} md={5} lg={4}>

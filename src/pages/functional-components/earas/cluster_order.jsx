@@ -20,48 +20,50 @@ import authservice from 'pages/authentication/services/authservice';
 import mainapi from 'api/mainapi';
 
 
-function ClusterSeatMap() {
+function ClusterSeatMap({zoneId}) {
   const BTR_URL = mainapi.BTR_API
   const [clusters, setClusters] = useState([]);
   const [summary, setSummary] = useState({ completed: 0, ongoing: 0, notStarted: 0 ,underreview:0});
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [openModal, setOpenModal] = useState(false);
+const [selectedCluster, setSelectedCluster] = useState(null);
 
-   const BASE_URL = mainapi.BTR_API;
 
-  useEffect(() => {
-      const token = localStorage.getItem('token');
-       setLoading(true);
-    axios.get(`${BASE_URL}/btr-service/cluster-api/user-cluster-summary/3bc4b01d-8d4b-4c2c-94ab-50bf4fdce924`,
-              {
-              headers: {
-                  'Authorization': `Bearer ${token}` // Add token in Authorization header
-              }
-                })
-      .then(res => {
-        // Sets the clusters data from the payload
-        setClusters(res.data.payload || []);
-        console.log("cluster data  ",res.data.payload)
-        // Updates the summary counts
-        setSummary({
-          completed: res.data.completed || 0,
-          ongoing: res.data.ongoing || 0,
-          notStarted: res.data.notStarted || 0,
-          underreview: res.data.underreview || 0,
-        });
-        setLoading(false);
-          setError(null);
-      })
-      .catch(err => {
-        // Logs an error if data fetching fails and resets state
-        console.error('Failed to fetch data:', err);
-         setClusters([]);
-  setSummary({ completed: 0, ongoing: 0, notStarted: 0, underreview: 0 });
-  setError('Failed to load cluster data. Please try again later.');
-  setLoading(false);
-      });
-  }, []); // Empty dependency array ensures this runs only once on mount
+  const BASE_URL = mainapi.BTR_API;
+  
+    useEffect(() => {
+  const token = localStorage.getItem('token');
+  const zoneId = authservice.getrole() === 'Field Data Collector' 
+    ? authservice.getzone() 
+    : zoneId;
+    
+  setLoading(true);
+  axios.get(`${BASE_URL}/btr-service/cluster-api/user-cluster-summary/${zoneId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  })
+  .then(res => {
+    setClusters(res.data.payload || []);
+    setSummary({
+      completed: res.data.completed || 0,
+      ongoing: res.data.ongoing || 0,
+      notStarted: res.data.notStarted || 0,
+      underreview: res.data.underreview || 0,
+    });
+    setLoading(false);
+    setError(null);
+  })
+  .catch(err => {
+    console.error('Failed to fetch data:', err);
+    setClusters([]);
+    setSummary({ completed: 0, ongoing: 0, notStarted: 0, underreview: 0 });
+    setError('Failed to load cluster data. Please try again later.');
+    setLoading(false);
+  });
+}, []);
 
   // Determines the border color of the card based on cluster status
   const getStatusBorderColor = (status) => {
@@ -69,7 +71,7 @@ function ClusterSeatMap() {
       case 'Completed': return '#4caf50'; // Green for completed
       case 'Ongoing':
       case 'On Going': return '#ffc107';   // Amber for ongoing statuses
-      case 'Under Review': return '#ffc107';   // Amber for ongoing statuses
+      case 'Under Review': return '#076affff';   // Amber for ongoing statuses
       default: return '#9e9e9e';         // Grey for not started
     }
   };
@@ -89,7 +91,8 @@ function ClusterSeatMap() {
 const handleClusterClick = (syNo, slNo) => {
   const encodedSyNo = encodeURIComponent(syNo);
   const encodedSlNo = encodeURIComponent(slNo);
-  navigate(`/schemes/earas/cluster?No=${encodedSyNo}&slno=${encodedSlNo}`);
+ 
+  navigate(`/schemes/earas/cluster_manual_entry?No=${encodedSyNo}&slno=${encodedSlNo}`);
 };
 
 
@@ -247,18 +250,23 @@ const handleClusterClick = (syNo, slNo) => {
 
             return (
               <Grid item xs={4} sm={3} md={2} lg={1} xl={1} key={cluster.keyplotId}
-                onClick={() => handleClusterClick(cluster.keyplotId, index + 1)}>
+                // onClick={() => handleClusterClick(cluster.keyplotId, index + 1)}>
+                onClick={() => handleClusterClick(cluster)}>
+
                 <Tooltip
                   title={ // Tooltip content to show detailed cluster information on hover
                     <Box>
                       <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.8rem' }}>
-                        ID: <strong style={{ color: 'white' }}>{cluster.localbody}</strong>
+                        Local Body: <strong style={{ color: 'white' }}>{cluster.localbody || 'N/A'}</strong>
                       </Typography>
                       <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.8rem' }}>
-                        Type: <strong style={{ color: 'white' }}>{cluster.clusterType.toUpperCase()}</strong>
+                        Type: <strong style={{ color: 'white' }}>{(cluster.clusterType || 'Unknown').toUpperCase()}</strong>
+                      </Typography>
+                      <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.8rem' }}>
+                        Crops: <strong style={{ color: 'white' }}>{cluster.cceCrops?.join(', ') || 'N/A'}</strong>
                       </Typography>
                       <Typography variant="caption" sx={{ display: 'block', fontSize: '0.8rem' }}>
-                        Status: <strong style={{ color: 'white' }}>{cluster.status}</strong>
+                        Status: <strong style={{ color: 'white' }}>{cluster.status || 'Unknown'}</strong>
                       </Typography>
                     </Box>
                   }
@@ -334,6 +342,75 @@ const handleClusterClick = (syNo, slNo) => {
     </Box>
      </>
         )}
+
+        <Modal
+  open={openModal}
+  onClose={() => setOpenModal(false)}
+  aria-labelledby="cluster-modal-title"
+  sx={{
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backdropFilter: 'blur(3px)',
+  }}
+>
+  <Box
+    sx={{
+      backgroundColor: '#fff',
+      borderRadius: 3,
+      boxShadow: 24,
+      width: { xs: '90%', sm: '400px' },
+      padding: 4,
+      textAlign: 'center',
+    }}
+  >
+    <Typography
+      id="cluster-modal-title"
+      variant="h6"
+      sx={{ fontWeight: 'bold', mb: 3, color: '#2C3E50' }}
+    >
+      Cluster #{selectedCluster ? selectedCluster.keyplotId.slice(0, 6) : ''} 
+    </Typography>
+
+    <Typography variant="body2" sx={{ mb: 3, color: '#7F8C8D' }}>
+      Choose an action for this cluster:
+    </Typography>
+
+    <Stack spacing={2}>
+      <Button
+        variant="contained"
+        startIcon={<OpenInNewIcon />}
+        sx={{
+          backgroundColor: '#2E7D32',
+          '&:hover': { backgroundColor: '#1B5E20' },
+        }}
+        onClick={() => {
+          setOpenModal(false);
+          navigate(`/schemes/earas/cluster_manual_entry?No=${encodeURIComponent(selectedCluster.keyplotId)}&slno=${encodeURIComponent(selectedCluster.slNo)}`);
+        }}
+      >
+        Open Cluster Form
+      </Button>
+
+      <Button
+        variant="outlined"
+        startIcon={<VisibilityIcon />}
+        sx={{
+          color: '#1976D2',
+          borderColor: '#1976D2',
+          '&:hover': { borderColor: '#115293', backgroundColor: '#E3F2FD' },
+        }}
+        onClick={() => {
+          setOpenModal(false);
+          navigate(`/schemes/earas/cluster_form_view?No=${encodeURIComponent(selectedCluster.keyplotId)}`);
+        }}
+      >
+        View Form Details
+      </Button>
+    </Stack>
+  </Box>
+</Modal>
+
     </Grid>
   );
 }

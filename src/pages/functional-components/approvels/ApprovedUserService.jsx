@@ -1,9 +1,30 @@
 import axios from 'axios';
 import mainapi from 'api/mainapi';
-
 // Create service class with proper export
 class ApprovedUserService {
   static USER_URL = mainapi.USER_API;
+  static BTR_URL = mainapi.BTR_API;
+ 
+
+static async fetchPagedApprovedUsers(params) {
+  try {
+    const token = localStorage.getItem("token");
+    const response = await axios.get(
+      `${ApprovedUserService.USER_URL}/user-access/user-state/approved-users`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        params,
+      }
+    );
+    
+    return response.data;
+  } catch (err) {
+    return {
+      error: true,
+      message: err.response?.data?.message || "Failed to fetch approved users",
+    };
+  }
+}
 
   // Fetch IT admin approved users
   static async fetchITAdminApprovedUsers() {
@@ -23,6 +44,47 @@ class ApprovedUserService {
     }
   }
 
+static async changeEmail(data) {
+  try {
+    const token = localStorage.getItem('token');
+    
+    const response = await axios.post(
+      `${ApprovedUserService.USER_URL}/user-access/it-admin/change-email`,
+      data,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
+  } catch (err) {
+    console.error('Error changing email:', err);
+    return {
+      message: err?.response?.data?.message || 'Failed to update email',
+      success: false,
+      error: true
+    };
+  }
+}
+  // Fetch Super admin approved users
+  static async fetchSuperAdminApprovedUsers() {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/super-admin/fetch-approved-users`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      return response.data;
+    } catch (err) {
+      return {
+        message: err?.response?.data?.message || 'Failed to fetch IT admin approved users',
+        error: true
+      };
+    }
+  }
   // Fetch district admin approved users
   static async fetchDistrictAdminApprovedUsers() {
     try {
@@ -32,7 +94,7 @@ class ApprovedUserService {
           Authorization: `Bearer ${token}`
         }
       });
-      console.log(response.data);
+   
       return response.data;
     } catch (err) {
       return {
@@ -42,13 +104,31 @@ class ApprovedUserService {
     }
   }
 
+   static async fetchTalukAdminApprovedUsers() {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/tso-admin/fetch-approved-users`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+     
+      return response.data;
+    } catch (err) {
+      return {
+        message: err?.response?.data?.message || 'Failed to fetch taluk admin approved users',
+        error: true
+      };
+    }
+  }
   // Fetch user details by ID
   static async fetchUserById(userId) {
     try {
       // const userId = '95a816d1-e16a-4fc5-8353-9be4d555bf8a';
       const token = localStorage.getItem('token');
+   
       // const userId = "44b2a345-b9c5-429f-8f66-52830f1962c8"
-      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/user-manage/user/fetch-by-id/${userId}`, {
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/user-manage/fetch-by-id/${userId}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -61,7 +141,6 @@ class ApprovedUserService {
       };
     }
   }
-
   // Update user designation
   static async updateUserDesignation(userId, designationId) {
     try {
@@ -84,7 +163,6 @@ class ApprovedUserService {
       };
     }
   }
-
   // Get available designations
   static async getDesignations() {
     try {
@@ -102,7 +180,6 @@ class ApprovedUserService {
       };
     }
   }
-
   // Update user roles and office
   static async updateUserRolesAndOffice(payload) {
     try {
@@ -121,38 +198,42 @@ class ApprovedUserService {
       };
     }
   }
-
   static async getSchemes() {
     try {
-      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/schemes`);
-      console.log('schemes >>', response.data);
+       const token = localStorage.getItem('token');
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/user-approval/fetch/schemes`,{
+         headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+    });
+   
       return response.data.payload; // Add fallback for different response structures
     } catch (err) {
       console.error('Error fetching schemes:', err);
       throw err; // Throw the error instead of returning an object
     }
   }
-
   static async getRolesbySchemes(schemeId) {
     try {
       const token = localStorage.getItem('token'); // <-- Add this line
-      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/schemes/${schemeId}/roles`, {
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/user-approval/fetch/schemes/${schemeId}/roles`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      console.log('rolesbyscheme > ', response.data);
+    
       return response.data.payload || response.data;
     } catch (err) {
       console.error('Error fetching roles by scheme:', err);
       throw err;
     }
   }
-
   // Update user schemes and roles
   static async updateUserRoleScheme({ userId, isActive, roleScheme }) {
     try {
+      console.log("ddd  ",userId)
       const token = localStorage.getItem('token');
       const response = await axios.post(
         `${ApprovedUserService.USER_URL}/user-access/api/user-manage/update-role-scheme`,
@@ -172,7 +253,6 @@ class ApprovedUserService {
       };
     }
   }
-
   static async getDistricts() {
     try {
       const response = await axios.get(`${this.USER_URL}/user-access/api/districts`);
@@ -183,7 +263,6 @@ class ApprovedUserService {
       };
     }
   }
-
   static async getTaluks(districtId) {
     try {
       const response = await axios.get(`${this.USER_URL}/user-access/api/districts/${districtId}/taluks`);
@@ -194,6 +273,7 @@ class ApprovedUserService {
       };
     }
   }
+
 
   // Set user active status
   // Set user active/inactive status
@@ -218,9 +298,7 @@ class ApprovedUserService {
       };
     }
   }
-
   // In ApprovedUserService.js
-
   static async updateUserOfficeType({ userId, officeType, distOfficeId, desTalukOfficeId }) {
     try {
       const token = localStorage.getItem('token');
@@ -244,7 +322,51 @@ class ApprovedUserService {
       };
     }
   }
+    static async getZonesByUserId(userId) {
+    try {
+       const token = localStorage.getItem('token');
+      const response = await axios.get(`${this.BTR_URL}/btr-service/btr-api/zones/assigned/${userId}`,{
+         headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+   
+      return response;
+    } catch (err) {
+      return {
+        message: err.response?.data?.message || 'An error occurred while fetching districts.'
+      };
+    }
+  }
+  // Inside class ApprovedUserService
+
+// Update zone assignment active status
+static async updateZoneAssignmentStatus(userdata) {
+
+  try {
+    const token = localStorage.getItem('token');
+
+  
+
+
+    const response = await axios.post(`${ApprovedUserService.BTR_URL}/btr-service/btr-api/zone-assignment/update-status`, userdata, {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+    });
+    return {
+      error: false,
+      payload: response.data?.payload,
+      message: response.data?.message || 'Zone status updated successfully'
+    };
+  } catch (err) {
+    return {
+      error: true,
+      message: err?.response?.data?.message || 'Failed to update zone status'
+    };
+  }
 }
 
+
+}
 // Export as default
 export default ApprovedUserService;

@@ -51,32 +51,53 @@ const ForgotPassword = ({ onBack }) => {
   };
 
   // Email submit handler with validation
-  const handleEmailSubmit = async (e) => {
-    e.preventDefault();
-    setGlobalError('');
-    setSuccess('');
-    const trimmedEmail = email.trim();
+const handleEmailSubmit = async (e) => {
+  e.preventDefault();
+  setGlobalError('');
+  setSuccess('');
 
-    if (!trimmedEmail) {
-      setGlobalError('Please enter your email address.');
+  const input = email.trim();
+
+  if (!input) {
+    setGlobalError('Please enter your email');
+    return;
+  }
+
+  // ✅ If only digits → validate phone
+  if (/^\d+$/.test(input)) {
+    if (input.length !== 10) {
+      setGlobalError('Phone number must be exactly 10 digits.');
       return;
     }
-    if (!isValidEmail(trimmedEmail)) {
+  } 
+  // ✅ Otherwise validate email
+  else {
+    if (!isValidEmail(input)) {
       setGlobalError('Please enter a valid email address.');
       return;
     }
-    setIsLoading(true);
+  }
 
-    const userData = await authservice.email_verification(trimmedEmail);
+  setIsLoading(true);
+
+  try {
+    const userData = await authservice.email_verification(input);
+   
+
     setIsLoading(false);
-    if (userData.payload && userData.payload.id) {
-      setEmail(userData.payload.id);
+
+    if (userData && userData.payload.id) {
+      setEmail(userData.payload.id); 
       setGlobalError('');
       setStep(2);
     } else {
-      setGlobalError(userData.message);
+      setGlobalError(userData?.message || 'Something went wrong');
     }
-  };
+  } catch (error) {
+    setIsLoading(false);
+    setGlobalError('Server error. Please try again.');
+  }
+};
 
   const handleOtpChange = (index) => async (e) => {
     const value = e.target.value;
@@ -103,27 +124,26 @@ const ForgotPassword = ({ onBack }) => {
     setSuccess('');
     
 
-    try {
-      const otpValue = otp.join(''); // Join the OTP digits together
-      if (otpValue.length === otp.length) {
-        const userLogin = {
-          userid: email,
-          otp: otpValue
-        };
-        const response = await authservice.verify_otp(userLogin);
-        if (response.statusCode === 200) {
-          setGlobalError('');
-          setStep(3); // Proceed to next step if OTP is correct
-        } else {
-          setGlobalError(response.message); // Show error message if OTP is invalid
+     try {
+        const otpValue = otp.join('');
+        if (otpValue.length === 6) {
+            const userLogin = { userid: email, otp: otpValue };
+            const response = await authservice.verify_otp(userLogin);
+
+            if (response.statusCode === 200) {
+                // ✅ Store the reset token from server
+               
+                setEmail(response.data.resetToken); // reuse email state for resetToken
+                setStep(3);
+            } else {
+                setGlobalError(response.message);
+            }
         }
-      }
     } catch (error) {
-      console.error('Error verifying OTP:', error);
-      setGlobalError('An error occurred while verifying OTP.');
+        setGlobalError('An error occurred while verifying OTP.');
     }
 
-    console.log('OTP submitted:', otp.join(''));
+    
     // setStep(3); // Move to the next step for entering new password
   };
 
@@ -169,7 +189,7 @@ const ForgotPassword = ({ onBack }) => {
 
     const trimmedPassword = newPassword.trim();
     const userLogin = {
-      userid: email,
+      resetToken: email,
       password: trimmedPassword
     };
     const response = await authservice.password_reset(userLogin);
@@ -200,7 +220,7 @@ const ForgotPassword = ({ onBack }) => {
         {step === 1 && (
           <>
             <Typography variant="body2" sx={{ color: '#666', textAlign: 'center', fontSize: '0.9rem' }}>
-              Enter your registered email address to receive a One-Time Password (OTP).
+              Enter your registered Email or Mobile Number to receive a One-Time Password (OTP).
             </Typography>
             {globalError && (
               <Stack sx={{ width: '100%', background: '#fff1f0' }} spacing={2}>
@@ -215,7 +235,7 @@ const ForgotPassword = ({ onBack }) => {
             <TextField
               fullWidth
               variant="outlined"
-              label="Email Address"
+              label="Email or Mobile Number"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoFocus
@@ -306,126 +326,135 @@ const ForgotPassword = ({ onBack }) => {
         )}
 
         {step === 3 && (
-          <>
-            <Typography variant="body2" sx={{ color: '#666', textAlign: 'center' , fontSize: '1rem'}}>
-              Enter your new password.
-            </Typography>
+  <>
+    <Typography variant="body2" sx={{ color: '#666', textAlign: 'center', fontSize: '1rem' }}>
+      Enter your new password.
+    </Typography>
 
-            {/* Display error message if passwords don't match */}
-            {passwordError && (
-              <Stack sx={{ width: '100%', background: '#fff1f0' }} spacing={2}>
-                <center>
-                  <Alert severity="error" sx={{ textAlign: 'center', width: 'max-content' , fontSize: '0.9rem' }}>
-                    {passwordError}
-                  </Alert>
-                </center>
-              </Stack>
-            )}
-            {/* Display general errors and success message */}
-                        {globalError && !passwordError && ( // Show global error only if no password specific error
-                            <Stack sx={{ width: '100%', background: '#fff1f0' }} spacing={2}>
-                                <center>
-                                    <Alert severity="error" sx={{ textAlign: 'center', width: 'max-content', fontSize: '0.9rem' }}>
-                                        {globalError}
-                                    </Alert>
-                                </center>
-                            </Stack>
-                        )}
-            {success && (
-              <Stack sx={{ width: '100%' }} spacing={2}>
-                <center>
-                  {/* icon={<CheckIcon fontSize="inherit" />} */}
-                  <Alert severity="success" sx={{ textAlign: 'center', width: 'max-content' , fontSize: '0.9rem'}}>
-                    {success}
-                  </Alert>
-                </center>
-              </Stack>
-            )}
-            <TextField
-              fullWidth
-              variant="outlined"
-              label="New Password"
-              type={showPassword ? 'text' : 'password'}
-              value={newPassword}
-              onChange={(e) => {
-                                handlePasswordChange(setNewPassword)(e);
-                                setPasswordError(''); // Clear password errors when user types
-                            }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LockIcon sx={{ fontSize: '1.2rem' }} />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      onClick={() => setShowPassword((prev) => !prev)} // Toggle visibility
-                      edge="end"
-                      aria-label="toggle password visibility"
-                    >
-                      {showPassword ? (
-                        <VisibilityOff sx={{ fontSize: '1.2rem' }} /> // Smaller icon size
-                      ) : (
-                        <Visibility sx={{ fontSize: '1.2rem' }} /> // Smaller icon size
-                      )}
-                    </IconButton>
-                  </InputAdornment>
-                )
-              }}
-              sx={{
-                borderRadius: '20px',
-                mb: 2, // Add margin bottom for spacing
-                '& .MuiInputBase-input': { fontSize: '1rem' }, // Input text size
-                '& .MuiInputLabel-root': { fontSize: '1rem' } // Label size
-              }}
-            />
+    {/* Display error message if passwords don't match */}
+    {passwordError && (
+      <Stack sx={{ width: '100%', background: '#fff1f0' }} spacing={2}>
+        <center>
+          <Alert severity="error" sx={{ textAlign: 'center', width: 'max-content', fontSize: '0.9rem' }}>
+            {passwordError}
+          </Alert>
+        </center>
+      </Stack>
+    )}
 
-            <TextField
-              fullWidth
-              variant="outlined"
-              label="Confirm Password"
-              type={showPassword ? 'text' : 'password'}
-              value={confirmPassword}
-              onChange={(e) => {
-                                handlePasswordChange(setConfirmPassword)(e);
-                                setPasswordError(''); // Clear password errors when user types
-                            }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LockIcon sx={{ fontSize: '1.2rem' }} />
-                  </InputAdornment>
-                )
-              }}
-              sx={{
-                                borderRadius: '20px',
-                                mb: 2, // Add margin bottom for spacing
-                                '& .MuiInputBase-input': { fontSize: '1rem' }, // Input text size
-                                '& .MuiInputLabel-root': { fontSize: '1rem' } // Label size
-                            }}
-            />
+    {/* Display general errors and success message */}
+    {globalError && !passwordError && (
+      <Stack sx={{ width: '100%', background: '#fff1f0' }} spacing={2}>
+        <center>
+          <Alert severity="error" sx={{ textAlign: 'center', width: 'max-content', fontSize: '0.9rem' }}>
+            {globalError}
+          </Alert>
+        </center>
+      </Stack>
+    )}
 
-            <Button
-              fullWidth
-              variant="contained"
-              color="primary"
-              sx={{
-                borderRadius: '20px',
-                maxWidth: '200px',
-                mx: 'auto',
-                fontSize: '1rem' // Button text size
-              }} // Center the button with controlled width
-              onClick={handlePasswordResetSubmit}
-            >
-              Reset Password
-            </Button>
+    {success && (
+      <Stack sx={{ width: '100%' }} spacing={2}>
+        <center>
+          <Alert severity="success" sx={{ textAlign: 'center', width: 'max-content', fontSize: '0.9rem' }}>
+            {success}
+          </Alert>
+        </center>
+      </Stack>
+    )}
 
-            <Button fullWidth variant="text" color="primary" sx={{ mt: 2 }} onClick={onBack}>
-              Back to Sign In
-            </Button>
-          </>
-        )}
+    {/* Conditionally render password fields and reset button only when success is empty/false */}
+    {!success && (
+      <>
+        <TextField
+          fullWidth
+          variant="outlined"
+          label="New Password"
+          type={showPassword ? 'text' : 'password'}
+          value={newPassword}
+          onChange={(e) => {
+            handlePasswordChange(setNewPassword)(e);
+            setPasswordError('');
+          }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <LockIcon sx={{ fontSize: '1.2rem' }} />
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  edge="end"
+                  aria-label="toggle password visibility"
+                >
+                  {showPassword ? (
+                    <VisibilityOff sx={{ fontSize: '1.2rem' }} />
+                  ) : (
+                    <Visibility sx={{ fontSize: '1.2rem' }} />
+                  )}
+                </IconButton>
+              </InputAdornment>
+            )
+          }}
+          sx={{
+            borderRadius: '20px',
+            mb: 2,
+            '& .MuiInputBase-input': { fontSize: '1rem' },
+            '& .MuiInputLabel-root': { fontSize: '1rem' }
+          }}
+        />
+
+        <TextField
+          fullWidth
+          variant="outlined"
+          label="Confirm Password"
+          type={showPassword ? 'text' : 'password'}
+          value={confirmPassword}
+          onChange={(e) => {
+            handlePasswordChange(setConfirmPassword)(e);
+            setPasswordError('');
+          }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <LockIcon sx={{ fontSize: '1.2rem' }} />
+              </InputAdornment>
+            )
+          }}
+          sx={{
+            borderRadius: '20px',
+            mb: 2,
+            '& .MuiInputBase-input': { fontSize: '1rem' },
+            '& .MuiInputLabel-root': { fontSize: '1rem' }
+          }}
+        />
+
+        <Button
+          fullWidth
+          variant="contained"
+          color="primary"
+          sx={{
+            borderRadius: '20px',
+            maxWidth: '200px',
+            mx: 'auto',
+            fontSize: '1rem'
+          }}
+          onClick={handlePasswordResetSubmit}
+        >
+          Reset Password
+        </Button>
+      </>
+    )}
+
+    {/* Back to Sign In button - always visible for navigation */}
+    <Button fullWidth variant="text" color="primary" sx={{ mt: 2 }} onClick={onBack}>
+      Back to Sign In
+    </Button>
+  </>
+)}
+
       </Stack>
     </Box>
   );

@@ -17,7 +17,9 @@ import {
     DialogContent,
     DialogContentText,
     DialogActions,
-    Divider
+    Divider,
+    Backdrop,
+    Fade  
     
 } from '@mui/material';
 import EmailIcon from "@mui/icons-material/Email";
@@ -29,27 +31,37 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import Register from './Register';
-import logo from "../images/govt.png"; // Import the logo image
+import des_logo from "../images/des.png"; 
+import deslogo from "../images/des2.png"; // Import the CDTI logo image
+import logo from "../images/gok_logo1.png"; // Import the logo image
 import loginimg from "../images/login.png"; // Import the login image
 import bg1 from "../images/bg1.jpg"; // Import the background image
 import duklogo from "../images/duk_icon.png"; // Import the DUK logo image
 import cdtilogo from "../images/cdti_icon.png"; // Import the CDTI logo image
 import { keyframes } from '@emotion/react';
 import '../login.css'
-// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext'
+
 import IconButton from '@mui/material/IconButton';
 import authservice from '../services/authservice';
 import mainapi from 'api/mainapi';
+import CelebrationIcon from '@mui/icons-material/Celebration';
+import InaugurationLandingPage from './InaugurationLandingPage';
+import TheatricalCurtain from './TheatricalCurtain';
+import InaugurationShowcase from './InaugurationShowcase';
+// import { usePermissionContext } from 'contexts/PermissionContext';
+
+
 
 const fadeIn = keyframes`
 0% { opacity: 0; transform: translateY(50px); }
 100% { opacity: 1; transform: translateY(0); }
 `;
 
+
 const SignInSide = () => {
+    
     const [isForgotPassword, setIsForgotPassword] = useState(false);
     const [isRegister, setIsRegister] = useState(false);
-
     const handleForgotPasswordClick = () => {
         setIsForgotPassword(true);
     };
@@ -64,6 +76,7 @@ const SignInSide = () => {
     };
 
     return (
+        <>
         <Grid className="main" container>
             {isRegister}
             <Grid
@@ -116,12 +129,18 @@ const SignInSide = () => {
                         Application for Intelligent Data Engineering and Analytics (AIDEA)
                     </Typography>
                     <Stack spacing={1} sx={{ mt: 5 }}>
-                        <Typography className='duk_logo_typ'>
-                            <img className='duk_logo' src={duklogo} alt="DUK Logo" />
-                            <img className='cdti_logo' src={cdtilogo} alt="CDTI Logo" />
-                        </Typography>
-                        <Box className="copy_right" sx={{ color: 'text.disabled' }}>
-                            © 2025 AIDEA CDTI-DUK. All rights reserved.
+         <Stack
+  direction="row"
+  spacing={3}
+  justifyContent="center"
+  alignItems="center"
+>
+  <img className="header-logo des_logo" src={deslogo} alt="DES Logo" />
+  <img className="header-logo duk_logo" src={duklogo} alt="DUK Logo" />
+  <img className="header-logo cdti_logo" src={cdtilogo} alt="CDTI Logo" />
+</Stack>
+     <Box className="copy_right" sx={{ color: 'text.disabled' }}>
+                            © 2026 AIDEA CDTI-DUK. All rights reserved.
                         </Box>
                     </Stack>
                 </Stack>
@@ -165,10 +184,12 @@ const SignInSide = () => {
                 )}
             </Grid>
         </Grid>
+  </>
     );
+    
 };
-
 const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
+    // const { savePermissions } = usePermissionContext();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
@@ -214,8 +235,8 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                 if (userData.payload && typeof userData.payload.token === 'string') {
                     const { token, username: userNameFromApi } = userData.payload;
                     localStorage.setItem('token', token);
-                    localStorage.setItem('user', userNameFromApi);
-
+                    // localStorage.setItem('user', userNameFromApi);
+                   
                     if (rememberMe) {
                         localStorage.setItem('rememberedUsername', username);
                         localStorage.setItem('rememberedPassword', password);
@@ -230,7 +251,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     try {
                         const BASE_URL = mainapi.USER_API;
                         const permissionsResponse = await fetch(
-                            `${BASE_URL}/user-accesss/user-state/userpremissions`,
+                            `${BASE_URL}/user-access/user-state/user-permissions`,
                             {
                                 headers: {
                                     Authorization: `Bearer ${token}`,
@@ -244,14 +265,15 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     //     }
 
                         const permissionsData = await permissionsResponse.json();
-                        setPermissions(permissionsData);
+                        // savePermissions(permissionsData);
                         setIsLoading(false);
-                        navigate('/');
+                        window.location.href = '/';
                     } catch (permissionsError) {
                         console.error('Error fetching permissions:', permissionsError);
-                        setError(permissionsError.message || 'Failed to load permissions');
+                        // setError(permissionsError.message || 'Failed to load permissions');
                         setIsLoading(false);
-                        navigate('/');
+                        // navigate('/');
+                          window.location.href = '/';
                     }
                 } else {
                     setError(userData.message || 'Login failed after forced login attempt');
@@ -265,6 +287,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
             }
         }
     };
+
 
 
     const handleSubmit = async (e) => {
@@ -283,8 +306,8 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
             setIsLoading(true);
             let userData = await authservice.login(userLogin);
             setIsLoading(false);
-
             if (userData.message === "User already logged in elsewhere") {
+               
                 setLoginAttemptData(userLogin);
                 setOpenConfirmDialog(true);
                 return;
@@ -293,7 +316,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
             if (userData.payload && typeof userData.payload.token === 'string') {
                 const { token, username: userNameFromApi } = userData.payload;
                 localStorage.setItem('token', token);
-                localStorage.setItem('user', userNameFromApi);
+                // localStorage.setItem('user', userNameFromApi);
 
                 if (rememberMe) {
                     localStorage.setItem('rememberedUsername', username);
@@ -305,10 +328,10 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     localStorage.removeItem('rememberMe');
                 }
 
-                setIsLoading(true);
+                // Fetch and save permissions
                 try {
                     const permissionsResponse = await fetch(
-                        'http://localhost:8081/user-accesss/user-state/userpremissions',
+                        `${mainapi.USER_API}/user-access/user-state/user-permissions`,
                         {
                             headers: {
                                 Authorization: `Bearer ${token}`,
@@ -317,20 +340,17 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                         }
                     );
 
-                    if (!permissionsResponse.ok) {
-                        throw new Error(`HTTP error! status: ${permissionsResponse.status}`);
-                    }
-
                     const permissionsData = await permissionsResponse.json();
-                    setPermissions(permissionsData);
-                    setIsLoading(false);
-                    navigate('/');
-                } catch (permissionsError) {
-                    console.error('Error fetching permissions:', permissionsError);
-                    setError(permissionsError.message || 'Failed to load permissions');
-                    setIsLoading(false);
-                    navigate('/');
+                    // savePermissions(permissionsData);
+
+                    // Navigate to home
+                    window.location.href = '/';
+                } catch (permError) {
+                    console.error("Error fetching permissions:", permError);
+                    savePermissions({ schemes: [] }); // fallback empty
+                    window.location.href = '/';
                 }
+
             } else {
                 setError(userData.message || 'Login failed');
             }
@@ -340,6 +360,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
             setIsLoading(false);
         }
     };
+
 
 
     return (
@@ -439,6 +460,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
 
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
                 <Button
+              
                     type="submit"
                     variant="contained"
                     color="primary"
