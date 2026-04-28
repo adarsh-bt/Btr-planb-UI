@@ -1,10 +1,8 @@
 import mainapi from 'api/mainapi';
 import axios from 'axios';
+import authservice from 'pages/authentication/services/authservice';
 
-
-
-const USER_URL = mainapi.USER_API
-
+const USER_URL = mainapi.USER_API;
 const BASE_URL = mainapi.USER_API;
 
 const SettingService = {
@@ -35,34 +33,32 @@ const SettingService = {
   },
 
   async saveDistrict(districtData) {
-  try {
-    const headers = this.getAuthHeaders();
-    const userId = authservice.userid(); // you still need authservice for userid
-    const payload = {
-      ...districtData,
-      addedBy: userId,
-      dist_lsg_code: Number(districtData.dist_lsg_code),
-      des_dist_code: Number(districtData.des_dist_code),
-    };
-    const response = await axios.post(
-      `${BASE_URL}/user-access/api/it-admin/saveDistrict`,
-      payload,
-      { headers }
-    );
-    return response.data;
-  } catch (err) {
-    if (err.response?.status === 403) throw new Error('Access denied. You don’t have permission to modify districts.');
-    if (err.response?.status === 401) throw new Error('Session expired. Please login again.');
-    throw new Error(err.response?.data?.message || err.message || 'Failed to save district');
+    try {
+      const headers = this.getAuthHeaders();
+      const userId = authservice.userid(); // now authservice is imported
+      const payload = {
+        ...districtData,
+        addedBy: userId,
+        dist_lsg_code: Number(districtData.dist_lsg_code),
+        des_dist_code: Number(districtData.des_dist_code),
+      };
+      const response = await axios.post(
+        `${BASE_URL}/user-access/api/it-admin/saveDistrict`,
+        payload,
+        { headers }
+      );
+      return response.data;
+    } catch (err) {
+      if (err.response?.status === 403) throw new Error('Access denied. You don’t have permission to modify districts.');
+      if (err.response?.status === 401) throw new Error('Session expired. Please login again.');
+      throw new Error(err.response?.data?.message || err.message || 'Failed to save district');
+    }
+  },
+
+  async toggleDistrictActive(district) {
+    const updatedDistrict = { ...district, is_active: !district._active };
+    return this.saveDistrict(updatedDistrict);
   }
-},
-
-async toggleDistrictActive(district) {
-  const updatedDistrict = { ...district, is_active: !district._active };
-  return this.saveDistrict(updatedDistrict);
-}
-
-  
 };
 
 export default SettingService;

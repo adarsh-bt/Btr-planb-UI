@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+// ZoneClusterReport.js
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Grid,
   Typography,
@@ -15,24 +16,24 @@ import {
   CardContent,
   IconButton,
   Tooltip,
+  Button,
   TextField,
   Stack,
   InputAdornment,
   TablePagination,
+  alpha,
   Tabs,
   Tab,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  Button,
-  alpha,
   ToggleButton,
   ToggleButtonGroup
 } from '@mui/material';
 import MainCard from 'components/MainCard';
 import { useTheme } from '@mui/material/styles';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PendingIcon from '@mui/icons-material/Pending';
@@ -40,72 +41,91 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
+import StoreIcon from '@mui/icons-material/Store';
 import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
-import FilterAltIcon from '@mui/icons-material/FilterAlt';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import ViewWeekIcon from '@mui/icons-material/ViewWeek';
+import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import Breadcrumb from 'routes/Breadcrumb';
 
-function KeralaReportList() {
+function ZoneClusterReport() {
   const theme = useTheme();
   const navigate = useNavigate();
-  const [seasonTab, setSeasonTab] = useState('ALL');
-  const [filterType, setFilterType] = useState('range'); // 'range' or 'single'
-  const [fromMonth, setFromMonth] = useState('');
-  const [toMonth, setToMonth] = useState('');
-  const [singleMonth, setSingleMonth] = useState('');
+  const location = useLocation();
+  const { districtName, talukName, blockName } = useParams();
+
+  // Filter states (restore from location state if available)
+  const [seasonTab, setSeasonTab] = useState(location.state?.seasonTab || 'ALL');
+  const [filterType, setFilterType] = useState(location.state?.filterType || 'range');
+  const [fromMonth, setFromMonth] = useState(location.state?.fromMonth || '');
+  const [toMonth, setToMonth] = useState(location.state?.toMonth || '');
+  const [singleMonth, setSingleMonth] = useState(location.state?.singleMonth || '');
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  const districtDataWithDetails = [
-    { 
-      id: 1,
-      district: 'Thiruvananthapuram',
-      monthlyData: {
-        'January': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 1, ongoing: 0, notStarted: 0, underReview: 0 } },
-        'February': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
-        'March': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
-        'April': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
-        'May': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
-        'June': { wet: { completed: 0, ongoing: 1, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
-        'July': { wet: { completed: 0, ongoing: 1, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
-        'August': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 1 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
-        'September': { wet: { completed: 1, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
-        'October': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
-        'November': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
-        'December': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } }
+  // Mock zone data with monthly structure (convert existing totals into monthly distribution for demo)
+  const getZoneMonthlyData = (district, taluk) => {
+    // Original static zone data (totals only)
+    const staticZoneData = {
+      'thiruvananthapuram': {
+        'neyyattinkara': [
+          { id: 1, zone: 'Amaravila', total: 5, completed: 1, ongoing: 2, notStarted: 1, underReview: 1 },
+          { id: 2, zone: 'Athiyannur', total: 4, completed: 1, ongoing: 2, notStarted: 0, underReview: 1 },
+          { id: 3, zone: 'Chenkal', total: 6, completed: 2, ongoing: 2, notStarted: 1, underReview: 1 }
+        ],
+        'kattakada': [
+          { id: 1, zone: 'Kattakada', total: 5, completed: 1, ongoing: 2, notStarted: 1, underReview: 1 }
+        ]
+      },
+      'kollam': {
+        'karunagappally': [
+          { id: 1, zone: 'Alappad', total: 4, completed: 0, ongoing: 0, notStarted: 4, underReview: 0 }
+        ]
       }
-    },
-    { 
-      id: 2,
-      district: 'Kollam',
-      monthlyData: {
-        'January': { wet: { completed: 0, ongoing: 0, notStarted: 2, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 2, underReview: 0 } },
-        'February': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 2, underReview: 0 } },
-        'March': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 2, underReview: 0 } },
-        'April': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
-        'May': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
-        'June': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
-        'July': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
-        'August': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
-        'September': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
-        'October': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
-        'November': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } },
-        'December': { wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }, dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 } }
-      }
-    }
-  ];
+      // Add more as needed – for brevity, we'll generate monthly data from these totals
+    };
 
-  const getFilteredData = () => {
+    const zones = staticZoneData[district?.toLowerCase()]?.[taluk?.toLowerCase()] || [];
+    // Enhance each zone with monthlyData (mock distribution of its totals across months)
+    return zones.map(zone => ({
+      ...zone,
+      monthlyData: generateMonthlyDataForZone(zone)
+    }));
+  };
+
+  // Helper: distribute zone totals across months evenly (demo)
+  const generateMonthlyDataForZone = (zone) => {
+    const monthly = {};
+    months.forEach(month => {
+      monthly[month] = {
+        wet: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 },
+        dry: { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 }
+      };
+    });
+    // Simple distribution: assign all totals to January for simplicity
+    // In real case, you'd have proper monthly breakdown
+    if (zone.completed > 0) monthly['January'].dry.completed = zone.completed;
+    if (zone.ongoing > 0) monthly['June'].wet.ongoing = zone.ongoing;
+    if (zone.notStarted > 0) monthly['January'].wet.notStarted = zone.notStarted;
+    if (zone.underReview > 0) monthly['August'].dry.underReview = zone.underReview;
+    return monthly;
+  };
+
+  const allZoneData = useMemo(() => getZoneMonthlyData(districtName, talukName), [districtName, talukName]);
+
+  // Filter zones based on selected months and season
+  const getFilteredZoneData = () => {
     let startIndex, endIndex;
-    
     if (filterType === 'single' && singleMonth) {
       const monthIndex = months.indexOf(singleMonth);
       startIndex = monthIndex;
@@ -114,16 +134,14 @@ function KeralaReportList() {
       startIndex = fromMonth ? months.indexOf(fromMonth) : 0;
       endIndex = toMonth ? months.indexOf(toMonth) : months.length - 1;
     }
-    
-    return districtDataWithDetails.map(district => {
+
+    return allZoneData.map(zone => {
       let total = 0, completed = 0, ongoing = 0, notStarted = 0, underReview = 0;
-      
       for (let i = startIndex; i <= endIndex; i++) {
         const month = months[i];
-        const monthData = district.monthlyData[month];
-        
+        const monthData = zone.monthlyData[month];
         if (monthData) {
-          const data = seasonTab === 'ALL' 
+          const data = seasonTab === 'ALL'
             ? {
                 completed: monthData.wet.completed + monthData.dry.completed,
                 ongoing: monthData.wet.ongoing + monthData.dry.ongoing,
@@ -131,7 +149,6 @@ function KeralaReportList() {
                 underReview: monthData.wet.underReview + monthData.dry.underReview
               }
             : monthData[seasonTab.toLowerCase()];
-          
           completed += data.completed;
           ongoing += data.ongoing;
           notStarted += data.notStarted;
@@ -139,10 +156,9 @@ function KeralaReportList() {
           total += data.completed + data.ongoing + data.notStarted + data.underReview;
         }
       }
-      
       return {
-        id: district.id,
-        district: district.district,
+        id: zone.id,
+        zone: zone.zone,
         total,
         completed,
         ongoing,
@@ -152,31 +168,28 @@ function KeralaReportList() {
     });
   };
 
-  const districtData = useMemo(() => getFilteredData(), [fromMonth, toMonth, seasonTab, filterType, singleMonth]);
+  const filteredZoneData = useMemo(() => getFilteredZoneData(), [fromMonth, toMonth, seasonTab, filterType, singleMonth, allZoneData]);
 
+  // Stats from filtered data
   const stats = useMemo(() => ({
-    all: districtData.reduce((sum, row) => sum + row.total, 0),
-    completed: districtData.reduce((sum, row) => sum + row.completed, 0),
-    ongoing: districtData.reduce((sum, row) => sum + row.ongoing, 0),
-    notStarted: districtData.reduce((sum, row) => sum + row.notStarted, 0),
-    underReview: districtData.reduce((sum, row) => sum + row.underReview, 0)
-  }), [districtData]);
+    total: filteredZoneData.reduce((sum, row) => sum + row.total, 0),
+    completed: filteredZoneData.reduce((sum, row) => sum + row.completed, 0),
+    ongoing: filteredZoneData.reduce((sum, row) => sum + row.ongoing, 0),
+    notStarted: filteredZoneData.reduce((sum, row) => sum + row.notStarted, 0),
+    underReview: filteredZoneData.reduce((sum, row) => sum + row.underReview, 0)
+  }), [filteredZoneData]);
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
-
-  const filteredData = useMemo(() => {
-    if (!searchTerm.trim()) return districtData;
-    return districtData.filter(row => 
-      row.district.toLowerCase().includes(searchTerm.toLowerCase())
+  const searchFilteredData = useMemo(() => {
+    if (!searchTerm.trim()) return filteredZoneData;
+    return filteredZoneData.filter(row =>
+      row.zone.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [districtData, searchTerm]);
+  }, [filteredZoneData, searchTerm]);
 
   const paginatedData = useMemo(() => {
     const startIndex = page * rowsPerPage;
-    return filteredData.slice(startIndex, startIndex + rowsPerPage);
-  }, [filteredData, page, rowsPerPage]);
+    return searchFilteredData.slice(startIndex, startIndex + rowsPerPage);
+  }, [searchFilteredData, page, rowsPerPage]);
 
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
@@ -195,15 +208,20 @@ function KeralaReportList() {
     setFilterType('range');
     setPage(0);
   };
-  const handleViewDetails = (districtName) => {
-    navigate(`/kerala_report/taluk_cluster_report/${districtName.toLowerCase()}`, {
+  const handleGoBack = () => {
+    navigate(`/kerala_form_report/block_form_report/${districtName}/${talukName}`, {
       state: { fromMonth, toMonth, seasonTab, filterType, singleMonth }
     });
   };
+  const handleViewZoneDetails = (zoneName) => {
+    // Further drill-down (e.g., cluster list) – preserve filters
+    console.log(`View details for ${zoneName}`);
+    alert(`Viewing details for ${zoneName} (Feature coming soon)`);
+  };
 
   const StatCard = ({ label, value, color, bgColor, icon }) => (
-    <Card sx={{ 
-      bgcolor: bgColor, 
+    <Card sx={{
+      bgcolor: bgColor,
       borderRadius: 3,
       transition: 'transform 0.2s, box-shadow 0.2s',
       '&:hover': {
@@ -227,18 +245,22 @@ function KeralaReportList() {
     </Card>
   );
 
+  // Format display names
+  const formattedDistrict = districtName?.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  const formattedTaluk = talukName?.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
   return (
     <Grid container spacing={3}>
       <Breadcrumb />
-      
+
       {/* Header */}
       <Grid item xs={12}>
         <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
           <Stack direction="row" spacing={1} alignItems="center">
-            <AssessmentIcon sx={{ fontSize: 40, color: '#1a237e' }} />
+            <StoreIcon sx={{ fontSize: 40, color: '#1a237e' }} />
             <Box>
               <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1a237e' }}>
-                Cluster Report
+                {formattedTaluk} - Zone wise Form 1 Report
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {filterType === 'single' && singleMonth && ` • ${singleMonth}`}
@@ -250,8 +272,8 @@ function KeralaReportList() {
             </Box>
           </Stack>
           {(fromMonth || toMonth || singleMonth || seasonTab !== 'ALL') && (
-            <Button 
-              variant="outlined" 
+            <Button
+              variant="outlined"
               onClick={handleClearFilters}
               startIcon={<ClearIcon />}
               size="small"
@@ -268,8 +290,8 @@ function KeralaReportList() {
         <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
           <Stack spacing={2}>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
-              <Tabs 
-                value={seasonTab} 
+              <Tabs
+                value={seasonTab}
                 onChange={(e, newValue) => { setSeasonTab(newValue); setPage(0); }}
                 sx={{ minHeight: 40 }}
               >
@@ -278,35 +300,29 @@ function KeralaReportList() {
                 <Tab label="DRY" value="DRY" icon={<WbSunnyIcon />} iconPosition="start" />
               </Tabs>
 
-              {/* Filter Type Label and Toggle */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                {/* <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.secondary' }}>
-                  Filter by:
-                </Typography> */}
-                <ToggleButtonGroup
-                  value={filterType}
-                  exclusive
-                  onChange={(e, newValue) => {
-                    if (newValue !== null) {
-                      setFilterType(newValue);
-                      setFromMonth('');
-                      setToMonth('');
-                      setSingleMonth('');
-                      setPage(0);
-                    }
-                  }}
-                  size="small"
-                >
-                  <ToggleButton value="range">
-                    <ViewWeekIcon sx={{ mr: 0.5, fontSize: 18 }} />
-                    Month Range
-                  </ToggleButton>
-                  <ToggleButton value="single">
-                    <ViewModuleIcon sx={{ mr: 0.5, fontSize: 18 }} />
-                    Single Month
-                  </ToggleButton>
-                </ToggleButtonGroup>
-              </Box>
+              <ToggleButtonGroup
+                value={filterType}
+                exclusive
+                onChange={(e, newValue) => {
+                  if (newValue !== null) {
+                    setFilterType(newValue);
+                    setFromMonth('');
+                    setToMonth('');
+                    setSingleMonth('');
+                    setPage(0);
+                  }
+                }}
+                size="small"
+              >
+                <ToggleButton value="range">
+                  <ViewWeekIcon sx={{ mr: 0.5, fontSize: 18 }} />
+                  Month Range
+                </ToggleButton>
+                <ToggleButton value="single">
+                  <ViewModuleIcon sx={{ mr: 0.5, fontSize: 18 }} />
+                  Single Month
+                </ToggleButton>
+              </ToggleButtonGroup>
 
               {filterType === 'range' ? (
                 <>
@@ -329,9 +345,9 @@ function KeralaReportList() {
               ) : (
                 <FormControl size="small" sx={{ minWidth: 200 }}>
                   <InputLabel>Select Month</InputLabel>
-                  <Select 
-                    value={singleMonth} 
-                    label="Select Month" 
+                  <Select
+                    value={singleMonth}
+                    label="Select Month"
                     onChange={(e) => { setSingleMonth(e.target.value); setPage(0); }}
                   >
                     <MenuItem value="">None</MenuItem>
@@ -348,7 +364,7 @@ function KeralaReportList() {
       <Grid item xs={12}>
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6} md={2.4}>
-            <StatCard label="Total Clusters" value={stats.all} color="#1565c0" bgColor={alpha('#1565c0', 0.08)} icon={<AssessmentIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />} />
+            <StatCard label="Total Zones" value={stats.total} color="#1565c0" bgColor={alpha('#1565c0', 0.08)} icon={<StoreIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />} />
           </Grid>
           <Grid item xs={12} sm={6} md={2.4}>
             <StatCard label="Completed" value={stats.completed} color="#2e7d32" bgColor={alpha('#2e7d32', 0.08)} icon={<CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />} />
@@ -365,13 +381,13 @@ function KeralaReportList() {
         </Grid>
       </Grid>
 
-      {/* Main Table */}
+      {/* Zone Table */}
       <Grid item xs={12}>
-        <MainCard 
-          title="District-wise Status" 
+        <MainCard
+          title={`Zones in ${formattedTaluk}`}
           secondary={
             <TextField
-              placeholder="Search district..."
+              placeholder="Search zone/panchayat..."
               size="small"
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
@@ -394,7 +410,7 @@ function KeralaReportList() {
             <Table>
               <TableHead>
                 <TableRow sx={{ bgcolor: '#04255e' }}>
-                  {['District', 'Total', 'Completed', 'Ongoing', 'Not Started', 'Under Review', 'Actions'].map((label, idx) => (
+                  {['Zone', 'Total', 'Completed', 'Ongoing', 'Not Started', 'Under Review', 'Actions'].map((label, idx) => (
                     <TableCell key={idx} align={idx === 0 ? 'left' : 'center'} sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>
                       {label}
                     </TableCell>
@@ -404,15 +420,15 @@ function KeralaReportList() {
               <TableBody>
                 {paginatedData.length > 0 ? (
                   paginatedData.map((row) => (
-                    <TableRow 
+                    <TableRow
                       key={row.id}
                       hover
                       sx={{ '&:hover': { bgcolor: alpha('#04255e', 0.04) }, transition: '0.2s' }}
                     >
                       <TableCell>
                         <Stack direction="row" spacing={1} alignItems="center">
-                          <LocationOnIcon sx={{ fontSize: 18, color: '#04255e', opacity: 0.7 }} />
-                          <Typography fontWeight={500}>{row.district}</Typography>
+                          <StoreIcon sx={{ fontSize: 18, color: '#04255e', opacity: 0.7 }} />
+                          <Typography fontWeight={500}>{row.zone}</Typography>
                         </Stack>
                       </TableCell>
                       <TableCell align="center">
@@ -432,9 +448,9 @@ function KeralaReportList() {
                       </TableCell>
                       <TableCell align="center">
                         <Tooltip title="View Details">
-                          <IconButton 
+                          <IconButton
                             size="small"
-                            onClick={() => handleViewDetails(row.district)}
+                            onClick={() => handleViewZoneDetails(row.zone)}
                             sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
                           >
                             <VisibilityIcon />
@@ -446,17 +462,19 @@ function KeralaReportList() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
-                      <Typography color="text.secondary">No districts found</Typography>
+                      <Typography color="text.secondary">
+                        {searchTerm ? `No zones found matching "${searchTerm}"` : `No data available for selected filters`}
+                      </Typography>
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
           </TableContainer>
-          {filteredData.length > 0 && (
+          {searchFilteredData.length > 0 && (
             <TablePagination
               component="div"
-              count={filteredData.length}
+              count={searchFilteredData.length}
               page={page}
               onPageChange={handleChangePage}
               rowsPerPage={rowsPerPage}
@@ -467,8 +485,31 @@ function KeralaReportList() {
           )}
         </MainCard>
       </Grid>
+
+      {/* Back Button */}
+      <Grid item xs={12}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={handleGoBack}
+            startIcon={<ArrowBackIcon />}
+            sx={{
+              color: '#04255e',
+              borderColor: '#04255e',
+              borderRadius: 2,
+              px: 4,
+              '&:hover': {
+                borderColor: '#04255e',
+                bgcolor: alpha('#04255e', 0.04)
+              }
+            }}
+          >
+            Back to Block Report
+          </Button>
+        </Box>
+      </Grid>
     </Grid>
   );
 }
 
-export default KeralaReportList;
+export default ZoneClusterReport;

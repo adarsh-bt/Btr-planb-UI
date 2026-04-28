@@ -22,7 +22,7 @@ const SettingsTabsPage = () => {
         </Typography>
         <MainCard title="">
           <Grid container spacing={4} alignItems="stretch">
-            
+
             {/* Districts */}
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
@@ -78,66 +78,11 @@ const SettingsTabsPage = () => {
               </Card>
             </Grid>
 
-            {/* District Offices */}
-            <Grid item xs={12} sm={4} md={3} lg={3}>
-              <Card
-                component={Link}
-                to="/schemes/earas/district_office_settings"
-                sx={{
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '1rem',
-                  borderRadius: '1rem',
-                  background: 'linear-gradient(135deg, rgba(146, 254, 252, 0.45), rgb(155, 120, 250))',
-                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out',
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-                  height: '100%',
-                  '&:hover': {
-                    transform: 'scale(1.05)',
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
-                  }
-                }}
-              >
-                <CardMedia
-                  component="img"
-                  sx={{
-                    width: '5rem',
-                    height: '5rem',
-                    borderRadius: '.5rem',
-                    marginRight: '1rem'
-                  }}
-                  image={zonedetails}
-                  alt="district offices"
-                />
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      District Offices
-                    </Typography>
-                    <Typography
-                      variant="subtitle1"
-                      component="div"
-                      sx={{
-                        color: '#f3f3f3',
-                        fontStyle: 'italic',
-                        fontWeight: 'lighter',
-                        marginTop: '0.5rem'
-                      }}
-                    >
-                      Settings
-                    </Typography>
-                  </CardContent>
-                </Box>
-              </Card>
-            </Grid>
-
             {/* Taluk Offices */}
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                to="/schemes/earas/taluk_office_settings"
+                to="/schemes/earas/taluk_settings"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',
@@ -169,117 +114,7 @@ const SettingsTabsPage = () => {
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
                     <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Taluk Offices
-                    </Typography>
-                    <Typography
-                      variant="subtitle1"
-                      component="div"
-                      sx={{
-                        color: '#f3f3f3',
-                        fontStyle: 'italic',
-                        fontWeight: 'lighter',
-                        marginTop: '0.5rem'
-                      }}
-                    >
-                      Settings
-                    </Typography>
-                  </CardContent>
-                </Box>
-              </Card>
-            </Grid>
-
-            {/* Taluk */}
-            <Grid item xs={12} sm={4} md={3} lg={3}>
-              <Card
-                component={Link}
-                to="/schemes/earas/taluk_settings"
-                sx={{
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '1rem',
-                  borderRadius: '1rem',
-                  background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.45), rgb(255, 87, 34))',
-                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out',
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-                  height: '100%',
-                  '&:hover': {
-                    transform: 'scale(1.05)',
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
-                  }
-                }}
-              >
-                <CardMedia
-                  component="img"
-                  sx={{
-                    width: '5rem',
-                    height: '5rem',
-                    borderRadius: '.5rem',
-                    marginRight: '1rem'
-                  }}
-                  image={zonedetails}
-                  alt="Taluk"
-                />
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
                       Taluk
-                    </Typography>
-                    <Typography
-                      variant="subtitle1"
-                      component="div"
-                      sx={{
-                        color: '#f3f3f3',
-                        fontStyle: 'italic',
-                        fontWeight: 'lighter',
-                        marginTop: '0.5rem'
-                      }}
-                    >
-                      Settings
-                    </Typography>
-                  </CardContent>
-                </Box>
-              </Card>
-            </Grid>
-
-            {/* Panchayats */}
-            <Grid item xs={12} sm={4} md={3} lg={3}>
-              <Card
-                component={Link}
-                to="/schemes/earas/revenue_taluk_settings"
-                sx={{
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '1rem',
-                  borderRadius: '1rem',
-                  background: 'linear-gradient(135deg, rgba(76, 175, 80, 0.45), rgb(0, 150, 136))',
-                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out',
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-                  height: '100%',
-                  '&:hover': {
-                    transform: 'scale(1.05)',
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
-                  }
-                }}
-              >
-                <CardMedia
-                  component="img"
-                  sx={{
-                    width: '5rem',
-                    height: '5rem',
-                    borderRadius: '.5rem',
-                    marginRight: '1rem'
-                  }}
-                  image={zonedetails}
-                  alt="Revenue Taluk"
-                />
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Revenue Taluk
                     </Typography>
                     <Typography
                       variant="subtitle1"
@@ -353,11 +188,11 @@ const SettingsTabsPage = () => {
               </Card>
             </Grid>
 
-            {/* Corporations */}
+            {/* Master Zone */}
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                to="/schemes/earas/corporation_settings"
+                to="/schemes/earas/master_zone_settings"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',
@@ -389,7 +224,7 @@ const SettingsTabsPage = () => {
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
                     <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Corporations
+                      Zone
                     </Typography>
                     <Typography
                       variant="subtitle1"
