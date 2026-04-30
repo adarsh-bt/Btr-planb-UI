@@ -224,7 +224,7 @@ const SettingsMenu = () => {
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
                     <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Detailed
+                      Office
                     </Typography>
                     <Typography
                       variant="subtitle1"

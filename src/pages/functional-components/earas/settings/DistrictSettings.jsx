@@ -30,6 +30,7 @@ import {
   InputLabel,
   Tab,
   Tabs,
+  TablePagination,
 } from "@mui/material";
 import {
   Save,
@@ -47,6 +48,9 @@ import SettingService from "./SettingService";
 import Breadcrumb from "routes/Breadcrumb";
 
 const BASE_URL = mainapi.BASE_URL;
+
+
+
 
 // Tab Panel Component
 function TabPanel({ children, value, index, ...other }) {
@@ -143,6 +147,17 @@ const DistrictManagementTab = () => {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+
+  const [page, setPage] = useState(0);
+const [rowsPerPage, setRowsPerPage] = useState(10);
+
+const handleChangePage = (event, newPage) => setPage(newPage);
+const handleChangeRowsPerPage = (event) => {
+  setRowsPerPage(parseInt(event.target.value, 10));
+  setPage(0);
+};
+const paginatedDistricts = filteredDistricts.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
 
   // Auto-close modals
   useEffect(() => {
@@ -469,7 +484,7 @@ const DistrictManagementTab = () => {
           <Table stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}>ID</TableCell>
+                <TableCell sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}>Sl.No</TableCell>
                 <TableCell sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}>District Name (EN)</TableCell>
                 <TableCell sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}>District Name (ML)</TableCell>
                 <TableCell sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}>LSG Code</TableCell>
@@ -482,44 +497,55 @@ const DistrictManagementTab = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredDistricts.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={10} align="center">No districts found</TableCell>
-                </TableRow>
-              ) : (
-                filteredDistricts.map((district) => (
-                  <TableRow key={district.dist_id} sx={{ backgroundColor: !district._active ? '#fafafa' : 'inherit' }}>
-                    <TableCell>{district.dist_id}</TableCell>
-                    <TableCell>{district.dist_name_en}</TableCell>
-                    <TableCell sx={{ fontFamily: 'Noto Sans Malayalam, "Malayalam MN", sans-serif' }}>
-                      {district.dist_name_mal}
-                    </TableCell>
-                    <TableCell align="center">{district.dist_lsg_code}</TableCell>
-                    <TableCell align="center"><Chip label={district.dist_code} size="small" /></TableCell>
-                    <TableCell align="center">{district.census_code_2011}</TableCell>
-                    <TableCell align="center">{district.census_code_2001}</TableCell>
-                    <TableCell align="center">{district.des_dist_code}</TableCell>
-                    <TableCell align="center">{getStatusChip(district._active)}</TableCell>
-                    <TableCell align="center">
-                      <Tooltip title="Edit District">
-                        <IconButton color="primary" onClick={() => handleEditClick(district)} size="small">
-                          <EditIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
+                {paginatedDistricts.length === 0 ? (
+                    <TableRow>
+                    <TableCell colSpan={10} align="center">No districts found</TableCell>
+                    </TableRow>
+                ) : (
+                    paginatedDistricts.map((district, index) => (
+                    <TableRow key={district.dist_id} sx={{ backgroundColor: !district._active ? '#fafafa' : 'inherit' }}>
+                        <TableCell>{page * rowsPerPage + index + 1}</TableCell>
+                        <TableCell>{district.dist_name_en}</TableCell>
+                        <TableCell sx={{ fontFamily: 'Noto Sans Malayalam, "Malayalam MN", sans-serif' }}>
+                        {district.dist_name_mal}
+                        </TableCell>
+                        <TableCell align="center">{district.dist_lsg_code}</TableCell>
+                        <TableCell align="center"><Chip label={district.dist_code} size="small" /></TableCell>
+                        <TableCell align="center">{district.census_code_2011}</TableCell>
+                        <TableCell align="center">{district.census_code_2001}</TableCell>
+                        <TableCell align="center">{district.des_dist_code}</TableCell>
+                        <TableCell align="center">{getStatusChip(district._active)}</TableCell>
+                        <TableCell align="center">
+                        <Tooltip title="Edit District">
+                            <IconButton color="primary" onClick={() => handleEditClick(district)} size="small">
+                            <EditIcon />
+                            </IconButton>
+                        </Tooltip>
+                        </TableCell>
+                    </TableRow>
+                    ))
+                )}
+                </TableBody>
           </Table>
         </TableContainer>
+        <TablePagination
+  rowsPerPageOptions={[5, 10, 25, 50, 100]}
+  component="div"
+  count={filteredDistricts.length}
+  rowsPerPage={rowsPerPage}
+  page={page}
+  onPageChange={handleChangePage}
+  onRowsPerPageChange={handleChangeRowsPerPage}
+  labelRowsPerPage="Rows per page:"
+  labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count}`}
+/>
       </Paper>
 
       <Box sx={{ mt: 2 }}>
         <Typography variant="body2" color="textSecondary">
-          Showing {filteredDistricts.length} of {districts.length} districts
+            Showing {paginatedDistricts.length} of {filteredDistricts.length} districts {searchTerm && "(filtered)"}
         </Typography>
-      </Box>
+        </Box>
 
       {/* Add New District Modal */}
       <Dialog 
@@ -996,73 +1022,31 @@ const DistrictOfficeManagementTab = () => {
 
   // Fetch districts for dropdown
   const fetchDistricts = useCallback(async () => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-
-      const response = await fetch(`${BASE_URL}/btr-service/admin-manage/districts`, {
-        method: "GET",
-        headers: { 
-          Authorization: `Bearer ${token}`, 
-          "Content-Type": "application/json" 
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const mappedDistricts = data.map(district => ({
-          dist_id: district.districtId,
-          dist_name_en: district.districtNameEn,
-          dist_name_mal: district.districtNameMal,
-        }));
-        setDistricts(mappedDistricts);
-      } else {
-        console.error("Failed to fetch districts:", response.status);
-      }
-    } catch (err) {
-      console.error("Error fetching districts:", err);
-    }
-  }, []);
+  try {
+    const mappedDistricts = await SettingService.fetchDistrictsForDropdown();
+    setDistricts(mappedDistricts);
+  } catch (err) {
+    console.error("Error fetching districts:", err);
+    toast.error(err.message);
+  }
+}, []);
 
   // Fetch district offices
   const fetchDistrictOffices = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setError("No authentication token found. Please login again.");
-        toast.error("Please login again");
-        return;
-      }
-
-      const response = await fetch(`${BASE_URL}/user-access/api/it-admin/getAllDistrictOffice`, {
-        method: "GET",
-        headers: { 
-          Authorization: `Bearer ${token}`, 
-          "Content-Type": "application/json" 
-        },
-      });
-
-      if (response.status === 403) {
-        throw new Error("Access denied. You don't have permission to view district offices.");
-      }
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch district offices: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setDistrictOffices(data);
-      setFilteredOffices(data);
+        const data = await SettingService.fetchDistrictOffices();
+        setDistrictOffices(data);
+        setFilteredOffices(data);
     } catch (err) {
-      console.error("Fetch error:", err);
-      setError(err.message);
-      toast.error(err.message);
+        console.error("Fetch error:", err);
+        setError(err.message);
+        toast.error(err.message);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  }, []);
+    }, []);
 
   const getDistrictDisplay = (distId) => {
     const district = districts.find(d => d.dist_id === distId);
@@ -1154,197 +1138,94 @@ const DistrictOfficeManagementTab = () => {
 
   const handleSaveEdit = async () => {
     if (!validateEdit(editedData)) {
-      toast.error("Please fix validation errors");
-      return;
+        toast.error("Please fix validation errors");
+        return;
     }
 
     setIsSaving(true);
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No authentication token found. Please login again.");
-      }
-
-      const userId = authservice.userid();
-
-      const payload = {
-        id: editedData.id,
-        nameEn: editedData.nameEn,
-        distId: editedData.distId,
-        userId: userId,
-        active: editedData.active,
-      };
-
-      const response = await fetch(`${BASE_URL}/user-access/api/it-admin/saveDistrictOffice`, {
-        method: "POST",
-        headers: { 
-          Authorization: `Bearer ${token}`, 
-          "Content-Type": "application/json" 
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.status === 403) {
-        throw new Error("Access denied. You don't have permission to update district offices.");
-      }
-
-      if (response.status === 401) {
-        throw new Error("Session expired. Please login again.");
-      }
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `HTTP error! status: ${response.status}`);
-      }
-
-      setSuccessMessage("District office updated successfully!");
-      setShowSuccessModal(true);
-      toast.success("District office updated successfully!");
-      await fetchDistrictOffices();
-      setEditModalOpen(false);
+        const result = await SettingService.saveDistrictOffice(editedData);
+        setSuccessMessage("District office updated successfully!");
+        setShowSuccessModal(true);
+        toast.success("District office updated successfully!");
+        await fetchDistrictOffices();
+        setEditModalOpen(false);
     } catch (err) {
-      console.error("Save error:", err);
-      let errorMsg = err.message;
-      
-      if (err.message.includes("403")) {
+        console.error("Save error:", err);
+        let errorMsg = err.message;
+        
+        if (err.message.includes("403")) {
         errorMsg = "You don't have permission to edit district offices. Please contact administrator.";
-      } else if (err.message.includes("401")) {
+        } else if (err.message.includes("401")) {
         errorMsg = "Your session has expired. Please login again.";
-      }
-      
-      setErrorMessage(errorMsg);
-      setShowErrorModal(true);
-      toast.error(errorMsg);
+        }
+        
+        setErrorMessage(errorMsg);
+        setShowErrorModal(true);
+        toast.error(errorMsg);
     } finally {
-      setIsSaving(false);
+        setIsSaving(false);
     }
-  };
+    };
 
   const handleSaveNewOffice = async () => {
     if (!validateAdd(newOfficeData)) {
-      toast.error("Please fix validation errors");
-      return;
+        toast.error("Please fix validation errors");
+        return;
     }
 
     setIsSaving(true);
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No authentication token found. Please login again.");
-      }
-
-      const userId = authservice.userid();
-
-      const payload = {
-        nameEn: newOfficeData.nameEn,
-        distId: newOfficeData.distId,
-        userId: userId,
-        active: newOfficeData.active,
-      };
-
-      const response = await fetch(`${BASE_URL}/user-access/api/it-admin/saveDistrictOffice`, {
-        method: "POST",
-        headers: { 
-          Authorization: `Bearer ${token}`, 
-          "Content-Type": "application/json" 
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.status === 403) {
-        throw new Error("Access denied. You don't have permission to add district offices.");
-      }
-
-      if (response.status === 401) {
-        throw new Error("Session expired. Please login again.");
-      }
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `HTTP error! status: ${response.status}`);
-      }
-
-      setSuccessMessage("District office added successfully!");
-      setShowSuccessModal(true);
-      toast.success("District office added successfully!");
-      await fetchDistrictOffices();
-      setAddModalOpen(false);
+        const result = await SettingService.saveDistrictOffice(newOfficeData);
+        setSuccessMessage("District office added successfully!");
+        setShowSuccessModal(true);
+        toast.success("District office added successfully!");
+        await fetchDistrictOffices();
+        setAddModalOpen(false);
     } catch (err) {
-      console.error("Save error:", err);
-      let errorMsg = err.message;
-      
-      if (err.message.includes("403")) {
+        console.error("Save error:", err);
+        let errorMsg = err.message;
+        
+        if (err.message.includes("403")) {
         errorMsg = "You don't have permission to add district offices. Please contact administrator.";
-      } else if (err.message.includes("401")) {
+        } else if (err.message.includes("401")) {
         errorMsg = "Your session has expired. Please login again.";
-      } else if (err.message.includes("duplicate") || err.message.includes("already exists")) {
+        } else if (err.message.includes("duplicate") || err.message.includes("already exists")) {
         errorMsg = "A district office with this name already exists.";
-      }
-      
-      setErrorMessage(errorMsg);
-      setShowErrorModal(true);
-      toast.error(errorMsg);
+        }
+        
+        setErrorMessage(errorMsg);
+        setShowErrorModal(true);
+        toast.error(errorMsg);
     } finally {
-      setIsSaving(false);
+        setIsSaving(false);
     }
-  };
+    };
 
   const handleToggleActive = async (office) => {
     setIsSaving(true);
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No authentication token found. Please login again.");
-      }
-
-      const userId = authservice.userid();
-
-      const payload = {
-        id: office.id,
-        nameEn: office.nameEn,
-        distId: office.distId,
-        userId: userId,
-        active: !office.active,
-      };
-
-      const response = await fetch(`${BASE_URL}/user-access/api/it-admin/saveDistrictOffice`, {
-        method: "POST",
-        headers: { 
-          Authorization: `Bearer ${token}`, 
-          "Content-Type": "application/json" 
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.status === 403) {
-        throw new Error("Access denied. You don't have permission to change district office status.");
-      }
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `HTTP error! status: ${response.status}`);
-      }
-
-      const action = !office.active ? "activated" : "deactivated";
-      setSuccessMessage(`District office "${office.nameEn}" ${action} successfully!`);
-      setShowSuccessModal(true);
-      toast.success(`District office ${action}!`);
-      await fetchDistrictOffices();
+        await SettingService.toggleDistrictOfficeActive(office);
+        const action = !office.active ? "activated" : "deactivated";
+        setSuccessMessage(`District office "${office.nameEn}" ${action} successfully!`);
+        setShowSuccessModal(true);
+        toast.success(`District office ${action}!`);
+        await fetchDistrictOffices();
     } catch (err) {
-      console.error("Toggle error:", err);
-      let errorMsg = err.message;
-      
-      if (err.message.includes("403")) {
+        console.error("Toggle error:", err);
+        let errorMsg = err.message;
+        
+        if (err.message.includes("403")) {
         errorMsg = "You don't have permission to change district office status. Please contact administrator.";
-      }
-      
-      setErrorMessage(errorMsg);
-      setShowErrorModal(true);
-      toast.error(errorMsg);
+        }
+        
+        setErrorMessage(errorMsg);
+        setShowErrorModal(true);
+        toast.error(errorMsg);
     } finally {
-      setIsSaving(false);
+        setIsSaving(false);
     }
-  };
+    };
 
   const getStatusChip = (isActive) => {
     return isActive ? (

@@ -26,6 +26,9 @@ import {
   FormControlLabel,
   MenuItem,
   TablePagination,
+  FormControl,
+  InputLabel,
+  Select,
 } from "@mui/material";
 import {
   Save,
@@ -37,10 +40,8 @@ import {
   Add as AddIcon,
 } from "@mui/icons-material";
 import { toast } from "react-toastify";
-import mainapi from "api/mainapi";
-import authservice from "pages/authentication/services/authservice";
-
-const BASE_URL = mainapi.BASE_URL;
+import Breadcrumb from "routes/Breadcrumb";
+import SettingService from "./SettingService";
 
 // BTR type options (adjust according to your business logic)
 const BTR_TYPE_OPTIONS = [
@@ -97,25 +98,12 @@ const MasterZoneSettings = () => {
     return () => clearTimeout(timeoutId);
   }, [showErrorModal]);
 
-  // Fetch zones
+  // Fetch zones using SettingService
   const fetchZones = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const token = localStorage.getItem("token");
-      if (!token) throw new Error("No authentication token found");
-
-      const response = await fetch(`${BASE_URL}/btr-service/admin-manage/getAllMasterZone`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!response.ok) {
-        if (response.status === 403) throw new Error("Access denied");
-        if (response.status === 401) throw new Error("Session expired");
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await SettingService.fetchAllMasterZones();
       setZones(data);
       setFilteredZones(data);
       setPage(0);
@@ -128,44 +116,29 @@ const MasterZoneSettings = () => {
     }
   }, []);
 
-  // Fetch districts from /districts endpoint
+  // Fetch districts using SettingService
   const fetchDistricts = useCallback(async () => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-      const response = await fetch(`${BASE_URL}/btr-service/admin-manage/districts`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setDistricts(data);
-      } else {
-        console.warn("Failed to fetch districts");
-      }
+      const data = await SettingService.fetchDistrictsRaw();
+      setDistricts(data);
     } catch (err) {
       console.error("Error fetching districts:", err);
+      toast.error(err.message);
     }
   }, []);
 
-  // Fetch taluks from /getAllTaluk endpoint
+  // Fetch taluks using SettingService
   const fetchTaluks = useCallback(async () => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-      const response = await fetch(`${BASE_URL}/btr-service/admin-manage/getAllTaluk`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setTaluks(data);
-      } else {
-        console.warn("Failed to fetch taluks");
-      }
+      const data = await SettingService.fetchAllTaluks();
+      setTaluks(data);
     } catch (err) {
       console.error("Error fetching taluks:", err);
+      toast.error(err.message);
     }
   }, []);
 
+  // Initial fetch
   useEffect(() => {
     fetchZones();
     fetchDistricts();
@@ -180,6 +153,7 @@ const MasterZoneSettings = () => {
       filtered = filtered.filter(
         (zone) =>
           zone.zoneNameEn?.toLowerCase().includes(term) ||
+          zone.zoneNameMal?.toLowerCase().includes(term) ||
           zone.zoneCode?.toLowerCase().includes(term) ||
           zone.zoneId?.toString().includes(term)
       );
@@ -271,29 +245,7 @@ const MasterZoneSettings = () => {
     return errors;
   };
 
-  const saveZone = async (payload) => {
-    const token = localStorage.getItem("token");
-    if (!token) throw new Error("No authentication token found");
-
-    const response = await fetch(`${BASE_URL}/btr-service/admin-manage/saveOrUpdateMasterZone`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (response.status === 403) throw new Error("Access denied");
-    if (response.status === 401) throw new Error("Session expired");
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || `HTTP error! status: ${response.status}`);
-    }
-    const result = await response.text();
-    return result;
-  };
-
+  // Save edited zone
   const handleSaveEdit = async () => {
     const errors = validateData(editedData);
     setEditErrors(errors);
@@ -304,21 +256,19 @@ const MasterZoneSettings = () => {
 
     setIsSaving(true);
     try {
-      const userId = authservice.userid();
       const payload = {
         zoneId: editedData.zoneId,
         zoneNameEn: editedData.zoneNameEn,
         zoneNameMal: editedData.zoneNameMal,
-        desTalukId: Number(editedData.desTalukId),
-        distId: Number(editedData.distId),
-        btrTypeId: Number(editedData.btrTypeId),
+        desTalukId: editedData.desTalukId,
+        distId: editedData.distId,
+        btrTypeId: editedData.btrTypeId,
         isActive: editedData.isActive,
-        userId: userId,
       };
-      await saveZone(payload);
+      await SettingService.saveMasterZone(payload);
       setSuccessMessage("Zone updated successfully!");
       setShowSuccessModal(true);
-      toast.success("Zone updated!");
+      toast.success("Zone updated successfully!");
       await fetchZones();
       setEditModalOpen(false);
     } catch (err) {
@@ -326,6 +276,7 @@ const MasterZoneSettings = () => {
       let errorMsg = err.message;
       if (err.message.includes("403")) errorMsg = "You don't have permission to edit zones.";
       else if (err.message.includes("401")) errorMsg = "Your session has expired. Please login again.";
+      else if (err.message.includes("duplicate")) errorMsg = "A zone with this name already exists.";
       setErrorMessage(errorMsg);
       setShowErrorModal(true);
       toast.error(errorMsg);
@@ -334,6 +285,7 @@ const MasterZoneSettings = () => {
     }
   };
 
+  // Save new zone
   const handleSaveNewZone = async () => {
     const errors = validateData(newZoneData);
     setAddErrors(errors);
@@ -344,20 +296,18 @@ const MasterZoneSettings = () => {
 
     setIsSaving(true);
     try {
-      const userId = authservice.userid();
       const payload = {
         zoneNameEn: newZoneData.zoneNameEn,
         zoneNameMal: newZoneData.zoneNameMal,
-        desTalukId: Number(newZoneData.desTalukId),
-        distId: Number(newZoneData.distId),
-        btrTypeId: Number(newZoneData.btrTypeId),
+        desTalukId: newZoneData.desTalukId,
+        distId: newZoneData.distId,
+        btrTypeId: newZoneData.btrTypeId,
         isActive: newZoneData.isActive,
-        userId: userId,
       };
-      await saveZone(payload);
+      await SettingService.saveMasterZone(payload);
       setSuccessMessage("Zone added successfully!");
       setShowSuccessModal(true);
-      toast.success("Zone added!");
+      toast.success("Zone added successfully!");
       await fetchZones();
       setAddModalOpen(false);
     } catch (err) {
@@ -375,21 +325,11 @@ const MasterZoneSettings = () => {
     }
   };
 
+  // Toggle active status
   const handleToggleActive = async (zone) => {
     setIsSaving(true);
     try {
-      const userId = authservice.userid();
-      const payload = {
-        zoneId: zone.zoneId,
-        zoneNameEn: zone.zoneNameEn,
-        zoneNameMal: zone.zoneNameMal,
-        desTalukId: zone.desTalukId,
-        distId: zone.distId,
-        btrTypeId: zone.btrTypeId,
-        isActive: !zone.isActive,
-        userId: userId,
-      };
-      await saveZone(payload);
+      await SettingService.toggleMasterZoneActive(zone);
       const action = !zone.isActive ? "activated" : "deactivated";
       setSuccessMessage(`Zone "${zone.zoneNameEn}" ${action} successfully!`);
       setShowSuccessModal(true);
@@ -399,6 +339,7 @@ const MasterZoneSettings = () => {
       console.error("Toggle error:", err);
       let errorMsg = err.message;
       if (err.message.includes("403")) errorMsg = "You don't have permission to change zone status.";
+      else if (err.message.includes("401")) errorMsg = "Your session has expired. Please login again.";
       setErrorMessage(errorMsg);
       setShowErrorModal(true);
       toast.error(errorMsg);
@@ -443,6 +384,7 @@ const MasterZoneSettings = () => {
 
   return (
     <Grid container spacing={3}>
+      <Breadcrumb />
       <Box sx={{ p: 3, maxWidth: 1400, margin: "0 auto", width: "100%" }}>
         <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4, color: '#05307a' }}>
           Master Zone Management
@@ -477,7 +419,7 @@ const MasterZoneSettings = () => {
             <Table stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}>ID</TableCell>
+                  <TableCell sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}>Sl.No</TableCell>
                   <TableCell sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}>Zone Code</TableCell>
                   <TableCell sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}>Zone Name (EN / ML)</TableCell>
                   <TableCell sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}>District</TableCell>
@@ -493,9 +435,9 @@ const MasterZoneSettings = () => {
                     <TableCell colSpan={8} align="center">No zones found</TableCell>
                   </TableRow>
                 ) : (
-                  paginatedZones.map((zone) => (
+                  paginatedZones.map((zone, index) => (
                     <TableRow key={zone.zoneId} sx={{ backgroundColor: !zone.isActive ? '#fafafa' : 'inherit' }}>
-                      <TableCell>{zone.zoneId}</TableCell>
+                      <TableCell>{page * rowsPerPage + index + 1}</TableCell>
                       <TableCell>{zone.zoneCode || "-"}</TableCell>
                       <TableCell>
                         {zone.zoneNameEn}
@@ -555,67 +497,81 @@ const MasterZoneSettings = () => {
         <Dialog open={addModalOpen} onClose={() => setAddModalOpen(false)} maxWidth="md" fullWidth>
           <DialogTitle sx={{ bgcolor: '#05307a', color: 'white', pb: 2 }}>
             <Typography variant="h6">Add New Zone</Typography>
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 0.5 }}>
+              Fill in the zone details below
+            </Typography>
           </DialogTitle>
-          <DialogContent sx={{ pt: 3 }}>
+          <DialogContent sx={{ pt: 3, pb: 2 }}>
             <Grid container spacing={2.5} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth required error={!!addErrors.distId}>
+                  <InputLabel>Select District</InputLabel>
+                  <Select
+                    value={newZoneData.distId}
+                    label="Select District"
+                    onChange={(e) => handleAddChange('distId', e.target.value)}
+                  >
+                    <MenuItem value="">Select district</MenuItem>
+                    {districts.map((dist) => (
+                      <MenuItem key={dist.districtId} value={dist.districtId}>
+                        {dist.districtNameEn} / {dist.districtNameMal}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {addErrors.distId && (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                      {addErrors.distId}
+                    </Typography>
+                  )}
+                </FormControl>
+              </Grid>
               
               <Grid item xs={12} sm={6}>
-                <TextField
-                  select
-                  label="District"
-                  fullWidth
-                  required
-                  value={newZoneData.distId}
-                  onChange={(e) => handleAddChange('distId', e.target.value)}
-                  error={!!addErrors.distId}
-                  helperText={addErrors.distId}
-                >
-                  <MenuItem value="">Select district</MenuItem>
-                  {districts.map((dist) => (
-                    <MenuItem key={dist.districtId} value={dist.districtId}>
-                      {dist.districtNameEn} / {dist.districtNameMal}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                <FormControl fullWidth required error={!!addErrors.desTalukId}>
+                  <InputLabel>Select Taluk</InputLabel>
+                  <Select
+                    value={newZoneData.desTalukId}
+                    label="Select Taluk"
+                    onChange={(e) => handleAddChange('desTalukId', e.target.value)}
+                  >
+                    <MenuItem value="">Select taluk</MenuItem>
+                    {taluks.map((taluk) => (
+                      <MenuItem key={taluk.desTalukId} value={taluk.desTalukId}>
+                        {taluk.desTalukNameEn} / {taluk.desTalukNameMal}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {addErrors.desTalukId && (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                      {addErrors.desTalukId}
+                    </Typography>
+                  )}
+                </FormControl>
               </Grid>
+              
               <Grid item xs={12} sm={6}>
-                <TextField
-                  select
-                  label="Taluk"
-                  fullWidth
-                  required
-                  value={newZoneData.desTalukId}
-                  onChange={(e) => handleAddChange('desTalukId', e.target.value)}
-                  error={!!addErrors.desTalukId}
-                  helperText={addErrors.desTalukId}
-                >
-                  <MenuItem value="">Select taluk</MenuItem>
-                  {taluks.map((taluk) => (
-                    <MenuItem key={taluk.desTalukId} value={taluk.desTalukId}>
-                      {taluk.desTalukNameEn} / {taluk.desTalukNameMal}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                <FormControl fullWidth required error={!!addErrors.btrTypeId}>
+                  <InputLabel>Select BTR Type</InputLabel>
+                  <Select
+                    value={newZoneData.btrTypeId}
+                    label="Select BTR Type"
+                    onChange={(e) => handleAddChange('btrTypeId', e.target.value)}
+                  >
+                    <MenuItem value="">Select BTR type</MenuItem>
+                    {BTR_TYPE_OPTIONS.map((opt) => (
+                      <MenuItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {addErrors.btrTypeId && (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                      {addErrors.btrTypeId}
+                    </Typography>
+                  )}
+                </FormControl>
               </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  select
-                  label="BTR Type"
-                  fullWidth
-                  required
-                  value={newZoneData.btrTypeId}
-                  onChange={(e) => handleAddChange('btrTypeId', e.target.value)}
-                  error={!!addErrors.btrTypeId}
-                  helperText={addErrors.btrTypeId}
-                >
-                  <MenuItem value="">Select BTR type</MenuItem>
-                  {BTR_TYPE_OPTIONS.map((opt) => (
-                    <MenuItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
+              
               <Grid item xs={12} sm={6}>
                 <TextField
                   label="Zone Name (English)"
@@ -625,8 +581,10 @@ const MasterZoneSettings = () => {
                   onChange={(e) => handleAddChange('zoneNameEn', e.target.value)}
                   error={!!addErrors.zoneNameEn}
                   helperText={addErrors.zoneNameEn}
+                  placeholder="e.g., North Zone"
                 />
               </Grid>
+              
               <Grid item xs={12} sm={6}>
                 <TextField
                   label="Zone Name (Malayalam)"
@@ -639,53 +597,58 @@ const MasterZoneSettings = () => {
                   InputProps={{
                     style: { fontFamily: 'Noto Sans Malayalam, "Malayalam MN", sans-serif' }
                   }}
+                  placeholder="e.g., വടക്കൻ സോൺ"
                 />
               </Grid>
+              
               <Grid item xs={12} sm={6}>
                 <Paper variant="outlined" sx={{ p: 2, height: '100%', display: 'flex', alignItems: 'center' }}>
                   <FormControlLabel
-                        control={
-                            <Switch
-                            checked={newZoneData.isActive}
-                            onChange={(e) => handleAddChange('isActive', e.target.checked)}
-                            sx={{
-                                '& .MuiSwitch-switchBase.Mui-checked': {
-                                color: '#05307a',
-                                },
-                                '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                                backgroundColor: '#05307a',
-                                },
-                            }}
-                            />
-                        }
-                        />
+                    control={
+                      <Switch
+                        checked={newZoneData.isActive}
+                        onChange={(e) => handleAddChange('isActive', e.target.checked)}
+                        sx={{
+                          '& .MuiSwitch-switchBase.Mui-checked': {
+                            color: '#05307a',
+                          },
+                          '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                            backgroundColor: '#05307a',
+                          },
+                        }}
+                      />
+                    }
+                    label={newZoneData.isActive ? "Active" : "Inactive"}
+                    sx={{ ml: 0 }}
+                  />
                 </Paper>
               </Grid>
             </Grid>
           </DialogContent>
-          <DialogActions sx={{ p: 3, gap: 2 }}>
-            <Button onClick={() => setAddModalOpen(false)} variant="outlined" color="secondary" disabled={isSaving}>
+          <DialogActions sx={{ p: 3, pt: 2, gap: 2 }}>
+            <Button onClick={() => setAddModalOpen(false)} variant="outlined" color="secondary" disabled={isSaving} size="large">
               Cancel
             </Button>
             <Button
-                onClick={handleSaveNewZone}
-                variant="contained"
-                disabled={isSaving}
-                startIcon={isSaving ? <CircularProgress size={20} /> : <Save />}
-                sx={{
-                    backgroundColor: '#05307a',
-                    color: '#fff',
-                    '&:hover': {
-                    backgroundColor: '#04265f',
-                    },
-                    '&.Mui-disabled': {
-                    backgroundColor: '#a0a0a0',
-                    color: '#fff',
-                    },
-                }}
-                >
-                {isSaving ? "Adding..." : "Add Zone"}
-                </Button>
+              onClick={handleSaveNewZone}
+              variant="contained"
+              disabled={isSaving}
+              startIcon={isSaving ? <CircularProgress size={20} /> : <Save />}
+              sx={{
+                backgroundColor: '#05307a',
+                '&:hover': {
+                  backgroundColor: '#042560',
+                },
+                '&:active': {
+                  backgroundColor: '#031840',
+                },
+                '&:disabled': {
+                  backgroundColor: '#8ba0c2',
+                }
+              }}
+            >
+              {isSaving ? "Adding..." : "Add Zone"}
+            </Button>
           </DialogActions>
         </Dialog>
 
@@ -693,9 +656,11 @@ const MasterZoneSettings = () => {
         <Dialog open={editModalOpen} onClose={() => setEditModalOpen(false)} maxWidth="md" fullWidth>
           <DialogTitle sx={{ bgcolor: '#05307a', color: 'white', pb: 2 }}>
             <Typography variant="h6">Edit Zone</Typography>
-            <Typography variant="body2">ID: {selectedZone?.zoneId}</Typography>
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 0.5 }}>
+              ID: {selectedZone?.zoneId} | Current: {selectedZone?.zoneNameEn}
+            </Typography>
           </DialogTitle>
-          <DialogContent sx={{ pt: 3 }}>
+          <DialogContent sx={{ pt: 3, pb: 2 }}>
             <Grid container spacing={2.5} sx={{ mt: 1 }}>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -708,6 +673,7 @@ const MasterZoneSettings = () => {
                   helperText={editErrors.zoneNameEn}
                 />
               </Grid>
+              
               <Grid item xs={12} sm={6}>
                 <TextField
                   label="Zone Name (Malayalam)"
@@ -722,109 +688,124 @@ const MasterZoneSettings = () => {
                   }}
                 />
               </Grid>
+              
               <Grid item xs={12} sm={6}>
-                <TextField
-                  select
-                  label="District"
-                  fullWidth
-                  required
-                  value={editedData.distId || ''}
-                  onChange={(e) => handleEditChange('distId', e.target.value)}
-                  error={!!editErrors.distId}
-                  helperText={editErrors.distId}
-                >
-                  <MenuItem value="">Select district</MenuItem>
-                  {districts.map((dist) => (
-                    <MenuItem key={dist.districtId} value={dist.districtId}>
-                      {dist.districtNameEn} / {dist.districtNameMal}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                <FormControl fullWidth required error={!!editErrors.distId}>
+                  <InputLabel>Select District</InputLabel>
+                  <Select
+                    value={editedData.distId || ''}
+                    label="Select District"
+                    onChange={(e) => handleEditChange('distId', e.target.value)}
+                  >
+                    <MenuItem value="">Select district</MenuItem>
+                    {districts.map((dist) => (
+                      <MenuItem key={dist.districtId} value={dist.districtId}>
+                        {dist.districtNameEn} / {dist.districtNameMal}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {editErrors.distId && (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                      {editErrors.distId}
+                    </Typography>
+                  )}
+                </FormControl>
               </Grid>
+              
               <Grid item xs={12} sm={6}>
-                <TextField
-                  select
-                  label="Taluk"
-                  fullWidth
-                  required
-                  value={editedData.desTalukId || ''}
-                  onChange={(e) => handleEditChange('desTalukId', e.target.value)}
-                  error={!!editErrors.desTalukId}
-                  helperText={editErrors.desTalukId}
-                >
-                  <MenuItem value="">Select taluk</MenuItem>
-                  {taluks.map((taluk) => (
-                    <MenuItem key={taluk.desTalukId} value={taluk.desTalukId}>
-                      {taluk.desTalukNameEn} / {taluk.desTalukNameMal}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                <FormControl fullWidth required error={!!editErrors.desTalukId}>
+                  <InputLabel>Select Taluk</InputLabel>
+                  <Select
+                    value={editedData.desTalukId || ''}
+                    label="Select Taluk"
+                    onChange={(e) => handleEditChange('desTalukId', e.target.value)}
+                  >
+                    <MenuItem value="">Select taluk</MenuItem>
+                    {taluks.map((taluk) => (
+                      <MenuItem key={taluk.desTalukId} value={taluk.desTalukId}>
+                        {taluk.desTalukNameEn} / {taluk.desTalukNameMal}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {editErrors.desTalukId && (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                      {editErrors.desTalukId}
+                    </Typography>
+                  )}
+                </FormControl>
               </Grid>
+              
               <Grid item xs={12} sm={6}>
-                <TextField
-                  select
-                  label="BTR Type"
-                  fullWidth
-                  required
-                  value={editedData.btrTypeId || ''}
-                  onChange={(e) => handleEditChange('btrTypeId', e.target.value)}
-                  error={!!editErrors.btrTypeId}
-                  helperText={editErrors.btrTypeId}
-                >
-                  <MenuItem value="">Select BTR type</MenuItem>
-                  {BTR_TYPE_OPTIONS.map((opt) => (
-                    <MenuItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                <FormControl fullWidth required error={!!editErrors.btrTypeId}>
+                  <InputLabel>Select BTR Type</InputLabel>
+                  <Select
+                    value={editedData.btrTypeId || ''}
+                    label="Select BTR Type"
+                    onChange={(e) => handleEditChange('btrTypeId', e.target.value)}
+                  >
+                    <MenuItem value="">Select BTR type</MenuItem>
+                    {BTR_TYPE_OPTIONS.map((opt) => (
+                      <MenuItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {editErrors.btrTypeId && (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                      {editErrors.btrTypeId}
+                    </Typography>
+                  )}
+                </FormControl>
               </Grid>
+              
               <Grid item xs={12} sm={6}>
                 <Paper variant="outlined" sx={{ p: 2, height: '100%', display: 'flex', alignItems: 'center' }}>
                   <FormControlLabel
-                        control={
-                            <Switch
-                            checked={editedData.isActive || false}
-                            onChange={(e) => handleEditChange('isActive', e.target.checked)}
-                            sx={{
-                                '& .MuiSwitch-switchBase.Mui-checked': {
-                                color: '#05307a',
-                                },
-                                '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                                backgroundColor: '#05307a',
-                                },
-                            }}
-                            />
-                        }
-                        label={editedData.isActive ? "Active" : "Inactive"}
-                        />
+                    control={
+                      <Switch
+                        checked={editedData.isActive || false}
+                        onChange={(e) => handleEditChange('isActive', e.target.checked)}
+                        sx={{
+                          '& .MuiSwitch-switchBase.Mui-checked': {
+                            color: '#05307a',
+                          },
+                          '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                            backgroundColor: '#05307a',
+                          },
+                        }}
+                      />
+                    }
+                    label={editedData.isActive ? "Active" : "Inactive"}
+                    sx={{ ml: 0 }}
+                  />
                 </Paper>
               </Grid>
             </Grid>
           </DialogContent>
-          <DialogActions sx={{ p: 3, gap: 2 }}>
-            <Button onClick={() => setEditModalOpen(false)} variant="outlined" color="secondary" disabled={isSaving}>
+          <DialogActions sx={{ p: 3, pt: 2, gap: 2 }}>
+            <Button onClick={() => setEditModalOpen(false)} variant="outlined" color="secondary" disabled={isSaving} size="large">
               Cancel
             </Button>
             <Button
-                onClick={handleSaveEdit}
-                variant="contained"
-                disabled={isSaving}
-                startIcon={isSaving ? <CircularProgress size={20} /> : <Save />}
-                sx={{
-                    backgroundColor: '#05307a',
-                    color: '#fff',
-                    '&:hover': {
-                    backgroundColor: '#04265f',
-                    },
-                    '&.Mui-disabled': {
-                    backgroundColor: '#a0a0a0',
-                    color: '#fff',
-                    },
-                }}
-                >
-                {isSaving ? "Saving..." : "Save Changes"}
-                </Button>
+              onClick={handleSaveEdit}
+              variant="contained"
+              disabled={isSaving}
+              startIcon={isSaving ? <CircularProgress size={20} /> : <Save />}
+              sx={{
+                backgroundColor: '#05307a',
+                '&:hover': {
+                  backgroundColor: '#042560',
+                },
+                '&:active': {
+                  backgroundColor: '#031840',
+                },
+                '&:disabled': {
+                  backgroundColor: '#8ba0c2',
+                }
+              }}
+            >
+              {isSaving ? "Saving..." : "Save Changes"}
+            </Button>
           </DialogActions>
         </Dialog>
 
@@ -837,7 +818,7 @@ const MasterZoneSettings = () => {
             </Box>
           </DialogTitle>
           <DialogContent>
-            <DialogContentText sx={{ textAlign: 'center' }}>{successMessage}</DialogContentText>
+            <DialogContentText sx={{ textAlign: 'center', fontSize: '1rem' }}>{successMessage}</DialogContentText>
           </DialogContent>
           <DialogActions sx={{ justifyContent: 'center', pb: 3 }}>
             <Button onClick={() => setShowSuccessModal(false)} variant="contained" color="success">OK</Button>
@@ -853,7 +834,7 @@ const MasterZoneSettings = () => {
             </Box>
           </DialogTitle>
           <DialogContent>
-            <DialogContentText sx={{ textAlign: 'center' }}>{errorMessage}</DialogContentText>
+            <DialogContentText sx={{ textAlign: 'center', fontSize: '1rem' }}>{errorMessage}</DialogContentText>
           </DialogContent>
           <DialogActions sx={{ justifyContent: 'center', pb: 3 }}>
             <Button onClick={() => setShowErrorModal(false)} variant="contained" color="error">OK</Button>
