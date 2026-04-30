@@ -48,6 +48,19 @@ import authservice from 'pages/authentication/services/authservice';
 const TourDiary = () => {
     const theme = useTheme();
 
+        const validatePlace = (value) => {
+            let filtered = value.replace(/[^a-zA-Z0-9\s.,\-/#'"()\[\]{}@:;!?*+=~`|$%^&]/g, '');
+            if (filtered.length > 255) {
+                filtered = filtered.slice(0, 255);
+            }
+            return filtered;
+            };
+
+        const validateRemarks = (value) => {
+        if (value.length > 1000) return value.slice(0, 1000);
+        return value;
+        };
+
     // ============================ STATE MANAGEMENT ============================
     // Date states
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -449,7 +462,7 @@ const handleSubmitHalf = async (half) => {
         const userId = authservice.userid();
         
         if (!zoneId || !userId) {
-            showNotification('error', 'User session expired or no zone assigned. Please login again.');
+            showNotification('error', 'No zone assigned.');
             return;
         }
 
@@ -665,7 +678,7 @@ useEffect(() => {
         const userId = authservice.userid();
         
         if (!userId || !zoneIdToUse) {
-            showNotification('error', 'User session expired or no zone assigned. Please login again.');
+            showNotification('error', 'No zone assigned.');
             return;
         }
 
@@ -723,8 +736,8 @@ useEffect(() => {
                 setActiveTab(1);
                 showNotification('success', 'Tour saved successfully');
             } else {
-                alert(response.message || "Failed to save tour");
-            }
+                showNotification('error', response.message || "Failed to save tour");
+                }
         } catch (error) {
             showNotification('error', 'Something went wrong');
         } finally {
@@ -749,7 +762,7 @@ useEffect(() => {
         const userId = authservice.userid();
         
         if (!userId || !zoneIdToUse) {
-            alert("User session expired or no zone assigned. Please login again.");
+            alert("No zone assigned.");
             return;
         }
 
@@ -1157,7 +1170,7 @@ useEffect(() => {
                                 color: theme.palette.text.primary
                             }}
                         >
-                            Tour Diary
+                            Advanced Tour Program
                         </Typography>
 
                         {/* Calendar Header */}
@@ -1554,12 +1567,12 @@ useEffect(() => {
                                     </FormControl>
 
                                     <TextField
-                                        fullWidth
-                                        label="Place of Visit"
-                                        value={formData.place}
-                                        onChange={(e) => handleInputChange('place', e.target.value)}
-                                        variant="outlined"
-                                        size="small"
+                                    fullWidth
+                                    label="Place of Visit"
+                                    value={formData.place}
+                                    onChange={(e) => handleInputChange('place', validatePlace(e.target.value))}
+                                    variant="outlined"
+                                    size="small"
                                     />
                                 </>
                             ) : null}
@@ -1570,10 +1583,10 @@ useEffect(() => {
                                 multiline
                                 rows={3}
                                 value={formData.remarks}
-                                onChange={(e) => handleInputChange('remarks', e.target.value)}
+                                onChange={(e) => handleInputChange('remarks', validateRemarks(e.target.value))}
                                 variant="outlined"
-                                placeholder={entryType !== 'WORKING' ? "Add remarks for this entry" : "Add remarks (optional)"}
-                            />
+                                placeholder={entryType !== "WORKING" ? "Add remarks for this entry" : "Add remarks (optional)"}
+                                />
 
                             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 1 }}>
                                 <Button
@@ -1735,10 +1748,10 @@ useEffect(() => {
                                     fullWidth
                                     label="Place of Visit"
                                     value={editFormData.place}
-                                    onChange={(e) => handleEditInputChange('place', e.target.value)}
+                                    onChange={(e) => handleEditInputChange('place', validatePlace(e.target.value))}
                                     variant="outlined"
                                     size="small"
-                                />
+                                    />
                             </>
                         ) : (
                             <Alert severity="info" sx={{ mb: 2 }}>
@@ -1752,10 +1765,10 @@ useEffect(() => {
                             multiline
                             rows={3}
                             value={editFormData.remarks}
-                            onChange={(e) => handleEditInputChange('remarks', e.target.value)}
+                            onChange={(e) => handleEditInputChange('remarks', validateRemarks(e.target.value))}
                             variant="outlined"
-                            placeholder={editEntryType !== 'WORKING' ? "Add remarks for this entry" : "Add remarks (optional)"}
-                        />
+                            placeholder={editEntryType !== "WORKING" ? "Add remarks for this entry" : "Add remarks (optional)"}
+                            />
 
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 1 }}>
                             <Button
