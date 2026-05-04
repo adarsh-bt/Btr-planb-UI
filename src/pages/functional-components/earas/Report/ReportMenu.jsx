@@ -110,6 +110,49 @@ function ReportMenu() {
                 </Box>
               </Card>
             </Grid>
+
+            {/* Form 5 */}
+            <Grid item xs={12} sm={4} md={3} lg={3}>
+              <Card
+                component={Link}
+                to="/schemes/earas/cce/Form5"
+                sx={{
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '1rem',
+                  borderRadius: '1rem',
+                  minHeight: '8rem',
+                  background: 'linear-gradient(135deg, rgba(34, 193, 100, 0.45), rgb(30, 167, 86))',
+                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out',
+                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+                  '&:hover': {
+                    transform: 'scale(1.05)',
+                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)',
+                  },
+                }}
+              >
+                <DescriptionIcon
+                  sx={{
+                    fontSize: '5rem',
+                    color: '#fff',
+                    marginRight: '1rem',
+                  }}
+                />
+                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
+                    <Typography
+                      component="div"
+                      variant="h5"
+                      sx={{ fontWeight: 'bold', color: '#fff' }}
+                    >
+                      Form 5
+                    </Typography>
+                  </CardContent>
+                </Box>
+              </Card>
+            </Grid>
           </Grid>
         </MainCard>
       </Grid>

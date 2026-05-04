@@ -69,120 +69,48 @@ function Earas_menus() {
 
   const valueFormatter = (value) => `${value} Projects`;
 
-  const chartSetting = {
+ const chartSetting = {
     xAxis: [
       {
         scaleType: 'band',
         dataKey: 'category',
-        tickLabelStyle: {
-          fontSize: 13,
-          fontWeight: 600,
-          fill: '#2c3e50',
-          angle: 0,
-        },
-        label: 'Categories',
-        labelStyle: {
-          fontSize: 14,
-          fontWeight: 600,
-          fill: '#34495e',
-        },
+        categoryGapRatio: 0.5,
+        barGapRatio: 0.2,
       },
     ],
     yAxis: [
       {
-        label: 'Number of Projects',
-        tickLabelStyle: { 
-          fontSize: 12,
-          fill: '#7f8c8d',
-        },
+        label: 'Count',
         labelStyle: {
-          fontSize: 13,
-          fontWeight: 600,
-          fill: '#34495e',
+          fontSize: 12,
+          fontWeight: 'medium',
         },
       },
     ],
     series: [
-      { 
-        dataKey: 'Complete', 
-        label: 'Complete', 
-        valueFormatter, 
-        stack: 'total', 
-        color: '#4caf50',
-        highlightScope: { highlighted: 'series', faded: 'global' },
-        faded: { color: 'gray', additional: 0.6 },
-      },
-      { 
-        dataKey: 'Ongoing', 
-        label: 'Ongoing', 
-        valueFormatter, 
-        stack: 'total', 
-        color: '#ff9800',
-        highlightScope: { highlighted: 'series', faded: 'global' },
-        faded: { color: 'gray', additional: 0.6 },
-      },
-      { 
-        dataKey: 'Not Started', 
-        label: 'Not Started', 
-        valueFormatter, 
-        stack: 'total', 
-        color: '#f44336',
-        highlightScope: { highlighted: 'series', faded: 'global' },
-        faded: { color: 'gray', additional: 0.6 },
-      },
-      { 
-        dataKey: 'Under Review', 
-        label: 'Under Review', 
-        valueFormatter, 
-        stack: 'total', 
-        color: '#2196f3',
-        highlightScope: { highlighted: 'series', faded: 'global' },
-        faded: { color: 'gray', additional: 0.6 },
-      },
+      { dataKey: 'Complete', label: 'Complete', stack: 'total', color: '#4caf50' },
+      { dataKey: 'Ongoing', label: 'Ongoing', stack: 'total', color: '#ff9800' },
+      { dataKey: 'Not Started', label: 'Not Started', stack: 'total', color: '#9e9e9e' },
+      { dataKey: 'Under Review', label: 'Under Review', stack: 'total', color: '#2196f3' },
     ],
+    layout: 'vertical',
+    height: 320,
+    margin: { left: 55, right: 30, top: 20, bottom: 70 },
     slotProps: {
       legend: {
         direction: 'row',
         position: { vertical: 'bottom', horizontal: 'middle' },
-        padding: 20,
-        labelStyle: { 
-          fontSize: 12,
+        padding: 10,
+        labelStyle: {
+          fontSize: 11,
           fontWeight: 500,
-          fill: '#2c3e50',
         },
-        itemMarkWidth: 20,
-        itemMarkHeight: 12,
-        markGap: 8,
       },
     },
-    height: 450,
-    margin: { left: 70, right: 40, top: 40, bottom: 70 },
-    borderRadius: 12,
-    barLabel: {
-      style: {
-        fontSize: 11,
-        fontWeight: 'bold',
-        fill: '#ffffff',
-        textShadow: '1px 1px 1px rgba(0,0,0,0.3)',
-      },
-    },
-    skipAnimation: false,
-    layout: 'vertical',
     grid: {
       horizontal: true,
-      vertical: false,
-    },
-    tooltip: {
-      trigger: 'item',
-      axisTooltip: {
-        content: ({ series, dataIndex }) => {
-          const value = series.data[dataIndex];
-          return `${series.label}: ${value} projects`;
-        },
-      },
     },
   };
-
   useEffect(() => {
     const fetchBtrType = async () => {
       if (!zoneId) {
@@ -714,6 +642,7 @@ function Earas_menus() {
               </Grid>
             )}
 
+            {(role === 'IT Admin' || role === 'EARAS Admin') && (
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
@@ -766,6 +695,8 @@ function Earas_menus() {
                 </Box>
               </Card>
             </Grid>
+            )}
+
           </Grid>
         </MainCard>
       </Grid>

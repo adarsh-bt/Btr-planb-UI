@@ -93,9 +93,7 @@ const KeralaFormReportList = Loadable(lazy(() => import('pages/functional-compon
 const TalukFormReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/formReport/TalukFormReport')));
 const BlockFormReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/formReport/BlockFormReport')));
 const ZoneFormReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/formReport/ZoneFormReport')));
-
-
-
+const Form5 = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form5')));
 
 const SettingsTabsPage = Loadable(lazy(() => import('pages/functional-components/earas/SettingsTabsPage')));
 const DistrictSettingss = Loadable(lazy(() => import('pages/functional-components/earas/settings/DistrictSettings')));
@@ -635,6 +633,14 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <CceReport />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/cce/Form5',
+      element: (
+        <PrivateRoute>
+          <Form5 />
         </PrivateRoute>
       )
     },
