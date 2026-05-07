@@ -539,9 +539,8 @@ const handleSort = (column, direction) => {
               size="small"
               style={{ width: '200px' }}
               inputProps={{
-              maxLength: 100 // Limit to 10 characters
+              maxLength: 100
                 }}
-              helperText={`${filterText.length}/100 characters`} // Show character count
             />
           </Stack>
         </Paper>
