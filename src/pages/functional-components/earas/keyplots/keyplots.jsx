@@ -39,7 +39,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import authservice from 'pages/authentication/services/authservice';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import mainapi from 'api/mainapi';
-import auth from 'contexts/auth-reducer/auth';
+// import auth from 'contexts/auth-reducer/auth';
 
 // import auth from 'contexts/auth-reducer/auth';
 // import authservice from 'pages/authentication/services/authservice';
@@ -393,7 +393,7 @@ const filtered = plotData.filter((row) =>
           <Breadcrumb></Breadcrumb>
     <Box sx={{ p: 3, maxWidth: 1200, margin: '0 auto' }}>
       <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
-        KeyPlot Details
+        KeyPlot Detailssss
       </Typography>
 
             {loading && (

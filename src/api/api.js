@@ -1,24 +1,61 @@
-import axios from "axios";
-import mainapi from "./mainapi"; // your base url file
+import axios from 'axios';
+import mainapi from './mainapi';
+import Swal from 'sweetalert2';
 
+// ✅ Create instance
 const api = axios.create({
-  baseURL: mainapi.USER_API
+  baseURL: mainapi.BASE_URL,
+  timeout: 15000,
 });
 
-// 🔥 GLOBAL INTERCEPTOR
-api.interceptors.request.use((config) => {
+// 🔒 Prevent multiple popups
+let isRedirecting = false;
 
-  // ✅ Add version headers automatically
-  config.headers["X-Platform"] = "WEB";
-  config.headers["X-App-Version"] = "1.0.0";
+// ================= REQUEST =================
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
 
-  // ✅ Add token automatically (if exists)
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers["Authorization"] = `Bearer ${token}`;
+    if (token && !config.skipAuth) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// ================= RESPONSE =================
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+
+    const status = error.response?.status;
+
+
+    if (status === 401 && !isRedirecting) {
+
+      isRedirecting = true;
+
+      // ✅ Clear session
+      localStorage.clear();
+
+      // ✅ Show SweetAlert (non-blocking style with timer)
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Session Expired',
+        text: 'Your session has expired. Please login again.',
+        timer: 2500,
+        timerProgressBar: true,
+        showConfirmButton: false
+      });
+
+      // ✅ Redirect after alert closes
+      window.location.href = '/login?expired=true';
+    }
+
+    return Promise.reject(error);
   }
-
-  return config;
-});
+);
 
 export default api;

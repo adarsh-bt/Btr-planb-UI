@@ -61,6 +61,7 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import mainapi from 'api/mainapi';
 import authservice from 'pages/authentication/services/authservice';
 import { pl } from 'date-fns/locale';
+import api from 'api/api';
 // import { usePermission } from 'contexts/auth-reducer/usePermission';
 
 const KeyPlotListing = ({zoneId}) => {
@@ -102,7 +103,7 @@ const [clusterChanges, setClusterChanges] = useState({});
   const [plotDetailsLoading, setPlotDetailsLoading] = useState(false);
   const [plotDetailsData, setPlotDetailsData] = useState(null);
   const [plotDetailsError, setPlotDetailsError] = useState(null);
-  
+  const [showFinalConfirm, setShowFinalConfirm] = useState(false);
   // Snackbar states
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -287,78 +288,87 @@ const handleUpdateEnumeratedArea = async () => {
     setFetchError(null);
 
 
-    try {
-      const BASE_URL = mainapi.BASE_URL;
-      const token = localStorage.getItem('token')
-        if (!resolvedZoneId || resolvedZoneId === "null") {
+
+
+try {
+
+  if (!resolvedZoneId || resolvedZoneId === "null") {
     setError("No zones are assigned to you. Please contact your administrator.");
-    setZonestatus(true)
+    setZonestatus(true);
     setDataVisible(false);
     setLoading(false);
     return;
   }
-      
-      const response = await fetch(`${BASE_URL}/btr-service/key-plots/get-all/${resolvedZoneId}`, {
-  headers: {
-    'Authorization': `Bearer ${token}`,
-  }
-});
-     
-      if (!response.ok) {
-        throw new Error(`Failed to fetch data (${response.status})`);
-      }
-      const data = await response.json();
-      console.log("API Response:", data);
-      const plots = data.payload || [];
-      
-      const transformedPlots = transformPlotData(plots);
-      
-      setPlotData(transformedPlots);
-      setDataVisible(plots.length > 0);
-      
-      // Calculate panchayath summary
-     // Calculate panchayath summary WITH WET/DRY counts
-const panchayathSummary = plots.reduce((acc, plot) => {
-  const existing = acc.find(item => item.panchayath === plot.panchayath);
-  const isWet = plot.landType?.toUpperCase() === "WET";
-  const isDry = plot.landType?.toUpperCase() === "DRY";
 
-  if (existing) {
-    existing.totalarea += plot.areaCents || 0;
-    existing.count += 1;
+  const response = await api.get(
+    `/btr-service/key-plots/get-all/${resolvedZoneId}`
+  );
 
-    if (isWet) existing.wetCount += 1;
-    if (isDry) existing.dryCount += 1;
+  const data = response.data;
 
-  } else {
-    acc.push({
-      panchayath: plot.panchayath,
-      totalarea: plot.areaCents || 0,
-      count: 1,
-      wetCount: isWet ? 1 : 0,
-      dryCount: isDry ? 1 : 0
-    });
-  }
-  return acc;
-}, []).sort((a, b) => b.totalarea - a.totalarea);
+  console.log("API Response:", data);
 
-setPanchayathAreaSummary(panchayathSummary);
+  const plots = data.payload || [];
 
-      
-      // setSnackbarMessage(`Successfully loaded ${plots.length} keyplots`);
-      // setSnackbarSeverity('success');
-      // setSnackbarOpen(true);
-      
-    } catch (err) {
-      setError(err.message);
-      setFetchError(`Failed to fetch keyplot data. ${err.message}`);
-      setDataVisible(false);
-      setSnackbarMessage(`Error loading data: ${err.message}`);
-      setSnackbarSeverity('error');
-      setSnackbarOpen(true);
-    } finally {
-      setLoading(false);
+  const transformedPlots = transformPlotData(plots);
+
+  setPlotData(transformedPlots);
+  setDataVisible(plots.length > 0);
+
+  // ✅ Panchayath summary
+  const panchayathSummary = plots.reduce((acc, plot) => {
+
+    const existing = acc.find(item => item.panchayath === plot.panchayath);
+
+    const isWet = plot.landType?.toUpperCase() === "WET";
+    const isDry = plot.landType?.toUpperCase() === "DRY";
+
+    if (existing) {
+      existing.totalarea += plot.areaCents || 0;
+      existing.count += 1;
+
+      if (isWet) existing.wetCount += 1;
+      if (isDry) existing.dryCount += 1;
+
+    } else {
+      acc.push({
+        panchayath: plot.panchayath,
+        totalarea: plot.areaCents || 0,
+        count: 1,
+        wetCount: isWet ? 1 : 0,
+        dryCount: isDry ? 1 : 0
+      });
     }
+
+    return acc;
+
+  }, []).sort((a, b) => b.totalarea - a.totalarea);
+
+  setPanchayathAreaSummary(panchayathSummary);
+
+} catch (err) {
+
+  console.error("Fetch error:", err);
+
+  // ❗ DO NOT handle 401 here → interceptor handles it
+
+  if (err.response) {
+    setError(err.response.data?.message || "Failed to fetch keyplot data");
+    setFetchError(err.response.data?.message || "Server error");
+  } else {
+    setError("Network error. Please check your connection.");
+    setFetchError("Network error");
+  }
+
+  setDataVisible(false);
+
+  setSnackbarMessage("Error loading data");
+  setSnackbarSeverity('error');
+  setSnackbarOpen(true);
+
+} finally {
+  setLoading(false);
+}
   }, []);
 
 // When fetching crops, add removing property
@@ -2094,20 +2104,20 @@ const hasDuplicateClusterNumbers = () => {
       setSnackbarOpen(true);
       
       // If no crops left, show success and close dialog after refresh
-      if (cropsList.length === 1) {
-        setSnackbarMessage(`All crops removed. You can now delete the KeyPlot.`);
-        setSnackbarSeverity('success');
-        setSnackbarOpen(true);
-        
-        // Close crops dialog and show normal removal dialog or auto retry
-        setTimeout(() => {
-          setShowCropsList(false);
-          setCropsList([]);
-          
-          // Auto retry removal after crops are removed
-          retryRemovalAfterCropsRemoved();
-        }, 1500);
-      }
+    // If no crops left, show message and close crops dialog
+if (cropsList.length === 1) {
+  setSnackbarMessage(`All crops removed. You can now delete the KeyPlot.`);
+  setSnackbarSeverity('success');
+  setSnackbarOpen(true);
+  
+  // Just close crops dialog, don't auto-delete KeyPlot
+  setTimeout(() => {
+    setShowCropsList(false);
+    setCropsList([]);
+    setRemovalValidationError(''); // Clear any errors
+    // Dialog will go back to normal confirmation state
+  }, 1500);
+}
       
     } catch (err) {
       console.error("Error removing crop:", err);
@@ -2258,7 +2268,7 @@ const hasDuplicateClusterNumbers = () => {
                             try {
                               const BASE_URL = mainapi.BASE_URL;
                               const token = localStorage.getItem("token");
-                              const userId = localStorage.getItem("userId") || "550e8400-e29b-41d4-a716-446655440000";
+                              const userId = authservice.userid(); // Assuming you have user info in auth state
                               
                               const response = await fetch(
                                 `${BASE_URL}/btr-service/key-plots/remove-crop`,
@@ -2374,6 +2384,7 @@ const hasDuplicateClusterNumbers = () => {
             <li>The KeyPlot record</li>
             <li>Associated cluster</li>
             <li>Related Keyplot BTR data</li>
+            <li>Related Form1 data will be removed</li>
           </ul>
           <Typography variant="h6" fontWeight="bold" sx={{ mt: 2 }}>
             ❗ If the selected cluster is Complete ,On Going ,Not Started, it will also be deleted.<br />
@@ -2381,7 +2392,7 @@ const hasDuplicateClusterNumbers = () => {
           </Typography>
         </Alert>
         <Typography variant="h6" fontWeight="bold" gutterBottom>
-         Your are about remove the cluster :s {selectedRowToRemove?.cluster_number}
+         Your are about remove the cluster : {selectedRowToRemove?.cluster_number}
         </Typography>
 
         <Typography variant="body1" sx={{ mb: 2 }}>

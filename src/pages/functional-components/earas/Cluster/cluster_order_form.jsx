@@ -94,7 +94,6 @@ function ClusterSeatForm({ zoneId }) {
       .then(res => {
         // Store the raw payload directly - One object per cluster
         setClusters(res.data.payload || []);
-
         setSummary({
           completed: res.data.completed || 0,
           ongoing: res.data.ongoing || 0,

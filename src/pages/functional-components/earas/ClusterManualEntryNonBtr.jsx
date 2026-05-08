@@ -959,9 +959,12 @@ const proceedSubmit = async (mode) => {
     setSnackbarMessage('Cluster data saved successfully!');
     setSnackbarOpen(true);
     // setOpenLimitDialog(false);
-  if (mode === 'ON_GOING' ||  mode === 'SAVE') {
+   if (mode === 'ON_GOING' || mode === 'SAVE') {
                     setOpenLimitDialog(false)
-                     window.location.reload();
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                     
             }
     // Update local status
     setStatus(mode === 'COMPLETED' ? 'Completed' : mode === 'Under Review' ? 'Under Review' : 'On Going');
@@ -2631,13 +2634,20 @@ const getMissingLabels = () => {
             </Box>
           </Paper>
         )}
+
+                     {status == "Under Review" && (
+                        <Box sx={{ width: '100%', mt: 1, textAlign: 'center', color: 'warning.main' }}><WarningAmberIcon />
+                            <Typography >This Cluster is Under Review. after the Approval Edit is active</Typography></Box>)}
+                    {status == "Completed" && (
+                        <Box sx={{ width: '100%', mt: 1, textAlign: 'center', color: 'warning.main' }}><WarningAmberIcon />
+                            <Typography >This Cluster is Completed. Editing is not allowed</Typography></Box>)}
+
         {/* Action Buttons */}
         <Box sx={{ maxWidth: 900, margin: '0 auto', mb: 3 ,mt:2 }}>
           <Grid container spacing={2} alignItems="center" justifyContent="center">
             <Grid item>
               {role === 'Field Data Collector' && (
-                <Button variant="contained" color="info" onClick={handleOpenCropsModal}>Add CCE crops</Button>
-              )}
+                 <Grid item><Button variant="contained" color="info" onClick={handleOpenCropsModal} disabled={!isedit}>Add CCE crops</Button></Grid>)}
             </Grid>
             <Grid item>{(
   (
@@ -2817,7 +2827,7 @@ const getMissingLabels = () => {
                       variant="contained"
                       color="success"
                       onClick={() => handleAddRow(keyplot.id)}
-                      disabled={isNewRowIncomplete || hasErrorInKeyplot}
+                      disabled={isNewRowIncomplete || hasErrorInKeyplot || !isedit}
                     >
                       Add Row
                     </Button>

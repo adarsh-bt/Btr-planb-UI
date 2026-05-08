@@ -305,6 +305,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
         try {
             setIsLoading(true);
             let userData = await authservice.login(userLogin);
+            console.log("Login response:", userData);
             setIsLoading(false);
             if (userData.message === "User already logged in elsewhere") {
                
@@ -327,7 +328,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     localStorage.removeItem('rememberedPassword');
                     localStorage.removeItem('rememberMe');
                 }
-
+console.log("Login successful, token stored. Fetching permissions...");
                 // Fetch and save permissions
                 try {
                     const permissionsResponse = await fetch(
@@ -347,7 +348,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     window.location.href = '/';
                 } catch (permError) {
                     console.error("Error fetching permissions:", permError);
-                    savePermissions({ schemes: [] }); // fallback empty
+                    // savePermissions({ schemes: [] }); // fallback empty
                     window.location.href = '/';
                 }
 
