@@ -63,6 +63,7 @@ function ZoneClusterReport() {
   const [fromMonth, setFromMonth] = useState(location.state?.fromMonth || '');
   const [toMonth, setToMonth] = useState(location.state?.toMonth || '');
   const [singleMonth, setSingleMonth] = useState(location.state?.singleMonth || '');
+  const [selectedSeason, setSelectedSeason] = useState(location.state?.selectedSeason || '');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
@@ -72,6 +73,13 @@ function ZoneClusterReport() {
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
+
+  // Season mapping
+  const seasonMonths = {
+    Winter: ['November', 'December', 'January', 'February'],
+    Summer: ['March', 'April', 'May', 'June'],
+    Autumn: ['July', 'August', 'September', 'October']
+  };
 
   // Mock zone data with monthly structure (convert existing totals into monthly distribution for demo)
   const getZoneMonthlyData = (district, taluk) => {
@@ -103,7 +111,7 @@ function ZoneClusterReport() {
     }));
   };
 
-  // Helper: distribute zone totals across months evenly (demo)
+  // Helper: distribute zone totals across months (demo)
   const generateMonthlyDataForZone = (zone) => {
     const monthly = {};
     months.forEach(month => {
@@ -126,6 +134,15 @@ function ZoneClusterReport() {
   // Filter zones based on selected months and season
   const getFilteredZoneData = () => {
     let startIndex, endIndex;
+    
+    // Selected months based on season
+    let allowedMonths = months;
+    
+    if (selectedSeason) {
+      allowedMonths = seasonMonths[selectedSeason];
+    }
+    
+    // Single Month Filter
     if (filterType === 'single' && singleMonth) {
       const monthIndex = months.indexOf(singleMonth);
       startIndex = monthIndex;
@@ -139,6 +156,10 @@ function ZoneClusterReport() {
       let total = 0, completed = 0, ongoing = 0, notStarted = 0, underReview = 0;
       for (let i = startIndex; i <= endIndex; i++) {
         const month = months[i];
+        
+        // Skip months not in selected season
+        if (!allowedMonths.includes(month)) continue;
+        
         const monthData = zone.monthlyData[month];
         if (monthData) {
           const data = seasonTab === 'ALL'
@@ -168,7 +189,7 @@ function ZoneClusterReport() {
     });
   };
 
-  const filteredZoneData = useMemo(() => getFilteredZoneData(), [fromMonth, toMonth, seasonTab, filterType, singleMonth, allZoneData]);
+  const filteredZoneData = useMemo(() => getFilteredZoneData(), [fromMonth, toMonth, seasonTab, filterType, singleMonth, selectedSeason, allZoneData]);
 
   // Stats from filtered data
   const stats = useMemo(() => ({
@@ -206,11 +227,12 @@ function ZoneClusterReport() {
     setSingleMonth('');
     setSeasonTab('ALL');
     setFilterType('range');
+    setSelectedSeason('');
     setPage(0);
   };
   const handleGoBack = () => {
     navigate(`/kerala_form_report/block_form_report/${districtName}/${talukName}`, {
-      state: { fromMonth, toMonth, seasonTab, filterType, singleMonth }
+      state: { fromMonth, toMonth, seasonTab, filterType, singleMonth, selectedSeason }
     });
   };
   const handleViewZoneDetails = (zoneName) => {
@@ -248,6 +270,7 @@ function ZoneClusterReport() {
   // Format display names
   const formattedDistrict = districtName?.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   const formattedTaluk = talukName?.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  const formattedBlock = blockName?.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
   return (
     <Grid container spacing={3}>
@@ -260,7 +283,7 @@ function ZoneClusterReport() {
             <StoreIcon sx={{ fontSize: 40, color: '#1a237e' }} />
             <Box>
               <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1a237e' }}>
-                {formattedTaluk} - Zone wise Form 1 Report
+                {formattedBlock} - Zone wise Form 1 Report
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {filterType === 'single' && singleMonth && ` • ${singleMonth}`}
@@ -268,10 +291,11 @@ function ZoneClusterReport() {
                 {filterType === 'range' && fromMonth && !toMonth && ` • From ${fromMonth}`}
                 {filterType === 'range' && !fromMonth && toMonth && ` • Until ${toMonth}`}
                 {seasonTab !== 'ALL' && ` • ${seasonTab} Season`}
+                {selectedSeason && ` • ${selectedSeason}`}
               </Typography>
             </Box>
           </Stack>
-          {(fromMonth || toMonth || singleMonth || seasonTab !== 'ALL') && (
+          {(fromMonth || toMonth || singleMonth || seasonTab !== 'ALL' || selectedSeason) && (
             <Button
               variant="outlined"
               onClick={handleClearFilters}
@@ -355,6 +379,23 @@ function ZoneClusterReport() {
                   </Select>
                 </FormControl>
               )}
+              
+              <FormControl size="small" sx={{ minWidth: 180 }}>
+                <InputLabel>Season</InputLabel>
+                <Select
+                  value={selectedSeason}
+                  label="Season"
+                  onChange={(e) => {
+                    setSelectedSeason(e.target.value);
+                    setPage(0);
+                  }}
+                >
+                  <MenuItem value="">All Seasons</MenuItem>
+                  <MenuItem value="Winter">Winter</MenuItem>
+                  <MenuItem value="Summer">Summer</MenuItem>
+                  <MenuItem value="Autumn">Autumn</MenuItem>
+                </Select>
+              </FormControl>
             </Stack>
           </Stack>
         </Paper>
@@ -362,128 +403,179 @@ function ZoneClusterReport() {
 
       {/* Stats Cards */}
       <Grid item xs={12}>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={2.4}>
-            <StatCard label="Total Zones" value={stats.total} color="#1565c0" bgColor={alpha('#1565c0', 0.08)} icon={<StoreIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />} />
+        <Box
+          sx={{
+            position: 'relative',
+            borderRadius: 3
+          }}
+        >
+          {/* Floating/Pinned Label */}
+          <Chip
+            label={`${
+              formattedBlock
+                ?.split('-')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .join(' ')
+            } - Block Report Summary`}
+            size="small"
+            sx={{
+              position: 'absolute',
+              top: -12,
+              left: 20,
+              zIndex: 10,
+              fontWeight: 600,
+              bgcolor: '#04255e',
+              color: '#fff',
+              px: 1,
+              boxShadow: 2
+            }}
+          />
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={2.4}>
+              <StatCard label="Total Zones" value={stats.total} color="#1565c0" bgColor={alpha('#1565c0', 0.08)} icon={<StoreIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />} />
+            </Grid>
+            <Grid item xs={12} sm={6} md={2.4}>
+              <StatCard label="Completed" value={stats.completed} color="#2e7d32" bgColor={alpha('#2e7d32', 0.08)} icon={<CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />} />
+            </Grid>
+            <Grid item xs={12} sm={6} md={2.4}>
+              <StatCard label="Ongoing" value={stats.ongoing} color="#ed6c02" bgColor={alpha('#ed6c02', 0.08)} icon={<PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} />} />
+            </Grid>
+            <Grid item xs={12} sm={6} md={2.4}>
+              <StatCard label="Not Started" value={stats.notStarted} color="#757575" bgColor={alpha('#757575', 0.08)} icon={<ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} />} />
+            </Grid>
+            <Grid item xs={12} sm={6} md={2.4}>
+              <StatCard label="Under Review" value={stats.underReview} color="#b76e00" bgColor={alpha('#b76e00', 0.08)} icon={<RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} />} />
+            </Grid>
           </Grid>
-          <Grid item xs={12} sm={6} md={2.4}>
-            <StatCard label="Completed" value={stats.completed} color="#2e7d32" bgColor={alpha('#2e7d32', 0.08)} icon={<CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />} />
-          </Grid>
-          <Grid item xs={12} sm={6} md={2.4}>
-            <StatCard label="Ongoing" value={stats.ongoing} color="#ed6c02" bgColor={alpha('#ed6c02', 0.08)} icon={<PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} />} />
-          </Grid>
-          <Grid item xs={12} sm={6} md={2.4}>
-            <StatCard label="Not Started" value={stats.notStarted} color="#757575" bgColor={alpha('#757575', 0.08)} icon={<ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} />} />
-          </Grid>
-          <Grid item xs={12} sm={6} md={2.4}>
-            <StatCard label="Under Review" value={stats.underReview} color="#b76e00" bgColor={alpha('#b76e00', 0.08)} icon={<RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} />} />
-          </Grid>
-        </Grid>
+        </Box>
       </Grid>
 
       {/* Zone Table */}
       <Grid item xs={12}>
-        <MainCard
-          title={`Zones in ${formattedTaluk}`}
-          secondary={
-            <TextField
-              placeholder="Search zone/panchayat..."
-              size="small"
-              value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
-              sx={{ width: 250 }}
-              InputProps={{
-                startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
-                endAdornment: searchTerm && (
-                  <InputAdornment position="end">
-                    <IconButton size="small" onClick={handleClearSearch} edge="end">
-                      <ClearIcon fontSize="small" />
-                    </IconButton>
-                  </InputAdornment>
-                )
-              }}
-            />
-          }
-          sx={{ borderRadius: 3 }}
+        <Box
+          sx={{
+            position: 'relative',
+            borderRadius: 3
+          }}
         >
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow sx={{ bgcolor: '#04255e' }}>
-                  {['Zone', 'Total', 'Completed', 'Ongoing', 'Not Started', 'Under Review', 'Actions'].map((label, idx) => (
-                    <TableCell key={idx} align={idx === 0 ? 'left' : 'center'} sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>
-                      {label}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {paginatedData.length > 0 ? (
-                  paginatedData.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      hover
-                      sx={{ '&:hover': { bgcolor: alpha('#04255e', 0.04) }, transition: '0.2s' }}
-                    >
-                      <TableCell>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <StoreIcon sx={{ fontSize: 18, color: '#04255e', opacity: 0.7 }} />
-                          <Typography fontWeight={500}>{row.zone}</Typography>
-                        </Stack>
+          {/* Floating/Pinned Label */}
+          <Chip
+            label="Zone Report Summary"
+            size="small"
+            sx={{
+              position: 'absolute',
+              top: -12,
+              left: 20,
+              zIndex: 10,
+              fontWeight: 600,
+              bgcolor: '#04255e',
+              color: '#fff',
+              px: 1,
+              boxShadow: 2
+            }}
+          />
+          <MainCard
+            title={`Zones in ${formattedBlock}`}
+            secondary={
+              <TextField
+                placeholder="Search zone/panchayat..."
+                size="small"
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
+                sx={{ width: 250 }}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+                  endAdornment: searchTerm && (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={handleClearSearch} edge="end">
+                        <ClearIcon fontSize="small" />
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+              />
+            }
+            sx={{ borderRadius: 3 }}
+          >
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: '#04255e' }}>
+                    {['Zone', 'Total', 'Completed', 'Ongoing', 'Not Started', 'Under Review', 'Actions'].map((label, idx) => (
+                      <TableCell key={idx} align={idx === 0 ? 'left' : 'center'} sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>
+                        {label}
                       </TableCell>
-                      <TableCell align="center">
-                        <Chip label={row.total} size="small" variant="filled" sx={{ fontWeight: 600, bgcolor: alpha('#04255e', 0.1) }} />
-                      </TableCell>
-                      <TableCell align="center">
-                        {row.completed > 0 ? <Chip label={row.completed} size="small" color="success" variant="outlined" /> : row.completed}
-                      </TableCell>
-                      <TableCell align="center">
-                        {row.ongoing > 0 ? <Chip label={row.ongoing} size="small" color="primary" variant="outlined" /> : row.ongoing}
-                      </TableCell>
-                      <TableCell align="center">
-                        {row.notStarted > 0 ? <Chip label={row.notStarted} size="small" variant="outlined" /> : row.notStarted}
-                      </TableCell>
-                      <TableCell align="center">
-                        {row.underReview > 0 ? <Chip label={row.underReview} size="small" color="warning" variant="outlined" /> : row.underReview}
-                      </TableCell>
-                      <TableCell align="center">
-                        <Tooltip title="View Details">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleViewZoneDetails(row.zone)}
-                            sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
-                          >
-                            <VisibilityIcon />
-                          </IconButton>
-                        </Tooltip>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {paginatedData.length > 0 ? (
+                    paginatedData.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        hover
+                        sx={{ '&:hover': { bgcolor: alpha('#04255e', 0.04) }, transition: '0.2s' }}
+                      >
+                        <TableCell>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <StoreIcon sx={{ fontSize: 18, color: '#04255e', opacity: 0.7 }} />
+                            <Typography fontWeight={500}>{row.zone}</Typography>
+                          </Stack>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Chip label={row.total} size="small" variant="filled" sx={{ fontWeight: 600, bgcolor: alpha('#04255e', 0.1) }} />
+                        </TableCell>
+                        <TableCell align="center">
+                          {row.completed > 0 ? <Chip label={row.completed} size="small" color="success" variant="outlined" /> : row.completed}
+                        </TableCell>
+                        <TableCell align="center">
+                          {row.ongoing > 0 ? <Chip label={row.ongoing} size="small" color="primary" variant="outlined" /> : row.ongoing}
+                        </TableCell>
+                        <TableCell align="center">
+                          {row.notStarted > 0 ? <Chip label={row.notStarted} size="small" variant="outlined" /> : row.notStarted}
+                        </TableCell>
+                        <TableCell align="center">
+                          {row.underReview > 0 ? <Chip label={row.underReview} size="small" color="warning" variant="outlined" /> : row.underReview}
+                        </TableCell>
+                        <TableCell align="center">
+                          <Tooltip title="View Details">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleViewZoneDetails(row.zone)}
+                              sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
+                            >
+                              <VisibilityIcon />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                        <Typography color="text.secondary">
+                          {searchTerm ? `No zones found matching "${searchTerm}"` : `No data available for selected filters`}
+                        </Typography>
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
-                      <Typography color="text.secondary">
-                        {searchTerm ? `No zones found matching "${searchTerm}"` : `No data available for selected filters`}
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          {searchFilteredData.length > 0 && (
-            <TablePagination
-              component="div"
-              count={searchFilteredData.length}
-              page={page}
-              onPageChange={handleChangePage}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-              rowsPerPageOptions={[5, 10, 25]}
-              sx={{ borderTop: `1px solid ${theme.palette.divider}` }}
-            />
-          )}
-        </MainCard>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            {searchFilteredData.length > 0 && (
+              <TablePagination
+                component="div"
+                count={searchFilteredData.length}
+                page={page}
+                onPageChange={handleChangePage}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                rowsPerPageOptions={[5, 10, 25]}
+                sx={{ borderTop: `1px solid ${theme.palette.divider}` }}
+              />
+            )}
+          </MainCard>
+        </Box>
       </Grid>
 
       {/* Back Button */}

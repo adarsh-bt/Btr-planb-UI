@@ -260,17 +260,17 @@ const TourDiary = () => {
             const response = await tourDiaryService.getAdvancedTourByFilter(userId, month, year);
             
             if (response && response.payload && Array.isArray(response.payload)) {
-                console.log("Fetched tour data:", response.payload);
+     
                 setTourEvents(response.payload);
             } 
             else if (Array.isArray(response)) {
-                console.log("Fetched tour data (direct array):", response);
+              
                 setTourEvents(response);
             } 
             else if (response && response.message) {
                 console.error("Error fetching tour data:", response.message);
                 setTourEvents([]);
-                showNotification('error', response.message);
+                // showNotification('error', response.message);
             } 
             else {
                 console.error("Unexpected response format:", response);
@@ -287,6 +287,7 @@ const TourDiary = () => {
 
     const fetchSchemes = async () => {
         const data = await tourDiaryService.getAllSchemes();
+        console.log("Fetched schemes:", data);
         if (!data.message) {
             setSchemes(data);
         }
@@ -327,7 +328,7 @@ const TourDiary = () => {
             );
             
             setAllPurposes(uniquePurposes);
-            console.log("All purposes loaded:", uniquePurposes);
+    
         } catch (error) {
             console.error("Error fetching all purposes:", error);
         }
@@ -478,7 +479,7 @@ const handleSubmitHalf = async (half) => {
             userId: userId
         };
 
-        console.log("Submitting payload:", payload);
+        
 
         try {
             setSubmitLoading(true);
@@ -700,7 +701,7 @@ useEffect(() => {
             payload.location = formData.place;
         }
 
-        console.log("Saving Payload:", payload);
+       
 
         try {
             setLoading(true);
@@ -785,7 +786,7 @@ useEffect(() => {
             payload.location = editFormData.place;
         }
 
-        console.log("Updating Payload:", payload);
+
 
         try {
             setEditLoading(true);

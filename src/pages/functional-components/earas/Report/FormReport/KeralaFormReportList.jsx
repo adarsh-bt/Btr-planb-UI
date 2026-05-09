@@ -58,6 +58,7 @@ function KeralaReportList() {
   const [fromMonth, setFromMonth] = useState('');
   const [toMonth, setToMonth] = useState('');
   const [singleMonth, setSingleMonth] = useState('');
+  const [selectedSeason, setSelectedSeason] = useState('');
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -103,56 +104,92 @@ function KeralaReportList() {
     }
   ];
 
-  const getFilteredData = () => {
-    let startIndex, endIndex;
-    
-    if (filterType === 'single' && singleMonth) {
-      const monthIndex = months.indexOf(singleMonth);
-      startIndex = monthIndex;
-      endIndex = monthIndex;
-    } else {
-      startIndex = fromMonth ? months.indexOf(fromMonth) : 0;
-      endIndex = toMonth ? months.indexOf(toMonth) : months.length - 1;
-    }
-    
-    return districtDataWithDetails.map(district => {
-      let total = 0, completed = 0, ongoing = 0, notStarted = 0, underReview = 0;
-      
-      for (let i = startIndex; i <= endIndex; i++) {
-        const month = months[i];
-        const monthData = district.monthlyData[month];
-        
-        if (monthData) {
-          const data = seasonTab === 'ALL' 
-            ? {
-                completed: monthData.wet.completed + monthData.dry.completed,
-                ongoing: monthData.wet.ongoing + monthData.dry.ongoing,
-                notStarted: monthData.wet.notStarted + monthData.dry.notStarted,
-                underReview: monthData.wet.underReview + monthData.dry.underReview
-              }
-            : monthData[seasonTab.toLowerCase()];
-          
-          completed += data.completed;
-          ongoing += data.ongoing;
-          notStarted += data.notStarted;
-          underReview += data.underReview;
-          total += data.completed + data.ongoing + data.notStarted + data.underReview;
-        }
-      }
-      
-      return {
-        id: district.id,
-        district: district.district,
-        total,
-        completed,
-        ongoing,
-        notStarted,
-        underReview
-      };
-    });
+ const getFilteredData = () => {
+  let startIndex, endIndex;
+
+  // Season mapping
+  const seasonMonths = {
+    Winter: ['November', 'December', 'January', 'February'],
+    Summer: ['March', 'April', 'May', 'June'],
+    Autumn: ['July', 'August', 'September', 'October']
   };
 
-  const districtData = useMemo(() => getFilteredData(), [fromMonth, toMonth, seasonTab, filterType, singleMonth]);
+  // Selected months based on season
+  let allowedMonths = months;
+
+  if (selectedSeason) {
+    allowedMonths = seasonMonths[selectedSeason];
+  }
+
+  // Single Month Filter
+  if (filterType === 'single' && singleMonth) {
+    startIndex = months.indexOf(singleMonth);
+    endIndex = startIndex;
+  } else {
+    // Month Range Filter
+    startIndex = fromMonth ? months.indexOf(fromMonth) : 0;
+    endIndex = toMonth ? months.indexOf(toMonth) : months.length - 1;
+  }
+
+  return districtDataWithDetails.map((district) => {
+    let total = 0,
+      completed = 0,
+      ongoing = 0,
+      notStarted = 0,
+      underReview = 0;
+
+    for (let i = startIndex; i <= endIndex; i++) {
+      const month = months[i];
+
+      // Skip months not in selected season
+      if (!allowedMonths.includes(month)) continue;
+
+      const monthData = district.monthlyData[month];
+
+      if (monthData) {
+        const data =
+          seasonTab === 'ALL'
+            ? {
+                completed:
+                  monthData.wet.completed + monthData.dry.completed,
+                ongoing:
+                  monthData.wet.ongoing + monthData.dry.ongoing,
+                notStarted:
+                  monthData.wet.notStarted + monthData.dry.notStarted,
+                underReview:
+                  monthData.wet.underReview + monthData.dry.underReview
+              }
+            : monthData[seasonTab.toLowerCase()];
+
+        completed += data.completed;
+        ongoing += data.ongoing;
+        notStarted += data.notStarted;
+        underReview += data.underReview;
+
+        total +=
+          data.completed +
+          data.ongoing +
+          data.notStarted +
+          data.underReview;
+      }
+    }
+
+    return {
+      id: district.id,
+      district: district.district,
+      total,
+      completed,
+      ongoing,
+      notStarted,
+      underReview
+    };
+  });
+};
+
+const districtData = useMemo(
+  () => getFilteredData(),
+  [fromMonth, toMonth, seasonTab, filterType, singleMonth, selectedSeason]
+);
 
   const stats = useMemo(() => ({
     all: districtData.reduce((sum, row) => sum + row.total, 0),
@@ -193,6 +230,7 @@ function KeralaReportList() {
     setSingleMonth('');
     setSeasonTab('ALL');
     setFilterType('range');
+    setSelectedSeason('');
     setPage(0);
   };
   const handleViewDetails = (districtName) => {
@@ -238,7 +276,7 @@ function KeralaReportList() {
             <AssessmentIcon sx={{ fontSize: 40, color: '#1a237e' }} />
             <Box>
               <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1a237e' }}>
-                Form 1 - Progress Report
+                Cluster Enumeration Progress Report
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {filterType === 'single' && singleMonth && ` • ${singleMonth}`}
@@ -246,6 +284,7 @@ function KeralaReportList() {
                 {filterType === 'range' && fromMonth && !toMonth && ` • From ${fromMonth}`}
                 {filterType === 'range' && !fromMonth && toMonth && ` • Until ${toMonth}`}
                 {seasonTab !== 'ALL' && ` • ${seasonTab} Season`}
+                {selectedSeason && ` • ${selectedSeason}`}
               </Typography>
             </Box>
           </Stack>
@@ -339,6 +378,22 @@ function KeralaReportList() {
                   </Select>
                 </FormControl>
               )}
+              <FormControl size="small" sx={{ minWidth: 180 }}>
+  <InputLabel>Season</InputLabel>
+  <Select
+    value={selectedSeason}
+    label="Season"
+    onChange={(e) => {
+      setSelectedSeason(e.target.value);
+      setPage(0);
+    }}
+  >
+    <MenuItem value="">All Seasons</MenuItem>
+    <MenuItem value="Winter">Winter</MenuItem>
+    <MenuItem value="Summer">Summer</MenuItem>
+    <MenuItem value="Autumn">Autumn</MenuItem>
+  </Select>
+</FormControl>
             </Stack>
           </Stack>
         </Paper>
@@ -346,6 +401,31 @@ function KeralaReportList() {
 
       {/* Stats Cards */}
       <Grid item xs={12}>
+        <Box
+                  sx={{
+                    position: 'relative',
+                    border: `1px solid ${alpha('#04255e', 0.15)}`,
+                    borderRadius: 3,
+                    p: 2,
+                    pt: 3,
+                    bgcolor: '#fff'
+                  }}
+                >
+                  {/* Pinned Label */}
+                  <Chip
+                    label="State Report Summary"
+                    color="primary"
+                    size="small"
+                    sx={{
+                      position: 'absolute',
+                      top: -12,
+                      left: 20,
+                      fontWeight: 600,
+                      bgcolor: '#04255e',
+                      color: '#fff',
+                      px: 1
+                    }}
+                  />
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6} md={2.4}>
             <StatCard label="Total Clusters" value={stats.all} color="#1565c0" bgColor={alpha('#1565c0', 0.08)} icon={<AssessmentIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />} />
@@ -363,10 +443,33 @@ function KeralaReportList() {
             <StatCard label="Under Review" value={stats.underReview} color="#b76e00" bgColor={alpha('#b76e00', 0.08)} icon={<RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} />} />
           </Grid>
         </Grid>
+       </Box>
       </Grid>
 
       {/* Main Table */}
       <Grid item xs={12}>
+        <Box
+          sx={{
+            position: 'relative',
+            borderRadius: 3
+          }}
+        >
+          {/* Floating/Pinned Label */}
+          <Chip
+            label="District Report Summary"
+            color="primary"
+            size="small"
+            sx={{
+              position: 'absolute',
+              top: -12,
+              left: 20,
+              zIndex: 10,
+              fontWeight: 600,
+              bgcolor: '#04255e',
+              color: '#fff',
+              px: 1
+            }}
+          />
         <MainCard 
           title="District-wise Status" 
           secondary={
@@ -466,8 +569,9 @@ function KeralaReportList() {
             />
           )}
         </MainCard>
-      </Grid>
-    </Grid>
+      </Box>
+            </Grid>
+          </Grid>
   );
 }
 

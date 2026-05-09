@@ -26,7 +26,7 @@ function ReportMenu() {
         <MainCard title="">
           <Grid container spacing={4}>
             {/* Cluster Report Card */}
-            <Grid item xs={12} sm={4} md={3} lg={3}>
+            <Grid item xs={12} sm={6} md={4} lg={3}>
               <Card
                 component={Link}
                 to="/ClusterReport/Kerala"
@@ -35,41 +35,70 @@ function ReportMenu() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  padding: '1rem',
-                  borderRadius: '1rem',
-                  minHeight: '8rem',
-                  background: 'linear-gradient(135deg, rgba(99, 155, 255, 0.45), rgb(51, 125, 253))',
-                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out',
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+                  padding: '1.5rem',
+                  borderRadius: '20px',
+                  minHeight: '9rem',
+                  background:
+                    'linear-gradient(135deg, rgba(99, 155, 255, 0.9), rgb(51, 125, 253))',
+                  transition: 'all 0.3s ease-in-out',
+                  boxShadow: '0 6px 15px rgba(0,0,0,0.2)',
+                  overflow: 'hidden',
                   '&:hover': {
-                    transform: 'scale(1.05)',
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)',
+                    transform: 'translateY(-5px) scale(1.02)',
+                    boxShadow: '0 12px 24px rgba(0,0,0,0.3)',
                   },
                 }}
               >
                 <AssessmentIcon
                   sx={{
-                    fontSize: '5rem',
+                    fontSize: '4.5rem',
                     color: '#fff',
                     marginRight: '1rem',
+                    opacity: 0.95,
                   }}
                 />
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-                    <Typography
-                      component="div"
-                      variant="h5"
-                      sx={{ fontWeight: 'bold', color: '#fff' }}
-                    >
-                      Cluster Report
-                    </Typography>
-                  </CardContent>
+
+                <Box sx={{ flex: 1 }}>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      color: '#fff',
+                      fontWeight: 500,
+                      fontSize: {
+                        xs: '1rem',
+                        sm: '1rem',
+                        md: '1.2em',
+                      },
+                      lineHeight: 1.4,
+                      letterSpacing: '0.2x',
+                      textShadow: '1px 1px 4px rgba(0,0,0,0.25)',
+                      fontFamily: `'Poppins', sans-serif`,
+                    }}
+                  >
+                    Cluster Formation
+                  </Typography>
+
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      color: 'rgba(255,255,255,0.9)',
+                      fontWeight: 500,
+                      mt: 0.5,
+                      fontSize: {
+                        xs: '0.5m',
+                        sm: '0.8m',
+                      },
+                      letterSpacing: '0.3px',
+                      fontFamily: `'Poppins', sans-serif`,
+                    }}
+                  >
+                    Progress Report
+                  </Typography>
                 </Box>
               </Card>
             </Grid>
 
-            {/* Form Report Card */}
-            <Grid item xs={12} sm={4} md={3} lg={3}>
+            <Grid item xs={12} sm={6} md={4} lg={3}>
               <Card
                 component={Link}
                 to="/FormReport/Kerala"
@@ -78,35 +107,65 @@ function ReportMenu() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  padding: '1rem',
-                  borderRadius: '1rem',
-                  minHeight: '8rem',
-                  background: 'linear-gradient(135deg, rgba(34, 193, 100, 0.45), rgb(30, 167, 86))',
-                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out',
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+                  padding: '1.5rem',
+                  borderRadius: '20px',
+                  minHeight: '9rem',
+                  background:
+                    'linear-gradient(135deg, rgba(215, 26, 67, 0.9), rgb(186, 54, 112))',
+                  transition: 'all 0.3s ease-in-out',
+                  boxShadow: '0 6px 15px rgba(152, 43, 43, 0.2)',
+                  overflow: 'hidden',
                   '&:hover': {
-                    transform: 'scale(1.05)',
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)',
+                    transform: 'translateY(-5px) scale(1.02)',
+                    boxShadow: '0 12px 24px rgba(0,0,0,0.3)',
                   },
                 }}
               >
                 <DescriptionIcon
                   sx={{
-                    fontSize: '5rem',
+                    fontSize: '4.5rem',
                     color: '#fff',
                     marginRight: '1rem',
+                    opacity: 0.95,
                   }}
                 />
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-                    <Typography
-                      component="div"
-                      variant="h5"
-                      sx={{ fontWeight: 'bold', color: '#fff' }}
-                    >
-                      Form Report
-                    </Typography>
-                  </CardContent>
+
+                <Box sx={{ flex: 1 }}>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      color: '#fff',
+                      fontWeight: 500,
+                      fontSize: {
+                        xs: '1rem',
+                        sm: '1rem',
+                        md: '1.2em',
+                      },
+                      lineHeight: 1.4,
+                      letterSpacing: '0.2x',
+                      textShadow: '1px 1px 4px rgba(113, 65, 65, 0.25)',
+                      fontFamily: `'Poppins', sans-serif`,
+                    }}
+                  >
+                    Cluster Enumeration
+                  </Typography>
+
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      color: 'rgba(255,255,255,0.9)',
+                      fontWeight: 500,
+                      mt: 0.5,
+                      fontSize: {
+                        xs: '0.5m',
+                        sm: '0.8m',
+                      },
+                      letterSpacing: '0.3px',
+                      fontFamily: `'Poppins', sans-serif`,
+                    }}
+                  >
+                    Progress Report
+                  </Typography>
                 </Box>
               </Card>
             </Grid>

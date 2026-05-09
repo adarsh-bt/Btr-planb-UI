@@ -69,7 +69,7 @@ const AdminTourDiary = () => {
     }
     
     if (type === 'advanced') {
-      navigate("/approval_manage/advancedtourdiary/user-submissions", { 
+      navigate("/approval_manage/tourdiary/user-submissions", { 
         state: { userId: selectedUserId } 
       });
     } else if (type === 'regular') {
@@ -216,8 +216,8 @@ const AdminTourDiary = () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item xs={12}>
         <Breadcrumb />
+      <Grid item xs={12}>
       </Grid>
       <Grid item xs={12}>
         <Typography variant="h3" sx={{ marginBottom: 2 }}>

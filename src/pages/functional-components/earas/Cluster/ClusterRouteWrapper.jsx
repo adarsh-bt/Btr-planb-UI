@@ -15,9 +15,10 @@ const ClusterRouteWrapper = () => {
   useEffect(() => {
     const determineRoute = async () => {
       try {
+        const queryZoneId = searchParams.get('zoneId');
         const token = localStorage.getItem('token');
-        const zoneId = localStorage.getItem('activeZone');
-
+        const zoneId = localStorage.getItem('activeZone') || queryZoneId; // Use query param zoneId if available, else fallback to localStorage
+console.log(`Determining route for zoneId: ${zoneId}, syNo: ${syNo}, slNo: ${slNo}`); // Debug log
         if (!zoneId) {
           console.error('No active zone found');
           // Fallback to default route
@@ -27,7 +28,8 @@ const ClusterRouteWrapper = () => {
 
         // Fetch BTR type for the zone
         // If query params has zoneId, use it (Admin context), else use localStorage (Field User)
-        const queryZoneId = searchParams.get('zoneId');
+      
+        // Debug alert
         const activeZoneId = queryZoneId || zoneId;
 
         const response = await axios.get(

@@ -2,10 +2,9 @@ import axios from 'axios';
 import mainapi from 'api/mainapi';
 
 
-
+const BASE_URL = mainapi.BASE_URL;
 const tourDiaryService = {
-    DIARY_URL: mainapi.DIARY_API,
-    BASE_URL: mainapi.BTR_API,
+  
 
   // ✅ Get All Schemes
   async getAllSchemes() {
@@ -13,14 +12,14 @@ const tourDiaryService = {
 
     try {
       const response = await axios.get(
-        `${this.DIARY_URL}/tour-diary/api/advanced-tour/getAll`,
+        `${BASE_URL}/tour-diary/api/advanced-tour/getAll`,
         {
           headers: {
             Authorization: `Bearer ${token}`
           }
         }
       );
-
+console.log("getAllSchemes response:", response.data);
       return response.data;   // modify if your API returns payload inside object
 
     } catch (err) {
@@ -39,7 +38,7 @@ const tourDiaryService = {
 
     try {
       const response = await axios.get(
-        `${this.DIARY_URL}/tour-diary/api/purposes/active/${schemeId}`,
+        `${BASE_URL}/tour-diary/api/purposes/active/${schemeId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -64,7 +63,7 @@ async saveOrUpdateTour(data) {
 
   try {
     const response = await axios.post(
-      `${this.DIARY_URL}/tour-diary/api/advanced-tour/saveOrUpdate`,
+      `${BASE_URL}/tour-diary/api/advanced-tour/saveOrUpdate`,
       data,
       {
         headers: {
@@ -90,7 +89,7 @@ async getAdvancedTourByFilter(userId, month, year) {
 
   try {
     const response = await axios.get(
-      `${this.DIARY_URL}/tour-diary/api/advanced-tour/filter-with-btr`,
+      `${BASE_URL}/tour-diary/api/advanced-tour/filter-with-btr`,
       {
         params: {
           userId: userId,
@@ -120,7 +119,7 @@ async getAdvancedTourByFilter(userId, month, year) {
 
     try {
       const response = await axios.delete(
-        `${this.DIARY_URL}/tour-diary/api/advanced-tour/delete/${id}`,
+        `${BASE_URL}/tour-diary/api/advanced-tour/delete/${id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -144,7 +143,7 @@ async getActiveHalves() {
 
   try {
     const response = await axios.put(
-      `${this.DIARY_URL}/tour-diary/api/advanced-tour/active-halves`,
+      `${BASE_URL}/tour-diary/api/advanced-tour/active-halves`,
       {}, // Empty body as per your API (though you showed a body in the example)
       {
         headers: {
@@ -171,7 +170,7 @@ async submitTourHalf(data) {
 
   try {
     const response = await axios.post(
-      `${this.DIARY_URL}/tour-diary/api/advanced-tour/validate`,
+      `${BASE_URL}/tour-diary/api/advanced-tour/validate`,
       data,
       {
         headers: {
@@ -212,7 +211,7 @@ async submitTourHalf(data) {
 
     try {
       const response = await axios.get(
-        `${this.DIARY_URL}/tour-diary/api/purposes/admin/submission-view`,
+        `${BASE_URL}/tour-diary/api/purposes/admin/submission-view`,
         {
           params: {
             userId,
@@ -246,7 +245,7 @@ async getAdminSubmissionDetails(userId, year, month) {
 
   try {
     const response = await axios.get(
-      `${this.DIARY_URL}/tour-diary/api/purposes/admin/submission-details`,
+      `${BASE_URL}/tour-diary/api/purposes/admin/submission-details`,
       {
         params: {
           userId,
@@ -279,7 +278,7 @@ async submitAdminApproval(payload) {
 
   try {
     const response = await axios.post(
-      `${this.DIARY_URL}/tour-diary/api/purposes/admin/approval`,
+      `${BASE_URL}/tour-diary/api/purposes/admin/approval`,
       payload,
       {
         headers: {
@@ -317,7 +316,7 @@ async getTourEntries(userId, month, year) {
 
   try {
     const response = await axios.get(
-      `${this.DIARY_URL}/tour-diary/api/tour/tours`,
+      `${BASE_URL}/tour-diary/api/tour/tours`,
       {
         params: {
           userId: userId,
@@ -350,9 +349,9 @@ async getAssignedZones(userId) {
     }
 
     try {
-        console.log(`Fetching zones for user: ${userId}`);
+   
         const response = await axios.get(
-            `${this.BASE_URL}/btr-service/btr-api/zones/assigned/${userId}`,
+            `${BASE_URL}/btr-service/btr-api/zones/assigned/${userId}`,
             {
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -361,8 +360,7 @@ async getAssignedZones(userId) {
             }
         );
         
-        console.log("API Response Status:", response.status);
-        console.log("API Response Data:", response.data);
+  console.log("getAssignedZones response:---------  ", response.data);
         
         // Return the data directly
         return response.data;
@@ -387,7 +385,7 @@ async updateSystemTourEntry(data) {
 
   try {
     const response = await axios.post(
-      `${this.DIARY_URL}/tour-diary/api/tour/tour-save`,
+      `${BASE_URL}/tour-diary/api/tour/tour-save`,
       data,
       {
         headers: {
@@ -413,7 +411,7 @@ async saveOrUpdateManualEntry(data) {
 
   try {
     const response = await axios.post(
-      `${this.DIARY_URL}/tour-diary/api/tour/tour-saveOrUpdate`,
+      `${BASE_URL}/tour-diary/api/tour/tour-saveOrUpdate`,
       data,
       {
         headers: {
@@ -439,7 +437,7 @@ async submitFullMonth(userId, month, year, zoneId) {
 
   try {
     const response = await axios.post(
-      `${this.DIARY_URL}/tour-diary/api/tour/submit/full-month`,
+      `${BASE_URL}/tour-diary/api/tour/submit/full-month`,
       {
         periodType: "FULL_MONTH",
         month: month,

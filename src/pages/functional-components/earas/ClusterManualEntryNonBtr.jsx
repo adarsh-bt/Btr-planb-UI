@@ -34,6 +34,8 @@ import GrassIcon from '@mui/icons-material/Grass';
 import mainapi from 'api/mainapi';
 import Autocomplete from '@mui/material/Autocomplete';
 import authservice from 'pages/authentication/services/authservice';
+import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest';
+import { set } from 'lodash';
 
 const BASE_URL = mainapi.BASE_URL;
 const FORM_URL = mainapi.FORM_API;
@@ -62,6 +64,8 @@ const ClusterManualEntryNonBtr = () => {
   const [currentLabels, setCurrentLabels] = useState(['K', 'S1', 'E1', 'N1', 'W1']);
    const navigate = useNavigate();
     const { zoneId: paramZoneId } = useParams();
+  const [openClusterManageDialog, setOpenClusterManageDialog] = useState(false);
+    const [clusterManageLoading, setClusterManageLoading] = useState(false);
 
     // Helper to get effective zone ID
     const getEffectiveZoneId = () => {
@@ -93,6 +97,7 @@ const ClusterManualEntryNonBtr = () => {
   const [keyplotSubNo, setKeyplotSubNo] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingResvno, setLoadingResvno] = useState(false);
+   const [zoneId, setZoneId] = useState('');
 
   // Add these state variables with your existing states (around line 75-95)
 const [isedit, setEdit] = useState(false);
@@ -431,7 +436,7 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
       }
 
       const data = await response.json();
-  
+console.log("Fetched keyplot details:", data);
       const keyplotBTypeId = data.payload.btr_id;
       const keyplotBTypeName = data.payload.btr_type;
       setCurrentBType({
@@ -443,6 +448,7 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
       setMeanCluster(data.payload.clusterMean);
       setDefaultLbcode(data.payload.lbcode);
       setEdit(data.payload.iseditable);
+      setZoneId(parseInt(data.payload.zoneId));
       setStatus(data.payload.status || 'On Going');
       setDefaultBlock(data.payload.villageBlock);
       setDefaultVillageId(data.payload.kvillageId);
@@ -837,6 +843,7 @@ const proceedSubmit = async (mode) => {
     // ✅ STEP 2: Prepare request data with proper plot_id handling
     const requestData = {
       userId: userId,
+      zoneId: zoneId,
       keyplotId: keyplotId,
       clusterNo: clusterId,
       btrType: currentBType?.id,
@@ -879,6 +886,7 @@ const proceedSubmit = async (mode) => {
               ...(row.b_id ? { id: row.b_id } : {}),
               plot_id: plot_id,
               actual: actual,
+              zoneId:zoneId,
               svNo: svNo,
               subNo: row.sub,
               area: area,
@@ -1983,6 +1991,54 @@ const getMissingLabels = () => {
 
   return missing;
 };
+
+    const handleClusterManageConfirm = async () => {
+        setClusterManageLoading(true);
+        try {
+            const token = authservice.gettoken();
+            const effectiveZoneId = getEffectiveZoneId();
+
+            const payload = {
+                clusterId: parseInt(clusterId, 10),
+                zoneId: zoneId,
+                remarks: "Updating cluster details",
+                approvedBy: authservice.userid(),
+                totalArea: parseFloat(clusterInfo.totalArea) || 0,
+                status: "APPROVED"
+            };
+
+            const response = await fetch(`${BASE_URL}/btr-service/admin-manage/edit-allow-cluster`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.message || `Request failed with status ${response.status}`);
+            }
+
+            setOpenClusterManageDialog(false);
+            setSnackbarMessage('Cluster edit mode enabled successfully.');
+            setSubmitSuccess(true);
+            setSnackbarOpen(true);
+            // Refresh edit permission
+            setEdit(true);
+            window.location.reload();
+        } catch (error) {
+            console.error('Cluster manage error:', error);
+            setSnackbarMessage(`Error: ${error.message}`);
+            setSubmitSuccess(false);
+            setSnackbarOpen(true);
+        } finally {
+            setClusterManageLoading(false);
+        }
+    };
+
+
   const firstInstanceMap = new Map();
   keyplotsData.forEach(kp => {
     kp.rows.forEach(r => {
@@ -2475,7 +2531,9 @@ const getMissingLabels = () => {
             {clusterInfo.totalArea.toFixed(2)} / {clusterInfo.maxArea} Cents
           </Typography>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-            <Tooltip title="View FMB"><Button variant="contained" color="secondary"><MapIcon /></Button></Tooltip>
+
+
+  <Tooltip title="View FMB"><Button variant="contained" color="secondary"><MapIcon /></Button></Tooltip>
             {/* <Tooltip title="Reject Cluster"><Button variant="contained" color="error"><WarningAmberIcon /></Button></Tooltip> */}
             <Tooltip title="Submit">
             <span>
@@ -2574,14 +2632,33 @@ const getMissingLabels = () => {
           </Paper>
         )}
         {/* Action Buttons */}
-        <Box sx={{ maxWidth: 900, margin: '0 auto', mb: 3 }}>
+        <Box sx={{ maxWidth: 900, margin: '0 auto', mb: 3 ,mt:2 }}>
           <Grid container spacing={2} alignItems="center" justifyContent="center">
             <Grid item>
               {role === 'Field Data Collector' && (
                 <Button variant="contained" color="info" onClick={handleOpenCropsModal}>Add CCE crops</Button>
               )}
             </Grid>
-            <Grid item><Button variant="contained" color="secondary" startIcon={<MapIcon />}>View FMB</Button></Grid>
+            <Grid item>{(
+  (
+    role === 'Super Admin' ||
+    role === 'IT Admin' ||
+    role === 'District Level Approver' ||
+    role === 'Taluk Level Approver'
+  ) &&
+  status === "Completed"
+) && (
+  <Grid container justifyContent="center" sx={{ mt: 2 }}>
+    <Button
+      variant="contained"
+      color="primary"
+      onClick={() => setOpenClusterManageDialog(true)}
+    >
+      <SettingsSuggestIcon sx={{ mr: 1 }} />
+      Cluster Manage 
+    </Button>
+  </Grid>
+)}</Grid>
             {/* <Grid item><Button variant="contained" color="error" startIcon={<DeleteForeverIcon />}>Reject Cluster</Button></Grid> */}
           </Grid>
         </Box>
@@ -3042,6 +3119,55 @@ const getMissingLabels = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+             <Dialog
+                    open={openClusterManageDialog}
+                    onClose={() => !clusterManageLoading && setOpenClusterManageDialog(false)}
+                    maxWidth="xs"
+                    fullWidth
+                >
+                    <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 ,background: '#05307a', color: 'white'}}>
+                        <SettingsSuggestIcon color="primary" />
+                        Cluster Edit Mode
+                    </DialogTitle>
+                    <DialogContent>
+                        <DialogContentText mt={2}>
+                            Are you sure you want to edit this cluster ?
+                        </DialogContentText>
+                        {clusterId && (
+                            <Box sx={{ mt: 1.5, p: 1.5, bgcolor: 'grey.100', borderRadius: 1 }}>
+                                <Typography variant="body2">
+                                    <strong>Cluster No:</strong> {slNo}
+                                </Typography>
+                                {/* <Typography variant="body2">
+                                    <strong>Cluster ID:</strong> {clusterId}
+                                </Typography> */}
+                                <Typography variant="body2">
+                                    <strong>Total Area:</strong> {parseFloat(clusterInfo.totalArea).toFixed(2)} cents
+                                </Typography>
+                            </Box>
+                        )}
+                    </DialogContent>
+                    <DialogActions>
+                        <Button
+                            onClick={() => setOpenClusterManageDialog(false)}
+                            disabled={clusterManageLoading}
+                            color="inherit"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleClusterManageConfirm}
+                            variant="contained"
+                            color="primary"
+                            disabled={clusterManageLoading}
+                            startIcon={clusterManageLoading ? <CircularProgress size={18} /> : <SettingsSuggestIcon />}
+                        >
+                            {clusterManageLoading ? 'Processing...' : 'Confirm'}
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+
       {/* Snackbar */}
       <Snackbar
         open={snackbarOpen}

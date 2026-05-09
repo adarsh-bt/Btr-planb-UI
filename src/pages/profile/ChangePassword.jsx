@@ -34,6 +34,8 @@ const ChangePassword = () => {
 
   try {
     const response = await profileService.emailVerification(email);
+    console.log(response);
+    
     if (response.status === 200) {
       setError('');
       setStep(2);

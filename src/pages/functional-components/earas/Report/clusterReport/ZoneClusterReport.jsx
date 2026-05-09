@@ -361,130 +361,366 @@ function ZoneClusterReport() {
       </Grid>
 
       {/* Stats Cards */}
-      <Grid item xs={12}>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={2.4}>
-            <StatCard label="Total Zones" value={stats.total} color="#1565c0" bgColor={alpha('#1565c0', 0.08)} icon={<StoreIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />} />
-          </Grid>
-          <Grid item xs={12} sm={6} md={2.4}>
-            <StatCard label="Completed" value={stats.completed} color="#2e7d32" bgColor={alpha('#2e7d32', 0.08)} icon={<CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />} />
-          </Grid>
-          <Grid item xs={12} sm={6} md={2.4}>
-            <StatCard label="Ongoing" value={stats.ongoing} color="#ed6c02" bgColor={alpha('#ed6c02', 0.08)} icon={<PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} />} />
-          </Grid>
-          <Grid item xs={12} sm={6} md={2.4}>
-            <StatCard label="Not Started" value={stats.notStarted} color="#757575" bgColor={alpha('#757575', 0.08)} icon={<ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} />} />
-          </Grid>
-          <Grid item xs={12} sm={6} md={2.4}>
-            <StatCard label="Under Review" value={stats.underReview} color="#b76e00" bgColor={alpha('#b76e00', 0.08)} icon={<RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} />} />
-          </Grid>
-        </Grid>
-      </Grid>
+<Grid item xs={12}>
+  <Box
+    sx={{
+      position: 'relative',
+      borderRadius: 3
+    }}
+  >
+    {/* Floating/Pinned Label */}
+    <Chip
+    label={`${
+  formattedTaluk
+    ?.split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
+} -Block Report Summary`}
+      size="small"
+      sx={{
+        position: 'absolute',
+        top: -12,
+        left: 20,
+        zIndex: 10,
+        fontWeight: 600,
+        bgcolor: '#04255e',
+        color: '#fff',
+        px: 1,
+        boxShadow: 2
+      }}
+    />
 
-      {/* Zone Table */}
-      <Grid item xs={12}>
-        <MainCard
-          title={`Zones in ${formattedTaluk}`}
-          secondary={
-            <TextField
-              placeholder="Search zone/panchayat..."
-              size="small"
-              value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
-              sx={{ width: 250 }}
-              InputProps={{
-                startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
-                endAdornment: searchTerm && (
-                  <InputAdornment position="end">
-                    <IconButton size="small" onClick={handleClearSearch} edge="end">
-                      <ClearIcon fontSize="small" />
-                    </IconButton>
-                  </InputAdornment>
-                )
+    <Grid container spacing={2}>
+      <Grid item xs={12} sm={6} md={2.4}>
+        <StatCard
+          label="Total Zones"
+          value={stats.total}
+          color="#1565c0"
+          bgColor={alpha('#1565c0', 0.08)}
+          icon={
+            <StoreIcon
+              sx={{
+                fontSize: 32,
+                color: '#1565c0',
+                opacity: 0.7
               }}
             />
           }
-          sx={{ borderRadius: 3 }}
-        >
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow sx={{ bgcolor: '#04255e' }}>
-                  {['Zone', 'Total', 'Completed', 'Ongoing', 'Not Started', 'Under Review', 'Actions'].map((label, idx) => (
-                    <TableCell key={idx} align={idx === 0 ? 'left' : 'center'} sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>
-                      {label}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {paginatedData.length > 0 ? (
-                  paginatedData.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      hover
-                      sx={{ '&:hover': { bgcolor: alpha('#04255e', 0.04) }, transition: '0.2s' }}
-                    >
-                      <TableCell>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <StoreIcon sx={{ fontSize: 18, color: '#04255e', opacity: 0.7 }} />
-                          <Typography fontWeight={500}>{row.zone}</Typography>
-                        </Stack>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Chip label={row.total} size="small" variant="filled" sx={{ fontWeight: 600, bgcolor: alpha('#04255e', 0.1) }} />
-                      </TableCell>
-                      <TableCell align="center">
-                        {row.completed > 0 ? <Chip label={row.completed} size="small" color="success" variant="outlined" /> : row.completed}
-                      </TableCell>
-                      <TableCell align="center">
-                        {row.ongoing > 0 ? <Chip label={row.ongoing} size="small" color="primary" variant="outlined" /> : row.ongoing}
-                      </TableCell>
-                      <TableCell align="center">
-                        {row.notStarted > 0 ? <Chip label={row.notStarted} size="small" variant="outlined" /> : row.notStarted}
-                      </TableCell>
-                      <TableCell align="center">
-                        {row.underReview > 0 ? <Chip label={row.underReview} size="small" color="warning" variant="outlined" /> : row.underReview}
-                      </TableCell>
-                      <TableCell align="center">
-                        <Tooltip title="View Details">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleViewZoneDetails(row.zone)}
-                            sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
-                          >
-                            <VisibilityIcon />
-                          </IconButton>
-                        </Tooltip>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
-                      <Typography color="text.secondary">
-                        {searchTerm ? `No zones found matching "${searchTerm}"` : `No data available for selected filters`}
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          {searchFilteredData.length > 0 && (
-            <TablePagination
-              component="div"
-              count={searchFilteredData.length}
-              page={page}
-              onPageChange={handleChangePage}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-              rowsPerPageOptions={[5, 10, 25]}
-              sx={{ borderTop: `1px solid ${theme.palette.divider}` }}
-            />
-          )}
-        </MainCard>
+        />
       </Grid>
+
+      <Grid item xs={12} sm={6} md={2.4}>
+        <StatCard
+          label="Completed"
+          value={stats.completed}
+          color="#2e7d32"
+          bgColor={alpha('#2e7d32', 0.08)}
+          icon={
+            <CheckCircleIcon
+              sx={{
+                fontSize: 32,
+                color: '#2e7d32',
+                opacity: 0.7
+              }}
+            />
+          }
+        />
+      </Grid>
+
+      <Grid item xs={12} sm={6} md={2.4}>
+        <StatCard
+          label="Ongoing"
+          value={stats.ongoing}
+          color="#ed6c02"
+          bgColor={alpha('#ed6c02', 0.08)}
+          icon={
+            <PendingIcon
+              sx={{
+                fontSize: 32,
+                color: '#ed6c02',
+                opacity: 0.7
+              }}
+            />
+          }
+        />
+      </Grid>
+
+      <Grid item xs={12} sm={6} md={2.4}>
+        <StatCard
+          label="Not Started"
+          value={stats.notStarted}
+          color="#757575"
+          bgColor={alpha('#757575', 0.08)}
+          icon={
+            <ScheduleIcon
+              sx={{
+                fontSize: 32,
+                color: '#757575',
+                opacity: 0.7
+              }}
+            />
+          }
+        />
+      </Grid>
+
+      <Grid item xs={12} sm={6} md={2.4}>
+        <StatCard
+          label="Under Review"
+          value={stats.underReview}
+          color="#b76e00"
+          bgColor={alpha('#b76e00', 0.08)}
+          icon={
+            <RateReviewIcon
+              sx={{
+                fontSize: 32,
+                color: '#b76e00',
+                opacity: 0.7
+              }}
+            />
+          }
+        />
+      </Grid>
+    </Grid>
+  </Box>
+</Grid>
+
+     {/* Zone Table */}
+<Grid item xs={12}>
+  <Box
+    sx={{
+      position: 'relative',
+      borderRadius: 3
+    }}
+  >
+    {/* Floating/Pinned Label */}
+    <Chip
+      label="Zone Report Summary"
+      size="small"
+      sx={{
+        position: 'absolute',
+        top: -12,
+        left: 20,
+        zIndex: 10,
+        fontWeight: 600,
+        bgcolor: '#04255e',
+        color: '#fff',
+        px: 1,
+        boxShadow: 2
+      }}
+    />
+
+    <MainCard
+      title={`Zones in ${formattedTaluk}`}
+      secondary={
+        <TextField
+          placeholder="Search zone/panchayat..."
+          size="small"
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setPage(0);
+          }}
+          sx={{ width: 250 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" />
+              </InputAdornment>
+            ),
+            endAdornment: searchTerm && (
+              <InputAdornment position="end">
+                <IconButton
+                  size="small"
+                  onClick={handleClearSearch}
+                  edge="end"
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            )
+          }}
+        />
+      }
+      sx={{ borderRadius: 3 }}
+    >
+      <TableContainer>
+        <Table>
+          <TableHead>
+            <TableRow sx={{ bgcolor: '#04255e' }}>
+              {[
+                'Zone',
+                'Total',
+                'Completed',
+                'Ongoing',
+                'Not Started',
+                'Under Review',
+                'Actions'
+              ].map((label, idx) => (
+                <TableCell
+                  key={idx}
+                  align={idx === 0 ? 'left' : 'center'}
+                  sx={{
+                    color: 'white',
+                    fontWeight: 600,
+                    py: 1.5
+                  }}
+                >
+                  {label}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+
+          <TableBody>
+            {paginatedData.length > 0 ? (
+              paginatedData.map((row) => (
+                <TableRow
+                  key={row.id}
+                  hover
+                  sx={{
+                    '&:hover': {
+                      bgcolor: alpha('#04255e', 0.04)
+                    },
+                    transition: '0.2s'
+                  }}
+                >
+                  <TableCell>
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      alignItems="center"
+                    >
+                      <StoreIcon
+                        sx={{
+                          fontSize: 18,
+                          color: '#04255e',
+                          opacity: 0.7
+                        }}
+                      />
+
+                      <Typography fontWeight={500}>
+                        {row.zone}
+                      </Typography>
+                    </Stack>
+                  </TableCell>
+
+                  <TableCell align="center">
+                    <Chip
+                      label={row.total}
+                      size="small"
+                      variant="filled"
+                      sx={{
+                        fontWeight: 600,
+                        bgcolor: alpha('#04255e', 0.1)
+                      }}
+                    />
+                  </TableCell>
+
+                  <TableCell align="center">
+                    {row.completed > 0 ? (
+                      <Chip
+                        label={row.completed}
+                        size="small"
+                        color="success"
+                        variant="outlined"
+                      />
+                    ) : (
+                      row.completed
+                    )}
+                  </TableCell>
+
+                  <TableCell align="center">
+                    {row.ongoing > 0 ? (
+                      <Chip
+                        label={row.ongoing}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                      />
+                    ) : (
+                      row.ongoing
+                    )}
+                  </TableCell>
+
+                  <TableCell align="center">
+                    {row.notStarted > 0 ? (
+                      <Chip
+                        label={row.notStarted}
+                        size="small"
+                        variant="outlined"
+                      />
+                    ) : (
+                      row.notStarted
+                    )}
+                  </TableCell>
+
+                  <TableCell align="center">
+                    {row.underReview > 0 ? (
+                      <Chip
+                        label={row.underReview}
+                        size="small"
+                        color="warning"
+                        variant="outlined"
+                      />
+                    ) : (
+                      row.underReview
+                    )}
+                  </TableCell>
+
+                  <TableCell align="center">
+                    <Tooltip title="View Details">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleViewZoneDetails(row.zone)}
+                        sx={{
+                          color: '#04255e',
+                          '&:hover': {
+                            bgcolor: alpha('#04255e', 0.1)
+                          }
+                        }}
+                      >
+                        <VisibilityIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  align="center"
+                  sx={{ py: 6 }}
+                >
+                  <Typography color="text.secondary">
+                    {searchTerm
+                      ? `No zones found matching "${searchTerm}"`
+                      : `No data available for selected filters`}
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {searchFilteredData.length > 0 && (
+        <TablePagination
+          component="div"
+          count={searchFilteredData.length}
+          page={page}
+          onPageChange={handleChangePage}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          rowsPerPageOptions={[5, 10, 25]}
+          sx={{
+            borderTop: `1px solid ${theme.palette.divider}`
+          }}
+        />
+      )}
+    </MainCard>
+  </Box>
+</Grid>
 
       {/* Back Button */}
       <Grid item xs={12}>

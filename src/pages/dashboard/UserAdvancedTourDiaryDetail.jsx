@@ -234,7 +234,7 @@ const UserAdvancedTourDiaryDetail = () => {
       }
       // Check if response has a message property (error case)
       else if (data && data.message) {
-        setError(data.message);
+        setError("Currently no tour diary entries found for the selected month and year.");
         setTourEntries([]);
       } 
       else {
@@ -1165,8 +1165,8 @@ const UserAdvancedTourDiaryDetail = () => {
   if (!userId) {
     return (
       <Grid container spacing={3}>
+          {/* <Breadcrumb /> */}
         <Grid item xs={12}>
-          <Breadcrumb />
         </Grid>
         <Grid item xs={12}>
           <MainCard>
@@ -1187,8 +1187,8 @@ const UserAdvancedTourDiaryDetail = () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item xs={12}>
         <Breadcrumb />
+      <Grid item xs={12}>
       </Grid>
 
       <Grid item xs={12}>

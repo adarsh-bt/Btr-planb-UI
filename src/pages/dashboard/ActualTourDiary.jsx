@@ -294,6 +294,7 @@ const handleSubmitMonth = async () => {
     try {
       const response = await tourDiaryService.getTourEntries(selectedUserId, selectedMonth, selectedYear);
       console.log("Fetched tour entries:   <<>>>", response);
+      console.log("Fetched tour entries:   <<>>>", response);
       if (response && Array.isArray(response) && !response.message) {
         setTourEntries(response);
         
@@ -456,6 +457,7 @@ const handleSubmitMonth = async () => {
         remark: entry.remark || "",
         reportEntryType: entry.reportEntryType,
         schemeId: entry.schemesId || "",
+        schemeId: entry.schemesId || "",
         purposeId: entry.purposeId || "",
         zoneId: entry.zoneId || "",
         clusterId: entry.clusterId || "",
@@ -466,6 +468,8 @@ const handleSubmitMonth = async () => {
       });
       
       // Set the scheme for edit modal and fetch purposes
+      if (entry.schemesId) {
+        setEditSelectedScheme(entry.schemesId);
       if (entry.schemesId) {
         setEditSelectedScheme(entry.schemesId);
       } else {
@@ -524,6 +528,7 @@ const handleSubmitMonth = async () => {
         clusterId: Number(editFormData.clusterId),
         seasonId: editFormData.seasonId ? Number(editFormData.seasonId) : 1,
         landType: editFormData.landType,
+        geoLocation: editFormData.geoLocation || "N/A",
         geoLocation: editFormData.geoLocation || "N/A",
         remark: editFormData.remark,
         distance: editFormData.distance ? parseFloat(editFormData.distance) : null,
@@ -628,6 +633,7 @@ const handleSubmitMonth = async () => {
       clusterId: Number(manualFormData.clusterId),
       seasonId: Number(manualFormData.seasonId || 1),
       landType: manualFormData.landType,
+      geoLocation: manualFormData.geoLocation || "",
       geoLocation: manualFormData.geoLocation || "",
       remark: manualFormData.remark,
       distance: manualFormData.distance ? parseFloat(manualFormData.distance) : null,
@@ -913,6 +919,7 @@ const handleSubmitMonth = async () => {
                   {event.clusterId && (
                     <Typography variant="body2" color="text.secondary">
                       <strong>Cluster :</strong> {event.clusterId}
+                      <strong>Cluster :</strong> {event.clusterId}
                     </Typography>
                   )}
                   {event.clusterNo && (
@@ -1043,6 +1050,7 @@ const handleSubmitMonth = async () => {
       </Grid>
       <Grid item xs={12}>
         <MainCard>
+          <Box sx={{ maxWidth: '1000px', margin: '0 auto' }}> 
           <Box sx={{ maxWidth: '1000px', margin: '0 auto' }}> 
             <Box
               sx={{
@@ -1700,6 +1708,17 @@ const handleSubmitMonth = async () => {
             </Grid>
             
             <Grid item xs={12}>
+<FormControl fullWidth>
+<InputLabel>Season</InputLabel>
+         <Select
+            value={editFormData.seasonId}
+            onChange={(e) => setEditFormData({ ...editFormData, seasonId: e.target.value })}
+            label="Season">
+            <MenuItem value={1}>Autumn</MenuItem>
+            <MenuItem value={2}>Winter</MenuItem>
+            <MenuItem value={3}>Summer</MenuItem>
+            </Select>
+            </FormControl>
 <FormControl fullWidth>
 <InputLabel>Season</InputLabel>
          <Select

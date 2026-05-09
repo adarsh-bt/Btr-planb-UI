@@ -98,7 +98,7 @@ try {
       );
       const decryptedJson = decryptData(response.data);
       const responseData = JSON.parse(decryptedJson);
-   
+
       return responseData;
     } catch (err) {
       return {
@@ -116,6 +116,7 @@ try {
       });
       const decryptedJson = decryptData(response.data);
       const responseData = JSON.parse(decryptedJson);
+   
       return responseData;
     } catch (err) {
       throw err;
