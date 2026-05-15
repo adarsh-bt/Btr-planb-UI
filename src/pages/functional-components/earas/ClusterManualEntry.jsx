@@ -1047,7 +1047,10 @@ const hasValidRow = (keyplot) => {
          
             if (mode === 'ON_GOING' || mode === 'SAVE') {
                     setOpenLimitDialog(false)
-                     window.location.reload();
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                     
             }
             if (mode === 'COMPLETED' || mode === 'Under Review') {
                 setTimeout(() => {
@@ -2026,7 +2029,7 @@ const validateSidePlotLabels = () => {
                                     }}
                                 >
                                     <TrendingFlat fontSize="small" sx={{ mr: 0.5 }} />
-                                    MEAN TOTAL
+                                    TSO LIMIT
                                 </Typography>
                                 <Typography variant="h5" component="p" sx={{ fontWeight: 'bold', color: '#333' }}>
                                     {meanCluster}

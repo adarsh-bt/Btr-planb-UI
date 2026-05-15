@@ -44,7 +44,7 @@ const icons = {
 // ==============================|| MENU ITEMS - UTILITIES ||============================== //
 
 
-const role = authservice.getrole()?.trim() ; // safely get and trim role
+const role = authservice.getrole()?.trim(); // safely get and trim role
 
 const utilities = {
   id: 'utilities',

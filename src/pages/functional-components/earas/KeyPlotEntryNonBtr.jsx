@@ -1337,7 +1337,7 @@ const getTableHeaders = (lbId, villageName) => {
                                     handleChange(lb.id, currentVillageName, row.id, "area", v);
                                   } else {
                                     const parts = v.split(".");
-                                    let intPart = (parts[0] || "").slice(0, 5);
+                                    let intPart = (parts[0] || "").slice(0, 7);
                                     let decPart = parts[1] !== undefined ? parts[1].slice(0, 2) : undefined;
                                     const coerced = decPart !== undefined ? `${intPart}.${decPart}` : intPart;
                                     handleChange(lb.id, currentVillageName, row.id, "area", coerced);

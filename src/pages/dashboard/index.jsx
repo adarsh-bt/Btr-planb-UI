@@ -35,7 +35,7 @@ import CardActionArea from '@mui/material/CardActionArea';
 import CardActions from '@mui/material/CardActions';
 
 import tabmenus from './tabmenus/tabmenus';
-import auth from 'contexts/auth-reducer/auth';
+// import auth from 'contexts/auth-reducer/auth';
 import Breadcrumb from 'routes/Breadcrumb';
 import authservice from 'pages/authentication/services/authservice';
 import tourdiary from 'assets/images/logo/tourdiary.png';
@@ -67,7 +67,7 @@ const { children } = tabmenus.items2[0];
 // ==============================|| DASHBOARD - DEFAULT ||============================== //
 
 export default function DashboardDefault() {
-  const isauth = auth.isAdmin();
+  // const isauth = auth.isAdmin();
 
   //for permissions line
   // const { userAccessData, loading, hasPermission, hasPermissionByName } = useUserAccess();

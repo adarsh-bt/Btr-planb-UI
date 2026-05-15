@@ -87,7 +87,6 @@ const ActualTourDiary = Loadable(lazy(() => import('pages/dashboard/ActualTourDi
 const KeralaReportList = Loadable(lazy(() => import('pages/functional-components/earas/Report/clusterReport/KeralaClusterReportList')));
 const TalukClusterReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/clusterReport/TalukClusterReport')));
 const ZoneClusterReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/clusterReport/ZoneClusterReport')));
-const BlockClusterReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/clusterReport/BlockClusterReport')));
 const ReportMenu = Loadable(lazy(() => import('pages/functional-components/earas/Report/ReportMenu')));
 
 const KeralaFormReportList = Loadable(lazy(() => import('pages/functional-components/earas/Report/formReport/KeralaFormReportList')));
@@ -153,7 +152,7 @@ const MainRoutes = {
       )
     },
     {
-      path: 'ClusterReport/Kerala',
+      path: 'kerala_cluster_report',
       element: (
         <PrivateRoute>
           <KeralaReportList />
@@ -161,18 +160,10 @@ const MainRoutes = {
       )
     },
     {
-      path: 'kerala_report/taluk_cluster_report/:districtName',
+      path: 'kerala_cluster_report/taluk_cluster_report/:districtName?',
       element: (
         <PrivateRoute>
           <TalukClusterReport />
-        </PrivateRoute>
-      )
-    },
-    {
-      path: 'kerala_report/block_cluster_report/:districtName/:talukName',
-      element: (
-        <PrivateRoute>
-          <BlockClusterReport />
         </PrivateRoute>
       )
     },
@@ -186,7 +177,7 @@ const MainRoutes = {
     },
     {
       // MODIFIED: Added :blockName parameter
-      path: 'kerala_report/zone_cluster_report/:districtName/:talukName/:blockName',
+      path: 'kerala_cluster_report/taluk_cluster_report/zone_cluster_report/:districtName/:talukName',
       element: (
         <PrivateRoute>
           <ZoneClusterReport />

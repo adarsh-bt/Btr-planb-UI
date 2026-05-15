@@ -128,7 +128,7 @@ const handleEmailSubmit = async (e) => {
         const otpValue = otp.join('');
         if (otpValue.length === 6) {
             const userLogin = { userid: email, otp: otpValue };
-            const response = await authservice.verify_otp(userLogin);
+            const response = await authservice.verifyOtp(userLogin);
 
             if (response.statusCode === 200) {
                 // ✅ Store the reset token from server
@@ -192,7 +192,7 @@ const handleEmailSubmit = async (e) => {
       resetToken: email,
       password: trimmedPassword
     };
-    const response = await authservice.password_reset(userLogin);
+    const response = await authservice.passwordReset(userLogin);
     if (response.status === 200) {
       setSuccess('Password Successfully changed');
       setGlobalError('');

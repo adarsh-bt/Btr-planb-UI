@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from 'api/api'; // ✅ FIXED
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
@@ -15,79 +15,68 @@ import mainapi from 'api/mainapi';
 import authservice from 'pages/authentication/services/authservice';
 import { useNavigate } from "react-router-dom";
 
+
+
 export default function ZoneOptions() {
   const [zones, setZones] = useState([]);
   const [zone, setZone] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
   const [pendingZone, setPendingZone] = useState('');
+
   const BASE_URL = mainapi.BTR_API;
   const user_id = authservice.userid();
   const navigate = useNavigate();
   // Fetch zones and restore last selected zone
-useEffect(() => {
-  const token = localStorage.getItem('token');
+ useEffect(() => {
+    const token = localStorage.getItem('token');
 
-  if (!token || !user_id) return;
+    if (!token || !user_id) return; // ✅ IMPORTANT
 
-  axios
-    .get(`${BASE_URL}/btr-service/btr-api/zones/assigned/${user_id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-    .then((response) => {
-      const data = response.data || [];
-      setZones(data);
+    api
+      .get(`${BASE_URL}/btr-service/btr-api/zones/assigned/${user_id}`) // ✅ FIXED
+      .then((response) => {
+        const data = response.data || [];
+        setZones(data);
 
-      // 🚨 CASE 1: No zones assigned
-      if (data.length === 0) {
+        if (data.length === 0) {
+          setZone('');
+          localStorage.removeItem('activeZone');
+          localStorage.removeItem('activeDistId');
+          return;
+        }
+
+        const savedZone = localStorage.getItem('activeZone');
+
+        const selectedZoneObj = data.find(
+          (z) => z.zoneId.toString() === savedZone
+        );
+
+        let finalZone;
+
+        if (savedZone && selectedZoneObj) {
+          finalZone = selectedZoneObj;
+        } else {
+          finalZone = data[0];
+          console.warn('⚠️ Stored zone invalid → reset');
+        }
+
+        setZone(finalZone.zoneId.toString());
+
+        localStorage.setItem('activeZone', finalZone.zoneId.toString());
+        localStorage.setItem('activeDistId', finalZone.dist_id.toString());
+      })
+      .catch((error) => {
+        console.error('Error fetching zones:', error);
+
+        // ❌ DO NOT handle 401 here
+        // interceptor will handle it
+
         setZone('');
         localStorage.removeItem('activeZone');
         localStorage.removeItem('activeDistId');
-        return;
-      }
+      });
 
-      const savedZone = localStorage.getItem('activeZone');
-
-      // ✅ Validate saved zone
-      const selectedZoneObj = data.find(
-        (z) => z.zoneId.toString() === savedZone
-      );
-
-      let finalZone;
-
-      if (savedZone && selectedZoneObj) {
-        // ✅ valid zone
-        finalZone = selectedZoneObj;
-      } else {
-        // ❌ invalid / removed zone → fallback
-        finalZone = data[0];
-
-        console.warn(
-          '⚠️ Stored zone is invalid or removed. Resetting to default.'
-        );
-      }
-
-      // ✅ Set state
-      setZone(finalZone.zoneId.toString());
-
-      // 🔑 Sync localStorage with backend truth
-      localStorage.setItem('activeZone', finalZone.zoneId.toString());
-      localStorage.setItem(
-        'activeDistId',
-        finalZone.dist_id.toString()
-      );
-    })
-    .catch((error) => {
-      console.error('Error fetching zones:', error);
-
-      // 🚨 Optional: clear invalid state on error
-      setZone('');
-      localStorage.removeItem('activeZone');
-      localStorage.removeItem('activeDistId');
-    });
-}, [BASE_URL, user_id]);
-
+  }, [BASE_URL, user_id]);
 
   const handleOpenDialog = (event) => {
     const newZone = event.target.value;
@@ -97,32 +86,25 @@ useEffect(() => {
     }
   };
 
-const handleConfirmSwitch = () => {
-  const selectedZoneObj = zones.find(
-    (z) => z.zoneId.toString() === pendingZone
-  );
-
-  if (selectedZoneObj) {
-    setZone(pendingZone);
-
-    // 🔑 SAVE BOTH VALUES
-    localStorage.setItem('activeZone', pendingZone);
-    localStorage.setItem(
-      'activeDistId',
-      selectedZoneObj.dist_id.toString()
+  const handleConfirmSwitch = () => {
+    const selectedZoneObj = zones.find(
+      (z) => z.zoneId.toString() === pendingZone
     );
-  }
 
-  setOpenDialog(false);
+    if (selectedZoneObj) {
+      setZone(pendingZone);
 
-  navigate('/schemes/earas');
+      localStorage.setItem('activeZone', pendingZone);
+      localStorage.setItem('activeDistId', selectedZoneObj.dist_id.toString());
+    }
 
-};
-
-
+    setOpenDialog(false);
+    navigate('/schemes/earas');
+  };
   const handleCloseDialog = () => {
     setOpenDialog(false);
   };
+
 
   return (
     <Box sx={{   mt: 0.5 }}>

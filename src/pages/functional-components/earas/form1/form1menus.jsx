@@ -51,6 +51,7 @@ import AgricultureIcon from '@mui/icons-material/Agriculture';
 import StorageIcon from '@mui/icons-material/Storage';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CommentIcon from '@mui/icons-material/Comment';
+import api from 'api/api';
 // --- Theme Constants ---
 const TABLE_HEADER_BG = '#04255e';
 const TABLE_HEADER_COLOR = '#ffffff';
@@ -305,7 +306,35 @@ useEffect(() => {
 }, [seasonId, clusterId]);
 
 
+const testPdfDownload = async () => {
+  try {
+    const response = await api.get(
+      '/earas-form1-entry/api/download/excel',
+      {
+        responseType: 'blob', // ✅ MUST
+      }
+    );
 
+    // ✅ Correct MIME type for Excel
+    const blob = new Blob([response.data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'land_use_survey_template.xlsx'; // ✅ Correct file name
+    document.body.appendChild(a);
+    a.click();
+
+    a.remove();
+    window.URL.revokeObjectURL(url);
+
+  } catch (error) {
+    console.error("Download failed:", error);
+  }
+};
   // API Fetch Functions (same as before)
  const fetchKeyplotDetails = async (idFromUrl) => {
   setIsLoading(true);
@@ -594,7 +623,7 @@ useEffect(() => {
   );
 
 
-  // 1. Enhanced Keyplot Details with Download
+  // 1. Enhanced  with Download
   const renderKeyplotDetails = () => {
     if (isLoading) return renderLoading();
     // if (error) return renderError();
@@ -874,9 +903,9 @@ const renderCropDetails = () => {
 <TableCell align="right">
   <Typography variant="body2" fontWeight="medium">
     {row.cropArea != null
-      ? row.centPerTree != null
+      ? row.centPerTree == null
         ?  Number((row.cropArea)).toFixed(2)
-        : Number(row.cropArea).toFixed(2)
+        : (Number(row.cropArea) * Number(row.centPerTree)).toFixed(2)
       : "NA"}
   </Typography>
 </TableCell>
@@ -885,7 +914,7 @@ const renderCropDetails = () => {
 <TableCell align="right">
   <Typography variant="body2" fontWeight="medium">
     {row.centPerTree != null
-      ? (Number(row.cropArea).toFixed(2) / Number(row.centPerTree).toFixed(2)).toFixed(2)
+      ? Number(row.cropArea).toFixed(2) 
       : "NA"}
   </Typography>
 </TableCell>
@@ -1619,7 +1648,7 @@ const renderNucDetails = () => {
       <Grid item xs={12}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h3" sx={{ color: TABLE_HEADER_BG, fontWeight: 'bold' }}>
-            Form 1 Details Viewer : {zonename}
+            Form 1 Details Viewer : {zonename} 
           </Typography>
           {/* <Button 
             variant="outlined" 
@@ -1630,6 +1659,22 @@ const renderNucDetails = () => {
             Refresh All
           </Button> */}
         </Box>
+        {/* <button   onClick={testPdfDownload} disabled={isLoading} style={{ 
+          padding: '8px 16px', 
+          backgroundColor: isLoading ? '#e0e0e0' : '#1976d2',
+          color: '#fff',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: isLoading ? 'not-allowed' : 'pointer',
+          fontSize: '1rem',
+          fontWeight: 600,
+          transition: 'background-color 0.3s',
+          marginBottom: '16px'
+        }}>
+         Download
+        </button> */}
+      
+    
 
         <MainCard 
           title=""

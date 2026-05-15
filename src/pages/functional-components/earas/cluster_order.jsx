@@ -177,7 +177,7 @@ const handleClusterClick = (syNo, slNo) => {
   }}
 >
       <Typography variant="h3" component="h1" gutterBottom sx={{ textAlign: 'center', mb: 4, fontWeight: 'bold', color: '#3f51b5' }}>
-        Cluster Operations Map
+        Cluster Operations Mapss
       </Typography>
 
       {/* --- Status Filter Tabs --- */}
