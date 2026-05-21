@@ -94,6 +94,7 @@ const TalukFormReport = Loadable(lazy(() => import('pages/functional-components/
 const BlockFormReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/formReport/BlockFormReport')));
 const ZoneFormReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/formReport/ZoneFormReport')));
 const Form5 = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form5')));
+const Form2 = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form2')));
 
 const SettingsTabsPage = Loadable(lazy(() => import('pages/functional-components/earas/SettingsTabsPage')));
 const DistrictSettingss = Loadable(lazy(() => import('pages/functional-components/earas/settings/DistrictSettings')));
@@ -641,6 +642,14 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <Form5 />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/cce/Form2',
+      element: (
+        <PrivateRoute>
+          <Form2 />
         </PrivateRoute>
       )
     },

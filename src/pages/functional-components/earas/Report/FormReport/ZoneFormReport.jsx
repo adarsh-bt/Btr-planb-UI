@@ -241,31 +241,36 @@ function ZoneClusterReport() {
     alert(`Viewing details for ${zoneName} (Feature coming soon)`);
   };
 
-  const StatCard = ({ label, value, color, bgColor, icon }) => (
-    <Card sx={{
-      bgcolor: bgColor,
-      borderRadius: 3,
-      transition: 'transform 0.2s, box-shadow 0.2s',
-      '&:hover': {
-        transform: 'translateY(-4px)',
-        boxShadow: theme.shadows[4]
-      }
-    }}>
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Box>
-            <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
-              {value}
-            </Typography>
-            <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>
-              {label}
-            </Typography>
-          </Box>
-          {icon}
-        </Stack>
-      </CardContent>
-    </Card>
-  );
+  const StatCard = ({ label, value, color, bgColor, icon, subtext }) => (
+  <Card sx={{ 
+    bgcolor: bgColor, 
+    borderRadius: 3,
+    transition: 'transform 0.2s, box-shadow 0.2s',
+    '&:hover': {
+      transform: 'translateY(-4px)',
+      boxShadow: theme.shadows[4]
+    }
+  }}>
+    <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between">
+        <Box>
+          <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
+            {value}
+          </Typography>
+          <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>
+            {label}
+            {subtext && (
+              <span style={{ marginLeft: '8px', fontSize: '0.75rem', opacity: 0.7 }}>
+                | {subtext}
+              </span>
+            )}
+          </Typography>
+        </Box>
+        {icon}
+      </Stack>
+    </CardContent>
+  </Card>
+);
 
   // Format display names
   const formattedDistrict = districtName?.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
@@ -435,7 +440,14 @@ function ZoneClusterReport() {
               <StatCard label="Total Zones" value={stats.total} color="#1565c0" bgColor={alpha('#1565c0', 0.08)} icon={<StoreIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />} />
             </Grid>
             <Grid item xs={12} sm={6} md={2.4}>
-              <StatCard label="Completed" value={stats.completed} color="#2e7d32" bgColor={alpha('#2e7d32', 0.08)} icon={<CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />} />
+              <StatCard 
+                label="Completed" 
+                value={stats.completed} 
+                color="#2e7d32" 
+                bgColor={alpha('#2e7d32', 0.08)} 
+                icon={<CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />}
+                subtext="Area: 32 cents"
+              />
             </Grid>
             <Grid item xs={12} sm={6} md={2.4}>
               <StatCard label="Ongoing" value={stats.ongoing} color="#ed6c02" bgColor={alpha('#ed6c02', 0.08)} icon={<PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} />} />
