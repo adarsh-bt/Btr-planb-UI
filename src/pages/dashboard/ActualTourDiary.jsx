@@ -45,42 +45,43 @@ const UserTourDiaryDetail = () => {
   const navigate = useNavigate();
 
   // ---------- Validation Helpers ----------
-  const validateDistance = (value, oldValue) => {
-    if (value === '') return '';
-    if (!/^\d*\.?\d*$/.test(value)) return oldValue;
-    if (value.length > 5) return oldValue;
-    if ((value.match(/\./g) || []).length > 1) return oldValue;
-    if (value.length > 1 && value[0] === '0' && value[1] !== '.' && !value.startsWith('0.')) {
-      return oldValue;
-    }
-  
-  const num = parseFloat(value);
-    if (!isNaN(num)) {
-      if (num <= 0 || num > 1000) return oldValue;
-      // If decimal exists, allow max 2 decimal places
-      if (value.includes('.') && value.split('.')[1]?.length > 2) return oldValue;
-    }
-    return value;
-  };
+  // ---------- Validation Helpers ----------
+const validateDistance = (value, oldValue) => {
+  if (value === '') return '';
+  if (!/^\d*\.?\d*$/.test(value)) return oldValue;
+  if (value.length > 5) return oldValue;
+  if ((value.match(/\./g) || []).length > 1) return oldValue;
+  if (value.length > 1 && value[0] === '0' && value[1] !== '.' && !value.startsWith('0.')) {
+    return oldValue;
+  }
 
-  const validateHours = (value, oldValue) => {
-    if (value === '') return '';
-    if (!/^\d*\.?\d*$/.test(value)) return oldValue;
-    if (value.length > 5) return oldValue;
-    if ((value.match(/\./g) || []).length > 1) return oldValue;
-    if (value.length > 1 && value[0] === '0' && value[1] !== '.' && !value.startsWith('0.')) {
-      return oldValue;
-    }
-  
   const num = parseFloat(value);
-    if (!isNaN(num)) {
-      if (num <= 0 || num > 24) return oldValue;
-      if (value.includes('.') && value.split('.')[1]?.length > 2) return oldValue;
-    }
-    return value;
-  };
+  if (!isNaN(num)) {
+    if (num <= 0 || num > 1000) return oldValue;
+    // If decimal exists, allow max 2 decimal places
+    if (value.includes('.') && value.split('.')[1]?.length > 2) return oldValue;
+  }
+  return value;
+}; // Added missing closing brace
 
-const validateClusterId = (value) => {
+const validateHours = (value, oldValue) => {
+  if (value === '') return '';
+  if (!/^\d*\.?\d*$/.test(value)) return oldValue;
+  if (value.length > 5) return oldValue;
+  if ((value.match(/\./g) || []).length > 1) return oldValue;
+  if (value.length > 1 && value[0] === '0' && value[1] !== '.' && !value.startsWith('0.')) {
+    return oldValue;
+  }
+
+  const num = parseFloat(value);
+  if (!isNaN(num)) {
+    if (num <= 0 || num > 24) return oldValue;
+    if (value.includes('.') && value.split('.')[1]?.length > 2) return oldValue;
+  }
+  return value;
+}; // Added missing closing brace
+
+const validateClusterId = (value, oldValue) => {
   let filtered = value.replace(/[^0-9, ]/g, '');
   filtered = filtered.replace(/,{2,}/g, ',').replace(/^,|,$/g, '');
   const parts = filtered.split(/[ ,]+/);
@@ -90,19 +91,19 @@ const validateClusterId = (value) => {
     }
   }
   return filtered;
-};
+}; // Added missing closing brace
 
 // Geo Location: max 256 chars, allow any characters but trim to limit
 const validateGeoLocation = (value) => {
   if (value.length > 256) return value.slice(0, 256);
   return value;
-};
+}; // Added missing closing brace
 
 // Remarks: max 1000 chars, preserve all characters
 const validateRemarks = (value) => {
   if (value.length > 1000) return value.slice(0, 1000);
   return value;
-};
+}; // Added missing closing brace
   
   const { userId: paramUserId, month: monthParam, year: yearParam } = location.state || {};
   const currentUserId = authservice.userid();
@@ -431,54 +432,43 @@ const handleSubmitMonth = async () => {
   };
 
   const handleEditEntry = (entry) => {
-    if (entry.reportEntryType === "SYSTEM") {
-      // SYSTEM entry - only distance and hours
-      setEditFormData({
-        id: entry.id,
-        distance: entry.distance || "",
-        hours: entry.hours || "",
-        remark: entry.remark || "",
-        reportEntryType: entry.reportEntryType,
-        // schemeId: "",
-        // purposeId: "",
-        // zoneId: "",
-        // clusterId: "",
-        // seasonId: "",
-        // landType: "",
-        // cropName: "",
-        // geoLocation: ""
-      });
+  if (entry.reportEntryType === "SYSTEM") {
+    // SYSTEM entry - only distance and hours
+    setEditFormData({
+      id: entry.id,
+      distance: entry.distance || "",
+      hours: entry.hours || "",
+      remark: entry.remark || "",
+      reportEntryType: entry.reportEntryType,
+    });
+  } else {
+    // MANUAL entry - all fields
+    setEditFormData({
+      id: entry.id,
+      distance: entry.distance || "",
+      hours: entry.hours || "",
+      remark: entry.remark || "",
+      reportEntryType: entry.reportEntryType,
+      schemeId: entry.schemesId || "",  // Removed duplicate line
+      purposeId: entry.purposeId || "",
+      zoneId: entry.zoneId || "",
+      clusterId: entry.clusterId || "",
+      seasonId: entry.seasonNo || entry.seasonId || "",
+      landType: entry.landType || "",
+      cropName: entry.cropName || "",
+      geoLocation: entry.geoLocation || ""
+    });
+    
+    // Set the scheme for edit modal and fetch purposes
+    if (entry.schemesId) {
+      setEditSelectedScheme(entry.schemesId);  // Removed duplicate line
     } else {
-      // MANUAL entry - all fields
-      setEditFormData({
-        id: entry.id,
-        distance: entry.distance || "",
-        hours: entry.hours || "",
-        remark: entry.remark || "",
-        reportEntryType: entry.reportEntryType,
-        schemeId: entry.schemesId || "",
-        schemeId: entry.schemesId || "",
-        purposeId: entry.purposeId || "",
-        zoneId: entry.zoneId || "",
-        clusterId: entry.clusterId || "",
-        seasonId: entry.seasonNo || entry.seasonId || "",
-        landType: entry.landType || "",
-        cropName: entry.cropName || "",
-        geoLocation: entry.geoLocation || ""
-      });
-      
-      // Set the scheme for edit modal and fetch purposes
-      if (entry.schemesId) {
-        setEditSelectedScheme(entry.schemesId);
-      if (entry.schemesId) {
-        setEditSelectedScheme(entry.schemesId);
-      } else {
-        // If no scheme ID, try to find scheme from purpose
-        setEditSelectedScheme("");
-      }
+      // If no scheme ID, try to find scheme from purpose
+      setEditSelectedScheme("");
     }
-    setEditModalOpen(true);
-  };
+  }
+  setEditModalOpen(true);
+};
 
   const handleSaveSystemEdit = async () => {
     if (!editFormData.distance && !editFormData.hours) {
@@ -528,7 +518,6 @@ const handleSubmitMonth = async () => {
         clusterId: Number(editFormData.clusterId),
         seasonId: editFormData.seasonId ? Number(editFormData.seasonId) : 1,
         landType: editFormData.landType,
-        geoLocation: editFormData.geoLocation || "N/A",
         geoLocation: editFormData.geoLocation || "N/A",
         remark: editFormData.remark,
         distance: editFormData.distance ? parseFloat(editFormData.distance) : null,
@@ -633,7 +622,6 @@ const handleSubmitMonth = async () => {
       clusterId: Number(manualFormData.clusterId),
       seasonId: Number(manualFormData.seasonId || 1),
       landType: manualFormData.landType,
-      geoLocation: manualFormData.geoLocation || "",
       geoLocation: manualFormData.geoLocation || "",
       remark: manualFormData.remark,
       distance: manualFormData.distance ? parseFloat(manualFormData.distance) : null,
@@ -1050,7 +1038,6 @@ const handleSubmitMonth = async () => {
       </Grid>
       <Grid item xs={12}>
         <MainCard>
-          <Box sx={{ maxWidth: '1000px', margin: '0 auto' }}> 
           <Box sx={{ maxWidth: '1000px', margin: '0 auto' }}> 
             <Box
               sx={{
@@ -1707,29 +1694,19 @@ const handleSubmitMonth = async () => {
               />
             </Grid>
             
+            // Remove the duplicate FormControl for Season
             <Grid item xs={12}>
-<FormControl fullWidth>
-<InputLabel>Season</InputLabel>
-         <Select
-            value={editFormData.seasonId}
-            onChange={(e) => setEditFormData({ ...editFormData, seasonId: e.target.value })}
-            label="Season">
-            <MenuItem value={1}>Autumn</MenuItem>
-            <MenuItem value={2}>Winter</MenuItem>
-            <MenuItem value={3}>Summer</MenuItem>
-            </Select>
-            </FormControl>
-<FormControl fullWidth>
-<InputLabel>Season</InputLabel>
-         <Select
-            value={editFormData.seasonId}
-            onChange={(e) => setEditFormData({ ...editFormData, seasonId: e.target.value })}
-            label="Season">
-            <MenuItem value={1}>Autumn</MenuItem>
-            <MenuItem value={2}>Winter</MenuItem>
-            <MenuItem value={3}>Summer</MenuItem>
-            </Select>
-            </FormControl>
+              <FormControl fullWidth>
+                <InputLabel>Season</InputLabel>
+                <Select
+                  value={editFormData.seasonId}
+                  onChange={(e) => setEditFormData({ ...editFormData, seasonId: e.target.value })}
+                  label="Season">
+                  <MenuItem value={1}>Autumn</MenuItem>
+                  <MenuItem value={2}>Winter</MenuItem>
+                  <MenuItem value={3}>Summer</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
             
             <Grid item xs={12}>
