@@ -863,12 +863,24 @@ const getUsedPurposesForEventDate = (event) => {
                             {/* Actions */}
                             <TableCell sx={{ py: 0.75, px: 1, borderBottom: cellBorderBottom, whiteSpace: 'nowrap' }}>
                                 <Tooltip title="Edit">
-                                    <IconButton size="small" onClick={() => openEditModal(event)} disabled={deleteLoading} sx={{ mr: 0.5 }}>
+                                    <IconButton size="small" onClick={(e) => {
+                                        e.stopPropagation();
+                                        openEditModal(event);
+                                        }} 
+                                    disabled={deleteLoading} sx={{ mr: 0.5 }}>
                                         <EditIcon sx={{ fontSize: 16 }} />
                                     </IconButton>
                                 </Tooltip>
                                 <Tooltip title="Delete">
-                                    <IconButton size="small" onClick={() => openDeleteDialog(event.id)} disabled={deleteLoading} color="error">
+                                    <IconButton 
+                                        size="small" 
+                                        onClick={(e) => {
+                                            e.stopPropagation(); // Add this
+                                            openDeleteDialog(event.id);
+                                        }} 
+                                        disabled={deleteLoading} 
+                                        color="error"
+                                    >
                                         <DeleteIcon sx={{ fontSize: 16 }} />
                                     </IconButton>
                                 </Tooltip>
@@ -888,7 +900,10 @@ const getUsedPurposesForEventDate = (event) => {
                                     <Tooltip title="Add another entry">
                                         <IconButton
                                             size="small"
-                                            onClick={() => openAddModal(dateKey)}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                openAddModal(dateKey);
+                                            }}
                                             sx={{
                                                 backgroundColor: '#1976d2',
                                                 color: '#fff',
@@ -1472,13 +1487,36 @@ const getUsedPurposesForEventDate = (event) => {
                     <Alert severity="info" sx={{ mt: 2 }}>
                         <Typography variant="body2">This will validate and submit all tour entries for this period.</Typography>
                     </Alert>
-                    {activeHalves && submitDialog.half === 'First Half' && activeHalves.firstHalf < currentDate.getDate() && (
+                    {/* {activeHalves && submitDialog.half === 'First Half' && activeHalves.firstHalf < currentDate.getDate() && (
                         <Alert severity="warning" sx={{ mt: 2 }}>
                             <Typography variant="body2">
                                 Note: First Half submission deadline was on {getPreviousMonth()} {activeHalves.firstHalf}. This may be marked as LATE.
                             </Typography>
                         </Alert>
-                    )}
+                    )} */}
+
+                    {activeHalves && submitDialog.half === 'First Half' && (() => {
+                        // Get the deadline date for First Half (which is in previous month)
+                        const prevMonth = new Date(currentDate);
+                        prevMonth.setMonth(currentDate.getMonth() - 1);
+                        const deadlineDate = new Date(prevMonth.getFullYear(), prevMonth.getMonth(), activeHalves.firstHalf);
+                        const today = new Date();
+                        
+                        // Check if today is after the deadline date
+                        const isLate = today > deadlineDate;
+                        
+                        if (isLate) {
+                            return (
+                                <Alert severity="warning" sx={{ mt: 2 }}>
+                                    <Typography variant="body2">
+                                        Note: First Half submission deadline was on {deadlineDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}. 
+                                        This may be marked as LATE.
+                                    </Typography>
+                                </Alert>
+                            );
+                        }
+                        return null;
+                    })()}
                     {activeHalves && submitDialog.half === 'Second Half' && activeHalves.secondHalf < currentDate.getDate() && (
                         <Alert severity="warning" sx={{ mt: 2 }}>
                             <Typography variant="body2">
