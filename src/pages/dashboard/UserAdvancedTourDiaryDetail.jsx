@@ -841,11 +841,11 @@ const renderTableView = () => {
         {/* Search Bar */}
         <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            {/* <Typography variant="h6" sx={{ fontWeight: 600 }}>
               Entry-wise Report
-            </Typography>
+            </Typography> */}
             <TextField
-              placeholder="Search by date, type, location, purpose or remarks"
+              placeholder="Search"
               size="small"
               value={searchTerm}
               onChange={(e) => {
