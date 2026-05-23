@@ -1058,9 +1058,9 @@ const getUsedPurposesForEventDate = (event) => {
                         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, marginBottom: 2, flexWrap: 'wrap' }}>
                             {[
                                 { color: theme.palette.mode === 'dark' ? '#1a2a3a' : '#2ea3ce', label: 'First Half (1–15)' },
-                                { color: theme.palette.mode === 'dark' ? '#1a3a2a' : '#53c15c', label: 'Second Half (16–end)' },
-                                { color: theme.palette.mode === 'dark' ? '#4a2a2a' : '#657116', label: 'Sunday' },
-                                { color: theme.palette.mode === 'dark' ? '#4a3a2a' : '#bb333c', label: '2nd Saturday' },
+                                { color: theme.palette.mode === 'dark' ? '#7be4af' : '#53c15c', label: 'Second Half (16–end)' },
+                                { color: theme.palette.mode === 'dark' ? '#da8383' : '#f09696', label: 'Sunday' },
+                                { color: theme.palette.mode === 'dark' ? '#8fefa9' : '#8af69a', label: '2nd Saturday' },
                             ].map(({ color, label }) => (
                                 <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                     <Box sx={{ width: 14, height: 14, backgroundColor: color, border: `1px solid ${theme.palette.divider}`, borderRadius: '3px' }} />
