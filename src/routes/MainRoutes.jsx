@@ -32,6 +32,7 @@ const BTRClassifyWrapper = Loadable(lazy(() => import('pages/functional-componen
 const ZoneDetailsWrapper = Loadable(lazy(() => import('pages/functional-components/earas/ZoneDetails/ZoneDetailsWrapper')));
 
 const ClusterForm = Loadable(lazy(() => import('pages/functional-components/earas/cluster_form')));
+
 const Keyplots = Loadable(lazy(() => import('pages/functional-components/earas/keyplots/keyplots')));
 const KeyplotsWrapper = Loadable(lazy(() => import('pages/functional-components/earas/keyplots/keyplotsWrapper')));
 
@@ -61,10 +62,13 @@ const RoleDetail = Loadable(lazy(() => import('pages/usermanage/UserManage')));
 // Approvels
 const Approvel = Loadable(lazy(() => import('pages/functional-components/approvels/approvelist')));
 const ApprovelMenu = Loadable(lazy(() => import('pages/functional-components/approvels/ApprovalMenus')));
+
 const ClusterApprovals = Loadable(lazy(() => import('pages/functional-components/approvels/Cluster_approvals')));
 
 const CCE_menus = Loadable(lazy(() => import('pages/functional-components/earas/cce_menus')));
+
 const CCE_plotlist = Loadable(lazy(() => import('pages/functional-components/earas/cce_plotlist')));
+
 const AvailableCcePlots = Loadable(lazy(() => import('pages/functional-components/earas/form1/AvailableCcePlotsTable')));
 
 // planB

@@ -38,6 +38,7 @@ import LoadingScreen from 'utils/loadingscreen'; // Ensure this path is correct
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import authservice from 'pages/authentication/services/authservice';
 import mainapi from 'api/mainapi';
+import api from 'api/api';
 
 function ClusterSeatForm({ zoneId }) {
   const [clusters, setClusters] = useState([]);
@@ -86,7 +87,7 @@ function ClusterSeatForm({ zoneId }) {
       return;
     }
 
-    axios.get(`${BASE_URL}/btr-service/cluster-api/cluster-form-status/${resolvedZoneId}`, {
+    api.get(`${BASE_URL}/btr-service/cluster-api/cluster-form-status/${resolvedZoneId}`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -244,43 +245,7 @@ console.Console
             </Grid>
 
             {/* --- Filters & Search --- */}
-            <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 3, border: '1px solid #e0e0e0' }}>
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} md={6}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <FilterList color="action" />
-                    <Typography variant="subtitle2" fontWeight="bold">Status:</Typography>
-                    <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
-                      {statuses.map((status) => (
-                        <Chip
-                          key={status}
-                          label={status}
-                          onClick={() => setSelectedStatus(status)}
-                          color={selectedStatus === status ? 'primary' : 'default'}
-                          variant={selectedStatus === status ? 'filled' : 'outlined'}
-                          size="small"
-                          sx={{ fontWeight: 600 }}
-                        />
-                      ))}
-                    </Stack>
-                  </Box>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    placeholder="Search Cluster No, Village..."
-                    size="small"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    InputProps={{
-                      startAdornment: (<InputAdornment position="start"><Search /></InputAdornment>),
-                    }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                  />
-                </Grid>
-              </Grid>
-            </Paper>
-
+        
             {/* --- Cluster Grid --- */}
             <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
               <LocalFlorist sx={{ mr: 1, color: 'primary.main' }} />
@@ -402,7 +367,7 @@ console.Console
                               const sConfig = getStatusColorConfig(sStatus);
 
                               return (
-                                <Grid item xs={4} key={seasonDef.id}>
+                                <Grid item xs={4} key={seasonDef.id} sx={{ display: 'flex', justifyContent: 'center' }}>
                                   <Tooltip title={`${seasonDef.name}: ${normalizeStatus(sStatus)}`}>
                                     <Button
                                       fullWidth
@@ -426,7 +391,7 @@ console.Console
                                         {seasonDef.icon}
                                       </Box>
                                       <Typography variant="caption" sx={{ lineHeight: 1, fontWeight: 'bold', fontSize: '0.65rem' }}>
-                                        {seasonDef.short}
+                                        {seasonDef.short}<br></br>
                                         {seasonData.status}
                                       </Typography>
                                       <Box

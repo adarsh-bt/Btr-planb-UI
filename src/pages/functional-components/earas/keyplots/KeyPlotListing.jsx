@@ -239,47 +239,47 @@ const handleUpdateEnumeratedArea = async () => {
 
   setEnumLoading(true);
 
-  try {
-    const BASE_URL = mainapi.BASE_URL;
-    const token = localStorage.getItem("token");
-    
-    const response = await fetch(
-      `${BASE_URL}/btr-service/key-plots/update-enumerated-area`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          kpId: id,
-          enumeratedArea: parseFloat(enumAreaValue),
-          remark: enumRemark,
-        }),
-      }
+try {
+
+  setEnumLoading(true);
+
+  const response = await api.post(
+    `/btr-service/key-plots/update-enumerated-area`,
+    {
+      kpId: id,
+      enumeratedArea: parseFloat(enumAreaValue),
+      remark: enumRemark,
+    }
+  );
+
+  setSnackbarMessage("Enumerated area updated successfully");
+  setSnackbarSeverity("success");
+  setSnackbarOpen(true);
+
+  setOpenEditEnumDialog(false);
+
+  // ✅ Refresh both list & modal
+  fetchKeyPlots();
+  fetchPlotDetails(id);
+
+} catch (err) {
+
+  // ✅ interceptor handles 401
+  if (err?.response?.status !== 401) {
+
+    setSnackbarMessage(
+      err.message || "Failed to update enumerated area"
     );
 
-    if (!response.ok) {
-      throw new Error("Failed to update enumerated area");
-    }
-
-    setSnackbarMessage("Enumerated area updated successfully");
-    setSnackbarSeverity("success");
-    setSnackbarOpen(true);
-
-    setOpenEditEnumDialog(false);
-
-    // Refresh both list & modal
-    fetchKeyPlots();
-    fetchPlotDetails(id);
-
-  } catch (err) {
-    setSnackbarMessage(err.message || "Failed to update enumerated area");
     setSnackbarSeverity("error");
     setSnackbarOpen(true);
-  } finally {
-    setEnumLoading(false);
   }
+
+} finally {
+
+  setEnumLoading(false);
+
+}
 };
   // Fetch keyplot data from API
   const fetchKeyPlots = useCallback(async () => {
@@ -418,43 +418,50 @@ const retryRemovalAfterCropsRemoved = async () => {
   
   setDialogLoading(true);
   
-  try {
-    const BASE_URL = mainapi.BASE_URL;
-    const token = localStorage.getItem("token");
-    const response = await fetch(
-      `${BASE_URL}/btr-service/key-plots/remove-keyPlots/${selectedRowToRemove.plot_id}`,
-      {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      }
+try {
+
+  setDialogLoading(true);
+
+  const response = await api.delete(
+    `/btr-service/key-plots/remove-keyPlots/${selectedRowToRemove.plot_id}`
+  );
+
+  // ✅ Success - remove from local state
+  setPlotData(prevData =>
+    prevData.filter(item => item.id !== selectedRowToRemove.id)
+  );
+
+  setSnackbarMessage(
+    `✅ Successfully removed KeyPlot ${selectedRowToRemove?.syNo}`
+  );
+
+  setSnackbarSeverity('success');
+  setSnackbarOpen(true);
+
+  fetchKeyPlots();
+
+  handleCloseRemoveDialog();
+
+} catch (error) {
+
+  console.error("Error during removal retry:", error);
+
+  // ✅ interceptor handles 401
+  if (error?.response?.status !== 401) {
+
+    setSnackbarMessage(
+      `Failed to remove KeyPlot: ${error.message}`
     );
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText);
-    }
-    
-    // Success - remove from local state
-    setPlotData(prevData => prevData.filter(item => item.id !== selectedRowToRemove.id));
-    
-    setSnackbarMessage(`✅ Successfully removed KeyPlot ${selectedRowToRemove?.syNo}`);
-    setSnackbarSeverity('success');
-    setSnackbarOpen(true);
-    
-    fetchKeyPlots();
-    handleCloseRemoveDialog();
-    
-  } catch (error) {
-    console.error("Error during removal retry:", error);
-    setSnackbarMessage(`Failed to remove KeyPlot: ${error.message}`);
+
     setSnackbarSeverity('error');
     setSnackbarOpen(true);
-  } finally {
-    setDialogLoading(false);
   }
+
+} finally {
+
+  setDialogLoading(false);
+
+}
 };
   const hasDuplicateWithExisting = () => {
   const currentValues = plotData.map(row => row.cluster_number);
@@ -483,40 +490,45 @@ const hasAnyErrors = () => {
   return Object.values(clusterErrors).some(err => err && err !== "");
 };
   // Fetch individual plot details
-  const fetchPlotDetails = async (plotId) => {
+const fetchPlotDetails = async (plotId) => {
+
+  try {
+
     setPlotDetailsLoading(true);
     setPlotDetailsError(null);
-    
-    try {
-      const BASE_URL = mainapi.BASE_URL;
-      const token = localStorage.getItem('token')
-      const response = await fetch(`${BASE_URL}/btr-service/key-plots/get-keyplot/${plotId}`,{
-         headers: {
-          Authorization: `Bearer ${token}` // Add token in Authorization header
-        }
-      }
-        
-      );
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch plot details (${response.status})`);
-      }
-      
-      const data = await response.json();
-      
-      setPlotDetailsData(data.payload);
-      
-      
-    } catch (err) {
+
+    const response = await api.get(
+      `/btr-service/key-plots/get-keyplot/${plotId}`
+    );
+
+    setPlotDetailsData(response.data.payload);
+
+  } catch (err) {
+
+    // ✅ interceptor handles 401
+    if (err?.response?.status !== 401) {
+
       console.error('Error fetching plot details:', err);
-      setPlotDetailsError(`Failed to fetch plot details: ${err.message}`);
-      setSnackbarMessage(`Error fetching plot details: ${err.message}`);
+
+      setPlotDetailsError(
+        `Failed to fetch plot details: ${err.message}`
+      );
+
+      setSnackbarMessage(
+        `Error fetching plot details: ${err.message}`
+      );
+
       setSnackbarSeverity('error');
+
       setSnackbarOpen(true);
-    } finally {
-      setPlotDetailsLoading(false);
     }
-  };
+
+  } finally {
+
+    setPlotDetailsLoading(false);
+
+  }
+};
 
   useEffect(() => {
     fetchKeyPlots();
@@ -647,68 +659,106 @@ const handleConfirmRemoval = async () => {
 
   setDialogLoading(true);
   
-  try {
-    const BASE_URL = mainapi.BASE_URL;
-    const token = localStorage.getItem("token");
-    const response = await fetch(
-      `${BASE_URL}/btr-service/key-plots/remove-keyPlots/${selectedRowToRemove.plot_id}`,
-      {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      }
+ try {
+
+  setDialogLoading(true);
+
+  const response = await api.delete(
+    `/btr-service/key-plots/remove-keyPlots/${selectedRowToRemove.plot_id}`
+  );
+
+  // ✅ Success - remove from local state
+  setPlotData(prevData =>
+    prevData.filter(item => item.id !== selectedRowToRemove.id)
+  );
+
+  setSnackbarMessage(
+    `✅ Successfully removed KeyPlot ${selectedRowToRemove?.syNo}`
+  );
+
+  setSnackbarSeverity('success');
+  setSnackbarOpen(true);
+
+  fetchKeyPlots();
+
+  handleCloseRemoveDialog();
+
+} catch (error) {
+
+  console.error("Error during keyplot removal:", error);
+
+  // ✅ interceptor handles 401
+  if (error?.response?.status === 401) {
+    return;
+  }
+
+  let errorMessage =
+    error.response?.data ||
+    error.message ||
+    "Failed to remove keyplot";
+
+  // ✅ Check if error is about crops existing
+  if (
+    errorMessage.includes("Crops exist") ||
+    errorMessage.includes("remove crops first")
+  ) {
+
+    const clusterId = selectedRowToRemove.id;
+
+    await fetchCropsForCluster(clusterId);
+
+    setRemovalValidationError(errorMessage);
+
+  }
+
+  // ✅ Cluster status validation
+  else if (errorMessage.includes("cluster status is")) {
+
+    const statusMatch = errorMessage.match(
+      /status is:?\s*([^\.]+)/i
     );
 
-    const responseText = await response.text();
-    
-    if (!response.ok) {
-      throw new Error(responseText || "Failed to remove keyplot");
-    }
-    
-    // Success - remove from local state
-    setPlotData(prevData => prevData.filter(item => item.id !== selectedRowToRemove.id));
-    
-    setSnackbarMessage(`✅ Successfully removed KeyPlot ${selectedRowToRemove?.syNo}`);
-    setSnackbarSeverity('success');
-    setSnackbarOpen(true);
-    
-    fetchKeyPlots();
-    handleCloseRemoveDialog();
-    
-  } catch (error) {
-    console.error("Error during keyplot removal:", error);
-    
-    let errorMessage = error.message;
-    
-    // Check if error is about crops existing
-    if (errorMessage.includes("Crops exist") || errorMessage.includes("remove crops first")) {
-      // Fetch and show crops list
-      const clusterId = selectedRowToRemove.id; // Using cluster ID
-      await fetchCropsForCluster(clusterId);
-      setRemovalValidationError(errorMessage);
-    } 
-    else if (errorMessage.includes("cluster status is")) {
-      const statusMatch = errorMessage.match(/status is:?\s*([^\.]+)/i);
-      const status = statusMatch ? statusMatch[1].trim() : '';
-      errorMessage = `❌ Cannot remove this KeyPlot because the cluster status is "${status}".\n\nOnly clusters with status "Not Started" can be removed.`;
-      setRemovalValidationError(errorMessage);
-    } 
-    else if (errorMessage.includes("KeyPlot not found")) {
-      errorMessage = "❌ KeyPlot not found. It may have been already removed.";
-      setRemovalValidationError(errorMessage);
-    } 
-    else {
-      errorMessage = `❌ Failed to remove keyplot: ${errorMessage}`;
-      setSnackbarMessage(errorMessage);
-      setSnackbarSeverity('error');
-      setSnackbarOpen(true);
-      handleCloseRemoveDialog();
-    }
-  } finally {
-    setDialogLoading(false);
+    const status = statusMatch
+      ? statusMatch[1].trim()
+      : '';
+
+    errorMessage =
+      `❌ Cannot remove this KeyPlot because the cluster status is "${status}".\n\nOnly clusters with status "Not Started" can be removed.`;
+
+    setRemovalValidationError(errorMessage);
+
   }
+
+  // ✅ Not found validation
+  else if (errorMessage.includes("KeyPlot not found")) {
+
+    errorMessage =
+      "❌ KeyPlot not found. It may have been already removed.";
+
+    setRemovalValidationError(errorMessage);
+
+  }
+
+  // ✅ Generic error
+  else {
+
+    errorMessage =
+      `❌ Failed to remove keyplot: ${errorMessage}`;
+
+    setSnackbarMessage(errorMessage);
+
+    setSnackbarSeverity('error');
+
+    setSnackbarOpen(true);
+
+    handleCloseRemoveDialog();
+  }
+
+} finally {
+
+  setDialogLoading(false);
+
+}
 };
 
 
@@ -785,45 +835,46 @@ const handleConfirmRemoval = async () => {
     return;
   }
   try {
-    const BASE_URL = mainapi.BASE_URL;
-    const token = localStorage.getItem("token");
 
   const updates = Object.keys(clusterChanges)
-  .filter(id => clusterChanges[id] && !isNaN(clusterChanges[id]))
-  .map(id => ({
-    clusterId: parseInt(id),
-    newClusterNumber: clusterChanges[id]
-  }));
+    .filter(id => clusterChanges[id] && !isNaN(clusterChanges[id]))
+    .map(id => ({
+      clusterId: parseInt(id),
+      newClusterNumber: clusterChanges[id]
+    }));
 
-    const response = await fetch(
-      `${BASE_URL}/btr-service/cluster-api/cluster/number-update`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(updates),
-      }
+  const response = await api.put(
+    `/btr-service/cluster-api/cluster/number-update`,
+    updates
+  );
+
+  setSnackbarMessage("Cluster numbers updated successfully");
+
+  setSnackbarSeverity("success");
+
+  setSnackbarOpen(true);
+
+  setClusterChanges({}); // reset
+
+  fetchKeyPlots(); // refresh data
+
+} catch (err) {
+
+  // ✅ interceptor handles 401
+  if (err?.response?.status !== 401) {
+
+    setSnackbarMessage(
+      err.response?.data ||
+      err.message ||
+      "Failed to update clusters"
     );
 
-    if (!response.ok) {
-      throw new Error("Failed to update clusters");
-    }
-
-    setSnackbarMessage("Cluster numbers updated successfully");
-    setSnackbarSeverity("success");
-    setSnackbarOpen(true);
-
-    setClusterChanges({}); // reset
-
-    fetchKeyPlots(); // refresh data
-
-  } catch (err) {
-    setSnackbarMessage(err.message);
     setSnackbarSeverity("error");
+
     setSnackbarOpen(true);
   }
+
+}
 };
 const handleClusterChange = (clusterId, newValue) => {
   // Allow only numbers
@@ -2034,6 +2085,7 @@ const hasDuplicateClusterNumbers = () => {
                       <TableRow key={crop.cropId}>
                         <TableCell>{index + 1}</TableCell>
                         <TableCell>{crop.cropName}</TableCell>
+                        <TableCell align="center">  {crop.IsActive}</TableCell>
                       
                         <TableCell align="center">
                           <TextField
@@ -2067,70 +2119,92 @@ const hasDuplicateClusterNumbers = () => {
         : c
     ));
     
-    try {
-      const BASE_URL = mainapi.BASE_URL;
-      const token = localStorage.getItem("token");
-      const userId = authservice.userid(); // Assuming you have user info in auth state
-      
-      const response = await fetch(
-        `${BASE_URL}/btr-service/key-plots/remove-crop`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            cropId: crop.cropId,
-            clusterId: selectedRowToRemove?.id, // Using cluster ID from selected row
-            cceAvailablePlotId: crop.cceAvailablePlotId,
-            rejectionReason: crop.remark || "Removed by user", // Using remark as rejection reason
-            rejectedBy: userId
-          })
-        }
-      );
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to remove crop");
+try {
+
+  const userId = authservice.userid();
+
+  const response = await api.delete(
+    `/btr-service/key-plots/remove-crop`,
+    {
+      data: {
+        cropId: crop.cropId,
+        clusterId: selectedRowToRemove?.id,
+        cceAvailablePlotId: crop.cceAvailablePlotId,
+        rejectionReason: crop.remark || "Removed by user",
+        rejectedBy: userId
       }
-      
-      // Remove crop from list
-      setCropsList(prev => prev.filter(c => c.cropId !== crop.cropId));
-      
-      setSnackbarMessage(`✅ ${crop.cropName} removed successfully`);
-      setSnackbarSeverity('success');
-      setSnackbarOpen(true);
-      
-      // If no crops left, show success and close dialog after refresh
-    // If no crops left, show message and close crops dialog
-if (cropsList.length === 1) {
-  setSnackbarMessage(`All crops removed. You can now delete the KeyPlot.`);
-  setSnackbarSeverity('success');
-  setSnackbarOpen(true);
-  
-  // Just close crops dialog, don't auto-delete KeyPlot
-  setTimeout(() => {
-    setShowCropsList(false);
-    setCropsList([]);
-    setRemovalValidationError(''); // Clear any errors
-    // Dialog will go back to normal confirmation state
-  }, 1500);
-}
-      
-    } catch (err) {
-      console.error("Error removing crop:", err);
-      setSnackbarMessage(`Failed to remove ${crop.cropName}: ${err.message}`);
-      setSnackbarSeverity('error');
-      setSnackbarOpen(true);
-    } finally {
-      setCropsList(prev => prev.map(c => 
-        c.cropId === crop.cropId 
-          ? { ...c, removing: false }
-          : c
-      ));
     }
+  );
+
+  const data = response.data;
+
+  // ✅ Remove crop from list
+  setCropsList(prev =>
+    prev.filter(c => c.cropId !== crop.cropId)
+  );
+
+  setSnackbarMessage(
+    `✅ ${crop.cropName} removed successfully`
+  );
+
+  setSnackbarSeverity('success');
+
+  setSnackbarOpen(true);
+
+  // ✅ If no crops left
+  if (cropsList.length === 1) {
+
+    setSnackbarMessage(
+      `All crops removed. You can now delete the KeyPlot.`
+    );
+
+    setSnackbarSeverity('success');
+
+    setSnackbarOpen(true);
+
+    setTimeout(() => {
+
+      setShowCropsList(false);
+
+      setCropsList([]);
+
+      setRemovalValidationError('');
+
+    }, 1500);
+  }
+
+} catch (err) {
+
+  console.error("Error removing crop:", err);
+
+  // ✅ interceptor handles 401
+  if (err?.response?.status !== 401) {
+
+    const errorMessage =
+      err.response?.data?.message ||
+      err.message ||
+      `Failed to remove ${crop.cropName}`;
+
+    setSnackbarMessage(
+      `Failed to remove ${crop.cropName}: ${errorMessage}`
+    );
+
+    setSnackbarSeverity('error');
+
+    setSnackbarOpen(true);
+  }
+
+} finally {
+
+  setCropsList(prev =>
+    prev.map(c =>
+      c.cropId === crop.cropId
+        ? { ...c, removing: false }
+        : c
+    )
+  );
+
+}
   }}
   startIcon={crop.removing ? <CircularProgress size={16} /> : <DeleteIcon />}
 >
@@ -2265,64 +2339,89 @@ if (cropsList.length === 1) {
                                 : c
                             ));
                             
-                            try {
-                              const BASE_URL = mainapi.BASE_URL;
-                              const token = localStorage.getItem("token");
-                              const userId = authservice.userid(); // Assuming you have user info in auth state
-                              
-                              const response = await fetch(
-                                `${BASE_URL}/btr-service/key-plots/remove-crop`,
-                                {
-                                  method: "DELETE",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                    Authorization: `Bearer ${token}`,
-                                  },
-                                  body: JSON.stringify({
-                                    cropId: crop.cropId,
-                                    clusterId: selectedRowToRemove?.id,
-                                    cceAvailablePlotId: crop.cceAvailablePlotId,
-                                    rejectionReason: crop.remark || "Removed by user",
-                                    rejectedBy: userId
-                                  })
-                                }
-                              );
-                              
-                              const data = await response.json();
-                              
-                              if (!response.ok) {
-                                throw new Error(data.message || "Failed to remove crop");
-                              }
-                              
-                              setCropsList(prev => prev.filter(c => c.cropId !== crop.cropId));
-                              setSnackbarMessage(`✅ ${crop.cropName} removed successfully`);
-                              setSnackbarSeverity('success');
-                              setSnackbarOpen(true);
-                              
-                              if (cropsList.length === 1) {
-                                setSnackbarMessage(`All crops removed. You can now delete the KeyPlot.`);
-                                setSnackbarSeverity('success');
-                                setSnackbarOpen(true);
-                                
-                                setTimeout(() => {
-                                  setShowCropsList(false);
-                                  setCropsList([]);
-                                  retryRemovalAfterCropsRemoved();
-                                }, 1500);
-                              }
-                              
-                            } catch (err) {
-                              console.error("Error removing crop:", err);
-                              setSnackbarMessage(`Failed to remove ${crop.cropName}: ${err.message}`);
-                              setSnackbarSeverity('error');
-                              setSnackbarOpen(true);
-                            } finally {
-                              setCropsList(prev => prev.map(c => 
-                                c.cropId === crop.cropId 
-                                  ? { ...c, removing: false }
-                                  : c
-                              ));
-                            }
+                          try {
+
+  const userId = authservice.userid();
+
+  const response = await api.delete(
+    `/btr-service/key-plots/remove-crop`,
+    {
+      data: {
+        cropId: crop.cropId,
+        clusterId: selectedRowToRemove?.id,
+        cceAvailablePlotId: crop.cceAvailablePlotId,
+        rejectionReason: crop.remark || "Removed by user",
+        rejectedBy: userId
+      }
+    }
+  );
+
+  const data = response.data;
+
+  setCropsList(prev =>
+    prev.filter(c => c.cropId !== crop.cropId)
+  );
+
+  setSnackbarMessage(
+    `✅ ${crop.cropName} removed successfully`
+  );
+
+  setSnackbarSeverity('success');
+
+  setSnackbarOpen(true);
+
+  if (cropsList.length === 1) {
+
+    setSnackbarMessage(
+      `All crops removed. You can now delete the KeyPlot.`
+    );
+
+    setSnackbarSeverity('success');
+
+    setSnackbarOpen(true);
+
+    setTimeout(() => {
+
+      setShowCropsList(false);
+
+      setCropsList([]);
+
+      retryRemovalAfterCropsRemoved();
+
+    }, 1500);
+  }
+
+} catch (err) {
+
+  console.error("Error removing crop:", err);
+
+  // ✅ interceptor handles 401
+  if (err?.response?.status !== 401) {
+
+    const errorMessage =
+      err.response?.data?.message ||
+      err.message ||
+      `Failed to remove ${crop.cropName}`;
+
+    setSnackbarMessage(
+      `Failed to remove ${crop.cropName}: ${errorMessage}`
+    );
+
+    setSnackbarSeverity('error');
+
+    setSnackbarOpen(true);
+  }
+
+} finally {
+
+  setCropsList(prev =>
+    prev.map(c =>
+      c.cropId === crop.cropId
+        ? { ...c, removing: false }
+        : c
+    )
+  );
+}
                           }}
                           startIcon={crop.removing ? <CircularProgress size={16} /> : <DeleteIcon />}
                         >

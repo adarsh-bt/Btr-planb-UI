@@ -2607,11 +2607,13 @@ const getMissingLabels = () => {
                   });
 
                   // Add API crops
-                  if (apiCropsData && apiCropsData.crops) {
-                    apiCropsData.crops.forEach(crop => {
-                      allCrops.push(crop.cropName);
-                    });
-                  }
+                    if (apiCropsData && apiCropsData.crops) {
+                                            apiCropsData.crops.forEach(crop => {
+                                                 if(crop.isActive) {
+                                                allCrops.push(crop.cropName);
+                                                }
+                                            });
+                                        }
 
                   // Count occurrences of each crop
                   const cropCounts = {};
