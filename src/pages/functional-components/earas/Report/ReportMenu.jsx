@@ -217,7 +217,7 @@ function ReportMenu() {
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                to="/schemes/earas/cce/Form2"
+                to="/schemes/earas/cce/KeralaForm2"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',

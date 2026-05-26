@@ -393,7 +393,7 @@ const filtered = plotData.filter((row) =>
           <Breadcrumb></Breadcrumb>
     <Box sx={{ p: 3, maxWidth: 1200, margin: '0 auto' }}>
       <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
-        KeyPlot Detailssss
+        KeyPlot Details
       </Typography>
 
             {loading && (
