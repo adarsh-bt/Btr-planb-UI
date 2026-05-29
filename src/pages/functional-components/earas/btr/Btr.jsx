@@ -390,9 +390,7 @@ if (newTotCent < totalEnumeratedArea) {
           ...item,
           indexOffset: (page - 1) * size + idx + 1, // 1-based serial across pages
         }));
-        setData(indexedData);
-
-        
+        setData(indexedData);        
         setData(indexedData);
         setTotalRecords(response.payload.totalCount);
         setTotalWetArea(response.payload.totalWetArea);
@@ -542,9 +540,8 @@ const handleSort = (column, direction) => {
               size="small"
               style={{ width: '200px' }}
               inputProps={{
-              maxLength: 100 // Limit to 10 characters
+              maxLength: 100
                 }}
-              helperText={`${filterText.length}/100 characters`} // Show character count
             />
           </Stack>
         </Paper>

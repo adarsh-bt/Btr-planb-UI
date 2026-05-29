@@ -546,32 +546,33 @@ const KeyPlotEntryNonBtr = () => {
     fetchKeyplotLimit();
   }, [BASE_URL]);
 
-  const fetchKeyplotLimit = async () => {
-    const savedZone = localStorage.getItem('activeZone');
-    if (!savedZone) return;
+const fetchKeyplotLimit = async () => {
+  const savedZone = localStorage.getItem('activeZone');
+  if (!savedZone) return;
 
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(
-        `${BASE_URL}/btr-service/api/keyplots/limit-status/${savedZone}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(
+      `${BASE_URL}/btr-service/api/keyplots/limit-status/${savedZone}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
-      if (!res.ok) throw new Error('Failed to fetch keyplot limit');
+    if (!res.ok) throw new Error('Failed to fetch keyplot limit');
 
-      const data = await res.json();
-      setKeyplotLimit(data);
-      setRemainingKeyplots(data.remainingKeyplots);
-    } catch (err) {
-      console.error(err);
-      toast.error('Unable to refresh keyplot limit');
-    }
-  };
+    const data = await res.json();
+    setKeyplotLimit(data);
+    setRemainingKeyplots(data.remainingKeyplots);
+  } catch (err) {
+    console.error(err);
+    toast.error('Unable to refresh keyplot limit');
+  }
+};
+
 
   const handleActualSave = async () => {
     if (totalKeyplots > remainingKeyplots) {

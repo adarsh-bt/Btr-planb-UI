@@ -161,7 +161,7 @@ const UserAdvancedTourDiarySubmissions = () => {
             </Button>
             
             <Typography variant="h4" sx={{ color: "#04255e", fontWeight: "bold" }}>
-              Advanced Tour Diary Submissions
+              ATP Submissions
             </Typography>
             
             <FormControl sx={{ minWidth: 120 }} size="small">

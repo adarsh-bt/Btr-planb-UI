@@ -287,11 +287,7 @@ try {
     setError(null);
     setFetchError(null);
 
-
-
-
 try {
-
   if (!resolvedZoneId || resolvedZoneId === "null") {
     setError("No zones are assigned to you. Please contact your administrator.");
     setZonestatus(true);
@@ -375,24 +371,8 @@ try {
 const fetchCropsForCluster = async (clusterId) => {
   setCropsLoading(true);
   try {
-    const BASE_URL = mainapi.BASE_URL;
-    const token = localStorage.getItem("token");
-    
-    const response = await fetch(
-      `${BASE_URL}/earas-form1-entry/available-cce-plot-details/fetch-cce-crops/${clusterId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-    
-    if (!response.ok) {
-      throw new Error("Failed to fetch crops");
-    }
-    
-    const data = await response.json();
-    // Add removing property to each crop
+    const response = await api.get(`/earas-form1-entry/available-cce-plot-details/fetch-cce-crops/${clusterId}`);
+    const data = response.data;
     const cropsWithStatus = (data.payload || []).map(crop => ({
       ...crop,
       removing: false,
@@ -402,7 +382,7 @@ const fetchCropsForCluster = async (clusterId) => {
     setShowCropsList(true);
   } catch (err) {
     console.error("Error fetching crops:", err);
-    setSnackbarMessage("Failed to fetch crops list");
+    setSnackbarMessage(err.response?.data?.message || "Failed to fetch crops list");
     setSnackbarSeverity("error");
     setSnackbarOpen(true);
   } finally {
@@ -762,12 +742,15 @@ const handleConfirmRemoval = async () => {
 };
 
 
-  const handleCloseRemoveDialog = () => {
+ const handleCloseRemoveDialog = () => {
     setOpenRemoveDialog(false);
     setSelectedRowToRemove(null);
     setReason('');
     setSelectedPresetReason('');
     setReasonError(false);
+    setShowCropsList(false);
+    setCropsList([]);
+    setRemovalValidationError('');
   };
 
   const handleReasonChange = (event) => {
@@ -786,46 +769,6 @@ const handleConfirmRemoval = async () => {
     }
   };
 
-  // const handleConfirmRemoval = async () => {
-  //   let finalReason = selectedPresetReason;
-
-  //   if (selectedPresetReason === 'Other') {
-  //     finalReason = reason.trim();
-  //   }
-
-  //   if (finalReason === '') {
-  //     setReasonError(true);
-  //     return;
-  //   }
-
-  //   if (!selectedRowToRemove || !selectedRowToRemove.id) {
-  //     console.error('No row selected for removal or row has no ID.');
-  //     handleCloseRemoveDialog();
-  //     return;
-  //   }
-
-  //   setDialogLoading(true);
-    
-  //   try {
-  //     // Simulate API call for removal
-  //     await new Promise(resolve => setTimeout(resolve, 1000));
-      
-  //     setPlotData(prevData => prevData.filter(item => item.id !== selectedRowToRemove.id));
-      
-  //     setSnackbarMessage(`Removed Sy.No: ${selectedRowToRemove?.syNo} successfully with reason: "${finalReason}"`);
-  //     setSnackbarSeverity('success');
-  //     setSnackbarOpen(true);
-      
-  //   } catch (error) {
-  //     console.error("Error during keyplot removal:", error);
-  //     setSnackbarMessage("Failed to remove keyplot. Please try again.");
-  //     setSnackbarSeverity('error');
-  //     setSnackbarOpen(true);
-  //   } finally {
-  //     setDialogLoading(false);
-  //     handleCloseRemoveDialog();
-  //   }
-  // };
 
   const handleSaveClusterChanges = async () => {
      if (hasDuplicateClusters() || hasAnyErrors()) {

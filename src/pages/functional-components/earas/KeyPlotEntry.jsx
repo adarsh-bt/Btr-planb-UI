@@ -36,6 +36,7 @@ import { toast } from "react-toastify";
 import mainapi from "api/mainapi";
 import authservice from "pages/authentication/services/authservice";
 import Breadcrumb from "routes/Breadcrumb";
+import api from "api/api";
 
 const landTypeOptions = ["Wet", "Dry"];
 const TOTAL_REQUIRED = 100;
@@ -96,21 +97,21 @@ const [remainingKeyplots, setRemainingKeyplots] = useState(0);
    */
 
 
-  const getUserInfo = () => {
-    if (typeof window === "undefined") return null;
-    try {
-      const userItem = localStorage.getItem("user");
-      return userItem ? JSON.parse(userItem) : null;
-    } catch (error) {
-      console.error("Failed to parse user info from localStorage:", error);
+  // const getUserInfo = () => {
+  //   if (typeof window === "undefined") return null;
+  //   try {
+  //     const userItem = localStorage.getItem("user");
+  //     return userItem ? JSON.parse(userItem) : null;
+  //   } catch (error) {
+  //     console.error("Failed to parse user info from localStorage:", error);
    
-      return null;
-    }
-  };
+  //     return null;
+  //   }
+  // };
 
   // Read IDs from localStorage
   const zoneId = typeof window !== "undefined" ? localStorage.getItem("activeZone") : null;
-  const userInfo = getUserInfo();
+  // const userInfo = getUserInfo();
   const userId = authservice.userid();
 
   // Auto-close success modal after 3 seconds
@@ -128,39 +129,45 @@ const [remainingKeyplots, setRemainingKeyplots] = useState(0);
     };
   }, [showSuccessModal]);
 useEffect(() => {
-  const savedZone = localStorage.getItem('activeZone');
-  if (!savedZone) return;
 
- const fetchKeyplotLimit = async () => {
-  const savedZone = localStorage.getItem('activeZone');
-  if (!savedZone) return;
+  const fetchKeyplotLimit = async () => {
 
-  try {
-    const token = localStorage.getItem('token');
-    const res = await fetch(
-      `${BASE_URL}/btr-service/api/keyplots/limit-status/${savedZone}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const savedZone = authservice.getzone();
 
-    if (!res.ok) throw new Error('Failed to fetch keyplot limit');
+    const agriYear =
+      localStorage.getItem("activeAgriYear");
 
-    const data = await res.json();
-    setKeyplotLimit(data);
-    setRemainingKeyplots(data.remainingKeyplots);
-  } catch (err) {
-    console.error(err);
-    toast.error('Unable to refresh keyplot limit');
-  }
-};
+    if (!savedZone || !agriYear) return;
 
+    try {
+
+      const response = await api.get(
+        `/btr-service/api/keyplots/limit-status/${savedZone}`,
+        {
+          params: {
+            agriYear: agriYear
+          }
+        }
+      );
+
+      const data = response.data;
+
+      setKeyplotLimit(data);
+      setRemainingKeyplots(data.remainingKeyplots);
+
+    } catch (err) {
+
+      console.error(err);
+
+      toast.error(
+        "Unable to refresh keyplot limit"
+      );
+    }
+  };
 
   fetchKeyplotLimit();
-}, [BASE_URL]);
+
+}, []);
 
   // Auto-close error modal after 4 seconds
   useEffect(() => {
@@ -484,6 +491,7 @@ const fetchKeyplotLimit = async () => {
     resbdno: row.subDivNo,
     totCent: row.area,
     btrtype: 1,
+    agriYear:authservice.agriyear()
   };
 }).filter(Boolean);
 
@@ -583,7 +591,9 @@ const fetchKeyplotLimit = async () => {
          await fetchKeyplotLimit();
         setFieldErrors({});
         clearValidationErrors();
-        
+     setTimeout(() => {
+    window.location.reload();
+  }, 1500);
       } else {
         toast.warning("Unexpected response format from server.");
         setShowErrorModal(true);
@@ -594,6 +604,7 @@ const fetchKeyplotLimit = async () => {
       setShowErrorModal(true);
     } finally {
       setIsSaving(false);
+      
     }
   };
 

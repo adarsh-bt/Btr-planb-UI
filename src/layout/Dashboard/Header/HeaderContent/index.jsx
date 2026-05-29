@@ -11,6 +11,7 @@ import Notification from './Notification';
 import MobileSection from './MobileSection';
 import ZoneOptions from './ZoneOption';
 import authservice from 'pages/authentication/services/authservice';
+import AgriYearOptions from './AgriYearOptions';
 
 // project import
 // import { GithubOutlined } from '@ant-design/icons';
@@ -35,6 +36,7 @@ export default function HeaderContent() {
       >
         <GithubOutlined />
       </IconButton> */}
+      <AgriYearOptions />
       {role === "Field Data Collector" && <ZoneOptions />}
 
       {/* <Notification /> */}
