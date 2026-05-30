@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
@@ -11,7 +12,16 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
 
-function ReportMenu() {
+function ReportMenu({ onReportNavigation, officeInfo }) {
+  const navigate = useNavigate();
+
+  const handleClusterReportClick = (e) => {
+    e.preventDefault();
+    if (onReportNavigation) {
+      onReportNavigation('/kerala_cluster_report');
+    }
+  };
+  
   return (
     <Grid container spacing={3}>
       <Grid item xs={12}>
@@ -29,7 +39,7 @@ function ReportMenu() {
             <Grid item xs={12} sm={6} md={4} lg={3}>
               <Card
                 component={Link}
-                to="/kerala_cluster_report"
+                onClick={handleClusterReportClick}
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',
