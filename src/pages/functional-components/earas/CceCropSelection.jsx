@@ -267,7 +267,7 @@ const agriculturalYear = `AY ${currentYear} - ${currentYear + 1}`;
       {/* Top Section */}
       {/* <Paper sx={{ p: 4, mb: 4, boxShadow: 6, borderRadius: 3 }}>
         <Typography variant="h5" gutterBottom fontWeight="bold" sx={{ color: themeColor }}>
-          🌱 CCE Crop Selection
+          🌱 Crops Management 
         </Typography>
         <Divider sx={{ mb: 3 }} />
         <Grid container spacing={3}>

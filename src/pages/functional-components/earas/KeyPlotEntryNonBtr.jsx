@@ -635,13 +635,14 @@ const KeyPlotEntryNonBtr = () => {
               dcode: districtInfo.distId,
               tcode: talukInfo[0].revenueTalukId,
               vcode: villageData.vcode,
+              zoneId: parseInt(zoneId),
               bcode: row.villageBlock || "",
               lbcode: localBodyData.lbcode,
               ltype: row.landType || "",
               resvno: row.surveyNo ? parseInt(row.surveyNo) : null,
               resbdno: row.subDivNo || "",
               lsgcode: villageData.lsgcode,
-              zoneId: parseInt(zoneId),
+             
               user_id: userId,
               totCent: row.area ? parseFloat(row.area) : 0.0,
               btrtype: btrTypeId,
@@ -1265,14 +1266,14 @@ const getTableHeaders = (lbId, villageName) => {
                                   <TextField
                                     value={row.oldsubno ?? ""}
                                     onChange={(e) => {
-                                      const v = (e.target.value || "").slice(0, 5);
+                                      const v = (e.target.value || "").slice(0, 10);
                                       handleChange(lb.id, currentVillageName, row.id, "oldsubno", v);
                                     }}
                                     placeholder="Old Sub No."
                                       sx={{ minWidth: 100 }}
                                     inputProps={{
-                                      maxLength: 5,
-                                      title: "Up to 5 characters",
+                                      maxLength: 10,
+                                      title: "Up to 10 characters",
                                     }}
                                     required={requiredFields.some((f) => f.field === "oldsubno")}
                                     error={
@@ -1336,7 +1337,7 @@ const getTableHeaders = (lbId, villageName) => {
                                     handleChange(lb.id, currentVillageName, row.id, "area", v);
                                   } else {
                                     const parts = v.split(".");
-                                    let intPart = (parts[0] || "").slice(0, 5);
+                                    let intPart = (parts[0] || "").slice(0, 7);
                                     let decPart = parts[1] !== undefined ? parts[1].slice(0, 2) : undefined;
                                     const coerced = decPart !== undefined ? `${intPart}.${decPart}` : intPart;
                                     handleChange(lb.id, currentVillageName, row.id, "area", coerced);

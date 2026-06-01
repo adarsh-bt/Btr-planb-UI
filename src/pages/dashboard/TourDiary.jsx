@@ -48,19 +48,6 @@ import authservice from 'pages/authentication/services/authservice';
 const TourDiary = () => {
     const theme = useTheme();
 
-        const validatePlace = (value) => {
-            let filtered = value.replace(/[^a-zA-Z0-9\s.,\-/#'"()\[\]{}@:;!?*+=~`|$%^&]/g, '');
-            if (filtered.length > 255) {
-                filtered = filtered.slice(0, 255);
-            }
-            return filtered;
-            };
-
-        const validateRemarks = (value) => {
-        if (value.length > 1000) return value.slice(0, 1000);
-        return value;
-        };
-
     // ============================ STATE MANAGEMENT ============================
     // Date states
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -260,17 +247,17 @@ const TourDiary = () => {
             const response = await tourDiaryService.getAdvancedTourByFilter(userId, month, year);
             
             if (response && response.payload && Array.isArray(response.payload)) {
-                console.log("Fetched tour data:", response.payload);
+     
                 setTourEvents(response.payload);
             } 
             else if (Array.isArray(response)) {
-                console.log("Fetched tour data (direct array):", response);
+              
                 setTourEvents(response);
             } 
             else if (response && response.message) {
                 console.error("Error fetching tour data:", response.message);
                 setTourEvents([]);
-                showNotification('error', response.message);
+                // showNotification('error', response.message);
             } 
             else {
                 console.error("Unexpected response format:", response);
@@ -287,6 +274,7 @@ const TourDiary = () => {
 
     const fetchSchemes = async () => {
         const data = await tourDiaryService.getAllSchemes();
+        console.log("Fetched schemes:", data);
         if (!data.message) {
             setSchemes(data);
         }
@@ -327,7 +315,7 @@ const TourDiary = () => {
             );
             
             setAllPurposes(uniquePurposes);
-            console.log("All purposes loaded:", uniquePurposes);
+    
         } catch (error) {
             console.error("Error fetching all purposes:", error);
         }
@@ -461,7 +449,7 @@ const handleSubmitHalf = async (half) => {
         const userId = authservice.userid();
         
         if (!zoneId || !userId) {
-            showNotification('error', 'No zone assigned.');
+            showNotification('error', 'User session expired or no zone assigned. Please login again.');
             return;
         }
 
@@ -478,7 +466,7 @@ const handleSubmitHalf = async (half) => {
             userId: userId
         };
 
-        console.log("Submitting payload:", payload);
+        
 
         try {
             setSubmitLoading(true);
@@ -677,7 +665,7 @@ useEffect(() => {
         const userId = authservice.userid();
         
         if (!userId || !zoneIdToUse) {
-            showNotification('error', 'No zone assigned.');
+            showNotification('error', 'User session expired or no zone assigned. Please login again.');
             return;
         }
 
@@ -700,7 +688,7 @@ useEffect(() => {
             payload.location = formData.place;
         }
 
-        console.log("Saving Payload:", payload);
+       
 
         try {
             setLoading(true);
@@ -735,8 +723,8 @@ useEffect(() => {
                 setActiveTab(1);
                 showNotification('success', 'Tour saved successfully');
             } else {
-                showNotification('error', response.message || "Failed to save tour");
-                }
+                alert(response.message || "Failed to save tour");
+            }
         } catch (error) {
             showNotification('error', 'Something went wrong');
         } finally {
@@ -761,7 +749,7 @@ useEffect(() => {
         const userId = authservice.userid();
         
         if (!userId || !zoneIdToUse) {
-            alert("No zone assigned.");
+            alert("User session expired or no zone assigned. Please login again.");
             return;
         }
 
@@ -785,7 +773,7 @@ useEffect(() => {
             payload.location = editFormData.place;
         }
 
-        console.log("Updating Payload:", payload);
+
 
         try {
             setEditLoading(true);
@@ -1169,7 +1157,7 @@ useEffect(() => {
                                 color: theme.palette.text.primary
                             }}
                         >
-                            Advanced Tour Program
+                            Tour Diary
                         </Typography>
 
                         {/* Calendar Header */}
@@ -1566,12 +1554,12 @@ useEffect(() => {
                                     </FormControl>
 
                                     <TextField
-                                    fullWidth
-                                    label="Place of Visit"
-                                    value={formData.place}
-                                    onChange={(e) => handleInputChange('place', validatePlace(e.target.value))}
-                                    variant="outlined"
-                                    size="small"
+                                        fullWidth
+                                        label="Place of Visit"
+                                        value={formData.place}
+                                        onChange={(e) => handleInputChange('place', e.target.value)}
+                                        variant="outlined"
+                                        size="small"
                                     />
                                 </>
                             ) : null}
@@ -1582,10 +1570,10 @@ useEffect(() => {
                                 multiline
                                 rows={3}
                                 value={formData.remarks}
-                                onChange={(e) => handleInputChange('remarks', validateRemarks(e.target.value))}
+                                onChange={(e) => handleInputChange('remarks', e.target.value)}
                                 variant="outlined"
-                                placeholder={entryType !== "WORKING" ? "Add remarks for this entry" : "Add remarks (optional)"}
-                                />
+                                placeholder={entryType !== 'WORKING' ? "Add remarks for this entry" : "Add remarks (optional)"}
+                            />
 
                             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 1 }}>
                                 <Button
@@ -1747,10 +1735,10 @@ useEffect(() => {
                                     fullWidth
                                     label="Place of Visit"
                                     value={editFormData.place}
-                                    onChange={(e) => handleEditInputChange('place', validatePlace(e.target.value))}
+                                    onChange={(e) => handleEditInputChange('place', e.target.value)}
                                     variant="outlined"
                                     size="small"
-                                    />
+                                />
                             </>
                         ) : (
                             <Alert severity="info" sx={{ mb: 2 }}>
@@ -1764,10 +1752,10 @@ useEffect(() => {
                             multiline
                             rows={3}
                             value={editFormData.remarks}
-                            onChange={(e) => handleEditInputChange('remarks', validateRemarks(e.target.value))}
+                            onChange={(e) => handleEditInputChange('remarks', e.target.value)}
                             variant="outlined"
-                            placeholder={editEntryType !== "WORKING" ? "Add remarks for this entry" : "Add remarks (optional)"}
-                            />
+                            placeholder={editEntryType !== 'WORKING' ? "Add remarks for this entry" : "Add remarks (optional)"}
+                        />
 
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 1 }}>
                             <Button

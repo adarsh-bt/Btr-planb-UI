@@ -44,6 +44,7 @@ import { useTheme } from '@mui/material/styles';
 import mainapi from 'api/mainapi';
 import Breadcrumb from 'routes/Breadcrumb';
 import authservice from 'pages/authentication/services/authservice';
+import api from 'api/api';
 
 function AdminsZonelistUI() {
   const theme = useTheme();
@@ -92,39 +93,52 @@ function AdminsZonelistUI() {
   const role = authservice.getrole();
   const currentUser = authservice.getusername(); // Assuming you have a method to get current user
 
-  useEffect(() => {
-    const fetchZones = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(
-          `${BASE_URL}/user-access/zones/zone_lists`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        );
+useEffect(() => {
 
-        const result = await response.json();
-     
-        if (!response.ok) {
-          if (result?.response === "No value present") {
-            setError("No zones are currently assigned to you.");
-          } else {
-            throw new Error(result?.message || "Failed to fetch zones");
-          }
-        } else {
-          setZoneData(result || []);
-        }
-      } catch (err) {
-        setError(err.message || "Unexpected error occurred.");
-      } finally {
-        setLoading(false);
+  const fetchZones = async () => {
+    try {
+
+      const response = await api.get(
+        `/user-access/zones/zone_lists`
+      );
+
+      const result = response.data;
+
+      console.log("Fetched zones:", result);
+
+      // ✅ Business case handling
+      if (result?.response === "No value present") {
+        setError("No zones are currently assigned to you.");
+        setZoneData([]);
+        return;
       }
-    };
 
-    fetchZones();
-  }, []);
+      // ✅ Success
+      setZoneData(result || []);
+      setError(null);
+
+    } catch (err) {
+
+      console.error("Fetch zones error:", err);
+
+      // ❗ 401 handled globally by interceptor
+      if (err.response) {
+        setError(
+          err.response.data?.message ||
+          "Failed to fetch zones"
+        );
+      } else {
+        setError("Network error. Please check your connection.");
+      }
+
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchZones();
+
+}, []);
 
   // Filter logic
   const districts = [...new Set(zoneData.map(z => z.districtName))];

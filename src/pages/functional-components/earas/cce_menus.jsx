@@ -130,7 +130,7 @@ function CceMenus() {
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                to="/schemes/earas/clusters"
+                to="/schemes/earas/clusters1"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',

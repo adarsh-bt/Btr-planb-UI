@@ -28,14 +28,16 @@ import LoadingScreen from 'utils/loadingscreen';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import authservice from 'pages/authentication/services/authservice';
 import mainapi from 'api/mainapi';
+import api from 'api/api';
 
-function ClusterSeatMap({ zoneId }) {
+function ClusterFormationSeatMap({ zoneId }) {
   const BTR_URL = mainapi.BASE_URL;
   const [clusters, setClusters] = useState([]);
   const [summary, setSummary] = useState({ completed: 0, ongoing: 0, notStarted: 0, underreview: 0 });
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedCrop, setSelectedCrop] = useState('All');
 
   const [resolvedZoneId, setResolvedZoneId] = useState(() => {
     const role = authservice.getrole();
@@ -43,36 +45,69 @@ function ClusterSeatMap({ zoneId }) {
   });
 
   const BASE_URL = mainapi.BASE_URL;
+//including agri start and end year
+const startYear = 2025;
+const endYear = 2026;
+useEffect(() => {
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    setLoading(true);
+  if (!resolvedZoneId) return;
 
-    axios.get(`${BASE_URL}/btr-service/cluster-api/user-cluster-summary/${resolvedZoneId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    })
-      .then(res => {
-        setClusters(res.data.payload || []);
-     
-        setSummary({
-          completed: res.data.completed || 0,
-          ongoing: res.data.ongoing || 0,
-          notStarted: res.data.notStarted || 0,
-          underreview: res.data.underreview || 0,
-        });
-        setLoading(false);
-        setError(null);
-      })
-      .catch(err => {
-        console.error('Failed to fetch data:', err);
-        setClusters([]);
-        setSummary({ completed: 0, ongoing: 0, notStarted: 0, underreview: 0 });
-        setError('Failed to load cluster data. Please try again later.');
-        setLoading(false);
+  setLoading(true);
+
+
+  const fetchClusterData = async () => {
+    try {
+
+      // const res = await api.get(
+      //   `/btr-service/cluster-api/user-cluster-summary/${resolvedZoneId}`
+      // );
+const res = await api.get(
+  `/btr-service/cluster-api/user-cluster-summary/${resolvedZoneId}/${startYear}/${endYear}`
+);
+      const data = res.data;
+
+      setClusters(data.payload || []);
+
+      setSummary({
+        completed: data.completed || 0,
+        ongoing: data.ongoing || 0,
+        notStarted: data.notStarted || 0,
+        underreview: data.underreview || 0,
       });
-  }, [resolvedZoneId]);
+
+      setError(null);
+
+    } catch (err) {
+
+      console.error('Failed to fetch data:', err);
+
+      // ❗ 401 handled globally by interceptor
+      if (err.response) {
+        setError(
+          err.response.data?.message ||
+          'Failed to load cluster data. Please try again.'
+        );
+      } else {
+        setError('Network error. Please check your connection.');
+      }
+
+      setClusters([]);
+      setSummary({
+        completed: 0,
+        ongoing: 0,
+        notStarted: 0,
+        underreview: 0,
+      });
+
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchClusterData();
+
+// }, [resolvedZoneId]);
+}, [resolvedZoneId, startYear, endYear]);
 
   // Calculate crop counts
   const getCropCounts = () => {
@@ -136,6 +171,28 @@ function ClusterSeatMap({ zoneId }) {
     }
   };
 
+// Filter clusters by selected crop
+const getFilteredClusters = () => {
+  let filtered = clusters;
+  
+  // Filter by status
+  if (selectedStatus !== 'All') {
+    filtered = filtered.filter(cluster => cluster.status === selectedStatus);
+  }
+  
+  // Filter by crop
+  if (selectedCrop !== 'All') {
+    filtered = filtered.filter(cluster => 
+      cluster.cceCrops && Array.isArray(cluster.cceCrops) && 
+      cluster.cceCrops.includes(selectedCrop)
+    );
+  }
+  
+  return filtered;
+};
+
+const filteredClusters = getFilteredClusters();
+
   const navigate = useNavigate();
 
   const handleClusterClick = (syNo, slNo) => {
@@ -198,35 +255,35 @@ function ClusterSeatMap({ zoneId }) {
   };
 
   // Crop Chip component
-  const CropChip = ({ crop, count, isActive, onClick }) => (
-    <Chip
-      icon={<AgricultureIcon sx={{ fontSize: 16 }} />}
-      label={`${crop}: ${count}`}
-      onClick={onClick}
-      sx={{
-        cursor: 'pointer',
-        fontWeight: 'bold',
-        fontSize: '0.9rem',
-        padding: '8px 16px',
-        borderRadius: '20px',
-        backgroundColor: isActive ? '#4caf50' : '#e8f5e8',
+const CropChip = ({ crop, count, isActive, onClick }) => (
+  <Chip
+    icon={<AgricultureIcon sx={{ fontSize: 16 }} />}
+    label={`${crop === 'All' ? 'All Crops' : `${crop}: ${count}`}`}
+    onClick={onClick}
+    sx={{
+      cursor: 'pointer',
+      fontWeight: 'bold',
+      fontSize: '0.9rem',
+      padding: '8px 16px',
+      borderRadius: '20px',
+      backgroundColor: isActive ? '#4caf50' : '#e8f5e8',
+      color: isActive ? 'white' : '#2e7d32',
+      border: `2px solid #4caf50`,
+      transition: 'all 0.3s ease',
+      boxShadow: isActive
+        ? '0 4px 12px rgba(76, 175, 80, 0.4)'
+        : '0 2px 8px rgba(0,0,0,0.1)',
+      '&:hover': {
+        transform: 'translateY(-2px)',
+        boxShadow: '0 6px 16px rgba(76, 175, 80, 0.3)',
+        backgroundColor: isActive ? '#4caf50' : 'rgba(76, 175, 80, 0.1)',
+      },
+      '& .MuiChip-icon': {
         color: isActive ? 'white' : '#2e7d32',
-        border: `2px solid #4caf50`,
-        transition: 'all 0.3s ease',
-        boxShadow: isActive
-          ? '0 4px 12px rgba(76, 175, 80, 0.4)'
-          : '0 2px 8px rgba(0,0,0,0.1)',
-        '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: '0 6px 16px rgba(76, 175, 80, 0.3)',
-          backgroundColor: isActive ? '#4caf50' : 'rgba(76, 175, 80, 0.1)',
-        },
-        '& .MuiChip-icon': {
-          color: isActive ? 'white' : '#2e7d32',
-        }
-      }}
-    />
-  );
+      }
+    }}
+  />
+);
 
   return (
     <Grid container spacing={3}>
@@ -396,41 +453,54 @@ function ClusterSeatMap({ zoneId }) {
           </Paper> */}
 
             {/* Crop Filter Section */}
-            {Object.keys(cropCounts).length > 0 && (
-              <Paper
-                sx={{
-                  p: 3,
-                  mb: 4,
-                  borderRadius: 3,
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                  backgroundColor: '#f8f9fa',
-                }}
-              >
-                <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: '600', color: 'text.primary' }}>
-                  Crops selected for CCE : Total {totalCrops} Crops
-                </Typography>
+  {Object.keys(cropCounts).length > 0 && (
+  <Paper
+    sx={{
+      p: 3,
+      mb: 4,
+      borderRadius: 3,
+      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+      backgroundColor: '#f8f9fa',
+    }}
+  >
+    <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: '600', color: 'text.primary' }}>
+      Filter by Crops (CCE)
+    </Typography>
 
-                <Stack
-                  direction={{ xs: 'column', sm: 'row' }}
-                  spacing={2}
-                  sx={{
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  {Object.entries(cropCounts).map(([crop, count]) => (
-                    <CropChip
-                      key={crop}
-                      crop={crop}
-                      count={count}
-                      isActive={false}
-                      onClick={() => { }}
-                    />
-                  ))}
-                </Stack>
-              </Paper>
-            )}
+ <Stack
+  direction={{ xs: 'column', sm: 'row' }}
+  spacing={2}
+  sx={{
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 1.5,  // This adds consistent spacing between chips
+    '& > *': {
+      mb: 1  // Adds bottom margin to each child chip
+    }
+  }}
+>
+  {/* All Crops option */}
+  <CropChip
+    crop="All"
+    count={totalCrops}
+    isActive={selectedCrop === 'All'}
+    onClick={() => setSelectedCrop('All')}
+  />
+  
+  {/* Individual crop chips */}
+  {Object.entries(cropCounts).map(([crop, count]) => (
+    <CropChip
+      key={crop}
+      crop={crop}
+      count={count}
+      isActive={selectedCrop === crop}
+      onClick={() => setSelectedCrop(crop)}
+    />
+  ))}
+</Stack>
+  </Paper>
+)}
 
             {/* Cluster Grid Section */}
             <Paper
@@ -444,14 +514,12 @@ function ClusterSeatMap({ zoneId }) {
               <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: '600', color: 'text.primary' }}>
                 {selectedStatus === 'All' ? 'All Clusters' : `${selectedStatus} Clusters`}
                 <Typography component="span" sx={{ ml: 1, color: 'text.secondary' }}>
-                  ({clusters.filter(cluster => selectedStatus === 'All' || cluster.status === selectedStatus).length})
+                 ({filteredClusters.length})
                 </Typography>
               </Typography>
 
               <Grid container spacing={2} justifyContent="flex-start">
-                {clusters
-                  .filter(cluster => selectedStatus === 'All' || cluster.status === selectedStatus)
-                  .map((cluster, index) => {
+              {filteredClusters.map((cluster, index) => {
                     const cardBackgroundColor = getClusterTypeBackgroundColor(cluster.clusterType);
                     const cardBorderColor = getStatusBorderColor(cluster.status);
                     const statusConfig = statusColors[cluster.status];
@@ -645,7 +713,7 @@ function ClusterSeatMap({ zoneId }) {
                   })}
               </Grid>
 
-              {clusters.filter(cluster => selectedStatus === 'All' || cluster.status === selectedStatus).length === 0 && (
+              {filteredClusters.length === 0 && (
                 <Box textAlign="center" py={6}>
                   <Typography variant="h6" color="text.secondary" gutterBottom>
                     No clusters found
@@ -665,4 +733,4 @@ function ClusterSeatMap({ zoneId }) {
   );
 }
 
-export default ClusterSeatMap;
+export default ClusterFormationSeatMap;

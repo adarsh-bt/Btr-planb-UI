@@ -65,9 +65,6 @@ const [selectedCluster, setSelectedCluster] = useState(null);
   });
 }, []);
 
-
-
-
   // Determines the border color of the card based on cluster status
   const getStatusBorderColor = (status) => {
     switch (status) {
@@ -94,7 +91,7 @@ const [selectedCluster, setSelectedCluster] = useState(null);
 const handleClusterClick = (syNo, slNo) => {
   const encodedSyNo = encodeURIComponent(syNo);
   const encodedSlNo = encodeURIComponent(slNo);
-  console.log(syNo, "tttt")
+ 
   navigate(`/schemes/earas/cluster_manual_entry?No=${encodedSyNo}&slno=${encodedSlNo}`);
 };
 
@@ -180,7 +177,7 @@ const handleClusterClick = (syNo, slNo) => {
   }}
 >
       <Typography variant="h3" component="h1" gutterBottom sx={{ textAlign: 'center', mb: 4, fontWeight: 'bold', color: '#3f51b5' }}>
-        Cluster Operations Map
+        Cluster Operations Mapss
       </Typography>
 
       {/* --- Status Filter Tabs --- */}

@@ -84,7 +84,7 @@ const Register = ({ onBack }) => {
       try {
         const response = await RegisterService.getDesignations();
         if (response.payload && Array.isArray(response.payload)) {
-          console.log("designations response ",response.payload)
+         
           setDesignations(response.payload);
         } else {
           setErrorMessage(response.message || 'Failed to fetch designations.');

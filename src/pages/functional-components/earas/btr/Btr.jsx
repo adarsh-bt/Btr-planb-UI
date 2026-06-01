@@ -29,6 +29,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import InfoOutlineIcon from '@mui/icons-material/InfoOutlined';
 import IconButton from '@mui/material/IconButton';
+import { use } from 'react';
 
 
 
@@ -302,7 +303,9 @@ if (newTotCent < totalEnumeratedArea) {
 
   try {
     // Call the backend API
-    const response = await btrservice.updatePlotTotalArea(selectedPlotRow.id, newTotCent);
+    const userId = authservice.userid();
+   
+    const response = await btrservice.updatePlotTotalArea(selectedPlotRow.id, newTotCent,userId);
     
     setEditMessage(response || 'Area updated successfully');
     
@@ -331,7 +334,7 @@ if (newTotCent < totalEnumeratedArea) {
     setTimeout(() => {
       setEditDialogOpen(false);
       setEditTotCent('');
-    }, 2000);
+    }, 2500);
     
   } catch (error) {
     setEditError(error.response?.data?.message || 'Failed to update area');

@@ -12,6 +12,7 @@ import { Link } from 'react-router-dom';
 import LoadingScreen from 'utils/loadingscreen';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import mainapi from 'api/mainapi';
+import api from 'api/api';
 
 function UserZoneDetails({zoneId}) {
   const BTR_URL = mainapi.BTR_API
@@ -37,42 +38,55 @@ function UserZoneDetails({zoneId}) {
 
 
 useEffect(() => {
+
   const fetchData = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const user_id = authservice.userid();
-      
-      const response = await fetch(`${BASE_URL}/btr-service/btr-api/zone-details/${resolvedZoneId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
 
-      const result = await response.json(); // Always parse response body
-console.log('API response:', result); // Log the entire response for debugging
-      if (!response.ok) {
-        // Handle specific case: "No value present"
-        if (result?.response === "No value present") {
-          setError("No zones are currently assigned to you.");
-        } else {
-          throw new Error(result?.message || 'Failed to fetch data');
-        }
-      } else {
-      
-        setResult(result.payload);
-        setZoneName(result.payload.zone_name)
-        setData(result.payload.data);
+      const user_id = authservice.userid(); // ✅ fixed method
+
+      const response = await api.get(
+        `/btr-service/btr-api/zone-details/${resolvedZoneId}`
+      );
+
+      const result = response.data;
+
+      console.log('API response:', result);
+
+      // ✅ Business logic handling
+      if (result?.response === "No value present") {
+        setError("No zones are currently assigned to you.");
+        return;
       }
+
+      // ✅ Success
+      setResult(result.payload);
+      setZoneName(result.payload.zone_name);
+      setData(result.payload.data);
+
     } catch (error) {
-      setError(error.message+". Please try refreshing the page." || 'An unexpected error occurred');
+
+      console.error("Fetch error:", error);
+
+      // ❗ IMPORTANT: 401 is already handled by interceptor
+      // So here we only handle OTHER errors
+
+      if (error.response) {
+        setError(
+          error.response.data?.message ||
+          "Failed to fetch data. Please try again."
+        );
+      } else {
+        setError("Network error. Please check your connection.");
+      }
+
     } finally {
       setLoading(false);
     }
   };
 
   fetchData();
-}, []);
 
+}, [resolvedZoneId]);
 
  if (loading) {
   return <LoadingScreen message="Fetching zone details..." />;

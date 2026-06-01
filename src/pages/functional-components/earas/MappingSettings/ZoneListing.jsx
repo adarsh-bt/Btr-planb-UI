@@ -279,7 +279,7 @@ const filteredAndSortedData = zoneData;
  // Replace the handleViewZone function
 const handleViewZone = (zone) => {
   navigate(
-    `/schemes/earas/earas_management/ZoneListing/ZoneManage/${zone.zoneId}`,
+    `/schemes/earas/Mapping_Management/ZoneListing/ZoneManage/${zone.zoneId}`,
     { state: { zoneData: zone } }
   );
 };

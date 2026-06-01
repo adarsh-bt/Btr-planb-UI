@@ -74,6 +74,8 @@ function ClusterSeatForm({ zoneId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedZoneId]);
 
+  const startYear = 2025;
+  const endYear = 2026;
   const fetchClusterData = () => {
     const token = localStorage.getItem('token');
     setLoading(true);
@@ -86,15 +88,19 @@ function ClusterSeatForm({ zoneId }) {
       return;
     }
 
-    axios.get(`${BASE_URL}/btr-service/cluster-api/cluster-form-status/${resolvedZoneId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    })
+    // axios.get(`${BASE_URL}/btr-service/cluster-api/cluster-form-status/${resolvedZoneId}`, {
+    //   headers: {
+    //     'Authorization': `Bearer ${token}`
+    //   }
+    // })
+     axios.get(`${BASE_URL}/btr-service/cluster-api/cluster-form-status/${resolvedZoneId}/${startYear}/${endYear}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  })
       .then(res => {
         // Store the raw payload directly - One object per cluster
         setClusters(res.data.payload || []);
-
         setSummary({
           completed: res.data.completed || 0,
           ongoing: res.data.ongoing || 0,

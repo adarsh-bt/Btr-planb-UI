@@ -15,6 +15,8 @@ import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
 
 import { useContext } from 'react';
+// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
+// import { flattenPermissions } from 'contexts/auth-reducer/permissionHelpers';
 
 import zonesettings from 'assets/images/logo/zonesettings.png';
 import ccecropselection from 'assets/images/logo/ccecropselection.png';
@@ -124,7 +126,51 @@ const SettingsMenu = () => {
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
                     <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      CCE Crop Selection
+                      CCE Crops Management
+                    </Typography>
+                    {/* Subtitle removed from here */}
+                  </CardContent>
+                </Box>
+              </Card>
+            </Grid>
+
+  <Grid item xs={12} sm={4} md={3} lg={3}>
+              <Card
+                component={Link}
+                to="/schemes/earas/earas_management/crops_management"
+                sx={{
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '1rem',
+                  borderRadius: '1rem',
+                  background: 'linear-gradient(135deg, rgba(146, 254, 252, 0.45), rgb(155, 120, 250))', // Gradient color
+                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
+                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
+                  height: '100%', // Ensure card takes full height of the grid item
+                  '&:hover': {
+                    transform: 'scale(1.05)', // Hover scale effect
+                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
+                  }
+                }}
+              >
+                <CardMedia
+                  component="img"
+                  sx={{
+                    width: '5rem',
+                    height: '5rem',
+                    borderRadius: '.5rem',
+                    marginRight: '1rem' // Space between image and text
+                  }}
+                  image={ccecropselection}
+                  alt="ccecropselection"
+                />
+
+                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
+                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
+                      Crops Management
                     </Typography>
                     {/* Subtitle removed from here */}
                   </CardContent>
@@ -133,7 +179,7 @@ const SettingsMenu = () => {
             </Grid>
             {/* )} */}
 
-            <Grid item xs={12} sm={4} md={3} lg={3}>
+            {/* <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
                 to="/schemes/earas/zone_season_shedule_list"
@@ -186,62 +232,7 @@ const SettingsMenu = () => {
                   </CardContent>
                 </Box>
               </Card>
-            </Grid>
-
-            <Grid item xs={12} sm={4} md={3} lg={3}>
-              <Card
-                component={Link}
-                to="/schemes/earas/Settings_Tabs_Page"
-                sx={{
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '1rem',
-                  borderRadius: '1rem',
-                  background: 'linear-gradient(135deg, rgba(222, 213, 191, 0.45), rgb(100, 78, 143))', // Gradient color
-                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-                  boxShadow: '0 4px 8px rgba(247, 40, 40, 0.2)', // Box shadow
-                  '&:hover': {
-                    transform: 'scale(1.05)', // Hover scale effect
-                    // background: 'linear-gradient(135deg, #8b5951, #ff6f61)', // Darker gradient on hover
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
-                  }
-                }}
-              >
-                <CardMedia
-                  component="img"
-                  sx={{
-                    width: '5rem',
-                    height: '5rem',
-                    borderRadius: '.5rem',
-                    marginRight: '1rem' // Space between image and text
-                  }}
-                  image={zonedetails} // <-- Use the imported image here
-                  alt="zone details"
-                />
-
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Office
-                    </Typography>
-                    <Typography
-                      variant="subtitle1"
-                      component="div"
-                      sx={{
-                        color: '#f3f3f3',
-                        fontStyle: 'italic',
-                        fontWeight: 'lighter',
-                        marginTop: '0.5rem'
-                      }}
-                    >
-                    settings
-                    </Typography>
-                  </CardContent>
-                </Box>
-              </Card>
-            </Grid>
+            </Grid> */}
             
           </Grid>
         </MainCard>

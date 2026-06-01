@@ -94,7 +94,7 @@ const ZoneSettings = () => {
             
             const formattedEntries = formatKeyplotData(sortedData);
             setEntries(formattedEntries);
-
+console.log("Fetched keyplot limits:", formattedEntries);
             if (formattedEntries.length > 0) {
                 setKeyplotSize(String(formattedEntries[0].keyplotSize));
             }

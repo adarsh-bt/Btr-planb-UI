@@ -143,8 +143,8 @@ const UserAdvancedTourDiarySubmissions = () => {
 
   return (
     <Grid container spacing={3}>
-      <Grid item xs={12}>
         <Breadcrumb />
+      <Grid item xs={12}>
       </Grid>
 
       <Grid item xs={12}>
@@ -161,7 +161,7 @@ const UserAdvancedTourDiarySubmissions = () => {
             </Button>
             
             <Typography variant="h4" sx={{ color: "#04255e", fontWeight: "bold" }}>
-              ATP Submissions
+              Advanced Tour Diary Submissions
             </Typography>
             
             <FormControl sx={{ minWidth: 120 }} size="small">
@@ -190,7 +190,7 @@ const UserAdvancedTourDiarySubmissions = () => {
 
           <Box sx={{ mb: 3 }}>
             <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-              <strong>User ID:</strong> {userId}
+              {/* <strong>User ID:</strong> {userId} */}
             </Typography>
           </Box>
 

@@ -45,7 +45,13 @@ import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
 import mainapi from 'api/mainapi'; 
 import axios from 'axios';
-
+import GrassIcon from '@mui/icons-material/Grass';
+import WaterIcon from '@mui/icons-material/Water';
+import AgricultureIcon from '@mui/icons-material/Agriculture';
+import StorageIcon from '@mui/icons-material/Storage';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CommentIcon from '@mui/icons-material/Comment';
+import api from 'api/api';
 // --- Theme Constants ---
 const TABLE_HEADER_BG = '#04255e';
 const TABLE_HEADER_COLOR = '#ffffff';
@@ -197,13 +203,15 @@ function Form1_menus() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [seasonId, setSeasonId] = useState(1); 
-const [nucData, setNucData] = useState(null);
+const [nucData, setNucData] = useState([]);
 const [availableSeasons, setAvailableSeasons] = useState([]);
 const [availableCropSeasons, setAvailableCropSeasons] = useState([]);
   // Sorting and Filtering States
   const [order, setOrder] = useState('asc');
   const [orderBy, setOrderBy] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [districtId, setDistrictId] = useState(null);
+  const [zonename , setZonename] = useState('');
 
   const KEYPLOT_ID = 'db537d81-e8d5-45f4-82d5-fd12d9026bc5';
   const CLUSTER_ID_63 = '63';
@@ -298,7 +306,35 @@ useEffect(() => {
 }, [seasonId, clusterId]);
 
 
+const testPdfDownload = async () => {
+  try {
+    const response = await api.get(
+      '/earas-form1-entry/api/download/excel',
+      {
+        responseType: 'blob', // ✅ MUST
+      }
+    );
 
+    // ✅ Correct MIME type for Excel
+    const blob = new Blob([response.data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'land_use_survey_template.xlsx'; // ✅ Correct file name
+    document.body.appendChild(a);
+    a.click();
+
+    a.remove();
+    window.URL.revokeObjectURL(url);
+
+  } catch (error) {
+    console.error("Download failed:", error);
+  }
+};
   // API Fetch Functions (same as before)
  const fetchKeyplotDetails = async (idFromUrl) => {
   setIsLoading(true);
@@ -319,7 +355,11 @@ useEffect(() => {
 
 
       const data = response.data;
-    
+      const districtId = response.data?.payload?.distId;
+      setDistrictId(districtId);
+      setZonename(response.data?.payload?.zoneName || 'N/A');
+  
+    console.log('Keyplot API response:', data);
       if (data && data.payload) {
         setKeyplotData({
           ...data.payload,
@@ -346,13 +386,13 @@ const fetchCropDetails = async () => {
   try {
     const token = localStorage.getItem('token');
     const BASE_URL = mainapi.BASE_URL;
-    const distId = localStorage.getItem('activeDistId');
     
-    const activeDistId = localStorage.getItem('activeDistId');
-   
-    
+
+console.log('Fetching crop details with clusterId:', clusterId, 'seasonId:', seasonId, 'districtId:', districtId);
+
+    // Second API call using correct distId
     const response = await axios.get(
-      `${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${clusterId}/season/${seasonId}/district/${activeDistId}`,
+      `${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${clusterId}/season/${seasonId}/district/${districtId}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -362,14 +402,13 @@ const fetchCropDetails = async () => {
     );
 
     const data = response.data;
-
-    
-    if (data && Array.isArray(data.payload) && data.payload.length > 0) {
+console.log('Crop Details API response:', data);
+    if (data?.payload?.length > 0) {
       setCropData(data.payload);
     } else {
       setCropData([]);
-     
     }
+
   } catch (err) {
     console.error('Error fetching crop details:', err);
     setCropData([]);
@@ -446,13 +485,13 @@ const fetchNucDetails = async (season = seasonId) => {
     const data = response.data;
    
     
-    if (data && data.payload) {
-      setNucData(data.payload);
-      setError(null);
-    } else {
-      setNucData(null);
-      setError("No NUC data available for this season.");
-    }
+  if (data && Array.isArray(data.payload) && data.payload.length > 0) {
+  setNucData(data.payload);   // now it's a list
+  setError(null);
+} else {
+  setNucData([]);             // use empty array instead of null
+  setError("No NUC data available for this season.");
+}
   } catch (err) {
     console.error('Error fetching NUC details:', err);
     setNucData(null);
@@ -471,7 +510,7 @@ const checkAvailableSeasons = async () => {
     try {
       const token = localStorage.getItem('token');
       const BASE_URL = mainapi.BASE_URL;
-     
+
       const response = await axios.get(
         `${BASE_URL}/earas-form1-entry/nuc-details/fetch-by-clusterId/${clusterId}/season/${season}`,
         {
@@ -513,7 +552,7 @@ const checkAvailableCropSeasons = async () => {
       const distId = localStorage.getItem('activeDistId');
       
       const response = await axios.get(
-        `${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${clusterId}/season/${season}/district/${distId}`,
+        `${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${clusterId}/season/${season}/district/${districtId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -566,6 +605,13 @@ useEffect(() => {
   }
 }, [clusterId]);
 
+  // Define all seasons clearly
+  const ALL_SEASONS = [
+    { id: 1, name: 'Autumn' },
+    { id: 2, name: 'Winter' },
+    { id: 3, name: 'Summer' }
+  ];
+
   // Enhanced Loading Component
   const renderLoading = () => (
     <Box sx={{ width: '100%', p: 3 }}>
@@ -577,7 +623,7 @@ useEffect(() => {
   );
 
 
-  // 1. Enhanced Keyplot Details with Download
+  // 1. Enhanced  with Download
   const renderKeyplotDetails = () => {
     if (isLoading) return renderLoading();
     // if (error) return renderError();
@@ -669,27 +715,41 @@ const renderCropDetails = () => {
     return (
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-          <SearchFilter onFilter={handleFilter} placeholder="Search crops..." />
           
           {/* Season dropdown */}
-          <TextField
-            select
-            label="Season"
-            size="small"
-            sx={{ minWidth: 150 }}
-            value={seasonId}
-            onChange={(e) => {
-              setSeasonId(e.target.value);
-              fetchCropDetails();
-            }}
-          >
-            {availableCropSeasons.map((season) => (
-              <MenuItem key={season.id} value={season.id}>
-                {season.name}
-              </MenuItem>
-            ))}
-          </TextField>
+           <Box sx={{ mb: 4 }}>
+        <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 700, color: 'text.secondary', mb: 1.5 }}>
+          SELECT VIEWING SEASON:
+        </Typography>
+        <Stack direction="row" spacing={2}>
+          {ALL_SEASONS.map((s) => (
+            <Button
+              key={s.id}
+              variant={seasonId === s.id ? "contained" : "outlined"}
+              onClick={() => {
+                setSeasonId(s.id);
+            fetchCropDetails();
+              }}
+              sx={{
+                px: 4,
+                borderRadius: 2,
+                fontWeight: 600,
+                backgroundColor: seasonId === s.id ? TABLE_HEADER_BG : 'transparent',
+                borderColor: seasonId === s.id ? TABLE_HEADER_BG : 'divider',
+                '&:hover': {
+                  backgroundColor: seasonId === s.id ? '#031a45' : '#f5f5f5'
+                }
+              }}
+            >
+              {s.name}
+            </Button>
+          ))}
+        </Stack>
+      </Box>
           
+          <SearchFilter onFilter={handleFilter} placeholder="Search crops..." />
+
+
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
             <DownloadMenu 
               onDownload={(format) => handleDownload(format, [], 'crop-details')}
@@ -759,10 +819,9 @@ const renderCropDetails = () => {
           gap: 2 
         }}
       >
-        <SearchFilter onFilter={handleFilter} placeholder="Search crops..." />
 
         {/* Season dropdown - only show available seasons */}
-        <TextField
+        {/* <TextField
           select
           label="Season"
           size="small"
@@ -778,8 +837,38 @@ const renderCropDetails = () => {
               {season.name}
             </MenuItem>
           ))}
-        </TextField>
+        </TextField> */}
 
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 700, color: 'text.secondary', mb: 1.5 }}>
+          SELECT VIEWING SEASON:
+        </Typography>
+        <Stack direction="row" spacing={2}>
+          {ALL_SEASONS.map((s) => (
+            <Button
+              key={s.id}
+              variant={seasonId === s.id ? "contained" : "outlined"}
+              onClick={() => {
+                setSeasonId(s.id);
+            fetchCropDetails();
+              }}
+              sx={{
+                px: 4,
+                borderRadius: 2,
+                fontWeight: 600,
+                backgroundColor: seasonId === s.id ? TABLE_HEADER_BG : 'transparent',
+                borderColor: seasonId === s.id ? TABLE_HEADER_BG : 'divider',
+                '&:hover': {
+                  backgroundColor: seasonId === s.id ? '#031a45' : '#f5f5f5'
+                }
+              }}
+            >
+              {s.name}
+            </Button>
+          ))}
+        </Stack>
+      </Box>
+        <SearchFilter onFilter={handleFilter} placeholder="Search crops..." />
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           <DownloadMenu 
             onDownload={(format) => handleDownload(format, sortedData, 'crop-details')}
@@ -814,9 +903,9 @@ const renderCropDetails = () => {
 <TableCell align="right">
   <Typography variant="body2" fontWeight="medium">
     {row.cropArea != null
-      ? row.centPerTree != null
+      ? row.centPerTree == null
         ?  Number((row.cropArea)).toFixed(2)
-        : Number(row.cropArea).toFixed(2)
+        : (Number(row.cropArea) * Number(row.centPerTree)).toFixed(2)
       : "NA"}
   </Typography>
 </TableCell>
@@ -825,7 +914,7 @@ const renderCropDetails = () => {
 <TableCell align="right">
   <Typography variant="body2" fontWeight="medium">
     {row.centPerTree != null
-      ? (Number(row.cropArea).toFixed(2) / Number(row.centPerTree).toFixed(2)).toFixed(2)
+      ? Number(row.cropArea).toFixed(2) 
       : "NA"}
   </Typography>
 </TableCell>
@@ -1177,14 +1266,26 @@ const renderCropDetails = () => {
     );
   };
 const renderNucDetails = () => {
-  // Define all seasons clearly so they always show
-  const ALL_SEASONS = [
-    { id: 1, name: 'Autumn' },
-    { id: 2, name: 'Winter' },
-    { id: 3, name: 'Summer' }
-  ];
+  // Define all seasons clearly
+  // const ALL_SEASONS = [
+  //   { id: 1, name: 'Autumn' },
+  //   { id: 2, name: 'Winter' },
+  //   { id: 3, name: 'Summer' }
+  // ];
 
-  const hasData = !!nucData;
+  const hasData = Array.isArray(nucData) && nucData.length > 0;
+
+  // Calculate totals across all clusters
+  const totals = hasData
+    ? nucData.reduce(
+        (acc, item) => ({
+          nucArea: acc.nucArea + (item.nucArea || 0),
+          ffsArea: acc.ffsArea + (item.ffsArea || 0),
+          cosArea: acc.cosArea + (item.cosArea || 0),
+        }),
+        { nucArea: 0, ffsArea: 0, cosArea: 0 }
+      )
+    : { nucArea: 0, ffsArea: 0, cosArea: 0 };
 
   return (
     <Box>
@@ -1219,34 +1320,38 @@ const renderNucDetails = () => {
         </Stack>
       </Box>
 
-      {/* 2. Numeric Stat Cards */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      {/* 2. Summary Stat Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
         {[
-          { label: 'NUC AREA', value: nucData?.nucArea, color: '#4CAF50', char: 'N' },
-          { label: 'FFS AREA', value: nucData?.ffsArea, color: '#2196F3', char: 'F' },
-          { label: 'COS AREA', value: nucData?.cosArea, color: '#FF9800', char: 'C' }
+          { label: 'TOTAL NUC AREA', value: totals.nucArea, color: '#4CAF50', icon: <GrassIcon /> },
+          { label: 'TOTAL FFS AREA', value: totals.ffsArea, color: '#2196F3', icon: <WaterIcon /> },
+          { label: 'TOTAL COS AREA', value: totals.cosArea, color: '#FF9800', icon: <AgricultureIcon /> }
         ].map((stat, i) => (
           <Grid item xs={12} md={4} key={i}>
             <Card sx={{ 
               borderLeft: `5px solid ${stat.color}`,
               boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-              borderRadius: 2
+              borderRadius: 2,
+              transition: 'transform 0.2s',
+              '&:hover': { transform: 'translateY(-4px)' }
             }}>
               <CardContent>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Box>
-                    <Typography variant="caption" fontWeight={700} color="text.secondary">{stat.label}</Typography>
-                    <Typography variant="h3" sx={{ color: stat.color, fontWeight: 800 }}>
-                      {hasData ? stat.value.toFixed(2) : "0.00"}
+                    <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ letterSpacing: 1 }}>
+                      {stat.label}
+                    </Typography>
+                    <Typography variant="h3" sx={{ color: stat.color, fontWeight: 800, mt: 1 }}>
+                      {stat.value.toFixed(2)}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">Hectares</Typography>
                   </Box>
                   <Box sx={{ 
-                    width: 45, height: 45, borderRadius: '12px', 
+                    width: 50, height: 50, borderRadius: '12px', 
                     bgcolor: `${stat.color}15`, display: 'flex', 
                     alignItems: 'center', justifyContent: 'center' 
                   }}>
-                    <Typography variant="h6" sx={{ color: stat.color, fontWeight: 900 }}>{stat.char}</Typography>
+                    {stat.icon}
                   </Box>
                 </Stack>
               </CardContent>
@@ -1257,11 +1362,190 @@ const renderNucDetails = () => {
 
       {!hasData && (
         <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
-          No records found for the <strong>{getSeasonLabel(seasonId)}</strong> season in this cluster. Showing placeholders below.
+          No records found for the <strong>{getSeasonLabel(seasonId)}</strong> season in this cluster.
         </Alert>
       )}
 
-      {/* 3. Enhanced Additional Information Card */}
+      {/* 3. Cluster-wise Detailed Table */}
+      <Card
+        elevation={0}
+        sx={{
+          borderRadius: 3,
+          border: "1px solid",
+          borderColor: "divider",
+          background: "#fff",
+          mb: 4,
+          overflow: 'hidden'
+        }}
+      >
+        <CardHeader
+          avatar={<StorageIcon sx={{ color: TABLE_HEADER_BG }} />}
+          title={
+            <Typography variant="subtitle1" fontWeight={700}>
+              Cluster-wise Area Distribution - {getSeasonLabel(seasonId)} Season
+            </Typography>
+          }
+          subheader={
+            <Typography variant="caption" color="text.secondary">
+              Detailed breakdown by cluster label
+            </Typography>
+          }
+          sx={{ pb: 1, pt: 2, backgroundColor: '#fafafa' }}
+        />
+        <Divider />
+        
+        <TableContainer sx={{ maxHeight: 500, overflow: 'auto' }}>
+          <Table stickyHeader size="medium">
+            <TableHead>
+              <TableRow>
+                <TableCell 
+                  sx={{ 
+                    backgroundColor: TABLE_HEADER_BG, 
+                    color: TABLE_HEADER_COLOR, 
+                    fontWeight: 'bold',
+                    fontSize: '0.875rem',
+                    position: 'sticky',
+                    left: 0,
+                    zIndex: 2
+                  }}
+                >
+                  Cluster Label
+                </TableCell>
+                <TableCell 
+                  align="right" 
+                  sx={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_COLOR, fontWeight: 'bold' }}
+                >
+                  NUC Area (Cents)
+                </TableCell>
+                <TableCell 
+                  align="right" 
+                  sx={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_COLOR, fontWeight: 'bold' }}
+                >
+                  FFS Area (Cents)
+                </TableCell>
+                <TableCell 
+                  align="right" 
+                  sx={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_COLOR, fontWeight: 'bold' }}
+                >
+                  COS Area (Cents)
+                </TableCell>
+                <TableCell 
+                  align="right" 
+                  sx={{ backgroundColor: TABLE_HEADER_BG, color: TABLE_HEADER_COLOR, fontWeight: 'bold' }}
+                >
+                  Total Area (Cents)
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {hasData && nucData.map((item, index) => {
+                const totalArea = (item.nucArea || 0) + (item.ffsArea || 0) + (item.cosArea || 0);
+                return (
+                  <TableRow 
+                    key={item.nucId || index}
+                    sx={{ 
+                      '&:nth-of-type(odd)': { backgroundColor: '#fafafa' },
+                      '&:hover': { backgroundColor: '#f0f0f0' },
+                      transition: 'background-color 0.2s'
+                    }}
+                  >
+                    <TableCell 
+                      sx={{ 
+                        fontWeight: 'bold',
+                        position: 'sticky',
+                        left: 0,
+                        backgroundColor: index % 2 === 0 ? '#fafafa' : '#ffffff',
+                        borderRight: '1px solid #e0e0e0'
+                      }}
+                    >
+                      <Chip 
+                        label={item.clusterLabel} 
+                        size="small" 
+                        color="primary" 
+                        variant="filled"
+                        sx={{ fontWeight: 600, minWidth: 60 }}
+                      />
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography variant="body2" fontWeight="medium">
+                        {(item.nucArea ?? 0).toFixed(2)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography variant="body2" fontWeight="medium">
+                        {(item.ffsArea ?? 0).toFixed(2)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography variant="body2" fontWeight="medium">
+                        {(item.cosArea ?? 0).toFixed(2)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography variant="body2" fontWeight="bold" color="primary.main">
+                        {totalArea.toFixed(2)}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              
+              {/* Summary Row */}
+              {hasData && (
+                <TableRow sx={{ 
+                  backgroundColor: '#e8f5e9', 
+                  borderTop: '2px solid #388e3c',
+                  '&:hover': { backgroundColor: '#e8f5e9' }
+                }}>
+                  <TableCell sx={{ 
+                    fontWeight: 'bold', 
+                    position: 'sticky', 
+                    left: 0, 
+                    backgroundColor: '#e8f5e9',
+                    borderRight: '1px solid #e0e0e0'
+                  }}>
+                    <Typography variant="subtitle1" fontWeight="bold">TOTAL</Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography variant="subtitle1" fontWeight="bold">{totals.nucArea.toFixed(2)}</Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography variant="subtitle1" fontWeight="bold">{totals.ffsArea.toFixed(2)}</Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography variant="subtitle1" fontWeight="bold">{totals.cosArea.toFixed(2)}</Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography variant="subtitle1" fontWeight="bold" color="success.main">
+                      {(totals.nucArea + totals.ffsArea + totals.cosArea).toFixed(2)}
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        
+        {hasData && (
+          <Box sx={{ p: 2, backgroundColor: '#fafafa', borderTop: '1px solid #e0e0e0' }}>
+            <Stack direction="row" spacing={2} justifyContent="flex-end">
+              <Chip 
+                label={`Total Clusters: ${nucData.length}`} 
+                size="small" 
+                variant="outlined"
+              />
+              <Chip 
+                label={`Season: ${getSeasonLabel(seasonId)}`} 
+                size="small" 
+                color="primary" 
+                variant="filled"
+              />
+            </Stack>
+          </Box>
+        )}
+      </Card>
+
+      {/* 4. Additional Information Card */}
       <Card
         elevation={0}
         sx={{
@@ -1281,7 +1565,7 @@ const renderNucDetails = () => {
       >
         <CardHeader
           avatar={<InfoOutlinedIcon sx={{ color: TABLE_HEADER_BG }} />}
-          title={<Typography variant="subtitle1" fontWeight={700}>Detailed Metadata</Typography>}
+          title={<Typography variant="subtitle1" fontWeight={700}>Additional Information</Typography>}
           sx={{ pb: 1, pt: 2 }}
         />
         <Divider sx={{ mx: 2 }} />
@@ -1289,21 +1573,14 @@ const renderNucDetails = () => {
           <Grid container spacing={4}>
             <Grid item xs={12} sm={6} md={3}>
               <StyledDetailItem
-                label="Cluster Label"
-                icon={<CrisisAlertIcon sx={{ fontSize: 18, color: 'action.active' }} />}
-                value={<Typography variant="body2" fontWeight={600}>{nucData?.clusterLabel || "—"}</Typography>}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <StyledDetailItem
-                label="Cluster No."
-                icon={<AppRegistrationIcon sx={{ fontSize: 18, color: 'action.active' }} />}
+                label="Active Season"
+                icon={<EventIcon sx={{ fontSize: 18, color: 'action.active' }} />}
                 value={
                   <Chip 
                     size="small" 
-                    label={slNo || "N/A"} 
-                    sx={{ bgcolor: 'primary.lighter', color: 'primary.dark', fontWeight: 700, borderRadius: 1 }} 
+                    variant="outlined" 
+                    label={getSeasonLabel(seasonId)} 
+                    sx={{ fontWeight: 600, bgcolor: 'primary.lighter' }} 
                   />
                 }
               />
@@ -1311,31 +1588,49 @@ const renderNucDetails = () => {
 
             <Grid item xs={12} sm={6} md={3}>
               <StyledDetailItem
-                label="Active Season"
-                icon={<EventIcon sx={{ fontSize: 18, color: 'action.active' }} />}
-                value={<Chip size="small" variant="outlined" label={getSeasonLabel(seasonId)} sx={{ fontWeight: 600 }} />}
+                label="Total Clusters"
+                icon={<StorageIcon sx={{ fontSize: 18, color: 'action.active' }} />}
+                value={
+                  <Typography variant="body2" fontWeight={600}>
+                    {hasData ? nucData.length : 0} clusters
+                  </Typography>
+                }
               />
             </Grid>
 
             <Grid item xs={12} sm={6} md={3}>
               <StyledDetailItem
-                label="Last Modified"
-                icon={<Refresh sx={{ fontSize: 18, color: 'action.active' }} />}
-                value={<Typography variant="body2">—</Typography>}
+                label="Data Status"
+                icon={<CheckCircleIcon sx={{ fontSize: 18, color: hasData ? '#4caf50' : '#ff9800' }} />}
+                value={
+                  <Chip 
+                    size="small" 
+                    label={hasData ? "Data Available" : "No Data"} 
+                    color={hasData ? "success" : "warning"}
+                    variant="filled"
+                    sx={{ fontWeight: 600 }}
+                  />
+                }
               />
             </Grid>
 
             <Grid item xs={12}>
               <StyledDetailItem
-                label="Official Remarks"
-                icon={<Search sx={{ fontSize: 18, color: 'action.active' }} />}
+                label="Remarks / Notes"
+                icon={<CommentIcon sx={{ fontSize: 18, color: 'action.active' }} />}
                 value={
                   <Box sx={{ 
-                    p: 2, bgcolor: 'grey.50', borderRadius: 2, 
-                    borderLeft: '4px solid', borderColor: hasData ? 'primary.main' : 'grey.300', mt: 1 
+                    p: 2, 
+                    bgcolor: 'grey.50', 
+                    borderRadius: 2, 
+                    borderLeft: '4px solid', 
+                    borderColor: hasData ? 'primary.main' : 'grey.300', 
+                    mt: 1 
                   }}>
                     <Typography variant="body2" color={hasData ? "text.primary" : "text.secondary"} sx={{ fontStyle: hasData ? 'normal' : 'italic' }}>
-                      {nucData?.remark || "No specific remarks or notes have been logged for this entry."}
+                      {hasData && nucData.some(item => item.remark) 
+                        ? nucData.filter(item => item.remark).map(item => `${item.clusterLabel}: ${item.remark}`).join('; ')
+                        : "No specific remarks or notes have been logged for this season."}
                     </Typography>
                   </Box>
                 }
@@ -1353,7 +1648,7 @@ const renderNucDetails = () => {
       <Grid item xs={12}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h3" sx={{ color: TABLE_HEADER_BG, fontWeight: 'bold' }}>
-            Form 1 Details Viewer
+            Form 1 Details Viewer : {zonename} 
           </Typography>
           {/* <Button 
             variant="outlined" 
@@ -1364,6 +1659,22 @@ const renderNucDetails = () => {
             Refresh All
           </Button> */}
         </Box>
+        {/* <button   onClick={testPdfDownload} disabled={isLoading} style={{ 
+          padding: '8px 16px', 
+          backgroundColor: isLoading ? '#e0e0e0' : '#1976d2',
+          color: '#fff',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: isLoading ? 'not-allowed' : 'pointer',
+          fontSize: '1rem',
+          fontWeight: 600,
+          transition: 'background-color 0.3s',
+          marginBottom: '16px'
+        }}>
+         Download
+        </button> */}
+      
+    
 
         <MainCard 
           title=""

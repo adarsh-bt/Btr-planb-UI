@@ -124,24 +124,23 @@ const handleEmailSubmit = async (e) => {
     setSuccess('');
     
 
-    try {
-      const otpValue = otp.join(''); // Join the OTP digits together
-      if (otpValue.length === otp.length) {
-        const userLogin = {
-          userid: email,
-          otp: otpValue
-        };
-        const response = await authservice.verify_otp(userLogin);
-        if (response.statusCode === 200) {
-          setGlobalError('');
-          setStep(3); // Proceed to next step if OTP is correct
-        } else {
-          setGlobalError(response.message); // Show error message if OTP is invalid
+     try {
+        const otpValue = otp.join('');
+        if (otpValue.length === 6) {
+            const userLogin = { userid: email, otp: otpValue };
+            const response = await authservice.verifyOtp(userLogin);
+
+            if (response.statusCode === 200) {
+                // ✅ Store the reset token from server
+               
+                setEmail(response.data.resetToken); // reuse email state for resetToken
+                setStep(3);
+            } else {
+                setGlobalError(response.message);
+            }
         }
-      }
     } catch (error) {
-      console.error('Error verifying OTP:', error);
-      setGlobalError('An error occurred while verifying OTP.');
+        setGlobalError('An error occurred while verifying OTP.');
     }
 
     
@@ -190,10 +189,10 @@ const handleEmailSubmit = async (e) => {
 
     const trimmedPassword = newPassword.trim();
     const userLogin = {
-      userid: email,
+      resetToken: email,
       password: trimmedPassword
     };
-    const response = await authservice.password_reset(userLogin);
+    const response = await authservice.passwordReset(userLogin);
     if (response.status === 200) {
       setSuccess('Password Successfully changed');
       setGlobalError('');

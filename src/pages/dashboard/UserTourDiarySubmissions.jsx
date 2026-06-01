@@ -170,7 +170,7 @@ const UserTourDiarySubmissions = () => {
 
           <Box sx={{ mb: 3 }}>
             <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-              <strong>User ID:</strong> {userId}
+              {/* <strong>User ID:</strong> {userId} */}
             </Typography>
           </Box>
 

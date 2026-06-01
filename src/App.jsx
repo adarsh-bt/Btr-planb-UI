@@ -5,7 +5,7 @@ import router from 'routes';
 import ThemeCustomization from 'themes';
 
 import ScrollTop from 'components/ScrollTop';
-import { PermissionProvider } from 'contexts/PermissionContext';
+// import { PermissionProvider } from 'contexts/PermissionContext';
 
 
 
@@ -14,11 +14,11 @@ import { PermissionProvider } from 'contexts/PermissionContext';
 export default function App() {
   return (
     <ThemeCustomization>
-      <PermissionProvider>
+      {/* <PermissionProvider> */}
         <ScrollTop>
           <RouterProvider router={router} />
       </ScrollTop>
-      </PermissionProvider>
+      {/* </PermissionProvider> */}
     </ThemeCustomization>
   );
 }
