@@ -42,6 +42,7 @@ import tourdiary from 'assets/images/logo/tourdiary.png';
 import schemes from 'assets/images/logo/schemes.png';
 import approvals from 'assets/images/logo/approvals.png';
 import usermanage from 'assets/images/logo/usermanage.png';
+import reports from 'assets/images/logo/reports.png';
 
 //for permissions line
 import { useUserAccess, PermissionGate } from 'contexts/auth-reducer/universal/UserAccessContext';
@@ -391,7 +392,7 @@ export default function DashboardDefault() {
                     height: '3rem',
                     borderRadius: '50%'
                   }}
-                  image="https://www.creativefabrica.com/wp-content/uploads/2021/06/30/Search-Engine-Icon-Graphics-14065623-1-1-580x386.jpg"
+                  image={reports} // <-- Use the imported image here
                   alt="Chart Icon"
                 />
               </Box>

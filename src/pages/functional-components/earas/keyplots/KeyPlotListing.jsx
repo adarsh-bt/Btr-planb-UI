@@ -295,9 +295,9 @@ try {
     setLoading(false);
     return;
   }
-
+const agriYear = authservice.agriyear();
   const response = await api.get(
-    `/btr-service/key-plots/get-all/${resolvedZoneId}`
+   `/btr-service/key-plots/get-all/${resolvedZoneId}/${agriYear}`
   );
 
   const data = response.data;
@@ -916,7 +916,6 @@ const hasDuplicateClusterNumbers = () => {
             <Typography variant="h6" sx={{ ml: 2, color: 'text.secondary' }}>Loading data...</Typography>
           </Box>
         )}
-
 {zonestatus && (
   <Box
     sx={{

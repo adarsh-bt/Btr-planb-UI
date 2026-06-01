@@ -61,9 +61,24 @@ const [isOnline, setIsOnline] = useState(navigator.onLine);
       >
         {!drawerOpen ? <MenuIcon /> : <MenuOpenIcon />}
       </IconButton>
-       <Typography variant="p" color="white" sx={{width:'90%', ml:4,border:'1px solid white',borderRadius:2,padding:1, alignItems:'center', justifyContent:'center', display:'flex',background: 'rgba(0, 0, 0, 0.2)'}}>
-        {designation}
-      </Typography>
+      <Typography 
+  variant="p" 
+  color="white" 
+  sx={{
+    width: '90%', 
+    ml: 4,
+    border: '1px solid white',
+    borderRadius: 2,
+    padding: 1, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    background: 'rgba(0, 0, 0, 0.2)',
+    // Use responsive display (removed the duplicate display: 'flex')
+    display: { xs: 'none', sm: 'flex' }
+  }}
+>
+  {designation}
+</Typography>
            {!isOnline ? (
           <Chip
             icon={<WifiOffIcon sx={{ color: 'white !important', fontSize: 18 }} />}

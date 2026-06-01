@@ -13,6 +13,7 @@ import Button from '@mui/material/Button';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import mainapi from 'api/mainapi';
 import authservice from 'pages/authentication/services/authservice';
+import Typography from '@mui/material/Typography';
 import { useNavigate } from "react-router-dom";
 
 
@@ -107,45 +108,71 @@ export default function ZoneOptions() {
 
 
   return (
-    <Box sx={{   mt: 0.5 }}>
-      <FormControl size="small" fullWidth sx={{ minWidth: 180 }}>
-  <Select
-    id="zone-select"
-    value={zone}
-    onChange={handleOpenDialog}
-    IconComponent={() => null}
-    sx={{
-      color: 'white',
-      border: 'none',
-      '.MuiOutlinedInput-notchedOutline': { border: 'none' },
-      '&.Mui-focused .MuiOutlinedInput-notchedOutline': { border: 'none' },
-      '&:hover .MuiOutlinedInput-notchedOutline': { border: 'none' },
-      backgroundColor: 'transparent',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 1,
-      fontWeight: 500,
-    }}
-    renderValue={(selected) => {
-      const selectedZone = zones.find((z) => z.zoneId.toString() === selected);
-      return (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <LocationOnOutlinedIcon sx={{ fontSize: '1rem' }} />
-          {selectedZone ? selectedZone.zoneName : ''}
-        </Box>
-      );
-    }}
-  >
-    {zones.map(({ zoneId, zoneName }) => (
-      <MenuItem key={zoneId} value={zoneId.toString()} sx={{ color: 'black' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <LocationOnOutlinedIcon sx={{ color: 'action.active', fontSize: '1rem' }} />
-          {zoneName}
-        </Box>
-      </MenuItem>
-    ))}
-  </Select>
-</FormControl>
+<Box sx={{ 
+
+  display: 'flex', 
+  flexDirection: { xs: 'column', sm: 'row' }, // Stack on mobile, row on tablet+
+  gap: { xs: 1, sm: 2 }, // Responsive gap
+  alignItems: { xs: 'stretch', sm: 'center' },
+  justifyContent: 'space-between'
+}}>
+  
+  {/* Zone Selector */}
+  <FormControl size="small" sx={{ 
+    minWidth: { xs: '100%', sm: 180 }, // Full width on mobile
+    width: { xs: '100%', sm: 'auto' }
+  }}>
+    <Select
+      id="zone-select"
+      value={zone}
+      onChange={handleOpenDialog}
+      IconComponent={() => null}
+      sx={{
+        color: 'white',
+        border: 'none',
+        '.MuiOutlinedInput-notchedOutline': { border: 'none' },
+        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { border: 'none' },
+        '&:hover .MuiOutlinedInput-notchedOutline': { border: 'none' },
+       backgroundColor: '#04255e94', // Slight background for better visibility
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+        fontWeight: 500,
+        borderRadius: 2,
+        padding: { xs: '4px 8px', sm: '8px' ,lg:0},
+        '& .MuiSelect-select': {
+          py: { xs: 0.5, sm: 1 },
+        }
+      }}
+      renderValue={(selected) => {
+        const selectedZone = zones.find((z) => z.zoneId.toString() === selected);
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <LocationOnOutlinedIcon sx={{ fontSize: '1rem' }} />
+            {/* Hide text on mobile, show on tablet+ */}
+            <Typography 
+              component="span" 
+              sx={{ 
+                display: { xs: 'none', sm: 'inline' },
+                fontSize: '0.875rem'
+              }}
+            >
+              {selectedZone ? selectedZone.zoneName : ''}
+            </Typography>
+          </Box>
+        );
+      }}
+    >
+      {zones.map(({ zoneId, zoneName }) => (
+        <MenuItem key={zoneId} value={zoneId.toString()} sx={{ color: 'black' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <LocationOnOutlinedIcon sx={{ color: 'action.active', fontSize: '1rem' }} />
+            {zoneName}
+          </Box>
+        </MenuItem>
+      ))}
+    </Select>
+  </FormControl>
 
 
       <Dialog
