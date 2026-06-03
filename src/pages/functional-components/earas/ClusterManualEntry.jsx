@@ -164,8 +164,7 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
     });
     const [rowBlockOptions, setRowBlockOptions] = useState({});
 
-    // ✅ NEW: Function to fetch CCE croFORM_URp details from API
-    // Updated function to fetch and filter CCE crop details based on land type
+    
     const fetchCceCropDetails = async () => {
         setLoadingCrops(true);
         try {
@@ -184,6 +183,7 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
 
             // Filter crops based on cluster land type
             const filteredCrops = filterCropsByLandType(cropData, clusterInfo.landType);
+
 
             setCceCropDetails(filteredCrops);
         } catch (error) {
@@ -553,7 +553,7 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
             }
 
             const data = await response.json();
-      
+    console.log('API CCE Crops Response:', data);
             setApiCropsData(data);
 
         } catch (error) {
@@ -1168,7 +1168,7 @@ const hasValidRow = (keyplot) => {
                     clusterId: clusterIdNumber,
                     keyplotId: keyplotId, // This should be the UUID from URL params
                     zoneId: parseInt(zoneId),
-                    landType: clusterInfo.landType || "WET",
+                    landType: clusterInfo.landType,
                     isLimitExceeded: false,
                     isCurrentAssignment: true,
                     addedBy: authservice.userid(),
@@ -2096,7 +2096,9 @@ const validateSidePlotLabels = () => {
                                         // Add API crops
                                         if (apiCropsData && apiCropsData.crops) {
                                             apiCropsData.crops.forEach(crop => {
+                                                if(crop.isActive) {
                                                 allCrops.push(crop.cropName);
+                                                }
                                             });
                                         }
 

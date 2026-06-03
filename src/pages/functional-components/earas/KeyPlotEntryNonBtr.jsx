@@ -39,6 +39,8 @@ import {
 import { toast } from "react-toastify";
 import mainapi from "api/mainapi";
 import authservice from "pages/authentication/services/authservice";
+import api from "api/api";
+import Breadcrumb from 'routes/Breadcrumb';
 
 const landTypeOptions = ["Wet", "Dry"];
 
@@ -73,6 +75,14 @@ const KeyPlotEntryNonBtr = () => {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [savedCount, setSavedCount] = useState(0);
   const [validationErrors, setValidationErrors] = useState([]);
+
+  // --- Plot Validation States ---
+  const [validationInfo, setValidationInfo] = useState(null);
+  const [isValidationDialogOpen, setIsValidationDialogOpen] = useState(false);
+  const [validatingRow, setValidatingRow] = useState(null); // stores { lbId, villageName, rowId }
+  const [subdivisionDialogOpen, setSubdivisionDialogOpen] = useState(false);
+  const [availableSubdivisions, setAvailableSubdivisions] = useState([]);
+  const [pendingPlot, setPendingPlot] = useState(null);
 
   const BASE_URL = mainapi.BASE_URL;
   const zoneId = typeof window !== "undefined" ? localStorage.getItem("activeZone") : null;
@@ -375,6 +385,255 @@ const KeyPlotEntryNonBtr = () => {
       : (a, b) => -descendingComparator(a, b, orderBy);
   };
 
+// --- Validation Logic ---
+// --- Plot Validation Logic ---
+  const checkPlotUsageInCurrentForm = (plotIdentifier, currentLbId, currentVillageName, currentRowId, btrTypeId) => {
+    let duplicateRows = [];
+    
+    Object.entries(localBodyData).forEach(([lbId, villageData]) => {
+      Object.entries(villageData || {}).forEach(([villageName, rows]) => {
+        rows.forEach(row => {
+          // Skip the row currently being validated
+          if (row.id === currentRowId && lbId === currentLbId.toString() && villageName === currentVillageName) return;
+
+          let rowPlotIdentifier = '';
+          if (btrTypeId === 2 && row.wardNo && row.houseNo) {
+            rowPlotIdentifier = `${row.village}-${row.villageBlock}-${row.wardNo}-${row.houseNo}`;
+          } else if (btrTypeId === 3 && row.name && row.address && row.area) {
+            rowPlotIdentifier = `${row.village}-${row.villageBlock}-${row.name}-${row.address}-${row.area}`;
+          } else if (btrTypeId === 4 && row.thandaperNo) {
+            rowPlotIdentifier = `${row.village}-${row.villageBlock}-${row.thandaperNo}-${row.thandapersubNo || ''}`;
+          } else if (btrTypeId === 5 && row.oldsvno) {
+            rowPlotIdentifier = `${row.village}-${row.villageBlock}-${row.oldsvno}-${row.oldsubno || ''}`;
+          }
+
+          if (rowPlotIdentifier === plotIdentifier && rowPlotIdentifier !== '') {
+            duplicateRows.push({ ...row, lbId, villageName });
+          }
+        });
+      });
+    });
+
+    if (duplicateRows.length === 0) return { isUsed: false };
+
+    const totalArea = parseFloat(duplicateRows[0].area) || 0;
+    const usedArea = duplicateRows.reduce((sum, row) => sum + (parseFloat(row.area) || 0), 0);
+    const remainingArea = Math.max(0, totalArea - usedArea);
+    
+    return {
+      isUsed: true,
+      location: 'this form',
+      totalArea,
+      usedArea,
+      remainingArea
+    };
+  };
+
+  const handlePlotValidation = async (lbId, villageName, rowId) => {
+   
+    const currentListType = getCurrentListType();
+    const btrTypeId = nonBtrTypeMapping[currentListType];
+    const row = localBodyData[lbId]?.[villageName]?.find(r => r.id === rowId);
+
+    if (!row || !row.village || !row.villageBlock) return;
+
+    // 1. Require specific fields based on BTR Type before validating
+    if (btrTypeId === 2 && (!row.wardNo || !row.houseNo)) return;
+    if (btrTypeId === 3 && (!row.name || !row.address || !row.area)) return;
+    if (btrTypeId === 4 && (!row.thandaperNo)) return;
+    if (btrTypeId === 5 && (!row.oldsvno)) return;
+
+    // 2. Set Plot Identifier for Local Duplicate Check
+    let plotIdentifier = '';
+    if (btrTypeId === 2) plotIdentifier = `${row.village}-${row.villageBlock}-${row.wardNo}-${row.houseNo}`;
+    else if (btrTypeId === 3) plotIdentifier = `${row.village}-${row.villageBlock}-${row.name}-${row.address}-${row.area}`;
+    else if (btrTypeId === 4) plotIdentifier = `${row.village}-${row.villageBlock}-${row.thandaperNo}-${row.thandapersubNo || ''}`;
+    else if (btrTypeId === 5) plotIdentifier = `${row.village}-${row.villageBlock}-${row.oldsvno}-${row.oldsubno || ''}`;
+
+    const existingUsageInForm = checkPlotUsageInCurrentForm(plotIdentifier, lbId, villageName, rowId, btrTypeId);
+    
+    if (existingUsageInForm.isUsed) {
+      setValidationInfo({
+        message: `This plot is already used in ${existingUsageInForm.location}.`,
+        totalcent: existingUsageInForm.totalArea,
+        remainingArea: existingUsageInForm.remainingArea,
+        uiUsedRemaining: existingUsageInForm.remainingArea,
+        isFromCurrentForm: true
+      });
+      setValidatingRow({ lbId, villageName, rowId });
+      setIsValidationDialogOpen(true);
+      return;
+    }
+
+    // 3. Backend API Validation
+    try {
+      const token = localStorage.getItem('token');
+      const villageData = villageInfoMap.get(row.village);
+      const lbData = localBodyInfoMap.get(parseInt(lbId));
+      if (!villageData || !lbData) return;
+
+      // Base Payload
+      let payload = {
+        btrtype: btrTypeId,
+        vcode: villageData.vcode,
+        bcode: row.villageBlock,
+        resvno: row.surveyNo ? parseInt(row.surveyNo, 10) : null,
+        resbdno: row.subDivNo && row.subDivNo.trim() !== "" ? row.subDivNo.trim() : null,
+        lbcode: lbData.lbcode,
+        zoneId: parseInt(zoneId, 10),
+        agriYear: authservice.agriyear(),
+      };
+
+      // Type-Specific Payload Variables
+      if (btrTypeId === 2) {
+        payload.wardno = parseInt(row.wardNo);
+        payload.houseno = row.houseNo;
+      } else if (btrTypeId === 3) {
+        payload.ownername = row.name;
+        payload.address = row.address;
+        payload.totCent = parseFloat(row.area);
+      } else if (btrTypeId === 4) {
+        payload.tpno = parseInt(row.thandaperNo);
+        payload.tbsubdivisionno = row.thandapersubNo ? row.thandapersubNo : null;
+        payload.totCent = parseFloat(row.area) || 0;
+      } else if (btrTypeId === 5) {
+        payload.oldsvno = parseInt(row.oldsvno);
+        payload.oldsubno = row.oldsubno ? row.oldsubno : null;
+        payload.totCent = parseFloat(row.area) || 0;
+      }
+
+      const response = await fetch(`${BASE_URL}/btr-service/key-plots/validate-nonbtr-keyplots`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+
+      const responseText = await response.text();
+      let data = responseText ? JSON.parse(responseText) : {};
+
+      if (response.status === 409) {
+        if (data.availableSubdivisions && data.availableSubdivisions.length > 0) {
+          setAvailableSubdivisions(data.availableSubdivisions);
+          setPendingPlot({ lbId, villageName, rowId, validationInfo: data });
+          setSubdivisionDialogOpen(true);
+        } else {
+          setValidationInfo({
+            message: data.message || "This plot has already been used",
+            totalcent: data.totalArea || data.totalcent || 0,
+            remainingArea: data.remainingArea || data.remaining_area || 0,
+            uiUsedRemaining: data.remainingArea || data.remaining_area || 0,
+            isFromCurrentForm: false,
+            plotId: data.id,
+            landType: data.landType
+          });
+          setValidatingRow({ lbId, villageName, rowId });
+          setIsValidationDialogOpen(true);
+        }
+      } else if (response.ok) {
+        if (data.id) {
+          handleChange(lbId, villageName, rowId, 'btrId', data.id);
+          handleChange(lbId, villageName, rowId, 'area', data.totalcent ? data.totalcent.toString() : row.area);
+          handleChange(lbId, villageName, rowId, 'isLocked', true);
+          
+          if (data.landType) {
+             handleChange(lbId, villageName, rowId, 'landType', data.landType.charAt(0).toUpperCase() + data.landType.slice(1).toLowerCase());
+          }
+          toast.success(data.message || "Existing plot linked. Fields are locked.");
+        } else {
+          handleChange(lbId, villageName, rowId, 'btrId', null);
+          handleChange(lbId, villageName, rowId, 'isLocked', false);
+        }
+      } else {
+        throw new Error(data.message || `Validation failed: ${response.status}`);
+      }
+    } catch (error) {
+      console.error("Validation error:", error);
+    }
+  };
+
+const handleUseRecommendedPlot = (type) => {
+    if (!validatingRow || !validationInfo) return;
+    const { lbId, villageName, rowId } = validatingRow;
+
+    setLocalBodyData(prev => ({
+      ...prev,
+      [lbId]: {
+        ...prev[lbId],
+        [villageName]: prev[lbId][villageName].map(row => 
+          row.id === rowId ? {
+            ...row,
+            btrId: validationInfo.plotId || null,
+            area: type === 'remaining' && validationInfo.uiUsedRemaining > 0 
+              ? validationInfo.uiUsedRemaining.toFixed(2) 
+              : row.area,
+            isLocked: true, // Locks the fields
+            landType: validationInfo.landType 
+              ? validationInfo.landType.charAt(0).toUpperCase() + validationInfo.landType.slice(1).toLowerCase() 
+              : row.landType
+          } : row
+        )
+      }
+    }));
+
+    setIsValidationDialogOpen(false);
+    setValidationInfo(null);
+    setValidatingRow(null);
+    if (type === 'remaining') {
+      toast.success(`Using remaining area: ${validationInfo.uiUsedRemaining.toFixed(2)} cents. Fields locked.`);
+    }
+  };
+
+  const handleRejectPlot = () => {
+    if (!validatingRow) return;
+    const { lbId, villageName, rowId } = validatingRow;
+    
+    setLocalBodyData(prev => ({
+      ...prev,
+      [lbId]: {
+        ...prev[lbId],
+        [villageName]: prev[lbId][villageName].map(row => 
+          row.id === rowId ? { ...row, name: '', address: '', wardNo: '', houseNo: '', thandaperNo: '', thandapersubNo: '', oldsvno: '', oldsubno: '', area: '' } : row
+        )
+      }
+    }));
+
+    setIsValidationDialogOpen(false);
+    toast.warn("Plot rejected. Please enter a different one.");
+  };
+
+ const handleSubdivisionSelect = (selectedSub) => {
+    if (!pendingPlot || !selectedSub) return;
+    const { lbId, villageName, rowId, validationInfo } = pendingPlot;
+
+    const currentListType = getCurrentListType();
+    
+    setLocalBodyData(prev => ({
+      ...prev,
+      [lbId]: {
+        ...prev[lbId],
+        [villageName]: prev[lbId][villageName].map(row => 
+          row.id === rowId ? {
+            ...row,
+            thandapersubNo: currentListType === "Thandaper Number" ? selectedSub : row.thandapersubNo,
+            oldsubno: currentListType === "Old Survey Number" ? selectedSub : row.oldsubno,
+            subDivNo: (currentListType === "House List" || currentListType === "Cultivators List") ? selectedSub : row.subDivNo,
+            btrId: validationInfo?.id || null,
+            area: validationInfo?.totalcent ? validationInfo.totalcent.toString() : row.area,
+            isLocked: !!validationInfo?.totalcent,
+            landType: validationInfo?.landType 
+              ? validationInfo.landType.charAt(0).toUpperCase() + validationInfo.landType.slice(1).toLowerCase() 
+              : row.landType
+          } : row
+        )
+      }
+    }));
+
+    setSubdivisionDialogOpen(false);
+    setPendingPlot(null);
+    toast.success(`Subdivision ${selectedSub} selected. Fields locked.`);
+  };
+
+
   // Returns an array of { field, label } that must be filled for this row based on current list type
   const getRequiredFieldsForRow = (currentListType) => {
     switch (currentListType) {
@@ -539,39 +798,46 @@ const KeyPlotEntryNonBtr = () => {
     setShowConfirmModal(false);
   };
 
-  useEffect(() => {
-    const savedZone = localStorage.getItem('activeZone');
-    if (!savedZone) return;
-    
-    fetchKeyplotLimit();
-  }, [BASE_URL]);
+useEffect(() => {
 
   const fetchKeyplotLimit = async () => {
-    const savedZone = localStorage.getItem('activeZone');
-    if (!savedZone) return;
+
+    const savedZone = authservice.getzone();
+
+    const agriYear =
+      localStorage.getItem("activeAgriYear");
+
+    if (!savedZone || !agriYear) return;
 
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(
-        `${BASE_URL}/btr-service/api/keyplots/limit-status/${savedZone}`,
+
+      const response = await api.get(
+        `/btr-service/api/keyplots/limit-status/${savedZone}`,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
+          params: {
+            agriYear: agriYear
+          }
         }
       );
 
-      if (!res.ok) throw new Error('Failed to fetch keyplot limit');
+      const data = response.data;
 
-      const data = await res.json();
       setKeyplotLimit(data);
       setRemainingKeyplots(data.remainingKeyplots);
+
     } catch (err) {
+
       console.error(err);
-      toast.error('Unable to refresh keyplot limit');
+
+      toast.error(
+        "Unable to refresh keyplot limit"
+      );
     }
   };
+
+  fetchKeyplotLimit();
+
+}, []);
 
   const handleActualSave = async () => {
     if (totalKeyplots > remainingKeyplots) {
@@ -632,6 +898,7 @@ const KeyPlotEntryNonBtr = () => {
             }
 
             const dto = {
+              id: row.btrId || null,
               dcode: districtInfo.distId,
               tcode: talukInfo[0].revenueTalukId,
               vcode: villageData.vcode,
@@ -642,6 +909,7 @@ const KeyPlotEntryNonBtr = () => {
               resvno: row.surveyNo ? parseInt(row.surveyNo) : null,
               resbdno: row.subDivNo || "",
               lsgcode: villageData.lsgcode,
+              agriYear:authservice.agriyear(),
              
               user_id: userId,
               totCent: row.area ? parseFloat(row.area) : 0.0,
@@ -694,7 +962,7 @@ const KeyPlotEntryNonBtr = () => {
         setShowSuccessModal(true);
         toast.success(`Successfully saved ${result.ids?.length || totalKeyplots} keyplots!`);
         setLocalBodyData({});
-        await fetchKeyplotLimit();
+        // await fetchKeyplotLimit();
       } else if (result.status === 'Validation Failed') {
         setValidationErrors(result.errors || []);
         setShowErrorModal(true);
@@ -777,6 +1045,7 @@ const getTableHeaders = (lbId, villageName) => {
 
   return (
     <Grid container spacing={3}>
+       <Breadcrumb></Breadcrumb>
       <Box
         sx={{
           p: 3,
@@ -1062,7 +1331,8 @@ const getTableHeaders = (lbId, villageName) => {
   <>
     <TableCell align="center">
       <TextField
-        value={row.name ?? ""}
+        value={row.name ?? ""} 
+        disabled={row.isLocked}
         onChange={(e) => {
           const raw = e.target.value ?? "";
           const v = raw.slice(0, 60);
@@ -1096,7 +1366,8 @@ const getTableHeaders = (lbId, villageName) => {
 
     <TableCell align="center">
       <TextField
-        value={row.address || ""}
+        value={row.address || ""} 
+        disabled={row.isLocked}
         onChange={(e) => {
           const v = e.target.value.slice(0, 250);
           handleChange(lb.id, currentVillageName, row.id, "address", v);
@@ -1125,11 +1396,13 @@ const getTableHeaders = (lbId, villageName) => {
                               <>
                                 <TableCell align="center">
                                   <TextField
-                                    value={row.wardNo ?? ""}
+                                    value={row.wardNo ?? ""} 
+                                    disabled={row.isLocked}
                                     onChange={(e) => {
                                       const digits = (e.target.value || "").replace(/\D/g, "").slice(0, 5);
                                       handleChange(lb.id, currentVillageName, row.id, "wardNo", digits);
                                     }}
+                                     onBlur={() => handlePlotValidation(row.id, row.uniqueId)}
                                     placeholder="Ward No."
                                     inputMode="numeric"
                                      sx={{ minWidth: 70 }}
@@ -1152,7 +1425,9 @@ const getTableHeaders = (lbId, villageName) => {
 
                                 <TableCell align="center">
                                   <TextField
-                                    value={row.houseNo ?? ""}
+                                    value={row.houseNo ?? ""} 
+                                    disabled={row.isLocked}
+                                   onBlur={() => handlePlotValidation(lb.id, currentVillageName, row.id)}
                                     onChange={(e) => {
                                       const value = e.target.value.slice(0, 10);
                                       handleChange(lb.id, currentVillageName, row.id, "houseNo", value);
@@ -1184,6 +1459,8 @@ const getTableHeaders = (lbId, villageName) => {
                                 <TableCell align="center">
                                   <TextField
                                     value={row.thandaperNo ?? ""}
+                                    disabled={row.isLocked}
+                                    onBlur={() => handlePlotValidation(lb.id, currentVillageName, row.id)}
                                     onChange={(e) => {
                                       const digits = (e.target.value || "").replace(/\D/g, "").slice(0, 5);
                                       handleChange(lb.id, currentVillageName, row.id, "thandaperNo", digits);
@@ -1237,7 +1514,9 @@ const getTableHeaders = (lbId, villageName) => {
                               <>
                                 <TableCell align="center">
                                   <TextField
-                                    value={row.oldsvno ?? ""}
+                                    value={row.oldsvno ?? ""} 
+                                    disabled={row.isLocked} 
+                                    onBlur={() => handlePlotValidation(lb.id, currentVillageName, row.id)}
                                     onChange={(e) => {
                                       const digits = (e.target.value || "").replace(/\D/g, "").slice(0, 5);
                                       handleChange(lb.id, currentVillageName, row.id, "oldsvno", digits);
@@ -1264,7 +1543,9 @@ const getTableHeaders = (lbId, villageName) => {
 
                                 <TableCell align="center">
                                   <TextField
-                                    value={row.oldsubno ?? ""}
+                                    value={row.oldsubno ?? ""} 
+                                    disabled={row.isLocked}
+                                    onBlur={() => handlePlotValidation(lb.id, currentVillageName, row.id)}
                                     onChange={(e) => {
                                       const v = (e.target.value || "").slice(0, 10);
                                       handleChange(lb.id, currentVillageName, row.id, "oldsubno", v);
@@ -1325,7 +1606,14 @@ const getTableHeaders = (lbId, villageName) => {
 
                             <TableCell align="center">
                               <TextField
-                                value={row.area ?? ""}
+                                value={row.area ?? ""} 
+                                disabled={row.isLocked} // NEW
+                                  onBlur={() => {
+                                    // Type 3 (Cultivators) requires area to validate, so trigger here
+                                    if (getCurrentListType() === "Cultivators List") {
+                                      handlePlotValidation(lb.id, currentVillageName, row.id);
+                                    }
+                                  }}
                                 onChange={(e) => {
                                   let v = (e.target.value || "").replace(/[^0-9.]/g, "");
                                   const firstDot = v.indexOf(".");
@@ -1365,7 +1653,8 @@ const getTableHeaders = (lbId, villageName) => {
                             <TableCell align="center">
                               <TextField
                                 select
-                                value={row.landType}
+                                value={row.landType} 
+                                disabled={row.isLocked}
                                 onChange={(e) =>
                                   handleChange(lb.id, currentVillageName, row.id, "landType", e.target.value)
                                 }
@@ -1450,6 +1739,73 @@ const getTableHeaders = (lbId, villageName) => {
             <Button onClick={handleConfirmSave} color="primary" variant="contained" autoFocus>
               Confirm & Save
             </Button>
+          </DialogActions>
+        </Dialog>
+
+{/* Plot Validation Dialog */}
+        <Dialog
+          open={isValidationDialogOpen}
+          onClose={() => setIsValidationDialogOpen(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="h6">
+                {validationInfo?.isFromCurrentForm ? "Duplicate Plot in Form" : "Plot Recommendation"}
+              </Typography>
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            {validationInfo && (
+              <Box>
+                <DialogContentText sx={{ mb: 2, color: validationInfo.isFromCurrentForm ? 'warning.main' : 'text.primary' }}>
+                  {validationInfo.message || "This plot has already been used."}
+                </DialogContentText>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Total Area:</strong> {validationInfo.totalcent || validationInfo.totalArea || 0} cents
+                </Typography>
+                {validationInfo.uiUsedRemaining !== undefined && (
+                  <Typography variant="body2" sx={{ mb: 2, color: validationInfo.uiUsedRemaining > 0 ? 'success.main' : 'error.main' }}>
+                    <strong>Remaining Available:</strong> {validationInfo.uiUsedRemaining.toFixed(2)} cents
+                  </Typography>
+                )}
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            {validationInfo && validationInfo.uiUsedRemaining > 0 && (
+              <Button
+                onClick={() => handleUseRecommendedPlot('remaining')}
+                color="primary"
+                variant="contained"
+              >
+                Use Remaining Area ({validationInfo.uiUsedRemaining.toFixed(2)} cents)
+              </Button>
+            )}
+            <Button onClick={handleRejectPlot} color="error" variant="outlined">
+              {validationInfo?.isFromCurrentForm ? 'Clear Entry' : 'Choose Different Plot'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Subdivision Selection Dialog */}
+        <Dialog open={subdivisionDialogOpen} onClose={() => setSubdivisionDialogOpen(false)} maxWidth="xs" fullWidth>
+          <DialogTitle>Select Subdivision</DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ mb: 2 }}>
+              Multiple subdivisions exist for this plot. Please select one:
+            </DialogContentText>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {availableSubdivisions.map((sub) => (
+                <Button key={sub} variant="outlined" onClick={() => handleSubdivisionSelect(sub)}>
+                  Subdivision: {sub}
+                </Button>
+              ))}
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setSubdivisionDialogOpen(false)} color="secondary">Cancel</Button>
           </DialogActions>
         </Dialog>
 

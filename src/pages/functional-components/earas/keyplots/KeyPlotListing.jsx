@@ -239,47 +239,47 @@ const handleUpdateEnumeratedArea = async () => {
 
   setEnumLoading(true);
 
-  try {
-    const BASE_URL = mainapi.BASE_URL;
-    const token = localStorage.getItem("token");
-    
-    const response = await fetch(
-      `${BASE_URL}/btr-service/key-plots/update-enumerated-area`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          kpId: id,
-          enumeratedArea: parseFloat(enumAreaValue),
-          remark: enumRemark,
-        }),
-      }
+try {
+
+  setEnumLoading(true);
+
+  const response = await api.post(
+    `/btr-service/key-plots/update-enumerated-area`,
+    {
+      kpId: id,
+      enumeratedArea: parseFloat(enumAreaValue),
+      remark: enumRemark,
+    }
+  );
+
+  setSnackbarMessage("Enumerated area updated successfully");
+  setSnackbarSeverity("success");
+  setSnackbarOpen(true);
+
+  setOpenEditEnumDialog(false);
+
+  // ✅ Refresh both list & modal
+  fetchKeyPlots();
+  fetchPlotDetails(id);
+
+} catch (err) {
+
+  // ✅ interceptor handles 401
+  if (err?.response?.status !== 401) {
+
+    setSnackbarMessage(
+      err.message || "Failed to update enumerated area"
     );
 
-    if (!response.ok) {
-      throw new Error("Failed to update enumerated area");
-    }
-
-    setSnackbarMessage("Enumerated area updated successfully");
-    setSnackbarSeverity("success");
-    setSnackbarOpen(true);
-
-    setOpenEditEnumDialog(false);
-
-    // Refresh both list & modal
-    fetchKeyPlots();
-    fetchPlotDetails(id);
-
-  } catch (err) {
-    setSnackbarMessage(err.message || "Failed to update enumerated area");
     setSnackbarSeverity("error");
     setSnackbarOpen(true);
-  } finally {
-    setEnumLoading(false);
   }
+
+} finally {
+
+  setEnumLoading(false);
+
+}
 };
 const startYear = 2026;
 const endYear = 2027;
@@ -289,11 +289,15 @@ const endYear = 2027;
     setError(null);
     setFetchError(null);
 
+<<<<<<< HEAD
 
 
 
 try {
 
+=======
+try {
+>>>>>>> a22e88c9546b017638c11df9b01a746c7e03b955
   if (!resolvedZoneId || resolvedZoneId === "null") {
     setError("No zones are assigned to you. Please contact your administrator.");
     setZonestatus(true);
@@ -301,6 +305,7 @@ try {
     setLoading(false);
     return;
   }
+<<<<<<< HEAD
 
   // const response = await api.get(
   //   `/btr-service/key-plots/get-all/${resolvedZoneId}`
@@ -317,6 +322,21 @@ try {
 
   const transformedPlots = transformPlotData(plots);
 
+=======
+const agriYear = authservice.agriyear();
+  const response = await api.get(
+   `/btr-service/key-plots/get-all/${resolvedZoneId}/${agriYear}`
+  );
+
+  const data = response.data;
+
+  console.log("API Response:", data);
+
+  const plots = data.payload || [];
+
+  const transformedPlots = transformPlotData(plots);
+
+>>>>>>> a22e88c9546b017638c11df9b01a746c7e03b955
   setPlotData(transformedPlots);
   setDataVisible(plots.length > 0);
 
@@ -344,6 +364,7 @@ try {
         dryCount: isDry ? 1 : 0
       });
     }
+<<<<<<< HEAD
 
     return acc;
 
@@ -376,10 +397,45 @@ try {
 }
   }, [resolvedZoneId, startYear, endYear]);
 
+=======
+
+    return acc;
+
+  }, []).sort((a, b) => b.totalarea - a.totalarea);
+
+  setPanchayathAreaSummary(panchayathSummary);
+
+} catch (err) {
+
+  console.error("Fetch error:", err);
+
+  // ❗ DO NOT handle 401 here → interceptor handles it
+
+  if (err.response) {
+    setError(err.response.data?.message || "Failed to fetch keyplot data");
+    setFetchError(err.response.data?.message || "Server error");
+  } else {
+    setError("Network error. Please check your connection.");
+    setFetchError("Network error");
+  }
+
+  setDataVisible(false);
+
+  setSnackbarMessage("Error loading data");
+  setSnackbarSeverity('error');
+  setSnackbarOpen(true);
+
+} finally {
+  setLoading(false);
+}
+  }, []);
+
+>>>>>>> a22e88c9546b017638c11df9b01a746c7e03b955
 // When fetching crops, add removing property
 const fetchCropsForCluster = async (clusterId) => {
   setCropsLoading(true);
   try {
+<<<<<<< HEAD
     const BASE_URL = mainapi.BASE_URL;
     const token = localStorage.getItem("token");
     
@@ -398,6 +454,10 @@ const fetchCropsForCluster = async (clusterId) => {
     
     const data = await response.json();
     // Add removing property to each crop
+=======
+    const response = await api.get(`/earas-form1-entry/available-cce-plot-details/fetch-cce-crops/${clusterId}`);
+    const data = response.data;
+>>>>>>> a22e88c9546b017638c11df9b01a746c7e03b955
     const cropsWithStatus = (data.payload || []).map(crop => ({
       ...crop,
       removing: false,
@@ -407,7 +467,11 @@ const fetchCropsForCluster = async (clusterId) => {
     setShowCropsList(true);
   } catch (err) {
     console.error("Error fetching crops:", err);
+<<<<<<< HEAD
     setSnackbarMessage("Failed to fetch crops list");
+=======
+    setSnackbarMessage(err.response?.data?.message || "Failed to fetch crops list");
+>>>>>>> a22e88c9546b017638c11df9b01a746c7e03b955
     setSnackbarSeverity("error");
     setSnackbarOpen(true);
   } finally {
@@ -423,6 +487,7 @@ const retryRemovalAfterCropsRemoved = async () => {
   
   setDialogLoading(true);
   
+<<<<<<< HEAD
   try {
     const BASE_URL = mainapi.BASE_URL;
     const token = localStorage.getItem("token");
@@ -460,6 +525,52 @@ const retryRemovalAfterCropsRemoved = async () => {
   } finally {
     setDialogLoading(false);
   }
+=======
+try {
+
+  setDialogLoading(true);
+
+  const response = await api.delete(
+    `/btr-service/key-plots/remove-keyPlots/${selectedRowToRemove.plot_id}`
+  );
+
+  // ✅ Success - remove from local state
+  setPlotData(prevData =>
+    prevData.filter(item => item.id !== selectedRowToRemove.id)
+  );
+
+  setSnackbarMessage(
+    `✅ Successfully removed KeyPlot ${selectedRowToRemove?.syNo}`
+  );
+
+  setSnackbarSeverity('success');
+  setSnackbarOpen(true);
+
+  fetchKeyPlots();
+
+  handleCloseRemoveDialog();
+
+} catch (error) {
+
+  console.error("Error during removal retry:", error);
+
+  // ✅ interceptor handles 401
+  if (error?.response?.status !== 401) {
+
+    setSnackbarMessage(
+      `Failed to remove KeyPlot: ${error.message}`
+    );
+
+    setSnackbarSeverity('error');
+    setSnackbarOpen(true);
+  }
+
+} finally {
+
+  setDialogLoading(false);
+
+}
+>>>>>>> a22e88c9546b017638c11df9b01a746c7e03b955
 };
   const hasDuplicateWithExisting = () => {
   const currentValues = plotData.map(row => row.cluster_number);
@@ -488,40 +599,45 @@ const hasAnyErrors = () => {
   return Object.values(clusterErrors).some(err => err && err !== "");
 };
   // Fetch individual plot details
-  const fetchPlotDetails = async (plotId) => {
+const fetchPlotDetails = async (plotId) => {
+
+  try {
+
     setPlotDetailsLoading(true);
     setPlotDetailsError(null);
-    
-    try {
-      const BASE_URL = mainapi.BASE_URL;
-      const token = localStorage.getItem('token')
-      const response = await fetch(`${BASE_URL}/btr-service/key-plots/get-keyplot/${plotId}`,{
-         headers: {
-          Authorization: `Bearer ${token}` // Add token in Authorization header
-        }
-      }
-        
-      );
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch plot details (${response.status})`);
-      }
-      
-      const data = await response.json();
-      
-      setPlotDetailsData(data.payload);
-      
-      
-    } catch (err) {
+
+    const response = await api.get(
+      `/btr-service/key-plots/get-keyplot/${plotId}`
+    );
+
+    setPlotDetailsData(response.data.payload);
+
+  } catch (err) {
+
+    // ✅ interceptor handles 401
+    if (err?.response?.status !== 401) {
+
       console.error('Error fetching plot details:', err);
-      setPlotDetailsError(`Failed to fetch plot details: ${err.message}`);
-      setSnackbarMessage(`Error fetching plot details: ${err.message}`);
+
+      setPlotDetailsError(
+        `Failed to fetch plot details: ${err.message}`
+      );
+
+      setSnackbarMessage(
+        `Error fetching plot details: ${err.message}`
+      );
+
       setSnackbarSeverity('error');
+
       setSnackbarOpen(true);
-    } finally {
-      setPlotDetailsLoading(false);
     }
-  };
+
+  } finally {
+
+    setPlotDetailsLoading(false);
+
+  }
+};
 
   useEffect(() => {
     fetchKeyPlots();
@@ -649,6 +765,7 @@ const handleConfirmRemoval = async () => {
     handleCloseRemoveDialog();
     return;
   }
+<<<<<<< HEAD
 
   setDialogLoading(true);
   
@@ -716,13 +833,123 @@ const handleConfirmRemoval = async () => {
   }
 };
 
+=======
+>>>>>>> a22e88c9546b017638c11df9b01a746c7e03b955
 
-  const handleCloseRemoveDialog = () => {
+  setDialogLoading(true);
+  
+ try {
+
+  setDialogLoading(true);
+
+  const response = await api.delete(
+    `/btr-service/key-plots/remove-keyPlots/${selectedRowToRemove.plot_id}`
+  );
+
+  // ✅ Success - remove from local state
+  setPlotData(prevData =>
+    prevData.filter(item => item.id !== selectedRowToRemove.id)
+  );
+
+  setSnackbarMessage(
+    `✅ Successfully removed KeyPlot ${selectedRowToRemove?.syNo}`
+  );
+
+  setSnackbarSeverity('success');
+  setSnackbarOpen(true);
+
+  fetchKeyPlots();
+
+  handleCloseRemoveDialog();
+
+} catch (error) {
+
+  console.error("Error during keyplot removal:", error);
+
+  // ✅ interceptor handles 401
+  if (error?.response?.status === 401) {
+    return;
+  }
+
+  let errorMessage =
+    error.response?.data ||
+    error.message ||
+    "Failed to remove keyplot";
+
+  // ✅ Check if error is about crops existing
+  if (
+    errorMessage.includes("Crops exist") ||
+    errorMessage.includes("remove crops first")
+  ) {
+
+    const clusterId = selectedRowToRemove.id;
+
+    await fetchCropsForCluster(clusterId);
+
+    setRemovalValidationError(errorMessage);
+
+  }
+
+  // ✅ Cluster status validation
+  else if (errorMessage.includes("cluster status is")) {
+
+    const statusMatch = errorMessage.match(
+      /status is:?\s*([^\.]+)/i
+    );
+
+    const status = statusMatch
+      ? statusMatch[1].trim()
+      : '';
+
+    errorMessage =
+      `❌ Cannot remove this KeyPlot because the cluster status is "${status}".\n\nOnly clusters with status "Not Started" can be removed.`;
+
+    setRemovalValidationError(errorMessage);
+
+  }
+
+  // ✅ Not found validation
+  else if (errorMessage.includes("KeyPlot not found")) {
+
+    errorMessage =
+      "❌ KeyPlot not found. It may have been already removed.";
+
+    setRemovalValidationError(errorMessage);
+
+  }
+
+  // ✅ Generic error
+  else {
+
+    errorMessage =
+      `❌ Failed to remove keyplot: ${errorMessage}`;
+
+    setSnackbarMessage(errorMessage);
+
+    setSnackbarSeverity('error');
+
+    setSnackbarOpen(true);
+
+    handleCloseRemoveDialog();
+  }
+
+} finally {
+
+  setDialogLoading(false);
+
+}
+};
+
+
+ const handleCloseRemoveDialog = () => {
     setOpenRemoveDialog(false);
     setSelectedRowToRemove(null);
     setReason('');
     setSelectedPresetReason('');
     setReasonError(false);
+    setShowCropsList(false);
+    setCropsList([]);
+    setRemovalValidationError('');
   };
 
   const handleReasonChange = (event) => {
@@ -741,6 +968,7 @@ const handleConfirmRemoval = async () => {
     }
   };
 
+<<<<<<< HEAD
   // const handleConfirmRemoval = async () => {
   //   let finalReason = selectedPresetReason;
 
@@ -781,10 +1009,13 @@ const handleConfirmRemoval = async () => {
   //     handleCloseRemoveDialog();
   //   }
   // };
+=======
+>>>>>>> a22e88c9546b017638c11df9b01a746c7e03b955
 
   const handleSaveClusterChanges = async () => {
      if (hasDuplicateClusters() || hasAnyErrors()) {
     setSnackbarMessage("Fix errors before submitting");
+<<<<<<< HEAD
     setSnackbarSeverity("error");
     setSnackbarOpen(true);
     return;
@@ -826,9 +1057,53 @@ const handleConfirmRemoval = async () => {
 
   } catch (err) {
     setSnackbarMessage(err.message);
+=======
+>>>>>>> a22e88c9546b017638c11df9b01a746c7e03b955
     setSnackbarSeverity("error");
     setSnackbarOpen(true);
+    return;
   }
+  try {
+
+  const updates = Object.keys(clusterChanges)
+    .filter(id => clusterChanges[id] && !isNaN(clusterChanges[id]))
+    .map(id => ({
+      clusterId: parseInt(id),
+      newClusterNumber: clusterChanges[id]
+    }));
+
+  const response = await api.put(
+    `/btr-service/cluster-api/cluster/number-update`,
+    updates
+  );
+
+  setSnackbarMessage("Cluster numbers updated successfully");
+
+  setSnackbarSeverity("success");
+
+  setSnackbarOpen(true);
+
+  setClusterChanges({}); // reset
+
+  fetchKeyPlots(); // refresh data
+
+} catch (err) {
+
+  // ✅ interceptor handles 401
+  if (err?.response?.status !== 401) {
+
+    setSnackbarMessage(
+      err.response?.data ||
+      err.message ||
+      "Failed to update clusters"
+    );
+
+    setSnackbarSeverity("error");
+
+    setSnackbarOpen(true);
+  }
+
+}
 };
 const handleClusterChange = (clusterId, newValue) => {
   // Allow only numbers
@@ -927,7 +1202,6 @@ const hasDuplicateClusterNumbers = () => {
             <Typography variant="h6" sx={{ ml: 2, color: 'text.secondary' }}>Loading data...</Typography>
           </Box>
         )}
-
 {zonestatus && (
   <Box
     sx={{
@@ -1111,6 +1385,7 @@ const hasDuplicateClusterNumbers = () => {
         : "pointer",
 
     // 🔥 override disabled styles
+<<<<<<< HEAD
     // "&.Mui-disabled": {
     //   backgroundColor: "#dff3fd",
     //   color: "#fff",
@@ -1119,6 +1394,12 @@ const hasDuplicateClusterNumbers = () => {
       backgroundColor: "#1976d2",
       color: "#ffffff",
       opacity: 0.7,
+=======
+    "&.Mui-disabled": {
+      backgroundColor: "#dff3fd",
+      color: "#fff",
+      opacity: 1, // prevents fading
+>>>>>>> a22e88c9546b017638c11df9b01a746c7e03b955
     },
   }}
 >
@@ -1130,7 +1411,10 @@ const hasDuplicateClusterNumbers = () => {
                   size="small"
                   value={searchTerm}
                   onChange={handleSearchChange}
+<<<<<<< HEAD
                   inputProps={{ maxLength: 255 }}
+=======
+>>>>>>> a22e88c9546b017638c11df9b01a746c7e03b955
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -2029,6 +2313,10 @@ const hasDuplicateClusterNumbers = () => {
                       <TableRow key={crop.cropId}>
                         <TableCell>{index + 1}</TableCell>
                         <TableCell>{crop.cropName}</TableCell>
+<<<<<<< HEAD
+=======
+                        <TableCell align="center">  {crop.IsActive}</TableCell>
+>>>>>>> a22e88c9546b017638c11df9b01a746c7e03b955
                       
                         <TableCell align="center">
                           <TextField
@@ -2062,6 +2350,7 @@ const hasDuplicateClusterNumbers = () => {
         : c
     ));
     
+<<<<<<< HEAD
     try {
       const BASE_URL = mainapi.BASE_URL;
       const token = localStorage.getItem("token");
@@ -2126,6 +2415,94 @@ if (cropsList.length === 1) {
           : c
       ));
     }
+=======
+try {
+
+  const userId = authservice.userid();
+
+  const response = await api.delete(
+    `/btr-service/key-plots/remove-crop`,
+    {
+      data: {
+        cropId: crop.cropId,
+        clusterId: selectedRowToRemove?.id,
+        cceAvailablePlotId: crop.cceAvailablePlotId,
+        rejectionReason: crop.remark || "Removed by user",
+        rejectedBy: userId
+      }
+    }
+  );
+
+  const data = response.data;
+
+  // ✅ Remove crop from list
+  setCropsList(prev =>
+    prev.filter(c => c.cropId !== crop.cropId)
+  );
+
+  setSnackbarMessage(
+    `✅ ${crop.cropName} removed successfully`
+  );
+
+  setSnackbarSeverity('success');
+
+  setSnackbarOpen(true);
+
+  // ✅ If no crops left
+  if (cropsList.length === 1) {
+
+    setSnackbarMessage(
+      `All crops removed. You can now delete the KeyPlot.`
+    );
+
+    setSnackbarSeverity('success');
+
+    setSnackbarOpen(true);
+
+    setTimeout(() => {
+
+      setShowCropsList(false);
+
+      setCropsList([]);
+
+      setRemovalValidationError('');
+
+    }, 1500);
+  }
+
+} catch (err) {
+
+  console.error("Error removing crop:", err);
+
+  // ✅ interceptor handles 401
+  if (err?.response?.status !== 401) {
+
+    const errorMessage =
+      err.response?.data?.message ||
+      err.message ||
+      `Failed to remove ${crop.cropName}`;
+
+    setSnackbarMessage(
+      `Failed to remove ${crop.cropName}: ${errorMessage}`
+    );
+
+    setSnackbarSeverity('error');
+
+    setSnackbarOpen(true);
+  }
+
+} finally {
+
+  setCropsList(prev =>
+    prev.map(c =>
+      c.cropId === crop.cropId
+        ? { ...c, removing: false }
+        : c
+    )
+  );
+
+}
+>>>>>>> a22e88c9546b017638c11df9b01a746c7e03b955
   }}
   startIcon={crop.removing ? <CircularProgress size={16} /> : <DeleteIcon />}
 >
@@ -2260,6 +2637,7 @@ if (cropsList.length === 1) {
                                 : c
                             ));
                             
+<<<<<<< HEAD
                             try {
                               const BASE_URL = mainapi.BASE_URL;
                               const token = localStorage.getItem("token");
@@ -2318,6 +2696,91 @@ if (cropsList.length === 1) {
                                   : c
                               ));
                             }
+=======
+                          try {
+
+  const userId = authservice.userid();
+
+  const response = await api.delete(
+    `/btr-service/key-plots/remove-crop`,
+    {
+      data: {
+        cropId: crop.cropId,
+        clusterId: selectedRowToRemove?.id,
+        cceAvailablePlotId: crop.cceAvailablePlotId,
+        rejectionReason: crop.remark || "Removed by user",
+        rejectedBy: userId
+      }
+    }
+  );
+
+  const data = response.data;
+
+  setCropsList(prev =>
+    prev.filter(c => c.cropId !== crop.cropId)
+  );
+
+  setSnackbarMessage(
+    `✅ ${crop.cropName} removed successfully`
+  );
+
+  setSnackbarSeverity('success');
+
+  setSnackbarOpen(true);
+
+  if (cropsList.length === 1) {
+
+    setSnackbarMessage(
+      `All crops removed. You can now delete the KeyPlot.`
+    );
+
+    setSnackbarSeverity('success');
+
+    setSnackbarOpen(true);
+
+    setTimeout(() => {
+
+      setShowCropsList(false);
+
+      setCropsList([]);
+
+      retryRemovalAfterCropsRemoved();
+
+    }, 1500);
+  }
+
+} catch (err) {
+
+  console.error("Error removing crop:", err);
+
+  // ✅ interceptor handles 401
+  if (err?.response?.status !== 401) {
+
+    const errorMessage =
+      err.response?.data?.message ||
+      err.message ||
+      `Failed to remove ${crop.cropName}`;
+
+    setSnackbarMessage(
+      `Failed to remove ${crop.cropName}: ${errorMessage}`
+    );
+
+    setSnackbarSeverity('error');
+
+    setSnackbarOpen(true);
+  }
+
+} finally {
+
+  setCropsList(prev =>
+    prev.map(c =>
+      c.cropId === crop.cropId
+        ? { ...c, removing: false }
+        : c
+    )
+  );
+}
+>>>>>>> a22e88c9546b017638c11df9b01a746c7e03b955
                           }}
                           startIcon={crop.removing ? <CircularProgress size={16} /> : <DeleteIcon />}
                         >

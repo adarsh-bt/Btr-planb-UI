@@ -43,6 +43,67 @@ const UserTourDiaryDetail = () => {
   const theme = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
+
+  // ---------- Validation Helpers ----------
+  // ---------- Validation Helpers ----------
+const validateDistance = (value, oldValue) => {
+  if (value === '') return '';
+  if (!/^\d*\.?\d*$/.test(value)) return oldValue;
+  if (value.length > 5) return oldValue;
+  if ((value.match(/\./g) || []).length > 1) return oldValue;
+  if (value.length > 1 && value[0] === '0' && value[1] !== '.' && !value.startsWith('0.')) {
+    return oldValue;
+  }
+
+  const num = parseFloat(value);
+  if (!isNaN(num)) {
+    if (num <= 0 || num > 1000) return oldValue;
+    // If decimal exists, allow max 2 decimal places
+    if (value.includes('.') && value.split('.')[1]?.length > 2) return oldValue;
+  }
+  return value;
+}; // Added missing closing brace
+
+const validateHours = (value, oldValue) => {
+  if (value === '') return '';
+  if (!/^\d*\.?\d*$/.test(value)) return oldValue;
+  if (value.length > 5) return oldValue;
+  if ((value.match(/\./g) || []).length > 1) return oldValue;
+  if (value.length > 1 && value[0] === '0' && value[1] !== '.' && !value.startsWith('0.')) {
+    return oldValue;
+  }
+
+  const num = parseFloat(value);
+  if (!isNaN(num)) {
+    if (num <= 0 || num > 24) return oldValue;
+    if (value.includes('.') && value.split('.')[1]?.length > 2) return oldValue;
+  }
+  return value;
+}; // Added missing closing brace
+
+const validateClusterId = (value, oldValue) => {
+  let filtered = value.replace(/[^0-9, ]/g, '');
+  filtered = filtered.replace(/,{2,}/g, ',').replace(/^,|,$/g, '');
+  const parts = filtered.split(/[ ,]+/);
+  for (let part of parts) {
+    if (part !== '' && !/^[1-9][0-9]{0,3}$/.test(part)) {
+      return oldValue !== undefined ? oldValue : filtered;
+    }
+  }
+  return filtered;
+}; // Added missing closing brace
+
+// Geo Location: max 256 chars, allow any characters but trim to limit
+const validateGeoLocation = (value) => {
+  if (value.length > 256) return value.slice(0, 256);
+  return value;
+}; // Added missing closing brace
+
+// Remarks: max 1000 chars, preserve all characters
+const validateRemarks = (value) => {
+  if (value.length > 1000) return value.slice(0, 1000);
+  return value;
+}; // Added missing closing brace
   
   const { userId: paramUserId, month: monthParam, year: yearParam } = location.state || {};
   const currentUserId = authservice.userid();
@@ -234,6 +295,7 @@ const handleSubmitMonth = async () => {
     try {
       const response = await tourDiaryService.getTourEntries(selectedUserId, selectedMonth, selectedYear);
       console.log("Fetched tour entries:   <<>>>", response);
+      console.log("Fetched tour entries:   <<>>>", response);
       if (response && Array.isArray(response) && !response.message) {
         setTourEntries(response);
         
@@ -370,51 +432,43 @@ const handleSubmitMonth = async () => {
   };
 
   const handleEditEntry = (entry) => {
-    if (entry.reportEntryType === "SYSTEM") {
-      // SYSTEM entry - only distance and hours
-      setEditFormData({
-        id: entry.id,
-        distance: entry.distance || "",
-        hours: entry.hours || "",
-        remark: entry.remark || "",
-        reportEntryType: entry.reportEntryType,
-        // schemeId: "",
-        // purposeId: "",
-        // zoneId: "",
-        // clusterId: "",
-        // seasonId: "",
-        // landType: "",
-        // cropName: "",
-        // geoLocation: ""
-      });
+  if (entry.reportEntryType === "SYSTEM") {
+    // SYSTEM entry - only distance and hours
+    setEditFormData({
+      id: entry.id,
+      distance: entry.distance || "",
+      hours: entry.hours || "",
+      remark: entry.remark || "",
+      reportEntryType: entry.reportEntryType,
+    });
+  } else {
+    // MANUAL entry - all fields
+    setEditFormData({
+      id: entry.id,
+      distance: entry.distance || "",
+      hours: entry.hours || "",
+      remark: entry.remark || "",
+      reportEntryType: entry.reportEntryType,
+      schemeId: entry.schemesId || "",  // Removed duplicate line
+      purposeId: entry.purposeId || "",
+      zoneId: entry.zoneId || "",
+      clusterId: entry.clusterId || "",
+      seasonId: entry.seasonNo || entry.seasonId || "",
+      landType: entry.landType || "",
+      cropName: entry.cropName || "",
+      geoLocation: entry.geoLocation || ""
+    });
+    
+    // Set the scheme for edit modal and fetch purposes
+    if (entry.schemesId) {
+      setEditSelectedScheme(entry.schemesId);  // Removed duplicate line
     } else {
-      // MANUAL entry - all fields
-      setEditFormData({
-        id: entry.id,
-        distance: entry.distance || "",
-        hours: entry.hours || "",
-        remark: entry.remark || "",
-        reportEntryType: entry.reportEntryType,
-        schemeId: entry.schemesId || "",
-        purposeId: entry.purposeId || "",
-        zoneId: entry.zoneId || "",
-        clusterId: entry.clusterId || "",
-        seasonId: entry.seasonNo || entry.seasonId || "",
-        landType: entry.landType || "",
-        cropName: entry.cropName || "",
-        geoLocation: entry.geoLocation || ""
-      });
-      
-      // Set the scheme for edit modal and fetch purposes
-      if (entry.schemesId) {
-        setEditSelectedScheme(entry.schemesId);
-      } else {
-        // If no scheme ID, try to find scheme from purpose
-        setEditSelectedScheme("");
-      }
+      // If no scheme ID, try to find scheme from purpose
+      setEditSelectedScheme("");
     }
-    setEditModalOpen(true);
-  };
+  }
+  setEditModalOpen(true);
+};
 
   const handleSaveSystemEdit = async () => {
     if (!editFormData.distance && !editFormData.hours) {
@@ -852,6 +906,7 @@ const handleSubmitMonth = async () => {
                   )}
                   {event.clusterId && (
                     <Typography variant="body2" color="text.secondary">
+                      <strong>Cluster :</strong> {event.clusterId}
                       <strong>Cluster :</strong> {event.clusterId}
                     </Typography>
                   )}
@@ -1634,18 +1689,19 @@ const handleSubmitMonth = async () => {
               />
             </Grid>
             
+            // Remove the duplicate FormControl for Season
             <Grid item xs={12}>
-<FormControl fullWidth>
-<InputLabel>Season</InputLabel>
-         <Select
-            value={editFormData.seasonId}
-            onChange={(e) => setEditFormData({ ...editFormData, seasonId: e.target.value })}
-            label="Season">
-            <MenuItem value={1}>Autumn</MenuItem>
-            <MenuItem value={2}>Winter</MenuItem>
-            <MenuItem value={3}>Summer</MenuItem>
-            </Select>
-            </FormControl>
+              <FormControl fullWidth>
+                <InputLabel>Season</InputLabel>
+                <Select
+                  value={editFormData.seasonId}
+                  onChange={(e) => setEditFormData({ ...editFormData, seasonId: e.target.value })}
+                  label="Season">
+                  <MenuItem value={1}>Autumn</MenuItem>
+                  <MenuItem value={2}>Winter</MenuItem>
+                  <MenuItem value={3}>Summer</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
             
             <Grid item xs={12}>

@@ -183,6 +183,10 @@ class AuthService {
     return localStorage.getItem('activeZone');
   }
 
+   static agriyear() {
+    return localStorage.getItem('activeAgriYear');
+  }
+
   static hasAllowedRole() {
     try {
       const roles = this.getrole();

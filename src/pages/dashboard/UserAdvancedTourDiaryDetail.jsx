@@ -103,7 +103,7 @@ const UserAdvancedTourDiaryDetail = () => {
   const [remarks, setRemarks] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('APPROVED');
 
-  const [viewMode, setViewMode] = useState('calendar');
+  const [viewMode, setViewMode] = useState('table');
   
   // Notification state
   const [notification, setNotification] = useState({
@@ -758,296 +758,304 @@ const UserAdvancedTourDiaryDetail = () => {
   };
 
   // ============================ RENDER TABLE VIEW (UPDATED TO MATCH ZONECLUSTERREPORT STYLE) ============================
-  const renderTableView = () => {
-    // Prepare all entries with their associated date information
-    const allEntriesWithDetails = [];
-    
-    tourEntries.forEach(entry => {
-      try {
-        const date = new Date(entry.createdAt);
-        const day = date.getDate();
-        const dayOfWeek = date.getDay();
-        const dayName = dayNames[dayOfWeek];
-        const isFirstHalf = day <= 15;
-        const isSecondHalf = day > 15;
-        const isSun = isSunday(selectedYear, selectedMonth, day);
-        const is2ndSat = isSecondSaturday(selectedYear, selectedMonth, day);
-        
-        allEntriesWithDetails.push({
-          ...entry,
-          day,
-          dayName,
-          isFirstHalf,
-          isSecondHalf,
-          isSun,
-          is2ndSat,
-          formattedDate: `${day} ${monthNames[selectedMonth - 1]} ${selectedYear}`,
-          purposeName: entry.purposeName || getPurposeName(entry.purposeId),
-          location: entry.location || 'N/A',
-          remark: entry.remark || '-',
-          entryType: entry.entryType || 'WORKING',
-          status: entry.status || 'PENDING'
-        });
-      } catch (e) {
-        console.error("Error parsing date:", e);
-      }
-    });
-
-    // Sort entries by date (ascending)
-    allEntriesWithDetails.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-
-    // Filter based on search term
-    const filteredEntries = searchTerm
-      ? allEntriesWithDetails.filter(entry => 
-          entry.formattedDate.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          entry.dayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          entry.entryType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (entry.location && entry.location.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (entry.purposeName && entry.purposeName.toLowerCase().includes(searchTerm.toLowerCase()))
-        )
-      : allEntriesWithDetails;
-
-    // Paginate data
-    const paginatedEntries = filteredEntries.slice(
-      tablePage * rowsPerPage,
-      tablePage * rowsPerPage + rowsPerPage
-    );
-
-    if (allEntriesWithDetails.length === 0) {
-      return (
-        <Alert severity="info" sx={{ mt: 2 }}>
-          No tour entries found for this user in {monthNames[selectedMonth - 1]} {selectedYear}.
-        </Alert>
-      );
+  // ============================ RENDER TABLE VIEW (UPDATED) ============================
+const renderTableView = () => {
+  // Prepare all entries with their associated date information
+  const allEntriesWithDetails = [];
+  
+  tourEntries.forEach(entry => {
+    try {
+      const date = new Date(entry.createdAt);
+      const day = date.getDate();
+      const dayOfWeek = date.getDay();
+      const dayName = dayNames[dayOfWeek];
+      const month = date.getMonth();
+      const isFirstHalf = day <= 15;
+      const isSecondHalf = day > 15;
+      const isSun = isSunday(selectedYear, selectedMonth, day);
+      const is2ndSat = isSecondSaturday(selectedYear, selectedMonth, day);
+      
+      // Format date as "DD MMM, Day" (e.g., "01 Jan, Mon")
+      const formattedDateWithDay = `${String(day).padStart(2, '0')} ${monthNames[month].substring(0, 3)}, ${dayName}`;
+      
+      allEntriesWithDetails.push({
+        ...entry,
+        day,
+        dayName,
+        isFirstHalf,
+        isSecondHalf,
+        isSun,
+        is2ndSat,
+        formattedDateWithDay, // New combined date+day format
+        formattedDate: `${day} ${monthNames[selectedMonth - 1]} ${selectedYear}`,
+        purposeName: entry.purposeName || getPurposeName(entry.purposeId),
+        location: entry.location || 'N/A',
+        remark: entry.remark || '-',
+        entryType: entry.entryType || 'WORKING',
+        status: entry.status || 'PENDING'
+      });
+    } catch (e) {
+      console.error("Error parsing date:", e);
     }
+  });
 
+  // Sort entries by date (ascending)
+  allEntriesWithDetails.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+  // Filter based on search term
+  const filteredEntries = searchTerm
+    ? allEntriesWithDetails.filter(entry => 
+        entry.formattedDateWithDay.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        entry.entryType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (entry.location && entry.location.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (entry.purposeName && entry.purposeName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (entry.remark && entry.remark.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+    : allEntriesWithDetails;
+
+  // Paginate data
+  const paginatedEntries = filteredEntries.slice(
+    tablePage * rowsPerPage,
+    tablePage * rowsPerPage + rowsPerPage
+  );
+
+  if (allEntriesWithDetails.length === 0) {
     return (
-      <Box sx={{ mt: 2 }}>
-        <MainCard 
-          title={`Tour Entries - ${monthNames[selectedMonth - 1]} ${selectedYear}`}
-          secondary={<EventIcon />}
-          sx={{
-            '& .MuiCardContent-root': {
-              p: 0
-            }
-          }}
-        >
-          {/* Search Bar - Matching ZoneClusterReport style */}
-          <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                Entry-wise Report
-              </Typography>
-              <TextField
-                placeholder="Search by date, day, type, location or purpose"
-                size="small"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setTablePage(0);
-                }}
-                sx={{ minWidth: 300 }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                  endAdornment: searchTerm && (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={handleClearSearch}>
-                        <ClearIcon fontSize="small" />
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                }}
-              />
-            </Stack>
-          </Box>
+      <Alert severity="info" sx={{ mt: 2 }}>
+        No tour entries found for this user in {monthNames[selectedMonth - 1]} {selectedYear}.
+      </Alert>
+    );
+  }
 
-          <TableContainer sx={{ borderRadius: 2, overflow: 'auto' }}>
-            <Table sx={{ minWidth: 800 }}>
-              <TableHead>
-                <TableRow sx={{ bgcolor: '#04255e' }}>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Date</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Day</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Half</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Entry Type</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Location</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Purpose</TableCell>
-                  <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {paginatedEntries.length > 0 ? (
-                  paginatedEntries.map((entry, index) => {
-                    // Determine row background color based on day type
-                    let rowBgColor = 'inherit';
-                    if (entry.isSun) {
-                      rowBgColor = theme.palette.mode === 'dark' ? '#4a2a2a' : '#ffe6e6';
-                    } else if (entry.is2ndSat) {
-                      rowBgColor = theme.palette.mode === 'dark' ? '#4a3a2a' : '#fff4e6';
-                    } else if (entry.isFirstHalf) {
-                      rowBgColor = theme.palette.mode === 'dark' ? '#1a2a3a' : '#e3f2fd';
-                    } else if (entry.isSecondHalf) {
-                      rowBgColor = theme.palette.mode === 'dark' ? '#1a3a2a' : '#e8f5e9';
-                    }
-
-                    return (
-                      <TableRow 
-                        key={entry.id || index}
-                        sx={{ 
-                          bgcolor: rowBgColor,
-                          '&:hover': { 
-                            bgcolor: theme.palette.action.hover,
-                            cursor: 'pointer'
-                          },
-                          transition: '0.2s'
-                        }}
-                        onClick={() => handleViewEntryDetails(entry)}
-                      >
-                        <TableCell>
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {entry.formattedDate}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">{entry.dayName}</Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={entry.isFirstHalf ? 'FH' : 'SH'}
-                            size="small"
-                            sx={{
-                              height: '24px',
-                              fontSize: '0.7rem',
-                              fontWeight: 'bold',
-                              backgroundColor: entry.isFirstHalf 
-                                ? (theme.palette.mode === 'dark' ? '#1976d2' : '#bbdefb')
-                                : (theme.palette.mode === 'dark' ? '#2e7d32' : '#c8e6c9'),
-                              color: entry.isFirstHalf 
-                                ? (theme.palette.mode === 'dark' ? '#fff' : '#0d47a1')
-                                : (theme.palette.mode === 'dark' ? '#fff' : '#1b5e20'),
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={entry.entryType}
-                            size="small"
-                            sx={{ 
-                              bgcolor: getEntryTypeColor(entry.entryType),
-                              color: 'white',
-                              fontWeight: 500,
-                              height: '24px'
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {entry.entryType === 'WORKING' ? entry.location : '-'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {entry.entryType === 'WORKING' ? entry.purposeName : '-'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Stack direction="row" spacing={1} justifyContent="center">
-                            <Tooltip title="View Details">
-                              <IconButton
-                                size="small"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleViewEntryDetails(entry);
-                                }}
-                                sx={{ 
-                                  color: '#04255e',
-                                  '&:hover': { bgcolor: '#e3f2fd' }
-                                }}
-                              >
-                                <VisibilityIcon />
-                              </IconButton>
-                            </Tooltip>
-                            {entry.status === 'PENDING' && (
-                              <>
-                                <Tooltip title="Approve">
-                                  <IconButton
-                                    size="small"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleIndividualApproval(entry, 'APPROVED');
-                                    }}
-                                    sx={{ 
-                                      color: '#27ae60',
-                                      '&:hover': { bgcolor: '#27ae6020' }
-                                    }}
-                                  >
-                                    <CheckCircleIcon />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Reject">
-                                  <IconButton
-                                    size="small"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleIndividualApproval(entry, 'REJECTED');
-                                    }}
-                                    sx={{ 
-                                      color: '#e74c3c',
-                                      '&:hover': { bgcolor: '#e74c3c20' }
-                                    }}
-                                  >
-                                    <CancelIcon />
-                                  </IconButton>
-                                </Tooltip>
-                              </>
-                            )}
-                          </Stack>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
-                      <Typography variant="body1" color="text.secondary">
-                        {searchTerm 
-                          ? `No tour entries found matching "${searchTerm}"` 
-                          : `No tour entries found for ${monthNames[selectedMonth - 1]} ${selectedYear}`}
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-
-          {/* Pagination - Matching ZoneClusterReport style */}
-          {filteredEntries.length > 0 && (
-            <TablePagination
-              component="div"
-              count={filteredEntries.length}
-              page={tablePage}
-              onPageChange={handleTableChangePage}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={handleTableChangeRowsPerPage}
-              rowsPerPageOptions={[5, 10, 25, 50]}
-              labelRowsPerPage="Rows per page:"
-              labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count}`}
-              sx={{
-                borderTop: `1px solid ${theme.palette.divider}`,
-                '& .MuiTablePagination-select': {
-                  borderRadius: 1
-                }
+  return (
+    <Box sx={{ mt: 2 }}>
+      <MainCard 
+        title={`Tour Entries - ${monthNames[selectedMonth - 1]} ${selectedYear}`}
+        secondary={<EventIcon />}
+        sx={{
+          '& .MuiCardContent-root': {
+            p: 0
+          }
+        }}
+      >
+        {/* Search Bar */}
+        <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
+            {/* <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Entry-wise Report
+            </Typography> */}
+            <TextField
+              placeholder="Search"
+              size="small"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setTablePage(0);
+              }}
+              sx={{ minWidth: 300 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+                endAdornment: searchTerm && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch}>
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                )
               }}
             />
-          )}
-        </MainCard>
-      </Box>
-    );
-  };
+          </Stack>
+        </Box>
+
+        <TableContainer sx={{ borderRadius: 2, overflow: 'auto' }}>
+          <Table sx={{ minWidth: 800 }}>
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#04255e' }}>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Date</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Half</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Entry Type</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Location</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Purpose</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Remarks</TableCell>
+                <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {paginatedEntries.length > 0 ? (
+                paginatedEntries.map((entry, index) => {
+                  // Determine row background color based on day type
+                  let rowBgColor = 'inherit';
+                  if (entry.isSun) {
+                    rowBgColor = theme.palette.mode === 'dark' ? '#4a2a2a' : '#ffe6e6';
+                  } else if (entry.is2ndSat) {
+                    rowBgColor = theme.palette.mode === 'dark' ? '#4a3a2a' : '#fff4e6';
+                  } else if (entry.isFirstHalf) {
+                    rowBgColor = theme.palette.mode === 'dark' ? '#1a2a3a' : '#e3f2fd';
+                  } else if (entry.isSecondHalf) {
+                    rowBgColor = theme.palette.mode === 'dark' ? '#1a3a2a' : '#e8f5e9';
+                  }
+
+                  return (
+                    <TableRow 
+                      key={entry.id || index}
+                      sx={{ 
+                        bgcolor: rowBgColor,
+                        '&:hover': { 
+                          bgcolor: theme.palette.action.hover,
+                          cursor: 'pointer'
+                        },
+                        transition: '0.2s'
+                      }}
+                      onClick={() => handleViewEntryDetails(entry)}
+                    >
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {entry.formattedDateWithDay}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={entry.isFirstHalf ? 'FH' : 'SH'}
+                          size="small"
+                          sx={{
+                            height: '24px',
+                            fontSize: '0.7rem',
+                            fontWeight: 'bold',
+                            backgroundColor: entry.isFirstHalf 
+                              ? (theme.palette.mode === 'dark' ? '#1976d2' : '#bbdefb')
+                              : (theme.palette.mode === 'dark' ? '#2e7d32' : '#c8e6c9'),
+                            color: entry.isFirstHalf 
+                              ? (theme.palette.mode === 'dark' ? '#fff' : '#0d47a1')
+                              : (theme.palette.mode === 'dark' ? '#fff' : '#1b5e20'),
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={entry.entryType}
+                          size="small"
+                          sx={{ 
+                            bgcolor: getEntryTypeColor(entry.entryType),
+                            color: 'white',
+                            fontWeight: 500,
+                            height: '24px'
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {entry.entryType === 'WORKING' ? entry.location : '-'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {entry.entryType === 'WORKING' ? entry.purposeName : '-'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {entry.remark !== '-' ? entry.remark : '-'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Stack direction="row" spacing={1} justifyContent="center">
+                          <Tooltip title="View Details">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewEntryDetails(entry);
+                              }}
+                              sx={{ 
+                                color: '#04255e',
+                                '&:hover': { bgcolor: '#e3f2fd' }
+                              }}
+                            >
+                              <VisibilityIcon />
+                            </IconButton>
+                          </Tooltip>
+                          {entry.status === 'PENDING' && (
+                            <>
+                              <Tooltip title="Approve">
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleIndividualApproval(entry, 'APPROVED');
+                                  }}
+                                  sx={{ 
+                                    color: '#27ae60',
+                                    '&:hover': { bgcolor: '#27ae6020' }
+                                  }}
+                                >
+                                  <CheckCircleIcon />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Reject">
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleIndividualApproval(entry, 'REJECTED');
+                                  }}
+                                  sx={{ 
+                                    color: '#e74c3c',
+                                    '&:hover': { bgcolor: '#e74c3c20' }
+                                  }}
+                                >
+                                  <CancelIcon />
+                                </IconButton>
+                              </Tooltip>
+                            </>
+                          )}
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                    <Typography variant="body1" color="text.secondary">
+                      {searchTerm 
+                        ? `No tour entries found matching "${searchTerm}"` 
+                        : `No tour entries found for ${monthNames[selectedMonth - 1]} ${selectedYear}`}
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        {/* Pagination */}
+        {filteredEntries.length > 0 && (
+          <TablePagination
+            component="div"
+            count={filteredEntries.length}
+            page={tablePage}
+            onPageChange={handleTableChangePage}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={handleTableChangeRowsPerPage}
+            rowsPerPageOptions={[5, 10, 25, 50]}
+            labelRowsPerPage="Rows per page:"
+            labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count}`}
+            sx={{
+              borderTop: `1px solid ${theme.palette.divider}`,
+              '& .MuiTablePagination-select': {
+                borderRadius: 1
+              }
+            }}
+          />
+        )}
+      </MainCard>
+    </Box>
+  );
+};
 
   const renderEventList = () => {
     if (selectedDayEvents.length === 0) {
@@ -1195,233 +1203,253 @@ const UserAdvancedTourDiaryDetail = () => {
         <MainCard>
           <Box sx={{ maxWidth: '1200px', margin: '0 auto' }}>
             {/* Calendar Header with Navigation */}
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: 2,
-                flexWrap: 'wrap',
-                gap: 2
-              }}
-            >
-              {/* Left section with back button and submission details */}
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 2,
-                flexWrap: 'wrap'
-              }}>
-                <Button
-                  variant="contained"
-                  startIcon={<ArrowBackIcon />}
-                  onClick={handleBack}
-                  sx={{
-                    backgroundColor: '#2980b9',
-                    '&:hover': { backgroundColor: '#1f6391' },
-                    whiteSpace: 'nowrap',
-                    minWidth: '80px'
-                  }}
-                >
-                  Back
-                </Button>
-                
-                {submissionDetails && (
-                  <Paper
-                    elevation={1}
-                    sx={{
-                      p: 1.5,
-                      backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : '#f0f7ff',
-                      border: `1px solid ${theme.palette.divider}`,
-                      borderRadius: 2
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4 }}>
-                      {/* First Half */}
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                          FH:
-                        </Typography>
-                        {submissionDetails.firstHalfIsLate ? (
-                          <Chip 
-                            label="LATE" 
-                            size="small" 
-                            color="warning" 
-                            sx={{ height: '24px', fontWeight: 'bold' }} 
-                          />
-                        ) : (
-                          submissionDetails.firstHalfId && (
-                            <Chip 
-                              label="ON TIME" 
-                              size="small" 
-                              color="success" 
-                              sx={{ height: '24px', fontWeight: 'bold' }} 
-                            />
-                          )
-                        )}
-                      </Box>
+<Box
+  sx={{
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 3,
+    flexWrap: 'wrap',
+    gap: 2
+  }}
+>
+  {/* Left section with back button and submission details */}
+  <Box sx={{ 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: 2,
+    flexWrap: 'wrap',
+    minWidth: '200px'
+  }}>
+    <Button
+      variant="contained"
+      startIcon={<ArrowBackIcon />}
+      onClick={handleBack}
+      sx={{
+        backgroundColor: '#2980b9',
+        '&:hover': { backgroundColor: '#1f6391' },
+        whiteSpace: 'nowrap',
+        minWidth: '80px'
+      }}
+    >
+      Back
+    </Button>
+    
+    {submissionDetails && (
+      <Paper
+        elevation={1}
+        sx={{
+          p: 1.5,
+          backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : '#f0f7ff',
+          border: `1px solid ${theme.palette.divider}`,
+          borderRadius: 2
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4 }}>
+          {/* First Half */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+              FH:
+            </Typography>
+            {submissionDetails.firstHalfIsLate ? (
+              <Chip 
+                label="LATE" 
+                size="small" 
+                color="warning" 
+                sx={{ height: '24px', fontWeight: 'bold' }} 
+              />
+            ) : (
+              submissionDetails.firstHalfId && (
+                <Chip 
+                  label="ON TIME" 
+                  size="small" 
+                  color="success" 
+                  sx={{ height: '24px', fontWeight: 'bold' }} 
+                />
+              )
+            )}
+          </Box>
 
-                      {/* Second Half */}
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                          SH:
-                        </Typography>
-                        {submissionDetails.secondHalfIsLate ? (
-                          <Chip 
-                            label="LATE" 
-                            size="small" 
-                            color="warning" 
-                            sx={{ height: '24px', fontWeight: 'bold' }} 
-                          />
-                        ) : (
-                          submissionDetails.secondHalfId && (
-                            <Chip 
-                              label="ON TIME" 
-                              size="small" 
-                              color="success" 
-                              sx={{ height: '24px', fontWeight: 'bold' }} 
-                            />
-                          )
-                        )}
-                      </Box>
-                    </Box>
-                  </Paper>
-                )}
+          {/* Second Half */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+              SH:
+            </Typography>
+            {submissionDetails.secondHalfIsLate ? (
+              <Chip 
+                label="LATE" 
+                size="small" 
+                color="warning" 
+                sx={{ height: '24px', fontWeight: 'bold' }} 
+              />
+            ) : (
+              submissionDetails.secondHalfId && (
+                <Chip 
+                  label="ON TIME" 
+                  size="small" 
+                  color="success" 
+                  sx={{ height: '24px', fontWeight: 'bold' }} 
+                />
+              )
+            )}
+          </Box>
+        </Box>
+      </Paper>
+    )}
+  </Box>
 
-                {/* View Mode Toggle */}
-                <FormControl component="fieldset">
-                  <Box sx={{ display: 'flex', gap: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <input
-                        type="radio"
-                        id="calendar-view"
-                        name="viewMode"
-                        value="calendar"
-                        checked={viewMode === 'calendar'}
-                        onChange={() => setViewMode('calendar')}
-                        style={{ marginRight: '4px', cursor: 'pointer' }}
-                      />
-                      <Typography 
-                        variant="body2" 
-                        component="label" 
-                        htmlFor="calendar-view"
-                        sx={{ cursor: 'pointer' }}
-                      >
-                        Calendar View
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <input
-                        type="radio"
-                        id="table-view"
-                        name="viewMode"
-                        value="table"
-                        checked={viewMode === 'table'}
-                        onChange={() => setViewMode('table')}
-                        style={{ marginRight: '4px', cursor: 'pointer' }}
-                      />
-                      <Typography 
-                        variant="body2" 
-                        component="label" 
-                        htmlFor="table-view"
-                        sx={{ cursor: 'pointer' }}
-                      >
-                        Table View
-                      </Typography>
-                    </Box>
-                  </Box>
-                </FormControl>
-              </Box>
+  {/* Center - Month/Year with Navigation Arrows */}
+  <Box sx={{ 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: 2,
+    position: 'absolute',
+    left: '50%',
+    transform: 'translateX(-50%)'
+  }}>
+    <IconButton 
+      onClick={() => handleMonthChange(-1)} 
+      size="small"
+      sx={{ 
+        backgroundColor: theme.palette.grey[200],
+        '&:hover': { backgroundColor: theme.palette.grey[300] }
+      }}
+    >
+      <ArrowBackIosNewIcon fontSize="small" />
+    </IconButton>
+    <Typography 
+      variant="h4" 
+      sx={{ 
+        color: theme.palette.text.primary,
+        textAlign: 'center',
+        fontWeight: 500,
+        minWidth: '200px'
+      }}
+    >
+      {monthNames[selectedMonth - 1]} {selectedYear}
+    </Typography>
+    <IconButton 
+      onClick={() => handleMonthChange(1)} 
+      size="small"
+      sx={{ 
+        backgroundColor: theme.palette.grey[200],
+        '&:hover': { backgroundColor: theme.palette.grey[300] }
+      }}
+    >
+      <ArrowForwardIosIcon fontSize="small" />
+    </IconButton>
+  </Box>
 
-              {/* Center - Month/Year with Navigation Arrows */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <IconButton 
-                  onClick={() => handleMonthChange(-1)} 
-                  size="small"
-                  sx={{ 
-                    backgroundColor: theme.palette.grey[200],
-                    '&:hover': { backgroundColor: theme.palette.grey[300] }
-                  }}
-                >
-                  <ArrowBackIosNewIcon fontSize="small" />
-                </IconButton>
-                <Typography 
-                  variant="h4" 
-                  sx={{ 
-                    color: theme.palette.text.primary,
-                    textAlign: 'center',
-                    fontWeight: 500,
-                    minWidth: '200px'
-                  }}
-                >
-                  {monthNames[selectedMonth - 1]} {selectedYear}
-                </Typography>
-                <IconButton 
-                  onClick={() => handleMonthChange(1)} 
-                  size="small"
-                  sx={{ 
-                    backgroundColor: theme.palette.grey[200],
-                    '&:hover': { backgroundColor: theme.palette.grey[300] }
-                  }}
-                >
-                  <ArrowForwardIosIcon fontSize="small" />
-                </IconButton>
-              </Box>
+  {/* Right section with approval button */}
+  <Box sx={{ 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: 2,
+    minWidth: '200px',
+    justifyContent: 'flex-end'
+  }}>
+    <Box>
+      <Button
+        variant="contained"
+        onClick={openApprovalMenu}
+        disabled={loadingSubmissionDetails}
+        sx={{
+          backgroundColor: '#27ae60',
+          '&:hover': { backgroundColor: '#1e8449' },
+          '&.Mui-disabled': {
+            backgroundColor: theme.palette.action.disabledBackground
+          },
+          whiteSpace: 'nowrap',
+          minWidth: '90px'
+        }}
+      >
+        {loadingSubmissionDetails ? "Loading..." : "Approval"}
+      </Button>
+      <Menu
+        anchorEl={approvalAnchorEl}
+        open={Boolean(approvalAnchorEl)}
+        onClose={closeApprovalMenu}
+      >
+        <MenuItem 
+          onClick={() => handleBulkApprovalHalf('First Half')}
+          disabled={!submissionDetails?.firstHalfId}
+        >
+          First Half
+          {!submissionDetails?.firstHalfId && (
+            <Typography variant="caption" color="text.disabled" sx={{ ml: 1 }}>
+              (Not submitted)
+            </Typography>
+          )}
+        </MenuItem>
+        <MenuItem 
+          onClick={() => handleBulkApprovalHalf('Second Half')}
+          disabled={!submissionDetails?.secondHalfId}
+        >
+          Second Half
+          {!submissionDetails?.secondHalfId && (
+            <Typography variant="caption" color="text.disabled" sx={{ ml: 1 }}>
+              (Not submitted)
+            </Typography>
+          )}
+        </MenuItem>
+      </Menu>
+    </Box>
+  </Box>
+</Box>
 
-              {/* Right section with approval button */}
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 2
-              }}>
-                <Box>
-                  <Button
-                    variant="contained"
-                    onClick={openApprovalMenu}
-                    disabled={loadingSubmissionDetails}
-                    sx={{
-                      backgroundColor: '#27ae60',
-                      '&:hover': { backgroundColor: '#1e8449' },
-                      '&.Mui-disabled': {
-                        backgroundColor: theme.palette.action.disabledBackground
-                      },
-                      whiteSpace: 'nowrap',
-                      minWidth: '90px'
-                    }}
-                  >
-                    {loadingSubmissionDetails ? "Loading..." : "Approval"}
-                  </Button>
-                  <Menu
-                    anchorEl={approvalAnchorEl}
-                    open={Boolean(approvalAnchorEl)}
-                    onClose={closeApprovalMenu}
-                  >
-                    <MenuItem 
-                      onClick={() => handleBulkApprovalHalf('First Half')}
-                      disabled={!submissionDetails?.firstHalfId}
-                    >
-                      First Half
-                      {!submissionDetails?.firstHalfId && (
-                        <Typography variant="caption" color="text.disabled" sx={{ ml: 1 }}>
-                          (Not submitted)
-                        </Typography>
-                      )}
-                    </MenuItem>
-                    <MenuItem 
-                      onClick={() => handleBulkApprovalHalf('Second Half')}
-                      disabled={!submissionDetails?.secondHalfId}
-                    >
-                      Second Half
-                      {!submissionDetails?.secondHalfId && (
-                        <Typography variant="caption" color="text.disabled" sx={{ ml: 1 }}>
-                          (Not submitted)
-                        </Typography>
-                      )}
-                    </MenuItem>
-                  </Menu>
-                </Box>
-              </Box>
-            </Box>
+{/* View Mode Toggle Section - Moved below the header */}
+<Box
+  sx={{
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 3,
+    marginTop: 1
+  }}
+>
+  <FormControl component="fieldset">
+    <Box sx={{ display: 'flex', gap: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <input
+          type="radio"
+          id="table-view"
+          name="viewMode"
+          value="table"
+          checked={viewMode === 'table'}
+          onChange={() => setViewMode('table')}
+          style={{ marginRight: '8px', cursor: 'pointer' }}
+        />
+        <Typography 
+          variant="body1" 
+          component="label" 
+          htmlFor="table-view"
+          sx={{ cursor: 'pointer', fontWeight: viewMode === 'table' ? 600 : 400 }}
+        >
+          Table View
+        </Typography>
+      </Box>
+      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <input
+          type="radio"
+          id="calendar-view"
+          name="viewMode"
+          value="calendar"
+          checked={viewMode === 'calendar'}
+          onChange={() => setViewMode('calendar')}
+          style={{ marginRight: '8px', cursor: 'pointer' }}
+        />
+        <Typography 
+          variant="body1" 
+          component="label" 
+          htmlFor="calendar-view"
+          sx={{ cursor: 'pointer', fontWeight: viewMode === 'calendar' ? 600 : 400 }}
+        >
+          Calendar View
+        </Typography>
+      </Box>
+    </Box>
+  </FormControl>
+</Box>
 
             {/* Legend */}
             <Box

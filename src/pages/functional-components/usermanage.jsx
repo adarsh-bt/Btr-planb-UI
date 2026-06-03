@@ -14,6 +14,8 @@ import { Link } from 'react-router-dom';
 import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
 import authservice from 'pages/authentication/services/authservice';
+import BadgeIcon from '@mui/icons-material/Badge';
+import PeopleIcon from '@mui/icons-material/People';
 
 function UserManage() {
   const theme = useTheme();
@@ -26,225 +28,139 @@ function UserManage() {
           User Management
         </Typography>
         <MainCard title="">
-          <Grid container spacing={4}>
-         {role === 'IT Admin' && (
-  <Grid item xs={12} sm={4} md={3} lg={3}>
+         <Grid container spacing={3} alignItems="stretch">
+  {/* Roles & Designations Card - IT Admin Only */}
+  {role === 'IT Admin' && (
+    <Grid item xs={12} sm={6} md={4} lg={3}>
+      <Card
+        component={Link}
+        to="/User_Manage/RoleDesignation"
+        sx={{
+          textDecoration: 'none',
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: { xs: '1.2rem', sm: '1.5rem' },
+          borderRadius: '1.5rem',
+          background: 'linear-gradient(135deg, #4f52fe 0%, #00b6fe 100%)',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          boxShadow: '0 10px 20px rgba(0, 0, 0, 0.1)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          position: 'relative',
+          overflow: 'hidden',
+          height: '100%',
+          minHeight: { xs: '120px', sm: '130px' },
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: '-100%',
+            width: '100%',
+            height: '100%',
+            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+            transition: 'left 0.5s ease',
+          },
+          '&:hover': {
+            transform: 'translateY(-6px)',
+            boxShadow: '0 15px 30px rgba(0, 0, 0, 0.2)',
+            '&::before': { left: '100%' },
+          },
+        }}
+      >
+        <Box
+          sx={{
+            width: { xs: '4rem', sm: '5rem' },
+            height: { xs: '4rem', sm: '5rem' },
+            borderRadius: '1rem',
+            marginRight: { xs: 0, sm: '1.2rem' },
+            marginBottom: { xs: '0.8rem', sm: 0 },
+            background: 'rgba(255, 255, 255, 0.15)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <BadgeIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
+        </Box>
+        <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+          <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1rem', sm: '1.2rem' }, mb: 0.5 }}>
+            Roles & Designations
+          </Typography>
+          <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: { xs: '0.65rem', sm: '0.7rem' } }}>
+            Manage Roles
+          </Typography>
+        </Box>
+      </Card>
+    </Grid>
+  )}
+
+  {/* Manage Users Card */}
+  <Grid item xs={12} sm={6} md={4} lg={3}>
     <Card
       component={Link}
-      to="/User_Manage/RoleDesignation"
+      to="/User_Manage/Manage_Users"
       sx={{
         textDecoration: 'none',
         display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '1rem',
-        borderRadius: '1rem',
-        minHeight: '8rem',
-        background: 'linear-gradient(135deg, rgba(99, 155, 255, 0.45), rgb(129, 175, 255))',
-        transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out',
-        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+        padding: { xs: '1.2rem', sm: '1.5rem' },
+        borderRadius: '1.5rem',
+        background: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        boxShadow: '0 10px 20px rgba(0, 0, 0, 0.1)',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        position: 'relative',
+        overflow: 'hidden',
+        height: '100%',
+        minHeight: { xs: '120px', sm: '130px' },
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: '-100%',
+          width: '100%',
+          height: '100%',
+          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+          transition: 'left 0.5s ease',
+        },
         '&:hover': {
-          transform: 'scale(1.05)',
-          boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)',
+          transform: 'translateY(-6px)',
+          boxShadow: '0 15px 30px rgba(0, 0, 0, 0.2)',
+          '&::before': { left: '100%' },
         },
       }}
     >
-      <CardMedia
-        component="img"
+      <Box
         sx={{
-          width: '5rem',
-          height: '5rem',
-          borderRadius: '.5rem',
-          marginRight: '1rem',
+          width: { xs: '4rem', sm: '5rem' },
+          height: { xs: '4rem', sm: '5rem' },
+          borderRadius: '1rem',
+          marginRight: { xs: 0, sm: '1.2rem' },
+          marginBottom: { xs: '0.8rem', sm: 0 },
+          background: 'rgba(255, 255, 255, 0.15)',
+          backdropFilter: 'blur(10px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
-        image="https://icons.veryicon.com/png/o/miscellaneous/common-face-icons-continuously-updated/scan-business-card.png"
-        alt="Dashboard Icon"
-      />
-
-      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-        <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-          <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-            Roles & Designations
-          </Typography>
-          <Typography
-            variant="subtitle1"
-            component="div"
-            sx={{
-              color: '#f3f3f3',
-              fontStyle: 'italic',
-              fontWeight: 'lighter',
-              marginTop: '0.5rem',
-            }}
-          ></Typography>
-        </CardContent>
+      >
+        <PeopleIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
+      </Box>
+      <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+        <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1.1rem', sm: '1.25rem' }, mb: 0.5 }}>
+          Manage Users
+        </Typography>
+        <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: { xs: '0.65rem', sm: '0.7rem' } }}>
+          User Management
+        </Typography>
       </Box>
     </Card>
   </Grid>
-    )}
-
-            <Grid item xs={12} sm={4} md={3} lg={3}>
-              <Card
-                component={Link}
-                to="/User_Manage/Manage_Users"
-                sx={{
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '1rem',
-                  borderRadius: '1rem',
-                  minHeight: '8rem',
-                  background: 'linear-gradient(135deg, rgba(255, 142, 142, 0.45), rgb(255, 115, 115))',
-                  // Gradient color
-                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
-                  '&:hover': {
-                    transform: 'scale(1.05)', // Hover scale effect
-                    // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
-                  }
-                }}
-              >
-                <CardMedia
-                  component="img"
-                  sx={{
-                    width: '5rem',
-                    height: '5rem',
-                    borderRadius: '.5rem',
-                    marginRight: '1rem' // Space between image and text
-                  }}
-                  image="https://cdn-icons-png.flaticon.com/512/10584/10584957.png"
-                  alt="Dashboard Icon"
-                />
-
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Manage Users
-                    </Typography>
-                    <Typography
-                      variant="subtitle1"
-                      component="div"
-                      sx={{
-                        color: '#f3f3f3',
-                        fontStyle: 'italic',
-                        fontWeight: 'lighter',
-                        marginTop: '0.5rem'
-                      }}
-                    >
-                     
-                    </Typography>
-                  </CardContent>
-                </Box>
-              </Card>
-            </Grid>
-{/* 
-            <Grid item xs={12} sm={4} md={3} lg={3}>
-              <Card
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '1rem',
-                  borderRadius: '1rem',
-                  minHeight: '8rem',
-                  background: 'linear-gradient(135deg, rgba(180, 146, 254, 0.45), rgb(155, 120, 250))', // Gradient color
-                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
-                  '&:hover': {
-                    transform: 'scale(1.05)', // Hover scale effect
-                    // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
-                  }
-                }}
-              >
-                <CardMedia
-                  component="img"
-                  sx={{
-                    width: '5rem',
-                    height: '5rem',
-                    borderRadius: '.5',
-                    marginRight: '1rem' // Space between image and text
-                  }}
-                  image="https://icons.veryicon.com/png/o/miscellaneous/common-face-icons-continuously-updated/scan-business-card.png"
-                  alt="Dashboard Icon"
-                />
-
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Scheme 4
-                    </Typography>
-                    <Typography
-                      variant="subtitle1"
-                      component="div"
-                      sx={{
-                        color: '#f3f3f3',
-                        fontStyle: 'italic',
-                        fontWeight: 'lighter',
-                        marginTop: '0.5rem'
-                      }}
-                    >
-                      --- ----
-                    </Typography>
-                  </CardContent>
-                </Box>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} sm={4} md={3} lg={3}>
-              <Card
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '1rem',
-                  borderRadius: '1rem',
-                  minHeight: '8rem',
-                  background: 'linear-gradient(135deg, rgba(180, 146, 254, 0.45), rgb(155, 120, 250))', // Gradient color
-                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
-                  '&:hover': {
-                    transform: 'scale(1.05)', // Hover scale effect
-                    // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
-                  }
-                }}
-              >
-                <CardMedia
-                  component="img"
-                  sx={{
-                    width: '5rem',
-                    height: '5rem',
-                    borderRadius: '.5',
-                    marginRight: '1rem' // Space between image and text
-                  }}
-                  image="https://icons.veryicon.com/png/o/miscellaneous/common-face-icons-continuously-updated/scan-business-card.png"
-                  alt="Dashboard Icon"
-                />
-
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Scheme 4
-                    </Typography>
-                    <Typography
-                      variant="subtitle1"
-                      component="div"
-                      sx={{
-                        color: '#f3f3f3',
-                        fontStyle: 'italic',
-                        fontWeight: 'lighter',
-                        marginTop: '0.5rem'
-                      }}
-                    >
-                      --- ----
-                    </Typography>
-                  </CardContent>
-                </Box>
-              </Card>
-            </Grid> */}
-          </Grid>
+</Grid>
         </MainCard>
       </Grid>
     </Grid>

@@ -733,4 +733,4 @@ const CropChip = ({ crop, count, isActive, onClick }) => (
   );
 }
 
-export default ClusterFormationSeatMap;
+export default ClusterSeatMap;
