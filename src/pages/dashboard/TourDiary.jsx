@@ -1093,7 +1093,7 @@ const getUsedPurposesForEventDate = (event) => {
                         <Table size="small" stickyHeader>
                             <TableHead>
                                 <TableRow>
-                                    {['Date', 'FH/SH', 'Zone', 'Entry Type', 'Scheme', 'Purpose of Tour', 'Place of Visit', 'Remarks', 'Actions'].map((col) => (
+                                    {['Date', 'FH/SH', 'Zone', 'Entry Type', 'Scheme', 'Purpose of Tour', 'Cluster.No / Place of Visit', 'Remarks', 'Actions'].map((col) => (
                                         <TableCell
                                             key={col}
                                             sx={{

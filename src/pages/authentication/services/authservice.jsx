@@ -242,6 +242,44 @@ class AuthService {
       message: err.message || 'Unknown error'
     };
   }
+
+  // ================= SAVE OFFICE INFO =================
+static async saveOfficeInfo(userId, officeData) {
+  try {
+    const response = await api.post(
+      `/user-access/api/user-registration/${userId}/office-info`,
+      officeData
+    );
+
+    return response.data;
+
+  } catch (err) {
+    return {
+      success: false,
+      message: err.response?.data?.message || 'Failed to save office info'
+    };
+  }
+}
+
+// Add this method to AuthService class
+static async getUserOfficeInfo() {
+  try {
+    const token = this.gettoken();
+    if (!token) return null;
+    
+    const userId = this.userid();
+    if (!userId) return null;
+    
+    const response = await api.get(`/user-access/api/user-registration/${userId}/office-info`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    return response.data;
+  } catch (err) {
+    console.error('Error fetching office info:', err);
+    return null;
+  }
+}
 }
 
 export default AuthService;

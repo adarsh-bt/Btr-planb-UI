@@ -57,7 +57,7 @@ import mainapi from 'api/mainapi';
 // const API_BASE_URL = 'http://localhost:8082/btr-service';
 const BASE_URL = mainapi.BTR_API;
 
-function KeralaReportList() {
+function KeralaClusterReportList() {
   const theme = useTheme();
   const navigate = useNavigate();
   
@@ -751,4 +751,4 @@ function KeralaReportList() {
   );
 }
 
-export default KeralaReportList;
+export default KeralaClusterReportList;

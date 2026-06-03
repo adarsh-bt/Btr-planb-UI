@@ -711,7 +711,7 @@ const handleLocalBodyChange = (tabLbId, rowId, selectedLbId) => {
           setLocalBodyData({});
         setDuplicateErrors({});
         setClientDuplicateErrors({});
-         await fetchKeyplotLimit();
+        //  await fetchKeyplotLimit();
         setFieldErrors({});
         clearValidationErrors();
      setTimeout(() => {
@@ -787,7 +787,7 @@ try {
     };
 
     // Axios automatically stringifies the payload
-    const response = await axios.post(
+    const response = await api.post(
       `${BASE_URL}/btr-service/key-plots/validate-duplicate-keyplots`,
       payload,
       {
@@ -1441,51 +1441,204 @@ const areAllFieldsFilled = (lbId) => {
   onClose={() => setIsValidationDialogOpen(false)}
   maxWidth="sm"
   fullWidth
+  PaperProps={{
+    sx: {
+      borderRadius: 3,
+      overflow: 'hidden'
+    }
+  }}
 >
-  <DialogTitle>
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <InfoIcon color={validationInfo?.isFromCurrentForm ? "warning" : "primary"} />
-      <Typography variant="h6">
-        {validationInfo?.isFromCurrentForm ? "Duplicate Plot in Form" : "Plot Already Used"}
+  {/* Header with gradient background */}
+  <DialogTitle 
+    sx={{ 
+      background: validationInfo?.isFromCurrentForm 
+        ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+        : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+      color: 'white', 
+      px: 3, 
+      py: 2,
+      borderBottom: '1px solid rgba(255,255,255,0.1)'
+    }}
+  >
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <InfoIcon sx={{ fontSize: 28 }} />
+      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+        {validationInfo?.isFromCurrentForm ? "Duplicate Plot Detected" : "Plot Already Allocated"}
       </Typography>
     </Box>
   </DialogTitle>
-  <DialogContent>
+
+  {/* Content */}
+  <DialogContent sx={{ p: 3 }}>
     {validationInfo && (
       <Box>
-        <DialogContentText sx={{ mb: 2, color: validationInfo.isFromCurrentForm ? 'warning.main' : 'text.primary' }}>
-          {validationInfo.message || 
-            (validationInfo.isFromCurrentForm 
-              ? `⚠️ This plot is already used in ${validationInfo.location}.` 
-              : "This plot has already been used in the current agricultural year.")}
-        </DialogContentText>
-        <Typography variant="body2" sx={{ mb: 1 }}>
-          <strong>Total Area:</strong> {validationInfo.totalcent || validationInfo.totalArea || 0} cents
-        </Typography>
-        {validationInfo.remainingArea !== undefined && (
-          <Typography variant="body2" sx={{ mb: 1 }}>
-            <strong>Already Used:</strong> {((validationInfo.totalcent || validationInfo.totalArea || 0) - (validationInfo.remainingArea || 0)).toFixed(2)} cents
+        {/* Alert Message */}
+        <Box 
+          sx={{ 
+            mb: 3, 
+            p: 2, 
+            borderRadius: 2,
+            bgcolor: validationInfo.isFromCurrentForm 
+              ? 'warning.lighter' 
+              : 'info.lighter',
+            borderLeft: `4px solid ${validationInfo.isFromCurrentForm ? '#f59e0b' : '#3b82f6'}`,
+            backgroundColor: validationInfo.isFromCurrentForm ? '#fef3c7' : '#eff6ff'
+          }}
+        >
+          <Typography 
+            variant="body1" 
+            sx={{ 
+              color: validationInfo.isFromCurrentForm ? '#92400e' : '#1e40af',
+              fontWeight: 500
+            }}
+          >
+            {validationInfo.message || 
+              (validationInfo.isFromCurrentForm 
+                ? `⚠️ This plot is already used in ${validationInfo.location || 'the current form'}.` 
+                : "This plot has already been used in the current agricultural year.")}
           </Typography>
-        )}
-        {validationInfo.uiUsedRemaining !== undefined && (
-          <Typography variant="body2" sx={{ mb: 2, color: validationInfo.uiUsedRemaining > 0 ? 'success.main' : 'error.main' }}>
-            <strong>Remaining Available:</strong> {validationInfo.uiUsedRemaining.toFixed(2)} cents
-          </Typography>
-        )}
+        </Box>
+
+        {/* Statistics Cards */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {/* Total Area Card */}
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            p: 1.5,
+            bgcolor: '#f8fafc',
+            borderRadius: 2,
+            border: '1px solid #e2e8f0'
+          }}>
+            <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
+              Total Area
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: '#0f172a' }}>
+              {validationInfo.totalcent || validationInfo.totalArea || 0} cents
+            </Typography>
+          </Box>
+
+          {/* Already Used Card */}
+          {validationInfo.remainingArea !== undefined && (
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              p: 1.5,
+              bgcolor: '#f8fafc',
+              borderRadius: 2,
+              border: '1px solid #e2e8f0'
+            }}>
+              <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
+                Already Used
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 600, color: '#dc2626' }}>
+                {((validationInfo.totalcent || validationInfo.totalArea || 0) - (validationInfo.remainingArea || 0)).toFixed(2)} cents
+              </Typography>
+            </Box>
+          )}
+
+          {/* Remaining Available Card with Progress Bar */}
+          {validationInfo.uiUsedRemaining !== undefined && (
+            <Box>
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                p: 1.5,
+                bgcolor: '#f8fafc',
+                borderRadius: 2,
+                border: '1px solid #e2e8f0',
+                mb: 1.5
+              }}>
+                <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
+                  Remaining Available
+                </Typography>
+                <Typography 
+                  variant="h6" 
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: validationInfo.uiUsedRemaining > 0 ? '#10b981' : '#ef4444'
+                  }}
+                >
+                  {validationInfo.uiUsedRemaining.toFixed(2)} cents
+                </Typography>
+              </Box>
+              
+              {/* Progress Bar */}
+              {validationInfo.totalcent && (
+                <Box sx={{ mt: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                    <Typography variant="caption" sx={{ color: '#64748b' }}>
+                      Usage Progress
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#64748b' }}>
+                      {((validationInfo.totalcent - validationInfo.uiUsedRemaining) / validationInfo.totalcent * 100).toFixed(0)}%
+                    </Typography>
+                  </Box>
+                  <Box sx={{ 
+                    width: '100%', 
+                    height: 8, 
+                    bgcolor: '#e2e8f0', 
+                    borderRadius: 4,
+                    overflow: 'hidden'
+                  }}>
+                    <Box sx={{ 
+                      width: `${((validationInfo.totalcent - validationInfo.uiUsedRemaining) / validationInfo.totalcent * 100)}%`,
+                      height: '100%',
+                      bgcolor: validationInfo.uiUsedRemaining > 0 ? '#10b981' : '#ef4444',
+                      borderRadius: 4,
+                      transition: 'width 0.3s ease'
+                    }} />
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          )}
+        </Box>
       </Box>
     )}
   </DialogContent>
-  <DialogActions>
+
+  {/* Actions */}
+  <DialogActions sx={{ p: 3, pt: 0, gap: 2 }}>
     {validationInfo && validationInfo.uiUsedRemaining > 0 && (
       <Button
         onClick={() => handleUseRecommendedPlot('remaining')}
-        color="primary"
         variant="contained"
+        fullWidth
+        sx={{
+          bgcolor: '#10b981',
+          '&:hover': {
+            bgcolor: '#059669'
+          },
+          py: 1.2,
+          textTransform: 'none',
+          fontWeight: 600,
+          boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.2)'
+        }}
       >
         Use Remaining Area ({validationInfo.uiUsedRemaining.toFixed(2)} cents)
       </Button>
     )}
-    <Button onClick={handleRejectPlot} color="error" variant="outlined">
+    <Button 
+      onClick={handleRejectPlot} 
+      variant="outlined"
+      fullWidth
+      sx={{
+        borderColor: '#e2e8f0',
+        color: '#64748b',
+        '&:hover': {
+          borderColor: '#ef4444',
+          color: '#ef4444',
+          bgcolor: '#fef2f2'
+        },
+        py: 1.2,
+        textTransform: 'none',
+        fontWeight: 500
+      }}
+    >
       {validationInfo?.isFromCurrentForm ? 'Clear Entry' : 'Choose Different Plot'}
     </Button>
   </DialogActions>
