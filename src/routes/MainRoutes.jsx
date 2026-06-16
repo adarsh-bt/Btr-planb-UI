@@ -65,6 +65,7 @@ const Approvel = Loadable(lazy(() => import('pages/functional-components/approve
 const ApprovelMenu = Loadable(lazy(() => import('pages/functional-components/approvels/ApprovalMenus')));
 
 const ClusterApprovals = Loadable(lazy(() => import('pages/functional-components/approvels/Cluster_approvals')));
+const WorkallocationsApprovals = Loadable(lazy(() => import('pages/functional-components/approvels/Workallocation_approvals')));
 
 const CCE_menus = Loadable(lazy(() => import('pages/functional-components/earas/cce_menus')));
 
@@ -154,6 +155,14 @@ const MainRoutes = {
           <WorkAllocation />
         </PrivateRoute>
       )
+    },
+    {
+    path: 'approval_manage/work_allocation_approvals/workallocation/:zoneId/:approvalId',
+    element: (
+    <PrivateRoute>
+      <WorkAllocation />
+    </PrivateRoute>
+    )
     },
     {
       path: 'Report',
@@ -637,6 +646,14 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <ClusterApprovals />
+        </PrivateRoute>
+      )
+    },
+     {
+      path: 'approval_manage/work_allocation_approvals',
+      element: (
+        <PrivateRoute>
+          <WorkallocationsApprovals />
         </PrivateRoute>
       )
     },

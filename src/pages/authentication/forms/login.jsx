@@ -48,20 +48,18 @@ import CelebrationIcon from '@mui/icons-material/Celebration';
 import InaugurationLandingPage from './InaugurationLandingPage';
 import TheatricalCurtain from './TheatricalCurtain';
 import InaugurationShowcase from './InaugurationShowcase';
-// import { usePermissionContext } from 'contexts/PermissionContext';
-
-
+// Import your Dialog component here
+import AgriYearSelectDialog from './AgriYearSelectDialog'; 
 
 const fadeIn = keyframes`
 0% { opacity: 0; transform: translateY(50px); }
 100% { opacity: 1; transform: translateY(0); }
 `;
 
-
 const SignInSide = () => {
-    
     const [isForgotPassword, setIsForgotPassword] = useState(false);
     const [isRegister, setIsRegister] = useState(false);
+    
     const handleForgotPasswordClick = () => {
         setIsForgotPassword(true);
     };
@@ -129,17 +127,17 @@ const SignInSide = () => {
                         Application for Intelligent Data Engineering and Analytics (AIDEA)
                     </Typography>
                     <Stack spacing={1} sx={{ mt: 5 }}>
-         <Stack
-  direction="row"
-  spacing={3}
-  justifyContent="center"
-  alignItems="center"
->
-  <img className="header-logo des_logo" src={deslogo} alt="DES Logo" />
-  <img className="header-logo duk_logo" src={duklogo} alt="DUK Logo" />
-  <img className="header-logo cdti_logo" src={cdtilogo} alt="CDTI Logo" />
-</Stack>
-     <Box className="copy_right" sx={{ color: 'text.disabled' }}>
+                        <Stack
+                            direction="row"
+                            spacing={3}
+                            justifyContent="center"
+                            alignItems="center"
+                        >
+                            <img className="header-logo des_logo" src={deslogo} alt="DES Logo" />
+                            <img className="header-logo duk_logo" src={duklogo} alt="DUK Logo" />
+                            <img className="header-logo cdti_logo" src={cdtilogo} alt="CDTI Logo" />
+                        </Stack>
+                        <Box className="copy_right" sx={{ color: 'text.disabled' }}>
                             © 2026 AIDEA CDTI-DUK. All rights reserved.
                         </Box>
                     </Stack>
@@ -184,23 +182,24 @@ const SignInSide = () => {
                 )}
             </Grid>
         </Grid>
-  </>
+        </>
     );
-    
 };
+
 const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
-    // const { savePermissions } = usePermissionContext();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
-    // const { setPermissions, setLoading: setPermissionsLoading, setError: setPermissionsError } = useContext(PermissionsContext);
     const [showPassword, setShowPassword] = useState(false);
 
     const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
     const [loginAttemptData, setLoginAttemptData] = useState(null);
+    
+    // State to trigger the Agricultural Year Dialog
+    const [openYearDialog, setOpenYearDialog] = useState(false);
 
     useEffect(() => {
         const savedUsername = localStorage.getItem('rememberedUsername');
@@ -223,6 +222,12 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
         setLoginAttemptData(null);
     };
 
+    // Callback when user chooses a year and hits Proceed
+    const handleYearSelectedProceed = (year) => {
+        setOpenYearDialog(false);
+        window.location.href = '/';
+    };
+
     const handleConfirmSwitchLogin = async () => {
         setOpenConfirmDialog(false);
         if (loginAttemptData) {
@@ -233,9 +238,8 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                 setIsLoading(false);
 
                 if (userData.payload && typeof userData.payload.token === 'string') {
-                    const { token, username: userNameFromApi } = userData.payload;
+                    const { token } = userData.payload;
                     localStorage.setItem('token', token);
-                    // localStorage.setItem('user', userNameFromApi);
                    
                     if (rememberMe) {
                         localStorage.setItem('rememberedUsername', username);
@@ -260,20 +264,16 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                             }
                         );
 
-                    //     if (!permissionsResponse.ok) {
-                    //         throw new Error(`HTTP error! status: ${permissionsResponse.status}`);
-                    //     }
-
                         const permissionsData = await permissionsResponse.json();
-                        // savePermissions(permissionsData);
                         setIsLoading(false);
-                        window.location.href = '/';
+                        
+                        // Force Login Success -> Show Agricultural Year Dialog instead of immediate redirect
+                        setOpenYearDialog(true);
                     } catch (permissionsError) {
                         console.error('Error fetching permissions:', permissionsError);
-                        // setError(permissionsError.message || 'Failed to load permissions');
                         setIsLoading(false);
-                        // navigate('/');
-                          window.location.href = '/';
+                        // Open dialog even on permission failure fallback
+                        setOpenYearDialog(true);
                     }
                 } else {
                     setError(userData.message || 'Login failed after forced login attempt');
@@ -287,8 +287,6 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
             }
         }
     };
-
-
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -307,17 +305,16 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
             let userData = await authservice.login(userLogin);
             console.log("Login response:", userData);
             setIsLoading(false);
+            
             if (userData.message === "User already logged in elsewhere") {
-               
                 setLoginAttemptData(userLogin);
                 setOpenConfirmDialog(true);
                 return;
             }
 
             if (userData.payload && typeof userData.payload.token === 'string') {
-                const { token, username: userNameFromApi } = userData.payload;
+                const { token } = userData.payload;
                 localStorage.setItem('token', token);
-                // localStorage.setItem('user', userNameFromApi);
 
                 if (rememberMe) {
                     localStorage.setItem('rememberedUsername', username);
@@ -328,8 +325,9 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     localStorage.removeItem('rememberedPassword');
                     localStorage.removeItem('rememberMe');
                 }
-console.log("Login successful, token stored. Fetching permissions...");
-                // Fetch and save permissions
+                
+                console.log("Login successful, token stored. Fetching permissions...");
+                
                 try {
                     const permissionsResponse = await fetch(
                         `${mainapi.USER_API}/user-access/user-state/user-permissions`,
@@ -342,14 +340,13 @@ console.log("Login successful, token stored. Fetching permissions...");
                     );
 
                     const permissionsData = await permissionsResponse.json();
-                    // savePermissions(permissionsData);
-
-                    // Navigate to home
-                    window.location.href = '/';
+                    
+                    // Normal Login Success -> Show Agricultural Year Dialog instead of immediate redirect
+                    setOpenYearDialog(true);
                 } catch (permError) {
                     console.error("Error fetching permissions:", permError);
-                    // savePermissions({ schemes: [] }); // fallback empty
-                    window.location.href = '/';
+                    // Open dialog even on permission fallback
+                    setOpenYearDialog(true);
                 }
 
             } else {
@@ -361,8 +358,6 @@ console.log("Login successful, token stored. Fetching permissions...");
             setIsLoading(false);
         }
     };
-
-
 
     return (
         <Box
@@ -379,7 +374,7 @@ console.log("Login successful, token stored. Fetching permissions...");
                         </Alert>
                     </center>
                 </Stack>
-            )}{' '}
+            )}
             <TextField
                 variant="outlined"
                 margin="normal"
@@ -461,7 +456,6 @@ console.log("Login successful, token stored. Fetching permissions...");
 
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
                 <Button
-              
                     type="submit"
                     variant="contained"
                     color="primary"
@@ -506,13 +500,13 @@ console.log("Login successful, token stored. Fetching permissions...");
                 onClose={handleConfirmDialogClose}
                 aria-labelledby="confirm-dialog-title"
                 aria-describedby="confirm-dialog-description"
-                sx={{ '& .MuiDialog-paper': { borderRadius: '15px' } }} // Rounded corners for the dialog paper
+                sx={{ '& .MuiDialog-paper': { borderRadius: '15px' } }}
             >
                 <DialogTitle id="confirm-dialog-title" sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'warning.main', pb: 1 }}>
                     <WarningAmberOutlinedIcon sx={{ fontSize: 28 }} />
                     <Typography variant="h6" component="span" fontWeight="bold">Already Logged In</Typography>
                 </DialogTitle>
-                <Divider /> {/* Visual separation */}
+                <Divider />
                 <DialogContent sx={{ pt: 2, pb: 2 }}>
                     <DialogContentText id="confirm-dialog-description" sx={{ color: 'text.secondary' }}>
                         You are currently logged in on another device.
@@ -540,6 +534,12 @@ console.log("Login successful, token stored. Fetching permissions...");
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Intercepting Agricultural Year Dialog */}
+            <AgriYearSelectDialog 
+                open={openYearDialog} 
+                onConfirm={handleYearSelectedProceed} 
+            />
         </Box>
     );
 };

@@ -194,29 +194,44 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
   const [rowBlockOptions, setRowBlockOptions] = useState({});
 
   // fetch and filter CCE crop details
-  const fetchCceCropDetails = async () => {
-    setLoadingCrops(true);
-    try {
-      const token = localStorage.getItem('token');
-      const zoneid = getEffectiveZoneId();
-      const response = await fetch(`${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops?zoneId=${zoneid}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      const cropData = Array.isArray(data) ? data : (data.crops || data.payload || []);
-      const filteredCrops = filterCropsByLandType(cropData, clusterInfo.landType);
-      setCceCropDetails(filteredCrops);
-    } catch (error) {
-      console.error('Error fetching CCE crop details:', error);
-      setCceCropDetails([]);
-      setSnackbarMessage('Failed to load crop details.');
-      setSnackbarOpen(true);
-    } finally {
-      setLoadingCrops(false);
-    }
-  };
+const fetchCceCropDetails = async () => {
+  setLoadingCrops(true);
 
+  try {
+    const zoneid = getEffectiveZoneId();
+
+    const response = await api.get(
+      `${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops`,
+      {
+        params: {
+          zoneId: zoneid
+        }
+      }
+    );
+
+    const data = response.data;
+
+    const cropData = Array.isArray(data)
+      ? data
+      : (data.crops || data.payload || []);
+
+    const filteredCrops = filterCropsByLandType(
+      cropData,
+      clusterInfo.landType
+    );
+
+    setCceCropDetails(filteredCrops);
+
+  } catch (error) {
+    console.error('Error fetching CCE crop details:', error);
+
+    setCceCropDetails([]);
+    setSnackbarMessage('Failed to load crop details.');
+    setSnackbarOpen(true);
+  } finally {
+    setLoadingCrops(false);
+  }
+};
 
   const renderValidationDialogContent = () => {
     if (!validationInfo) return null;
@@ -847,6 +862,7 @@ const proceedSubmit = async (mode) => {
       keyplotId: keyplotId,
       clusterNo: clusterId,
       btrType: currentBType?.id,
+      agriYear:authservice.agriyear(),
       status: mode === 'COMPLETED'
         ? 'Completed'
         : mode === 'Under Review'
@@ -892,7 +908,8 @@ const proceedSubmit = async (mode) => {
               area: area,
               bcode: row.block,
               village: row.villageId,
-              btrtype: currentBType?.id
+              btrtype: currentBType?.id,
+              
             };
 
             if (currentBType) {
@@ -1729,6 +1746,7 @@ const requiredFieldsByType = {
           houseno: row.houseno,
           lbcode: defaultLbcode,
           zoneId: parseInt(zoneId, 10),
+          agriYear:authservice.agriyear()
         };
       } else if (BtrTypeId == 3) {
         payload = {
@@ -1742,6 +1760,7 @@ const requiredFieldsByType = {
           lbcode: defaultLbcode,
           totCent: row.area,
           zoneId: parseInt(zoneId, 10),
+          agriYear:authservice.agriyear()
         };
       } else if (BtrTypeId == 4) {
 
@@ -1756,6 +1775,7 @@ const requiredFieldsByType = {
           lbcode: defaultLbcode,
           totCent: row.area,
           zoneId: parseInt(zoneId, 10),
+          agriYear:authservice.agriyear()
         };
       } else if (BtrTypeId == 5) {
         payload = {
@@ -1769,6 +1789,7 @@ const requiredFieldsByType = {
           lbcode: defaultLbcode,
           totCent: row.area,
           zoneId: parseInt(zoneId, 10),
+          agriYear:authservice.agriyear()
         };
       }
 
@@ -1858,6 +1879,7 @@ const requiredFieldsByType = {
         resvno: parseInt(row.svNo, 10),
         resbdno: row.sub && row.sub.trim() !== "" ? row.sub.trim() : null,
         zoneId: parseInt(zoneId, 10),
+        agriYear: authservice.agriyear()
       };
 
     

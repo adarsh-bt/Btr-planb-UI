@@ -1054,11 +1054,11 @@ return (
         </FormControl>
 
         {/* Buttons */}
-        {index === schemeRolePairs.length - 1 && (
+        {/* {index === schemeRolePairs.length - 1 && (
           <Button onClick={addSchemeRolePair} variant="contained" color="primary" size="small">
             +
           </Button>
-        )}
+        )} */}
 
         {schemeRolePairs.length > 1 && (
           <Button

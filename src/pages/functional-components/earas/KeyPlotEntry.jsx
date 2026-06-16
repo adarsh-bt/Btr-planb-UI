@@ -23,7 +23,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogContentText,
-  DialogActions,
+  DialogActions,Divider
 } from "@mui/material";
 import InfoIcon from '@mui/icons-material/Info';
 import { 
@@ -72,6 +72,7 @@ const KeyPlotEntry = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [mainerror, setMainError] = useState(""); 
   const [keyplotLimit, setKeyplotLimit] = useState(null);
+  const [workAllocationStatus, setworkAllocationStatus] = useState(false);
 const [remainingKeyplots, setRemainingKeyplots] = useState(0);
 // --- Plot Validation States ---
   const [isValidationDialogOpen, setIsValidationDialogOpen] = useState(false);
@@ -159,9 +160,10 @@ useEffect(() => {
       );
 
       const data = response.data;
-
+console.log("Keyplot limit API response:", data);
       setKeyplotLimit(data);
       setRemainingKeyplots(data.remainingKeyplots);
+setworkAllocationStatus(data.is_WorkAllocation);
 
     } catch (err) {
 
@@ -191,7 +193,23 @@ useEffect(() => {
       }
     };
   }, [showErrorModal]);
-
+// Dynamic theme mapping for the Work Allocation status badge
+const getWorkAllocationStatusChip = (status) => {
+  switch (status?.toUpperCase()) {
+    case 'APPROVED':
+      return { label: "Allocation Approved", color: "success", variant: "filled" };
+    case 'SUBMITTED':
+    case 'PENDING':
+      return { label: "Allocation Submitted", color: "warning", variant: "filled" };
+    case 'UNDER REVIEW':
+      return { label: "Allocation Under Review", color: "info", variant: "filled" };
+    case 'RETURNED':
+      return { label: "Allocation Returned", color: "error", variant: "filled" };
+    case 'NOT SUBMITTED':
+    default:
+      return { label: "Allocation Not Submitted", color: "error", variant: "outlined" };
+  }
+};
   // --- Data Fetching ---
 useEffect(() => {
   if (!zoneId) {
@@ -231,7 +249,7 @@ useEffect(() => {
       );
 
       const [lbData, villageData, distData, talukData] = await Promise.all(requests);
-console.log("Fetched Data:", { lbData, villageData, distData, talukData });
+
       setLocalBodies(lbData || []);
       setVillageOptions(villageData || []);
       setDistrictInfo(distData);
@@ -800,7 +818,7 @@ try {
 
     // If the request succeeds (2xx status code), it comes here directly
     const data = response.data; // Axios automatically parses the JSON
-    console.log("Validation API response:", data);
+
 
     if (data.id) {
       // Existing plot found in BTR master, available for reuse
@@ -1078,11 +1096,62 @@ const areAllFieldsFilled = (lbId) => {
           KeyPlot Entry 
           {/* (Total Required: {TOTAL_REQUIRED}) */}
         </Typography>
-        {keyplotLimit && (
-  <Alert severity="info" sx={{ mb: 2 }}>
-    Zone Limit: <b>{keyplotLimit.allowedKeyplotsLimit}</b> | 
-    Formed Count: <b>{keyplotLimit.usedKeyplotsCount}</b> | 
-    Remaining: <b>{keyplotLimit.remainingKeyplots}</b>
+{keyplotLimit && (
+  <Paper 
+    elevation={0} 
+    variant="outlined" 
+    sx={{ 
+      p: 2, 
+      mb: 2, 
+      bgcolor: '#f8fafc', 
+      borderColor: '#e2e8f0', 
+      borderRadius: 2,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      flexWrap: 'wrap',
+      gap: 2
+    }}
+  >
+    {/* Left Side: Numeric Metrics */}
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+      <Typography variant="body1">
+        Zone Limit: <strong style={{ color: '#05307a' }}>{keyplotLimit.allowedKeyplotsLimit}</strong>
+      </Typography>
+      <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
+      <Typography variant="body1">
+        Formed Count: <strong style={{ color: '#05307a' }}>{keyplotLimit.usedKeyplotsCount}</strong>
+      </Typography>
+      <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
+      <Typography variant="body1">
+        Remaining Available: <strong style={{ color: keyplotLimit.remainingKeyplots > 0 ? '#10b981' : '#dc2626' }}>{keyplotLimit.remainingKeyplots}</strong>
+      </Typography>
+    </Box>
+
+    {/* Right Side: Dynamic Status Badge */}
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <Typography variant="body2" color="text.secondary" fontWeight={500}>
+        Work Allocation Status:
+      </Typography>
+      <Chip 
+        label={getWorkAllocationStatusChip(keyplotLimit.status).label}
+        color={getWorkAllocationStatusChip(keyplotLimit.status).color}
+        variant={getWorkAllocationStatusChip(keyplotLimit.status).variant}
+        size="medium"
+        sx={{ fontWeight: 600, px: 1 }}
+      />
+    </Box>
+  </Paper>
+)}
+
+{/* ✅ NEW: Global warning banner explaining the locking reason */}
+{!workAllocationStatus && (
+  <Alert 
+    severity="error" 
+    icon={<ErrorIcon />} 
+    sx={{ mb: 3, borderRadius: 2, fontWeight: 500 }}
+  >
+    <strong>Keyplot Entry Disabled:</strong> The Work Allocation Statement for this Zone and Agricultural Year must be <strong>Approved</strong> by the administrator before you can record new keyplots.
   </Alert>
 )}
 
@@ -1189,6 +1258,7 @@ const areAllFieldsFilled = (lbId) => {
                   <TableContainer component={Paper}>
                     <Table stickyHeader>
                       <TableHead>
+                      
                         <TableRow>
                          {["Sl. No", "Local Body", "Village", "Village Block", "Survey No.", "Sub Div No.", "Area (Cents)", "Land Type", "Actions"].map((col) => (
 
@@ -1352,22 +1422,32 @@ const areAllFieldsFilled = (lbId) => {
                           </TableRow>
                         ))}
                         <TableRow>
-                          <TableCell colSpan={8} align="right">
-                            <Button
-                              startIcon={<AddCircle />}
-                              variant="outlined"
-                              color="success"
-                              onClick={() => handleAddRow(lb.id)}
-                              disabled={
-  totalKeyplots >= remainingKeyplots ||
-  !areAllFieldsFilled(lb.id)
-}
+  <TableCell colSpan={9} align="right">
+    {/* ✅ Wrapped in a Box layout container to support inline helper texts */}
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, flexWrap: 'wrap' }}>
+      
+      {/* ✅ NEW: Inline explanation helper text message */}
+      {!workAllocationStatus && (
+        <Typography variant="body2" color="error.main" sx={{ fontWeight: 500, fontStyle: 'italic' }}>
+          * Work allocation must be approved to enable this action.
+        </Typography>
+      )}
 
-                            >
-                              Add Keyplot
-                            </Button>
-                          </TableCell>
-                        </TableRow>
+      <Button
+        startIcon={<AddCircle />}
+        variant="outlined"
+        color="success"
+        onClick={() => handleAddRow(lb.id)}
+        disabled={
+          totalKeyplots >= remainingKeyplots ||
+          !areAllFieldsFilled(lb.id) || !workAllocationStatus
+        }
+      >
+        Add Keyplot
+      </Button>
+    </Box>
+  </TableCell>
+</TableRow>
 
                       </TableBody>
                     </Table>

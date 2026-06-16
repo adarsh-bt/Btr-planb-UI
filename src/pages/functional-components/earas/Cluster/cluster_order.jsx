@@ -55,9 +55,9 @@ useEffect(() => {
 
   const fetchClusterData = async () => {
     try {
-
+      const agriYear = authservice.agriyear();
       const res = await api.get(
-        `/btr-service/cluster-api/user-cluster-summary/${resolvedZoneId}`
+        `/btr-service/cluster-api/user-cluster-summary/${resolvedZoneId}/${agriYear}`
       );
 
       const data = res.data;
@@ -344,10 +344,10 @@ const CropChip = ({ crop, count, isActive, onClick }) => (
                   mb: 2
                 }}
               >
-                Cluster Operations Map
+                Progress Overview
               </Typography>
 
-              <Typography
+              {/* <Typography
                 variant="h6"
                 sx={{
                   textAlign: 'center',
@@ -356,7 +356,7 @@ const CropChip = ({ crop, count, isActive, onClick }) => (
                 }}
               >
                 Manage and monitor your agricultural clusters efficiently
-              </Typography>
+              </Typography> */}
 
               {/* Progress Section */}
               <Box sx={{ maxWidth: 600, mx: 'auto', mb: 3 }}>

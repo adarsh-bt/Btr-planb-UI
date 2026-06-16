@@ -183,7 +183,7 @@ function ZoneClusterReport() {
       const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
+console.log('API response:', response.data);
       if (response.data) {
         setApiData(response.data);
         setTotalElements(

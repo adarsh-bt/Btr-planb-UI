@@ -225,7 +225,7 @@ class AuthService {
       } catch {
         return {
           success: false,
-          message: 'Invalid encrypted error response'
+          message: 'Server is Busy. Please try again later.'
         };
       }
     }

@@ -19,6 +19,7 @@ const ChangePassword = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [otpVerifiedToken, setOtpVerifiedToken] = useState(null);
 
 
   // Step 1: Email Verification
@@ -64,13 +65,19 @@ const ChangePassword = () => {
       const userId = decodedToken.sub;
 
       const response = await profileService.verifyOtp(userId, otpValue);
-      if (response.statusCode === 200) {
-        setSuccess('OTP Verified');
-        setError('');
-        setStep(3);
-      } else {
-        setError('Invalid OTP. Please try again.');
-      }
+     if (
+  response.statusCode === 200 &&
+  response.data &&
+  response.data.resetToken
+) {
+  setOtpVerifiedToken(response.data.resetToken);
+
+  setSuccess('OTP Verified');
+  setError('');
+  setStep(3);
+} else {
+  setError('OTP verification failed');
+}
     } catch (error) {
       setError('Error verifying OTP.');
     }
@@ -99,15 +106,19 @@ const ChangePassword = () => {
 
       const decodedToken = jwtDecode(token);
       const userId = decodedToken.sub; // Extract userId from the decoded token
-
+if (!otpVerifiedToken) {
+  setError('OTP verification required.');
+  return;
+}
       // Create the password change request payload
       console.log('userId :', oldPassword);
-      const passwordCheckRequest = {
-        userId: userId,
-        currentPassword: oldPassword,
-        newPassword: newPassword,
-        confirmPassword: confirmPassword
-      };
+  const passwordCheckRequest = {
+  userId: userId,
+  currentPassword: oldPassword,
+  newPassword: newPassword,
+  confirmPassword: confirmPassword,
+  resetToken: otpVerifiedToken
+};
 
       const response = await profileService.changePassword(passwordCheckRequest); // Calling the backend service
       console.log('Backend response:', response); // Log the full response

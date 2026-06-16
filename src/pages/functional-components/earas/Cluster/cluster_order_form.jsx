@@ -87,11 +87,7 @@ function ClusterSeatForm({ zoneId }) {
       return;
     }
 
-    api.get(`${BASE_URL}/btr-service/cluster-api/cluster-form-status/${resolvedZoneId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    })
+    api.get(`${BASE_URL}/btr-service/cluster-api/cluster-form-status/${resolvedZoneId}/${authservice.agriyear()}`)
       .then(res => {
         // Store the raw payload directly - One object per cluster
         setClusters(res.data.payload || []);
@@ -210,6 +206,17 @@ console.Console
           </Box>
         ) : (
           <>
+            <Typography
+                variant="h4"
+                fontWeight="bold"
+                sx={{
+                  textAlign: 'center',
+                  opacity: 0.9,
+                  mb: 3
+                }}
+              >
+                Form Status of Clusters
+              </Typography>
             {/* --- Summary Cards --- */}
             <Grid container spacing={2} sx={{ mb: 4 }}>
               {[

@@ -117,7 +117,7 @@ const EditProfileModal = ({ open, onClose, formData = {}, setFormData, onSubmit,
     dateOfBirth: formData?.dateOfBirth || '',
     dateOfJoining: formData?.dateOfJoining || ''
   };
-
+console.log('EditProfileModal formData:', formData);
   const safeErrors = errors || {};
 
   // Helper function for date validation
@@ -573,6 +573,7 @@ const handleProfileUpdate = async () => {
       dateOfBirth: editForm.dateOfBirth || null,
       dateOfJoining: editForm.dateOfJoining || null
     };
+    console.log('Profile update payload:', payload);
 
     const response = await profileService.updateProfile(payload);
 
