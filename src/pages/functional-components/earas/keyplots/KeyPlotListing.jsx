@@ -113,6 +113,13 @@ const [clusterChanges, setClusterChanges] = useState({});
   const [removalValidationError, setRemovalValidationError] = useState('');
 const [clusterStatus, setClusterStatus] = useState(null);
 
+const [openPreCheckDialog, setOpenPreCheckDialog] = useState(false);
+const [preCheckData, setPreCheckData] = useState({
+  hasCrops: false,
+  cropsCount: 0,
+  loading: false
+});
+
 const [showCropsList, setShowCropsList] = useState(false);
 const [cropsList, setCropsList] = useState([]);
 const [cropsLoading, setCropsLoading] = useState(false);
@@ -754,11 +761,51 @@ const fetchPlotDetails = async (plotId) => {
   };
 
   // Remove dialog handlers
-const handleOpenRemoveDialog = (row) => {
+// const handleOpenRemoveDialog = (row) => {
+//   setSelectedRowToRemove(row);
+//   setRemovalValidationError(''); // Clear any previous errors
+//   setOpenRemoveDialog(true);
+// };
+
+const handleOpenRemoveDialog = async (row) => {
   setSelectedRowToRemove(row);
-  setRemovalValidationError(''); // Clear any previous errors
-  setOpenRemoveDialog(true);
+  setRemovalValidationError('');
+  setPreCheckData({ hasCrops: false, cropsCount: 0, loading: true });
+  setOpenPreCheckDialog(true);
+  
+  try {
+    // Check if crops exist for this cluster
+    const response = await api.get(`/earas-form1-entry/available-cce-plot-details/fetch-cce-crops/${row.id}`);
+    const crops = response.data.payload || [];
+    
+    setPreCheckData({
+      hasCrops: crops.length > 0,
+      cropsCount: crops.length,
+      loading: false
+    });
+    
+  } catch (err) {
+    console.error("Error checking crops:", err);
+    setPreCheckData({
+      hasCrops: false,
+      cropsCount: 0,
+      loading: false
+    });
+  }
 };
+const handleProceedFromPreCheck = () => {
+  setOpenPreCheckDialog(false);
+  
+  if (preCheckData.hasCrops) {
+    // Show crops list dialog
+    fetchCropsForCluster(selectedRowToRemove.id);
+    setOpenRemoveDialog(true);
+  } else {
+    // Show normal removal dialog (no crops)
+    setOpenRemoveDialog(true);
+  }
+};
+
 const handleConfirmRemoval = async () => {
   if (!selectedRowToRemove || !selectedRowToRemove.id) {
     console.error('No row selected for removal or row has no ID.');
@@ -2883,6 +2930,132 @@ try {
       </DialogActions>
     </>
   )}
+</Dialog>
+
+
+{/* Pre-Check Dialog - Shows before removal */}
+<Dialog 
+  open={openPreCheckDialog} 
+  onClose={() => {
+    if (!preCheckData.loading) {
+      setOpenPreCheckDialog(false);
+      setSelectedRowToRemove(null);
+    }
+  }} 
+  fullWidth 
+  maxWidth="sm"
+>
+  <DialogTitle sx={{ 
+    background: preCheckData.hasCrops 
+      ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)' 
+      : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
+    color: 'white'
+  }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      {preCheckData.loading ? (
+        <CircularProgress size={24} color="inherit" />
+      ) : preCheckData.hasCrops ? (
+        <WarningIcon sx={{ fontSize: 28 }} />
+      ) : (
+        <CheckCircleIcon sx={{ fontSize: 28 }} />
+      )}
+      <Typography variant="h6" fontWeight="bold">
+        {preCheckData.loading ? 'Checking...' : preCheckData.hasCrops ? '⚠️ Crops Detected' : '✅ Ready for Removal'}
+      </Typography>
+    </Box>
+  </DialogTitle>
+  
+  <DialogContent dividers sx={{ py: 4 }}>
+    {preCheckData.loading ? (
+      <Box textAlign="center">
+        <CircularProgress size={40} />
+        <Typography sx={{ mt: 2 }}>Checking for existing crops...</Typography>
+      </Box>
+    ) : preCheckData.hasCrops ? (
+      <>
+        <Box sx={{ textAlign: 'center', mb: 3 }}>
+          <WarningIcon sx={{ fontSize: 60, color: '#ff9800', mb: 2 }} />
+          <Typography variant="h6" color="warning.main" gutterBottom fontWeight="bold">
+            {preCheckData.cropsCount} Crop(s) Found in this Cluster
+          </Typography>
+        </Box>
+        
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <Typography variant="body2">
+            <strong>⚠️ Important:</strong> This KeyPlot has {preCheckData.cropsCount} active crop(s) assigned.
+          </Typography>
+        </Alert>
+        
+        <Paper sx={{ p: 2, bgcolor: '#fff3e0', border: '1px solid #ffb74d' }}>
+          <Typography variant="body2" gutterBottom>
+            <strong>What happens next:</strong>
+          </Typography>
+          <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+            <li>You will see the list of crops in this cluster</li>
+            <li>You must remove all crops before deleting the KeyPlot</li>
+            <li>Each crop can be removed with an optional remark</li>
+            <li>After all crops are removed, you can retry deletion</li>
+          </ul>
+        </Paper>
+      </>
+    ) : (
+      <>
+        <Box sx={{ textAlign: 'center', mb: 3 }}>
+          <CheckCircleIcon sx={{ fontSize: 60, color: '#4caf50', mb: 2 }} />
+          <Typography variant="h6" color="success.main" gutterBottom fontWeight="bold">
+            No Crops Found
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            This KeyPlot has no existing crops.
+          </Typography>
+        </Box>
+        
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Typography variant="body2">
+            <strong>ℹ️ Information:</strong> Since no crops are assigned to this KeyPlot, 
+            it can be removed directly.
+          </Typography>
+        </Alert>
+        
+        <Paper sx={{ p: 2, bgcolor: '#e8f5e9', border: '1px solid #81c784' }}>
+          <Typography variant="body2" gutterBottom>
+            <strong>Cluster Details:</strong>
+          </Typography>
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="body2">• Cluster Number: <strong>{selectedRowToRemove?.cluster_number}</strong></Typography>
+            <Typography variant="body2">• Survey Number: <strong>{selectedRowToRemove?.syNo}</strong></Typography>
+            <Typography variant="body2">• Panchayath: <strong>{selectedRowToRemove?.panchayth}</strong></Typography>
+            <Typography variant="body2">• Village: <strong>{selectedRowToRemove?.kvillageName}</strong></Typography>
+          </Box>
+        </Paper>
+      </>
+    )}
+  </DialogContent>
+  
+  <DialogActions sx={{ p: 2, justifyContent: 'space-between' }}>
+    <Button 
+      onClick={() => {
+        setOpenPreCheckDialog(false);
+        setSelectedRowToRemove(null);
+      }}
+      variant="outlined"
+      disabled={preCheckData.loading}
+    >
+      Cancel
+    </Button>
+    
+    {!preCheckData.loading && (
+      <Button
+        onClick={handleProceedFromPreCheck}
+        variant="contained"
+        color={preCheckData.hasCrops ? "warning" : "error"}
+        startIcon={preCheckData.hasCrops ? <WarningIcon /> : <DeleteIcon />}
+        sx={{ minWidth: '150px' }}
+      >
+        {preCheckData.hasCrops ? 'View & Remove Crops' : 'Proceed to Remove'}
+      </Button>
+    )}
+  </DialogActions>
 </Dialog>
 
 
