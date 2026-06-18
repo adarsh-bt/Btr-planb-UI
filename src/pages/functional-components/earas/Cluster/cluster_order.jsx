@@ -30,7 +30,7 @@ import authservice from 'pages/authentication/services/authservice';
 import mainapi from 'api/mainapi';
 import api from 'api/api';
 
-function ClusterFormationSeatMap({ zoneId }) {
+function ClusterSeatMap({ zoneId }) {
   const BTR_URL = mainapi.BASE_URL;
   const [clusters, setClusters] = useState([]);
   const [summary, setSummary] = useState({ completed: 0, ongoing: 0, notStarted: 0, underreview: 0 });

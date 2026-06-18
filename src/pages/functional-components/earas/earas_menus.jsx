@@ -1166,7 +1166,7 @@ function Earas_menus() {
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                to="/schemes/earas/Key_plot_List"
+                to="/schemes/earas/Key_plot_Listing"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',
