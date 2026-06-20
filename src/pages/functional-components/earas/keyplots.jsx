@@ -102,7 +102,7 @@ const transformSample = (sample, type, index) => ({
     useEffect(() => {
         const fetchInitialKeyplots = async () => {
             setLoading(true);
-        
+            zoneid = authservice.getzone();
             try {
              
                 // Replace with your actual userId
@@ -111,7 +111,7 @@ const transformSample = (sample, type, index) => ({
               const res = await axios.post(`${BASE_URL}/btr-service/key-plots/fetch-existing-keyplots`,
   {
     userId: userId,
-    zone_id:'758'  // Request body
+    zone_id:zoneid  // Request body
   },
   {
     headers: {
@@ -122,7 +122,7 @@ const transformSample = (sample, type, index) => ({
 );
 
 
-                console.log(res.data.payload)
+              
                 const zones = res.data.payload || [];
 
                 if (zones.length > 0) {
@@ -172,7 +172,7 @@ const transformSample = (sample, type, index) => ({
       });
 
             const zones = res.data.payload || [];
-            console.log("gen data ",zones)
+          
             const allWetSamples = zones.flatMap(zone => zone.wetSamples || []);
             const allDrySamples = zones.flatMap(zone => zone.drySamples || []);
 
@@ -322,7 +322,7 @@ const filtered = plotData.filter((row) =>
 
         setLoading(true);
               try {
-                console.log("removed the row >>",selectedRowToRemove)
+               
                  const token = localStorage.getItem('token');
             const response = await axios.post(`${BASE_URL}/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.id}`,{
               zone_id:'758',
@@ -337,7 +337,7 @@ const filtered = plotData.filter((row) =>
   }
 );
             const newPlotPayload = response.data;
-console.log("resss ",response.data)
+
             const transformedNewPlot = {
                 id: newPlotPayload.id,
                 plot_id: newPlotPayload["plot_id"],

@@ -1,0 +1,90 @@
+import React from 'react';
+import Grid from '@mui/material/Grid';
+import { useTheme } from '@mui/material/styles';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import Card from '@mui/material/Card';
+import Box from '@mui/material/Box';
+import CardContent from '@mui/material/CardContent';
+import CardMedia from '@mui/material/CardMedia';
+import IconButton from '@mui/material/IconButton';
+
+import { Link } from 'react-router-dom';
+
+import MainCard from 'components/MainCard';
+import Breadcrumb from 'routes/Breadcrumb';
+
+import { useContext } from 'react';
+// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
+// import { flattenPermissions } from 'contexts/auth-reducer/permissionHelpers';
+
+import zonesettings from 'assets/images/logo/zonesettings.png';
+import ccecropselection from 'assets/images/logo/ccecropselection.png';
+
+const MappingMenus = () => {
+  return (
+    <Grid container spacing={3}>
+      <Breadcrumb />
+      <Grid item xs={12}>
+        <Typography variant="h3" sx={{ marginBottom: 2 }}>
+          Mapping Management
+        </Typography>
+        <MainCard title="">
+          <Grid container spacing={4} alignItems="stretch">
+            {/* {canViewZoneDetails && ( */}
+            <Grid item xs={12} sm={4} md={3} lg={3}>
+              <Card
+                component={Link}
+                to="/schemes/earas/Mapping_Management/ZoneListing"
+                sx={{
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '1rem',
+                  borderRadius: '1rem',
+                  background: 'linear-gradient(135deg, rgba(73, 216, 252, 0.53), rgb(98, 194, 218))', // Gradient color
+                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
+                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
+                  height: '100%', // Ensure card takes full height of the grid item
+                  '&:hover': {
+                    transform: 'scale(1.05)', // Hover scale effect
+                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
+                  }
+                }}
+              >
+                <CardMedia
+                  component="img"
+                  sx={{
+                    width: '5rem',
+                    height: '5rem',
+                    borderRadius: '.5rem',
+                    marginRight: '1rem' // Space between image and text
+                  }}
+                  image={zonesettings}
+                  alt="zonesettings"
+                />
+
+                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
+                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
+                      Zone Editing
+                    </Typography>
+                    {/* Subtitle removed from here */}
+                  </CardContent>
+                </Box>
+              </Card>
+            </Grid>
+            {/* )} */}
+
+
+
+            {/* )} */}
+          </Grid>
+        </MainCard>
+      </Grid>
+    </Grid>
+  );
+}
+
+export default MappingMenus

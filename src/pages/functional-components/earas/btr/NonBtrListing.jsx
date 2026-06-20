@@ -18,6 +18,7 @@ import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import mainapi from 'api/mainapi';
 import authservice from 'pages/authentication/services/authservice';
+import Breadcrumb from 'routes/Breadcrumb';
 // Define the columns for the data table
 const columns = (handleView, page, size) => [
   {
@@ -81,7 +82,7 @@ const columns = (handleView, page, size) => [
     center: true,
   },
 ];
-const Btr = () => {
+const Btr = ({zoneId}) => {
   // State management
   const [filterText, setFilterText] = useState('');
   const [openViewModal, setOpenViewModal] = useState(false);
@@ -97,19 +98,28 @@ const Btr = () => {
   const [downloading, setDownloading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
+
+
+    const [resolvedZoneId, setResolvedZoneId] = useState(() => {
+  const role = authservice.getrole(); // Get the role
+  return role === 'Field Data Collector'
+    ? authservice.getzone()  // For Field Data Collector
+    : zoneId;                         // For Admin or other roles
+});
+
   // Fetch data from your API
   const fetchData = async () => {
     setLoading(true);
     try {
       // const BASE_URL = mainapi.BASE_URL;
-      const BASE_URL = "http://localhost:8082";
+      const BASE_URL = mainapi.BASE_URL;
       const zoneid = authservice.getzone();
-      const response = await fetch(`${BASE_URL}/btr-service/api/fetch-btr/zone/${zoneid}/data`, {
+      const response = await fetch(`${BASE_URL}/btr-service/api/fetch-btr/zone/${resolvedZoneId}/data`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           // Add authorization header if needed
-          // 'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
       });
       if (!response.ok) {
@@ -224,13 +234,13 @@ const Btr = () => {
     setDetailLoading(true);
     try {
       // const BASE_URL = mainapi.BASE_URL;
-      const BASE_URL = "http://localhost:8082";
+      const BASE_URL = mainapi.BASE_URL;
       const response = await fetch(`${BASE_URL}/btr-service/api/fetch-btr/data/${id}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           // Add authorization header if needed
-          // 'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
       });
       if (!response.ok) {
@@ -297,6 +307,7 @@ const Btr = () => {
 
 return (
     <Grid container spacing={3}>
+    <Breadcrumb> </Breadcrumb>
       <Grid item xs={12}>
         <Paper elevation={3} style={{ marginBottom: '16px', padding: '16px' }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>

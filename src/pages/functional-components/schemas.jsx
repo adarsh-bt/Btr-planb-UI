@@ -73,7 +73,7 @@ function Schemas() {
         borderRadius: '.5rem',
         marginRight: '1rem',
       }}
-      image="src/assets/images/logo/EARAS.png"
+      image="https://static.thenounproject.com/png/agriculture-icon-1080128-512.png"
       alt="Dashboard Icon"
     />
 
@@ -107,9 +107,9 @@ function Schemas() {
           padding: '1rem',
           borderRadius: '1rem',
 
-          background: 'linear-gradient(135deg, #cfd8dc, #b0bec5)', // Muted gray gradient
-          opacity: 0.6, // Makes it look inactive
-          filter: 'grayscale(100%)', // Grays out the card
+          background: 'linear-gradient(135deg, #21920aff, #8db21fff)', // Muted gray gradient
+          // opacity: 0.6, // Makes it look inactive
+          // filter: 'grayscale(100%)', // Grays out the card
           boxShadow: 'none', // No shadow
           cursor: 'not-allowed', // Indicate non-clickable
           pointerEvents: 'none', // Disable interaction (optional)

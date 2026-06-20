@@ -120,6 +120,7 @@ const [rolesMap, setRolesMap] = useState({});
   // Function to handle edit action
   const handleEdit = (row) => {
     setSelectedRow(row);
+
     setRadioState(row.approvalStatus.toLowerCase());
     setRemarks(row.remarks || ''); // Reset remarks to row's value or empty
     setSelectedScheme(''); // Reset scheme selection
@@ -355,10 +356,10 @@ const handleSaveChanges = () => {
               )
             );
 
-            if (zone !== "" && data.payload.loginId !== null) {
-              console.log("zone  ",zone,"   >>> ",data.payload.loginId,"admin ",admin_id)
+              if (zone !== "" && data.payload[0].loginId !== null) {
+              console.log("zone  ",zone,"   >>> ",data.payload[0].loginId,"admin ",admin_id)
               approvalservice
-                .zone_save(zone, data.payload.loginId, admin_id)
+                .zone_save(zone, data.payload[0].loginId, admin_id)
                 .catch(() => {
                   Swal.fire("Error", "Failed to save zone information. Please try again later.", "error");
                 });
@@ -610,10 +611,10 @@ useEffect(() => {
         >
           {[{ label: "Name", value: selectedRow.name },
             { label: "Designation", value: selectedRow.designation },
-            { label: "Date Of birth", value: selectedRow.dateOfBirth },
+            { label: "Date Of birth", value: new Date(selectedRow.dateOfBirth).toLocaleDateString('en-GB'), sortable: true  },
             { label: "Email", value: selectedRow.email },
             { label: "Phone Number", value: selectedRow.mobileNumber },
-            { label: "Date of Joining", value: selectedRow.dateOfJoining },
+            { label: "Date of Joining", value: new Date(selectedRow.dateOfJoining).toLocaleDateString('en-GB'), sortable: true  },
             { label: "Emp ID", value: selectedRow.empNumber },
             { label: "Office", value: selectedRow.officelocation }
           ].map((field, index) => (
@@ -713,7 +714,7 @@ useEffect(() => {
                   )} */}
 
                   {/* {selectedRow.designation === 'Taluk Statistical Officer' && ( */}
-{(selectedRow.designation === 'Taluk Statistical Officer' || admrole === 'IT Admin' || admrole === 'Super Admin') && (
+{(selectedRow.designation_id === 3 || admrole === 'IT Admin' || admrole === 'Super Admin') && (
  <Box
   style={{
     display: "flex",
@@ -801,7 +802,7 @@ useEffect(() => {
 {/* )} */}
 
                 </Box>
-                 { (zoneVisble === true && selectedRow.designation !== 'Taluk Statistical Officer') && (
+                 { (zoneVisble === true && selectedRow.designation_id !== 3) && (
                   <Box style={{ width: '30%', margin: 'auto' }}>
                     <center>
                       <strong>Select Zone</strong>

@@ -9,7 +9,7 @@ class authservice {
   static async login(userLogin) {
     try {
       const encrypted = encryptData(JSON.stringify(userLogin));
-      console.log("user login ",encrypted)
+      
       
       const response = await axios.post(`${authservice.BASE_URL}/user-access/api/login`, encrypted, {
         headers: {
@@ -21,11 +21,13 @@ class authservice {
       const decryptedJson = decryptData(response.data);
       const responseData = JSON.parse(decryptedJson);
       // localStorage.setItem('pression', response.payload.schmes);
-      console.log('pression', response.payload);
+      
+      // alert(responseData.payload.distid);
       // Store token/user
       localStorage.setItem('token', responseData.payload.token);
       localStorage.setItem('user', responseData.payload.username);
-      console.log('>> >>>>> >>>>>> ', responseData);
+       localStorage.setItem('des', responseData.payload.designation);
+       localStorage.setItem('dis', responseData.payload.distid);
       return responseData;
     } catch (err) {
   if (err.response) {
@@ -36,7 +38,7 @@ try {
 } catch (decryptionError) {
   decryptedError = 'Unknown encrypted error from backend';
 }
-console.log("err ",decryptedError.message)
+
     return {
       message: decryptedError || err.response.data.message || 'Unknown error from backend'
     };
@@ -51,6 +53,7 @@ console.log("err ",decryptedError.message)
   }
 }
   }
+  
   static async fetchPermissions(token) {
     try {
       const response = await axios.get(`${authservice.BASE_URL}/user-access/user-state/userpremissions`, {
@@ -69,16 +72,13 @@ console.log("err ",decryptedError.message)
   }
   static async registration(userData) {
     try {
-      console.log('userdataregister > ', userData);
-      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/user-registration/save-user`, userData, {
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      });
-      console.log('ress   ', response.status);
+      
+      const response = await axios.post(`${authservice.BASE_URL}/user-access/api/user-registration/save-user`, userData
+      );
+      
       return response;
     } catch (err) {
-      console.log('err >>', err.response.data.message);
+  
       return {
         message: err.response.data.message
       };
@@ -98,7 +98,7 @@ console.log("err ",decryptedError.message)
       );
       const decryptedJson = decryptData(response.data);
       const responseData = JSON.parse(decryptedJson);
-      console.log('ok', responseData);
+
       return responseData;
     } catch (err) {
       return {
@@ -116,6 +116,7 @@ console.log("err ",decryptedError.message)
       });
       const decryptedJson = decryptData(response.data);
       const responseData = JSON.parse(decryptedJson);
+   
       return responseData;
     } catch (err) {
       throw err;
@@ -131,7 +132,7 @@ console.log("err ",decryptedError.message)
       });
       const decryptedJson = decryptData(response.data);
       const responseData = JSON.parse(decryptedJson);
-      console.log('use data ');
+     
       return responseData;
     } catch (err) {
       throw err;
@@ -148,12 +149,16 @@ static async logout(navigate) {
       },
       withCredentials: true
     });
-    console.log("api   ????? ",authservice.BASE_URL);
+    
     if (response.status === 200) {
   localStorage.removeItem('token');
-  localStorage.removeItem('user');
+  // localStorage.removeItem('user');
   localStorage.removeItem('activeZone');
+  localStorage.removeItem('activeDistId');
+  // localStorage.removeItem('des');
+  localStorage.removeItem('permissionsData');
   navigate('/login');
+
 }
     return response.data;
   } catch (error) {
@@ -175,9 +180,13 @@ static async logout(navigate) {
     return decodedToken.sub;
   }
   static getrole() {
+    try{
     const token = localStorage.getItem('token');
     const decodedToken = jwtDecode(token);
-    return decodedToken.roles;
+    return decodedToken.roles;}
+    catch{
+      return null
+    }
   }
   static getzone() {
     try{
@@ -187,9 +196,20 @@ static async logout(navigate) {
       console.error('Error decoding token:', error);
     }
   }
+
+  static getdesignation() {
+    try{
+      const token = localStorage.getItem('token');
+      const decodedToken = jwtDecode(token);
+      return decodedToken.des;
+    } catch (error) {
+      console.error('Error decoding token:', error);
+    }
+  }
   static getusername() {
-    const user_name = localStorage.getItem('user');
-    return user_name;
+    const token = localStorage.getItem('token');
+    const decodedToken = jwtDecode(token);
+    return decodedToken.username;
   }
   static gettoken() {
     return localStorage.getItem('token');

@@ -134,7 +134,7 @@ const [selectedPlotDetails, setSelectedPlotDetails] = useState(null);
 );
 
 
-                console.log(res.data.payload)
+        
                 const zones = res.data.payload || [];
 
                 if (zones.length > 0) {
@@ -184,7 +184,7 @@ const [selectedPlotDetails, setSelectedPlotDetails] = useState(null);
       });
 
             const zones = res.data.payload || [];
-            console.log("gen data ",zones)
+     
             const allWetSamples = zones.flatMap(zone => zone.wetSamples || []);
             const allDrySamples = zones.flatMap(zone => zone.drySamples || []);
 
@@ -336,7 +336,7 @@ const filtered = plotData.filter((row) =>
         setLoading(true);
               try {
                 const zone_id = authservice.getzone();
-                console.log("removed the row >>",selectedRowToRemove)
+             
                 alert("Removed the row >>"+selectedRowToRemove.plot_id)
                  const token = localStorage.getItem('token');
             const response = await axios.post(`${BASE_URL}/btr-service/key-plots/reject-and-replace/${selectedRowToRemove.plot_id}`,{
@@ -352,7 +352,7 @@ const filtered = plotData.filter((row) =>
   }
 );
             const newPlotPayload = response.data;
-console.log("resss ",response.data)
+
             const transformedNewPlot = {
                 id: newPlotPayload.id,
                 plot_id: newPlotPayload["plot_id"],

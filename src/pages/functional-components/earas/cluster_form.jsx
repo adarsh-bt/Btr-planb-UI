@@ -278,7 +278,7 @@ data.payload.sidePlots.forEach(sp => {
 });
 
             }
-            console.log("existed plotss ",existingSidePlots)
+            
           
 // Always include keyplot "K"
 const fixed = ['K'];
@@ -476,7 +476,7 @@ useEffect(() => {
     // --- Main handler for all input changes in the Modal Form ---
     // This is a crucial function for updating modalRowData and triggering dependent fetches/updates.
 const handleModalInputChange = useCallback((value, field) => {
-  console.log("Changing field:", field, "to value:", value);
+  
 
   setModalRowData(prev => {
     let newState = { ...prev, [field]: value };
@@ -564,7 +564,7 @@ else if (field === 'resvnoStart' || field === 'resvnoEnd') {
       const kpId = keyplotId;
       const url = `${BASE_URL}/btr-service/cluster-api/${kpId}/resbdnos-by-village-block?villageId=${newState.village}&blockCode=${newState.modalBlock}&resvnoStart=${updatedStart}&resvnoEnd=${updatedEnd}`;
         const token = localStorage.getItem('token');
-        console.log("url >>> ",url)
+      
     setLoadingResvno(true); // <== Start loader before fetch
 
 fetch(url,{
@@ -833,10 +833,9 @@ const handleModalAddRow = () => {
       resvno,
       resbdno
     ) || 0);
-console.log("ggg ",remainingArea)
+
     if (remainingArea > 0) {
       newRowsTotal += remainingArea;
-      console.log("totla  ",newRowsTotal)
       preparedRows.push({
         village: modalRowData.village,
         villageName: villageOptions.find(v => v.villageId === modalRowData.village)?.village || '',
@@ -944,7 +943,7 @@ const isAddButtonDisabled = () => {
         // This function was originally for direct input fields in the main form.
         // With modal, actual area formatting should occur within the modal's context or on submission.
         // If you keep direct input fields in the main form, this would still apply to them.
-        console.log("handleAreaInputBlur called. Consider if still needed with modal.");
+       
     };
 
     // Calculate total actual area for a specific side plot
@@ -1424,7 +1423,7 @@ const handleConfirmReject = async () => {
 
   // Logic to handle the rejection
   const reasonToSubmit = rejectReason === 'other' ? customReason : rejectReason;
-  console.log('Rejecting cluster with reason:', reasonToSubmit);
+ 
 
   try {
     const token = localStorage.getItem('token');
@@ -2167,7 +2166,7 @@ const combinedTotal = useMemo(() => {
       {!(keyplot.label === "K" && rowIndex === 0) && (
   <Button 
     startIcon={<RemoveCircleOutlineIcon />}
-    onClick={() => removeKeyplotRow(index, rowIndex,row.id)}  // Pass both indices
+    onClick={() => removeKeyplotRow(index, rowIndex, row.id)}  // Pass both indices
     size="small"
     variant="contained"
     color="error"

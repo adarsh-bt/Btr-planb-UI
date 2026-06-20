@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Grid,
   Box,
@@ -17,15 +17,9 @@ import {
   MenuItem,
   Button,
   IconButton,
-  Popover,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemText,
   Select,
   FormControl,
   InputLabel,
-  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -37,27 +31,26 @@ import {
 import { 
   AddCircle, 
   Delete, 
-  ArrowDropDown, 
-  KeyboardArrowDown,
   CheckCircle,
   Cancel,
-  Error as ErrorIcon
+  Lock,
+  LockOpen,
 } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import mainapi from "api/mainapi";
 import authservice from "pages/authentication/services/authservice";
 
 const landTypeOptions = ["Wet", "Dry"];
-const TOTAL_REQUIRED = 100;
 
 const KeyPlotEntryNonBtr = () => {
   const [activeTab, setActiveTab] = useState(0);
-  const [activeVillageTab, setActiveVillageTab] = useState({});
+  const [pendingTabChange, setPendingTabChange] = useState(null);
+  const [showTabChangeWarning, setShowTabChangeWarning] = useState(false);
+  const [activeVillage, setActiveVillage] = useState({});
   const [localBodies, setLocalBodies] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [localBodyData, setLocalBodyData] = useState({});
-  const [listTypes, setListTypes] = useState({});
   const [villageOptions, setVillageOptions] = useState([]);
   const [districtInfo, setDistrictInfo] = useState(null);
   const [talukInfo, setTalukInfo] = useState([]);
@@ -68,39 +61,85 @@ const KeyPlotEntryNonBtr = () => {
   const [listTypeOptions, setListTypeOptions] = useState([]);
   const [nonBtrTypeMapping, setNonBtrTypeMapping] = useState({});
   const [btypesLoading, setBtypesLoading] = useState(false);
+  const [keyplotLimit, setKeyplotLimit] = useState(null);
+  const [remainingKeyplots, setRemainingKeyplots] = useState(0);
   
+  // Global entry type state
+  const [globalEntryType, setGlobalEntryType] = useState("");
+
   // Modal States
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [savedCount, setSavedCount] = useState(0);
   const [validationErrors, setValidationErrors] = useState([]);
-  
-  // Popover state
-  const [popoverAnchorEl, setPopoverAnchorEl] = useState(null);
-  const [selectedVillage, setSelectedVillage] = useState(null);
-  const [selectedLocalBody, setSelectedLocalBody] = useState(null);
 
   const BASE_URL = mainapi.BASE_URL;
   const zoneId = typeof window !== "undefined" ? localStorage.getItem("activeZone") : null;
 
-  /**
-   * Safely parses user info from localStorage to prevent JSON parsing errors.
-   */
-  const getUserInfo = () => {
-    if (typeof window === "undefined") return null;
-    try {
-      const userItem = localStorage.getItem("user");
-      return userItem ? JSON.parse(userItem) : null;
-    } catch (error) {
-      console.error("Failed to parse user info from localStorage:", error);
-      localStorage.removeItem("user");
-      return null;
+  const userId = authservice.userid();
+
+  // Check if any data has been entered in any local body
+  const hasAnyData = useMemo(() => {
+    return Object.values(localBodyData).some(lbData => 
+      Object.values(lbData || {}).some(villageRows => villageRows && villageRows.length > 0)
+    );
+  }, [localBodyData]);
+
+  // Check if current local body has any data
+  const hasDataInCurrentTab = useMemo(() => {
+    if (localBodies.length === 0 || activeTab === null) return false;
+    
+    const currentLb = localBodies[activeTab];
+    if (!currentLb) return false;
+    
+    const lbData = localBodyData[currentLb.id];
+    if (!lbData) return false;
+    
+    // Check if there's any data in any village for this local body
+    return Object.values(lbData).some(villageRows => villageRows && villageRows.length > 0);
+  }, [localBodies, activeTab, localBodyData]);
+
+  // Handle tab change with warning
+  const handleTabChange = (event, newValue) => {
+    // If there's data in current tab and we're trying to switch to a different tab
+    if (hasDataInCurrentTab && newValue !== activeTab) {
+      setPendingTabChange(newValue);
+      setShowTabChangeWarning(true);
+    } else {
+      // No data or same tab, allow change
+      setActiveTab(newValue);
     }
   };
 
-  const userInfo = getUserInfo();
-  const userId = authservice.userid();
+  // Handle confirmation of tab change
+  const handleConfirmTabChange = () => {
+    setShowTabChangeWarning(false);
+    if (pendingTabChange !== null) {
+      setActiveTab(pendingTabChange);
+      setPendingTabChange(null);
+    }
+  };
+
+  // Handle cancellation of tab change
+  const handleCancelTabChange = () => {
+    setShowTabChangeWarning(false);
+    setPendingTabChange(null);
+  };
+
+  // Handle entry type change with warning if data exists
+  const handleEntryTypeChange = (event) => {
+    const newType = event.target.value;
+    
+    if (hasAnyData) {
+      // Show warning that entry type cannot be changed after data entry
+      toast.warning("Entry Type cannot be changed after data has been entered. Please clear all data first or save and start fresh.", {
+        autoClose: 5000,
+      });
+    } else {
+      setGlobalEntryType(newType);
+    }
+  };
 
   // Fetch active btypes from API
   useEffect(() => {
@@ -108,7 +147,7 @@ const KeyPlotEntryNonBtr = () => {
       setBtypesLoading(true);
       try {
         const response = await fetch(
-          'http://localhost:8082/btr-service/api/btr-data/btypes/active',
+          `${BASE_URL}/btr-service/api/btr-data/btypes/active`,
           {
             method: 'GET',
             headers: {
@@ -129,6 +168,11 @@ const KeyPlotEntryNonBtr = () => {
           
           setListTypeOptions(nonBtrOptions);
           
+          // Set default entry type
+          if (nonBtrOptions.length > 0) {
+            setGlobalEntryType(nonBtrOptions[0]);
+          }
+          
           // Create dynamic mapping
           const mapping = {};
           btypeData.forEach(btype => {
@@ -136,47 +180,21 @@ const KeyPlotEntryNonBtr = () => {
           });
           setNonBtrTypeMapping(mapping);
           
-          console.log('Active BTypes loaded:', btypeData);
-          console.log('Dynamic mapping created:', mapping);
-          
         } else {
           throw new Error(`Failed to fetch btypes: ${response.status}`);
         }
       } catch (error) {
         console.error('Error fetching active btypes:', error);
         toast.error('Failed to load btypes');
-
-        // NO FALLBACK - Keep states empty
-      setListTypeOptions([]);
-      setNonBtrTypeMapping({});
-    } finally {
-      setBtypesLoading(false);
-    }
-  };
-  
-  fetchActiveBTypes();
-}, []);
-        
-  //       // Fallback to hardcoded mapping if API fails
-  //       setListTypeOptions([
-  //         "House List",
-  //         "Cultivators List", 
-  //         "Thandaper Number",
-  //         "Others"
-  //       ]);
-  //       setNonBtrTypeMapping({
-  //         "House List": 2,
-  //         "Cultivators List": 3,
-  //         "Thandaper Number": 4,
-  //         "Others": 5
-  //       });
-  //     } finally {
-  //       setBtypesLoading(false);
-  //     }
-  //   };
+        setListTypeOptions([]);
+        setNonBtrTypeMapping({});
+      } finally {
+        setBtypesLoading(false);
+      }
+    };
     
-  //   fetchActiveBTypes();
-  // }, []);
+    fetchActiveBTypes();
+  }, [BASE_URL]);
 
   // Auto-close success modal after 3 seconds
   useEffect(() => {
@@ -244,21 +262,19 @@ const KeyPlotEntryNonBtr = () => {
 
   // Get villages for a specific local body
   const getVillagesForLocalBody = (localBodyId) => {
-    return villageOptions.filter(v => 
-      v.revenueVillageName
-    );
+    return villageOptions.filter(v => v.revenueVillageName);
   };
 
-  // Get current village key for local body
-  const getCurrentVillageKey = (lbId) => {
+  // Get current village for local body
+  const getCurrentVillage = (lbId) => {
     const villages = getVillagesForLocalBody(lbId);
-    const currentIndex = activeVillageTab[lbId] || 0;
+    const currentIndex = activeVillage[lbId] || 0;
     return villages[currentIndex]?.revenueVillageName || "";
   };
 
-  // Get current list type for local body and village
-  const getCurrentListType = (lbId, villageName) => {
-    return listTypes[`${lbId}_${villageName}`] || (listTypeOptions[0] || "House List");
+  // Get current list type (now global)
+  const getCurrentListType = () => {
+    return globalEntryType || listTypeOptions[0] || "House List";
   };
 
   // Data Fetching
@@ -266,7 +282,6 @@ const KeyPlotEntryNonBtr = () => {
     if (!zoneId) {
       setLocalBodies([]);
       setLocalBodyData({});
-      setListTypes({});
       return;
     }
     
@@ -306,12 +321,12 @@ const KeyPlotEntryNonBtr = () => {
         setDistrictInfo(distData);
         setTalukInfo(talukData || []);
 
-        // Initialize active village tab for each local body
-        const initialVillageTabs = {};
+        // Initialize active village for each local body
+        const initialVillage = {};
         (lbData || []).forEach((lb) => {
-          initialVillageTabs[lb.id] = 0;
+          initialVillage[lb.id] = 0;
         });
-        setActiveVillageTab(initialVillageTabs);
+        setActiveVillage(initialVillage);
 
         setLocalBodyData((prev) => {
           const next = { ...prev };
@@ -343,19 +358,6 @@ const KeyPlotEntryNonBtr = () => {
     fetchData();
   }, [zoneId, BASE_URL]);
 
-  useEffect(() => {
-    if (!zoneId || !listTypeOptions.length) return;
-    
-    // Initialize list types for all village-local body combinations
-    const initialListTypes = {};
-    localBodies.forEach(lb => {
-      villageOptions.forEach(village => {
-        initialListTypes[`${lb.id}_${village.revenueVillageName}`] = listTypeOptions[0] || "House List";
-      });
-    });
-    setListTypes(prev => ({ ...prev, ...initialListTypes }));
-  }, [zoneId, localBodies, villageOptions, listTypeOptions]);
-
   const totalKeyplots = Object.values(localBodyData).reduce(
     (sum, lbData) => sum + Object.values(lbData).reduce((villageSum, rows) => villageSum + (rows?.length || 0), 0),
     0
@@ -371,6 +373,50 @@ const KeyPlotEntryNonBtr = () => {
     return order === "desc"
       ? (a, b) => descendingComparator(a, b, orderBy)
       : (a, b) => -descendingComparator(a, b, orderBy);
+  };
+
+  // Returns an array of { field, label } that must be filled for this row based on current list type
+  const getRequiredFieldsForRow = (currentListType) => {
+    switch (currentListType) {
+      case "House List":
+        return [
+          { field: "village", label: "Village" },
+          { field: "villageBlock", label: "Village Block" },
+          { field: "wardNo", label: "Ward No." },
+          { field: "houseNo", label: "House No." },
+          { field: "area", label: "Area (Cents)" },
+          { field: "landType", label: "Land Type" },
+        ];
+      case "Cultivators List":
+        return [
+          { field: "village", label: "Village" },
+          { field: "villageBlock", label: "Village Block" },
+          { field: "name", label: "Name" },
+          { field: "address", label: "Address" },
+          { field: "area", label: "Area (Cents)" },
+          { field: "landType", label: "Land Type" },
+        ];
+      case "Thandaper Number":
+        return [
+          { field: "village", label: "Village" },
+          { field: "villageBlock", label: "Village Block" },
+          { field: "thandaperNo", label: "Thandaper No." },
+          { field: "thandapersubNo", label: "Thandaper Sub No." },
+          { field: "area", label: "Area (Cents)" },
+          { field: "landType", label: "Land Type" },
+        ];
+      case "Old Survey Number":
+        return [
+          { field: "village", label: "Village" },
+          { field: "villageBlock", label: "Village Block" },
+          { field: "oldsvno", label: "Old Survey No." },
+          { field: "oldsubno", label: "Old Sub No." },
+          { field: "area", label: "Area (Cents)" },
+          { field: "landType", label: "Land Type" },
+        ];
+      default:
+        return [];
+    }
   };
 
   const sortedByLocalBodyAndVillage = useMemo(() => {
@@ -421,17 +467,19 @@ const KeyPlotEntryNonBtr = () => {
   };
 
   const handleAddRow = (lbId, villageName) => {
-    if (totalKeyplots >= TOTAL_REQUIRED) return;
+    if (totalKeyplots >= remainingKeyplots) {
+      toast.warn(`Only ${remainingKeyplots} keyplots can be added for this zone`);
+      return;
+    }
+    
     setLocalBodyData((prev) => {
       const current = prev[lbId]?.[villageName] || [];
-      const newId =
-        current.length > 0 ? Math.max(...current.map((r) => r.id)) + 1 : 1;
-      const newSlNo =
-        current.length > 0 ? Math.max(...current.map((r) => r.slNo)) + 1 : 1;
+      const newId = current.length > 0 ? Math.max(...current.map((r) => r.id)) + 1 : 1;
+      const newSlNo = current.length > 0 ? Math.max(...current.map((r) => r.slNo)) + 1 : 1;
       
-      // Get village blocks for the current village
       const villageBlocks = villageToBlocks[villageName] || [];
       const defaultBlock = villageBlocks.length > 0 ? villageBlocks[0] : "";
+      const allVillages = getVillagesForLocalBody(lbId).map(v => v.revenueVillageName);
       
       return {
         ...prev,
@@ -443,9 +491,9 @@ const KeyPlotEntryNonBtr = () => {
               id: newId,
               slNo: newSlNo,
               village: villageName,
+              allVillages: allVillages,
               villageBlock: defaultBlock,
               villageBlockOptions: villageBlocks,
-              // Required fields for backend
               dcode: null,
               tcode: null,
               vcode: null,
@@ -453,8 +501,9 @@ const KeyPlotEntryNonBtr = () => {
               address: "",
               houseNo: "",
               thandaperNo: "",
-              mainNo: "",
-              subNo: "",
+              thandapersubNo: "",
+              oldsvno: "",
+              oldsubno: "",
               surveyNo: "",
               subDivNo: "",
               area: "",
@@ -476,28 +525,6 @@ const KeyPlotEntryNonBtr = () => {
     }));
   };
 
-  const handleVillageTabClick = (event, lbId, villageName) => {
-    setPopoverAnchorEl(event.currentTarget);
-    setSelectedVillage(villageName);
-    setSelectedLocalBody(lbId);
-  };
-
-  const handlePopoverClose = () => {
-    setPopoverAnchorEl(null);
-    setSelectedVillage(null);
-    setSelectedLocalBody(null);
-  };
-
-  const handleListTypeChange = (listType) => {
-    if (selectedLocalBody && selectedVillage) {
-      setListTypes((prev) => ({
-        ...prev,
-        [`${selectedLocalBody}_${selectedVillage}`]: listType,
-      }));
-      handlePopoverClose();
-    }
-  };
-
   // Save handlers with modals
   const handleSaveButtonClick = () => {
     setShowConfirmModal(true);
@@ -512,27 +539,90 @@ const KeyPlotEntryNonBtr = () => {
     setShowConfirmModal(false);
   };
 
-  // Updated handleActualSave with backend integration and district/taluk data
+  useEffect(() => {
+    const savedZone = localStorage.getItem('activeZone');
+    if (!savedZone) return;
+    
+    fetchKeyplotLimit();
+  }, [BASE_URL]);
+
+  const fetchKeyplotLimit = async () => {
+    const savedZone = localStorage.getItem('activeZone');
+    if (!savedZone) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(
+        `${BASE_URL}/btr-service/api/keyplots/limit-status/${savedZone}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!res.ok) throw new Error('Failed to fetch keyplot limit');
+
+      const data = await res.json();
+      setKeyplotLimit(data);
+      setRemainingKeyplots(data.remainingKeyplots);
+    } catch (err) {
+      console.error(err);
+      toast.error('Unable to refresh keyplot limit');
+    }
+  };
+
   const handleActualSave = async () => {
-    // Check if required reference data is loaded
+    if (totalKeyplots > remainingKeyplots) {
+      toast.error(`You can only save ${remainingKeyplots} keyplots for this zone`);
+      setIsSaving(false);
+      return;
+    }
+    
     if (!districtInfo || talukInfo.length === 0) {
       toast.error("District or Taluk data is not yet loaded. Please wait.");
+      return;
+    }
+
+    const currentListType = getCurrentListType();
+    const newValidationErrors = [];
+
+    Object.entries(localBodyData).forEach(([lbId, villageData]) => {
+      Object.entries(villageData || {}).forEach(([villageName, rows]) => {
+        const requiredFields = getRequiredFieldsForRow(currentListType);
+
+        (rows || []).forEach((row) => {
+          requiredFields.forEach(({ field, label }) => {
+            const val = row[field];
+            const isEmpty = val === null || val === undefined || (typeof val === "string" && val.trim() === "");
+            if (isEmpty) {
+              newValidationErrors.push({
+                message: `Row ${row.slNo || row.id}: ${label} is required in ${currentListType} (${villageName}).`,
+              });
+            }
+          });
+        });
+      });
+    });
+
+    if (newValidationErrors.length > 0) {
+      setValidationErrors(newValidationErrors);
+      setShowErrorModal(true);
+      toast.error("Validation failed. Please fill all required fields.");
       return;
     }
 
     setIsSaving(true);
     
     try {
-      // Transform data to match TblBtrDataDTO structure
       const dtoList = [];
+      const currentListType = getCurrentListType();
+      const btrTypeId = nonBtrTypeMapping[currentListType];
       
       Object.entries(localBodyData).forEach(([lbId, villageData]) => {
         Object.entries(villageData || {}).forEach(([villageName, rows]) => {
-          const currentListType = getCurrentListType(lbId, villageName);
-          const btrTypeId = nonBtrTypeMapping[currentListType];
-          
           rows.forEach(row => {
-            // Get village data for vcode
             const villageData = villageInfoMap.get(row.village || villageName);
             const localBodyData = localBodyInfoMap.get(parseInt(lbId));
             
@@ -542,24 +632,25 @@ const KeyPlotEntryNonBtr = () => {
             }
 
             const dto = {
-              dcode: districtInfo.distId, // From district API
-              tcode: talukInfo[0].revenueTalukId, // From taluk API (assuming first taluk)
-              vcode: villageData.vcode, // From village lookup
+              dcode: districtInfo.distId,
+              tcode: talukInfo[0].revenueTalukId,
+              vcode: villageData.vcode,
+              zoneId: parseInt(zoneId),
               bcode: row.villageBlock || "",
               lbcode: localBodyData.lbcode,
               ltype: row.landType || "",
               resvno: row.surveyNo ? parseInt(row.surveyNo) : null,
               resbdno: row.subDivNo || "",
               lsgcode: villageData.lsgcode,
-              zoneId: parseInt(zoneId),
+             
               user_id: userId,
               totCent: row.area ? parseFloat(row.area) : 0.0,
               btrtype: btrTypeId,
-              // Conditional fields based on btrtype
               ...(btrTypeId === 2 && {
                 ownername: row.name || "",
                 address: row.address || "",
-                houseno: row.houseNo ? parseInt(row.houseNo) : null
+                wardno: row.wardNo ? parseInt(row.wardNo) : null,
+                houseno: row.houseNo || ""
               }),
               ...(btrTypeId === 3 && {
                 ownername: row.name || "",
@@ -569,13 +660,13 @@ const KeyPlotEntryNonBtr = () => {
                 ownername: row.name || "",
                 address: row.address || "",
                 tpno: row.thandaperNo ? parseInt(row.thandaperNo) : null,
-                tbsubdivisionno: row.subDivNo ? parseInt(row.subDivNo) : null
+                tbsubdivisionno: row.thandapersubNo ? parseInt(row.thandapersubNo) : null
               }),
               ...(btrTypeId === 5 && {
                 ownername: row.name || "",
                 address: row.address || "",
-                mainno: row.mainNo ? parseInt(row.mainNo) : null,
-                subno: row.subNo || ""
+                oldsvno: row.oldsvno ? parseInt(row.oldsvno) : null,
+                oldsubno: row.oldsubno || ""
               })
             };
             
@@ -584,11 +675,8 @@ const KeyPlotEntryNonBtr = () => {
         });
       });
 
-      console.log("Final DTO List for POST:", dtoList);
-
-      // Make POST request to saveAll endpoint
       const response = await fetch(
-        'http://localhost:8082/btr-service/api/btr-data/saveAll',
+        `${BASE_URL}/btr-service/api/btr-data/saveAll`,
         {
           method: 'POST',
           headers: {
@@ -605,20 +693,15 @@ const KeyPlotEntryNonBtr = () => {
         setSavedCount(result.ids?.length || totalKeyplots);
         setShowSuccessModal(true);
         toast.success(`Successfully saved ${result.ids?.length || totalKeyplots} keyplots!`);
-        
-        // Optional: Clear the form data after successful save
-        // setLocalBodyData({});
-        // setListTypes({});
-        
+        setLocalBodyData({});
+        await fetchKeyplotLimit();
       } else if (result.status === 'Validation Failed') {
         setValidationErrors(result.errors || []);
         setShowErrorModal(true);
-        console.error("Validation errors:", result.errors);
         toast.error(`Validation failed: ${result.errors?.length || 0} errors found`);
       } else {
         setShowErrorModal(true);
         toast.error(result.message || "Failed to save keyplots. Please try again.");
-        console.error("Save error:", result);
       }
       
     } catch (error) {
@@ -630,36 +713,37 @@ const KeyPlotEntryNonBtr = () => {
     }
   };
 
-  const getTableHeaders = (lbId, villageName) => {
-    const baseHeaders = ["Sl. No", "Village Block"];
-    const houseListHeaders = ["Name", "Address", "House No."];
-    const cultivatorListHeaders = ["Name", "Address"];
-    const thandaperHeaders = ["Name", "Address", "Thandaper No."];
-    const othersHeaders = ["Name", "Address", "Main No.", "Sub No."];
-    const finalHeaders = [
-      "Survey No.",
-      "Sub Div No.",
-      "Area (Cents)",
-      "Land Type",
-      "Actions",
-    ];
+const getTableHeaders = (lbId, villageName) => {
+  const currentListType = getCurrentListType();
+  const baseHeaders = ["Sl. No", "Village"];
+  const villageBlockHeaders = ["Village Block"];
+  const houseListHeaders = ["Name", "Address", "Ward No.", "House No."];
+  const cultivatorListHeaders = ["Name", "Address"];
+  const thandaperHeaders = ["Name", "Address", "Thandaper No.", "Thandaper Sub No."];
+  const oldSurveyHeaders = ["Old Survey No.", "Old Sub No."]; // Renamed for clarity
+  const finalHeaders = [
+    "Survey No.",
+    "Sub Div No.",
+    "Area (Cents)",
+    "Land Type",
+    "Actions",
+  ];
 
-    const currentListType = getCurrentListType(lbId, villageName);
-
-    if (currentListType === "House List") {
-      return [...baseHeaders, ...houseListHeaders, ...finalHeaders];
-    }
-    if (currentListType === "Cultivators List") {
-      return [...baseHeaders, ...cultivatorListHeaders, ...finalHeaders];
-    }
-    if (currentListType === "Thandaper Number") {
-      return [...baseHeaders, ...thandaperHeaders, ...finalHeaders];
-    }
-    if (currentListType === "Others") {
-      return [...baseHeaders, ...othersHeaders, ...finalHeaders];
-    }
-    return [...baseHeaders, ...finalHeaders];
-  };
+  if (currentListType === "House List") {
+    return [...baseHeaders, ...villageBlockHeaders, ...houseListHeaders, ...finalHeaders];
+  }
+  if (currentListType === "Cultivators List") {
+    return [...baseHeaders, ...villageBlockHeaders, ...cultivatorListHeaders, ...finalHeaders];
+  }
+  if (currentListType === "Thandaper Number") {
+    return [...baseHeaders, ...villageBlockHeaders, ...thandaperHeaders, ...finalHeaders];
+  }
+  if (currentListType === "Old Survey Number") {
+    // Only include Old Survey headers, NOT Name and Address
+    return [...baseHeaders, ...villageBlockHeaders, ...oldSurveyHeaders, ...finalHeaders];
+  }
+  return [...baseHeaders, ...villageBlockHeaders, ...finalHeaders];
+};
 
   const getVillageRowCount = (lbId, villageName) => {
     return localBodyData[lbId]?.[villageName]?.length || 0;
@@ -706,6 +790,7 @@ const KeyPlotEntryNonBtr = () => {
           Non-BTR Key Plot Entry
         </Typography>
 
+
         {/* Loading state for btypes */}
         {btypesLoading && (
           <Box display="flex" justifyContent="center" mt={2}>
@@ -714,12 +799,74 @@ const KeyPlotEntryNonBtr = () => {
           </Box>
         )}
 
+        {/* Global Entry Type Dropdown with Keyplot Limit Info */}
+{listTypeOptions.length > 0 && (
+  <Paper elevation={1} sx={{ p: 2, mb: 2, bgcolor: '#f5f5f5' }}>
+    <Box display="flex" alignItems="center" justifyContent="space-between">
+      <Box display="flex" alignItems="center" gap={2}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+          Entry Type:
+        </Typography>
+        <FormControl size="small" sx={{ minWidth: 200 }}>
+          <Select
+            value={globalEntryType}
+            onChange={handleEntryTypeChange}
+            displayEmpty
+            disabled={hasAnyData}
+            renderValue={(selected) => (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {hasAnyData && <Lock fontSize="small" sx={{ color: 'action.disabled' }} />}
+                {selected}
+              </Box>
+            )}
+          >
+            {listTypeOptions.map((type) => (
+              <MenuItem key={type} value={type}>
+                {type}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+
+      {/* Keyplot Limit Info - Aligned to the right */}
+      {keyplotLimit && (
+        <Box sx={{ 
+          display: 'flex', 
+          gap: 3,
+          bgcolor: 'primary.light',
+          borderRadius: 1,
+          px: 2,
+          py: 1,
+          color: 'primary.contrastText'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>Zone Limit:</Typography>
+            <Typography variant="body1" sx={{ fontWeight: 'bold' }}>{keyplotLimit.allowedKeyplotsLimit}</Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>Formed Count:</Typography>
+            <Typography variant="body1" sx={{ fontWeight: 'bold' }}>{keyplotLimit.usedKeyplotsCount}</Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>Remaining:</Typography>
+            <Typography variant="body1" sx={{ fontWeight: 'bold', color: keyplotLimit.remainingKeyplots < 10 ? 'error.main' : 'inherit' }}>
+              {keyplotLimit.remainingKeyplots}
+            </Typography>
+          </Box>
+        </Box>
+      )}
+    </Box>
+  </Paper>
+)}
+
+
         {/* Top-level tabs for Local Bodies */}
         {localBodies.length > 0 && !loading && !error && (
           <Paper elevation={3} sx={{ mb: 0 }}>
             <Tabs
               value={activeTab}
-              onChange={(e, newVal) => setActiveTab(newVal)}
+              onChange={handleTabChange}
               indicatorColor="primary"
               textColor="primary"
               variant="scrollable"
@@ -735,14 +882,79 @@ const KeyPlotEntryNonBtr = () => {
           </Paper>
         )}
 
-        {/* Second-level tabs for Villages and Content */}
+        {/* Tab Change Warning Modal */}
+        <Dialog
+          open={showTabChangeWarning}
+          onClose={handleCancelTabChange}
+          aria-labelledby="tab-change-warning-title"
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle id="tab-change-warning-title" sx={{ pb: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <Typography variant="h5" sx={{ color: '#f57c00', fontWeight: 'bold' }}>
+                Complete Entry Required!
+              </Typography>
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ textAlign: 'center', fontSize: '1.1rem' }}>
+              You have unsaved data in the current local body.
+              <br />
+              Please complete the entry or save the data before switching to another local body.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
+            <Button 
+              onClick={handleCancelTabChange} 
+              variant="contained" 
+              color="primary"
+              sx={{ minWidth: 120 }}
+            >
+              OK
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Village selector and Table content */}
         {localBodies.map((lb, idx) => {
           const villages = getVillagesForLocalBody(lb.id);
-          const currentVillageIndex = activeVillageTab[lb.id] || 0;
+          const currentVillageIndex = activeVillage[lb.id] || 0;
           const currentVillage = villages[currentVillageIndex];
           const currentVillageName = currentVillage?.revenueVillageName || "";
           const sortedRows = sortedByLocalBodyAndVillage[lb.id]?.[currentVillageName] || [];
-          const currentListType = getCurrentListType(lb.id, currentVillageName);
+          const currentListType = getCurrentListType();
+
+          const headerToFieldKey = {
+            "Sl. No": "slNo",
+            "Village": "village",
+            "Village Block": "villageBlock",
+            "Name": "name",
+            "Address": "address",
+            "Ward No.": "wardNo",
+            "House No.": "houseNo",
+            "Thandaper No.": "thandaperNo",
+            "Thandaper Sub No.": "thandapersubNo",
+            "Old Survey No.": "oldsvno",
+            "Old Sub No.": "oldsubno",
+            "Survey No.": "surveyNo",
+            "Sub Div No.": "subDivNo",
+            "Area (Cents)": "area",
+            "Land Type": "landType",
+            "Actions": "__actions__",
+          };
+
+          const requiredFields = getRequiredFieldsForRow(currentListType);
+          const requiredSet = new Set(requiredFields.map(f => f.field));
+          const allRequiredFilled = sortedRows.every(row =>
+            requiredFields.every(({ field }) => {
+              const val = row[field];
+              if (val === null || val === undefined) return false;
+              if (typeof val === "string") return val.trim() !== "";
+              return String(val).trim() !== "";
+            })
+          );
+
           const headers = getTableHeaders(lb.id, currentVillageName);
           const colSpan = headers.length;
 
@@ -751,143 +963,70 @@ const KeyPlotEntryNonBtr = () => {
               key={lb.id}
               style={{ display: activeTab === idx ? "block" : "none" }}
             >
-              {/* Village tabs with dropdown */}
-              {villages.length > 0 && (
-                <Paper 
-                  elevation={1} 
-                  sx={{ 
-                    mb: 0,
-                    mt: 0,  
-                    borderTopLeftRadius: 0,
-                    borderTopRightRadius: 0,
-                  }}
-                >
-                  <Tabs
-                    value={activeVillageTab[lb.id] || 0}
-                    onChange={(e, newVal) =>
-                      setActiveVillageTab(prev => ({ ...prev, [lb.id]: newVal }))
-                    }
-                    indicatorColor="secondary"
-                    textColor="secondary"
-                    variant="scrollable"
-                    scrollButtons="auto"
-                    sx={{
-                      minHeight: 'auto',
-                      '& .MuiTab-root': {
-                        minHeight: 'auto',
-                        py: 1,
-                        px: 2,
-                        fontSize: '0.875rem',
-                      },
-                      '& .MuiTab-root.Mui-selected': {
-                        color: '#1976d2',
-                      },
-                      '& .MuiTabs-indicator': {
-                        backgroundColor: '#1976d2',
-                      }
-                    }}
-                  >
-                    {villages.map((village, villageIdx) => {
-                      const isActiveVillageTab = (activeVillageTab[lb.id] || 0) === villageIdx;
-                      
-                      return (
-                        <Tab
-                          key={village.revenueVillageId}
-                          label={
-                            <Box
-                              sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 1,
-                                textTransform: "none",
-                              }}
-                            >
-                              <Typography variant="body2">
-                                {`${village.revenueVillageName} (${getVillageRowCount(lb.id, village.revenueVillageName)})`}
-                              </Typography>
-                              
-                              {isActiveVillageTab && (
-                                <Box
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleVillageTabClick(e, lb.id, village.revenueVillageName);
-                                  }}
-                                  sx={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 0.5,
-                                    px: 1,
-                                    py: 0.5,
-                                    bgcolor: 'rgba(0, 0, 0, 0.08)',
-                                    borderRadius: 1,
-                                    cursor: 'pointer',
-                                    '&:hover': {
-                                      bgcolor: 'rgba(0, 0, 0, 0.12)',
-                                    },
-                                    minWidth: 120,
-                                    fontSize: '0.75rem',
-                                  }}
-                                >
-                                  <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
-                                    {getCurrentListType(lb.id, village.revenueVillageName)}
-                                  </Typography>
-                                  <KeyboardArrowDown fontSize="small" />
-                                </Box>
-                              )}
-                            </Box>
-                          }
-                        />
-                      );
-                    })}
-                  </Tabs>
-                </Paper>
-              )}
-
               {/* Table content */}
               <Paper 
                 elevation={3} 
                 sx={{ 
                   p: 2, 
                   borderRadius: 2, 
-                  mt: 2,
-                  borderTopLeftRadius: villages.length > 0 ? 2 : 8,
-                  borderTopRightRadius: villages.length > 0 ? 2 : 8,
+                  mt: 2
                 }}
               >
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="h6" color="primary">
-                    {currentVillageName} - {currentListType}
-                  </Typography>
-                </Box>
-                
                 <TableContainer component={Paper}>
                   <Table stickyHeader>
                     <TableHead>
                       <TableRow>
-                        {headers.map((col) => (
-                          <TableCell
-                            key={col}
-                            align="center"
-                            sx={{
-                              bgcolor: "#05307a",
-                              color: "white",
-                              fontWeight: "bold",
-                            }}
-                          >
-                            {col}
-                          </TableCell>
-                        ))}
+                        {headers.map((col) => {
+                          const key = headerToFieldKey[col] || null;
+                          const isRequired = key && requiredSet.has(key);
+                          return (
+                            <TableCell
+                              key={col}
+                              align="center"
+                              sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}
+                            >
+                              <span>
+                                {col}
+                                {isRequired && <span style={{ color: "red", marginLeft: 4 }}>*</span>}
+                              </span>
+                            </TableCell>
+                          );
+                        })}
                       </TableRow>
                     </TableHead>
+
                     <TableBody>
                       {sortedRows
-                        .slice(
-                          page * rowsPerPage,
-                          page * rowsPerPage + rowsPerPage
-                        )
+                        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                         .map((row) => (
                           <TableRow key={row.id}>
                             <TableCell align="center">{row.slNo}</TableCell>
+                            
+                            {/* Village dropdown */}
+                            <TableCell align="center">
+                              <TextField
+                                select
+                                value={row.village}
+                                onChange={(e) =>
+                                  handleVillageChange(
+                                    lb.id,
+                                    currentVillageName,
+                                    row.id,
+                                    e.target.value
+                                  )
+                                }
+                                sx={{ minWidth: 140 }}
+                                required={requiredFields.some(f => f.field === "village")}
+                                error={requiredFields.some(f => f.field === "village") && !row.village}
+                                helperText={requiredFields.some(f => f.field === "village") && !row.village ? "Required" : ""}
+                              >
+                                {getVillagesForLocalBody(lb.id).map(v => v.revenueVillageName).map((villageName) => (
+                                  <MenuItem key={villageName} value={villageName}>
+                                    {villageName}
+                                  </MenuItem>
+                                ))}
+                              </TextField>
+                            </TableCell>
                             
                             <TableCell align="center">
                               <TextField
@@ -903,8 +1042,11 @@ const KeyPlotEntryNonBtr = () => {
                                   )
                                 }
                                 sx={{ minWidth: 140 }}
+                                required={requiredFields.some(f => f.field === "villageBlock")}
+                                error={requiredFields.some(f => f.field === "villageBlock") && !row.villageBlock}
+                                helperText={requiredFields.some(f => f.field === "villageBlock") && !row.villageBlock ? "Required" : ""}
                               >
-                                {(villageToBlocks[currentVillageName] || []).map((code) => (
+                                {(villageToBlocks[row.village] || []).map((code) => (
                                   <MenuItem key={code} value={code}>
                                     {code}
                                   </MenuItem>
@@ -913,103 +1055,234 @@ const KeyPlotEntryNonBtr = () => {
                             </TableCell>
 
                             {/* Dynamic columns based on list type */}
-                            {(currentListType === "House List" ||
-                              currentListType === "Cultivators List" ||
-                              currentListType === "Thandaper Number" ||
-                              currentListType === "Others") && (
+     {/* Name and Address fields - only for lists that need them */}
+{(currentListType === "House List" ||
+  currentListType === "Cultivators List" ||
+  currentListType === "Thandaper Number") && (
+  <>
+    <TableCell align="center">
+      <TextField
+        value={row.name ?? ""}
+        onChange={(e) => {
+          const raw = e.target.value ?? "";
+          const v = raw.slice(0, 60);
+          if (v === "" || /^[A-Za-z ]*$/.test(v)) {
+            handleChange(lb.id, currentVillageName, row.id, "name", v);
+          }
+        }}
+        placeholder="Name"
+        sx={{ minWidth: 140 }}
+        inputProps={{
+          maxLength: 60,
+          pattern: "^[A-Za-z ]*$",
+          title: "Only alphabets and spaces, up to 60 characters",
+        }}
+        required={requiredFields.some((f) => f.field === "name")}
+        error={
+          requiredFields.some((f) => f.field === "name") &&
+          (!(row.name ?? "").trim() || (!!row.name && !/^[A-Za-z ]{1,60}$/.test(row.name)))
+        }
+        helperText={
+          requiredFields.some((f) => f.field === "name")
+            ? (!(row.name ?? "").trim()
+                ? "Required"
+                : (!!row.name && !/^[A-Za-z ]{1,60}$/.test(row.name)
+                    ? "Only alphabets and spaces, max 60"
+                    : ""))
+            : ""
+        }
+      />
+    </TableCell>
+
+    <TableCell align="center">
+      <TextField
+        value={row.address || ""}
+        onChange={(e) => {
+          const v = e.target.value.slice(0, 250);
+          handleChange(lb.id, currentVillageName, row.id, "address", v);
+        }}
+        placeholder="Address"
+        sx={{ minWidth: 140 }}
+        inputProps={{
+          maxLength: 250,
+          title: "Up to 250 characters",
+        }}
+        required={requiredFields.some((f) => f.field === "address")}
+        error={
+          requiredFields.some((f) => f.field === "address") &&
+          !row.address?.trim()
+        }
+        helperText={
+          requiredFields.some((f) => f.field === "address") &&
+          (!row.address?.trim() ? "Required" : `${(row.address || "").length}/250`)
+        }
+      />
+    </TableCell>
+  </>
+)}
+
+                            {currentListType === "House List" && (
                               <>
                                 <TableCell align="center">
                                   <TextField
-                                    value={row.name}
-                                    onChange={(e) =>
-                                      handleChange(
-                                        lb.id,
-                                        currentVillageName,
-                                        row.id,
-                                        "name",
-                                        e.target.value
-                                      )
+                                    value={row.wardNo ?? ""}
+                                    onChange={(e) => {
+                                      const digits = (e.target.value || "").replace(/\D/g, "").slice(0, 5);
+                                      handleChange(lb.id, currentVillageName, row.id, "wardNo", digits);
+                                    }}
+                                    placeholder="Ward No."
+                                    inputMode="numeric"
+                                     sx={{ minWidth: 70 }}
+                                    inputProps={{
+                                      pattern: "^\\d{0,5}$",
+                                      maxLength: 5,
+                                      title: "Up to 5 digits",
+                                    }}
+                                    required={requiredFields.some((f) => f.field === "wardNo")}
+                                    error={
+                                      requiredFields.some((f) => f.field === "wardNo") &&
+                                      !(String(row.wardNo || "").trim())
+                                    }
+                                    helperText={
+                                      requiredFields.some((f) => f.field === "wardNo") &&
+                                      !(String(row.wardNo || "").trim()) ? "Required" : ""
                                     }
                                   />
                                 </TableCell>
+
                                 <TableCell align="center">
                                   <TextField
-                                    value={row.address}
-                                    onChange={(e) =>
-                                      handleChange(
-                                        lb.id,
-                                        currentVillageName,
-                                        row.id,
-                                        "address",
-                                        e.target.value
-                                      )
+                                    value={row.houseNo ?? ""}
+                                    onChange={(e) => {
+                                      const value = e.target.value.slice(0, 10);
+                                      handleChange(lb.id, currentVillageName, row.id, "houseNo", value);
+                                    }}
+                                    placeholder="House No."
+                                      sx={{ minWidth: 100 }}
+                                    inputProps={{
+                                      maxLength: 10,
+                                      title: "Up to 10 characters",
+                                    }}
+                                    required={requiredFields.some((f) => f.field === "houseNo")}
+                                    error={
+                                      requiredFields.some((f) => f.field === "houseNo") &&
+                                      !String(row.houseNo || "").trim()
+                                    }
+                                    helperText={
+                                      requiredFields.some((f) => f.field === "houseNo") &&
+                                      !String(row.houseNo || "").trim()
+                                        ? "Required"
+                                        : ""
                                     }
                                   />
                                 </TableCell>
                               </>
-                            )}
-
-                            {currentListType === "House List" && (
-                              <TableCell align="center">
-                                <TextField
-                                  value={row.houseNo}
-                                  onChange={(e) =>
-                                    handleChange(
-                                      lb.id,
-                                      currentVillageName,
-                                      row.id,
-                                      "houseNo",
-                                      e.target.value
-                                    )
-                                  }
-                                />
-                              </TableCell>
                             )}
 
                             {currentListType === "Thandaper Number" && (
-                              <TableCell align="center">
-                                <TextField
-                                  value={row.thandaperNo}
-                                  onChange={(e) =>
-                                    handleChange(
-                                      lb.id,
-                                      currentVillageName,
-                                      row.id,
-                                      "thandaperNo",
-                                      e.target.value
-                                    )
-                                  }
-                                />
-                              </TableCell>
-                            )}
-
-                            {currentListType === "Others" && (
                               <>
                                 <TableCell align="center">
                                   <TextField
-                                    value={row.mainNo}
-                                    onChange={(e) =>
-                                      handleChange(
-                                        lb.id,
-                                        currentVillageName,
-                                        row.id,
-                                        "mainNo",
-                                        e.target.value
-                                      )
+                                    value={row.thandaperNo ?? ""}
+                                    onChange={(e) => {
+                                      const digits = (e.target.value || "").replace(/\D/g, "").slice(0, 5);
+                                      handleChange(lb.id, currentVillageName, row.id, "thandaperNo", digits);
+                                    }}
+                                    placeholder="Thandaper No."
+                                    inputMode="numeric"
+                                    inputProps={{
+                                      pattern: "^\\d{0,5}$",
+                                      maxLength: 5,
+                                      title: "Up to 5 digits",
+                                    }}
+                                    required={requiredFields.some((f) => f.field === "thandaperNo")}
+                                    error={
+                                      requiredFields.some((f) => f.field === "thandaperNo") &&
+                                      !(String(row.thandaperNo || "").trim())
+                                    }
+                                    helperText={
+                                      requiredFields.some((f) => f.field === "thandaperNo") &&
+                                      !(String(row.thandaperNo || "").trim()) ? "Required" : ""
                                     }
                                   />
                                 </TableCell>
+
                                 <TableCell align="center">
                                   <TextField
-                                    value={row.subNo}
-                                    onChange={(e) =>
-                                      handleChange(
-                                        lb.id,
-                                        currentVillageName,
-                                        row.id,
-                                        "subNo",
-                                        e.target.value
-                                      )
+                                    value={row.thandapersubNo ?? ""}
+                                    onChange={(e) => {
+                                      const v = (e.target.value || "").slice(0, 5);
+                                      handleChange(lb.id, currentVillageName, row.id, "thandapersubNo", v);
+                                    }}
+                                    placeholder="Thandaper Sub No."
+                                    inputProps={{
+                                      maxLength: 5,
+                                      title: "Up to 5 characters",
+                                    }}
+                                    required={requiredFields.some((f) => f.field === "thandapersubNo")}
+                                    error={
+                                      requiredFields.some((f) => f.field === "thandapersubNo") &&
+                                      !(String(row.thandapersubNo || "").trim())
+                                    }
+                                    helperText={
+                                      requiredFields.some((f) => f.field === "thandapersubNo") &&
+                                      !(String(row.thandapersubNo || "").trim()) ? "Required" : ""
+                                    }
+                                  />
+                                </TableCell>
+                              </>
+                            )}
+
+                            {currentListType === "Old Survey Number" && (
+                              <>
+                                <TableCell align="center">
+                                  <TextField
+                                    value={row.oldsvno ?? ""}
+                                    onChange={(e) => {
+                                      const digits = (e.target.value || "").replace(/\D/g, "").slice(0, 5);
+                                      handleChange(lb.id, currentVillageName, row.id, "oldsvno", digits);
+                                    }}
+                                    placeholder="Old Survey No."
+                                    inputMode="numeric"
+                                 sx={{ minWidth: 100 }}
+                                inputProps={{
+                                  pattern: "^\\d{0,5}$",
+                                  maxLength: 5,
+                                  title: "Up to 5 digits",
+                                }}
+                                    required={requiredFields.some((f) => f.field === "oldsvno")}
+                                    error={
+                                      requiredFields.some((f) => f.field === "oldsvno") &&
+                                      !(String(row.oldsvno || "").trim())
+                                    }
+                                    helperText={
+                                      requiredFields.some((f) => f.field === "oldsvno") &&
+                                      !(String(row.oldsvno || "").trim()) ? "Required" : ""
+                                    }
+                                  />
+                                </TableCell>
+
+                                <TableCell align="center">
+                                  <TextField
+                                    value={row.oldsubno ?? ""}
+                                    onChange={(e) => {
+                                      const v = (e.target.value || "").slice(0, 10);
+                                      handleChange(lb.id, currentVillageName, row.id, "oldsubno", v);
+                                    }}
+                                    placeholder="Old Sub No."
+                                      sx={{ minWidth: 100 }}
+                                    inputProps={{
+                                      maxLength: 10,
+                                      title: "Up to 10 characters",
+                                    }}
+                                    required={requiredFields.some((f) => f.field === "oldsubno")}
+                                    error={
+                                      requiredFields.some((f) => f.field === "oldsubno") &&
+                                      !(String(row.oldsubno || "").trim())
+                                    }
+                                    helperText={
+                                      requiredFields.some((f) => f.field === "oldsubno") &&
+                                      !(String(row.oldsubno || "").trim()) ? "Required" : ""
                                     }
                                   />
                                 </TableCell>
@@ -1018,60 +1291,88 @@ const KeyPlotEntryNonBtr = () => {
 
                             <TableCell align="center">
                               <TextField
-                                value={row.surveyNo}
-                                onChange={(e) =>
-                                  handleChange(
-                                    lb.id,
-                                    currentVillageName,
-                                    row.id,
-                                    "surveyNo",
-                                    e.target.value
-                                  )
-                                }
+                                value={row.surveyNo ?? ""}
+                                onChange={(e) => {
+                                  const digits = (e.target.value || "").replace(/\D/g, "").slice(0, 5);
+                                  handleChange(lb.id, currentVillageName, row.id, "surveyNo", digits);
+                                }}
+                                placeholder="Survey No."
+                                inputMode="numeric"
+                                 sx={{ minWidth: 100 }}
+                                inputProps={{
+                                  pattern: "^\\d{0,5}$",
+                                  maxLength: 5,
+                                  title: "Up to 5 digits",
+                                }}
                               />
                             </TableCell>
+
                             <TableCell align="center">
                               <TextField
-                                value={row.subDivNo}
-                                onChange={(e) =>
-                                  handleChange(
-                                    lb.id,
-                                    currentVillageName,
-                                    row.id,
-                                    "subDivNo",
-                                    e.target.value
-                                  )
-                                }
+                                value={row.subDivNo ?? ""}
+                                onChange={(e) => {
+                                  const v = (e.target.value || "").slice(0, 15);
+                                  handleChange(lb.id, currentVillageName, row.id, "subDivNo", v);
+                                }}
+                                placeholder="Sub Div No."
+                                  sx={{ minWidth: 100 }}
+                                inputProps={{
+                                  maxLength: 15,
+                                  title: "Up to 15 characters",
+                                }}
                               />
                             </TableCell>
+
                             <TableCell align="center">
                               <TextField
-                                value={row.area}
-                                onChange={(e) =>
-                                  handleChange(
-                                    lb.id,
-                                    currentVillageName,
-                                    row.id,
-                                    "area",
-                                    e.target.value
-                                  )
+                                value={row.area ?? ""}
+                                onChange={(e) => {
+                                  let v = (e.target.value || "").replace(/[^0-9.]/g, "");
+                                  const firstDot = v.indexOf(".");
+                                  if (firstDot !== -1) {
+                                    v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, "");
+                                  }
+                                  const m = v.match(/^(\d{0,5})(?:\.(\d{0,2})?)?$/);
+                                  if (m) {
+                                    handleChange(lb.id, currentVillageName, row.id, "area", v);
+                                  } else {
+                                    const parts = v.split(".");
+                                    let intPart = (parts[0] || "").slice(0, 5);
+                                    let decPart = parts[1] !== undefined ? parts[1].slice(0, 2) : undefined;
+                                    const coerced = decPart !== undefined ? `${intPart}.${decPart}` : intPart;
+                                    handleChange(lb.id, currentVillageName, row.id, "area", coerced);
+                                  }
+                                }}
+                                placeholder="Area (Cents)"
+                                inputMode="decimal"
+                                inputProps={{
+                                  pattern: "^\\d{0,5}(\\.\\d{0,2})?$",
+                                  title: "Up to 5 digits, optional decimal with 2 digits",
+                                }}
+                                required={requiredFields.some((f) => f.field === "area")}
+                                 sx={{ minWidth: 100 }}
+                                error={
+                                  requiredFields.some((f) => f.field === "area") &&
+                                  !(String(row.area || "").trim())
+                                }
+                                helperText={
+                                  requiredFields.some((f) => f.field === "area") &&
+                                  !(String(row.area || "").trim()) ? "Required" : ""
                                 }
                               />
                             </TableCell>
+
                             <TableCell align="center">
                               <TextField
                                 select
                                 value={row.landType}
                                 onChange={(e) =>
-                                  handleChange(
-                                    lb.id,
-                                    currentVillageName,
-                                    row.id,
-                                    "landType",
-                                    e.target.value
-                                  )
+                                  handleChange(lb.id, currentVillageName, row.id, "landType", e.target.value)
                                 }
                                 sx={{ minWidth: 90 }}
+                                required={requiredFields.some(f => f.field === "landType")}
+                                error={requiredFields.some(f => f.field === "landType") && !row.landType}
+                                helperText={requiredFields.some(f => f.field === "landType") && !row.landType ? "Required" : ""}
                               >
                                 {landTypeOptions.map((opt) => (
                                   <MenuItem key={opt} value={opt}>
@@ -1080,6 +1381,7 @@ const KeyPlotEntryNonBtr = () => {
                                 ))}
                               </TextField>
                             </TableCell>
+                            
                             <TableCell align="center">
                               <IconButton
                                 color="error"
@@ -1090,6 +1392,7 @@ const KeyPlotEntryNonBtr = () => {
                             </TableCell>
                           </TableRow>
                         ))}
+                      
                       <TableRow>
                         <TableCell colSpan={colSpan} align="right">
                           <Button
@@ -1097,7 +1400,7 @@ const KeyPlotEntryNonBtr = () => {
                             variant="outlined"
                             color="success"
                             onClick={() => handleAddRow(lb.id, currentVillageName)}
-                            disabled={totalKeyplots >= TOTAL_REQUIRED}
+                            disabled={totalKeyplots >= remainingKeyplots || !allRequiredFilled}
                           >
                             Add Keyplot
                           </Button>
@@ -1106,6 +1409,7 @@ const KeyPlotEntryNonBtr = () => {
                     </TableBody>
                   </Table>
                 </TableContainer>
+                
                 <TablePagination
                   component="div"
                   count={sortedRows.length}
@@ -1122,40 +1426,11 @@ const KeyPlotEntryNonBtr = () => {
           );
         })}
 
-        {/* Popover for list type selection */}
-        <Popover
-          open={Boolean(popoverAnchorEl)}
-          anchorEl={popoverAnchorEl}
-          onClose={handlePopoverClose}
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'right',
-          }}
-          transformOrigin={{
-            vertical: 'top',
-            horizontal: 'left',
-          }}
-        >
-          <List sx={{ py: 0, minWidth: 180 }}>
-            {listTypeOptions.map((listType) => (
-              <ListItem key={listType} disablePadding>
-                <ListItemButton 
-                  onClick={() => handleListTypeChange(listType)}
-                  selected={selectedLocalBody && selectedVillage && getCurrentListType(selectedLocalBody, selectedVillage) === listType}
-                >
-                  <ListItemText primary={listType} />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
-        </Popover>
-
         {/* Confirmation Modal */}
         <Dialog
           open={showConfirmModal}
           onClose={handleCancelSave}
           aria-labelledby="confirm-dialog-title"
-          aria-describedby="confirm-dialog-description"
           maxWidth="sm"
           fullWidth
         >
@@ -1163,7 +1438,7 @@ const KeyPlotEntryNonBtr = () => {
             Confirm Save Operation
           </DialogTitle>
           <DialogContent>
-            <DialogContentText id="confirm-dialog-description">
+            <DialogContentText>
               Are you sure you want to save {totalKeyplots} keyplot{totalKeyplots !== 1 ? 's' : ''}? 
               This action will save all the entered data to the database.
             </DialogContentText>
@@ -1256,20 +1531,11 @@ const KeyPlotEntryNonBtr = () => {
             </Box>
           </DialogTitle>
           <DialogContent>
-            <DialogContentText sx={{ textAlign: 'center', fontSize: '1.1rem' }}>
-              {validationErrors.length > 0 
-                ? `Validation failed with ${validationErrors.length} errors. Please check the form and try again.`
-                : "Error saving keyplots! Please check the form for errors and try again."
-              }
-            </DialogContentText>
             {validationErrors.length > 0 && (
               <Box sx={{ mt: 2, textAlign: 'left' }}>
-                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
-                  Validation Errors:
-                </Typography>
                 {validationErrors.slice(0, 5).map((error, index) => (
                   <Typography key={index} variant="body2" sx={{ mb: 0.5, color: '#f44336' }}>
-                    • Survey No: {error.resvno}, Sub Div: {error.resbdno} - {error.message}
+                    {error.message}
                   </Typography>
                 ))}
                 {validationErrors.length > 5 && (
@@ -1304,33 +1570,16 @@ const KeyPlotEntryNonBtr = () => {
           </Button>
         </Box>
 
-        {/* Add CSS animations for the modal icons */}
         <style jsx global>{`
           @keyframes pulse {
-            0% {
-              transform: scale(1);
-              opacity: 1;
-            }
-            50% {
-              transform: scale(1.1);
-              opacity: 0.7;
-            }
-            100% {
-              transform: scale(1);
-              opacity: 1;
-            }
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
           }
-
           @keyframes shake {
-            0%, 100% {
-              transform: translateX(0);
-            }
-            25% {
-              transform: translateX(-5px);
-            }
-            75% {
-              transform: translateX(5px);
-            }
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
           }
         `}</style>
       </Box>

@@ -24,13 +24,13 @@ export default function ZoneOptions() {
   
   // Fetch zones and restore last selected zone
 useEffect(() => {
-  const token = localStorage.getItem('token');  // Assuming the token is stored in localStorage
+  const token = localStorage.getItem('token');
 
   axios
     .get(`${BASE_URL}/btr-service/btr-api/zones/assigned/${user_id}`, {
       headers: {
-        'Authorization': `Bearer ${token}`,  // Adding the token to the request headers
-      }
+        Authorization: `Bearer ${token}`,
+      },
     })
     .then((response) => {
       const data = response.data;
@@ -38,21 +38,34 @@ useEffect(() => {
 
       if (data.length > 0) {
         const savedZone = localStorage.getItem('activeZone');
-        if (savedZone && data.some((z) => z.zoneId.toString() === savedZone)) {
-          setZone(savedZone);
-        } else {
-          const firstZone = data[0].zoneId.toString();
-          setZone(firstZone);
-          localStorage.setItem('activeZone', firstZone);
+
+        let selectedZoneObj;
+
+        if (savedZone) {
+          selectedZoneObj = data.find(
+            (z) => z.zoneId.toString() === savedZone
+          );
         }
+
+        // fallback to first zone
+        if (!selectedZoneObj) {
+          selectedZoneObj = data[0];
+        }
+
+        setZone(selectedZoneObj.zoneId.toString());
+
+        // 🔑 SAVE BOTH
+        localStorage.setItem('activeZone', selectedZoneObj.zoneId.toString());
+        localStorage.setItem(
+          'activeDistId',
+          selectedZoneObj.dist_id.toString()
+        );
       }
     })
     .catch((error) => {
       console.error('Error fetching zones:', error);
     });
 }, [BASE_URL, user_id]);
-
-
 
 
   const handleOpenDialog = (event) => {
@@ -63,11 +76,24 @@ useEffect(() => {
     }
   };
 
- const handleConfirmSwitch = () => {
-  setZone(pendingZone);
-  localStorage.setItem('activeZone', pendingZone);
+const handleConfirmSwitch = () => {
+  const selectedZoneObj = zones.find(
+    (z) => z.zoneId.toString() === pendingZone
+  );
+
+  if (selectedZoneObj) {
+    setZone(pendingZone);
+
+    // 🔑 SAVE BOTH VALUES
+    localStorage.setItem('activeZone', pendingZone);
+    localStorage.setItem(
+      'activeDistId',
+      selectedZoneObj.dist_id.toString()
+    );
+  }
+
   setOpenDialog(false);
-  window.location.reload(); // Force reload to apply new zone everywhere
+  window.location.reload();
 };
 
 
@@ -76,7 +102,7 @@ useEffect(() => {
   };
 
   return (
-    <Box sx={{ minWidth: 120, mr: 2, mt: 0.5 }}>
+    <Box sx={{   mt: 0.5 }}>
       <FormControl size="small" fullWidth sx={{ minWidth: 180 }}>
   <Select
     id="zone-select"

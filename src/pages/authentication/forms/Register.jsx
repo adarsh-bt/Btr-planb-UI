@@ -16,8 +16,19 @@ import {
   Typography,
   Alert,
   Stack,
-  FormHelperText
+  FormHelperText,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Checkbox
 } from '@mui/material';
+
+import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { enIN } from 'date-fns/locale';
+
 import authservice from '../services/authservice';
 import RegisterService from 'pages/authentication/services/registerservice';
 
@@ -61,13 +72,19 @@ const Register = ({ onBack }) => {
     office: ''
   });
 
-  const today = new Date().toISOString().split('T')[0];
+  // State for confirmation dialog
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [pendingSubmissionData, setPendingSubmissionData] = useState(null);
+  const [isConfirmed, setIsConfirmed] = useState(false); // Checkbox state
+
+  // const today = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
     const fetchDesignations = async () => {
       try {
         const response = await RegisterService.getDesignations();
         if (response.payload && Array.isArray(response.payload)) {
+          console.log("designations response ",response.payload)
           setDesignations(response.payload);
         } else {
           setErrorMessage(response.message || 'Failed to fetch designations.');
@@ -188,11 +205,11 @@ const Register = ({ onBack }) => {
       case 'idNumber':
         if (idType === 'PEN') {
           if (!penNumber) return 'PEN Number is required.';
-          return penNumber.length !== 10 ? 'PEN Number must be exactly 10 characters.' : null;
+          return penNumber.length !== 7 ? 'PEN Number must be exactly 7 characters.' : null;
         }
         if (idType === 'TEN') {
           if (!tenNumber) return 'PEN/TEN Number is required.';
-          return tenNumber.length < 6 || tenNumber.length > 10 ? 'TEN Number must be between 6 and 10 characters.' : null;
+          return tenNumber.length !== 7 || tenNumber.length > 7 ? 'TEN Number must be between 6 and 10 characters.' : null;
         }
         return null;
       case 'district':
@@ -226,6 +243,15 @@ const Register = ({ onBack }) => {
       setErrors((prevErrors) => ({ ...prevErrors, phone: '' })); // Clear error
     }
   };
+
+    const handlePenBlur = () => {
+  if (penNumber && penNumber.length === 6) {
+    const paddedPen = penNumber.padStart(7, '0'); // makes 6 → 7 digits
+    setPenNumber(paddedPen);
+  }else{
+    
+  }
+};
 
   const handlePenChange = (e) => {
     const value = e.target.value;
@@ -295,32 +321,45 @@ const Register = ({ onBack }) => {
     }
   };
 
-  const handleRegisterSubmit = async (e) => {
-    e.preventDefault();
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-IN');
+  };
 
+  // Get designation name by ID
+  const getDesignationName = (designationId) => {
+    const des = designations.find(d => d.id === designationId);
+    return des ? des.designationName : 'N/A';
+  };
+
+  // Open confirmation dialog with form data
+  const openConfirmationDialog = () => {
+    // First validate all fields
     let newErrors = {};
     let isValid = true;
 
-    // Validate all fields
     for (const field in errors) {
       const message = validateField(field);
       if (message) {
         newErrors[field] = message;
         isValid = false;
       } else {
-        newErrors[field] = ''; // Clear any previous error messages
+        newErrors[field] = '';
       }
     }
 
     setErrors(newErrors);
 
     if (!isValid) {
-      return; // Stop submission if there are errors
+      return; // Stop if validation fails
     }
 
     const idNumber = idType === 'PEN' ? penNumber : tenNumber;
-
-    const userData = {
+    
+    // Store the data for submission
+    setPendingSubmissionData({
       name: fullName,
       email: email,
       mobileNumber: phone,
@@ -331,13 +370,37 @@ const Register = ({ onBack }) => {
       officeType: officeType,
       distOfficeId: districtId,
       desTalukOfficeId: talukId
-    };
+    });
+
+    // Reset confirmation checkbox
+    setIsConfirmed(false);
+    // Open confirmation dialog
+    setConfirmDialogOpen(true);
+  };
+
+  // Close confirmation dialog
+  const closeConfirmationDialog = () => {
+    setConfirmDialogOpen(false);
+    setPendingSubmissionData(null);
+    setIsConfirmed(false);
+  };
+
+  // Handle checkbox change
+  const handleConfirmationCheckbox = (e) => {
+    setIsConfirmed(e.target.checked);
+  };
+
+  // Proceed with registration after confirmation
+  const handleConfirmRegistration = async () => {
+    closeConfirmationDialog();
+    
+    if (!pendingSubmissionData) return;
 
     try {
       setLoading(true);
-      const userDatas = await authservice.registration(userData);
+      const userDatas = await authservice.registration(pendingSubmissionData);
       setLoading(false);
-
+      
       if (userDatas.status === 201) {
         setSuccessMessage('Registration successfully submitted. Please wait for the approval.');
         setErrorMessage('');
@@ -356,26 +419,23 @@ const Register = ({ onBack }) => {
         setDistrictId(null);
         setTalukId(null);
         setOfficeType('');
-        // setErrors({ // Also clear any lingering errors
-        //   fullName: '',
-        //   email: '',
-        //   phone: '',
-        //   designation: '',
-        //   dateOfJoining: '',
-        //   dateOfBirth: '',
-        //   idNumber: '',
-        //   district: '',
-        //   office: '',
-        // });
       } else {
         setErrorMessage(userDatas.message);
       }
     } catch (err) {
       setErrorMessage('Registration failed.');
+    } finally {
+      setPendingSubmissionData(null);
     }
   };
 
+  const handleRegisterSubmit = (e) => {
+    e.preventDefault();
+    openConfirmationDialog();
+  };
+
   return (
+    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enIN}>
     <Box sx={{ width: '100%', maxWidth: '400px', mx: 'auto' }}>
       {errorMessage && (
         <Stack sx={{ width: '100%', marginBottom: '.5rem', background: '#fffaef' }} spacing={1}>
@@ -412,20 +472,11 @@ const Register = ({ onBack }) => {
         onChange={handleFullNameChange}
         error={!!errors.fullName}
         helperText={errors.fullName}
-        // onChange={(e) => {
-        //   const value = e.target.value;
-        //   // Allow only alphabets, spaces, and periods, and limit length to 20
-        //   if (/^[A-Za-z\s.]*$/.test(value) && value.length <= 32) {
-        //     setFullName(value); // Update state if value matches the pattern and length <= 20
-        //   }
-        // }}
-        // error={errors.fullName}
-        // helperText={errors.fullName ? errors.fullName : ''}
         sx={{
           mb: 2,
           '& .MuiOutlinedInput-root': {
             top: '50%',
-            borderRadius: '0.5rem', // Custom border-radius
+            borderRadius: '0.5rem',
             fontSize: '14px',
             paddingTop: '7.5px'
           }
@@ -451,7 +502,7 @@ const Register = ({ onBack }) => {
           mb: 2,
           '& .MuiOutlinedInput-root': {
             top: '50%',
-            borderRadius: '0.5rem', // Custom border-radius
+            borderRadius: '0.5rem',
             fontSize: '14px',
             paddingTop: '7.5px'
           }
@@ -481,7 +532,7 @@ const Register = ({ onBack }) => {
           mb: 2,
           '& .MuiOutlinedInput-root': {
             top: '50%',
-            borderRadius: '0.5rem', // Custom border-radius
+            borderRadius: '0.5rem',
             fontSize: '14px',
             paddingTop: '7.5px'
           }
@@ -501,14 +552,15 @@ const Register = ({ onBack }) => {
           label="PEN"
           value={penNumber}
           onChange={handlePenChange}
-          inputProps={{ maxLength: 10 }}
+          onBlur={handlePenBlur}
+          inputProps={{ maxLength: 7 }}
           error={!!errors.idNumber}
           helperText={errors.idNumber ? errors.idNumber : ' '}
           sx={{
             mb: 2,
             '& .MuiOutlinedInput-root': {
               top: '50%',
-              borderRadius: '1rem', // Custom border-radius
+              borderRadius: '1rem',
               fontSize: '14px',
               paddingTop: '7.5px'
             }
@@ -520,14 +572,14 @@ const Register = ({ onBack }) => {
           label="TEN"
           value={tenNumber}
           onChange={handleTenChange}
-          inputProps={{ maxLength: 10 }}
+          inputProps={{ maxLength: 7 }}
           error={!!errors.idNumber}
           helperText={errors.idNumber ? errors.idNumber : ' '}
           sx={{
             mb: 2,
             '& .MuiOutlinedInput-root': {
               top: '50%',
-              borderRadius: '0.5rem', // Custom border-radius
+              borderRadius: '0.5rem',
               fontSize: '14px',
               paddingTop: '7.5px'
             }
@@ -563,51 +615,86 @@ const Register = ({ onBack }) => {
         {errors.designation && <FormHelperText error>{errors.designation}</FormHelperText>}
       </MuiFormControl>
 
-      <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={6}>
-          <TextField
-            fullWidth
-            variant="outlined"
-            label={
-              <>
-                Date of Joining{' '}
-                <Typography component="span" color="error">
-                  *
-                </Typography>
-              </>
-            }
-            type="date"
-            value={dateOfJoining}
-            onChange={handleDateOfJoiningChange}
-            InputProps={{ inputProps: { max: today } }}
-            InputLabelProps={{ shrink: true }}
-            error={!!errors.dateOfJoining}
-            helperText={errors.dateOfJoining}
-          />
-        </Grid>
+   <Grid container spacing={2} sx={{ mb: 2 }}>
+  <Grid item xs={6}>
+  <DatePicker
+    label={
+      <>
+        Joining of Service{' '}
+        <Typography component="span" color="error">
+          *
+        </Typography>
+      </>
+    }
+    value={dateOfJoining ? new Date(dateOfJoining) : null}
+    onChange={(newValue) => {
+      if (newValue) {
+        const year = newValue.getFullYear();
+        const month = String(newValue.getMonth() + 1).padStart(2, '0');
+        const day = String(newValue.getDate()).padStart(2, '0');
+        const localDate = `${year}-${month}-${day}`;
+        handleDateOfJoiningChange({ target: { value: localDate } });
+      } else {
+        handleDateOfJoiningChange({ target: { value: '' } });
+      }
+    }}
+    maxDate={new Date()}
+    renderInput={(params) => (
+      <TextField
+        {...params}
+        fullWidth
+        error={!!errors.dateOfJoining}
+        helperText={errors.dateOfJoining}
+        inputProps={{
+          ...params.inputProps,
+          readOnly: true,
+        }}
+      />
+    )}
+    inputFormat="dd/MM/yyyy"
+  />
+</Grid>
 
-        <Grid item xs={6}>
-          <TextField
-            fullWidth
-            variant="outlined"
-            label={
-              <>
-                Date of Birth{' '}
-                <Typography component="span" color="error">
-                  *
-                </Typography>
-              </>
-            }
-            type="date"
-            value={dateOfBirth}
-            onChange={handleDateOfBirthChange}
-            InputProps={{ inputProps: { max: today } }}
-            InputLabelProps={{ shrink: true }}
-            error={!!errors.dateOfBirth}
-            helperText={errors.dateOfBirth}
-          />
-        </Grid>
-      </Grid>
+ <Grid item xs={6}>
+  <DatePicker
+    label={
+      <>
+        Date of Birth{' '}
+        <Typography component="span" color="error">
+          *
+        </Typography>
+      </>
+    }
+    value={dateOfBirth ? new Date(dateOfBirth) : null}
+    onChange={(newValue) => {
+      if (newValue) {
+        const year = newValue.getFullYear();
+        const month = String(newValue.getMonth() + 1).padStart(2, '0');
+        const day = String(newValue.getDate()).padStart(2, '0');
+        const localDate = `${year}-${month}-${day}`;
+
+        handleDateOfBirthChange({ target: { value: localDate } });
+      } else {
+        handleDateOfBirthChange({ target: { value: '' } });
+      }
+    }}
+    maxDate={new Date()}
+    renderInput={(params) => (
+      <TextField
+        {...params}
+        fullWidth
+        error={!!errors.dateOfBirth}
+        helperText={errors.dateOfBirth}
+        inputProps={{
+          ...params.inputProps,
+          readOnly: true,
+        }}
+      />
+    )}
+    inputFormat="dd/MM/yyyy"
+  />
+</Grid>
+</Grid>
 
       <MuiFormControl fullWidth sx={{ mb: 2 }} error={!!errors.district}>
         <Autocomplete
@@ -646,7 +733,7 @@ const Register = ({ onBack }) => {
             color="primary"
             sx={{ borderRadius: '20px', fontSize: '16px' }}
             onClick={handleRegisterSubmit}
-            disabled={loading} // Disable the button while loading
+            disabled={loading}
           >
             {loading ? <Typography sx={{ color: 'blue' }}>Registering...</Typography> : 'Register'}
           </Button>
@@ -657,7 +744,148 @@ const Register = ({ onBack }) => {
           </Typography>
         </Grid>
       </Grid>
+
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={confirmDialogOpen}
+        onClose={closeConfirmationDialog}
+        aria-labelledby="confirm-registration-dialog-title"
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle id="confirm-registration-dialog-title" sx={{ bgcolor: '#d40606', color: 'white' ,alignItems: 'center', display: 'flex', justifyContent: 'center'}}>
+          <Typography variant="h5" fontWeight="bold">Confirm Registration Details</Typography>
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <DialogContentText component="div">
+            <Typography variant="body1" gutterBottom fontWeight="bold">
+              Please verify your information before submitting:
+            </Typography>
+            
+            <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+              <Grid container spacing={1}>
+                <Grid item xs={5}>
+                  <Typography variant="body2" color="text.secondary">Full Name:</Typography>
+                </Grid>
+                <Grid item xs={7}>
+                  <Typography variant="body2" fontWeight="medium" color="text.primary">{fullName || 'N/A'}</Typography>
+                </Grid>
+                
+                <Grid item xs={5}>
+                  <Typography variant="body2" color="text.secondary">Email:</Typography>
+                </Grid>
+                <Grid item xs={7}>
+                  <Typography variant="body2" fontWeight="medium" color="text.primary">{email || 'N/A'}</Typography>
+                </Grid>
+                
+                <Grid item xs={5}>
+                  <Typography variant="body2" color="text.secondary">Phone:</Typography>
+                </Grid>
+                <Grid item xs={7}>
+                  <Typography variant="body2" fontWeight="medium" color="text.primary">{phone || 'N/A'}</Typography>
+                </Grid>
+                
+                <Grid item xs={5}>
+                  <Typography variant="body2" color="text.secondary">ID Type:</Typography>
+                </Grid>
+                <Grid item xs={7}>
+                  <Typography variant="body2" fontWeight="medium" color="text.primary">{idType}</Typography>
+                </Grid>
+                
+                <Grid item xs={5}>
+                  <Typography variant="body2" color="text.secondary">ID Number:</Typography>
+                </Grid>
+                <Grid item xs={7}>
+                  <Typography variant="body2" fontWeight="medium" color="text.primary">
+                    {idType === 'PEN' ? penNumber : tenNumber}
+                  </Typography>
+                </Grid>
+                
+                <Grid item xs={5}>
+                  <Typography variant="body2" color="text.secondary">Designation:</Typography>
+                </Grid>
+                <Grid item xs={7}>
+                  <Typography variant="body2" fontWeight="medium" color="text.primary">{getDesignationName(designation)}</Typography>
+                </Grid>
+                
+                <Grid item xs={5}>
+                  <Typography variant="body2" color="text.secondary">Date of Joining:</Typography>
+                </Grid>
+                <Grid item xs={7}>
+                  <Typography variant="body2" fontWeight="medium" color="text.primary">{formatDate(dateOfJoining)}</Typography>
+                </Grid>
+                
+                <Grid item xs={5}>
+                  <Typography variant="body2" color="text.secondary">Date of Birth:</Typography>
+                </Grid>
+                <Grid item xs={7}>
+                  <Typography variant="body2" fontWeight="medium" color="text.primary">{formatDate(dateOfBirth)}</Typography>
+                </Grid>
+                
+                <Grid item xs={5}>
+                  <Typography variant="body2" color="text.secondary">District:</Typography>
+                </Grid>
+                <Grid item xs={7}>
+                  <Typography variant="body2" fontWeight="medium" color="text.primary">
+                    {selectedDistrict?.distOfficeNameEn?.slice(16) || 'N/A'}
+                  </Typography>
+                </Grid>
+                
+                <Grid item xs={5}>
+                  <Typography variant="body2" color="text.secondary">Office:</Typography>
+                </Grid>
+                <Grid item xs={7}>
+                  <Typography variant="body2" fontWeight="medium" color="text.primary">
+                    {selectedTaluk?.label || 'N/A'}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Box>
+            
+            {/* Confirmation Checkbox */}
+            <Box sx={{ mt: 3, display: 'flex', alignItems: 'center' }}>
+              <Checkbox
+                checked={isConfirmed}
+                onChange={handleConfirmationCheckbox}
+                color="primary"
+                id="confirm-checkbox"
+              />
+              <Typography 
+                component="label" 
+                htmlFor="confirm-checkbox"
+                variant="body2"
+                sx={{ cursor: 'pointer', fontWeight: 'medium' ,color: 'text.primary'}}
+              >
+                I confirm that all the information provided above is accurate and complete to the best of my knowledge.
+              </Typography>
+            </Box>
+            
+            <Typography variant="h6" color="#da0707" sx={{ mt: 2, fontWeight: 'bold' ,textAlign: 'center'}}>
+              Please ensure all information is correct before confirming.
+            </Typography>
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button 
+            onClick={closeConfirmationDialog} 
+            color="inherit"
+            variant="outlined"
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleConfirmRegistration} 
+            color="primary" 
+            variant="contained"
+            disabled={!isConfirmed} // Button is disabled until checkbox is checked
+            autoFocus
+          >
+            Confirm & Submit
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
+    </LocalizationProvider>
   );
 };
 

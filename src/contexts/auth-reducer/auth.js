@@ -8,8 +8,8 @@ class auth{
 
           static isAuth(){
             const token = localStorage.getItem('token');
-            alert("ok")
-            console.log(token)
+           
+           
             if(token){
                 return true;
                 }

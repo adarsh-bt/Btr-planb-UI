@@ -2,21 +2,24 @@ import axios from 'axios';
 import mainapi from 'api/mainapi';
 
 const RegisterService = {
-  USER_URL: mainapi.USER_API,
+  USER_URL: mainapi.BASE_URL,
   
   // BASE_URL: 'http://localhost:8081/user-access',
 
-  async getDistricts() {
-    try {
-      alert(this.USER_URL)
-      const response = await axios.get(`${this.USER_URL}/user-access/api/districts`);
-      return response.data;
-    } catch (err) {
-      return {
-        message: err.response?.data?.message || 'An error occurred while fetching districts.'
-      };
-    }
-  },
+async getDistricts() {
+  try {
+    const url = `${this.USER_URL}/user-access/api/districts`;
+  
+    const response = await axios.get(url);
+    return response.data;
+  } catch (err) {
+    console.error("District Fetch Error:", err);
+    return {
+      message: err.response?.data?.message || 'An error occurred while fetching districts.'
+    };
+  }
+},
+
 
   async getTaluks(districtId) {
     try {
@@ -32,8 +35,6 @@ const RegisterService = {
   async getDesignations() {
     try {
       const response = await axios.get(`${this.USER_URL}/user-access/api/fetch-designations`);
-
-      console.log('designationss: ', response.data.payload);
       return response.data;
     } catch (err) {
       return {

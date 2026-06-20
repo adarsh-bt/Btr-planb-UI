@@ -35,6 +35,7 @@ import {
 import { toast } from "react-toastify";
 import mainapi from "api/mainapi";
 import authservice from "pages/authentication/services/authservice";
+import Breadcrumb from "routes/Breadcrumb";
 
 const landTypeOptions = ["Wet", "Dry"];
 const TOTAL_REQUIRED = 100;
@@ -67,6 +68,12 @@ const KeyPlotEntry = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [mainerror, setMainError] = useState(""); 
+  const [keyplotLimit, setKeyplotLimit] = useState(null);
+const [remainingKeyplots, setRemainingKeyplots] = useState(0);
+
+
+    const [listTypes, setListTypes] = useState({});
 
   const BASE_URL = mainapi.BASE_URL;
   
@@ -87,6 +94,8 @@ const KeyPlotEntry = () => {
   /**
    * Safely parses user info from localStorage to prevent JSON parsing errors.
    */
+
+
   const getUserInfo = () => {
     if (typeof window === "undefined") return null;
     try {
@@ -94,7 +103,7 @@ const KeyPlotEntry = () => {
       return userItem ? JSON.parse(userItem) : null;
     } catch (error) {
       console.error("Failed to parse user info from localStorage:", error);
-      localStorage.removeItem("user");
+   
       return null;
     }
   };
@@ -118,6 +127,40 @@ const KeyPlotEntry = () => {
       }
     };
   }, [showSuccessModal]);
+useEffect(() => {
+  const savedZone = localStorage.getItem('activeZone');
+  if (!savedZone) return;
+
+ const fetchKeyplotLimit = async () => {
+  const savedZone = localStorage.getItem('activeZone');
+  if (!savedZone) return;
+
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(
+      `${BASE_URL}/btr-service/api/keyplots/limit-status/${savedZone}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!res.ok) throw new Error('Failed to fetch keyplot limit');
+
+    const data = await res.json();
+    setKeyplotLimit(data);
+    setRemainingKeyplots(data.remainingKeyplots);
+  } catch (err) {
+    console.error(err);
+    toast.error('Unable to refresh keyplot limit');
+  }
+};
+
+
+  fetchKeyplotLimit();
+}, [BASE_URL]);
 
   // Auto-close error modal after 4 seconds
   useEffect(() => {
@@ -173,7 +216,7 @@ useEffect(() => {
       );
 
       const [lbData, villageData, distData, talukData] = await Promise.all(requests);
-
+console.log("Fetched Data:", { lbData, villageData, distData, talukData });
       setLocalBodies(lbData || []);
       setVillageOptions(villageData || []);
       setDistrictInfo(distData);
@@ -188,7 +231,7 @@ useEffect(() => {
       });
 
     } catch (err) {
-      console.error("Data fetching error:", err);
+     
       setError(err.message);
       toast.error(`Data loading failed: ${err.message}`);
     } finally {
@@ -269,8 +312,8 @@ useEffect(() => {
       case 'surveyNo':
         return !value ? 'Survey Number is required' :
                 !/^\d+$/.test(value) ? 'Survey Number must be numeric' : null;
-      case 'subDivNo':
-        return !value ? 'Sub Division Number is required' : null;
+      // case 'subDivNo':
+      //   return !value ? 'Sub Division Number is required' : null;
       case 'area':
         return !value ? 'Area is required' :
                 !/^\d*\.?\d+$/.test(value) ? 'Area must be a valid number' : null;
@@ -307,6 +350,7 @@ useEffect(() => {
     setShowConfirmModal(true);
   };
 
+
   const handleConfirmSave = () => {
     setShowConfirmModal(false);
     handleActualSave();
@@ -316,7 +360,66 @@ useEffect(() => {
     setShowConfirmModal(false);
   };
 
+  // Add near other handlers
+const handleLocalBodyChange = (tabLbId, rowId, selectedLbId) => {
+  const lb = localBodies.find(b => b.id === selectedLbId);
+  setLocalBodyData(prev => ({
+    ...prev,
+    [tabLbId]: prev[tabLbId].map(row =>
+      row.id === rowId
+        ? { ...row, lbIdSelected: selectedLbId, localBody: lb?.name || '' }
+        : row
+    )
+  }));
+
+  // clear field error for Local Body if you track it
+  const errorKey = `${tabLbId}-${rowId}-localBody`;
+  if (fieldErrors[errorKey]) {
+    setFieldErrors(prev => {
+      const next = { ...prev };
+      delete next[errorKey];
+      return next;
+    });
+  }
+};
+
+const fetchKeyplotLimit = async () => {
+  const savedZone = localStorage.getItem('activeZone');
+  if (!savedZone) return;
+
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(
+      `${BASE_URL}/btr-service/api/keyplots/limit-status/${savedZone}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!res.ok) throw new Error('Failed to fetch keyplot limit');
+
+    const data = await res.json();
+    setKeyplotLimit(data);
+    setRemainingKeyplots(data.remainingKeyplots);
+  } catch (err) {
+    console.error(err);
+    toast.error('Unable to refresh keyplot limit');
+  }
+};
+
+
   const handleActualSave = async () => {
+    if (totalKeyplots > remainingKeyplots) {
+  toast.error(
+    `You can only save ${remainingKeyplots} keyplots for this zone`
+  );
+  setIsSaving(false);
+  return;
+}
+
     if (!districtInfo || talukInfo.length === 0) {
       toast.error("District or Taluk data is not yet loaded. Please wait.");
       return;
@@ -337,6 +440,7 @@ useEffect(() => {
       return;
     }
 
+
     // Client-side field validation
     let hasValidationErrors = false;
     const newFieldErrors = {};
@@ -354,30 +458,35 @@ useEffect(() => {
       setIsSaving(false);
       return;
     }
-
+  
     const zoneId = authservice.getzone();
     const payload = allKeyplots.map((row) => {
-      const villageData = villageInfoMap.get(row.village);
-      const localBodyData = localBodyInfoMap.get(row.lbId);
-      if (!villageData || !localBodyData || !row.surveyNo) {
-        return null;
-      }
-            
-      return {
-        dcode: districtInfo.distId,
-        tcode: talukInfo[0].revenueTalukId,
-        vcode: villageData.vcode,
-        lsgcode: villageData.lsgcode,
-        lbcode: localBodyData.lbcode,
-        zoneId: parseInt(zoneId, 10),
-        user_id: userId,
-        bcode: row.villageBlock,
-        ltype: row.landType.toUpperCase(),
-        resvno: parseInt(row.surveyNo, 10),
-        resbdno: row.subDivNo,
-        totCent: row.area
-      };
-    }).filter(Boolean);
+  const villageData = villageInfoMap.get(row.village);
+
+  // Prefer per-row selected Local Body id, fallback to tab lbId
+  const rowLbId = row.lbIdSelected ?? row.lbId;
+  const lbInfo = localBodyInfoMap.get(rowLbId);
+
+  if (!villageData || !lbInfo || !row.surveyNo) return null;
+
+  return {
+    dcode: districtInfo.distId,
+    tcode: talukInfo[0]?.revenueTalukId,
+    vcode: villageData.vcode,
+    lsgcode: villageData.lsgcode,
+    lbcode: lbInfo.lbcode,
+    zoneId: parseInt(zoneId, 10),
+    userid: userId,
+    bcode: row.villageBlock ?? null,
+    ltype: row.landType.toUpperCase(),
+    resvno: parseInt(row.surveyNo, 10),
+    user_id: userId,
+    resbdno: row.subDivNo,
+    totCent: row.area,
+    btrtype: 1,
+  };
+}).filter(Boolean);
+
 
     if (payload.length !== totalKeyplots) {
       toast.error("Some rows have missing or invalid data. Please check all fields.");
@@ -401,47 +510,80 @@ useEffect(() => {
   );
 
       const result = await response.json();
-      if (!response.ok) {
-        // Handle different types of error responses from backend
-        if (result.status === "Validation Failed" && result.errors) {
-          // Backend validation errors - Map duplicate errors to specific rows
-          const backendDuplicateErrors = {};
-          result.errors.forEach((error) => {
-            // Find matching row and create error key
-            const matchingRow = allKeyplots.find(row => 
-              row.surveyNo === error.resvno?.toString() &&
-              row.subDivNo === error.resbdno
-            );
-            if (matchingRow) {
-              const duplicateKey = `${matchingRow.lbId}_${matchingRow.id}`;
-              backendDuplicateErrors[duplicateKey] = error.message;
-            }
-          });
-                    
-          setDuplicateErrors(backendDuplicateErrors);
-          toast.error(`Validation failed: ${result.errors.length} duplicate error(s) found`);
-          // Show error modal for duplicate errors
-          setShowErrorModal(true);
-        } else {
-          // Other API errors
-          const errorMessage = result.message || `API Error: ${response.status}`;
-          toast.error(errorMessage);
-          // Show error modal for other API errors
-          setShowErrorModal(true);
-        }
-        setIsSaving(false);
+
+     if (!response.ok) {
+  if (result.status === "Validation Failed" && result.errors) {
+
+    const backendDuplicateErrors = {};
+    let globalErrorMessage = null;
+
+    result.errors.forEach((error) => {
+
+      // ✅ LIMIT REACHED / GLOBAL ERROR
+      if (
+        error.resvno === 0 &&
+        error.resbdno === null &&
+        error.message
+      ) {
+
+        globalErrorMessage = error.message;
+        setMainError(error.message);
         return;
       }
+
+      // ✅ DUPLICATE ROW ERROR
+      const matchingRow = allKeyplots.find(row =>
+        row.surveyNo === error.resvno?.toString() &&
+        row.subDivNo === error.resbdno
+      );
+
+      if (matchingRow) {
+        const duplicateKey = `${matchingRow.lbId}_${matchingRow.id}`;
+        backendDuplicateErrors[duplicateKey] = error.message;
+      }
+    });
+
+    // Show duplicate row errors
+    if (Object.keys(backendDuplicateErrors).length > 0) {
+      setDuplicateErrors(backendDuplicateErrors);
+      toast.error(
+        `Validation failed: ${Object.keys(backendDuplicateErrors).length} duplicate error(s) found`
+      );
+      setShowErrorModal(true);
+    }
+
+    // 🔥 Show LIMIT REACHED message
+    if (globalErrorMessage) {
+      toast.error(globalErrorMessage);
+      setShowErrorModal(true);
+    }
+
+  } else {
+    const errorMessage = result.message || `API Error: ${response.status}`;
+    toast.error(errorMessage);
+    setShowErrorModal(true);
+  }
+
+  setIsSaving(false);
+  return;
+}
+
       // Success response
+      
       if (result.status === "Success") {
         const savedKeyplotCount = result.ids?.length || totalKeyplots;
         setSavedCount(savedKeyplotCount);
         setShowSuccessModal(true);
         toast.success(`Successfully saved! All ${savedKeyplotCount} keyplots have been saved successfully.`);
-        console.log("Save successful:", result);
+      
         // Optional: Reset form state after successful save
-        // setLocalBodyData({});
+          setLocalBodyData({});
+        setDuplicateErrors({});
+        setClientDuplicateErrors({});
+         await fetchKeyplotLimit();
+        setFieldErrors({});
         clearValidationErrors();
+        
       } else {
         toast.warning("Unexpected response format from server.");
         setShowErrorModal(true);
@@ -522,31 +664,42 @@ useEffect(() => {
     });
   };
 
-  const handleAddRow = (lbId) => {
-    if (totalKeyplots >= TOTAL_REQUIRED) return;
-    setLocalBodyData((prev) => {
-      const currentRows = prev[lbId] || [];
-      const newId = Date.now();
-      const newSlNo = currentRows.length > 0 ? Math.max(...currentRows.map((r) => r.slNo)) + 1 : 1;
-      return {
-        ...prev,
-        [lbId]: [
-          ...currentRows,
-          {
-            id: newId,
-            slNo: newSlNo,
-            village: "",
-            villageBlock: "",
-            villageBlockOptions: [],
-            surveyNo: "",
-            subDivNo: "",
-            area: "",
-            landType: "Wet",
-          },
-        ],
-      };
-    });
-  };
+const handleAddRow = (lbId) => {
+  if (totalKeyplots >= remainingKeyplots) {
+    toast.warn(`Only ${remainingKeyplots} keyplots can be added for this zone`);
+    return;
+  }
+
+  setLocalBodyData((prev) => {
+    const currentRows = prev[lbId] || [];
+    const newId = Date.now();
+    const newSlNo =
+      currentRows.length > 0
+        ? Math.max(...currentRows.map((r) => r.slNo)) + 1
+        : 1;
+
+    return {
+      ...prev,
+      [lbId]: [
+        ...currentRows,
+        {
+          id: newId,
+          slNo: newSlNo,
+          lbIdSelected: lbId,
+          localBody: localBodies.find(b => b.id === lbId)?.name || '',
+          village: "",
+          villageBlock: "",
+          villageBlockOptions: [],
+          surveyNo: "",
+          subDivNo: "",
+          area: "",
+          landType: "",
+        },
+      ],
+    };
+  });
+};
+
 
   // Add this function after your existing helper functions, around line 280
 const areAllFieldsFilled = (lbId) => {
@@ -558,7 +711,7 @@ const areAllFieldsFilled = (lbId) => {
       row.village &&
       row.villageBlock &&
       row.surveyNo &&
-      row.subDivNo &&
+      // row.subDivNo &&
       row.area &&
       row.landType
     );
@@ -648,12 +801,21 @@ const areAllFieldsFilled = (lbId) => {
 
   return (
     <Grid container spacing={3}>
+    <Breadcrumb> </Breadcrumb> 
       <Box sx={{ p: 3, maxWidth: 1400, margin: "0 auto", width: "100%" }}>
         <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
           KeyPlot Entry 
           {/* (Total Required: {TOTAL_REQUIRED}) */}
         </Typography>
-        {localBodies.length > 0 && (
+        {keyplotLimit && (
+  <Alert severity="info" sx={{ mb: 2 }}>
+    Zone Limit: <b>{keyplotLimit.allowedKeyplotsLimit}</b> | 
+    Formed Count: <b>{keyplotLimit.usedKeyplotsCount}</b> | 
+    Remaining: <b>{keyplotLimit.remainingKeyplots}</b>
+  </Alert>
+)}
+
+        {/* {localBodies.length > 0 && (
   <Paper elevation={3} sx={{ mb: 2 }}>
     <Box sx={{ 
       display: 'flex', 
@@ -705,7 +867,7 @@ const areAllFieldsFilled = (lbId) => {
       </Tabs>
     </Box>
   </Paper>
-)}
+)} */}
 
 
 
@@ -757,7 +919,8 @@ const areAllFieldsFilled = (lbId) => {
                     <Table stickyHeader>
                       <TableHead>
                         <TableRow>
-                          {["Sl. No", "Village", "Village Block", "Survey No.", "Sub Div No.", "Area (Cents)", "Land Type", "Actions"].map((col) => (
+                         {["Sl. No", "Local Body", "Village", "Village Block", "Survey No.", "Sub Div No.", "Area (Cents)", "Land Type", "Actions"].map((col) => (
+
                             <TableCell key={col} align="center" sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}>
                               {col}
                             </TableCell>
@@ -785,6 +948,25 @@ const areAllFieldsFilled = (lbId) => {
                                 )}
                               </Box>
                             </TableCell>
+                            <TableCell>
+                          <TextField
+  select
+  value={row.lbIdSelected ?? lb.id}               // default to tab’s lb.id on first render
+  onChange={(e) => handleLocalBodyChange(lb.id, row.id, Number(e.target.value))}
+  fullWidth
+  error={hasFieldError(lb.id, row.id, 'localBody')}
+  helperText={getFieldError(lb.id, row.id, 'localBody')}
+  size="small"
+>
+  {localBodies.map((opt) => (
+    <MenuItem key={opt.id} value={opt.id}>
+      {opt.name}
+    </MenuItem>
+  ))}
+</TextField>
+
+                        </TableCell>
+
                             <TableCell>
                               <TextField
                                  select
@@ -878,9 +1060,10 @@ const areAllFieldsFilled = (lbId) => {
                               color="success"
                               onClick={() => handleAddRow(lb.id)}
                               disabled={
-                                totalKeyplots >= TOTAL_REQUIRED || 
-                                !areAllFieldsFilled(lb.id)
-                              }
+  totalKeyplots >= remainingKeyplots ||
+  !areAllFieldsFilled(lb.id)
+}
+
                             >
                               Add Keyplot
                             </Button>
@@ -1030,9 +1213,10 @@ const areAllFieldsFilled = (lbId) => {
           </DialogTitle>
           <DialogContent>
             <DialogContentText sx={{ textAlign: 'center', fontSize: '1.1rem' }}>
-              Error saving keyplots!
+               Save failed!
               <br />
-              Please check the form for errors and try again.
+              {mainerror ? mainerror : "Please check the form for errors and try again."}
+             
             </DialogContentText>
           </DialogContent>
           <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>

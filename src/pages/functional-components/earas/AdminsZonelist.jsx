@@ -44,44 +44,12 @@ function AdminsZonelistUI() {
   };
 
   const handleMenuItemClick = (menuItem) => {
-    console.log(`Clicked on ${menuItem} for Zone ID: ${selectedZone?.zoneId}`);
+
     // Here you would add your navigation logic
     // For example, navigate to a new page based on the selected zone ID and menu item
     handleCloseDialog();
   };
 
-  useEffect(() => {
-    const fetchZones = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(
-          `${BASE_URL}/user-access/zones/my`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        );
-
-        const result = await response.json();
-        if (!response.ok) {
-          if (result?.response === "No value present") {
-            setError("No zones are currently assigned to you.");
-          } else {
-            throw new Error(result?.message || "Failed to fetch zones");
-          }
-        } else {
-          setZoneData(result || []);
-        }
-      } catch (err) {
-        setError(err.message || "Unexpected error occurred.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchZones();
-  }, []);
 
   // Loading state
   if (loading) {
@@ -157,6 +125,7 @@ function AdminsZonelistUI() {
                   <LocationOnIcon sx={{ fontSize: 20, color: '#1a237e', mb: 1 }} />
                   <Typography variant="h6" sx={{ color: '#1a237e', mb: 1 }}>
                     {zone.zoneNameEn}
+                    Taluk : 
                   </Typography>
                 </Paper>
               </Grid>

@@ -4,11 +4,75 @@ import mainapi from 'api/mainapi';
 class ApprovedUserService {
   static USER_URL = mainapi.USER_API;
   static BTR_URL = mainapi.BTR_API;
+ 
+
+static async fetchPagedApprovedUsers(params) {
+  try {
+    const token = localStorage.getItem("token");
+    const response = await axios.get(
+      `${ApprovedUserService.USER_URL}/user-access/user-state/approved-users`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        params,
+      }
+    );
+    
+    return response.data;
+  } catch (err) {
+    return {
+      error: true,
+      message: err.response?.data?.message || "Failed to fetch approved users",
+    };
+  }
+}
+
   // Fetch IT admin approved users
   static async fetchITAdminApprovedUsers() {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/it-admin/fetch-approved-users`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      return response.data;
+    } catch (err) {
+      return {
+        message: err?.response?.data?.message || 'Failed to fetch IT admin approved users',
+        error: true
+      };
+    }
+  }
+
+static async changeEmail(data) {
+  try {
+    const token = localStorage.getItem('token');
+    
+    const response = await axios.post(
+      `${ApprovedUserService.USER_URL}/user-access/it-admin/change-email`,
+      data,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
+  } catch (err) {
+    console.error('Error changing email:', err);
+    return {
+      message: err?.response?.data?.message || 'Failed to update email',
+      success: false,
+      error: true
+    };
+  }
+}
+  // Fetch Super admin approved users
+  static async fetchSuperAdminApprovedUsers() {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/super-admin/fetch-approved-users`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -30,11 +94,29 @@ class ApprovedUserService {
           Authorization: `Bearer ${token}`
         }
       });
-      console.log(response.data);
+   
       return response.data;
     } catch (err) {
       return {
         message: err?.response?.data?.message || 'Failed to fetch district admin approved users',
+        error: true
+      };
+    }
+  }
+
+   static async fetchTalukAdminApprovedUsers() {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/tso-admin/fetch-approved-users`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+     
+      return response.data;
+    } catch (err) {
+      return {
+        message: err?.response?.data?.message || 'Failed to fetch taluk admin approved users',
         error: true
       };
     }
@@ -44,14 +126,13 @@ class ApprovedUserService {
     try {
       // const userId = '95a816d1-e16a-4fc5-8353-9be4d555bf8a';
       const token = localStorage.getItem('token');
-      console.log('userId in service:', userId);
+   
       // const userId = "44b2a345-b9c5-429f-8f66-52830f1962c8"
       const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/user-manage/fetch-by-id/${userId}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
-      console.log('response usersss', response);
       return response.data;
     } catch (err) {
       return {
@@ -86,7 +167,7 @@ class ApprovedUserService {
   static async getDesignations() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/user-registration/fetch-designations`, {
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/fetch-designations`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -119,8 +200,14 @@ class ApprovedUserService {
   }
   static async getSchemes() {
     try {
-      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/user-approval/fetch/schemes`);
-      console.log('schemes >>', response.data);
+       const token = localStorage.getItem('token');
+      const response = await axios.get(`${ApprovedUserService.USER_URL}/user-access/api/user-approval/fetch/schemes`,{
+         headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+    });
+   
       return response.data.payload; // Add fallback for different response structures
     } catch (err) {
       console.error('Error fetching schemes:', err);
@@ -136,7 +223,7 @@ class ApprovedUserService {
           'Content-Type': 'application/json'
         }
       });
-      console.log('rolesbyscheme > ', response.data);
+    
       return response.data.payload || response.data;
     } catch (err) {
       console.error('Error fetching roles by scheme:', err);
@@ -236,8 +323,14 @@ class ApprovedUserService {
   }
     static async getZonesByUserId(userId) {
     try {
-      const response = await axios.get(`${this.BTR_URL}/btr-service/btr-api/zones/assigned/${userId}`);
-      console.log("response in getZonesByUserId",response);
+       const token = localStorage.getItem('token');
+      const response = await axios.get(`${this.BTR_URL}/btr-service/btr-api/zones/assigned/${userId}`,{
+         headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+   
       return response;
     } catch (err) {
       return {
@@ -253,11 +346,11 @@ static async updateZoneAssignmentStatus(userdata) {
   try {
     const token = localStorage.getItem('token');
 
-   console.log("userdata in service",userdata)
-   alert("ooo")
+  
+
 
     const response = await axios.post(`${ApprovedUserService.BTR_URL}/btr-service/btr-api/zone-assignment/update-status`, userdata, {
-      // headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
     });
     return {
       error: false,

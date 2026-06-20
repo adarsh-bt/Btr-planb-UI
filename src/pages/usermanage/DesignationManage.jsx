@@ -6,11 +6,29 @@ import {
   TextField,
   Typography,
   IconButton,
-  Paper
+  Paper,
+  Divider,
+  CircularProgress
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
-import DesignationManageService from 'pages/authentication/services/designationmanageservice';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import ClearIcon from '@mui/icons-material/Clear';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
+import DesignationManageService from 'pages/authentication/services/designationmanageservice'; // Assuming this path is correct
 import Swal from 'sweetalert2';
+import { Switch, FormControlLabel } from '@mui/material';
+
+// Styles for the Active/Inactive chips
+const getStatusStyles = (isActive) => ({
+  fontWeight: 'bold',
+  padding: '2px 8px',
+  borderRadius: '12px',
+  fontSize: '0.75rem',
+  marginLeft: 1.5,
+  backgroundColor: isActive ? '#e8f5e9' : '#ffebee', // Light green/red background
+  color: isActive ? '#2e7d32' : '#c62828', // Dark green/red text
+});
 
 const DesignationManage = () => {
   const [designations, setDesignations] = useState([]);
@@ -19,15 +37,28 @@ const DesignationManage = () => {
   const [error, setError] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [isActive, setIsActive] = useState(true);
+
+  // --- Utility Functions ---
+
+  const clearForm = () => {
+    setDesignationName('');
+    setIsActive(true);
+    setEditMode(false);
+    setEditId(null);
+  };
+
+  // --- Data Fetching ---
 
   const fetchDesignations = async () => {
     setLoading(true);
-    const result = await DesignationManageService.getDesignations();
-    if (Array.isArray(result.payload)) {
+    setError('');
+    const result = await DesignationManageService.getDesignationsManage();
+    if (result && Array.isArray(result.payload)) {
       setDesignations(result.payload);
-      setError('');
     } else {
-      setError(result.message);
+      setError(result?.message || 'Failed to load designations.');
+      setDesignations([]);
     }
     setLoading(false);
   };
@@ -35,6 +66,64 @@ const DesignationManage = () => {
   useEffect(() => {
     fetchDesignations();
   }, []);
+
+  // --- Form Handlers ---
+
+  const handleEditClick = (designation) => {
+    setDesignationName(designation.designationName);
+    setIsActive(designation.isActive);
+    setEditMode(true);
+    setEditId(designation.id);
+    // Scroll to the top of the form for better UX
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleStatusToggle = async (id, currentStatus, designationName) => {
+    const newStatus = !currentStatus;
+
+    Swal.fire({
+      title: 'Are you sure?',
+      text: `Do you want to change the status of "${designationName}" to ${newStatus ? 'Active' : 'Inactive'}?`,
+      icon: newStatus ? 'warning' : 'info',
+      showCancelButton: true,
+      confirmButtonText: `Yes, ${newStatus ? 'Activate' : 'Deactivate'}!`,
+      cancelButtonText: 'No, keep it.',
+      reverseButtons: true,
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        // Optimistically update the list for better perceived performance
+        setDesignations((prev) =>
+          prev.map((d) => (d.id === id ? { ...d, isActive: newStatus } : d))
+        );
+
+        const userData = {
+          designationName, // This should ideally be fetched from the list or passed fully
+          isActive: newStatus,
+          id,
+        };
+
+        const updateResult = await DesignationManageService.saveOrUpdateDesignation(userData);
+
+        if (updateResult?.message) {
+          // Revert on error
+          Swal.fire('Error!', updateResult.message, 'error');
+          fetchDesignations(); // Re-fetch to ensure correctness
+        } else {
+          Swal.fire({
+            icon: 'success',
+            title: 'Updated!',
+            text: `Designation set to ${newStatus ? 'Active' : 'Inactive'}.`,
+          });
+          // The fetchDesignations will run after success if you want to ensure the list is fresh,
+          // but if you trust the optimistic update, you can skip the fetch here.
+          // For simplicity and robustness, let's re-fetch.
+          fetchDesignations(); 
+        }
+      } else {
+        // User cancelled, do nothing.
+      }
+    });
+  };
 
   const handleSaveOrUpdateDesignation = async () => {
     if (designationName.trim().length === 0) {
@@ -46,17 +135,33 @@ const DesignationManage = () => {
       return;
     }
 
-  const userData = {
+    const isConfirm = await Swal.fire({
+      title: editMode ? 'Confirm Update?' : 'Confirm Creation?',
+      text: editMode
+        ? `Are you sure you want to update "${designationName}" with status: ${isActive ? 'Active' : 'Inactive'}?`
+        : `Are you sure you want to create a new designation: "${designationName}"?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: editMode ? 'Yes, Update it!' : 'Yes, Create it!',
+      cancelButtonText: 'Cancel',
+    });
+
+    if (!isConfirm.isConfirmed) {
+      return;
+    }
+
+    const userData = {
       designationName,
-      id: editMode ? editId : null
+      isActive,
+      id: editMode ? editId : null,
     };
 
-  const result = await DesignationManageService.saveOrUpdateDesignation(userData);
-  
-  if (result?.message) {
+    const result = await DesignationManageService.saveOrUpdateDesignation(userData);
+
+    if (result?.message) {
       Swal.fire({
-        icon: 'info',
-        title: 'Info',
+        icon: 'error',
+        title: 'Operation Failed',
         text: result.message,
       });
     } else {
@@ -65,126 +170,176 @@ const DesignationManage = () => {
         title: 'Success',
         text: editMode ? 'Designation successfully updated!' : 'Designation successfully created!',
       });
-      setDesignationName('');
-      setEditMode(false);
-      setEditId(null);
+      clearForm();
       fetchDesignations();
     }
   };
 
+  // --- Component Render ---
+
   return (
-    <Box
-      sx={{
-        maxWidth: 800,
-        margin: 'auto',
-        padding: 4,
-        borderRadius: 2,
-        boxShadow: 4,
-        backgroundColor: '#fafafa',
-        mt: 4
-      }}
-    >
-      <Typography variant="h4" align="center" gutterBottom  sx={{ fontSize: '1.3rem', marginBottom: 3 }}>
-        {editMode ? 'Edit Designation' : 'Create Designation'}
-      </Typography>
+    <Box sx={{ maxWidth: 900, margin: 'auto', mt: 4, px: 2 }}>
+      
+      {/* --- Designation Form (Create/Edit) --- */}
+      <Paper elevation={6} sx={{ padding: 4, borderRadius: 2, mb: 4 }}>
+        <Typography variant="h5" align="center" gutterBottom sx={{ fontWeight: 600, color: '#1976d2' }}>
+          {editMode ? '✏️ Edit Existing Designation' : '➕ Create New Designation'}
+        </Typography>
+        <Divider sx={{ mb: 3 }} />
 
-      <Grid container spacing={2}>
-        <Grid item xs={12}>
-          <Typography variant="h6" sx={{ fontSize: '1.2rem', marginBottom: 1 }}>
-            Existing Designations:
-          </Typography>
+        <Grid container spacing={3}>
+          <Grid item xs={12} sm={8}>
+            <TextField
+              fullWidth
+              label="Designation Name"
+              placeholder="E.g., Investigator, Regional Manager"
+              variant="outlined"
+              value={designationName}
+              onChange={(e) => setDesignationName(e.target.value)}
+              inputProps={{ maxLength: 40 }}
+              required
+            />
+          </Grid>
 
-          {loading ? (
-            <Typography>Loading...</Typography>
-          ) : error ? (
-            <Typography color="error">{error}</Typography>
-          ) : designations.length > 0 ? (
-            <Box
-              sx={{
-                padding: 2,
-                borderRadius: 1,
-                backgroundColor: '#fff',
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 1,
-              }}
+          <Grid item xs={12} sm={4} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={isActive}
+                  onChange={(e) => setIsActive(e.target.checked)}
+                  color="primary"
+                />
+              }
+              label={
+                <Typography sx={{ fontWeight: 500 }}>
+                  {isActive ? 'Active' : 'Inactive'}
+                </Typography>
+              }
+            />
+          </Grid>
+
+          <Grid item xs={12}>
+            <Button
+              fullWidth
+              variant="contained"
+              color="primary"
+              onClick={handleSaveOrUpdateDesignation}
+              startIcon={editMode ? <EditIcon /> : <CheckCircleOutlineIcon />}
+              sx={{ py: 1.5, fontSize: '1rem' }}
             >
-              {designations.map((designation) => (
+              {editMode ? 'Update Designation' : 'Create Designation'}
+            </Button>
+          </Grid>
+
+          {(editMode || designationName) && (
+            <Grid item xs={12}>
+              <Button
+                fullWidth
+                variant="outlined"
+                color="secondary"
+                onClick={clearForm}
+                startIcon={<ClearIcon />}
+              >
+                {editMode ? 'Cancel Edit' : 'Clear Form'}
+              </Button>
+            </Grid>
+          )}
+        </Grid>
+      </Paper>
+
+      {/* --- Existing Designations List --- */}
+      <Paper elevation={6} sx={{ padding: 4, borderRadius: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            📚 Existing Designations ({designations.length})
+          </Typography>
+          <IconButton onClick={fetchDesignations} disabled={loading} color="primary">
+            <RefreshIcon />
+          </IconButton>
+        </Box>
+
+        <Divider sx={{ mb: 3 }} />
+
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+            <CircularProgress />
+            <Typography sx={{ ml: 2 }}>Loading designations...</Typography>
+          </Box>
+        ) : error ? (
+          <Typography color="error" align="center" sx={{ py: 3 }}>
+            Error: {error}
+          </Typography>
+        ) : designations.length > 0 ? (
+          <Grid container spacing={2}>
+            {designations.map((designation) => (
+              <Grid item xs={12} sm={6} key={designation.id}>
                 <Paper
-                  key={designation.id}
-                  elevation={1}
+                  elevation={2}
                   sx={{
                     padding: 1.5,
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     borderRadius: 1,
+                    transition: '0.3s',
+                    '&:hover': {
+                      backgroundColor: '#f5f5f5',
+                      boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                    },
                   }}
                 >
-                  <Typography sx={{ fontSize: '15px' }}>
-                    {designation.designationName}
-                  </Typography>
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    disabled={true}
-                    onClick={() => {
-                      setDesignationName(designation.designationName);
-                      setEditMode(true);
-                      setEditId(designation.id);
-                    }}
-                  >
-                    <EditIcon />
-                  </IconButton>
+                  <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, overflow: 'hidden' }}>
+                    <Typography 
+                      sx={{ 
+                        fontSize: '15px', 
+                        fontWeight: 500,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}
+                    >
+                      {designation.designationName}
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
+                    {/* Status Chip */}
+                    <Typography variant="caption" sx={getStatusStyles(designation.isActive)}>
+                      {designation.isActive ? 'ACTIVE' : 'INACTIVE'}
+                    </Typography>
+
+                    {/* Quick Status Toggle */}
+                    <IconButton
+                      size="small"
+                      color={designation.isActive ? 'error' : 'success'}
+                      onClick={() => handleStatusToggle(designation.id, designation.isActive, designation.designationName)}
+                      sx={{ ml: 0.5 }}
+                      title={`Toggle to ${designation.isActive ? 'Inactive' : 'Active'}`}
+                    >
+                      {designation.isActive ? <CancelOutlinedIcon fontSize="small" /> : <CheckCircleOutlineIcon fontSize="small" />}
+                    </IconButton>
+
+                    {/* Edit Button */}
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      onClick={() => handleEditClick(designation)}
+                      title="Edit Designation"
+                    >
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
                 </Paper>
-              ))}
-            </Box>
-          ) : (
-            <Typography>No Designations available</Typography>
-          )}
-        </Grid>
-
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Designation Name"
-            placeholder="Eg: Investigator, Taluk Admin"
-            variant="outlined"
-            value={designationName}
-            onChange={(e) => setDesignationName(e.target.value)}
-          />
-        </Grid>
-
-        <Grid item xs={12}>
-          <Button
-            fullWidth
-            variant="contained"
-            color="primary"
-            onClick={handleSaveOrUpdateDesignation}
-          >
-            {editMode ? 'Update Designation' : 'Create Designation'}
-          </Button>
-        </Grid>
-
-        {editMode && (
-          <Grid item xs={12}>
-            <Button
-              fullWidth
-              variant="outlined"
-              color="secondary"
-              onClick={() => {
-                setDesignationName('');
-                setEditMode(false);
-                setEditId(null);
-              }}
-            >
-              Cancel Edit
-            </Button>
+              </Grid>
+            ))}
           </Grid>
+        ) : (
+          <Typography align="center" color="textSecondary" sx={{ py: 3 }}>
+            No designations available. Create one above!
+          </Typography>
         )}
-      </Grid>
+      </Paper>
     </Box>
-
   );
 };
 
