@@ -1088,6 +1088,7 @@ const proceedSubmit = async (mode) => {
           addedBy: authservice.userid(),
           rejectedBy: null,
           rejectedAt: null,
+          agriYear:authservice.agriyear(),
           assignedOn: new Date().toISOString().slice(0, 19)
         };
       });

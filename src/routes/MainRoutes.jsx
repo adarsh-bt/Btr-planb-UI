@@ -82,6 +82,9 @@ const ClusterManualEntry = Loadable(lazy(() => import('pages/functional-componen
 const ClusterManualEntryNonBtr = Loadable(lazy(() => import('pages/functional-components/earas/ClusterManualEntryNonBtr')));
 
 const CceView = Loadable(lazy(() => import('pages/functional-components/earas/cce/cceview')));
+
+const Excel = Loadable(lazy(() => import('pages/functional-components/earas/form1/ExcelView')));
+
 const CceReport = Loadable(lazy(() => import('pages/functional-components/earas/cce/CceReport')));
 
 const UserAdvancedTourDiarySubmissions = Loadable(lazy(() => import('pages/dashboard/UserAdvancedTourDiarySubmissions')));
@@ -662,6 +665,7 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <CceView />
+          {/* <Excel /> */}
         </PrivateRoute>
       )
     },

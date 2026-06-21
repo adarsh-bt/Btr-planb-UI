@@ -1,7 +1,7 @@
 import api from 'api/api'; // ✅ IMPORTANT
 import mainapi from 'api/mainapi';
 
-const USER_URL = mainapi.USER_API;
+const USER_URL = mainapi.BASE_URL;
 
 const profileService = {
 

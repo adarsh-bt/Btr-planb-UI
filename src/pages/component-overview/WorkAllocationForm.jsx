@@ -300,6 +300,7 @@ document.head.appendChild(styleTag);
     try {
       const res = await api.get(`${BASE_URL}/btr-service/btr-api/work-allocation-view/${resolvedZoneId}/${agriYear}`);
       const apiData = res.data;
+      console.log("data ",apiData)
       if (apiData) {
         const allocations = apiData.payload || (Array.isArray(apiData) ? apiData : []);
         setWorkAllocationData(allocations);
@@ -516,25 +517,25 @@ const handleConfirmSubmit = async () => {
       const rowsToSave = data.map((row) => ({
         zoneId: resolvedZoneId,
         lbcode: row.lbcode || "LB-2025-001",
-        villageWetArea: parseFloat(row.Wet_area) || 0,
-        villageDryArea: parseFloat(row.Dry_area) || 0,
-        villageTotalArea: parseFloat(row.Total_area) || 0,
-        forestAreaA: parseFloat(row.forest_a) || 0,
-        forestAreaB: parseFloat(row.forest_b) || 0,
-        forestAreaC: parseFloat(row.forest_c) || 0,
-        areaUnderPlant: parseFloat(row.area_under) || 0,
-        forestExcludeUnclutivate: parseFloat(row.plantation_under) || 0,
-        forestExcludeNotUnclutivate: parseFloat(row.plantation_not_under) || 0,
-        kayalExcludeArea: parseFloat(row.kayal_excluded) || 0,
-        otherExcludeFWet: parseFloat(row.others_dry_13) || 0,
-        otherExcludedFDry: parseFloat(row.others_wet_14) || 0,
-        otherExcludeFTotal: parseFloat(row.others_total) || 0,
-        noOfPlotsWet: parseFloat(row.plots_wet_17) || 0,
-        noOfPlotsDry: parseFloat(row.plots_dry_16) || 0,
-        noOfPlotsTotal: parseFloat(row.plots_total) || 0,
-        totalAreaWet: parseFloat(row.total_area_wet_19) || 0,
-        totalAreaDry: parseFloat(row.total_area_dry_21) || 0,
-        totalAreaForEstimation: parseFloat(row.total_area_total_20) || 0,
+        villageWetArea: parseFloat(row.Wet_area),
+        villageDryArea: parseFloat(row.Dry_area),
+        villageTotalArea: parseFloat(row.Total_area) ,
+        forestAreaA: parseFloat(row.forest_a) ,
+        forestAreaB: parseFloat(row.forest_b) ,
+        forestAreaC: parseFloat(row.forest_c) ,
+        areaUnderPlant: parseFloat(row.area_under) ,
+        forestExcludeUnclutivate: parseFloat(row.plantation_under) ,
+        forestExcludeNotUnclutivate: parseFloat(row.plantation_not_under) ,
+        kayalExcludeArea: parseFloat(row.kayal_excluded) ,
+        otherExcludeFWet: parseFloat(row.others_dry_13) ,
+        otherExcludedFDry: parseFloat(row.others_wet_14) ,
+        otherExcludeFTotal: parseFloat(row.others_total) ,
+        noOfPlotsWet: parseFloat(row.plots_wet_17) ,
+        noOfPlotsDry: parseFloat(row.plots_dry_16) ,
+        noOfPlotsTotal: parseFloat(row.plots_total) ,
+        totalAreaWet: parseFloat(row.total_area_wet_19) ,
+        totalAreaDry: parseFloat(row.total_area_dry_21) ,
+        totalAreaForEstimation: parseFloat(row.total_area_total_20),
         remarks: row.remarks || "",
         userId: user_id,
         agriYear: authservice.agriyear(),
