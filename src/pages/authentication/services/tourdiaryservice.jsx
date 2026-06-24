@@ -475,7 +475,7 @@ async getFullYearView(userId, year) {
   
   try {
     const response = await axios.get(
-      `${this.DIARY_URL}/tour-diary/api/purposes/admin/full-year-view`,
+      `${BASE_URL}/tour-diary/api/purposes/admin/full-year-view`,
       {
         params: { userId, year },
         headers: {
@@ -496,7 +496,7 @@ async approveFullMonth(fullMonthId, adminId, adminRemark, adminStatus) {
   
   try {
     const response = await axios.post(
-      `${this.DIARY_URL}/tour-diary/api/purposes/admin/full-month-submit`,
+      `${BASE_URL}/tour-diary/api/purposes/admin/full-month-submit`,
       {
         id: fullMonthId,
         adminId: adminId,
@@ -514,6 +514,34 @@ async approveFullMonth(fullMonthId, adminId, adminRemark, adminStatus) {
   } catch (error) {
     console.error("Error approving month:", error);
     return { error: true, message: error.response?.data?.message || error.message };
+  }
+},
+
+async getSubmissionView(userId, year) {
+  const token = localStorage.getItem('token');
+
+  try {
+    const response = await axios.get(
+      `${BASE_URL}/tour-diary/api/purposes/admin/submission-view`,
+      {
+        params: {
+          userId: userId,
+          year: year
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching submission view:", error);
+    return {
+      error: true,
+      message: error.response?.data?.message || error.message
+    };
   }
 }
 

@@ -94,6 +94,9 @@ const TourDiary = () => {
     const [notification, setNotification] = useState({ open: false, type: 'success', message: '' });
     const [deleteDialog, setDeleteDialog] = useState({ open: false, eventId: null });
 
+    const [submissionView, setSubmissionView] = useState(null);
+    const [submissionViewLoading, setSubmissionViewLoading] = useState(false);
+
     const [viewModalOpen, setViewModalOpen] = useState(false);
     const [viewEvent, setViewEvent] = useState(null);
 
@@ -106,6 +109,12 @@ const TourDiary = () => {
         { value: 'TRAINING', label: 'Training' },
         { value: 'OTHER', label: 'Others' },
     ];
+
+    const agriYear = localStorage.getItem("agriYear");
+    const [startYear, endYear] = agriYear.split('-').map(Number);
+
+    const minDate = new Date(startYear, 6, 1); // July start year
+    const maxDate = new Date(endYear, 5, 30);  // June end year
 
     // ============================ HELPER FUNCTIONS ============================
     const isSunday = (year, month, day) => new Date(year, month, day).getDay() === 0;
@@ -336,6 +345,31 @@ const getUsedPurposesForEventDate = (event) => {
         }
     };
 
+    const fetchSubmissionView = async () => {
+    const userId = authservice.userid();
+    if (!userId) return;
+    const year = currentDate.getFullYear();
+    setSubmissionViewLoading(true);
+    try {
+        const response = await tourDiaryService.getSubmissionView(userId, year);
+        console.log("Submission View API Response:", response);
+        if (Array.isArray(response)) {
+            const currentMonth = currentDate.getMonth() + 1;
+            const monthData = response.find(item => item.month === currentMonth);
+            console.log("Current Month Data:", monthData);
+            setSubmissionView(monthData || null);
+        }
+    } catch (error) {
+        setSubmissionView(null);
+    } finally {
+        setSubmissionViewLoading(false);
+    }
+};
+
+useEffect(() => {
+    fetchSubmissionView();
+}, [currentDate.getFullYear(), currentDate.getMonth()]);
+
     // ============================ EFFECTS ============================
     useEffect(() => {
         fetchAssignedZones();
@@ -457,6 +491,7 @@ const getUsedPurposesForEventDate = (event) => {
                 }
 
                     await fetchActiveHalves();
+                    await fetchSubmissionView();
                     await fetchTourData();
                 } else {
                     showNotification('error', response);
@@ -480,8 +515,10 @@ const getUsedPurposesForEventDate = (event) => {
     const changeMonth = (offset) => {
         const newDate = new Date(currentDate);
         newDate.setMonth(currentDate.getMonth() + offset);
+        if (newDate >= minDate && newDate <= maxDate) {
         setCurrentDate(newDate);
-    };
+    }
+};
 
     // Open modal for a given date key (add mode)
     const openAddModal = (dateKey) => {
@@ -967,28 +1004,73 @@ const getUsedPurposesForEventDate = (event) => {
                                 </Button>
 
                                 <Paper
-                                    elevation={2}
+                                elevation={2}
+                                sx={{
+                                    p: 1.5,
+                                    minWidth: '280px',
+                                    backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : '#f8f9fa',
+                                    border: `1px solid ${theme.palette.divider}`,
+                                    borderRadius: 2
+                                }}
+                            >
+                                {submissionViewLoading ? (
+                                    <Typography variant="body2" color="text.secondary" align="center">Loading...</Typography>
+                                ) : (
+                                    <Box>
+                                        {/* First Half */}
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
+                                <Box
                                     sx={{
-                                        p: 1.5,
-                                        minWidth: '240px',
-                                        backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : '#f8f9fa',
-                                        border: `1px solid ${theme.palette.divider}`,
-                                        borderRadius: 2
+                                        width: 8,
+                                        height: 8,
+                                        borderRadius: '50%',
+                                        backgroundColor: submissionView?.firstHalfSubmitted ? '#27ae60' : '#bdbdbd',
+                                        flexShrink: 0
                                     }}
-                                >
-                                    {halvesLoading ? (
-                                        <Typography variant="body2" color="text.secondary" align="center">Loading...</Typography>
-                                    ) : (
-                                        <Box>
-                                            <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
-                                                First Half submit on {getPreviousMonth()} {activeHalves.firstHalf}
-                                            </Typography>
-                                            <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
-                                                Second Half submit on {currentDate.toLocaleString('default', { month: 'long' })} {activeHalves.secondHalf}
-                                            </Typography>
-                                        </Box>
-                                    )}
-                                </Paper>
+                                />
+                                <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
+                                    {submissionView?.firstHalfSubmitted
+                                        ? `First Half submitted on ${new Date(
+                                            submissionView.firstHalfSubmittedDate
+                                        ).toLocaleString('en-US', {
+                                            month: 'short',
+                                            day: 'numeric',
+                                            hour: 'numeric',
+                                            minute: '2-digit',
+                                            hour12: true
+                                        })}`
+                                        : 'First Half not submitted'}
+                                </Typography>
+                            </Box>
+
+                            {/* Second Half */}
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                <Box
+                                    sx={{
+                                        width: 8,
+                                        height: 8,
+                                        borderRadius: '50%',
+                                        backgroundColor: submissionView?.secondHalfSubmitted ? '#27ae60' : '#bdbdbd',
+                                        flexShrink: 0
+                                    }}
+                                />
+                                <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
+                                    {submissionView?.secondHalfSubmitted
+                                        ? `Second Half submitted on ${new Date(
+                                            submissionView.secondHalfSubmittedDate
+                                        ).toLocaleString('en-US', {
+                                            month: 'short',
+                                            day: 'numeric',
+                                            hour: 'numeric',
+                                            minute: '2-digit',
+                                            hour12: true
+                                        })}`
+                                        : 'Second Half not submitted'}
+                                </Typography>
+                            </Box>
+                                    </Box>
+                                )}
+                            </Paper>
                             </Box>
 
                             <Typography
@@ -1019,26 +1101,85 @@ const getUsedPurposesForEventDate = (event) => {
                                         {/* Menu items remain the same */}
                                         <MenuItem
                                             onClick={() => handleSubmitHalf('First Half')}
-                                            disabled={submissionStatus.firstHalf?.isSubmitted}
-                                            sx={{ opacity: submissionStatus.firstHalf?.isSubmitted ? 0.9 : 1, backgroundColor: submissionStatus.firstHalf?.isSubmitted ? theme.palette.action.hover : 'transparent' }}
+                                            disabled={submissionView?.firstHalfSubmitted}
                                         >
-                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                            <Box
+                                                sx={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    width: '100%'
+                                                }}
+                                            >
                                                 <span>First Half</span>
-                                                {submissionStatus.firstHalf?.isSubmitted && (
-                                                    <Chip label={`Submitted ${new Date(submissionStatus.firstHalf.submittedAt).toLocaleDateString()}`} size="small" sx={{ ml: 1, backgroundColor: '#4caf50', color: 'white', height: '24px', '& .MuiChip-label': { fontSize: '0.7rem', px: 1 } }} />
-                                                )}
+
+                                                {submissionView?.firstHalfSubmitted &&
+                                                    submissionView?.firstHalfSubmittedDate && (
+                                                        <Chip
+                                                            size="small"
+                                                            label={`Submitted ${new Date(
+                                                                submissionView.firstHalfSubmittedDate
+                                                            ).toLocaleString('en-US', {
+                                                                month: 'short',
+                                                                day: 'numeric',
+                                                                hour: 'numeric',
+                                                                minute: '2-digit',
+                                                                hour12: true
+                                                            })}`}
+                                                            sx={{
+                                                                ml: 1,
+                                                                backgroundColor: '#4caf50',
+                                                                color: 'white',
+                                                                height: '24px',
+                                                                '& .MuiChip-label': {
+                                                                    fontSize: '0.7rem',
+                                                                    px: 1
+                                                                }
+                                                            }}
+                                                        />
+                                                    )}
                                             </Box>
                                         </MenuItem>
+
                                         <MenuItem
                                             onClick={() => handleSubmitHalf('Second Half')}
-                                            disabled={submissionStatus.secondHalf?.isSubmitted}
-                                            sx={{ opacity: submissionStatus.secondHalf?.isSubmitted ? 0.9 : 1, backgroundColor: submissionStatus.secondHalf?.isSubmitted ? theme.palette.action.hover : 'transparent' }}
+                                            disabled={submissionView?.secondHalfSubmitted}
                                         >
-                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                            <Box
+                                                sx={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    width: '100%'
+                                                }}
+                                            >
                                                 <span>Second Half</span>
-                                                {submissionStatus.secondHalf?.isSubmitted && (
-                                                    <Chip label={`Submitted ${new Date(submissionStatus.secondHalf.submittedAt).toLocaleDateString()}`} size="small" sx={{ ml: 1, backgroundColor: '#4caf50', color: 'white', height: '24px', '& .MuiChip-label': { fontSize: '0.7rem', px: 1 } }} />
-                                                )}
+
+                                                {submissionView?.secondHalfSubmitted &&
+                                                    submissionView?.secondHalfSubmittedDate && (
+                                                        <Chip
+                                                            size="small"
+                                                            label={`Submitted ${new Date(
+                                                                submissionView.secondHalfSubmittedDate
+                                                            ).toLocaleString('en-US', {
+                                                                month: 'short',
+                                                                day: 'numeric',
+                                                                hour: 'numeric',
+                                                                minute: '2-digit',
+                                                                hour12: true
+                                                            })}`}
+                                                            sx={{
+                                                                ml: 1,
+                                                                backgroundColor: '#4caf50',
+                                                                color: 'white',
+                                                                height: '24px',
+                                                                '& .MuiChip-label': {
+                                                                    fontSize: '0.7rem',
+                                                                    px: 1
+                                                                }
+                                                            }}
+                                                        />
+                                                    )}
                                             </Box>
                                         </MenuItem>
                                     </Menu>
