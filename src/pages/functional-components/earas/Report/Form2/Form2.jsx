@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   Card,
   CardContent,
-  Grid,
   Box,
   Typography,
   useTheme,
@@ -16,118 +15,76 @@ import {
   TableRow,
   Tabs,
   Tab,
-  Chip
+  Chip,
+  Stack
 } from '@mui/material';
 import {
   LocationOn,
   WaterDrop,
-  Agriculture
+  Agriculture,
+  ArrowBack
 } from '@mui/icons-material';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const Form2 = () => {
   const theme = useTheme();
   const themeColor = "#05307a";
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Get navigation state from ZoneForm2
+  const selectedDistrict = location.state?.districtName || location.state?.selectedDistrict || "Kannur";
+  const selectedTaluk = location.state?.talukName || location.state?.selectedTaluk || "Taliparamba";
+  const selectedZone = location.state?.zoneName || "North Zone";
+  const initialTab = location.state?.activeTab || 0;
 
   // Tab state
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState(initialTab);
 
-  // Location data - one row with values
+  // Location data - dynamically updated from navigation state
   const locationData = {
-    district: "Kannur",
-    taluk: "Taliparamba",
-    block: "Taliparamba",
-    panchayath: "Taliparamba",
-    zone: "North Zone"
+    district: selectedDistrict,
+    taluk: selectedTaluk,
+    block: selectedTaluk, // Using taluk as block for demo
+    panchayath: selectedTaluk, // Using taluk as panchayath for demo
+    zone: selectedZone
   };
 
-  // Land Utilization data
-  const landUtilizationData = [
-    {
-      cluster: "1",
-      landType: "Wet",
-      buildingCourtyard: 0.00,
-      otherNonAgri: 2.00,
-      barrenUncultivable: 42.00,
-      miscTreeCrops: 0.00,
-      permanentPastures: 0.00,
-      cultivableWaste: 0.00,
-      otherFallow: 0.00,
-      currentFallow: 0.00,
-      socialForestry: 0.00,
-      waterLogged: 0.00,
-      stillWater: 0.00,
-      marshyLand: 0.00,
-      netAreaSown: 267.00
-    },
-    {
-      cluster: "2",
-      landType: "Dry",
-      buildingCourtyard: 0.00,
-      otherNonAgri: 2.00,
-      barrenUncultivable: 3.00,
-      miscTreeCrops: 0.00,
-      permanentPastures: 0.00,
-      cultivableWaste: 0.00,
-      otherFallow: 0.00,
-      currentFallow: 0.00,
-      socialForestry: 0.00,
-      waterLogged: 0.00,
-      stillWater: 0.00,
-      marshyLand: 0.00,
-      netAreaSown: 181.00
-    },
-    {
-      cluster: "3",
-      landType: "Dry",
-      buildingCourtyard: 0.00,
-      otherNonAgri: 0.00,
-      barrenUncultivable: 0.00,
-      miscTreeCrops: 0.00,
-      permanentPastures: 0.00,
-      cultivableWaste: 0.00,
-      otherFallow: 0.00,
-      currentFallow: 0.00,
-      socialForestry: 0.00,
-      waterLogged: 0.00,
-      stillWater: 0.00,
-      marshyLand: 0.00,
-      netAreaSown: 232.00
-    },
-    {
-      cluster: "4",
-      landType: "Dry",
-      buildingCourtyard: 0.00,
-      otherNonAgri: 0.00,
-      barrenUncultivable: 0.00,
-      miscTreeCrops: 0.00,
-      permanentPastures: 0.00,
-      cultivableWaste: 0.00,
-      otherFallow: 0.00,
-      currentFallow: 0.00,
-      socialForestry: 0.00,
-      waterLogged: 0.00,
-      stillWater: 0.00,
-      marshyLand: 0.00,
-      netAreaSown: 95.00
-    },
-    {
-      cluster: "5",
-      landType: "Dry",
-      buildingCourtyard: 0.00,
-      otherNonAgri: 16.00,
-      barrenUncultivable: 20.00,
-      miscTreeCrops: 0.00,
-      permanentPastures: 0.00,
-      cultivableWaste: 0.00,
-      otherFallow: 0.00,
-      currentFallow: 0.00,
-      socialForestry: 0.00,
-      waterLogged: 0.00,
-      stillWater: 0.00,
-      marshyLand: 0.00,
-      netAreaSown: 93.00
-    }
-  ];
+  // Land Utilization data - filtered by zone (demo data for different zones)
+  const getLandUtilizationData = () => {
+    const zoneDataMap = {
+      "North Zone": [
+        { cluster: "1", landType: "Wet", buildingCourtyard: 12.50, otherNonAgri: 8.30, barrenUncultivable: 42.20, miscTreeCrops: 7.40, permanentPastures: 3.60, cultivableWaste: 2.10, otherFallow: 1.20, currentFallow: 1.80, socialForestry: 5.70, waterLogged: 4.20, stillWater: 22.80, marshyLand: 1.10, netAreaSown: 267.00 },
+        { cluster: "2", landType: "Dry", buildingCourtyard: 10.80, otherNonAgri: 7.20, barrenUncultivable: 38.50, miscTreeCrops: 6.80, permanentPastures: 3.20, cultivableWaste: 1.90, otherFallow: 1.00, currentFallow: 1.60, socialForestry: 5.20, waterLogged: 3.80, stillWater: 20.40, marshyLand: 1.00, netAreaSown: 242.00 },
+        { cluster: "3", landType: "Dry", buildingCourtyard: 11.20, otherNonAgri: 7.80, barrenUncultivable: 40.10, miscTreeCrops: 7.10, permanentPastures: 3.40, cultivableWaste: 2.00, otherFallow: 1.10, currentFallow: 1.70, socialForestry: 5.50, waterLogged: 4.00, stillWater: 21.60, marshyLand: 1.05, netAreaSown: 258.00 },
+      ],
+      "South Zone": [
+        { cluster: "1", landType: "Wet", buildingCourtyard: 8.40, otherNonAgri: 5.60, barrenUncultivable: 35.20, miscTreeCrops: 6.20, permanentPastures: 2.80, cultivableWaste: 1.70, otherFallow: 0.90, currentFallow: 1.40, socialForestry: 4.80, waterLogged: 3.20, stillWater: 18.40, marshyLand: 0.90, netAreaSown: 195.00 },
+        { cluster: "2", landType: "Dry", buildingCourtyard: 7.80, otherNonAgri: 5.20, barrenUncultivable: 32.80, miscTreeCrops: 5.80, permanentPastures: 2.60, cultivableWaste: 1.50, otherFallow: 0.80, currentFallow: 1.30, socialForestry: 4.50, waterLogged: 2.90, stillWater: 17.20, marshyLand: 0.85, netAreaSown: 182.00 },
+      ],
+      "East Zone": [
+        { cluster: "1", landType: "Dry", buildingCourtyard: 9.60, otherNonAgri: 6.40, barrenUncultivable: 38.50, miscTreeCrops: 6.80, permanentPastures: 3.10, cultivableWaste: 1.80, otherFallow: 1.00, currentFallow: 1.50, socialForestry: 5.00, waterLogged: 3.50, stillWater: 19.80, marshyLand: 0.95, netAreaSown: 210.00 },
+        { cluster: "2", landType: "Wet", buildingCourtyard: 8.90, otherNonAgri: 5.90, barrenUncultivable: 35.60, miscTreeCrops: 6.30, permanentPastures: 2.90, cultivableWaste: 1.70, otherFallow: 0.90, currentFallow: 1.40, socialForestry: 4.70, waterLogged: 3.20, stillWater: 18.20, marshyLand: 0.88, netAreaSown: 198.00 },
+        { cluster: "3", landType: "Dry", buildingCourtyard: 15.20, otherNonAgri: 10.80, barrenUncultivable: 28.50, miscTreeCrops: 5.20, permanentPastures: 2.40, cultivableWaste: 1.40, otherFallow: 0.80, currentFallow: 1.20, socialForestry: 4.00, waterLogged: 2.80, stillWater: 15.60, marshyLand: 0.75, netAreaSown: 165.00 },
+      ],
+      "Iritty Central": [
+        { cluster: "1", landType: "Dry", buildingCourtyard: 13.80, otherNonAgri: 9.60, barrenUncultivable: 25.80, miscTreeCrops: 4.80, permanentPastures: 2.20, cultivableWaste: 1.30, otherFallow: 0.70, currentFallow: 1.10, socialForestry: 3.80, waterLogged: 2.60, stillWater: 14.20, marshyLand: 0.70, netAreaSown: 152.00 },
+        { cluster: "2", landType: "Wet", buildingCourtyard: 25.40, otherNonAgri: 18.20, barrenUncultivable: 45.80, miscTreeCrops: 8.50, permanentPastures: 4.20, cultivableWaste: 2.80, otherFallow: 1.50, currentFallow: 2.20, socialForestry: 6.50, waterLogged: 5.20, stillWater: 28.40, marshyLand: 1.30, netAreaSown: 285.00 },
+      ],
+      "Iritty West": [
+        { cluster: "1", landType: "Dry", buildingCourtyard: 18.50, otherNonAgri: 12.80, barrenUncultivable: 35.80, miscTreeCrops: 7.20, permanentPastures: 3.40, cultivableWaste: 2.20, otherFallow: 1.10, currentFallow: 1.60, socialForestry: 5.20, waterLogged: 4.20, stillWater: 22.50, marshyLand: 1.00, netAreaSown: 245.00 },
+        { cluster: "2", landType: "Dry", buildingCourtyard: 15.20, otherNonAgri: 10.40, barrenUncultivable: 30.80, miscTreeCrops: 6.20, permanentPastures: 2.90, cultivableWaste: 1.90, otherFallow: 0.90, currentFallow: 1.40, socialForestry: 4.50, waterLogged: 3.50, stillWater: 19.80, marshyLand: 0.85, netAreaSown: 205.00 },
+      ],
+      "Payyannur North": [
+        { cluster: "1", landType: "Wet", buildingCourtyard: 22.40, otherNonAgri: 15.60, barrenUncultivable: 42.50, miscTreeCrops: 8.40, permanentPastures: 3.80, cultivableWaste: 2.40, otherFallow: 1.30, currentFallow: 1.90, socialForestry: 6.20, waterLogged: 4.80, stillWater: 25.60, marshyLand: 1.20, netAreaSown: 278.00 },
+        { cluster: "2", landType: "Dry", buildingCourtyard: 19.80, otherNonAgri: 13.20, barrenUncultivable: 38.20, miscTreeCrops: 7.40, permanentPastures: 3.40, cultivableWaste: 2.10, otherFallow: 1.10, currentFallow: 1.70, socialForestry: 5.60, waterLogged: 4.20, stillWater: 22.80, marshyLand: 1.05, netAreaSown: 248.00 },
+      ],
+    };
+    
+    return zoneDataMap[selectedZone] || zoneDataMap["North Zone"];
+  };
+
+  const landUtilizationData = getLandUtilizationData();
 
   // Calculate totals for Land Utilization
   const landUtilizationTotals = landUtilizationData.reduce((acc, row) => {
@@ -161,37 +118,47 @@ const Form2 = () => {
     netAreaSown: 0
   });
 
-  // Irrigation Details data
-  const irrigationDetailsData = [
-    {
-      clusterLabel: 1,
-      sourceType: "Tube well",
-      irrigatedArea: 7.00,
-      sourceCount: 1
-    },
-    {
-      clusterLabel: 2,
-      sourceType: "Government tanks",
-      irrigatedArea: 10.00,
-      sourceCount: "--"
-    },
-    {
-      clusterLabel: 3,
-      sourceType: "Private wells",
-      irrigatedArea: 120.00,
-      sourceCount: 1
-    },
-    {
-      clusterLabel: 4,
-      sourceType: "Private tanks",
-      irrigatedArea: 175.00,
-      sourceCount: 1
-    }
-  ];
+  // Irrigation Details data by zone
+  const getIrrigationData = () => {
+    const irrigationMap = {
+      "North Zone": [
+        { clusterLabel: 1, sourceType: "Tube well", irrigatedArea: 15.50, sourceCount: 3 },
+        { clusterLabel: 1, sourceType: "Private wells", irrigatedArea: 28.80, sourceCount: 10 },
+        { clusterLabel: 2, sourceType: "Tube well", irrigatedArea: 12.80, sourceCount: 2 },
+        { clusterLabel: 2, sourceType: "Private wells", irrigatedArea: 22.40, sourceCount: 8 },
+        { clusterLabel: 3, sourceType: "Private wells", irrigatedArea: 25.60, sourceCount: 9 },
+      ],
+      "South Zone": [
+        { clusterLabel: 1, sourceType: "Private wells", irrigatedArea: 18.50, sourceCount: 6 },
+        { clusterLabel: 1, sourceType: "Tube well", irrigatedArea: 6.80, sourceCount: 1 },
+        { clusterLabel: 2, sourceType: "Private wells", irrigatedArea: 15.80, sourceCount: 5 },
+      ],
+      "East Zone": [
+        { clusterLabel: 1, sourceType: "Government tanks", irrigatedArea: 12.30, sourceCount: 1 },
+        { clusterLabel: 1, sourceType: "Private wells", irrigatedArea: 24.50, sourceCount: 8 },
+        { clusterLabel: 2, sourceType: "Private wells", irrigatedArea: 19.80, sourceCount: 7 },
+        { clusterLabel: 3, sourceType: "Private wells", irrigatedArea: 32.40, sourceCount: 12 },
+      ],
+      "Iritty Central": [
+        { clusterLabel: 1, sourceType: "Private wells", irrigatedArea: 28.60, sourceCount: 10 },
+        { clusterLabel: 1, sourceType: "Tube well", irrigatedArea: 8.90, sourceCount: 2 },
+        { clusterLabel: 2, sourceType: "Private wells", irrigatedArea: 45.80, sourceCount: 18 },
+      ],
+      "Iritty West": [
+        { clusterLabel: 1, sourceType: "Private wells", irrigatedArea: 25.40, sourceCount: 9 },
+        { clusterLabel: 1, sourceType: "Government tanks", irrigatedArea: 8.20, sourceCount: 1 },
+        { clusterLabel: 2, sourceType: "Private wells", irrigatedArea: 35.60, sourceCount: 14 },
+      ],
+    };
+    return irrigationMap[selectedZone] || irrigationMap["North Zone"];
+  };
 
-  // Land Utilization column headers - EXACTLY as specified
+  const irrigationDetailsData = getIrrigationData();
+
+  // Land Utilization column headers
   const landUtilizationColumns = [
     { id: 'cluster', label: 'Cluster No', minWidth: 80 },
+    { id: 'panchayath', label: 'Panchayath', minWidth: 130 },
     { id: 'landType', label: 'Land Type', minWidth: 100 },
     { id: 'buildingCourtyard', label: 'Building and Courtyard', minWidth: 160 },
     { id: 'otherNonAgri', label: 'Other Non-Agricultural Uses', minWidth: 190 },
@@ -208,21 +175,25 @@ const Form2 = () => {
     { id: 'netAreaSown', label: 'Net areas sown', minWidth: 130 }
   ];
 
-  // Irrigation Details column headers
-  const irrigationColumns = [
-    { id: 'clusterLabel', label: 'Cluster No', minWidth: 120 },
-    { id: 'sourceType', label: 'Source Type', minWidth: 160 },
-    { id: 'irrigatedArea', label: 'Irrigated Area (Ha)', minWidth: 140 },
-    { id: 'sourceCount', label: 'Source Count', minWidth: 120 }
-  ];
-
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
   };
 
-  // Helper to format numbers
+  const handleBack = () => {
+    navigate(-1);
+  };
+
   const formatNumber = (num) => {
     return num.toFixed(2);
+  };
+
+  // Panchayath names for clusters
+  const panchayathNames = {
+    1: "Taliparamba North",
+    2: "Taliparamba South",
+    3: "Muzhappilangad",
+    4: "Peralasseri",
+    5: "Pattuvam"
   };
 
   return (
@@ -237,6 +208,31 @@ const Form2 = () => {
     >
       <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
 
+        {/* Header with Back Button */}
+        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box 
+            onClick={handleBack}
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 0.5, 
+              cursor: 'pointer',
+              color: themeColor,
+              '&:hover': { opacity: 0.7 }
+            }}
+          >
+            <ArrowBack />
+            <Typography variant="body2">Back</Typography>
+          </Box>
+          <LocationOn sx={{ fontSize: 32, color: themeColor }} />
+          <Typography variant="h5" sx={{ fontWeight: 'bold', color: themeColor }}>
+            {selectedZone} - Cluster wise Land Utilization & Irrigation Report
+          </Typography>
+          <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
+            {selectedTaluk} Taluk, {selectedDistrict} District
+          </Typography>
+        </Box>
+
         {/* Location Table */}
         <Paper
           elevation={2}
@@ -247,14 +243,6 @@ const Form2 = () => {
             border: `1px solid ${alpha(themeColor, 0.1)}`,
           }}
         >
-          <Box
-            sx={{
-              backgroundColor: themeColor,
-              px: 2,
-              py: 0.2,
-            }}
-          >
-          </Box>
           <TableContainer>
             <Table>
               <TableHead>
@@ -343,7 +331,6 @@ const Form2 = () => {
             border: `1px solid ${alpha(themeColor, 0.1)}`,
           }}
         >
-          {/* Tabs Header */}
           <Tabs
             value={activeTab}
             onChange={handleTabChange}
@@ -419,6 +406,18 @@ const Form2 = () => {
                         </TableCell>
                         <TableCell>
                           <Chip
+                            label={panchayathNames[row.cluster] || "Taliparamba"}
+                            size="small"
+                            sx={{
+                              backgroundColor: alpha(themeColor, 0.1),
+                              color: themeColor,
+                              fontWeight: 500,
+                              borderRadius: 1.5
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Chip
                             label={row.landType}
                             size="small"
                             sx={{
@@ -454,6 +453,7 @@ const Form2 = () => {
                       <TableCell sx={{ fontWeight: 700, color: themeColor }}>
                         <strong>TOTAL</strong>
                       </TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}></TableCell>
                       <TableCell sx={{ fontWeight: 700 }}></TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>{formatNumber(landUtilizationTotals.buildingCourtyard)}</TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>{formatNumber(landUtilizationTotals.otherNonAgri)}</TableCell>
@@ -497,6 +497,22 @@ const Form2 = () => {
                         }}
                       >
                         Cluster No
+                      </TableCell>
+                      <TableCell
+                        rowSpan={3}
+                        align="center"
+                        sx={{
+                          backgroundColor: themeColor,
+                          color: 'white',
+                          fontWeight: 700,
+                          fontSize: '0.95rem',
+                          whiteSpace: 'nowrap',
+                          minWidth: 120,
+                          borderRight: `1px solid ${alpha('#fff', 0.2)}`,
+                          verticalAlign: 'middle',
+                        }}
+                      >
+                        Panchayath
                       </TableCell>
                       <TableCell
                         rowSpan={3}
@@ -595,125 +611,14 @@ const Form2 = () => {
                       </TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell
-                        align="center"
-                        sx={{
-                          backgroundColor: alpha(themeColor, 0.7),
-                          color: 'white',
-                          fontWeight: 600,
-                          fontSize: '0.85rem',
-                          whiteSpace: 'nowrap',
-                          minWidth: 70,
-                          borderRight: `1px solid ${alpha('#fff', 0.2)}`,
-                          py: 1,
-                        }}
-                      >
-                        Count
-                      </TableCell>
-                      <TableCell
-                        align="center"
-                        sx={{
-                          backgroundColor: alpha(themeColor, 0.7),
-                          color: 'white',
-                          fontWeight: 600,
-                          fontSize: '0.85rem',
-                          whiteSpace: 'nowrap',
-                          minWidth: 90,
-                          borderRight: `1px solid ${alpha('#fff', 0.2)}`,
-                          py: 1,
-                        }}
-                      >
-                        Area (Ha)
-                      </TableCell>
-                      <TableCell
-                        align="center"
-                        sx={{
-                          backgroundColor: alpha(themeColor, 0.7),
-                          color: 'white',
-                          fontWeight: 600,
-                          fontSize: '0.85rem',
-                          whiteSpace: 'nowrap',
-                          minWidth: 70,
-                          borderRight: `1px solid ${alpha('#fff', 0.2)}`,
-                          py: 1,
-                        }}
-                      >
-                        Count
-                      </TableCell>
-                      <TableCell
-                        align="center"
-                        sx={{
-                          backgroundColor: alpha(themeColor, 0.7),
-                          color: 'white',
-                          fontWeight: 600,
-                          fontSize: '0.85rem',
-                          whiteSpace: 'nowrap',
-                          minWidth: 90,
-                          borderRight: `1px solid ${alpha('#fff', 0.2)}`,
-                          py: 1,
-                        }}
-                      >
-                        Area (Ha)
-                      </TableCell>
-                      <TableCell
-                        align="center"
-                        sx={{
-                          backgroundColor: alpha(themeColor, 0.7),
-                          color: 'white',
-                          fontWeight: 600,
-                          fontSize: '0.85rem',
-                          whiteSpace: 'nowrap',
-                          minWidth: 70,
-                          borderRight: `1px solid ${alpha('#fff', 0.2)}`,
-                          py: 1,
-                        }}
-                      >
-                        Count
-                      </TableCell>
-                      <TableCell
-                        align="center"
-                        sx={{
-                          backgroundColor: alpha(themeColor, 0.7),
-                          color: 'white',
-                          fontWeight: 600,
-                          fontSize: '0.85rem',
-                          whiteSpace: 'nowrap',
-                          minWidth: 90,
-                          borderRight: `1px solid ${alpha('#fff', 0.2)}`,
-                          py: 1,
-                        }}
-                      >
-                        Area (Ha)
-                      </TableCell>
-                      <TableCell
-                        align="center"
-                        sx={{
-                          backgroundColor: alpha(themeColor, 0.7),
-                          color: 'white',
-                          fontWeight: 600,
-                          fontSize: '0.85rem',
-                          whiteSpace: 'nowrap',
-                          minWidth: 70,
-                          borderRight: `1px solid ${alpha('#fff', 0.2)}`,
-                          py: 1,
-                        }}
-                      >
-                        Count
-                      </TableCell>
-                      <TableCell
-                        align="center"
-                        sx={{
-                          backgroundColor: alpha(themeColor, 0.7),
-                          color: 'white',
-                          fontWeight: 600,
-                          fontSize: '0.85rem',
-                          whiteSpace: 'nowrap',
-                          minWidth: 90,
-                          py: 1,
-                        }}
-                      >
-                        Area (Ha)
-                      </TableCell>
+                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.7), color: 'white', fontWeight: 600, minWidth: 70 }}>Count</TableCell>
+                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.7), color: 'white', fontWeight: 600, minWidth: 90 }}>Area (Ha)</TableCell>
+                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.7), color: 'white', fontWeight: 600, minWidth: 70 }}>Count</TableCell>
+                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.7), color: 'white', fontWeight: 600, minWidth: 90 }}>Area (Ha)</TableCell>
+                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.7), color: 'white', fontWeight: 600, minWidth: 70 }}>Count</TableCell>
+                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.7), color: 'white', fontWeight: 600, minWidth: 90 }}>Area (Ha)</TableCell>
+                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.7), color: 'white', fontWeight: 600, minWidth: 70 }}>Count</TableCell>
+                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.7), color: 'white', fontWeight: 600, minWidth: 90 }}>Area (Ha)</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -725,9 +630,10 @@ const Form2 = () => {
                       
                       const groupedByCluster = {};
                       
-                      for (let i = 1; i <= 5; i++) {
+                      for (let i = 1; i <= Math.max(...landUtilizationData.map(d => parseInt(d.cluster)), 5); i++) {
                         groupedByCluster[i] = {
                           landType: clusterLandTypeMap[i] || 'Dry',
+                          panchayath: panchayathNames[i] || "Taliparamba",
                           tubeWell: { count: 0, area: 0 },
                           govtTanks: { count: 0, area: 0 },
                           privateWells: { count: 0, area: 0 },
@@ -760,214 +666,67 @@ const Form2 = () => {
                         }
                       });
                       
-                      return Object.keys(groupedByCluster).map(cluster => (
-                        <TableRow 
-                          key={cluster} 
-                          hover
-                          sx={{
-                            '&:hover': {
-                              backgroundColor: alpha(themeColor, 0.04),
-                            },
-                          }}
-                        >
-                          <TableCell 
-                            align="center"
-                            sx={{
-                              fontWeight: 600,
-                              backgroundColor: alpha(themeColor, 0.02),
-                              py: 1.2,
-                            }}
-                          >
-                            <Chip
-                              label={cluster}
-                              size="small"
-                              sx={{
-                                backgroundColor: alpha(themeColor, 0.1),
-                                color: themeColor,
-                                fontWeight: 'bold',
-                                borderRadius: 2,
-                                minWidth: 45,
-                                fontSize: '0.85rem',
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell 
-                            align="center"
-                            sx={{
-                              py: 1.2,
-                            }}
-                          >
-                            <Chip
-                              label={groupedByCluster[cluster].landType}
-                              size="small"
-                              sx={{
-                                backgroundColor: groupedByCluster[cluster].landType === 'Wet' 
-                                  ? alpha(theme.palette.info.main, 0.15)
-                                  : alpha(theme.palette.warning.main, 0.15),
-                                color: groupedByCluster[cluster].landType === 'Wet' 
-                                  ? theme.palette.info.main
-                                  : theme.palette.warning.main,
-                                fontWeight: 'bold',
-                                borderRadius: 2,
-                                minWidth: 55,
-                                fontSize: '0.85rem',
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell align="center" sx={{ py: 1.2 }}>
-                            {groupedByCluster[cluster].tubeWell.count > 0 ? 
-                              <Chip
-                                label={groupedByCluster[cluster].tubeWell.count}
-                                size="small"
-                                sx={{
-                                  backgroundColor: alpha(theme.palette.success.main, 0.1),
-                                  color: theme.palette.success.main,
-                                  fontWeight: 500,
-                                  borderRadius: 1.5,
-                                  minWidth: 35,
-                                }}
-                              /> : ''}
-                          </TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 500, py: 1.2 }}>
-                            {groupedByCluster[cluster].tubeWell.area > 0 ? 
-                              `${formatNumber(groupedByCluster[cluster].tubeWell.area)}` : ''}
-                          </TableCell>
-                          <TableCell align="center" sx={{ py: 1.2 }}>
-                            {groupedByCluster[cluster].govtTanks.count > 0 ? 
-                              <Chip
-                                label={groupedByCluster[cluster].govtTanks.count}
-                                size="small"
-                                sx={{
-                                  backgroundColor: alpha(theme.palette.info.main, 0.1),
-                                  color: theme.palette.info.main,
-                                  fontWeight: 500,
-                                  borderRadius: 1.5,
-                                  minWidth: 35,
-                                }}
-                              /> : ''}
-                          </TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 500, py: 1.2 }}>
-                            {groupedByCluster[cluster].govtTanks.area > 0 ? 
-                              `${formatNumber(groupedByCluster[cluster].govtTanks.area)}` : ''}
-                          </TableCell>
-                          <TableCell align="center" sx={{ py: 1.2 }}>
-                            {groupedByCluster[cluster].privateWells.count > 0 ? 
-                              <Chip
-                                label={groupedByCluster[cluster].privateWells.count}
-                                size="small"
-                                sx={{
-                                  backgroundColor: alpha(theme.palette.warning.main, 0.1),
-                                  color: theme.palette.warning.main,
-                                  fontWeight: 500,
-                                  borderRadius: 1.5,
-                                  minWidth: 35,
-                                }}
-                              /> : ''}
-                          </TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 500, py: 1.2 }}>
-                            {groupedByCluster[cluster].privateWells.area > 0 ? 
-                              `${formatNumber(groupedByCluster[cluster].privateWells.area)}` : ''}
-                          </TableCell>
-                          <TableCell align="center" sx={{ py: 1.2 }}>
-                            {groupedByCluster[cluster].privateTanks.count > 0 ? 
-                              <Chip
-                                label={groupedByCluster[cluster].privateTanks.count}
-                                size="small"
-                                sx={{
-                                  backgroundColor: alpha(theme.palette.secondary.main, 0.1),
-                                  color: theme.palette.secondary.main,
-                                  fontWeight: 500,
-                                  borderRadius: 1.5,
-                                  minWidth: 35,
-                                }}
-                              /> : ''}
-                          </TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 500, py: 1.2 }}>
-                            {groupedByCluster[cluster].privateTanks.area > 0 ? 
-                              `${formatNumber(groupedByCluster[cluster].privateTanks.area)}` : ''}
-                          </TableCell>
+                      // Calculate totals
+                      const totals = {
+                        tubeWell: { count: 0, area: 0 },
+                        govtTanks: { count: 0, area: 0 },
+                        privateWells: { count: 0, area: 0 },
+                        privateTanks: { count: 0, area: 0 }
+                      };
+                      
+                      return Object.keys(groupedByCluster).filter(cluster => 
+                        groupedByCluster[cluster].tubeWell.count > 0 || 
+                        groupedByCluster[cluster].govtTanks.count > 0 || 
+                        groupedByCluster[cluster].privateWells.count > 0 || 
+                        groupedByCluster[cluster].privateTanks.count > 0
+                      ).map(cluster => {
+                        const data = groupedByCluster[cluster];
+                        totals.tubeWell.count += data.tubeWell.count;
+                        totals.tubeWell.area += data.tubeWell.area;
+                        totals.govtTanks.count += data.govtTanks.count;
+                        totals.govtTanks.area += data.govtTanks.area;
+                        totals.privateWells.count += data.privateWells.count;
+                        totals.privateWells.area += data.privateWells.area;
+                        totals.privateTanks.count += data.privateTanks.count;
+                        totals.privateTanks.area += data.privateTanks.area;
+                        
+                        return (
+                          <TableRow key={cluster} hover sx={{ '&:hover': { backgroundColor: alpha(themeColor, 0.04) } }}>
+                            <TableCell align="center" sx={{ fontWeight: 600, backgroundColor: alpha(themeColor, 0.02), py: 1.2 }}>
+                              <Chip label={cluster} size="small" sx={{ backgroundColor: alpha(themeColor, 0.1), color: themeColor, fontWeight: 'bold', borderRadius: 2, minWidth: 45 }} />
+                            </TableCell>
+                            <TableCell align="center">
+                              <Chip label={data.panchayath} size="small" sx={{ backgroundColor: alpha(themeColor, 0.1), color: themeColor, fontWeight: 500, borderRadius: 2 }} />
+                            </TableCell>
+                            <TableCell align="center">
+                              <Chip label={data.landType} size="small" sx={{ backgroundColor: data.landType === 'Wet' ? alpha(theme.palette.info.main, 0.15) : alpha(theme.palette.warning.main, 0.15), color: data.landType === 'Wet' ? theme.palette.info.main : theme.palette.warning.main, fontWeight: 'bold', borderRadius: 2 }} />
+                            </TableCell>
+                            <TableCell align="center">{data.tubeWell.count > 0 ? data.tubeWell.count : '-'}</TableCell>
+                            <TableCell align="center">{data.tubeWell.area > 0 ? formatNumber(data.tubeWell.area) : '-'}</TableCell>
+                            <TableCell align="center">{data.govtTanks.count > 0 ? data.govtTanks.count : '-'}</TableCell>
+                            <TableCell align="center">{data.govtTanks.area > 0 ? formatNumber(data.govtTanks.area) : '-'}</TableCell>
+                            <TableCell align="center">{data.privateWells.count > 0 ? data.privateWells.count : '-'}</TableCell>
+                            <TableCell align="center">{data.privateWells.area > 0 ? formatNumber(data.privateWells.area) : '-'}</TableCell>
+                            <TableCell align="center">{data.privateTanks.count > 0 ? data.privateTanks.count : '-'}</TableCell>
+                            <TableCell align="center">{data.privateTanks.area > 0 ? formatNumber(data.privateTanks.area) : '-'}</TableCell>
+                          </TableRow>
+                        );
+                      }).concat(
+                        <TableRow key="total" sx={{ backgroundColor: alpha(themeColor, 0.1), borderTop: `2px solid ${themeColor}` }}>
+                          <TableCell align="center" sx={{ fontWeight: 800, color: themeColor, py: 1.5 }}><strong>TOTAL</strong></TableCell>
+                          <TableCell align="center"></TableCell>
+                          <TableCell align="center"></TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 700 }}>{totals.tubeWell.count > 0 ? totals.tubeWell.count : '-'}</TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 700 }}>{formatNumber(totals.tubeWell.area)}</TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 700 }}>{totals.govtTanks.count > 0 ? totals.govtTanks.count : '-'}</TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 700 }}>{formatNumber(totals.govtTanks.area)}</TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 700 }}>{totals.privateWells.count > 0 ? totals.privateWells.count : '-'}</TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 700 }}>{formatNumber(totals.privateWells.area)}</TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 700 }}>{totals.privateTanks.count > 0 ? totals.privateTanks.count : '-'}</TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 700 }}>{formatNumber(totals.privateTanks.area)}</TableCell>
                         </TableRow>
-                      ));
+                      );
                     })()}
-                    <TableRow 
-                      sx={{ 
-                        backgroundColor: alpha(themeColor, 0.1),
-                        borderTop: `2px solid ${themeColor}`,
-                      }}
-                    >
-                      <TableCell 
-                        align="center"
-                        sx={{ 
-                          fontWeight: 800, 
-                          color: themeColor,
-                          fontSize: '0.95rem',
-                          py: 1.5,
-                        }}
-                      >
-                        <strong>TOTAL</strong>
-                      </TableCell>
-                      <TableCell align="center" sx={{ py: 1.5 }}></TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, py: 1.5 }}>
-                        {(() => {
-                          const total = irrigationDetailsData
-                            .filter(row => row.sourceType === "Tube well" && row.sourceCount !== "--")
-                            .reduce((sum, row) => sum + (row.sourceCount || 0), 0);
-                          return total > 0 ? total : '';
-                        })()}
-                      </TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, py: 1.5 }}>
-                        {formatNumber(
-                          irrigationDetailsData
-                            .filter(row => row.sourceType === "Tube well")
-                            .reduce((sum, row) => sum + row.irrigatedArea, 0)
-                        )}
-                      </TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, py: 1.5 }}>
-                        {(() => {
-                          const total = irrigationDetailsData
-                            .filter(row => row.sourceType === "Government tanks" && row.sourceCount !== "--")
-                            .reduce((sum, row) => sum + (row.sourceCount || 0), 0);
-                          return total > 0 ? total : '';
-                        })()}
-                      </TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, py: 1.5 }}>
-                        {formatNumber(
-                          irrigationDetailsData
-                            .filter(row => row.sourceType === "Government tanks")
-                            .reduce((sum, row) => sum + row.irrigatedArea, 0)
-                        )}
-                      </TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, py: 1.5 }}>
-                        {(() => {
-                          const total = irrigationDetailsData
-                            .filter(row => row.sourceType === "Private wells" && row.sourceCount !== "--")
-                            .reduce((sum, row) => sum + (row.sourceCount || 0), 0);
-                          return total > 0 ? total : '';
-                        })()}
-                      </TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, py: 1.5 }}>
-                        {formatNumber(
-                          irrigationDetailsData
-                            .filter(row => row.sourceType === "Private wells")
-                            .reduce((sum, row) => sum + row.irrigatedArea, 0)
-                        )}
-                      </TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, py: 1.5 }}>
-                        {(() => {
-                          const total = irrigationDetailsData
-                            .filter(row => row.sourceType === "Private tanks" && row.sourceCount !== "--")
-                            .reduce((sum, row) => sum + (row.sourceCount || 0), 0);
-                          return total > 0 ? total : '';
-                        })()}
-                      </TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, py: 1.5 }}>
-                        {formatNumber(
-                          irrigationDetailsData
-                            .filter(row => row.sourceType === "Private tanks")
-                            .reduce((sum, row) => sum + row.irrigatedArea, 0)
-                        )}
-                      </TableCell>
-                    </TableRow>
                   </TableBody>
                 </Table>
               </TableContainer>

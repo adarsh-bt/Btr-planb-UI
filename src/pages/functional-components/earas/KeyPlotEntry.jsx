@@ -23,7 +23,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogContentText,
-  DialogActions,
+  DialogActions,Divider
 } from "@mui/material";
 import InfoIcon from '@mui/icons-material/Info';
 import { 
@@ -72,6 +72,7 @@ const KeyPlotEntry = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [mainerror, setMainError] = useState(""); 
   const [keyplotLimit, setKeyplotLimit] = useState(null);
+  const [workAllocationStatus, setworkAllocationStatus] = useState(false);
 const [remainingKeyplots, setRemainingKeyplots] = useState(0);
 // --- Plot Validation States ---
   const [isValidationDialogOpen, setIsValidationDialogOpen] = useState(false);
@@ -159,9 +160,10 @@ useEffect(() => {
       );
 
       const data = response.data;
-
+console.log("Keyplot limit API response:", data);
       setKeyplotLimit(data);
       setRemainingKeyplots(data.remainingKeyplots);
+setworkAllocationStatus(data.is_WorkAllocation);
 
     } catch (err) {
 
@@ -191,7 +193,23 @@ useEffect(() => {
       }
     };
   }, [showErrorModal]);
-
+// Dynamic theme mapping for the Work Allocation status badge
+const getWorkAllocationStatusChip = (status) => {
+  switch (status?.toUpperCase()) {
+    case 'APPROVED':
+      return { label: "Allocation Approved", color: "success", variant: "filled" };
+    case 'SUBMITTED':
+    case 'PENDING':
+      return { label: "Allocation Submitted", color: "warning", variant: "filled" };
+    case 'UNDER REVIEW':
+      return { label: "Allocation Under Review", color: "info", variant: "filled" };
+    case 'RETURNED':
+      return { label: "Allocation Returned", color: "error", variant: "filled" };
+    case 'NOT SUBMITTED':
+    default:
+      return { label: "Allocation Not Submitted", color: "error", variant: "outlined" };
+  }
+};
   // --- Data Fetching ---
 useEffect(() => {
   if (!zoneId) {
@@ -231,7 +249,7 @@ useEffect(() => {
       );
 
       const [lbData, villageData, distData, talukData] = await Promise.all(requests);
-console.log("Fetched Data:", { lbData, villageData, distData, talukData });
+
       setLocalBodies(lbData || []);
       setVillageOptions(villageData || []);
       setDistrictInfo(distData);
@@ -711,7 +729,7 @@ const handleLocalBodyChange = (tabLbId, rowId, selectedLbId) => {
           setLocalBodyData({});
         setDuplicateErrors({});
         setClientDuplicateErrors({});
-         await fetchKeyplotLimit();
+        //  await fetchKeyplotLimit();
         setFieldErrors({});
         clearValidationErrors();
      setTimeout(() => {
@@ -787,7 +805,7 @@ try {
     };
 
     // Axios automatically stringifies the payload
-    const response = await axios.post(
+    const response = await api.post(
       `${BASE_URL}/btr-service/key-plots/validate-duplicate-keyplots`,
       payload,
       {
@@ -800,7 +818,7 @@ try {
 
     // If the request succeeds (2xx status code), it comes here directly
     const data = response.data; // Axios automatically parses the JSON
-    console.log("Validation API response:", data);
+
 
     if (data.id) {
       // Existing plot found in BTR master, available for reuse
@@ -1078,11 +1096,62 @@ const areAllFieldsFilled = (lbId) => {
           KeyPlot Entry 
           {/* (Total Required: {TOTAL_REQUIRED}) */}
         </Typography>
-        {keyplotLimit && (
-  <Alert severity="info" sx={{ mb: 2 }}>
-    Zone Limit: <b>{keyplotLimit.allowedKeyplotsLimit}</b> | 
-    Formed Count: <b>{keyplotLimit.usedKeyplotsCount}</b> | 
-    Remaining: <b>{keyplotLimit.remainingKeyplots}</b>
+{keyplotLimit && (
+  <Paper 
+    elevation={0} 
+    variant="outlined" 
+    sx={{ 
+      p: 2, 
+      mb: 2, 
+      bgcolor: '#f8fafc', 
+      borderColor: '#e2e8f0', 
+      borderRadius: 2,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      flexWrap: 'wrap',
+      gap: 2
+    }}
+  >
+    {/* Left Side: Numeric Metrics */}
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+      <Typography variant="body1">
+        Zone Limit: <strong style={{ color: '#05307a' }}>{keyplotLimit.allowedKeyplotsLimit}</strong>
+      </Typography>
+      <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
+      <Typography variant="body1">
+        Formed Count: <strong style={{ color: '#05307a' }}>{keyplotLimit.usedKeyplotsCount}</strong>
+      </Typography>
+      <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
+      <Typography variant="body1">
+        Remaining Available: <strong style={{ color: keyplotLimit.remainingKeyplots > 0 ? '#10b981' : '#dc2626' }}>{keyplotLimit.remainingKeyplots}</strong>
+      </Typography>
+    </Box>
+
+    {/* Right Side: Dynamic Status Badge */}
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <Typography variant="body2" color="text.secondary" fontWeight={500}>
+        Work Allocation Status:
+      </Typography>
+      <Chip 
+        label={getWorkAllocationStatusChip(keyplotLimit.status).label}
+        color={getWorkAllocationStatusChip(keyplotLimit.status).color}
+        variant={getWorkAllocationStatusChip(keyplotLimit.status).variant}
+        size="medium"
+        sx={{ fontWeight: 600, px: 1 }}
+      />
+    </Box>
+  </Paper>
+)}
+
+{/* ✅ NEW: Global warning banner explaining the locking reason */}
+{!workAllocationStatus && (
+  <Alert 
+    severity="error" 
+    icon={<ErrorIcon />} 
+    sx={{ mb: 3, borderRadius: 2, fontWeight: 500 }}
+  >
+    <strong>Keyplot Entry Disabled:</strong> The Work Allocation Statement for this Zone and Agricultural Year must be <strong>Approved</strong> by the administrator before you can record new keyplots.
   </Alert>
 )}
 
@@ -1189,6 +1258,7 @@ const areAllFieldsFilled = (lbId) => {
                   <TableContainer component={Paper}>
                     <Table stickyHeader>
                       <TableHead>
+                      
                         <TableRow>
                          {["Sl. No", "Local Body", "Village", "Village Block", "Survey No.", "Sub Div No.", "Area (Cents)", "Land Type", "Actions"].map((col) => (
 
@@ -1355,22 +1425,32 @@ const areAllFieldsFilled = (lbId) => {
                           </TableRow>
                         ))}
                         <TableRow>
-                          <TableCell colSpan={8} align="right">
-                            <Button
-                              startIcon={<AddCircle />}
-                              variant="outlined"
-                              color="success"
-                              onClick={() => handleAddRow(lb.id)}
-                              disabled={
-  totalKeyplots >= remainingKeyplots ||
-  !areAllFieldsFilled(lb.id)
-}
+  <TableCell colSpan={9} align="right">
+    {/* ✅ Wrapped in a Box layout container to support inline helper texts */}
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, flexWrap: 'wrap' }}>
+      
+      {/* ✅ NEW: Inline explanation helper text message */}
+      {!workAllocationStatus && (
+        <Typography variant="body2" color="error.main" sx={{ fontWeight: 500, fontStyle: 'italic' }}>
+          * Work allocation must be approved to enable this action.
+        </Typography>
+      )}
 
-                            >
-                              Add Keyplot
-                            </Button>
-                          </TableCell>
-                        </TableRow>
+      <Button
+        startIcon={<AddCircle />}
+        variant="outlined"
+        color="success"
+        onClick={() => handleAddRow(lb.id)}
+        disabled={
+          totalKeyplots >= remainingKeyplots ||
+          !areAllFieldsFilled(lb.id) || !workAllocationStatus
+        }
+      >
+        Add Keyplot
+      </Button>
+    </Box>
+  </TableCell>
+</TableRow>
 
                       </TableBody>
                     </Table>
@@ -1444,51 +1524,204 @@ const areAllFieldsFilled = (lbId) => {
   onClose={() => setIsValidationDialogOpen(false)}
   maxWidth="sm"
   fullWidth
+  PaperProps={{
+    sx: {
+      borderRadius: 3,
+      overflow: 'hidden'
+    }
+  }}
 >
-  <DialogTitle>
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <InfoIcon color={validationInfo?.isFromCurrentForm ? "warning" : "primary"} />
-      <Typography variant="h6">
-        {validationInfo?.isFromCurrentForm ? "Duplicate Plot in Form" : "Plot Already Used"}
+  {/* Header with gradient background */}
+  <DialogTitle 
+    sx={{ 
+      background: validationInfo?.isFromCurrentForm 
+        ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+        : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+      color: 'white', 
+      px: 3, 
+      py: 2,
+      borderBottom: '1px solid rgba(255,255,255,0.1)'
+    }}
+  >
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <InfoIcon sx={{ fontSize: 28 }} />
+      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+        {validationInfo?.isFromCurrentForm ? "Duplicate Plot Detected" : "Plot Already Allocated"}
       </Typography>
     </Box>
   </DialogTitle>
-  <DialogContent>
+
+  {/* Content */}
+  <DialogContent sx={{ p: 3 }}>
     {validationInfo && (
       <Box>
-        <DialogContentText sx={{ mb: 2, color: validationInfo.isFromCurrentForm ? 'warning.main' : 'text.primary' }}>
-          {validationInfo.message || 
-            (validationInfo.isFromCurrentForm 
-              ? `⚠️ This plot is already used in ${validationInfo.location}.` 
-              : "This plot has already been used in the current agricultural year.")}
-        </DialogContentText>
-        <Typography variant="body2" sx={{ mb: 1 }}>
-          <strong>Total Area:</strong> {validationInfo.totalcent || validationInfo.totalArea || 0} cents
-        </Typography>
-        {validationInfo.remainingArea !== undefined && (
-          <Typography variant="body2" sx={{ mb: 1 }}>
-            <strong>Already Used:</strong> {((validationInfo.totalcent || validationInfo.totalArea || 0) - (validationInfo.remainingArea || 0)).toFixed(2)} cents
+        {/* Alert Message */}
+        <Box 
+          sx={{ 
+            mb: 3, 
+            p: 2, 
+            borderRadius: 2,
+            bgcolor: validationInfo.isFromCurrentForm 
+              ? 'warning.lighter' 
+              : 'info.lighter',
+            borderLeft: `4px solid ${validationInfo.isFromCurrentForm ? '#f59e0b' : '#3b82f6'}`,
+            backgroundColor: validationInfo.isFromCurrentForm ? '#fef3c7' : '#eff6ff'
+          }}
+        >
+          <Typography 
+            variant="body1" 
+            sx={{ 
+              color: validationInfo.isFromCurrentForm ? '#92400e' : '#1e40af',
+              fontWeight: 500
+            }}
+          >
+            {validationInfo.message || 
+              (validationInfo.isFromCurrentForm 
+                ? `⚠️ This plot is already used in ${validationInfo.location || 'the current form'}.` 
+                : "This plot has already been used in the current agricultural year.")}
           </Typography>
-        )}
-        {validationInfo.uiUsedRemaining !== undefined && (
-          <Typography variant="body2" sx={{ mb: 2, color: validationInfo.uiUsedRemaining > 0 ? 'success.main' : 'error.main' }}>
-            <strong>Remaining Available:</strong> {validationInfo.uiUsedRemaining.toFixed(2)} cents
-          </Typography>
-        )}
+        </Box>
+
+        {/* Statistics Cards */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {/* Total Area Card */}
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            p: 1.5,
+            bgcolor: '#f8fafc',
+            borderRadius: 2,
+            border: '1px solid #e2e8f0'
+          }}>
+            <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
+              Total Area
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: '#0f172a' }}>
+              {validationInfo.totalcent || validationInfo.totalArea || 0} cents
+            </Typography>
+          </Box>
+
+          {/* Already Used Card */}
+          {validationInfo.remainingArea !== undefined && (
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              p: 1.5,
+              bgcolor: '#f8fafc',
+              borderRadius: 2,
+              border: '1px solid #e2e8f0'
+            }}>
+              <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
+                Already Used
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 600, color: '#dc2626' }}>
+                {((validationInfo.totalcent || validationInfo.totalArea || 0) - (validationInfo.remainingArea || 0)).toFixed(2)} cents
+              </Typography>
+            </Box>
+          )}
+
+          {/* Remaining Available Card with Progress Bar */}
+          {validationInfo.uiUsedRemaining !== undefined && (
+            <Box>
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                p: 1.5,
+                bgcolor: '#f8fafc',
+                borderRadius: 2,
+                border: '1px solid #e2e8f0',
+                mb: 1.5
+              }}>
+                <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
+                  Remaining Available
+                </Typography>
+                <Typography 
+                  variant="h6" 
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: validationInfo.uiUsedRemaining > 0 ? '#10b981' : '#ef4444'
+                  }}
+                >
+                  {validationInfo.uiUsedRemaining.toFixed(2)} cents
+                </Typography>
+              </Box>
+              
+              {/* Progress Bar */}
+              {validationInfo.totalcent && (
+                <Box sx={{ mt: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                    <Typography variant="caption" sx={{ color: '#64748b' }}>
+                      Usage Progress
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#64748b' }}>
+                      {((validationInfo.totalcent - validationInfo.uiUsedRemaining) / validationInfo.totalcent * 100).toFixed(0)}%
+                    </Typography>
+                  </Box>
+                  <Box sx={{ 
+                    width: '100%', 
+                    height: 8, 
+                    bgcolor: '#e2e8f0', 
+                    borderRadius: 4,
+                    overflow: 'hidden'
+                  }}>
+                    <Box sx={{ 
+                      width: `${((validationInfo.totalcent - validationInfo.uiUsedRemaining) / validationInfo.totalcent * 100)}%`,
+                      height: '100%',
+                      bgcolor: validationInfo.uiUsedRemaining > 0 ? '#10b981' : '#ef4444',
+                      borderRadius: 4,
+                      transition: 'width 0.3s ease'
+                    }} />
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          )}
+        </Box>
       </Box>
     )}
   </DialogContent>
-  <DialogActions>
+
+  {/* Actions */}
+  <DialogActions sx={{ p: 3, pt: 0, gap: 2 }}>
     {validationInfo && validationInfo.uiUsedRemaining > 0 && (
       <Button
         onClick={() => handleUseRecommendedPlot('remaining')}
-        color="primary"
         variant="contained"
+        fullWidth
+        sx={{
+          bgcolor: '#10b981',
+          '&:hover': {
+            bgcolor: '#059669'
+          },
+          py: 1.2,
+          textTransform: 'none',
+          fontWeight: 600,
+          boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.2)'
+        }}
       >
         Use Remaining Area ({validationInfo.uiUsedRemaining.toFixed(2)} cents)
       </Button>
     )}
-    <Button onClick={handleRejectPlot} color="error" variant="outlined">
+    <Button 
+      onClick={handleRejectPlot} 
+      variant="outlined"
+      fullWidth
+      sx={{
+        borderColor: '#e2e8f0',
+        color: '#64748b',
+        '&:hover': {
+          borderColor: '#ef4444',
+          color: '#ef4444',
+          bgcolor: '#fef2f2'
+        },
+        py: 1.2,
+        textTransform: 'none',
+        fontWeight: 500
+      }}
+    >
       {validationInfo?.isFromCurrentForm ? 'Clear Entry' : 'Choose Different Plot'}
     </Button>
   </DialogActions>

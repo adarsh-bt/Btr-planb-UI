@@ -817,7 +817,7 @@ const fetchAvailableBlocks = async () => {
 
     const data = await response.json();
     console.log("Available blocks for this zone's district:", data);
-    
+    console.log("data ",data)
     if (Array.isArray(data)) {
       setAvailableBlocks(data);
     } else {

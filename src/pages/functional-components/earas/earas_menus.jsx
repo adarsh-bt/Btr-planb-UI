@@ -323,7 +323,7 @@ function Earas_menus() {
   }, [zoneId]);
 
   const renderKeyPlotGrids = () => {
-
+     if (role !== 'Field Data Collector') return null;
     if (!btrData) return null;
 
     const { btrTypeId } = btrData;

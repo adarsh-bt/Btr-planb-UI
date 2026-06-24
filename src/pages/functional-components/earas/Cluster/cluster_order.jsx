@@ -29,6 +29,7 @@ import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import authservice from 'pages/authentication/services/authservice';
 import mainapi from 'api/mainapi';
 import api from 'api/api';
+import { useParams } from 'react-router-dom';
 
 function ClusterSeatMap({ zoneId }) {
   const BTR_URL = mainapi.BASE_URL;
@@ -38,7 +39,7 @@ function ClusterSeatMap({ zoneId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedCrop, setSelectedCrop] = useState('All');
-
+  const { districtName } = useParams();
   const [resolvedZoneId, setResolvedZoneId] = useState(() => {
     const role = authservice.getrole();
     return role === 'Field Data Collector' ? authservice.getzone() : zoneId;
@@ -57,13 +58,11 @@ useEffect(() => {
 
   const fetchClusterData = async () => {
     try {
+      const agriYear = authservice.agriyear();
+      const res = await api.get(
+        `/btr-service/cluster-api/user-cluster-summary/${resolvedZoneId}/${agriYear}`
+      );
 
-      // const res = await api.get(
-      //   `/btr-service/cluster-api/user-cluster-summary/${resolvedZoneId}`
-      // );
-const res = await api.get(
-  `/btr-service/cluster-api/user-cluster-summary/${resolvedZoneId}/${startYear}/${endYear}`
-);
       const data = res.data;
 
       setClusters(data.payload || []);
@@ -195,11 +194,16 @@ const filteredClusters = getFilteredClusters();
 
   const navigate = useNavigate();
 
-  const handleClusterClick = (syNo, slNo) => {
+  const handleClusterClick = (syNo, slNo, districtId) => {
     const encodedSyNo = encodeURIComponent(syNo);
     const encodedSlNo = encodeURIComponent(slNo);
+    // const encodedDistrictId = encodeURIComponent(districtName);
+   
     const zoneQuery = resolvedZoneId ? `&zoneId=${resolvedZoneId}` : '';
+    // if (encodedDistrictId !== 'undefined') {
+    // }else {
     navigate(`/schemes/earas/cluster-route-wrapper?No=${encodedSyNo}&slno=${encodedSlNo}${zoneQuery}`);
+    // }
   };
 
   const ongoingBorderAnimation = {
@@ -344,10 +348,10 @@ const CropChip = ({ crop, count, isActive, onClick }) => (
                   mb: 2
                 }}
               >
-                Cluster Operations Map
+                Progress Overview
               </Typography>
 
-              <Typography
+              {/* <Typography
                 variant="h6"
                 sx={{
                   textAlign: 'center',
@@ -356,7 +360,7 @@ const CropChip = ({ crop, count, isActive, onClick }) => (
                 }}
               >
                 Manage and monitor your agricultural clusters efficiently
-              </Typography>
+              </Typography> */}
 
               {/* Progress Section */}
               <Box sx={{ maxWidth: 600, mx: 'auto', mb: 3 }}>
