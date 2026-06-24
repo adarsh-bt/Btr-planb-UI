@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="50523a1b-93d6-4e9e-b1aa-73c132bd85ea" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/des.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/des2.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/authentication/forms/ConfettiCanvas.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/authentication/forms/InaugurationLandingPage.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/authentication/forms/InaugurationShowcase.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/authentication/forms/LoginCurtain.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/authentication/forms/LoginPopperEffect.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/authentication/forms/TheatricalCurtain.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/authentication/images/CM.jpg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/authentication/images/Duk-Logo2.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/authentication/images/aidea.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/authentication/images/aidea01.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/authentication/images/des.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/authentication/images/des2.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/authentication/images/dev_image1.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/functional-components/approvels/ApprovalMenus.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/functional-components/approvels/Cluster_approvals.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/Cce/CceReport.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/Cce/cceview.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/Cluster/ClusterRouteWrapper.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/Cluster/clusterWrapperForm.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/Cluster/cluster_order_form.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/ClusterManualEntryNonBtr.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/CropsManagement.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/MappingSettings/MappingMenus.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/MappingSettings/ZoneListing.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/MappingSettings/ZoneManage.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/btr/BtrClassifyWrapper.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/form1/Form1Wrapper.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/form1/form1menus.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/keyplots/KeyPlotListing.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/pages/usermanage/UserManage.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/index.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/jsconfig.json" beforeDir="false" afterPath="$PROJECT_DIR$/jsconfig.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons.js.map" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons.js.map" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_BellOutlined.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_BellOutlined.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_CheckCircleOutlined.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_CheckCircleOutlined.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_EditOutlined.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_EditOutlined.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_GiftOutlined.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_GiftOutlined.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_LogoutOutlined.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_LogoutOutlined.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_MessageOutlined.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_MessageOutlined.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_MoreOutlined.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_MoreOutlined.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_SearchOutlined.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_SearchOutlined.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_SettingOutlined.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_SettingOutlined.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_UserOutlined.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@ant-design_icons_UserOutlined.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material.js.map" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material.js.map" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_AppBar.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_AppBar.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Avatar.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Avatar.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Badge.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Badge.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Box.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Box.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Breadcrumbs.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Breadcrumbs.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Button.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Button.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_ButtonBase.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_ButtonBase.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Card.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Card.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_CardContent.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_CardContent.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_CardMedia.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_CardMedia.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Chip.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Chip.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_ClickAwayListener.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_ClickAwayListener.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Collapse.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Collapse.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Divider.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Divider.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Drawer.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Drawer.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Fade.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Fade.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_FormControl.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_FormControl.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Grid.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Grid.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Grow.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Grow.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_IconButton.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_IconButton.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_InputAdornment.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_InputAdornment.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_LinearProgress.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_LinearProgress.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Link.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Link.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_List.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_List.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_ListItemAvatar.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_ListItemAvatar.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_ListItemButton.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_ListItemButton.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_ListItemIcon.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_ListItemIcon.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_ListItemSecondaryAction.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_ListItemSecondaryAction.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_ListItemText.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_ListItemText.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_MenuItem.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_MenuItem.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_OutlinedInput.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_OutlinedInput.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Paper.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Paper.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Popper.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Popper.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Slide.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Slide.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Stack.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Stack.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Tab.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Tab.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Tabs.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Tabs.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Toolbar.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Toolbar.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Tooltip.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Tooltip.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Typography.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Typography.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Zoom.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_Zoom.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_styles.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_styles.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_useMediaQuery.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_material_useMediaQuery.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_system.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/@mui_system.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/_metadata.json" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/_metadata.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/framer-motion.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/framer-motion.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.vite/deps/swr.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.vite/deps/swr.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/App.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/App.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/api/mainapi.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/api/mainapi.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/logo/index.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/logo/index.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/contexts/auth-reducer/auth.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/contexts/auth-reducer/auth.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/contexts/auth-reducer/universal/UserAccessContext.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/contexts/auth-reducer/universal/UserAccessContext.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/contexts/auth-reducer/universal/UserAccessContextII.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/contexts/auth-reducer/universal/UserAccessContextII.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/layout/Dashboard/Header/HeaderContent/Notification.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/layout/Dashboard/Header/HeaderContent/Notification.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/layout/Dashboard/Header/HeaderContent/ZoneOption.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/layout/Dashboard/Header/HeaderContent/ZoneOption.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/layout/Dashboard/Header/HeaderContent/index.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/layout/Dashboard/Header/HeaderContent/index.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/layout/Dashboard/Header/index.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/layout/Dashboard/Header/index.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/menu-items/utilities.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/menu-items/utilities.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/authentication/forms/ForgotPassword.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/authentication/forms/ForgotPassword.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/authentication/forms/Register.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/authentication/forms/Register.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/authentication/forms/login.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/authentication/forms/login.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/authentication/images/Duk-Logo.png" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/authentication/images/Duk-Logo.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/authentication/images/govt.png" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/authentication/images/gok_logo1.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/authentication/images/govt1.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/authentication/images/logo.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/authentication/login.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/authentication/login.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/authentication/services/authservice.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/authentication/services/authservice.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/authentication/services/designationmanageservice.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/authentication/services/designationmanageservice.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/authentication/services/registerservice.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/authentication/services/registerservice.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/authentication/services/rolemanageservice.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/authentication/services/rolemanageservice.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/component-overview/WorkAllocationForm.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/component-overview/WorkAllocationForm.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/dashboard/index.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/dashboard/index.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/approvels/ApprovedUserService.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/approvels/ApprovedUserService.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/approvels/approvalservice.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/approvels/approvalservice.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/approvels/approvelist.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/approvels/approvelist.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/approvels/directorate_users.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/approvels/directorate_users.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/approvels/talukusers.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/approvels/talukusers.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/AdminsZonelist.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/AdminsZonelist.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/Btr.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/Btr.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/BtrListing.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/BtrListing.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/CceCropSelection.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/CceCropSelection.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/Cluster/cluster_order.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/Cluster/cluster_order.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/ClusterManualEntry.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/ClusterManualEntry.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/KeyPlotEntry.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/KeyPlotEntry.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/KeyPlotEntryNonBtr.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/KeyPlotEntryNonBtr.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/KeyPlotListing.jsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/SettingsMenu.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/SettingsMenu.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/UserZoneDetails.jsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/ZoneDetails/AdminsZonelist.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/ZoneDetails/AdminsZonelist.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/ZoneDetails/UserZoneDetails.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/ZoneDetails/UserZoneDetails.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/ZoneDetails/ZoneDetailsWrapper.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/ZoneDetails/ZoneDetailsWrapper.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/ZoneDetails/ZoneSettings.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/ZoneDetails/ZoneSettings.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/ZoneDetails/Zonecontrol.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/ZoneDetails/Zonecontrol.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/ZoneSettings.jsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/btr/Btr.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/btr/Btr.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/btr/BtrListing.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/btr/NonBtrListing.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/btr/btrservice.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/btr/btrservice.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/cluster_form.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/cluster_form.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/cluster_order.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/cluster_order.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/earas_list.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/earas_list.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/earas_menus.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/earas_menus.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/keyplots.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/keyplots.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/keyplots/keyplots.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/keyplots/keyplots.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/keyplots/keyplotsWrapper.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/keyplots/keyplotsWrapper.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/earas/zone_details.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/zone_details.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/form1/AvailableCcePlotsTable.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/form1/AvailableCcePlotsTable.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/form1/formservice.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/earas/form1/formservice.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/schemas.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/schemas.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/functional-components/usermanage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/functional-components/usermanage.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/profile/ChangePassword.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/profile/ChangePassword.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/profile/Profile.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/profile/Profile.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/profile/profileservice.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/profile/profileservice.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/usermanage/DesignationManage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/usermanage/DesignationManage.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/usermanage/RoleDesignationTabs.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/usermanage/RoleDesignationTabs.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/usermanage/RoleList.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/usermanage/RoleList.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/usermanage/RoleManage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/pages/usermanage/RoleManage.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pages/usermanage/Roles.jsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/routes/Breadcrumb.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/Breadcrumb.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/routes/MainRoutes.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/MainRoutes.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/yarn.lock" beforeDir="false" afterPath="$PROJECT_DIR$/yarn.lock" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 3
+}]]></component>
+  <component name="ProjectId" id="3DQUBhTCsbj7s0FE1uQYOQSNxOJ" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "Merging reshma-fe",
+    "kotlin-language-version-configured": "true"
+  }
+}]]></component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="50523a1b-93d6-4e9e-b1aa-73c132bd85ea" name="Changes" comment="" />
+      <created>1778213654065</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1778213654065</updated>
+    </task>
+    <servers />
+  </component>
+</project>

@@ -51,6 +51,7 @@ import AgricultureIcon from '@mui/icons-material/Agriculture';
 import StorageIcon from '@mui/icons-material/Storage';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CommentIcon from '@mui/icons-material/Comment';
+import ExcelView from './ExcelView'; 
 import api from 'api/api';
 // --- Theme Constants ---
 const TABLE_HEADER_BG = '#04255e';
@@ -216,6 +217,7 @@ const [availableCropSeasons, setAvailableCropSeasons] = useState([]);
   const [isCropLoading, setIsCropLoading] = useState(false);
 const [cropFetchError, setCropFetchError] = useState(null);
 const [seasonSwitchPending, setSeasonSwitchPending] = useState(false);
+const [openExcelView, setOpenExcelView] = useState(false);
 
  const [isDownloading, setIsDownloading] = useState(false);
 
@@ -257,6 +259,13 @@ const StyledDetailItem = ({ label, value, icon }) => (
     setSearchTerm(term.toLowerCase());
   };
 
+const handleOpenExcelView = () => {
+  setOpenExcelView(true);
+  alert("ok")
+};
+const handleCloseExcelView = () => {
+  setOpenExcelView(false);
+};
   // Download Handler
   const handleDownload = (format, data, filename) => {
    
@@ -1943,7 +1952,7 @@ const renderNucDetails = () => {
             Refresh All
           </Button> */}
         </Box>
-      <Button
+      {/* <Button
   onClick={testExcelDownload}
   disabled={isDownloading || isLoading}
   variant="contained"
@@ -1970,9 +1979,13 @@ const renderNucDetails = () => {
   ) : (
     'Download'
   )}
-</Button>
-      
-    
+</Button> */}
+           <ExcelView 
+  open={openExcelView} 
+  onClose={handleCloseExcelView} 
+  clusterId={clusterId}
+/>
+ 
         <MainCard 
           title=""
           sx={{ 
@@ -2039,6 +2052,8 @@ const renderNucDetails = () => {
             {renderNucDetails()}
         </TabPanel>
         </MainCard>
+
+
       </Grid>
     </Grid>
   );
