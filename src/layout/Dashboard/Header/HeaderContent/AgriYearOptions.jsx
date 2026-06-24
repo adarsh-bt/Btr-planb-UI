@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from "react-router-dom";
 
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
@@ -10,7 +11,7 @@ import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined
 
 
 export default function AgriYearOptions() {
-
+const navigate = useNavigate();
   const [years, setYears] = useState([]);
   const [selectedYear, setSelectedYear] = useState('');
 
@@ -112,7 +113,7 @@ export default function AgriYearOptions() {
 
     // optional reload/navigation
 
-    window.location.reload();
+    navigate('/schemes/earas');
   };
 
   return (

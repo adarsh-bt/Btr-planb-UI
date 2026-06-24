@@ -25,7 +25,7 @@ import {
   IconButton,
   Tooltip,
   Menu,
-  MenuItem,CardHeader,Stack
+  MenuItem,CardHeader,Stack,CircularProgress
 } from '@mui/material';
 import {
   Circle,
@@ -217,7 +217,7 @@ const [availableCropSeasons, setAvailableCropSeasons] = useState([]);
 const [cropFetchError, setCropFetchError] = useState(null);
 const [seasonSwitchPending, setSeasonSwitchPending] = useState(false);
 
- 
+ const [isDownloading, setIsDownloading] = useState(false);
 
 const StyledDetailItem = ({ label, value, icon }) => (
   <Stack spacing={0.5}>
@@ -342,9 +342,11 @@ useEffect(() => {
   // API Fetch Functions (same as before)
 
 const testExcelDownload = async () => {
-
+  if (isDownloading) return; // Prevent multiple clicks
+  
+  setIsDownloading(true);
+  
   try {
-
     const response = await api.get(
       `/earas-form1-entry/api/download/excel/${clusterId}`,
       {
@@ -377,9 +379,10 @@ const testExcelDownload = async () => {
     window.URL.revokeObjectURL(url);
 
   } catch (error) {
-
     console.error(error);
-
+    // Optional: Add error toast/notification here
+  } finally {
+    setIsDownloading(false);
   }
 };
 
@@ -1316,11 +1319,11 @@ const renderCropDetails = () => {
                       {item.irrigationType}
                     </Box>
                   </TableCell>
-                  <TableCell align="right">
-                    <Typography variant="body2" fontWeight="medium">
-                      {item.irrigatedArea.toFixed(2) || ''}
-                    </Typography>
-                  </TableCell>
+                 <TableCell align="right">
+  <Typography variant="body2" fontWeight="medium">
+    {typeof item.irrigatedArea === 'number' ? item.irrigatedArea.toFixed(2) : '0.00'}
+  </Typography>
+</TableCell>
                   <TableCell align="center">
                     <Chip 
                       label={item.sourceCount || '--'} 
@@ -1341,7 +1344,7 @@ const renderCropDetails = () => {
                 </TableCell>
                 <TableCell align="right">
                   <Typography variant="subtitle1" fontWeight="bold">
-                    {filteredData.reduce((sum, item) => sum + item.irrigatedArea, 0).toFixed(2)}
+                   {filteredData.reduce((sum, item) => sum + (item.irrigatedArea || 0), 0).toFixed(2)}
                   </Typography>
                 </TableCell>
                 <TableCell></TableCell>
@@ -1372,10 +1375,10 @@ const renderCropDetails = () => {
       )
     );
 
-    const totals = areaFields.reduce((acc, field) => {
-      acc[field] = filteredData.reduce((sum, item) => sum + item[field], 0).toFixed(2);
-      return acc;
-    }, {});
+const totals = areaFields.reduce((acc, field) => {
+  acc[field] = filteredData.reduce((sum, item) => sum + (Number(item[field]) || 0), 0).toFixed(2);
+  return acc;
+}, {});
 
     return (
       <Box>
@@ -1486,20 +1489,20 @@ const renderCropDetails = () => {
                   >
                     <Chip label={lu.clusterLabel} size="small" color="primary" />
                   </TableCell>
-                  <TableCell align="right">{lu.netAreasSown.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.currentFallowArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.otherFallowArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.cultivableWasteArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.permanentPasturesArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.barrenArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.nonAgriculturalArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.buildingArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.miscellaneousTreesArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.areaUnderSocialForestry.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.waterloggedArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.stillWaterLand.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.marshyLand.toFixed(2)}</TableCell>
-                </TableRow>
+              <TableCell align="right">{(lu.netAreasSown ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.currentFallowArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.otherFallowArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.cultivableWasteArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.permanentPasturesArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.barrenArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.nonAgriculturalArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.buildingArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.miscellaneousTreesArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.areaUnderSocialForestry ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.waterloggedArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.stillWaterLand ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.marshyLand ?? 0).toFixed(2)}</TableCell>
+              </TableRow>
               ))}
               
               {/* Summary Row */}
@@ -1940,23 +1943,36 @@ const renderNucDetails = () => {
             Refresh All
           </Button> */}
         </Box>
-        <button   onClick={testExcelDownload} disabled={isLoading} style={{ 
-          padding: '8px 16px', 
-          backgroundColor: isLoading ? '#e0e0e0' : '#1976d2',
-          color: '#fff',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: isLoading ? 'not-allowed' : 'pointer',
-          fontSize: '1rem',
-          fontWeight: 600,
-          transition: 'background-color 0.3s',
-          marginBottom: '16px'
-        }}>
-         Download
-        </button>
+      <Button
+  onClick={testExcelDownload}
+  disabled={isDownloading || isLoading}
+  variant="contained"
+  sx={{
+    backgroundColor: TABLE_HEADER_BG,
+    '&:hover': { backgroundColor: '#031a45' },
+    mb: 2,
+    position: 'relative'
+  }}
+>
+  {isDownloading ? (
+    <>
+      <CircularProgress
+        size={20}
+        sx={{
+          color: 'white',
+          position: 'absolute',
+          left: '50%',
+          marginLeft: '-10px'
+        }}
+      />
+      <span style={{ opacity: 0 }}>Downloading...</span>
+    </>
+  ) : (
+    'Download'
+  )}
+</Button>
       
     
-
         <MainCard 
           title=""
           sx={{ 

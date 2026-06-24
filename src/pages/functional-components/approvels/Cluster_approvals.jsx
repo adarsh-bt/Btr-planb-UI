@@ -97,9 +97,9 @@ useEffect(() => {
       setLoading(true);
 
       const token = localStorage.getItem('token');
-
+      const agriYear = authservice.agriyear();
       const response = await fetch(
-        `${BASE_URL}/user-access/zones/zone_cluster_approvals?page=${page}&size=${rowsPerPage}`,
+        `${BASE_URL}/user-access/zones/zone_cluster_approvals?page=${page}&size=${rowsPerPage}&agriYear=${agriYear}`,
         {
           headers: {
             Authorization: `Bearer ${token}`

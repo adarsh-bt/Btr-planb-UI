@@ -19,11 +19,10 @@ import {
   TableSortLabel,
   TablePagination,
   TextField,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Select,
-  Chip
+  Chip,
+  CircularProgress,
+  IconButton,
+  Tooltip
 } from '@mui/material';
 import {
   Hub,
@@ -34,7 +33,7 @@ import {
   Search as SearchIcon,
   Assessment as AssessmentIcon,
   Cancel,
-  Assignment
+  Visibility as VisibilityIcon
 } from '@mui/icons-material';
 
 const Form5 = () => {
@@ -42,35 +41,44 @@ const Form5 = () => {
   const navigate = useNavigate();
   const themeColor = "#05307a";
 
-  // Sample data - replace with your actual data
-  const stats = {
-    totalClusters: 24,
-    completed: 8,
-    ongoing: 6,
-    notStarted: 5,
-    underReview: 5
-  };
-
-  // Table data state - Status changed to Active/Inactive
-  const [tableData, setTableData] = useState([]);
+  // State for API data
+  const [apiData, setApiData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // State for stats
+  const [stats, setStats] = useState({
+    totalCCECrops: 0,
+    ongoing: 0,
+    completed: 0,
+    notStarted: 0,
+    underReview: 0,
+    notAvailable: 0,
+    selectedCce: 0
+  });
+
+  // Table data state
+  const [tableData, setTableData] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [agriculturalYear, setAgriculturalYear] = useState('2024-25');
+  const [agriculturalYear, setAgriculturalYear] = useState('2025-2026');
   const [order, setOrder] = useState('asc');
   const [orderBy, setOrderBy] = useState('crop');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
+  // Fetch data from API
   useEffect(() => {
-    const fetchTableData = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true);
+        setError(null);
+        
         const token = localStorage.getItem('token');
-        const response = await fetch(`${mainapi.BASE_URL}${mainapi.endpoints.fetchMasterCCECrop}`, {
+        // Update this URL with your actual API endpoint
+        const response = await fetch(`http://localhost:9114/earas-form1-entry/cce-crop-details/cce-summary/1/2025-2026`, {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         });
 
@@ -80,54 +88,128 @@ const Form5 = () => {
 
         const data = await response.json();
 
-        // Ensure data is an array
-        const dataArray = Array.isArray(data) ? data : (data.data || []);
+        // Update stats
+        setStats({
+          totalCCECrops: data.totalCCECrops || 0,
+          ongoing: data.ongoing || 0,
+          completed: data.completed || 0,
+          notStarted: data.notStarted || 0,
+          underReview: data.underReview || 0,
+          notAvailable: data.notAvailable || 0,
+          selectedCce: data.selectedCce || 0
+        });
 
-        // Map the API fields to our table columns
-        const mappedData = dataArray.map((item, index) => ({
-          id: item.id || index,
-          crop: item.cropName || item.crop || 'N/A',
+        // Map cropSubDetails to table data
+        const mappedData = (data.cropSubDetails || []).map((item, index) => ({
+          id: item.cropId || index,
+          crop: item.cropName || 'N/A',
           season: item.season || 'N/A',
-          status: item.status || 'Active', // Fallback status if missing
-          clusterNo: item.clusterNumber || item.clusterNo || 'N/A',
+          status: item.status || 'NOT STARTED',
+          clusterNo: item.clusterNo || 'N/A',
           landType: item.landType || 'N/A',
-          surveyNo: item.surveyNumber || item.surveyNo || 'N/A',
-          cultivatedArea: item.cultivatedArea || 'N/A',
+          surveyNo: 'N/A', // Not available in API response
+          cultivatedArea: item.cultivatedArea !== null ? item.cultivatedArea : 'N/A',
           farmerName: item.farmerName || 'N/A',
-          panchayath: item.panchayathName || item.panchayath || 'N/A'
+          panchayath: item.localBodyName || 'N/A',
+          zoneId: item.zoneId,
+          clusterId: item.clusterId,
+          noOfCce: item.noOfCce,
+          availableCcePlotId: item.availableCcePlotId || null,
+          cropId: item.cropId
         }));
 
         setTableData(mappedData);
+        setApiData(data);
+
       } catch (err) {
-        console.error('Error fetching CCE logs:', err);
-        setError('Failed to load crop details. Please try again.');
-        // Set fallback mock data in case of error for demonstration
+        console.error('Error fetching CCE data:', err);
+        setError('Failed to load CCE details. Please try again.');
         setTableData([]);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchTableData();
+    fetchData();
   }, [agriculturalYear]);
 
-
-
-
-  const getPercentage = (count) => {
-    return ((count / stats.totalClusters) * 100).toFixed(1);
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'COMPLETED': return theme.palette.success.main;
+      case 'ONGOING': return theme.palette.warning.main;
+      case 'NOT STARTED': return theme.palette.grey[600];
+      case 'UNDER REVIEW': return theme.palette.info.main;
+      case 'NOT AVAILABLE': return theme.palette.error.main;
+      default: return theme.palette.primary.main;
+    }
   };
 
+  const getStatusBackgroundColor = (status) => {
+    switch (status) {
+      case 'COMPLETED': return alpha(theme.palette.success.main, 0.1);
+      case 'ONGOING': return alpha(theme.palette.warning.main, 0.1);
+      case 'NOT STARTED': return alpha(theme.palette.grey[600], 0.1);
+      case 'UNDER REVIEW': return alpha(theme.palette.info.main, 0.1);
+      case 'NOT AVAILABLE': return alpha(theme.palette.error.main, 0.1);
+      default: return alpha(theme.palette.primary.main, 0.1);
+    }
+  };
+
+  const getLandTypeColor = (landType) => {
+    if (!landType) return '#ed6c02';
+    return landType === 'Wet' ? theme.palette.info.main : '#ed6c02';
+  };
+
+  // Handle view navigation
+  const handleViewClick = (row) => {
+    // Prepare the data to pass to CceDataView
+    const viewData = {
+      crop: row.crop,
+      season: row.season,
+      clusterNo: row.clusterNo,
+      cultivatedArea: row.cultivatedArea !== 'N/A' ? `${row.cultivatedArea} ha` : 'N/A',
+      landType: row.landType !== 'N/A' ? row.landType : 'Not Specified',
+      surveyNo: row.surveyNo,
+      farmerName: row.farmerName,
+      status: row.status,
+      panchayath: row.panchayath,
+      zoneId: row.zoneId,
+      clusterId: row.clusterId,
+      cropId: row.cropId,
+      noOfCce: row.noOfCce,
+      availableCcePlotId: row.availableCcePlotId,
+      // Additional fields for the detail view
+      survey: row.surveyNo,
+      irrigationType: 'N/A',
+      address: 'N/A',
+      contactNo: 'N/A',
+      remarks: 'N/A',
+      frameType: 'area', // Default to area, can be changed based on crop type
+      plotLengthX: 10,
+      plotLengthY: 10,
+      numberOfTrees: 50,
+      randomTreeNumber: 12
+    };
+
+    navigate('/schemes/earas/cce/cceDataView', { 
+      state: { 
+        rowData: viewData,
+        from: 'form5'
+      } 
+    });
+  };
+
+  // Cards configuration with actual data
   const cards = [
     {
       title: 'Total CCE',
-      count: stats.totalClusters,
+      count: stats.totalCCECrops,
       icon: Hub,
       color: theme.palette.success.dark,
     },
     {
       title: 'Selected CCE',
-      count: stats.totalClusters,
+      count: stats.selectedCce,
       icon: AssessmentIcon,
       color: theme.palette.primary.main,
     },
@@ -136,18 +218,16 @@ const Form5 = () => {
       count: stats.completed,
       icon: CheckCircle,
       color: theme.palette.success.main,
-      percentage: getPercentage(stats.completed),
     },
     {
       title: 'Ongoing',
       count: stats.ongoing,
       icon: Pending,
       color: theme.palette.warning.main,
-      percentage: getPercentage(stats.ongoing),
     },
     {
       title: 'Not Available',
-      count: stats.totalClusters,
+      count: stats.notAvailable,
       icon: Cancel,
       color: theme.palette.error.main,
     },
@@ -156,30 +236,16 @@ const Form5 = () => {
       count: stats.notStarted,
       icon: Block,
       color: theme.palette.grey[600],
-      percentage: getPercentage(stats.notStarted),
     },
     {
       title: 'Under Review',
       count: stats.underReview,
       icon: RateReview,
       color: theme.palette.info.main,
-      percentage: getPercentage(stats.underReview),
     },
   ];
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Active': return theme.palette.success.main;
-      case 'Inactive': return theme.palette.grey[600];
-      default: return theme.palette.primary.main;
-    }
-  };
-
-  const getLandTypeColor = (landType) => {
-    return landType === 'Wet' ? theme.palette.info.main : '#ed6c02';
-  };
-
-  // Filtering logic - searches across all fields
+  // Filtering logic
   const filteredData = tableData.filter(row => {
     const searchLower = searchTerm.toLowerCase();
     return searchTerm === '' ||
@@ -188,8 +254,7 @@ const Form5 = () => {
       row.status.toLowerCase().includes(searchLower) ||
       row.clusterNo.toString().includes(searchLower) ||
       row.landType.toLowerCase().includes(searchLower) ||
-      row.surveyNo.toLowerCase().includes(searchLower) ||
-      row.cultivatedArea.toLowerCase().includes(searchLower) ||
+      row.cultivatedArea.toString().includes(searchLower) ||
       row.farmerName.toLowerCase().includes(searchLower) ||
       row.panchayath.toLowerCase().includes(searchLower);
   });
@@ -197,7 +262,7 @@ const Form5 = () => {
   const sortedData = [...filteredData].sort((a, b) => {
     let valA = a[orderBy];
     let valB = b[orderBy];
-    if (orderBy === 'clusterNo') {
+    if (orderBy === 'clusterNo' || orderBy === 'noOfCce') {
       valA = Number(valA);
       valB = Number(valB);
     }
@@ -221,10 +286,9 @@ const Form5 = () => {
     setOrderBy(property);
   };
 
-  const handleAgriculturalYearChange = (event) => {
-    setAgriculturalYear(event.target.value);
-    setPage(0);
-    // Fetch data based on selected year here
+  const formatStatus = (status) => {
+    if (!status) return 'N/A';
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
   };
 
   return (
@@ -252,7 +316,7 @@ const Form5 = () => {
             WebkitTextFillColor: 'transparent',
           }}
         >
-          Form 5 - Status Overview
+          Form 5 - CCE Status Overview
         </Typography>
 
         {/* Stats Cards */}
@@ -327,7 +391,7 @@ const Form5 = () => {
                     mb: 0,
                   }}
                 >
-                  {card.count}
+                  {isLoading ? '...' : card.count}
                 </Typography>
               </Paper>
             </Grid>
@@ -367,6 +431,13 @@ const Form5 = () => {
             >
               <AssessmentIcon sx={{ color: theme.palette.primary.main, fontSize: 28 }} />
               CCE Crops Details
+              {!isLoading && (
+                <Chip 
+                  label={`${tableData.length} crops`} 
+                  size="small" 
+                  sx={{ ml: 1 }}
+                />
+              )}
             </Typography>
 
             <TextField
@@ -406,29 +477,33 @@ const Form5 = () => {
                   background: `linear-gradient(135deg, ${themeColor} 0%, ${theme.palette.primary.dark} 100%)`,
                 }}>
                   {[
-                    { id: 'crop', label: 'Crop (Season)' },
+                    { id: 'crop', label: 'Crop' },
                     { id: 'status', label: 'Status' },
                     { id: 'clusterNo', label: 'Cluster Number' },
                     { id: 'landType', label: 'Land Type' },
-                    { id: 'surveyNo', label: 'Survey Number' },
                     { id: 'cultivatedArea', label: 'Cultivated Area' },
                     { id: 'farmerName', label: 'Farmer Name' },
-                    { id: 'panchayath', label: 'Panchayath' }
+                    { id: 'panchayath', label: 'Panchayat' },
+                    { id: 'actions', label: 'Actions' }
                   ].map((col) => (
                     <TableCell key={col.id} sx={{ color: 'white', whiteSpace: 'nowrap', fontWeight: 600, py: 2 }}>
-                      <TableSortLabel
-                        active={orderBy === col.id}
-                        direction={orderBy === col.id ? order : 'asc'}
-                        onClick={() => handleSort(col.id)}
-                        sx={{
-                          color: 'white !important',
-                          '& .MuiTableSortLabel-icon': {
+                      {col.id !== 'actions' ? (
+                        <TableSortLabel
+                          active={orderBy === col.id}
+                          direction={orderBy === col.id ? order : 'asc'}
+                          onClick={() => handleSort(col.id)}
+                          sx={{
                             color: 'white !important',
-                          }
-                        }}
-                      >
-                        {col.label}
-                      </TableSortLabel>
+                            '& .MuiTableSortLabel-icon': {
+                              color: 'white !important',
+                            }
+                          }}
+                        >
+                          {col.label}
+                        </TableSortLabel>
+                      ) : (
+                        col.label
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -437,9 +512,12 @@ const Form5 = () => {
                 {isLoading ? (
                   <TableRow>
                     <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
-                      <Typography variant="body1" color="textSecondary" fontWeight={500}>
-                        Loading crop details...
-                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        <CircularProgress size={40} />
+                        <Typography variant="body1" color="textSecondary" fontWeight={500}>
+                          Loading crop details...
+                        </Typography>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ) : error ? (
@@ -466,9 +544,7 @@ const Form5 = () => {
                     <TableRow
                       key={row.id}
                       hover
-                      onClick={() => navigate('/schemes/earas/cce/cceDataView', { state: { rowData: row } })}
                       sx={{
-                        cursor: 'pointer',
                         '&:hover': {
                           backgroundColor: alpha(theme.palette.primary.main, 0.04) + ' !important',
                         },
@@ -477,29 +553,30 @@ const Form5 = () => {
                       }}
                     >
                       <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                           <Typography variant="body2" fontWeight={600} color="text.primary">
                             {row.crop}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ background: alpha(theme.palette.divider, 0.1), px: 1, py: 0.2, borderRadius: 1 }}>
-                            {row.season}
-                          </Typography>
+                          {row.noOfCce > 1 && (
+                            <Chip 
+                              label={`${row.noOfCce} CCEs`} 
+                              size="small" 
+                              variant="outlined"
+                              sx={{ fontSize: '0.6rem', mt: 0.5, height: 18 }}
+                            />
+                          )}
                         </Box>
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={row.status}
+                          label={formatStatus(row.status)}
                           size="small"
                           sx={{
-                            backgroundColor: row.status === 'Active'
-                              ? alpha(theme.palette.success.main, 0.1)
-                              : alpha(theme.palette.grey[600], 0.1),
-                            color: row.status === 'Active'
-                              ? theme.palette.success.dark
-                              : theme.palette.grey[700],
+                            backgroundColor: getStatusBackgroundColor(row.status),
+                            color: getStatusColor(row.status),
                             fontWeight: 700,
                             borderRadius: 1.5,
-                            border: `1px solid ${row.status === 'Active' ? alpha(theme.palette.success.main, 0.2) : alpha(theme.palette.grey[500], 0.2)}`
+                            border: `1px solid ${alpha(getStatusColor(row.status), 0.2)}`
                           }}
                         />
                       </TableCell>
@@ -519,28 +596,23 @@ const Form5 = () => {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={row.landType}
+                          label={row.landType !== 'N/A' ? row.landType : 'Not Specified'}
                           size="small"
                           sx={{
-                            backgroundColor: row.landType === 'Wet'
-                              ? alpha(theme.palette.info.main, 0.1)
-                              : alpha(getLandTypeColor(row.landType), 0.1),
-                            color: row.landType === 'Wet'
-                              ? theme.palette.info.dark
-                              : getLandTypeColor(row.landType),
+                            backgroundColor: row.landType !== 'N/A' 
+                              ? alpha(getLandTypeColor(row.landType), 0.1)
+                              : alpha(theme.palette.grey[500], 0.1),
+                            color: row.landType !== 'N/A' 
+                              ? getLandTypeColor(row.landType)
+                              : theme.palette.grey[600],
                             fontWeight: 600,
                             borderRadius: 1.5
                           }}
                         />
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" fontFamily="monospace" fontWeight={500}>
-                          {row.surveyNo}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
                         <Typography variant="body2" fontWeight={500} color="text.secondary">
-                          {row.cultivatedArea}
+                          {row.cultivatedArea !== 'N/A' ? `${row.cultivatedArea} ha` : 'N/A'}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -553,6 +625,24 @@ const Form5 = () => {
                           {row.panchayath}
                         </Typography>
                       </TableCell>
+                      <TableCell>
+                        <Tooltip title="View CCE Details">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleViewClick(row)}
+                            sx={{
+                              color: themeColor,
+                              '&:hover': {
+                                backgroundColor: alpha(themeColor, 0.1),
+                                transform: 'scale(1.1)'
+                              },
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            <VisibilityIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -561,7 +651,7 @@ const Form5 = () => {
           </TableContainer>
 
           {/* Pagination */}
-          {filteredData.length > 0 && (
+          {filteredData.length > 0 && !isLoading && (
             <TablePagination
               component="div"
               count={filteredData.length}

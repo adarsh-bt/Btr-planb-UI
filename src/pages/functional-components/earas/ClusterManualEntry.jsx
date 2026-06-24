@@ -39,6 +39,7 @@ import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest';
 import { is } from 'date-fns/locale';
 // Add this import at the top
 import { useNavigate, useParams } from 'react-router-dom';
+import api from 'api/api';
 
 const BASE_URL = mainapi.BASE_URL;
 const FORM_URL = mainapi.FORM_API;
@@ -165,36 +166,50 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
     const [rowBlockOptions, setRowBlockOptions] = useState({});
 
     
-    const fetchCceCropDetails = async () => {
-        setLoadingCrops(true);
-        try {
-            const token = localStorage.getItem('token');
-            const zoneid = getEffectiveZoneId();
+  const fetchCceCropDetails = async () => {
+    setLoadingCrops(true);
 
-            const response = await fetch(`${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops?zoneId=${zoneid}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+        const zoneid = getEffectiveZoneId();
 
-            const data = await response.json();
+        const response = await api.get(
+            `${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops`,
+            {
+                params: {
+                    zoneId: zoneid,
+                    agriYear: authservice.agriyear()
+                }
+            }
+        );
 
-            // Ensure data is always an array
-            const cropData = Array.isArray(data) ? data : (data.crops || data.payload || []);
+        const data = response.data;
 
-            // Filter crops based on cluster land type
-            const filteredCrops = filterCropsByLandType(cropData, clusterInfo.landType);
+        // Ensure data is always an array
+        const cropData = Array.isArray(data)
+            ? data
+            : (data.crops || data.payload || []);
 
+        // Filter crops based on cluster land type
+        const filteredCrops = filterCropsByLandType(
+            cropData,
+            clusterInfo.landType
+        );
 
-            setCceCropDetails(filteredCrops);
-        } catch (error) {
-            console.error('Error fetching CCE crop details:', error);
-            setCceCropDetails([]);
-            // setSnackbarMessage('Failed to load crop details.');
-            // setSnackbarOpen(true);
-        } finally {
-            setLoadingCrops(false);
+        setCceCropDetails(filteredCrops);
+
+    } catch (error) {
+        console.error('Error fetching CCE crop details:', error);
+
+        if (error.response) {
+            console.error('Status:', error.response.status);
+            console.error('Response:', error.response.data);
         }
-    };
+
+        setCceCropDetails([]);
+    } finally {
+        setLoadingCrops(false);
+    }
+};
 
     const handleUseRecommendedPlot = (type) => {
         if (!validatingRow || !validationInfo) return;
@@ -379,9 +394,9 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
                 resvno: parseInt(row.svNo, 10),
                 resbdno: row.sub && row.sub.trim() !== "" ? row.sub.trim() : null,
                 zoneId: parseInt(zoneId, 10),
+                agriYear: authservice.agriyear()
             };
 
-       
 
             const response = await fetch(`${BASE_URL}/btr-service/api/btr-data/validate-duplicate`, {
                 method: 'POST',
@@ -959,6 +974,7 @@ const hasValidRow = (keyplot) => {
             const requestData = {
                 userId: userId,
                 keyplotId: keyplotId,
+                agriYear: authservice.agriyear(),
                 clusterNo: clusterId,
                 zoneId: parseInt(zoneId),
                 status:
@@ -1174,6 +1190,7 @@ const hasValidRow = (keyplot) => {
                     addedBy: authservice.userid(),
                     rejectedBy: null,
                     rejectedAt: null,
+                    agriYear:authservice.agriyear(),
                     assignedOn: new Date().toISOString().slice(0, 19) // Format: YYYY-MM-DDTHH:mm:ss
                 };
             });

@@ -123,8 +123,8 @@ function KeralaFormReportList() {
 
       // Build precise API request body context
       const requestBody = {
-        // agriYear: AuthService.agriyear() || "2025-2026",
-        agriYear: "2025-2026",
+        agriYear: AuthService.agriyear() || "2025-2026",
+        // agriYear: "2025-2026",
         seasonId: selectedSeason ? seasonToId[selectedSeason] : 3, // Defaults to 3 (Autumn) if none specified
         startMonth: startMonthVal,
         endMonth: endMonthVal,
