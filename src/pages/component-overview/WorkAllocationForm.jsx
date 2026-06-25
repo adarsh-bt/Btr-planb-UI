@@ -30,7 +30,8 @@ import {
   DialogActions,
   Slide,
   Switch,
-  FormControlLabel,Stack
+  FormControlLabel,
+  Stack
 } from '@mui/material';
 import { useParams } from 'react-router';
 import { styled } from '@mui/system';
@@ -235,43 +236,45 @@ function WorkAllocationForm() {
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
   };
-// Premium ambient pulsing animation keyframes
-const pulseAnimation = `
-  @keyframes subtlePulse {
-    0% {
-      box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.4);
-    }
-    70% {
-      box-shadow: 0 0 0 10px rgba(211, 47, 47, 0);
-    }
-    100% {
-      box-shadow: 0 0 0 0 rgba(211, 47, 47, 0);
-    }
-  }
-`;
 
-// Glowing button component for remarks
-const GlowingActionButton = styled(Button)(({ theme }) => ({
-  padding: theme.spacing(1, 3),
-  borderRadius: theme.shape.borderRadius,
-  fontWeight: 600,
-  textTransform: 'none',
-  fontSize: theme.typography.pxToRem(14),
-  animation: 'subtlePulse 2s infinite',
-  border: `1px solid ${theme.palette.error.main}`,
-  color: theme.palette.error.main,
-  backgroundColor: 'rgba(211, 47, 47, 0.04)',
-  transition: 'all 0.2s ease-in-out',
-  '&:hover': {
-    backgroundColor: 'rgba(211, 47, 47, 0.1)',
-    transform: 'translateY(-1px)',
-  },
-}));
+  // Premium ambient pulsing animation keyframes
+  const pulseAnimation = `
+    @keyframes subtlePulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.4);
+      }
+      70% {
+        box-shadow: 0 0 0 10px rgba(211, 47, 47, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(211, 47, 47, 0);
+      }
+    }
+  `;
 
-// Inject style tag to handle keyframes cleanly
-const styleTag = document.createElement('style');
-styleTag.innerHTML = pulseAnimation;
-document.head.appendChild(styleTag);
+  // Glowing button component for remarks
+  const GlowingActionButton = styled(Button)(({ theme }) => ({
+    padding: theme.spacing(1, 3),
+    borderRadius: theme.shape.borderRadius,
+    fontWeight: 600,
+    textTransform: 'none',
+    fontSize: theme.typography.pxToRem(14),
+    animation: 'subtlePulse 2s infinite',
+    border: `1px solid ${theme.palette.error.main}`,
+    color: theme.palette.error.main,
+    backgroundColor: 'rgba(211, 47, 47, 0.04)',
+    transition: 'all 0.2s ease-in-out',
+    '&:hover': {
+      backgroundColor: 'rgba(211, 47, 47, 0.1)',
+      transform: 'translateY(-1px)',
+    },
+  }));
+
+  // Inject style tag to handle keyframes cleanly
+  const styleTag = document.createElement('style');
+  styleTag.innerHTML = pulseAnimation;
+  document.head.appendChild(styleTag);
+
   // Fetch Zone details initially
   useEffect(() => {
     const fetchData = async () => {
@@ -290,9 +293,7 @@ document.head.appendChild(styleTag);
     fetchData();
   }, [resolvedZoneId]);
 
-
-
-// Fetch saved allocations and read their approval status
+  // Fetch saved allocations and read their approval status
   const fetchWorkAllocation = React.useCallback(async () => {
     if (!resolvedZoneId) return;
     const agriYear = authservice.agriyear();
@@ -331,23 +332,6 @@ document.head.appendChild(styleTag);
     fetchWorkAllocation();
   }, [fetchWorkAllocation]);
 
-
-  // Form completion validator rules
-  const canSubmit = useMemo(() => {
-    if (!data || data.length === 0) return false;
-    const requiredFields = [
-      'Wet_area', 'Dry_area', 'Total_area', 'forest_a', 'forest_b', 'forest_c',
-      'area_under', 'plantation_under', 'plantation_not_under', 'kayal_excluded',
-      'others_dry_13', 'others_wet_14', 'others_total', 'plots_dry_16', 'plots_wet_17',
-      'plots_total', 'total_area_wet_19', 'total_area_dry_21', 'total_area_total_20'
-    ];
-    const hasEmptyFields = data.some((row) =>
-      requiredFields.some((field) => row[field] === '' || row[field] === null || row[field] === undefined)
-    );
-    const hasErrors = Object.values(validationErrors).some((msg) => msg !== '');
-    return !hasEmptyFields && !hasErrors;
-  }, [data, validationErrors]);
-
   // Merge datasets
   useEffect(() => {
     if (zoneData.length > 0 && workAllocationData.length > 0) {
@@ -362,15 +346,9 @@ document.head.appendChild(styleTag);
           Dry_area: workItem?.villageDryArea?.toString() || '',
           Total_area: workItem?.villageTotalArea?.toString() || '',
           forest_a: workItem?.forestAreaA?.toString() || '',
-          forest_b: workItem?.forestAreaB?.toString() || '',
-          forest_c: workItem?.forestAreaC?.toString() || '',
           area_under: workItem?.areaUnderPlant?.toString() || '',
           plantation_under: workItem?.forestExcludeUnclutivate?.toString() || '',
-          plantation_not_under: workItem?.forestExcludeNotUnclutivate?.toString() || '',
           kayal_excluded: workItem?.kayalExcludeArea?.toString() || '',
-          others_dry_13: workItem?.otherExcludeFWet?.toString() || '',
-          others_wet_14: workItem?.otherExcludedFDry?.toString() || '',
-          others_total: workItem?.otherExcludeFTotal?.toString() || '',
           plots_dry_16: workItem?.noOfPlotsDry?.toString() || '',
           plots_wet_17: workItem?.noOfPlotsWet?.toString() || '',
           plots_total: workItem?.noOfPlotsTotal?.toString() || '',
@@ -390,11 +368,16 @@ document.head.appendChild(styleTag);
         Wet_area: zoneItem.Wet_area || '',
         Dry_area: zoneItem.Dry_area || '',
         Total_area: zoneItem.Total_area || '',
-        forest_a: '', forest_b: '', forest_c: '', area_under: '',
-        plantation_under: '', plantation_not_under: '', kayal_excluded: '',
-        others_dry_13: '', others_wet_14: '', others_total: '',
-        plots_dry_16: '', plots_wet_17: '', plots_total: '',
-        total_area_wet_19: '', total_area_dry_21: '', total_area_total_20: '',
+        forest_a: '',
+        area_under: '',
+        plantation_under: '',
+        kayal_excluded: '',
+        plots_dry_16: '',
+        plots_wet_17: '',
+        plots_total: '',
+        total_area_wet_19: '',
+        total_area_dry_21: '',
+        total_area_total_20: '',
         remarks: ''
       }));
       setData(zoneDataWithEmptyFields);
@@ -407,18 +390,55 @@ document.head.appendChild(styleTag);
     return '';
   };
 
+  // ============================================================
+  // MAIN AUTO-CALCULATION LOGIC
+  // ============================================================
   const handleInputChange = (index, field, value) => {
     if (isDisabled) return;
     
     const updatedData = [...data];
     updatedData[index] = { ...updatedData[index], [field]: value };
+    
+    const row = updatedData[index];
+    
+    // ===== 1. TAB 1: Calculate Total Area = Wet + Dry =====
+    const wetArea = parseFloat(row.Wet_area) ;
+    const dryArea = parseFloat(row.Dry_area);
+    row.Total_area = (wetArea + dryArea).toString();
+    
+    // ===== 2. TAB 2: Get Excluded Areas =====
+    const forestArea = parseFloat(row.forest_a);
+    const plantationArea = parseFloat(row.area_under);
+    const waterBodies = parseFloat(row.kayal_excluded);
+    const otherAreas = parseFloat(row.plantation_under);
+    
+    // ===== 3. Calculate Total Excluded =====
+    const totalExcluded = forestArea + plantationArea + waterBodies + otherAreas;
+    
+    // ===== 4. TAB 3: Area Available for Estimation =====
+    // Wet Area = Village Wet Area (from Tab 1)
+    row.total_area_wet_19 = wetArea.toString();
+    
+    // Dry Area = Village Dry Area - Total Excluded (minimum 0)
+    const estimationDry = Math.max(0, dryArea - totalExcluded);
+    row.total_area_dry_21 = estimationDry.toString();
+    
+    // Total Area = Wet + Dry
+    const estimationTotal = wetArea + estimationDry;
+    row.total_area_total_20 = estimationTotal.toString();
+    
+    // ===== 5. TAB 3: Number of Plots Total = Wet + Dry =====
+    const plotsWet = parseFloat(row.plots_wet_17);
+    const plotsDry = parseFloat(row.plots_dry_16);
+    row.plots_total = (plotsWet + plotsDry).toString();
+    
     setData(updatedData);
 
+    // ===== 6. Validation for numeric fields =====
     const numericFields = [
-      'Wet_area','Dry_area','Total_area', 'forest_a','forest_b','forest_c',
-      'area_under','plantation_under','plantation_not_under', 'kayal_excluded',
-      'others_dry_13','others_wet_14','others_total', 'plots_dry_16','plots_wet_17',
-      'plots_total', 'total_area_wet_19','total_area_dry_21','total_area_total_20'
+      'Wet_area', 'Dry_area',
+      'forest_a', 'area_under', 'kayal_excluded', 'plantation_under',
+      'plots_wet_17', 'plots_dry_16'
     ];
 
     if (numericFields.includes(field)) {
@@ -447,7 +467,22 @@ document.head.appendChild(styleTag);
     setConfirmDialogOpen(true);
   };
 
-const handleConfirmSubmit = async () => {
+  // Form completion validator rules
+  const canSubmit = useMemo(() => {
+    if (!data || data.length === 0) return false;
+    const requiredFields = [
+      'Wet_area', 'Dry_area',
+      'forest_a', 'area_under', 'kayal_excluded', 'plantation_under',
+      'plots_wet_17', 'plots_dry_16'
+    ];
+    const hasEmptyFields = data.some((row) =>
+      requiredFields.some((field) => row[field] === '' || row[field] === null || row[field] === undefined)
+    );
+    const hasErrors = Object.values(validationErrors).some((msg) => msg !== '');
+    return !hasEmptyFields && !hasErrors;
+  }, [data, validationErrors]);
+
+  const handleConfirmSubmit = async () => {
     setConfirmDialogOpen(false);
     setIsSubmitting(true);
 
@@ -460,31 +495,31 @@ const handleConfirmSubmit = async () => {
         lbcode: row.lbcode || "LB-2025-001",
         
         // ===== AREA DETAILS (Tab 1) =====
-        villageWetArea: parseFloat(row.Wet_area),
+        villageWetArea: parseFloat(row.Wet_area) ,
         villageDryArea: parseFloat(row.Dry_area) ,
-        villageTotalArea: parseFloat(row.Total_area),
+        villageTotalArea: parseFloat(row.Total_area) ,
         
         // ===== EXCLUDED AREAS (Tab 2) =====
-        forestAreaA: parseFloat(row.forest_a),        // Forest Areas
-        forestAreaB: 0,                                     // Not in UI - set to 0
-        forestAreaC: 0,                                     // Not in UI - set to 0
-        areaUnderPlant: parseFloat(row.area_under),   // Plantation Area
-        forestExcludeUnclutivate: parseFloat(row.plantation_under), // Other Areas
-        forestExcludeNotUnclutivate: 0,                    // Not in UI - set to 0
-        kayalExcludeArea: parseFloat(row.kayal_excluded), // Water Bodies
+        forestAreaA: parseFloat(row.forest_a) ,
+        forestAreaB: 0,
+        forestAreaC: 0,
+        areaUnderPlant: parseFloat(row.area_under) ,
+        forestExcludeUnclutivate: parseFloat(row.plantation_under) ,
+        forestExcludeNotUnclutivate: 0,
+        kayalExcludeArea: parseFloat(row.kayal_excluded) ,
         
-        // ===== TOTAL EARAS AREA AND ESTIMATED AREA (Tab 3) =====
-        otherExcludeFWet: parseFloat(row.others_dry_13),   // EARAS Wet
-        otherExcludedFDry: parseFloat(row.others_wet_14),  // EARAS Dry
-        otherExcludeFTotal: parseFloat(row.others_total),  // EARAS Total
-        totalAreaWet: parseFloat(row.total_area_wet_19),   // Estimated Wet
-        totalAreaDry: parseFloat(row.total_area_dry_21),   // Estimated Dry
-        totalAreaForEstimation: parseFloat(row.total_area_total_20), // Estimated Total
+        // ===== AREA AVAILABLE FOR ESTIMATION (Tab 3) =====
+        otherExcludeFWet: 0,
+        otherExcludedFDry: 0,
+        otherExcludeFTotal: 0,
+        totalAreaWet: parseFloat(row.total_area_wet_19) ,
+        totalAreaDry: parseFloat(row.total_area_dry_21) ,
+        totalAreaForEstimation: parseFloat(row.total_area_total_20) ,
         
-        // ===== NO. OF PLOTS - Not in UI =====
-        noOfPlotsWet: 0,
-        noOfPlotsDry: 0,
-        noOfPlotsTotal: 0,
+        // ===== NUMBER OF PLOTS (Tab 3) =====
+        noOfPlotsWet: parseFloat(row.plots_wet_17) ,
+        noOfPlotsDry: parseFloat(row.plots_dry_16) ,
+        noOfPlotsTotal: parseFloat(row.plots_total) ,
         
         remarks: row.remarks || "",
         userId: user_id,
@@ -513,7 +548,7 @@ const handleConfirmSubmit = async () => {
     }
   };
 
-const handleSaveDraft = async () => {
+  const handleSaveDraft = async () => {
     if (isDisabled) return;
     
     setIsSubmitting(true);
@@ -529,29 +564,29 @@ const handleSaveDraft = async () => {
         // ===== AREA DETAILS (Tab 1) =====
         villageWetArea: parseFloat(row.Wet_area) ,
         villageDryArea: parseFloat(row.Dry_area) ,
-        villageTotalArea: parseFloat(row.Total_area),
+        villageTotalArea: parseFloat(row.Total_area) ,
         
         // ===== EXCLUDED AREAS (Tab 2) =====
-        forestAreaA: parseFloat(row.forest_a) ,        // Forest Areas
-        forestAreaB: 0,                                     // Not in UI - set to 0
-        forestAreaC: 0,                                     // Not in UI - set to 0
-        areaUnderPlant: parseFloat(row.area_under),   // Plantation Area
-        forestExcludeUnclutivate: parseFloat(row.plantation_under) , // Other Areas
-        forestExcludeNotUnclutivate: 0,                    // Not in UI - set to 0
-        kayalExcludeArea: parseFloat(row.kayal_excluded), // Water Bodies
+        forestAreaA: parseFloat(row.forest_a) ,
+        forestAreaB: 0,
+        forestAreaC: 0,
+        areaUnderPlant: parseFloat(row.area_under) ,
+        forestExcludeUnclutivate: parseFloat(row.plantation_under) ,
+        forestExcludeNotUnclutivate: 0,
+        kayalExcludeArea: parseFloat(row.kayal_excluded) ,
         
-        // ===== TOTAL EARAS AREA AND ESTIMATED AREA (Tab 3) =====
-        otherExcludeFWet: parseFloat(row.others_dry_13) ,   // EARAS Wet
-        otherExcludedFDry: parseFloat(row.others_wet_14),  // EARAS Dry
-        otherExcludeFTotal: parseFloat(row.others_total),  // EARAS Total
-        totalAreaWet: parseFloat(row.total_area_wet_19),   // Estimated Wet
-        totalAreaDry: parseFloat(row.total_area_dry_21),   // Estimated Dry
-        totalAreaForEstimation: parseFloat(row.total_area_total_20) , // Estimated Total
+        // ===== AREA AVAILABLE FOR ESTIMATION (Tab 3) =====
+        otherExcludeFWet: 0,
+        otherExcludedFDry: 0,
+        otherExcludeFTotal: 0,
+        totalAreaWet: parseFloat(row.total_area_wet_19) ,
+        totalAreaDry: parseFloat(row.total_area_dry_21) ,
+        totalAreaForEstimation: parseFloat(row.total_area_total_20) ,
         
-        // ===== NO. OF PLOTS - Not in UI =====
-        noOfPlotsWet: 0,
-        noOfPlotsDry: 0,
-        noOfPlotsTotal: 0,
+        // ===== NUMBER OF PLOTS (Tab 3) =====
+        noOfPlotsWet: parseFloat(row.plots_wet_17) ,
+        noOfPlotsDry: parseFloat(row.plots_dry_16) ,
+        noOfPlotsTotal: parseFloat(row.plots_total) ,
         
         remarks: row.remarks || "",
         userId: user_id,
@@ -579,7 +614,8 @@ const handleSaveDraft = async () => {
       setIsSubmitting(false);
     }
   };
-  // Submit Admin Review Action directly from the form workflow footer
+
+  // Submit Admin Review Action
   const handleAdminAction = async (isApprove) => {
     console.log('Admin action initiated. Approve:', isApprove, 'Remarks:', adminRemarks, 'ApprovalLogId:', approvalLogId, 'Current form status:', formStatus);
     if (!approvalLogId) {
@@ -600,7 +636,7 @@ const handleSaveDraft = async () => {
         approve: isApprove,
         approver_id: authservice.userid(),
         remarks: adminRemarks || null,
-        is_edit: isApprove ? isAdminEditEnabled : true // Force open editing windows automatically upon return
+        is_edit: isApprove ? isAdminEditEnabled : true
       };
 
       const response = await fetch(`${BASE_URL}/btr-service/admin-manage/approve-reject-workAllocation`, {
@@ -627,115 +663,117 @@ const handleSaveDraft = async () => {
     }
   };
 
-const getStatusIcon = () => {
-  switch (formStatus) {
-    case 'SUBMITTED':
-    case 'PENDING':
-      return <PendingIcon sx={{ fontSize: 28, color: 'warning.main' }} />;
-    case 'APPROVED':
-      return <CheckCircleIcon sx={{ fontSize: 28, color: 'success.main' }} />;
-    case 'RETURNED':
-      return <ErrorIcon sx={{ fontSize: 28, color: 'error.main' }} />;
-    case 'UNDER REVIEW':
-      return <ReviewIcon sx={{ fontSize: 28, color: 'info.main' }} />;
-    case 'DRAFT':
-      return <EditIcon sx={{ fontSize: 28, color: 'info.main' }} />;
-    default:
-      return null;
-  }
-};
-
-const renderStatusBanner = () => {
-  // Safely extract remarks from your fetched backend allocation payload
-  const adminNotes = workAllocationData[0]?.adminRemarks || workAllocationData[0]?.remarks;
-
-  const statusConfig = {
-    'SUBMITTED': {
-      severity: 'warning',
-      title: 'Waiting for Approval',
-      message: 'This form has been submitted and is currently under review by the administrator. Editing is locked until a decision is made.',
-      action: null
-    },
-    'PENDING': {
-      severity: 'warning',
-      title: 'Pending Approval',
-      message: 'Your submission is in the approval queue. You will be notified once reviewed.',
-      action: null
-    },
-    'APPROVED': {
-      severity: 'success',
-      title: 'Form Approved',
-      message: 'This statement has been successfully approved by the admin. The data is now finalized and view-only.',
-      action: null
-    },
-    'UNDER REVIEW': {
-      severity: 'info',
-      title: isAdmin ? '🔍 Under Review - Admin Action Required' : '📋 Under Review',
-      message: isAdmin 
-        ? 'This form is currently under review. You can approve it, return it for corrections, or keep it under review for further examination.'
-        : 'Your form is currently under review by the administrator. The admin may request changes or approve it soon. Please check back later.',
-      action: isAdmin ? null : null
-    },
-    'RETURNED': {
-      severity: 'error',
-      title: 'Form Returned',
-      message: 'The administrator has requested changes. Please review the remarks, make corrections, and resubmit.',
-      action: (
-        <Stack direction="row" spacing={2} alignItems="center">
-          {adminNotes && (
-            <GlowingActionButton 
-              variant="outlined" 
-              onClick={() => setRemarksDialogOpen(true)}
-              startIcon={<VisibilityIcon />}
-            >
-              View Remarks
-            </GlowingActionButton>
-          )}
-        </Stack>
-      )
-    },
-    'DRAFT': {
-      severity: 'info',
-      title: 'Draft Mode',
-      message: 'This is a work in progress. Fill in all required fields to enable submission.',
-      action: null
+  const getStatusIcon = () => {
+    switch (formStatus) {
+      case 'SUBMITTED':
+      case 'PENDING':
+        return <PendingIcon sx={{ fontSize: 28, color: 'warning.main' }} />;
+      case 'APPROVED':
+        return <CheckCircleIcon sx={{ fontSize: 28, color: 'success.main' }} />;
+      case 'RETURNED':
+        return <ErrorIcon sx={{ fontSize: 28, color: 'error.main' }} />;
+      case 'UNDER REVIEW':
+        return <ReviewIcon sx={{ fontSize: 28, color: 'info.main' }} />;
+      case 'DRAFT':
+        return <EditIcon sx={{ fontSize: 28, color: 'info.main' }} />;
+      default:
+        return null;
     }
   };
 
-  const config = statusConfig[formStatus] || statusConfig['DRAFT'];
+  const renderStatusBanner = () => {
+    const adminNotes = workAllocationData[0]?.adminRemarks || workAllocationData[0]?.remarks;
 
-  return (
-    <Zoom in>
-      <StatusCard status={formStatus} elevation={0}>
-        <Grid container alignItems="center" spacing={2}>
-          <Grid item>
-            {getStatusIcon()}
-          </Grid>
-          <Grid item xs>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-              {config.title}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {config.message}
-            </Typography>
-          </Grid>
-          {config.action && (
+    const statusConfig = {
+      'SUBMITTED': {
+        severity: 'warning',
+        title: 'Waiting for Approval',
+        message: 'This form has been submitted and is currently under review by the administrator. Editing is locked until a decision is made.',
+        action: null
+      },
+      'PENDING': {
+        severity: 'warning',
+        title: 'Pending Approval',
+        message: 'Your submission is in the approval queue. You will be notified once reviewed.',
+        action: null
+      },
+      'APPROVED': {
+        severity: 'success',
+        title: 'Form Approved',
+        message: 'This statement has been successfully approved by the admin. The data is now finalized and view-only.',
+        action: null
+      },
+      'UNDER REVIEW': {
+        severity: 'info',
+        title: isAdmin ? '🔍 Under Review - Admin Action Required' : '📋 Under Review',
+        message: isAdmin 
+          ? 'This form is currently under review. You can approve it, return it for corrections, or keep it under review for further examination.'
+          : 'Your form is currently under review by the administrator. The admin may request changes or approve it soon. Please check back later.',
+        action: isAdmin ? null : null
+      },
+      'RETURNED': {
+        severity: 'error',
+        title: 'Form Returned',
+        message: 'The administrator has requested changes. Please review the remarks, make corrections, and resubmit.',
+        action: (
+          <Stack direction="row" spacing={2} alignItems="center">
+            {adminNotes && (
+              <GlowingActionButton 
+                variant="outlined" 
+                onClick={() => setRemarksDialogOpen(true)}
+                startIcon={<VisibilityIcon />}
+              >
+                View Remarks
+              </GlowingActionButton>
+            )}
+          </Stack>
+        )
+      },
+      'DRAFT': {
+        severity: 'info',
+        title: 'Draft Mode',
+        message: 'This is a work in progress. Fill in all required fields to enable submission.',
+        action: null
+      }
+    };
+
+    const config = statusConfig[formStatus] || statusConfig['DRAFT'];
+
+    return (
+      <Zoom in>
+        <StatusCard status={formStatus} elevation={0}>
+          <Grid container alignItems="center" spacing={2}>
             <Grid item>
-              {config.action}
+              {getStatusIcon()}
             </Grid>
-          )}
-        </Grid>
-      </StatusCard>
-    </Zoom>
-  );
-};
+            <Grid item xs>
+              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                {config.title}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {config.message}
+              </Typography>
+            </Grid>
+            {config.action && (
+              <Grid item>
+                {config.action}
+              </Grid>
+            )}
+          </Grid>
+        </StatusCard>
+      </Zoom>
+    );
+  };
 
+  // ============================================================
+  // TAB 1: AREA AS PER VILLAGE RECORDS
+  // ============================================================
   const renderAreaDetailsTable = () => (
     <StyledTable size="small">
       <TableHead>
         <TableRow>
           <StyledTableCell rowSpan={2}>Panchayat / Municipality / Corporation Zone</StyledTableCell>
-          <StyledTableCell rowSpan={2}>Name Of Villages </StyledTableCell>
+          <StyledTableCell rowSpan={2}>Name Of Villages</StyledTableCell>
           <StyledTableCell align="center" colSpan={3}>Area as per village records (in cents)</StyledTableCell>
         </TableRow>
         <TableRow>
@@ -745,104 +783,349 @@ const renderStatusBanner = () => {
         </TableRow>
       </TableHead>
       <TableBody>
-        {data.map((row, index) => (
-          <TableRow key={index}>
-            <StyledTableCell><FormInput size="small" value={row.p_name} disabled={true} variant="outlined" /></StyledTableCell>
-            <StyledTableCell><FormInput size="small" value={row.villages ? row.villages.join(', ') : 'N/A'} disabled={true} variant="outlined" /></StyledTableCell>
-            <StyledTableCell><FormInput size="small" value={row.Wet_area || 0} onChange={(e) => handleInputChange(index, 'Wet_area', e.target.value)} error={!!validationErrors[`Wet_area_${index}`]} helperText={validationErrors[`Wet_area_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
-            <StyledTableCell><FormInput size="small" value={row.Dry_area || 0} onChange={(e) => handleInputChange(index, 'Dry_area', e.target.value)} error={!!validationErrors[`Dry_area_${index}`]} helperText={validationErrors[`Dry_area_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
-            <StyledTableCell><FormInput size="small" value={row.Total_area || 0} onChange={(e) => handleInputChange(index, 'Total_area', e.target.value)} error={!!validationErrors[`Total_area_${index}`]} helperText={validationErrors[`Total_area_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
-          </TableRow>
-        ))}
+        {data.map((row, index) => {
+          const wet = parseFloat(row.Wet_area) ;
+          const dry = parseFloat(row.Dry_area) ;
+          const total = wet + dry;
+          
+          return (
+            <TableRow key={index}>
+              <StyledTableCell>
+                <FormInput size="small" value={row.p_name} disabled={true} variant="outlined" />
+              </StyledTableCell>
+              <StyledTableCell>
+                <FormInput size="small" value={row.villages ? row.villages.join(', ') : 'N/A'} disabled={true} variant="outlined" />
+              </StyledTableCell>
+              
+              {/* Wet Area - User Editable */}
+              <StyledTableCell>
+                <FormInput 
+                  size="small" 
+                  value={row.Wet_area || ''} 
+                  onChange={(e) => handleInputChange(index, 'Wet_area', e.target.value)} 
+                  error={!!validationErrors[`Wet_area_${index}`]} 
+                  helperText={validationErrors[`Wet_area_${index}`]} 
+                  disabled={isDisabled}
+                  variant="outlined" 
+                />
+              </StyledTableCell>
+              
+              {/* Dry Area - User Editable */}
+              <StyledTableCell>
+                <FormInput 
+                  size="small" 
+                  value={row.Dry_area || ''} 
+                  onChange={(e) => handleInputChange(index, 'Dry_area', e.target.value)} 
+                  error={!!validationErrors[`Dry_area_${index}`]} 
+                  helperText={validationErrors[`Dry_area_${index}`]} 
+                  disabled={isDisabled}
+                  variant="outlined" 
+                />
+              </StyledTableCell>
+              
+              {/* Total Area - Auto-calculated, Read-Only */}
+              <StyledTableCell>
+                <Tooltip title={`${wet} + ${dry} = ${total}`}>
+                  <FormInput 
+                    size="small" 
+                    value={total.toFixed(2)} 
+                    disabled={true}
+                    variant="outlined"
+                    sx={{ 
+                      '& .MuiInputBase-input': { 
+                        backgroundColor: '#e8f5e9', 
+                        fontWeight: 'bold',
+                        color: '#2e7d32'
+                      } 
+                    }}
+                  />
+                </Tooltip>
+              </StyledTableCell>
+            </TableRow>
+          );
+        })}
       </TableBody>
     </StyledTable>
   );
 
+  // ============================================================
+  // TAB 2: EXCLUDED AREAS
+  // ============================================================
   const renderForestDetailsTable = () => (
     <StyledTable size="small">
-<TableHead>
-  <TableRow>
-    <StyledTableCell align="center">
-      NAME OF PANCHAYATH
-    </StyledTableCell>
-
-    <StyledTableCell align="center">
-      NAME OF VILLAGE
-    </StyledTableCell>
-
-    <StyledTableCell align="center">
-      FOREST AREAS
-    </StyledTableCell>
-
-    <StyledTableCell align="center">
-      PLANTATION AREA
-    </StyledTableCell>
-
-    <StyledTableCell align="center">
-      AREA OF WATER BODIES
-    </StyledTableCell>
-
-    <StyledTableCell align="center">
-      OTHER AREAS (MILITARY BARRACKS, SEZ, AIR PORT etc.)
-    </StyledTableCell>
-  </TableRow>
-</TableHead>
+      <TableHead>
+        <TableRow>
+          <StyledTableCell align="center">NAME OF PANCHAYATH</StyledTableCell>
+          <StyledTableCell align="center">NAME OF VILLAGE</StyledTableCell>
+          <StyledTableCell align="center">FOREST AREAS</StyledTableCell>
+          <StyledTableCell align="center">PLANTATION AREA</StyledTableCell>
+          <StyledTableCell align="center">AREA OF WATER BODIES</StyledTableCell>
+          <StyledTableCell align="center">OTHER AREAS</StyledTableCell>
+          {/* <StyledTableCell align="center">TOTAL EXCLUDED</StyledTableCell> */}
+        </TableRow>
+      </TableHead>
       <TableBody>
-        {data.map((row, index) => (
-          <TableRow key={index}>
-            <StyledTableCell><Typography variant="body2" fontWeight={500}>{row.p_name}</Typography></StyledTableCell>
-            <StyledTableCell><FormInput size="small" value={row.villages ? row.villages.join(', ') : 'N/A'} disabled={true} variant="outlined" /></StyledTableCell>
-            <StyledTableCell><FormInput size="small" value={row.forest_a || ''} onChange={(e) => handleInputChange(index, 'forest_a', e.target.value)} error={!!validationErrors[`forest_a_${index}`]} helperText={validationErrors[`forest_a_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
-            {/* <StyledTableCell><FormInput size="small" value={row.forest_b || ''} onChange={(e) => handleInputChange(index, 'forest_b', e.target.value)} error={!!validationErrors[`forest_b_${index}`]} helperText={validationErrors[`forest_b_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell> */}
-            {/* <StyledTableCell><FormInput size="small" value={row.forest_c || ''} onChange={(e) => handleInputChange(index, 'forest_c', e.target.value)} error={!!validationErrors[`forest_c_${index}`]} helperText={validationErrors[`forest_c_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell> */}
-            <StyledTableCell><FormInput size="small" value={row.area_under || ''} onChange={(e) => handleInputChange(index, 'area_under', e.target.value)} error={!!validationErrors[`area_under_${index}`]} helperText={validationErrors[`area_under_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
-            <StyledTableCell><FormInput size="small" value={row.plantation_under || ''} onChange={(e) => handleInputChange(index, 'plantation_under', e.target.value)} error={!!validationErrors[`plantation_under_${index}`]} helperText={validationErrors[`plantation_under_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
-            {/* <StyledTableCell><FormInput size="small" value={row.plantation_not_under || ''} onChange={(e) => handleInputChange(index, 'plantation_not_under', e.target.value)} error={!!validationErrors[`plantation_not_under_${index}`]} helperText={validationErrors[`plantation_not_under_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell> */}
-            <StyledTableCell><FormInput size="small" value={row.kayal_excluded || ''} onChange={(e) => handleInputChange(index, 'kayal_excluded', e.target.value)} error={!!validationErrors[`kayal_excluded_${index}`]} helperText={validationErrors[`kayal_excluded_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
-          </TableRow>
-        ))}
+        {data.map((row, index) => {
+          const forest = parseFloat(row.forest_a) ;
+          const plantation = parseFloat(row.area_under) ;
+          const water = parseFloat(row.kayal_excluded) ;
+          const other = parseFloat(row.plantation_under) ;
+          const totalExcluded = forest + plantation + water + other;
+          
+          return (
+            <TableRow key={index}>
+              <StyledTableCell>
+                <Typography variant="body2" fontWeight={500}>{row.p_name}</Typography>
+              </StyledTableCell>
+              <StyledTableCell>
+                <FormInput size="small" value={row.villages ? row.villages.join(', ') : 'N/A'} disabled={true} variant="outlined" />
+              </StyledTableCell>
+              
+              {/* Forest Areas - User Editable */}
+              <StyledTableCell>
+                <FormInput 
+                  size="small" 
+                  value={row.forest_a || ''} 
+                  onChange={(e) => handleInputChange(index, 'forest_a', e.target.value)} 
+                  error={!!validationErrors[`forest_a_${index}`]} 
+                  helperText={validationErrors[`forest_a_${index}`]} 
+                  disabled={isDisabled}
+                  variant="outlined" 
+                />
+              </StyledTableCell>
+              
+              {/* Plantation Area - User Editable */}
+              <StyledTableCell>
+                <FormInput 
+                  size="small" 
+                  value={row.area_under || ''} 
+                  onChange={(e) => handleInputChange(index, 'area_under', e.target.value)} 
+                  error={!!validationErrors[`area_under_${index}`]} 
+                  helperText={validationErrors[`area_under_${index}`]} 
+                  disabled={isDisabled}
+                  variant="outlined" 
+                />
+              </StyledTableCell>
+              
+              {/* Water Bodies - User Editable */}
+              <StyledTableCell>
+                <FormInput 
+                  size="small" 
+                  value={row.kayal_excluded || ''} 
+                  onChange={(e) => handleInputChange(index, 'kayal_excluded', e.target.value)} 
+                  error={!!validationErrors[`kayal_excluded_${index}`]} 
+                  helperText={validationErrors[`kayal_excluded_${index}`]} 
+                  disabled={isDisabled}
+                  variant="outlined" 
+                />
+              </StyledTableCell>
+              
+              {/* Other Areas - User Editable */}
+              <StyledTableCell>
+                <FormInput 
+                  size="small" 
+                  value={row.plantation_under || ''} 
+                  onChange={(e) => handleInputChange(index, 'plantation_under', e.target.value)} 
+                  error={!!validationErrors[`plantation_under_${index}`]} 
+                  helperText={validationErrors[`plantation_under_${index}`]} 
+                  disabled={isDisabled}
+                  variant="outlined" 
+                />
+              </StyledTableCell>
+              
+              {/* Total Excluded - Auto-calculated, Read-Only */}
+              {/* <StyledTableCell>
+                <Tooltip title={`${forest} + ${plantation} + ${water} + ${other} = ${totalExcluded}`}>
+                  <FormInput 
+                    size="small" 
+                    value={totalExcluded.toFixed(2)} 
+                    disabled={true}
+                    variant="outlined"
+                    sx={{ 
+                      '& .MuiInputBase-input': { 
+                        backgroundColor: '#fff3e0', 
+                        fontWeight: 'bold',
+                        color: '#e65100'
+                      } 
+                    }}
+                  />
+                </Tooltip>
+              </StyledTableCell> */}
+            </TableRow>
+          );
+        })}
       </TableBody>
     </StyledTable>
   );
 
+  // ============================================================
+  // TAB 3: AREA AVAILABLE FOR ESTIMATION PURPOSES
+  // ============================================================
   const renderOtherDetailsTable = () => (
     <StyledTable size="small">
       <TableHead>
         <TableRow>
           <StyledTableCell rowSpan={2}>Panchayat / Municipality / Corporation Zone</StyledTableCell>
-          <StyledTableCell align="center" colSpan={3}>EARAS Area</StyledTableCell>
-          {/* <StyledTableCell align="center" colSpan={3}>No. of Plots for Estimation purpose</StyledTableCell> */}
-          <StyledTableCell align="center" colSpan={3}>Estimated Area</StyledTableCell>
+          <StyledTableCell align="center" colSpan={3}>Number of Plots</StyledTableCell>
+          <StyledTableCell align="center" colSpan={3}>Area (in cents)</StyledTableCell>
           <StyledTableCell align="left" rowSpan={2}>Remarks</StyledTableCell>
         </TableRow>
         <TableRow>
           <StyledTableCell align="center">Wet</StyledTableCell>
           <StyledTableCell align="center">Dry</StyledTableCell>
           <StyledTableCell align="center">Total</StyledTableCell>
-          {/* <StyledTableCell align="center">Wet (15)</StyledTableCell> */}
-          {/* <StyledTableCell align="center">Dry (16)</StyledTableCell> */}
-          {/* <StyledTableCell align="center">Total (17)</StyledTableCell> */}
           <StyledTableCell align="center">Wet</StyledTableCell>
           <StyledTableCell align="center">Dry</StyledTableCell>
           <StyledTableCell align="center">Total</StyledTableCell>
         </TableRow>
       </TableHead>
       <TableBody>
-        {data.map((row, index) => (
-          <TableRow key={index}>
-            <StyledTableCell><Typography variant="body2" fontWeight={500}>{row.p_name}</Typography></StyledTableCell>
-            <StyledTableCell><FormInput size="small" value={row.others_dry_13 || ''} onChange={(e) => handleInputChange(index, 'others_dry_13', e.target.value)} error={!!validationErrors[`others_dry_13_${index}`]} helperText={validationErrors[`others_dry_13_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
-            <StyledTableCell><FormInput size="small" value={row.others_wet_14 || ''} onChange={(e) => handleInputChange(index, 'others_wet_14', e.target.value)} error={!!validationErrors[`others_wet_14_${index}`]} helperText={validationErrors[`others_wet_14_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
-            <StyledTableCell><FormInput size="small" value={row.others_total || ''} onChange={(e) => handleInputChange(index, 'others_total', e.target.value)} error={!!validationErrors[`others_total_${index}`]} helperText={validationErrors[`others_total_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
-            {/* <StyledTableCell><FormInput size="small" value={row.plots_dry_16 || ''} onChange={(e) => handleInputChange(index, 'plots_dry_16', e.target.value)} error={!!validationErrors[`plots_dry_16_${index}`]} helperText={validationErrors[`plots_dry_16_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell> */}
-            {/* <StyledTableCell><FormInput size="small" value={row.plots_wet_17 || ''} onChange={(e) => handleInputChange(index, 'plots_wet_17', e.target.value)} error={!!validationErrors[`plots_wet_17_${index}`]} helperText={validationErrors[`plots_wet_17_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell> */}
-            {/* <StyledTableCell><FormInput size="small" value={row.plots_total || ''} onChange={(e) => handleInputChange(index, 'plots_total', e.target.value)} error={!!validationErrors[`plots_total_${index}`]} helperText={validationErrors[`plots_total_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell> */}
-            <StyledTableCell><FormInput size="small" value={row.total_area_wet_19 || ''} onChange={(e) => handleInputChange(index, 'total_area_wet_19', e.target.value)} error={!!validationErrors[`total_area_wet_19_${index}`]} helperText={validationErrors[`total_area_wet_19_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
-            <StyledTableCell><FormInput size="small" value={row.total_area_dry_21 || ''} onChange={(e) => handleInputChange(index, 'total_area_dry_21', e.target.value)} error={!!validationErrors[`total_area_dry_21_${index}`]} helperText={validationErrors[`total_area_dry_21_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
-            <StyledTableCell><FormInput size="small" value={row.total_area_total_20 || ''} onChange={(e) => handleInputChange(index, 'total_area_total_20', e.target.value)} error={!!validationErrors[`total_area_total_20_${index}`]} helperText={validationErrors[`total_area_total_20_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
-            <StyledTableCell><FormInput size="small" value={row.remarks || ''} onChange={(e) => handleInputChange(index, 'remarks', e.target.value)} disabled={isDisabled} variant="outlined" multiline rows={2} /></StyledTableCell>
-          </TableRow>
-        ))}
+        {data.map((row, index) => {
+          // Get values for calculations
+          const wetArea = parseFloat(row.Wet_area) ;
+          const dryArea = parseFloat(row.Dry_area) ;
+          const forest = parseFloat(row.forest_a) ;
+          const plantation = parseFloat(row.area_under) ;
+          const water = parseFloat(row.kayal_excluded) ;
+          const other = parseFloat(row.plantation_under) ;
+          const totalExcluded = forest + plantation + water + other;
+          const estimationDry = Math.max(0, dryArea - totalExcluded);
+          const estimationTotal = wetArea + estimationDry;
+          
+          // Plots calculations
+          const plotsWet = parseFloat(row.plots_wet_17) ;
+          const plotsDry = parseFloat(row.plots_dry_16) ;
+          const plotsTotal = plotsWet + plotsDry;
+          
+          return (
+            <TableRow key={index}>
+              <StyledTableCell>
+                <Typography variant="body2" fontWeight={500}>{row.p_name}</Typography>
+              </StyledTableCell>
+              
+              {/* ===== NUMBER OF PLOTS ===== */}
+              
+              {/* Plots Wet - User Editable */}
+              <StyledTableCell>
+                <FormInput 
+                  size="small" 
+                  value={row.plots_wet_17 || ''} 
+                  onChange={(e) => handleInputChange(index, 'plots_wet_17', e.target.value)} 
+                  error={!!validationErrors[`plots_wet_17_${index}`]} 
+                  helperText={validationErrors[`plots_wet_17_${index}`]} 
+                  disabled={isDisabled}
+                  variant="outlined" 
+                  placeholder="Enter Wet Plots"
+                />
+              </StyledTableCell>
+              
+              {/* Plots Dry - User Editable */}
+              <StyledTableCell>
+                <FormInput 
+                  size="small" 
+                  value={row.plots_dry_16 || ''} 
+                  onChange={(e) => handleInputChange(index, 'plots_dry_16', e.target.value)} 
+                  error={!!validationErrors[`plots_dry_16_${index}`]} 
+                  helperText={validationErrors[`plots_dry_16_${index}`]} 
+                  disabled={isDisabled}
+                  variant="outlined" 
+                  placeholder="Enter Dry Plots"
+                />
+              </StyledTableCell>
+              
+              {/* Plots Total - Auto-calculated, Read-Only */}
+              <StyledTableCell>
+                <Tooltip title={`${plotsWet} + ${plotsDry} = ${plotsTotal}`}>
+                  <FormInput 
+                    size="small" 
+                    value={plotsTotal} 
+                    disabled={true}
+                    variant="outlined"
+                    sx={{ 
+                      '& .MuiInputBase-input': { 
+                        backgroundColor: '#f5f5f5', 
+                        fontWeight: 'bold',
+                        color: '#1976d2'
+                      } 
+                    }}
+                  />
+                </Tooltip>
+              </StyledTableCell>
+              
+              {/* ===== AREA (in cents) ===== */}
+              
+              {/* Area Wet - Auto-filled from Tab 1, Read-Only */}
+              <StyledTableCell>
+                <Tooltip title={`Village Wet Area: ${wetArea}`}>
+                  <FormInput 
+                    size="small" 
+                    value={wetArea.toFixed(2)} 
+                    disabled={true}
+                    variant="outlined"
+                    sx={{ 
+                      '& .MuiInputBase-input': { 
+                        backgroundColor: '#e3f2fd', 
+                        fontWeight: 'bold',
+                        color: '#0d47a1'
+                      } 
+                    }}
+                  />
+                </Tooltip>
+              </StyledTableCell>
+              
+              {/* Area Dry - Auto-calculated (Dry - Total Excluded), Read-Only */}
+              <StyledTableCell>
+                <Tooltip title={`${dryArea} - ${totalExcluded} = ${estimationDry}`}>
+                  <FormInput 
+                    size="small" 
+                    value={estimationDry.toFixed(2)} 
+                    disabled={true}
+                    variant="outlined"
+                    sx={{ 
+                      '& .MuiInputBase-input': { 
+                        backgroundColor: '#e3f2fd', 
+                        fontWeight: 'bold',
+                        color: '#0d47a1'
+                      } 
+                    }}
+                  />
+                </Tooltip>
+              </StyledTableCell>
+              
+              {/* Area Total - Auto-calculated (Wet + Dry), Read-Only */}
+              <StyledTableCell>
+                <Tooltip title={`${wetArea} + ${estimationDry} = ${estimationTotal}`}>
+                  <FormInput 
+                    size="small" 
+                    value={estimationTotal.toFixed(2)} 
+                    disabled={true}
+                    variant="outlined"
+                    sx={{ 
+                      '& .MuiInputBase-input': { 
+                        backgroundColor: '#e3f2fd', 
+                        fontWeight: 'bold',
+                        color: '#0d47a1'
+                      } 
+                    }}
+                  />
+                </Tooltip>
+              </StyledTableCell>
+              
+              {/* Remarks */}
+              <StyledTableCell>
+                <FormInput 
+                  size="small" 
+                  value={row.remarks || ''} 
+                  onChange={(e) => handleInputChange(index, 'remarks', e.target.value)} 
+                  disabled={isDisabled}
+                  variant="outlined" 
+                  multiline 
+                  rows={2} 
+                />
+              </StyledTableCell>
+            </TableRow>
+          );
+        })}
       </TableBody>
     </StyledTable>
   );
@@ -875,14 +1158,14 @@ const renderStatusBanner = () => {
           {isAdmin && (
             <Chip icon={<LockIcon />} label="Admin View Mode" color="secondary" sx={{ fontWeight: 600 }} />
           )}
-       {!isAdmin && isDisabled && formStatus !== 'RETURNED' && (
-  <Chip 
-    icon={<LockIcon />} 
-    label={formStatus === 'APPROVED' ? 'Approved & Locked' : formStatus === 'UNDER REVIEW' ? 'Under Review' : 'Under Review'} 
-    color={formStatus === 'APPROVED' ? 'success' : formStatus === 'UNDER REVIEW' ? 'info' : 'warning'} 
-    sx={{ fontWeight: 500 }} 
-  />
-)}
+          {!isAdmin && isDisabled && formStatus !== 'RETURNED' && (
+            <Chip 
+              icon={<LockIcon />} 
+              label={formStatus === 'APPROVED' ? 'Approved & Locked' : formStatus === 'UNDER REVIEW' ? 'Under Review' : 'Under Review'} 
+              color={formStatus === 'APPROVED' ? 'success' : formStatus === 'UNDER REVIEW' ? 'info' : 'warning'} 
+              sx={{ fontWeight: 500 }} 
+            />
+          )}
         </Box>
         
         {/* Alerts Center Notification Toast */}
@@ -920,9 +1203,9 @@ const renderStatusBanner = () => {
           </MainCard>
 
           <StyledTabs value={activeTab} onChange={handleTabChange} aria-label="work allocation tabs">
-            <StyledTab label="📊 Area Details" value="tab1" />
+            <StyledTab label="📊 Area as per village records" value="tab1" />
             <StyledTab label="🌲 Excluded Areas" value="tab2" />
-            <StyledTab label="📋 Total earas area and estimated area" value="tab3" />
+            <StyledTab label="📋 Area Available for Estimation" value="tab3" />
           </StyledTabs>
 
           <Box sx={{ overflowX: 'auto', mb: 3 }}>
@@ -933,120 +1216,122 @@ const renderStatusBanner = () => {
 
           <Divider sx={{ my: 3 }} />
 
-          {/* DYNAMIC ACTION RENDERING BLOCK: ADMIN ACTIONS vs DATA COLLECTOR ACTIONS */}
-        {isAdmin ? (
-  // ADMINISTRATIVE ACTION INTERFACE CARD PANEL
-  ['SUBMITTED', 'PENDING', 'UNDER REVIEW'].includes(formStatus) && (
-    <Box sx={{ p: 3, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
-      <Typography variant="h5" sx={{ fontWeight: 600, color: '#05307a', mb: 2 }}>
-        Administrative Approval Panel
-      </Typography>
-      
-      {/* Show different message when in UNDER REVIEW status */}
-      {formStatus === 'UNDER REVIEW' && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          <AlertTitle>📌 Currently Under Review</AlertTitle>
-          This form is currently in "Under Review" status. You can:
-          <ul style={{ marginTop: 4, marginBottom: 0 }}>
-            <li><strong>Approve</strong> - Finalize the form</li>
-            <li><strong>Return for Correction</strong> - Send back with remarks</li>
-            <li><strong>Keep Under Review</strong> - Leave it in review state</li>
-          </ul>
-        </Alert>
-      )}
-      
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={7}>
-          <TextField
-            fullWidth
-            multiline
-            rows={3}
-            label="Approver Decision Notes / Remarks"
-            value={adminRemarks}
-            onChange={(e) => setAdminRemarks(e.target.value)}
-            placeholder={formStatus === 'UNDER REVIEW' ? 'Add additional notes or final decision remarks...' : 'Add observations, notes, or required amendments context...'}
-          />
-        </Grid>
+          {/* DYNAMIC ACTION RENDERING BLOCK */}
+          {isAdmin ? (
+            ['SUBMITTED', 'PENDING', 'UNDER REVIEW'].includes(formStatus) && (
+              <Box sx={{ p: 3, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+                <Typography variant="h5" sx={{ fontWeight: 600, color: '#05307a', mb: 2 }}>
+                  Administrative Approval Panel
+                </Typography>
+                
+                {formStatus === 'UNDER REVIEW' && (
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    <AlertTitle>📌 Currently Under Review</AlertTitle>
+                    This form is currently in "Under Review" status. You can:
+                    <ul style={{ marginTop: 4, marginBottom: 0 }}>
+                      <li><strong>Approve</strong> - Finalize the form</li>
+                      <li><strong>Return for Correction</strong> - Send back with remarks</li>
+                      <li><strong>Keep Under Review</strong> - Leave it in review state</li>
+                    </ul>
+                  </Alert>
+                )}
+                
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={7}>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={3}
+                      label="Approver Decision Notes / Remarks"
+                      value={adminRemarks}
+                      onChange={(e) => setAdminRemarks(e.target.value)}
+                      placeholder={formStatus === 'UNDER REVIEW' ? 'Add additional notes or final decision remarks...' : 'Add observations, notes, or required amendments context...'}
+                    />
+                  </Grid>
 
-        <Grid item xs={12} md={5}>
-          <Card variant="outlined" sx={{ p: 2, bgcolor: isAdminEditEnabled ? '#fff8e1' : '#f0fdf4', border: 1, borderColor: isAdminEditEnabled ? '#ffb74d' : '#bbf7d0' }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={isAdminEditEnabled}
-                  onChange={(e) => setIsAdminEditEnabled(e.target.checked)}
-                  color="warning"
-                />
-              }
-              label={<Typography variant="subtitle2" fontWeight={600}>Set Form Status to "Under Review"</Typography>}
-            />
-            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-              {isAdminEditEnabled 
-                ? '⚠️ ON: The statement will pass validation checks but remain editable for modifications.' 
-                : '✓ OFF: Form metrics will lock down completely into view-only records upon approval.'}
-            </Typography>
-          </Card>
-        </Grid>
-      </Grid>
+                  <Grid item xs={12} md={5}>
+                    <Card variant="outlined" sx={{ p: 2, bgcolor: isAdminEditEnabled ? '#fff8e1' : '#f0fdf4', border: 1, borderColor: isAdminEditEnabled ? '#ffb74d' : '#bbf7d0' }}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={isAdminEditEnabled}
+                            onChange={(e) => setIsAdminEditEnabled(e.target.checked)}
+                            color="warning"
+                          />
+                        }
+                        label={<Typography variant="subtitle2" fontWeight={600}>Set Form Status to "Under Review"</Typography>}
+                      />
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                        {isAdminEditEnabled 
+                          ? '⚠️ ON: The statement will pass validation checks but remain editable for modifications.' 
+                          : '✓ OFF: Form metrics will lock down completely into view-only records upon approval.'}
+                      </Typography>
+                    </Card>
+                  </Grid>
+                </Grid>
 
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3 }}>
-        <Button
-          variant="outlined"
-          color="error"
-          startIcon={<CancelIcon />}
-          onClick={() => handleAdminAction(false)}
-          disabled={isSubmitting || !adminRemarks.trim()}
-        >
-          Return for Correction
-        </Button>
-        <Button
-          variant="contained"
-          color={isAdminEditEnabled ? "warning" : "success"}
-          startIcon={<CheckCircleIcon />}
-          onClick={() => handleAdminAction(true)}
-          disabled={isSubmitting}
-        >
-          {isAdminEditEnabled ? 'Save Under Review' : 'Approve Statement'}
-        </Button>
-      </Box>
-    </Box>
-  )
-) : (
-  // STANDARD FIELD DATA COLLECTOR SAVE / SUBMIT SYSTEM ACTIONS BUTTONS
-  <Grid container spacing={2} justifyContent="flex-end">
-    <Grid item>
-      <Tooltip title={isDisabled ? 'Form parameters are currently locked' : 'Save entries as draft'}>
-        <span>
-          <ActionButton variant="outlined" color="primary" onClick={handleSaveDraft} disabled={isDisabled || isSubmitting} startIcon={<SaveIcon />}>
-            {isSubmitting ? 'Saving...' : 'Save Draft'}
-          </ActionButton>
-        </span>
-      </Tooltip>
-    </Grid>
-    <Grid item>
-      <Tooltip title={!canSubmit && !isDisabled ? 'Please complete all metric fields' : ''}>
-        <span>
-          <ActionButton variant="contained" color="success" onClick={handleSubmitClick} disabled={isDisabled || !canSubmit || isSubmitting} startIcon={<SendIcon />}>
-            {isSubmitting ? 'Submitting...' : 'Submit for Approval'}
-          </ActionButton>
-        </span>
-      </Tooltip>
-    </Grid>
-  </Grid>
-)}
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3 }}>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    startIcon={<CancelIcon />}
+                    onClick={() => handleAdminAction(false)}
+                    disabled={isSubmitting || !adminRemarks.trim()}
+                  >
+                    Return for Correction
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color={isAdminEditEnabled ? "warning" : "success"}
+                    startIcon={<CheckCircleIcon />}
+                    onClick={() => handleAdminAction(true)}
+                    disabled={isSubmitting}
+                  >
+                    {isAdminEditEnabled ? 'Save Under Review' : 'Approve Statement'}
+                  </Button>
+                </Box>
+              </Box>
+            )
+          ) : (
+            <Grid container spacing={2} justifyContent="flex-end">
+              <Grid item>
+                <Tooltip title={isDisabled ? 'Form parameters are currently locked' : 'Save entries as draft'}>
+                  <span>
+                    <ActionButton variant="outlined" color="primary" onClick={handleSaveDraft} disabled={isDisabled || isSubmitting} startIcon={<SaveIcon />}>
+                      {isSubmitting ? 'Saving...' : 'Save Draft'}
+                    </ActionButton>
+                  </span>
+                </Tooltip>
+              </Grid>
+              <Grid item>
+                <Tooltip title={!canSubmit && !isDisabled ? 'Please complete all metric fields' : ''}>
+                  <span>
+                    <ActionButton variant="contained" color="success" onClick={handleSubmitClick} disabled={isDisabled || !canSubmit || isSubmitting} startIcon={<SendIcon />}>
+                      {isSubmitting ? 'Submitting...' : 'Submit for Approval'}
+                    </ActionButton>
+                  </span>
+                </Tooltip>
+              </Grid>
+            </Grid>
+          )}
 
-          {/* Form Completion Progress Tracking Metric indicator */}
+          {/* Form Completion Indicator */}
           {!isDisabled && !isAdmin && formStatus !== 'APPROVED' && (
             <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-              <Chip label={canSubmit ? "✓ Data complete - Ready to send" : "⚠️ Incomplete fields remaining"} color={canSubmit ? "success" : "warning"} size="small" variant="outlined" />
+              <Chip 
+                label={canSubmit ? "✓ Data complete - Ready to send" : "⚠️ Incomplete fields remaining"} 
+                color={canSubmit ? "success" : "warning"} 
+                size="small" 
+                variant="outlined" 
+              />
             </Box>
           )}
         </Paper>
       </Container>
 
-      {/* Confirmation Dialog for Submit */}
+      {/* Confirmation Dialog */}
       <StyledDialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)} TransitionComponent={Transition} keepMounted>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', bgcolor: 'warning.lighter', borderBottom: '1px solid', borderColor: 'divider' }}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: 'warning.lighter', borderBottom: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <WarningIcon color="warning" />
             <Typography variant="h6" fontWeight={600}>Confirm Submission</Typography>
@@ -1069,12 +1354,9 @@ const renderStatusBanner = () => {
           </Button>
         </DialogActions>
       </StyledDialog>
-{/* Admin Remarks Details Modal Popup */}
-      <StyledDialog
-        open={remarksDialogOpen}
-        onClose={() => setRemarksDialogOpen(false)}
-        TransitionComponent={Transition}
-      >
+
+      {/* Admin Remarks Dialog */}
+      <StyledDialog open={remarksDialogOpen} onClose={() => setRemarksDialogOpen(false)} TransitionComponent={Transition}>
         <DialogTitle sx={{ 
           display: 'flex', 
           alignItems: 'center', 
@@ -1129,9 +1411,10 @@ const renderStatusBanner = () => {
           </Button>
         </DialogActions>
       </StyledDialog>
-      {/* Success Info Dialog after Submission */}
+
+      {/* Success Info Dialog */}
       <StyledDialog open={infoDialogOpen} onClose={() => setInfoDialogOpen(false)} TransitionComponent={Transition}>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', bgcolor: 'success.lighter', borderBottom: '1px solid', borderColor: 'divider' }}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: 'success.lighter', borderBottom: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <CheckCircleIcon color="success" />
             <Typography variant="h6" fontWeight={600}>Submission Successful</Typography>

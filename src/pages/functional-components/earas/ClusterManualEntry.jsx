@@ -2422,11 +2422,12 @@ const validateSidePlotLabels = () => {
                     </DialogContent>
 
                     <DialogActions>
-                        <Button onClick={() => setOpenLimitDialog(false)}>Cancel</Button>
+                        <Button onClick={() => setOpenLimitDialog(false)}  color="secondary"
+                             variant="contained">Cancel</Button>
 
                         {/* BELOW MIN → Save only */}
                         {limitSeverity === 'info' && (
-                            <Button onClick={() => proceedSubmit('ON_GOING')}>
+                            <Button onClick={() => proceedSubmit('ON_GOING')} color="primary" variant="contained">
                                 Save
                             </Button>
                         )}
@@ -2434,7 +2435,7 @@ const validateSidePlotLabels = () => {
                         {/* BETWEEN MIN & MEAN */}
                         {limitSeverity === 'warning' && (
                             <>
-                                <Button onClick={() => proceedSubmit('SAVE')}>
+                                <Button onClick={() => proceedSubmit('SAVE')} color="primary" variant="contained">
                                     Save
                                 </Button>
 
@@ -2585,7 +2586,8 @@ const validateSidePlotLabels = () => {
   </Button> */}
                         <Button
                             onClick={() => setCropsModalOpen(false)}
-                            color="primary"
+                            color="secondary"
+                             variant="contained"
                         >
                             Close
                         </Button>
@@ -2679,10 +2681,11 @@ const validateSidePlotLabels = () => {
                         </DialogContentText>
                     </DialogContent>
                     <DialogActions>
-                        <Button onClick={handleCloseConfirmDialog} color="primary">
+                        <Button onClick={handleCloseConfirmDialog}  color="secondary"
+                             variant="contained">
                             Cancel
                         </Button>
-                        <Button onClick={handleConfirmDelete} color="error" autoFocus>
+                        <Button onClick={handleConfirmDelete} color="error" autoFocus variant="contained">
                             Delete Permanently
                         </Button>
                     </DialogActions>

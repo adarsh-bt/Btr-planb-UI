@@ -26,16 +26,16 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import api from 'api/api';
 import mainapi from 'api/mainapi';
 import { useReactToPrint } from 'react-to-print';
-import logo from '../../../../assets/images/logo/des-print-logo.png'; // Adjust the path as necessary 
+import logo from '../../../../assets/images/logo/des-print-logo.png';
 
 // Styled components for Excel-like appearance
 const ExcelTableContainer = styled(TableContainer)({
   border: '2px solid #000',
   '& .MuiTableCell-root': {
     border: '1px solid #000',
-    padding: '4px',
+    padding: '5px',
     fontSize: '10px',
-    lineHeight: '1.2',
+    lineHeight: '1.3',
   },
   '@media print': {
     maxHeight: 'none !important',
@@ -50,6 +50,8 @@ const HeaderCell = styled(TableCell)({
   textAlign: 'center',
   whiteSpace: 'nowrap',
   borderBottom: '2px solid #000 !important',
+  padding: '5px',
+  fontSize: '10px',
   '@media print': {
     backgroundColor: '#f0f0f0 !important',
     '-webkit-print-color-adjust': 'exact !important',
@@ -59,12 +61,16 @@ const HeaderCell = styled(TableCell)({
 
 const DataCell = styled(TableCell)({
   textAlign: 'center',
+  padding: '5px',
+  fontSize: '10px',
 });
 
 const TotalCell = styled(TableCell)({
   fontWeight: 'bold',
   backgroundColor: '#e8f0fe',
   textAlign: 'center',
+  padding: '5px',
+  fontSize: '10px',
   '@media print': {
     backgroundColor: '#e8f0fe !important',
     '-webkit-print-color-adjust': 'exact !important',
@@ -72,14 +78,14 @@ const TotalCell = styled(TableCell)({
   },
 });
 
-const SectionHeaderFullRow = styled(TableCell)({
+// Section header styles with different colors
+const SectionHeaderCell = styled(TableCell)({
   fontWeight: 'bold',
-  backgroundColor: '#d9e1f2',
   textAlign: 'left',
   paddingLeft: '16px !important',
-  fontSize: '11px',
+  fontSize: '12px',
+  padding: '6px',
   '@media print': {
-    backgroundColor: '#d9e1f2 !important',
     '-webkit-print-color-adjust': 'exact !important',
     'print-color-adjust': 'exact !important',
   },
@@ -88,13 +94,42 @@ const SectionHeaderFullRow = styled(TableCell)({
 const CropNameCell = styled(TableCell)({
   textAlign: 'left',
   paddingLeft: '16px',
+  padding: '5px',
+  fontSize: '10px',
 });
 
+// NUC/FFS/COS color styles
 const NucCell = styled(TableCell)({
   textAlign: 'center',
-  backgroundColor: '#f5f5f5 !important',
+  backgroundColor: '#FFF2CC !important',
+  padding: '5px',
+  fontSize: '10px',
   '@media print': {
-    backgroundColor: '#f5f5f5 !important',
+    backgroundColor: '#FFF2CC !important',
+    '-webkit-print-color-adjust': 'exact !important',
+    'print-color-adjust': 'exact !important',
+  },
+});
+
+const FfsCell = styled(TableCell)({
+  textAlign: 'center',
+  backgroundColor: '#E2F0D9 !important',
+  padding: '5px',
+  fontSize: '10px',
+  '@media print': {
+    backgroundColor: '#E2F0D9 !important',
+    '-webkit-print-color-adjust': 'exact !important',
+    'print-color-adjust': 'exact !important',
+  },
+});
+
+const CosCell = styled(TableCell)({
+  textAlign: 'center',
+  backgroundColor: '#DDEBF7 !important',
+  padding: '5px',
+  fontSize: '10px',
+  '@media print': {
+    backgroundColor: '#DDEBF7 !important',
     '-webkit-print-color-adjust': 'exact !important',
     'print-color-adjust': 'exact !important',
   },
@@ -176,7 +211,7 @@ const PrintStyle = () => (
   </style>
 );
 
-const ExcelView = ({ open, onClose, clusterId = 21186 }) => {
+const ExcelView = ({ open, onClose, clusterId }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState(null);
@@ -228,28 +263,47 @@ const ExcelView = ({ open, onClose, clusterId = 21186 }) => {
     }
   };
 
+  // Render NUC row with specific colors
   const renderNucRow = (nuc) => {
+    let CellComponent = DataCell;
+    let cellStyle = {};
+    
+    if (nuc.label === 'NUC Area' || nuc.malayalamLabel === 'NUC') {
+      CellComponent = NucCell;
+      cellStyle = { backgroundColor: '#FFF2CC !important' };
+    } else if (nuc.label === 'FFS Area' || nuc.malayalamLabel === 'FFS') {
+      CellComponent = FfsCell;
+      cellStyle = { backgroundColor: '#E2F0D9 !important' };
+    } else if (nuc.label === 'COS Area' || nuc.malayalamLabel === 'COS') {
+      CellComponent = CosCell;
+      cellStyle = { backgroundColor: '#DDEBF7 !important' };
+    }
+
     return (
       <TableRow>
-        {/* Replaced colSpan 2 & 4 with single combined colSpan 6 */}
-        <CropNameCell colSpan={6} sx={{ backgroundColor: '#f5f5f5' }}>
+        <CropNameCell colSpan={6} sx={cellStyle}>
           {nuc.malayalamLabel || nuc.label}
         </CropNameCell>
-        <DataCell sx={{ backgroundColor: '#f5f5f5' }}>"</DataCell>
-        <NucCell colSpan={2}>{nuc.k ?? 0}</NucCell>
-        <NucCell colSpan={2}>{nuc.s1 ?? 0}</NucCell>
-        <NucCell colSpan={2}>{nuc.e1 ?? 0}</NucCell>
-        <NucCell colSpan={2}>{nuc.n1 ?? 0}</NucCell>
-        <NucCell colSpan={2}>{nuc.w1 ?? 0}</NucCell>
+        <CellComponent sx={cellStyle}>"</CellComponent>
+        <CellComponent colSpan={2} sx={cellStyle}>{nuc.k ?? 0}</CellComponent>
+        <CellComponent colSpan={2} sx={cellStyle}>{nuc.s1 ?? 0}</CellComponent>
+        <CellComponent colSpan={2} sx={cellStyle}>{nuc.e1 ?? 0}</CellComponent>
+        <CellComponent colSpan={2} sx={cellStyle}>{nuc.n1 ?? 0}</CellComponent>
+        <CellComponent colSpan={2} sx={cellStyle}>{nuc.w1 ?? 0}</CellComponent>
         <TotalCell colSpan={2}>{(nuc.total ?? 0).toFixed(2)}</TotalCell>
       </TableRow>
     );
   };
 
+  // Render crop row with growth stage
   const renderCropRow = (crop) => {
+    const displayName = crop.growthStage && crop.growthStage !== 'no classification' 
+      ? `${crop.malayalamName || crop.cropName} (${crop.growthStage})`
+      : crop.malayalamName || crop.cropName;
+
     return (
       <TableRow>
-        <CropNameCell colSpan={6}>{crop.malayalamName || crop.cropName}</CropNameCell>
+        <CropNameCell colSpan={6}>{displayName}</CropNameCell>
         <DataCell>"</DataCell>
         <DataCell>{crop.kI ?? 0}</DataCell>
         <DataCell>{crop.kUI ?? 0}</DataCell>
@@ -267,27 +321,50 @@ const ExcelView = ({ open, onClose, clusterId = 21186 }) => {
     );
   };
 
-  const renderSeasonalSection = (title, data) => {
+  // Render seasonal section with colored header
+  const renderSeasonalSection = (title, data, headerColor = '#FFE699') => {
     if (!data) return null;
     const { crops = [], nucRows = [] } = data;
 
     return (
       <>
         <TableRow>
-          <SectionHeaderFullRow colSpan={6}>{title}</SectionHeaderFullRow>
-          <DataCell>"</DataCell>
-          <DataCell>I</DataCell>
-          <DataCell>UI</DataCell>
-          <DataCell>I</DataCell>
-          <DataCell>UI</DataCell>
-          <DataCell>I</DataCell>
-          <DataCell>UI</DataCell>
-          <DataCell>I</DataCell>
-          <DataCell>UI</DataCell>
-          <DataCell>I</DataCell>
-          <DataCell>UI</DataCell>
-          <DataCell>I</DataCell>
-          <DataCell>UI</DataCell>
+          <SectionHeaderCell 
+            colSpan={19} 
+            sx={{ 
+              backgroundColor: headerColor,
+              fontWeight: 'bold',
+              fontSize: '12px',
+              padding: '8px'
+            }}
+          >
+            {title}
+          </SectionHeaderCell>
+        </TableRow>
+        <TableRow>
+          <SectionHeaderCell 
+            colSpan={6} 
+            sx={{ 
+              backgroundColor: '#f5f5f5',
+              fontWeight: 'bold',
+              fontSize: '10px'
+            }}
+          >
+            വിളകൾ
+          </SectionHeaderCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>"</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>I</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>UI</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>I</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>UI</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>I</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>UI</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>I</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>UI</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>I</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>UI</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>I</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>UI</DataCell>
         </TableRow>
 
         {crops.length > 0 ? (
@@ -305,26 +382,49 @@ const ExcelView = ({ open, onClose, clusterId = 21186 }) => {
     );
   };
 
-  const renderRegularCropSection = (title, crops) => {
+  // Render regular crop section (Annual/Perennial - no NUC rows)
+  const renderRegularCropSection = (title, crops, headerColor) => {
     const cropArray = toArray(crops);
 
     return (
       <>
         <TableRow>
-          <SectionHeaderFullRow colSpan={6}>{title}</SectionHeaderFullRow>
-          <DataCell>"</DataCell>
-          <DataCell>I</DataCell>
-          <DataCell>UI</DataCell>
-          <DataCell>I</DataCell>
-          <DataCell>UI</DataCell>
-          <DataCell>I</DataCell>
-          <DataCell>UI</DataCell>
-          <DataCell>I</DataCell>
-          <DataCell>UI</DataCell>
-          <DataCell>I</DataCell>
-          <DataCell>UI</DataCell>
-          <DataCell>I</DataCell>
-          <DataCell>UI</DataCell>
+          <SectionHeaderCell 
+            colSpan={19} 
+            sx={{ 
+              backgroundColor: headerColor,
+              fontWeight: 'bold',
+              fontSize: '12px',
+              padding: '8px'
+            }}
+          >
+            {title}
+          </SectionHeaderCell>
+        </TableRow>
+        <TableRow>
+          <SectionHeaderCell 
+            colSpan={6} 
+            sx={{ 
+              backgroundColor: '#f5f5f5',
+              fontWeight: 'bold',
+              fontSize: '10px'
+            }}
+          >
+            വിളകൾ
+          </SectionHeaderCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>"</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>I</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>UI</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>I</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>UI</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>I</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>UI</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>I</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>UI</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>I</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>UI</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>I</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>UI</DataCell>
         </TableRow>
 
         {cropArray.length > 0 ? (
@@ -336,6 +436,99 @@ const ExcelView = ({ open, onClose, clusterId = 21186 }) => {
             </CropNameCell>
           </TableRow>
         )}
+      </>
+    );
+  };
+
+  // Render Irrigation Section with cluster columns
+  const renderIrrigationSection = (irrigationData) => {
+    const items = toArray(irrigationData?.items);
+
+    return (
+      <>
+        <TableRow>
+          <SectionHeaderCell 
+            colSpan={19} 
+            sx={{ 
+              backgroundColor: '#B7DEE8',
+              fontWeight: 'bold',
+              fontSize: '12px',
+              padding: '8px'
+            }}
+          >
+            ഇ. ജലസേചനമുള്ള സ്ഥലവിസ്തൃതി
+          </SectionHeaderCell>
+        </TableRow>
+        <TableRow>
+          <HeaderCell colSpan={3}>ജലസേചന മാർഗ്ഗം</HeaderCell>
+          <HeaderCell>കോഡ്</HeaderCell>
+          <HeaderCell colSpan={2}>എണ്ണം</HeaderCell>
+          <HeaderCell colSpan={2}>K</HeaderCell>
+          <HeaderCell colSpan={2}>S1</HeaderCell>
+          <HeaderCell colSpan={2}>E1</HeaderCell>
+          <HeaderCell colSpan={2}>N1</HeaderCell>
+          <HeaderCell colSpan={2}>W1</HeaderCell>
+          <HeaderCell colSpan={2}>ആകെ</HeaderCell>
+        </TableRow>
+
+        {items.length > 0 ? (
+          items.map((item, idx) => (
+            <TableRow key={idx}>
+              <DataCell colSpan={3}>{item.irrigationType || 'N/A'}</DataCell>
+              <DataCell>{item.code || 'N/A'}</DataCell>
+              <DataCell colSpan={2}>{item.sourceCount || 0}</DataCell>
+              <DataCell colSpan={2}>{(item.kArea || 0).toFixed(2)}</DataCell>
+              <DataCell colSpan={2}>{(item.s1Area || 0).toFixed(2)}</DataCell>
+              <DataCell colSpan={2}>{(item.e1Area || 0).toFixed(2)}</DataCell>
+              <DataCell colSpan={2}>{(item.n1Area || 0).toFixed(2)}</DataCell>
+              <DataCell colSpan={2}>{(item.w1Area || 0).toFixed(2)}</DataCell>
+              <TotalCell colSpan={2}>{(item.totalArea || 0).toFixed(2)}</TotalCell>
+            </TableRow>
+          ))
+        ) : (
+          <TableRow>
+            <DataCell colSpan={19} sx={{ textAlign: 'center', color: '#999' }}>
+              No irrigation data available
+            </DataCell>
+          </TableRow>
+        )}
+
+        {/* Irrigation Totals */}
+        {items.length > 0 && (
+          <TableRow sx={{ backgroundColor: '#e8f5e9', borderTop: '2px solid #388e3c' }}>
+            <DataCell colSpan={6} sx={{ fontWeight: 'bold' }}>ആകെ</DataCell>
+            <DataCell colSpan={2} sx={{ fontWeight: 'bold', textAlign: 'center' }}>Net</DataCell>
+            <DataCell colSpan={2} sx={{ fontWeight: 'bold', textAlign: 'center' }}>{(irrigationData?.totalNetArea || 0).toFixed(2)}</DataCell>
+            <DataCell colSpan={2} sx={{ fontWeight: 'bold', textAlign: 'center' }}>Gross</DataCell>
+            <DataCell colSpan={2} sx={{ fontWeight: 'bold', textAlign: 'center' }}>{(irrigationData?.totalGrossArea || 0).toFixed(2)}</DataCell>
+            <DataCell colSpan={4}></DataCell>
+          </TableRow>
+        )}
+      </>
+    );
+  };
+
+  // Render Owner Details
+  const renderOwnerDetails = (owner) => {
+    return (
+      <>
+        <TableRow>
+          <DataCell colSpan={19} sx={{ textAlign: 'left', fontWeight: 'bold', pt: 2, fontSize: '11px' }}>
+            കീപ്ലോട്ടിന്റെ ഉടമസ്ഥന്റെ മേൽവിലാസം
+          </DataCell>
+        </TableRow>
+        <TableRow>
+          <DataCell colSpan={6} sx={{ textAlign: 'left', pl: 3, fontWeight: 'bold' }}>പേര് :</DataCell>
+          <DataCell colSpan={13} sx={{ textAlign: 'left' }}>{owner?.ownerName || 'N/A'}</DataCell>
+        </TableRow>
+        <TableRow>
+          <DataCell colSpan={6} sx={{ textAlign: 'left', pl: 3, fontWeight: 'bold' }}>വിലാസം :</DataCell>
+          <DataCell colSpan={13} sx={{ textAlign: 'left' }}>{owner?.address || 'N/A'}</DataCell>
+        </TableRow>
+        <TableRow>
+          <DataCell colSpan={6} sx={{ textAlign: 'left', pl: 3, fontWeight: 'bold' }}>മൊബൈൽ :</DataCell>
+          <DataCell colSpan={13} sx={{ textAlign: 'left' }}>{owner?.contactNumber || 'N/A'}</DataCell>
+        </TableRow>
       </>
     );
   };
@@ -373,9 +566,7 @@ const ExcelView = ({ open, onClose, clusterId = 21186 }) => {
     );
   }
 
-  const { header, landUtilization, virippu, mundakan, puncha, annualCrops, perennialCrops, irrigation, ownerDetails } = formData;
-  const landUtilizationArray = toArray(landUtilization);
-  const irrigationItems = toArray(irrigation?.items);
+  const { header, virippu, mundakan, puncha, annualCrops, perennialCrops, irrigation, ownerDetails } = formData;
 
   return (
     <Dialog 
@@ -430,28 +621,26 @@ const ExcelView = ({ open, onClose, clusterId = 21186 }) => {
       <DialogContent dividers sx={{ p: 2, backgroundColor: '#f5f5f5' }}>
         <PrintStyle />
         <PrintContainer ref={printRef} className="print-container" sx={{ p: 2, maxWidth: '100%', overflow: 'auto' }}>
-       <Box sx={{ justifyContent: "center", mb: 2, width: "50%" }}>
-          <img
-            className="logo_gov"
-            src={logo}
-            alt="Logo"
-            style={{
-              width: "40rem",
-              height: "auto",
-              marginBottom: "16px",
-            }}
-          />
-          ജില്ല : {header?.districtName || 'N/A'} താലൂക്ക് : {header?.talukName || 'N/A'} സോൺ : {header?.zoneName || 'N/A'}
-        </Box>
+          <Box sx={{ justifyContent: "center", mb: 2, width: "50%" }}>
+            <img
+              className="logo_gov"
+              src={logo}
+              alt="Logo"
+              style={{
+                width: "40rem",
+                height: "auto",
+                marginBottom: "16px",
+              }}
+            />
+            ജില്ല : {header?.districtName || 'N/A'} താലൂക്ക് : {header?.talukName || 'N/A'} സോൺ : {header?.zoneName || 'N/A'}
+          </Box>
           <Paper elevation={3} sx={{ p: 2, overflow: 'auto' }}>
-          <Grid container spacing={2} sx={{ mb: 2 }}>
-            പഞ്ചായത്ത്: {header?.panchayath || 'N/A'} | ക്ലസ്റ്റർ: {header?.clusterNumber || 'N/A'} | ബ്ലോക്ക്: {header?.block || 'N/A'}
-          </Grid>
+            <Grid container spacing={2} sx={{ mb: 2 }}>
+              പഞ്ചായത്ത്: {header?.panchayath || 'N/A'} | ക്ലസ്റ്റർ: {header?.clusterNumber || 'N/A'} | ബ്ലോക്ക്: {header?.block || 'N/A'}
+            </Grid>
             <ExcelTableContainer>
-            
               <Table size="small" sx={{ minWidth: 1400 }}>
                 <TableHead>
-                  {/* Restored Header Row 1 matching Excel layout */}
                   <TableRow>
                     <HeaderCell colSpan={6}>വിവരണങ്ങൾ</HeaderCell>
                     <HeaderCell>യൂണിറ്റ്</HeaderCell>
@@ -465,134 +654,26 @@ const ExcelView = ({ open, onClose, clusterId = 21186 }) => {
                 </TableHead>
                 
                 <TableBody>
-                  {/* ========== SECTION A: LAND UTILIZATION ========== */}
-                  <TableRow>
-                    <SectionHeaderFullRow colSpan={19}>
-                      എ . ഭൂവിനിയോഗം
-                    </SectionHeaderFullRow>
-                  </TableRow>
-                  
-                  {/* Row 2 fixes matching original Excel labels correctly */}
-                  <TableRow>
-                    <HeaderCell colSpan={2}>നമ്പർ</HeaderCell>
-                    <HeaderCell colSpan={4}>വിസ്‌തൃതി (എന്യൂമറേറ്റഡ്‌)</HeaderCell>
-                    <HeaderCell>സെന്റ്</HeaderCell>
-                    <HeaderCell colSpan={2}>0</HeaderCell>
-                    <HeaderCell colSpan={2}>0</HeaderCell>
-                    <HeaderCell colSpan={2}>0</HeaderCell>
-                    <HeaderCell colSpan={2}>0</HeaderCell>
-                    <HeaderCell colSpan={2}>0</HeaderCell>
-                    <HeaderCell colSpan={2}>0</HeaderCell>
-                  </TableRow>
-
-                  {/* Land Utilization Rows */}
-                  {landUtilizationArray.map((item, index) => (
-                    <TableRow key={index}>
-                      <DataCell>{index + 1}</DataCell>
-                      {/* Reduced from colSpan 4 gap + colSpan 1 to a single block mapping */}
-                      <DataCell colSpan={5} sx={{ textAlign: 'left' }}>{item.malayalamLabel}</DataCell>
-                      <DataCell>"</DataCell>
-                      <DataCell colSpan={2}>{item.k ?? 0}</DataCell>
-                      <DataCell colSpan={2}>{item.s1 ?? 0}</DataCell>
-                      <DataCell colSpan={2}>{item.e1 ?? 0}</DataCell>
-                      <DataCell colSpan={2}>{item.n1 ?? 0}</DataCell>
-                      <DataCell colSpan={2}>{item.w1 ?? 0}</DataCell>
-                      <TotalCell colSpan={2}>{(item.total ?? 0).toFixed(2)}</TotalCell>
-                    </TableRow>
-                  ))}
-                  
                   {/* ========== SECTION B: SEASONAL CROPS ========== */}
-                  <TableRow>
-                    <SectionHeaderFullRow colSpan={19}>
-                      ബി. കാലികവിള കൃഷിസ്ഥലം
-                    </SectionHeaderFullRow>
-                  </TableRow>
-
-                  {/* Virippu - Season 1 (Autumn) */}
-                  {renderSeasonalSection('വിരിപ്പു കൃഷി', virippu)}
+                  {renderSeasonalSection('ബി. കാലികവിള കൃഷിസ്ഥലം', virippu, '#FFE699')}
 
                   {/* Mundakan - Season 2 (Winter) */}
-                  {renderSeasonalSection('മുണ്ടകൻ കൃഷി', mundakan)}
+                  {renderSeasonalSection('മുണ്ടകൻ കൃഷി', mundakan, '#FFE699')}
 
                   {/* Puncha - Season 3 (Summer) */}
-                  {renderSeasonalSection('പുഞ്ച കൃഷി', puncha)}
+                  {renderSeasonalSection('പുഞ്ച കൃഷി', puncha, '#FFE699')}
 
                   {/* ========== SECTION C: ANNUAL CROPS ========== */}
-                  <TableRow>
-                    <SectionHeaderFullRow colSpan={19}>
-                      സി.വാർഷിക വിള കൃഷിസ്ഥലം
-                    </SectionHeaderFullRow>
-                  </TableRow>
-                  {renderRegularCropSection('', annualCrops)}
+                  {renderRegularCropSection('സി. വാർഷിക വിള കൃഷിസ്ഥലം', annualCrops, '#C6E0B4')}
 
                   {/* ========== SECTION D: PERENNIAL CROPS ========== */}
-                  <TableRow>
-                    <SectionHeaderFullRow colSpan={19}>
-                      ഡി. ദീർഘകാല വിളകൾ കൃഷിസ്ഥലം
-                    </SectionHeaderFullRow>
-                  </TableRow>
-                  {renderRegularCropSection('', perennialCrops)}
+                  {renderRegularCropSection('ഡി. ദീർഘകാല വിളകൾ കൃഷിസ്ഥലം', perennialCrops, '#D9C2E9')}
 
                   {/* ========== SECTION E: IRRIGATION ========== */}
-                  <TableRow>
-                    <SectionHeaderFullRow colSpan={19}>
-                      ഇ.ജലസേചനമുള്ള സ്ഥലവിസ്തൃതി
-                    </SectionHeaderFullRow>
-                  </TableRow>
-
-                  {/* Redesigned to map within common headers instead of independent setup */}
-                  {irrigationItems.length > 0 ? (
-                    irrigationItems.map((item, idx) => (
-                      <TableRow key={idx}>
-                        <DataCell colSpan={6} sx={{ textAlign: 'left', pl: 2 }}>
-                          ജലസേചന മാർഗ്ഗം: {item.irrigationType || 'N/A'} (കോഡ്: {item.code || 'N/A'})
-                        </DataCell>
-                        <DataCell>എണ്ണം: {item.sourceCount || 0}</DataCell>
-                        <DataCell colSpan={4} sx={{ textAlign: 'right', pr: 2 }}>നെറ്റ് ഏരിയ (സെന്റ്):</DataCell>
-                        <DataCell colSpan={2}>{(item.netArea || 0).toFixed(2)}</DataCell>
-                        <DataCell colSpan={4} sx={{ textAlign: 'right', pr: 2 }}>ഗ്രോസ് ഏരിയ (സെന്റ്):</DataCell>
-                        <DataCell colSpan={2}>{(item.grossArea || 0).toFixed(2)}</DataCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <DataCell colSpan={19} sx={{ textAlign: 'center', color: '#999' }}>
-                        No irrigation data available
-                      </DataCell>
-                    </TableRow>
-                  )}
-
-                  {/* Irrigation Totals aligned correctly */}
-                  {irrigationItems.length > 0 && (
-                    <TableRow sx={{ backgroundColor: '#e8f5e9', borderTop: '2px solid #388e3c' }}>
-                      <DataCell colSpan={7} sx={{ fontWeight: 'bold', textAlign: 'right', pr: 2 }}>ആകെ:</DataCell>
-                      <DataCell colSpan={4} sx={{ fontWeight: 'bold', textAlign: 'right', pr: 2 }}>
-                        നെറ്റ് ഏരിയ:
-                      </DataCell>
-                      <DataCell colSpan={2} sx={{ fontWeight: 'bold' }}>
-                         {(irrigation?.totalNetArea || 0).toFixed(2)}
-                      </DataCell>
-                      <DataCell colSpan={4} sx={{ fontWeight: 'bold', textAlign: 'right', pr: 2 }}>
-                        ഗ്രോസ് ഏരിയ:
-                      </DataCell>
-                      <DataCell colSpan={2} sx={{ fontWeight: 'bold' }}>
-                         {(irrigation?.totalGrossArea || 0).toFixed(2)}
-                      </DataCell>
-                    </TableRow>
-                  )}
+                  {renderIrrigationSection(irrigation)}
 
                   {/* ========== OWNER DETAILS ========== */}
-                  <TableRow>
-                    <DataCell colSpan={19} sx={{ textAlign: 'left', fontWeight: 'bold', pt: 2 }}>
-                      കീപ്ലോട്ടിന്റെ ഉടമസ്ഥന്റെ മേൽവിലാസം
-                    </DataCell>
-                  </TableRow>
-                  <TableRow>
-                    <DataCell colSpan={19} sx={{ textAlign: 'left', pl: 2 }}>
-                      {ownerDetails?.ownerName || 'N/A'} - {ownerDetails?.address || 'N/A'} 
-                      {ownerDetails?.contactNumber ? ` (${ownerDetails.contactNumber})` : ''}
-                    </DataCell>
-                  </TableRow>
+                  {renderOwnerDetails(ownerDetails)}
 
                   {/* ========== SIGNATURE SECTION ========== */}
                   <TableRow>
@@ -612,12 +693,6 @@ const ExcelView = ({ open, onClose, clusterId = 21186 }) => {
                       <Typography variant="caption" display="block">താലൂക്ക് സ്റ്റാറ്റിസ്റ്റിക്കൽ ഓഫീസർ</Typography>
                     </DataCell>
                   </TableRow>
-                  
-                  <TableRow>
-                    <DataCell colSpan={19} sx={{ fontStyle: 'italic', fontSize: '8px', pt: 2, textAlign: 'left' }}>
-                      കുറിപ്പ്:- ജലസേചനവിവരങ്ങൾ പ്രത്യേകം രേഖപ്പെടുത്തുവാൻ കാണിച്ചിട്ടില്ലാത്ത വിളകൾക്ക് ജലസേചനം നടത്തിയിട്ടുണ്ടെങ്കിൽ അവയുടെ വിസ്തീർണ്ണം / എണ്ണം രേഖപ്പെടുത്തുമ്പോൾ അത് സർക്കിൾ ചെയ്യേണ്ടതാണ്.
-                    </DataCell>
-                  </TableRow>
                 </TableBody>
               </Table>
             </ExcelTableContainer>
@@ -629,9 +704,8 @@ const ExcelView = ({ open, onClose, clusterId = 21186 }) => {
 };
 
 // Main Component
-const Form1WithExcelView = () => {
+const Form1WithExcelView = ({ clusterId }) => {
   const [openExcelView, setOpenExcelView] = useState(false);
-  const clusterId = 21186;
 
   return (
     <>

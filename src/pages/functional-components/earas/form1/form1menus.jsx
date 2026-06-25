@@ -261,7 +261,7 @@ const StyledDetailItem = ({ label, value, icon }) => (
 
 const handleOpenExcelView = () => {
   setOpenExcelView(true);
-  alert("ok")
+ 
 };
 const handleCloseExcelView = () => {
   setOpenExcelView(false);
