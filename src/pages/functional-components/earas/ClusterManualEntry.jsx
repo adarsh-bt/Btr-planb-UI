@@ -2451,9 +2451,17 @@ const validateSidePlotLabels = () => {
                         {/* ABOVE MEAN */}
                         {limitSeverity === 'success' && (
                             <>
-                                <Button onClick={() => proceedSubmit('SAVE')}>
-                                    Save
-                                </Button>
+                                <Button
+  onClick={() => proceedSubmit('SAVE')}
+  style={{
+    backgroundColor: '#1677ff', // primary blue
+    color: '#fff',
+    width: '7rem',
+    borderColor: '#1677ff',
+  }}
+>
+  Save
+</Button>
 
                                 <Button
                                     variant="contained"

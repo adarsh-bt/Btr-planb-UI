@@ -36,6 +36,7 @@ import Autocomplete from '@mui/material/Autocomplete';
 import authservice from 'pages/authentication/services/authservice';
 import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest';
 import { set } from 'lodash';
+import api from 'api/api';
 
 const BASE_URL = mainapi.BASE_URL;
 const FORM_URL = mainapi.FORM_API;
@@ -204,7 +205,8 @@ const fetchCceCropDetails = async () => {
       `${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops`,
       {
         params: {
-          zoneId: zoneid
+          zoneId: zoneid,
+          agriYear: authservice.agriyear()
         }
       }
     );

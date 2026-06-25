@@ -110,7 +110,7 @@ const TourDiary = () => {
         { value: 'OTHER', label: 'Others' },
     ];
 
-    const agriYear = localStorage.getItem("agriYear");
+    const agriYear = localStorage.getItem("activeAgriYear");
     const [startYear, endYear] = agriYear.split('-').map(Number);
 
     const minDate = new Date(startYear, 6, 1); // July start year
@@ -1196,7 +1196,7 @@ useEffect(() => {
                         </Box>
 
                         {/* Legend */}
-                        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, marginBottom: 2, flexWrap: 'wrap' }}>
+                        {/* <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, marginBottom: 2, flexWrap: 'wrap' }}>
                             {[
                                 { color: theme.palette.mode === 'dark' ? '#1a2a3a' : '#2ea3ce', label: 'First Half (1–15)' },
                                 { color: theme.palette.mode === 'dark' ? '#7be4af' : '#53c15c', label: 'Second Half (16–end)' },
@@ -1208,7 +1208,7 @@ useEffect(() => {
                                     <Typography variant="caption" sx={{ fontSize: '0.72rem' }}>{label}</Typography>
                                 </Box>
                             ))}
-                        </Box>
+                        </Box> */}
                     </Box>
 
                     {/* Loading indicator */}

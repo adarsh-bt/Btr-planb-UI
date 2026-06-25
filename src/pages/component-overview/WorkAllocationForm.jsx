@@ -355,6 +355,7 @@ document.head.appendChild(styleTag);
         const workItem = workAllocationData.find(work => work.lbcode === zoneItem.lbcode);
         return {
           blocks: zoneItem.blocks || [],
+          villages: zoneItem.villages || [],
           p_name: zoneItem.p_name || '',
           lbcode: zoneItem.lbcode || '',
           Wet_area: workItem?.villageWetArea?.toString() || '',
@@ -383,6 +384,7 @@ document.head.appendChild(styleTag);
     } else if (zoneData.length > 0) {
       const zoneDataWithEmptyFields = zoneData.map(zoneItem => ({
         blocks: zoneItem.blocks || [],
+        villages: zoneItem.villages || [],
         p_name: zoneItem.p_name || '',
         lbcode: zoneItem.lbcode || '',
         Wet_area: zoneItem.Wet_area || '',
@@ -456,45 +458,51 @@ const handleConfirmSubmit = async () => {
       const rowsToSave = data.map((row) => ({
         zoneId: resolvedZoneId,
         lbcode: row.lbcode || "LB-2025-001",
-        villageWetArea: parseFloat(row.Wet_area) || 0,
-        villageDryArea: parseFloat(row.Dry_area) || 0,
-        villageTotalArea: parseFloat(row.Total_area) || 0,
-        forestAreaA: parseFloat(row.forest_a) || 0,
-        forestAreaB: parseFloat(row.forest_b) || 0,
-        forestAreaC: parseFloat(row.forest_c) || 0,
-        areaUnderPlant: parseFloat(row.area_under) || 0,
-        forestExcludeUnclutivate: parseFloat(row.plantation_under) || 0,
-        forestExcludeNotUnclutivate: parseFloat(row.plantation_not_under) || 0,
-        kayalExcludeArea: parseFloat(row.kayal_excluded) || 0,
-        otherExcludeFWet: parseFloat(row.others_dry_13) || 0,
-        otherExcludedFDry: parseFloat(row.others_wet_14) || 0,
-        otherExcludeFTotal: parseFloat(row.others_total) || 0,
-        noOfPlotsWet: parseFloat(row.plots_wet_17) || 0,
-        noOfPlotsDry: parseFloat(row.plots_dry_16) || 0,
-        noOfPlotsTotal: parseFloat(row.plots_total) || 0,
-        totalAreaWet: parseFloat(row.total_area_wet_19) || 0,
-        totalAreaDry: parseFloat(row.total_area_dry_21) || 0,
-        totalAreaForEstimation: parseFloat(row.total_area_total_20) || 0,
+        
+        // ===== AREA DETAILS (Tab 1) =====
+        villageWetArea: parseFloat(row.Wet_area),
+        villageDryArea: parseFloat(row.Dry_area) ,
+        villageTotalArea: parseFloat(row.Total_area),
+        
+        // ===== EXCLUDED AREAS (Tab 2) =====
+        forestAreaA: parseFloat(row.forest_a),        // Forest Areas
+        forestAreaB: 0,                                     // Not in UI - set to 0
+        forestAreaC: 0,                                     // Not in UI - set to 0
+        areaUnderPlant: parseFloat(row.area_under),   // Plantation Area
+        forestExcludeUnclutivate: parseFloat(row.plantation_under), // Other Areas
+        forestExcludeNotUnclutivate: 0,                    // Not in UI - set to 0
+        kayalExcludeArea: parseFloat(row.kayal_excluded), // Water Bodies
+        
+        // ===== TOTAL EARAS AREA AND ESTIMATED AREA (Tab 3) =====
+        otherExcludeFWet: parseFloat(row.others_dry_13),   // EARAS Wet
+        otherExcludedFDry: parseFloat(row.others_wet_14),  // EARAS Dry
+        otherExcludeFTotal: parseFloat(row.others_total),  // EARAS Total
+        totalAreaWet: parseFloat(row.total_area_wet_19),   // Estimated Wet
+        totalAreaDry: parseFloat(row.total_area_dry_21),   // Estimated Dry
+        totalAreaForEstimation: parseFloat(row.total_area_total_20), // Estimated Total
+        
+        // ===== NO. OF PLOTS - Not in UI =====
+        noOfPlotsWet: 0,
+        noOfPlotsDry: 0,
+        noOfPlotsTotal: 0,
+        
         remarks: row.remarks || "",
         userId: user_id,
         agriYear: authservice.agriyear(),
       }));
 
-      // ✅ FIXED: Points back to user submission API endpoint
       const response = await fetch(`${BASE_URL}/btr-service/btr-api/work-allocation-submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify(rowsToSave) // ✅ FIXED: Correctly passes rowsToSave payload array
+        body: JSON.stringify(rowsToSave)
       });
 
       if (!response.ok) throw new Error('Failed to submit work allocation statement form data.');
       
-      // ✅ Refresh allocation state data records locally on runtime without requiring a reload
       await fetchWorkAllocation();
-      
       setInfoDialogOpen(true);
 
     } catch (error) {
@@ -505,7 +513,7 @@ const handleConfirmSubmit = async () => {
     }
   };
 
-  const handleSaveDraft = async () => {
+const handleSaveDraft = async () => {
     if (isDisabled) return;
     
     setIsSubmitting(true);
@@ -517,25 +525,34 @@ const handleConfirmSubmit = async () => {
       const rowsToSave = data.map((row) => ({
         zoneId: resolvedZoneId,
         lbcode: row.lbcode || "LB-2025-001",
-        villageWetArea: parseFloat(row.Wet_area),
-        villageDryArea: parseFloat(row.Dry_area),
-        villageTotalArea: parseFloat(row.Total_area) ,
-        forestAreaA: parseFloat(row.forest_a) ,
-        forestAreaB: parseFloat(row.forest_b) ,
-        forestAreaC: parseFloat(row.forest_c) ,
-        areaUnderPlant: parseFloat(row.area_under) ,
-        forestExcludeUnclutivate: parseFloat(row.plantation_under) ,
-        forestExcludeNotUnclutivate: parseFloat(row.plantation_not_under) ,
-        kayalExcludeArea: parseFloat(row.kayal_excluded) ,
-        otherExcludeFWet: parseFloat(row.others_dry_13) ,
-        otherExcludedFDry: parseFloat(row.others_wet_14) ,
-        otherExcludeFTotal: parseFloat(row.others_total) ,
-        noOfPlotsWet: parseFloat(row.plots_wet_17) ,
-        noOfPlotsDry: parseFloat(row.plots_dry_16) ,
-        noOfPlotsTotal: parseFloat(row.plots_total) ,
-        totalAreaWet: parseFloat(row.total_area_wet_19) ,
-        totalAreaDry: parseFloat(row.total_area_dry_21) ,
-        totalAreaForEstimation: parseFloat(row.total_area_total_20),
+        
+        // ===== AREA DETAILS (Tab 1) =====
+        villageWetArea: parseFloat(row.Wet_area) ,
+        villageDryArea: parseFloat(row.Dry_area) ,
+        villageTotalArea: parseFloat(row.Total_area),
+        
+        // ===== EXCLUDED AREAS (Tab 2) =====
+        forestAreaA: parseFloat(row.forest_a) ,        // Forest Areas
+        forestAreaB: 0,                                     // Not in UI - set to 0
+        forestAreaC: 0,                                     // Not in UI - set to 0
+        areaUnderPlant: parseFloat(row.area_under),   // Plantation Area
+        forestExcludeUnclutivate: parseFloat(row.plantation_under) , // Other Areas
+        forestExcludeNotUnclutivate: 0,                    // Not in UI - set to 0
+        kayalExcludeArea: parseFloat(row.kayal_excluded), // Water Bodies
+        
+        // ===== TOTAL EARAS AREA AND ESTIMATED AREA (Tab 3) =====
+        otherExcludeFWet: parseFloat(row.others_dry_13) ,   // EARAS Wet
+        otherExcludedFDry: parseFloat(row.others_wet_14),  // EARAS Dry
+        otherExcludeFTotal: parseFloat(row.others_total),  // EARAS Total
+        totalAreaWet: parseFloat(row.total_area_wet_19),   // Estimated Wet
+        totalAreaDry: parseFloat(row.total_area_dry_21),   // Estimated Dry
+        totalAreaForEstimation: parseFloat(row.total_area_total_20) , // Estimated Total
+        
+        // ===== NO. OF PLOTS - Not in UI =====
+        noOfPlotsWet: 0,
+        noOfPlotsDry: 0,
+        noOfPlotsTotal: 0,
+        
         remarks: row.remarks || "",
         userId: user_id,
         agriYear: authservice.agriyear(),
@@ -562,7 +579,6 @@ const handleConfirmSubmit = async () => {
       setIsSubmitting(false);
     }
   };
-
   // Submit Admin Review Action directly from the form workflow footer
   const handleAdminAction = async (isApprove) => {
     console.log('Admin action initiated. Approve:', isApprove, 'Remarks:', adminRemarks, 'ApprovalLogId:', approvalLogId, 'Current form status:', formStatus);
@@ -611,23 +627,23 @@ const handleConfirmSubmit = async () => {
     }
   };
 
-  const getStatusIcon = () => {
-    switch (formStatus) {
-      case 'SUBMITTED':
-      case 'PENDING':
-        return <PendingIcon sx={{ fontSize: 28, color: 'warning.main' }} />;
-      case 'APPROVED':
-        return <CheckCircleIcon sx={{ fontSize: 28, color: 'success.main' }} />;
-      case 'RETURNED':
-        return <ErrorIcon sx={{ fontSize: 28, color: 'error.main' }} />;
-      case 'UNDER REVIEW':
-        return <ReviewIcon sx={{ fontSize: 28, color: 'info.main' }} />;
-      case 'DRAFT':
-        return <EditIcon sx={{ fontSize: 28, color: 'info.main' }} />;
-      default:
-        return null;
-    }
-  };
+const getStatusIcon = () => {
+  switch (formStatus) {
+    case 'SUBMITTED':
+    case 'PENDING':
+      return <PendingIcon sx={{ fontSize: 28, color: 'warning.main' }} />;
+    case 'APPROVED':
+      return <CheckCircleIcon sx={{ fontSize: 28, color: 'success.main' }} />;
+    case 'RETURNED':
+      return <ErrorIcon sx={{ fontSize: 28, color: 'error.main' }} />;
+    case 'UNDER REVIEW':
+      return <ReviewIcon sx={{ fontSize: 28, color: 'info.main' }} />;
+    case 'DRAFT':
+      return <EditIcon sx={{ fontSize: 28, color: 'info.main' }} />;
+    default:
+      return null;
+  }
+};
 
 const renderStatusBanner = () => {
   // Safely extract remarks from your fetched backend allocation payload
@@ -652,13 +668,20 @@ const renderStatusBanner = () => {
       message: 'This statement has been successfully approved by the admin. The data is now finalized and view-only.',
       action: null
     },
+    'UNDER REVIEW': {
+      severity: 'info',
+      title: isAdmin ? '🔍 Under Review - Admin Action Required' : '📋 Under Review',
+      message: isAdmin 
+        ? 'This form is currently under review. You can approve it, return it for corrections, or keep it under review for further examination.'
+        : 'Your form is currently under review by the administrator. The admin may request changes or approve it soon. Please check back later.',
+      action: isAdmin ? null : null
+    },
     'RETURNED': {
       severity: 'error',
       title: 'Form Returned',
       message: 'The administrator has requested changes. Please review the remarks, make corrections, and resubmit.',
       action: (
         <Stack direction="row" spacing={2} alignItems="center">
-          {/* ✅ If remarks exist, show the beautiful pulsing action button */}
           {adminNotes && (
             <GlowingActionButton 
               variant="outlined" 
@@ -668,16 +691,6 @@ const renderStatusBanner = () => {
               View Remarks
             </GlowingActionButton>
           )}
-          {/* <Button 
-            size="small" 
-            variant="outlined" 
-            color="error"
-            onClick={() => setIsDisabled(false)}
-            startIcon={<EditIcon />}
-            sx={{ fontWeight: 600, textTransform: 'none', px: 3 }}
-          >
-            Edit Form
-          </Button> */}
         </Stack>
       )
     },
@@ -721,8 +734,8 @@ const renderStatusBanner = () => {
     <StyledTable size="small">
       <TableHead>
         <TableRow>
-          <StyledTableCell rowSpan={2}>Block</StyledTableCell>
           <StyledTableCell rowSpan={2}>Panchayat / Municipality / Corporation Zone</StyledTableCell>
+          <StyledTableCell rowSpan={2}>Name Of Villages </StyledTableCell>
           <StyledTableCell align="center" colSpan={3}>Area as per village records (in cents)</StyledTableCell>
         </TableRow>
         <TableRow>
@@ -734,8 +747,8 @@ const renderStatusBanner = () => {
       <TableBody>
         {data.map((row, index) => (
           <TableRow key={index}>
-            <StyledTableCell><FormInput size="small" value={row.blocks ? row.blocks.join(', ') : 'N/A'} disabled={true} variant="outlined" /></StyledTableCell>
             <StyledTableCell><FormInput size="small" value={row.p_name} disabled={true} variant="outlined" /></StyledTableCell>
+            <StyledTableCell><FormInput size="small" value={row.villages ? row.villages.join(', ') : 'N/A'} disabled={true} variant="outlined" /></StyledTableCell>
             <StyledTableCell><FormInput size="small" value={row.Wet_area || 0} onChange={(e) => handleInputChange(index, 'Wet_area', e.target.value)} error={!!validationErrors[`Wet_area_${index}`]} helperText={validationErrors[`Wet_area_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
             <StyledTableCell><FormInput size="small" value={row.Dry_area || 0} onChange={(e) => handleInputChange(index, 'Dry_area', e.target.value)} error={!!validationErrors[`Dry_area_${index}`]} helperText={validationErrors[`Dry_area_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
             <StyledTableCell><FormInput size="small" value={row.Total_area || 0} onChange={(e) => handleInputChange(index, 'Total_area', e.target.value)} error={!!validationErrors[`Total_area_${index}`]} helperText={validationErrors[`Total_area_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
@@ -747,32 +760,44 @@ const renderStatusBanner = () => {
 
   const renderForestDetailsTable = () => (
     <StyledTable size="small">
-      <TableHead>
-        <TableRow>
-          <StyledTableCell rowSpan={2}>Panchayat / Municipality / Corporation Zone</StyledTableCell>
-          <StyledTableCell align="center" colSpan={3}>Forest Area as per village records (in cents)</StyledTableCell>
-          <StyledTableCell align="center" rowSpan={2}>Area under plantation (in cents)</StyledTableCell>
-          <StyledTableCell align="center" colSpan={2}>Forest Area excluded from Village records if any (in cents)</StyledTableCell>
-          <StyledTableCell align="center" rowSpan={2}>Kayal excluded from EARAS Survey (in cents)</StyledTableCell>
-        </TableRow>
-        <TableRow>
-          <StyledTableCell align="center">A</StyledTableCell>
-          <StyledTableCell align="center">B</StyledTableCell>
-          <StyledTableCell align="center">C</StyledTableCell>
-          <StyledTableCell align="center">Under Cultivation</StyledTableCell>
-          <StyledTableCell align="center">Not Under Cultivation</StyledTableCell>
-        </TableRow>
-      </TableHead>
+<TableHead>
+  <TableRow>
+    <StyledTableCell align="center">
+      NAME OF PANCHAYATH
+    </StyledTableCell>
+
+    <StyledTableCell align="center">
+      NAME OF VILLAGE
+    </StyledTableCell>
+
+    <StyledTableCell align="center">
+      FOREST AREAS
+    </StyledTableCell>
+
+    <StyledTableCell align="center">
+      PLANTATION AREA
+    </StyledTableCell>
+
+    <StyledTableCell align="center">
+      AREA OF WATER BODIES
+    </StyledTableCell>
+
+    <StyledTableCell align="center">
+      OTHER AREAS (MILITARY BARRACKS, SEZ, AIR PORT etc.)
+    </StyledTableCell>
+  </TableRow>
+</TableHead>
       <TableBody>
         {data.map((row, index) => (
           <TableRow key={index}>
             <StyledTableCell><Typography variant="body2" fontWeight={500}>{row.p_name}</Typography></StyledTableCell>
+            <StyledTableCell><FormInput size="small" value={row.villages ? row.villages.join(', ') : 'N/A'} disabled={true} variant="outlined" /></StyledTableCell>
             <StyledTableCell><FormInput size="small" value={row.forest_a || ''} onChange={(e) => handleInputChange(index, 'forest_a', e.target.value)} error={!!validationErrors[`forest_a_${index}`]} helperText={validationErrors[`forest_a_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
-            <StyledTableCell><FormInput size="small" value={row.forest_b || ''} onChange={(e) => handleInputChange(index, 'forest_b', e.target.value)} error={!!validationErrors[`forest_b_${index}`]} helperText={validationErrors[`forest_b_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
-            <StyledTableCell><FormInput size="small" value={row.forest_c || ''} onChange={(e) => handleInputChange(index, 'forest_c', e.target.value)} error={!!validationErrors[`forest_c_${index}`]} helperText={validationErrors[`forest_c_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
+            {/* <StyledTableCell><FormInput size="small" value={row.forest_b || ''} onChange={(e) => handleInputChange(index, 'forest_b', e.target.value)} error={!!validationErrors[`forest_b_${index}`]} helperText={validationErrors[`forest_b_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell> */}
+            {/* <StyledTableCell><FormInput size="small" value={row.forest_c || ''} onChange={(e) => handleInputChange(index, 'forest_c', e.target.value)} error={!!validationErrors[`forest_c_${index}`]} helperText={validationErrors[`forest_c_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell> */}
             <StyledTableCell><FormInput size="small" value={row.area_under || ''} onChange={(e) => handleInputChange(index, 'area_under', e.target.value)} error={!!validationErrors[`area_under_${index}`]} helperText={validationErrors[`area_under_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
             <StyledTableCell><FormInput size="small" value={row.plantation_under || ''} onChange={(e) => handleInputChange(index, 'plantation_under', e.target.value)} error={!!validationErrors[`plantation_under_${index}`]} helperText={validationErrors[`plantation_under_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
-            <StyledTableCell><FormInput size="small" value={row.plantation_not_under || ''} onChange={(e) => handleInputChange(index, 'plantation_not_under', e.target.value)} error={!!validationErrors[`plantation_not_under_${index}`]} helperText={validationErrors[`plantation_not_under_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
+            {/* <StyledTableCell><FormInput size="small" value={row.plantation_not_under || ''} onChange={(e) => handleInputChange(index, 'plantation_not_under', e.target.value)} error={!!validationErrors[`plantation_not_under_${index}`]} helperText={validationErrors[`plantation_not_under_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell> */}
             <StyledTableCell><FormInput size="small" value={row.kayal_excluded || ''} onChange={(e) => handleInputChange(index, 'kayal_excluded', e.target.value)} error={!!validationErrors[`kayal_excluded_${index}`]} helperText={validationErrors[`kayal_excluded_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
           </TableRow>
         ))}
@@ -785,21 +810,21 @@ const renderStatusBanner = () => {
       <TableHead>
         <TableRow>
           <StyledTableCell rowSpan={2}>Panchayat / Municipality / Corporation Zone</StyledTableCell>
-          <StyledTableCell align="center" colSpan={3}>Others excluded from EARAS Survey (in cents)</StyledTableCell>
-          <StyledTableCell align="center" colSpan={3}>No. of Plots for Estimation purpose</StyledTableCell>
-          <StyledTableCell align="center" colSpan={3}>Total Area for Estimation Purpose (in cents)</StyledTableCell>
+          <StyledTableCell align="center" colSpan={3}>EARAS Area</StyledTableCell>
+          {/* <StyledTableCell align="center" colSpan={3}>No. of Plots for Estimation purpose</StyledTableCell> */}
+          <StyledTableCell align="center" colSpan={3}>Estimated Area</StyledTableCell>
           <StyledTableCell align="left" rowSpan={2}>Remarks</StyledTableCell>
         </TableRow>
         <TableRow>
-          <StyledTableCell align="center">Wet (12)</StyledTableCell>
-          <StyledTableCell align="center">Dry (13)</StyledTableCell>
-          <StyledTableCell align="center">Total (14)</StyledTableCell>
-          <StyledTableCell align="center">Wet (15)</StyledTableCell>
-          <StyledTableCell align="center">Dry (16)</StyledTableCell>
-          <StyledTableCell align="center">Total (17)</StyledTableCell>
-          <StyledTableCell align="center">Wet (18)</StyledTableCell>
-          <StyledTableCell align="center">Dry (20)</StyledTableCell>
-          <StyledTableCell align="center">Total (19)</StyledTableCell>
+          <StyledTableCell align="center">Wet</StyledTableCell>
+          <StyledTableCell align="center">Dry</StyledTableCell>
+          <StyledTableCell align="center">Total</StyledTableCell>
+          {/* <StyledTableCell align="center">Wet (15)</StyledTableCell> */}
+          {/* <StyledTableCell align="center">Dry (16)</StyledTableCell> */}
+          {/* <StyledTableCell align="center">Total (17)</StyledTableCell> */}
+          <StyledTableCell align="center">Wet</StyledTableCell>
+          <StyledTableCell align="center">Dry</StyledTableCell>
+          <StyledTableCell align="center">Total</StyledTableCell>
         </TableRow>
       </TableHead>
       <TableBody>
@@ -809,9 +834,9 @@ const renderStatusBanner = () => {
             <StyledTableCell><FormInput size="small" value={row.others_dry_13 || ''} onChange={(e) => handleInputChange(index, 'others_dry_13', e.target.value)} error={!!validationErrors[`others_dry_13_${index}`]} helperText={validationErrors[`others_dry_13_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
             <StyledTableCell><FormInput size="small" value={row.others_wet_14 || ''} onChange={(e) => handleInputChange(index, 'others_wet_14', e.target.value)} error={!!validationErrors[`others_wet_14_${index}`]} helperText={validationErrors[`others_wet_14_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
             <StyledTableCell><FormInput size="small" value={row.others_total || ''} onChange={(e) => handleInputChange(index, 'others_total', e.target.value)} error={!!validationErrors[`others_total_${index}`]} helperText={validationErrors[`others_total_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
-            <StyledTableCell><FormInput size="small" value={row.plots_dry_16 || ''} onChange={(e) => handleInputChange(index, 'plots_dry_16', e.target.value)} error={!!validationErrors[`plots_dry_16_${index}`]} helperText={validationErrors[`plots_dry_16_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
-            <StyledTableCell><FormInput size="small" value={row.plots_wet_17 || ''} onChange={(e) => handleInputChange(index, 'plots_wet_17', e.target.value)} error={!!validationErrors[`plots_wet_17_${index}`]} helperText={validationErrors[`plots_wet_17_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
-            <StyledTableCell><FormInput size="small" value={row.plots_total || ''} onChange={(e) => handleInputChange(index, 'plots_total', e.target.value)} error={!!validationErrors[`plots_total_${index}`]} helperText={validationErrors[`plots_total_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
+            {/* <StyledTableCell><FormInput size="small" value={row.plots_dry_16 || ''} onChange={(e) => handleInputChange(index, 'plots_dry_16', e.target.value)} error={!!validationErrors[`plots_dry_16_${index}`]} helperText={validationErrors[`plots_dry_16_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell> */}
+            {/* <StyledTableCell><FormInput size="small" value={row.plots_wet_17 || ''} onChange={(e) => handleInputChange(index, 'plots_wet_17', e.target.value)} error={!!validationErrors[`plots_wet_17_${index}`]} helperText={validationErrors[`plots_wet_17_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell> */}
+            {/* <StyledTableCell><FormInput size="small" value={row.plots_total || ''} onChange={(e) => handleInputChange(index, 'plots_total', e.target.value)} error={!!validationErrors[`plots_total_${index}`]} helperText={validationErrors[`plots_total_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell> */}
             <StyledTableCell><FormInput size="small" value={row.total_area_wet_19 || ''} onChange={(e) => handleInputChange(index, 'total_area_wet_19', e.target.value)} error={!!validationErrors[`total_area_wet_19_${index}`]} helperText={validationErrors[`total_area_wet_19_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
             <StyledTableCell><FormInput size="small" value={row.total_area_dry_21 || ''} onChange={(e) => handleInputChange(index, 'total_area_dry_21', e.target.value)} error={!!validationErrors[`total_area_dry_21_${index}`]} helperText={validationErrors[`total_area_dry_21_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
             <StyledTableCell><FormInput size="small" value={row.total_area_total_20 || ''} onChange={(e) => handleInputChange(index, 'total_area_total_20', e.target.value)} error={!!validationErrors[`total_area_total_20_${index}`]} helperText={validationErrors[`total_area_total_20_${index}`]} disabled={isDisabled} variant="outlined" /></StyledTableCell>
@@ -850,9 +875,14 @@ const renderStatusBanner = () => {
           {isAdmin && (
             <Chip icon={<LockIcon />} label="Admin View Mode" color="secondary" sx={{ fontWeight: 600 }} />
           )}
-          {!isAdmin && isDisabled && formStatus !== 'RETURNED' && (
-            <Chip icon={<LockIcon />} label={formStatus === 'APPROVED' ? 'Approved & Locked' : 'Under Review'} color={formStatus === 'APPROVED' ? 'success' : 'warning'} sx={{ fontWeight: 500 }} />
-          )}
+       {!isAdmin && isDisabled && formStatus !== 'RETURNED' && (
+  <Chip 
+    icon={<LockIcon />} 
+    label={formStatus === 'APPROVED' ? 'Approved & Locked' : formStatus === 'UNDER REVIEW' ? 'Under Review' : 'Under Review'} 
+    color={formStatus === 'APPROVED' ? 'success' : formStatus === 'UNDER REVIEW' ? 'info' : 'warning'} 
+    sx={{ fontWeight: 500 }} 
+  />
+)}
         </Box>
         
         {/* Alerts Center Notification Toast */}
@@ -891,8 +921,8 @@ const renderStatusBanner = () => {
 
           <StyledTabs value={activeTab} onChange={handleTabChange} aria-label="work allocation tabs">
             <StyledTab label="📊 Area Details" value="tab1" />
-            <StyledTab label="🌲 Forest Details" value="tab2" />
-            <StyledTab label="📋 Other Details" value="tab3" />
+            <StyledTab label="🌲 Excluded Areas" value="tab2" />
+            <StyledTab label="📋 Total earas area and estimated area" value="tab3" />
           </StyledTabs>
 
           <Box sx={{ overflowX: 'auto', mb: 3 }}>
@@ -904,93 +934,106 @@ const renderStatusBanner = () => {
           <Divider sx={{ my: 3 }} />
 
           {/* DYNAMIC ACTION RENDERING BLOCK: ADMIN ACTIONS vs DATA COLLECTOR ACTIONS */}
-          {isAdmin ? (
-            // ADMINISTRATIVE ACTION INTERFACE CARD PANEL
-            ['SUBMITTED', 'PENDING', 'UNDER REVIEW'].includes(formStatus) && (
-              <Box sx={{ p: 3, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
-                <Typography variant="h5" sx={{ fontWeight: 600, color: '#05307a', mb: 2 }}>
-                  Administrative Approval Panel
-                </Typography>
-                
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={7}>
-                    <TextField
-                      fullWidth
-                      multiline
-                      rows={3}
-                      label="Approver Decision Notes / Remarks"
-                      value={adminRemarks}
-                      onChange={(e) => setAdminRemarks(e.target.value)}
-                      placeholder="Add observations, notes, or required amendments context..."
-                    />
-                  </Grid>
+        {isAdmin ? (
+  // ADMINISTRATIVE ACTION INTERFACE CARD PANEL
+  ['SUBMITTED', 'PENDING', 'UNDER REVIEW'].includes(formStatus) && (
+    <Box sx={{ p: 3, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+      <Typography variant="h5" sx={{ fontWeight: 600, color: '#05307a', mb: 2 }}>
+        Administrative Approval Panel
+      </Typography>
+      
+      {/* Show different message when in UNDER REVIEW status */}
+      {formStatus === 'UNDER REVIEW' && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <AlertTitle>📌 Currently Under Review</AlertTitle>
+          This form is currently in "Under Review" status. You can:
+          <ul style={{ marginTop: 4, marginBottom: 0 }}>
+            <li><strong>Approve</strong> - Finalize the form</li>
+            <li><strong>Return for Correction</strong> - Send back with remarks</li>
+            <li><strong>Keep Under Review</strong> - Leave it in review state</li>
+          </ul>
+        </Alert>
+      )}
+      
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={7}>
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            label="Approver Decision Notes / Remarks"
+            value={adminRemarks}
+            onChange={(e) => setAdminRemarks(e.target.value)}
+            placeholder={formStatus === 'UNDER REVIEW' ? 'Add additional notes or final decision remarks...' : 'Add observations, notes, or required amendments context...'}
+          />
+        </Grid>
 
-                  <Grid item xs={12} md={5}>
-                    <Card variant="outlined" sx={{ p: 2, bgcolor: isAdminEditEnabled ? '#fff8e1' : '#f0fdf4', border: 1, borderColor: isAdminEditEnabled ? '#ffb74d' : '#bbf7d0' }}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={isAdminEditEnabled}
-                            onChange={(e) => setIsAdminEditEnabled(e.target.checked)}
-                            color="warning"
-                          />
-                        }
-                        label={<Typography variant="subtitle2" fontWeight={600}>Set Form Status to "Under Review"</Typography>}
-                      />
-                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                        {isAdminEditEnabled 
-                          ? '⚠️ ON: The statement will pass validation checks but remain editable for modifications.' 
-                          : '✓ OFF: Form metrics will lock down completely into view-only records upon approval.'}
-                      </Typography>
-                    </Card>
-                  </Grid>
-                </Grid>
+        <Grid item xs={12} md={5}>
+          <Card variant="outlined" sx={{ p: 2, bgcolor: isAdminEditEnabled ? '#fff8e1' : '#f0fdf4', border: 1, borderColor: isAdminEditEnabled ? '#ffb74d' : '#bbf7d0' }}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={isAdminEditEnabled}
+                  onChange={(e) => setIsAdminEditEnabled(e.target.checked)}
+                  color="warning"
+                />
+              }
+              label={<Typography variant="subtitle2" fontWeight={600}>Set Form Status to "Under Review"</Typography>}
+            />
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+              {isAdminEditEnabled 
+                ? '⚠️ ON: The statement will pass validation checks but remain editable for modifications.' 
+                : '✓ OFF: Form metrics will lock down completely into view-only records upon approval.'}
+            </Typography>
+          </Card>
+        </Grid>
+      </Grid>
 
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3 }}>
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    startIcon={<CancelIcon />}
-                    onClick={() => handleAdminAction(false)}
-                    disabled={isSubmitting || !adminRemarks.trim()}
-                  >
-                    Return for Correction
-                  </Button>
-                  <Button
-                    variant="contained"
-                    color={isAdminEditEnabled ? "warning" : "success"}
-                    startIcon={<CheckCircleIcon />}
-                    onClick={() => handleAdminAction(true)}
-                    disabled={isSubmitting}
-                  >
-                    {isAdminEditEnabled ? 'Save Under Review' : 'Approve Statement'}
-                  </Button>
-                </Box>
-              </Box>
-            )
-          ) : (
-            // STANDARD FIELD DATA COLLECTOR SAVE / SUBMIT SYSTEM ACTIONS BUTTONS
-            <Grid container spacing={2} justifyContent="flex-end">
-              <Grid item>
-                <Tooltip title={isDisabled ? 'Form parameters are currently locked' : 'Save entries as draft'}>
-                  <span>
-                    <ActionButton variant="outlined" color="primary" onClick={handleSaveDraft} disabled={isDisabled || isSubmitting} startIcon={<SaveIcon />}>
-                      {isSubmitting ? 'Saving...' : 'Save Draft'}
-                    </ActionButton>
-                  </span>
-                </Tooltip>
-              </Grid>
-              <Grid item>
-                <Tooltip title={!canSubmit && !isDisabled ? 'Please complete all metric fields' : ''}>
-                  <span>
-                    <ActionButton variant="contained" color="success" onClick={handleSubmitClick} disabled={isDisabled || !canSubmit || isSubmitting} startIcon={<SendIcon />}>
-                      {isSubmitting ? 'Submitting...' : 'Submit for Approval'}
-                    </ActionButton>
-                  </span>
-                </Tooltip>
-              </Grid>
-            </Grid>
-          )}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3 }}>
+        <Button
+          variant="outlined"
+          color="error"
+          startIcon={<CancelIcon />}
+          onClick={() => handleAdminAction(false)}
+          disabled={isSubmitting || !adminRemarks.trim()}
+        >
+          Return for Correction
+        </Button>
+        <Button
+          variant="contained"
+          color={isAdminEditEnabled ? "warning" : "success"}
+          startIcon={<CheckCircleIcon />}
+          onClick={() => handleAdminAction(true)}
+          disabled={isSubmitting}
+        >
+          {isAdminEditEnabled ? 'Save Under Review' : 'Approve Statement'}
+        </Button>
+      </Box>
+    </Box>
+  )
+) : (
+  // STANDARD FIELD DATA COLLECTOR SAVE / SUBMIT SYSTEM ACTIONS BUTTONS
+  <Grid container spacing={2} justifyContent="flex-end">
+    <Grid item>
+      <Tooltip title={isDisabled ? 'Form parameters are currently locked' : 'Save entries as draft'}>
+        <span>
+          <ActionButton variant="outlined" color="primary" onClick={handleSaveDraft} disabled={isDisabled || isSubmitting} startIcon={<SaveIcon />}>
+            {isSubmitting ? 'Saving...' : 'Save Draft'}
+          </ActionButton>
+        </span>
+      </Tooltip>
+    </Grid>
+    <Grid item>
+      <Tooltip title={!canSubmit && !isDisabled ? 'Please complete all metric fields' : ''}>
+        <span>
+          <ActionButton variant="contained" color="success" onClick={handleSubmitClick} disabled={isDisabled || !canSubmit || isSubmitting} startIcon={<SendIcon />}>
+            {isSubmitting ? 'Submitting...' : 'Submit for Approval'}
+          </ActionButton>
+        </span>
+      </Tooltip>
+    </Grid>
+  </Grid>
+)}
 
           {/* Form Completion Progress Tracking Metric indicator */}
           {!isDisabled && !isAdmin && formStatus !== 'APPROVED' && (

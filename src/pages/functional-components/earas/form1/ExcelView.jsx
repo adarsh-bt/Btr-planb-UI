@@ -474,7 +474,7 @@ const ExcelView = ({ open, onClose, clusterId = 21186 }) => {
                   
                   {/* Row 2 fixes matching original Excel labels correctly */}
                   <TableRow>
-                    <HeaderCell colSpan={2}>സർവ്വേ നമ്പർ</HeaderCell>
+                    <HeaderCell colSpan={2}>നമ്പർ</HeaderCell>
                     <HeaderCell colSpan={4}>വിസ്‌തൃതി (എന്യൂമറേറ്റഡ്‌)</HeaderCell>
                     <HeaderCell>സെന്റ്</HeaderCell>
                     <HeaderCell colSpan={2}>0</HeaderCell>

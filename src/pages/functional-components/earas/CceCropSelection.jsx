@@ -10,6 +10,8 @@ import Breadcrumb from 'routes/Breadcrumb';
 
 import axios from "axios";
 import mainapi from 'api/mainapi';
+import api from "api/api";
+import AuthService from "pages/authentication/services/authservice";
 
 const FORM_URL = mainapi.FORM_API;
 
@@ -18,8 +20,6 @@ const themeColor = "#05307a";
 const userId = localStorage.getItem("userId"); // UUID
 
 const CceCropSelection = () => {
-  const [majorCount, setMajorCount] = useState("");
-  const [minorCount, setMinorCount] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [order, setOrder] = useState("asc");
   const [orderBy, setOrderBy] = useState("id");
@@ -81,55 +81,105 @@ const CceCropSelection = () => {
     const token = localStorage.getItem("token");
 
     try {
-      const response = await axios.get(
-        `${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crop-selection`,
+      // Fetch all available crops
+      const allCropsResponse = await axios.get(
+        `${FORM_URL}/earas-form1-entry/cce-crop-details/cce-crops/fetch-all`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      const formattedData = response.data.map(item => ({
-        id: item.cceId,
-        name: item.cropName,
-        frame: item.frameName,
-        ccNumber: item.noOfCce,
-        type: item.cceCropType === "major" ? "Major" : "Minor",
-        selected: item.selected,
-        logId: item.logId
-      }));
+      console.log("All Crops API RESPONSE:", allCropsResponse.data);
+
+      if (!allCropsResponse.data || !allCropsResponse.data.payload || !Array.isArray(allCropsResponse.data.payload)) {
+        throw new Error("Invalid API response format");
+      }
+      const agriYear = AuthService.agriyear();
+      // Fetch already selected crops for the current year
+      const selectedCropsResponse = await api.get(
+        `${FORM_URL}/earas-form1-entry/cce-crop-details/cce-crops-selected/fetch-all`,
+         {
+    params: {
+      agriYear: agriYear,
+    }}
+      );
+
+      console.log("Selected Crops API RESPONSE:", selectedCropsResponse.data);
+
+      // Create a Set of selected crop IDs for easy lookup
+      const selectedCceIds = new Set();
+      const selectedCropsMap = new Map(); // Store logId and other details
+      
+      if (selectedCropsResponse.data && selectedCropsResponse.data.payload && Array.isArray(selectedCropsResponse.data.payload)) {
+        selectedCropsResponse.data.payload.forEach(item => {
+          selectedCceIds.add(item.cceId);
+          selectedCropsMap.set(item.cceId, {
+            logId: item.logId,
+            selectedDate: item.selectedDate,
+            addedBy: item.addedBy
+          });
+        });
+      }
+
+      const formattedData = allCropsResponse.data.payload
+        .map(item => {
+          const isAlreadySelected = selectedCceIds.has(item.cceId);
+          const selectedInfo = selectedCropsMap.get(item.cceId);
+          
+          return {
+            id: item.cceId,
+            name: item.cropNameEn,
+            frame: item.frameName,
+            ccNumber: item.noOfCce,
+            type: item.cceCropType === "major" ? "Major" : "Minor",
+            selected: isAlreadySelected, // Mark as selected if already in DB
+            logId: selectedInfo ? selectedInfo.logId : null,
+            isAlreadySelected: isAlreadySelected // Add flag for already selected crops
+          };
+        });
 
       setTableData(formattedData);
+
     } catch (error) {
-      console.error("Error fetching crop data", error);
+      console.error("FULL ERROR:", error);
       showSnackbar("Failed to load crop details");
     }
   };
 
   const buildPayload = () => {
-    const newlySelected = tableData
-      .filter(row => row.selected && !row.logId)
-      .map(row => ({
-        logId: null,
-        cceId: row.id,
-        addedBy: userId,
-        updatedBy: userId,
-        remarks: "CCE crop selected"
-      }));
+    const createPayload = [];
+    const deletePayload = [];
 
-    const deselected = tableData
-      .filter(row => !row.selected && row.logId)
-      .map(row => ({
-        logId: row.logId,
-        cceId: row.id,
-        action: "DELETE"
-      }));
+    // For newly selected crops (without logId)
+    tableData.forEach(row => {
+      if (row.selected && !row.logId && !row.isAlreadySelected) {
+        createPayload.push({
+          cceId: row.id,
+          addedBy: userId,
+          remarks: "CCE crop selected"
+          // logId will be null for new records
+        });
+      }
+      // For deselected crops (that were previously selected)
+      else if (!row.selected && row.logId && row.isAlreadySelected) {
+        deletePayload.push({
+          logId: row.logId,
+          cceId: row.id,
+          action: "DELETE"
+        });
+      }
+    });
 
-    return { create: newlySelected, delete: deselected };
+    // Combine both operations in the format expected by backend
+    const payload = [...createPayload, ...deletePayload];
+    
+    console.log("Final Payload:", payload);
+    return payload;
   };
 
   const handleSaveOrUpdate = async () => {
     const token = localStorage.getItem("token");
     const payload = buildPayload();
 
-    if (payload.create.length === 0 && payload.delete.length === 0) {
+    if (payload.length === 0) {
       showSnackbar("No changes to save");
       return;
     }
@@ -137,7 +187,7 @@ const CceCropSelection = () => {
     try {
       await axios.post(
         `${FORM_URL}/earas-form1-entry/cce-crop-details/saveOrUpdate`,
-        payload,
+        payload, // Send as array directly, not wrapped in another object
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -148,14 +198,15 @@ const CceCropSelection = () => {
 
       setSnackbar({
         open: true,
-        message: `Saved: ${payload.create.length} added, ${payload.delete.length} removed`,
+        message: `Saved successfully`,
         severity: "success"
       });
 
-      fetchCrops();
+      fetchCrops(); // Refresh the data
     } catch (error) {
       console.error("Save/Update failed", error);
-      showSnackbar("Failed to save changes");
+      console.error("Error response:", error.response?.data);
+      showSnackbar(error.response?.data?.message || "Failed to save changes");
     }
   };
 
@@ -172,7 +223,7 @@ const CceCropSelection = () => {
   const handleCheckboxChange = (id) => {
     setTableData((prev) =>
       prev.map((row) => {
-        if (row.id === id) {
+        if (row.id === id && !row.isAlreadySelected) {
           return { ...row, selected: !row.selected };
         }
         return row;
@@ -194,27 +245,31 @@ const CceCropSelection = () => {
     setOrderBy("id");
   };
 
-  const currentYear = new Date().getFullYear();
-  const agriculturalYear = `AY ${currentYear} - ${currentYear + 1}`;
-
   return (
     <Grid container spacing={3}>
       <Breadcrumb />
       <Grid item xs={12}>
-        {/* Snackbar */}
+       <Typography variant="h3" >
+          Crop Selection
+        </Typography>
+        {/* Snackbar - Now positioned at top center */}
         <Snackbar
           open={snackbar.open}
           autoHideDuration={3000}
           onClose={() => setSnackbar({ ...snackbar, open: false })}
-          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+          sx={{ mt: 8 }} // Add margin top to avoid overlapping with breadcrumb
         >
           <Alert
             onClose={() => setSnackbar({ ...snackbar, open: false })}
             severity={snackbar.severity}
             sx={{
-              backgroundColor: themeColor,
+              backgroundColor: snackbar.severity === "success" ? "#4caf50" : themeColor,
               color: "white",
-              fontWeight: "bold"
+              fontWeight: "bold",
+              '& .MuiAlert-icon': {
+                color: "white"
+              }
             }}
           >
             {snackbar.message}
@@ -234,12 +289,8 @@ const CceCropSelection = () => {
               }}
             >
               {/* Left Side - Table Title */}
-              <Typography
-                variant="h6"
-                gutterBottom
-                sx={{ color: themeColor, fontWeight: "bold", m: 0 }}
-              >
-                📋 Crop Selection Table
+              <Typography variant="h5" gutterBottom fontWeight="bold" sx={{ color: themeColor }}>
+                📋 Crop Selection
               </Typography>
 
               {/* Right Side - Search & Status */}
@@ -264,21 +315,6 @@ const CceCropSelection = () => {
                     flexWrap: "wrap"
                   }}
                 >
-                  {/* Agricultural Year */}
-                  <Box
-                    sx={{
-                      backgroundColor: themeColor,
-                      color: "white",
-                      px: 1.5,
-                      py: 0.5,
-                      borderRadius: 1,
-                      fontWeight: "bold",
-                      fontSize: "0.8rem"
-                    }}
-                  >
-                    {agriculturalYear}
-                  </Box>
-
                   <Typography variant="body2" fontWeight="bold" sx={{ color: themeColor }}>
                     ✅ Major: {getSelectedCountByType("Major")} / {getTotalMajorCount()}
                   </Typography>
@@ -356,7 +392,7 @@ const CceCropSelection = () => {
                       { id: "id", label: "Sl.No" },
                       { id: "name", label: "Crop Name" },
                       { id: "frame", label: "Frame" },
-                      { id: "ccNumber", label: "Number of CC" },
+                      { id: "ccNumber", label: "Number of CCE" },
                       { id: "selected", label: "Select for CCE" }
                     ].map((col) => (
                       <TableCell key={col.id} sx={{ color: "white" }}>
@@ -389,14 +425,31 @@ const CceCropSelection = () => {
                         <TableCell>{row.frame}</TableCell>
                         <TableCell>{row.ccNumber}</TableCell>
                         <TableCell>
-                          <Checkbox
-                            checked={row.selected}
-                            onChange={() => handleCheckboxChange(row.id)}
-                            sx={{ 
-                              color: themeColor, 
-                              "&.Mui-checked": { color: themeColor } 
-                            }}
-                          />
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Checkbox
+                              checked={row.selected}
+                              onChange={() => handleCheckboxChange(row.id)}
+                              disabled={row.isAlreadySelected}
+                              sx={{ 
+                                color: themeColor, 
+                                "&.Mui-checked": { 
+                                  color: themeColor 
+                                }
+                              }}
+                            />
+                            {row.isAlreadySelected && (
+                              <Typography 
+                                variant="caption" 
+                                sx={{ 
+                                  color: '#666',
+                                  fontStyle: 'italic',
+                                  fontSize: '0.7rem'
+                                }}
+                              >
+                                (Already selected)
+                              </Typography>
+                            )}
+                          </Box>
                         </TableCell>
                       </TableRow>
                     ))

@@ -78,10 +78,9 @@ const DistrictSettings = () => {
     <Grid container spacing={3}>
         <Breadcrumb/>
       <Box sx={{ p: 3, maxWidth: 1400, margin: "0 auto", width: "100%" }}>
-        {/* <Typography variant="h4" align="center" gutterBottom sx={{ mb: 2, color: '#05307a' }}>
-          District Management
-        </Typography> */}
-        
+         <Typography variant="h3" sx={{ marginBottom: 2 }}>
+            District Management
+        </Typography>
         <Paper elevation={2} sx={{ mb: 3 }}>
           <Tabs 
             value={activeTab} 
