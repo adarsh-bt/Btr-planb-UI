@@ -102,6 +102,7 @@ function KeralaFormReportList() {
   };
 
   // Fetch data from API
+  // Fetch data from API
   const fetchDistrictData = async () => {
     try {
       setLoading(true);
@@ -124,7 +125,6 @@ function KeralaFormReportList() {
       // Build precise API request body context
       const requestBody = {
         agriYear: AuthService.agriyear() || "2025-2026",
-        // agriYear: "2025-2026",
         seasonId: selectedSeason ? seasonToId[selectedSeason] : 3, // Defaults to 3 (Autumn) if none specified
         startMonth: startMonthVal,
         endMonth: endMonthVal,
@@ -133,12 +133,22 @@ function KeralaFormReportList() {
 
       console.log('Fetching data with payload:', requestBody);
 
+      // 1. Retrieve your authentication token safely
+      // Note: Modify this based on how your AuthService exposes the token (e.g., AuthService.getToken())
+      const token = AuthService.getToken ? AuthService.getToken() : localStorage.getItem('token'); 
+
+      if (!token) {
+        throw new Error('Authentication session token missing. Please log in again.');
+      }
+
+      // 2. Execute request passing the Authorization header
       const response = await axios.post(
         `${BASE_URL}/earas-form1-entry/form1/district-wise-status-summary`,
         requestBody,
         {
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` // Dynamically appends your Postman bearer token configuration
           }
         }
       );
@@ -150,7 +160,9 @@ function KeralaFormReportList() {
       }
     } catch (err) {
       console.error('Error fetching data:', err);
-      setError(err.message || 'Failed to fetch district data');
+      // Fallback fallback verification for detailed error capture
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch district data';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -46,59 +46,35 @@ const navigate = useNavigate();
 
   }, []);
 
-  const generateAgriYears = () => {
+const generateAgriYears = () => {
+  const today = new Date();
 
-    const startYear = 2025;
+  const year = today.getFullYear();
+  const month = today.getMonth() + 1;
 
-    // ==================================
-    // TEMP TEST MODE
-    // ==================================
+  let currentAgriStartYear;
 
-    const TEST_MODE = true;
+  // Official Agri Year starts on July 1
+  if (month >= 7) {
+    currentAgriStartYear = year;
+  } else {
+    currentAgriStartYear = year - 1;
+  }
 
-    const MOCK_CURRENT_YEAR = 2026;
+  const years = [];
 
-    // ==================================
+  // Always show current agricultural year
+  years.push(`${currentAgriStartYear}-${currentAgriStartYear + 1}`);
 
-    let currentYear;
+  // From June onwards, also show next agricultural year
+  if (month >= 6) {
+    years.push(
+      `${currentAgriStartYear + 1}-${currentAgriStartYear + 2}`
+    );
+  }
 
-    if (TEST_MODE) {
-
-      currentYear = MOCK_CURRENT_YEAR;
-
-    } else {
-
-      const today = new Date();
-
-      currentYear = today.getFullYear();
-
-      const currentMonth =
-        today.getMonth() + 1;
-
-      // Before July → previous agri year
-
-      if (currentMonth < 7) {
-
-        currentYear =
-          currentYear - 1;
-      }
-    }
-
-    const years = [];
-
-    for (
-      let year = startYear;
-      year <= currentYear;
-      year++
-    ) {
-
-      years.push(
-        `${year}-${year + 1}`
-      );
-    }
-
-    return years;
-  };
+  return years;
+};
 
   const handleChange = (event) => {
 

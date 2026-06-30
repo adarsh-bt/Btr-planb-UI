@@ -31,7 +31,10 @@ import {
   Slide,
   Switch,
   FormControlLabel,
-  Stack
+  Stack, Select,
+  MenuItem,
+  FormControl,
+  InputLabel
 } from '@mui/material';
 import { useParams } from 'react-router';
 import { styled } from '@mui/system';
@@ -62,6 +65,7 @@ import api from 'api/api';
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="down" ref={ref} {...props} />;
 });
+// Check if user is Field Inspector
 
 // Custom styles for text fields and tabs
 const FormInput = styled(TextField)(({ theme, disabled }) => ({
@@ -215,6 +219,8 @@ function WorkAllocationForm() {
   const [isDisabled, setIsDisabled] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formStatus, setFormStatus] = useState('NEW');
+  const [verifyStatus, setverifyStatus] = useState('');
+  const [verifyDate, setverifyDate] = useState('');
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -226,13 +232,23 @@ function WorkAllocationForm() {
   const [approvalLogId, setApprovalLogId] = useState(null);
   const [remarksDialogOpen, setRemarksDialogOpen] = useState(false);
 
+  // Verification States
+const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
+const [verifyStatusValue, setVerifyStatusValue] = useState('');
+const [verifyRemarks, setVerifyRemarks] = useState('');
+// const [isFieldInspector, setIsFieldInspector] = useState(false);
+
   const BASE_URL = mainapi.BASE_URL;
 
   // Determine if the current role context is an administrator
-  const isAdmin = useMemo(() => {
-    return ['Super Admin', 'IT Admin', 'District Level Approver', 'Taluk Level Approver'].includes(role);
-  }, [role]);
-
+// Determine if the current role context is an administrator
+const isAdmin = useMemo(() => {
+  return ['Super Admin', 'IT Admin', 'District Level Approver', 'Taluk Level Approver'].includes(role);
+}, [role]);
+// Check if user is Field Inspector
+const isFieldInspector = useMemo(() => {
+  return role === 'Field Inspector';
+}, [role]);
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
   };
@@ -294,38 +310,44 @@ function WorkAllocationForm() {
   }, [resolvedZoneId]);
 
   // Fetch saved allocations and read their approval status
-  const fetchWorkAllocation = React.useCallback(async () => {
-    if (!resolvedZoneId) return;
-    const agriYear = authservice.agriyear();
-    
-    try {
-      const res = await api.get(`${BASE_URL}/btr-service/btr-api/work-allocation-view/${resolvedZoneId}/${agriYear}`);
-      const apiData = res.data;
-      console.log("data ",apiData)
-      if (apiData) {
-        const allocations = apiData.payload || (Array.isArray(apiData) ? apiData : []);
-        setWorkAllocationData(allocations);
+// Fetch saved allocations and read their approval status
+// Fetch saved allocations and read their approval status
+const fetchWorkAllocation = React.useCallback(async () => {
+  if (!resolvedZoneId) return;
+  const agriYear = authservice.agriyear();
+  
+  try {
+    const res = await api.get(`${BASE_URL}/btr-service/btr-api/work-allocation-view/${resolvedZoneId}/${agriYear}`);
+    const apiData = res.data;
+    console.log("data ", apiData)
+    if (apiData) {
+      const allocations = apiData.payload || (Array.isArray(apiData) ? apiData : []);
+      setWorkAllocationData(allocations);
 
-        if (allocations.length > 0) {
-          setApprovalLogId(allocations[0].approveId);
-          const backendStatus = allocations[0].status || (allocations[0].isEdit ? 'DRAFT' : 'SUBMITTED');
-          setFormStatus(backendStatus);
-          
-          if (isAdmin) {
+      if (allocations.length > 0) {
+        setApprovalLogId(allocations[0].approveId);
+        const backendStatus = allocations[0].status || (allocations[0].isEdit ? 'DRAFT' : 'SUBMITTED');
+        const verifyStatus = allocations[0].verifiedStatus || '';
+const verifyDate = allocations[0].verifiedDate || '';
+setFormStatus(backendStatus);
+setverifyStatus(verifyStatus);  // ✅ Changed: lowercase 'v'
+setverifyDate(verifyDate);      // ✅ Changed: lowercase 'v'
+        
+        if (isAdmin) {
+          setIsDisabled(true);
+        } else {
+          if (backendStatus === 'SUBMITTED' || backendStatus === 'PENDING' || backendStatus === 'APPROVED') {
             setIsDisabled(true);
           } else {
-            if (backendStatus === 'SUBMITTED' || backendStatus === 'PENDING' || backendStatus === 'APPROVED') {
-              setIsDisabled(true);
-            } else {
-              setIsDisabled(false);
-            }
+            setIsDisabled(false);
           }
         }
       }
-    } catch (err) {
-      console.error('Error fetching work allocation data:', err);
     }
-  }, [resolvedZoneId, isAdmin, BASE_URL]);
+  } catch (err) {
+    console.error('Error fetching work allocation data:', err);
+  }
+}, [resolvedZoneId, isAdmin, BASE_URL]);
 
   // Clean, separate trigger hook on mount
   useEffect(() => {
@@ -390,10 +412,62 @@ function WorkAllocationForm() {
     return '';
   };
 
+  // Check if user is Field Inspector
+
+  // ===== FIELD INSPECTOR VERIFICATION =====
+const handleVerification = async () => {
+  if (!verifyStatusValue) {
+    showTemporaryMessage('⚠️ Please select a verification status.', true);
+    return;
+  }
+
+  setIsSubmitting(true);
+  try {
+    const token = localStorage.getItem('token');
+    const user_id = authservice.userid();
+
+    const requestBody = {
+      approvalId: approvalLogId,
+      status: verifyStatusValue,
+      remarks: verifyRemarks || '',
+      verifiedBy: user_id
+    };
+
+    const response = await fetch(`${BASE_URL}/btr-service/btr-api/verification`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) throw new Error('Failed to submit verification.');
+
+    // Update local state
+   // Update local state
+setverifyStatus(verifyStatusValue);  // ✅ Changed: lowercase 'v'
+setverifyDate(new Date().toLocaleString());  // ✅ Changed: lowercase 'v'
+    setVerifyStatusValue('');
+    setVerifyRemarks('');
+    setVerifyDialogOpen(false);
+    
+    showTemporaryMessage('✅ Verification submitted successfully!');
+    await fetchWorkAllocation(); // Refresh data
+
+  } catch (error) {
+    console.error('❌ Error:', error);
+    showTemporaryMessage('Error submitting verification: ' + error.message, true);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
+
   // ============================================================
   // MAIN AUTO-CALCULATION LOGIC
   // ============================================================
-  const handleInputChange = (index, field, value) => {
+const handleInputChange = (index, field, value) => {
     if (isDisabled) return;
     
     const updatedData = [...data];
@@ -402,38 +476,35 @@ function WorkAllocationForm() {
     const row = updatedData[index];
     
     // ===== 1. TAB 1: Calculate Total Area = Wet + Dry =====
-    const wetArea = parseFloat(row.Wet_area) ;
-    const dryArea = parseFloat(row.Dry_area);
+    // Add || 0 to fallback to zero if the field is empty
+    const wetArea = parseFloat(row.Wet_area) || 0;
+    const dryArea = parseFloat(row.Dry_area) || 0;
     row.Total_area = (wetArea + dryArea).toString();
     
     // ===== 2. TAB 2: Get Excluded Areas =====
-    const forestArea = parseFloat(row.forest_a);
-    const plantationArea = parseFloat(row.area_under);
-    const waterBodies = parseFloat(row.kayal_excluded);
-    const otherAreas = parseFloat(row.plantation_under);
+    const forestArea = parseFloat(row.forest_a) || 0;
+    const plantationArea = parseFloat(row.area_under) || 0;
+    const waterBodies = parseFloat(row.kayal_excluded) || 0;
+    const otherAreas = parseFloat(row.plantation_under) || 0;
     
     // ===== 3. Calculate Total Excluded =====
     const totalExcluded = forestArea + plantationArea + waterBodies + otherAreas;
     
     // ===== 4. TAB 3: Area Available for Estimation =====
-    // Wet Area = Village Wet Area (from Tab 1)
     row.total_area_wet_19 = wetArea.toString();
     
-    // Dry Area = Village Dry Area - Total Excluded (minimum 0)
     const estimationDry = Math.max(0, dryArea - totalExcluded);
     row.total_area_dry_21 = estimationDry.toString();
     
-    // Total Area = Wet + Dry
     const estimationTotal = wetArea + estimationDry;
     row.total_area_total_20 = estimationTotal.toString();
     
     // ===== 5. TAB 3: Number of Plots Total = Wet + Dry =====
-    const plotsWet = parseFloat(row.plots_wet_17);
-    const plotsDry = parseFloat(row.plots_dry_16);
+    const plotsWet = parseFloat(row.plots_wet_17) || 0;
+    const plotsDry = parseFloat(row.plots_dry_16) || 0;
     row.plots_total = (plotsWet + plotsDry).toString();
     
     setData(updatedData);
-
     // ===== 6. Validation for numeric fields =====
     const numericFields = [
       'Wet_area', 'Dry_area',
@@ -490,36 +561,36 @@ function WorkAllocationForm() {
       const token = localStorage.getItem('token');
       const user_id = authservice.userid();
 
-      const rowsToSave = data.map((row) => ({
+     const rowsToSave = data.map((row) => ({
         zoneId: resolvedZoneId,
         lbcode: row.lbcode || "LB-2025-001",
         
         // ===== AREA DETAILS (Tab 1) =====
-        villageWetArea: parseFloat(row.Wet_area) ,
-        villageDryArea: parseFloat(row.Dry_area) ,
-        villageTotalArea: parseFloat(row.Total_area) ,
+        villageWetArea: parseFloat(row.Wet_area) || 0,
+        villageDryArea: parseFloat(row.Dry_area) || 0,
+        villageTotalArea: parseFloat(row.Total_area) || 0,
         
         // ===== EXCLUDED AREAS (Tab 2) =====
-        forestAreaA: parseFloat(row.forest_a) ,
+        forestAreaA: parseFloat(row.forest_a) || 0,
         forestAreaB: 0,
         forestAreaC: 0,
-        areaUnderPlant: parseFloat(row.area_under) ,
-        forestExcludeUnclutivate: parseFloat(row.plantation_under) ,
+        areaUnderPlant: parseFloat(row.area_under) || 0,
+        forestExcludeUnclutivate: parseFloat(row.plantation_under) || 0,
         forestExcludeNotUnclutivate: 0,
-        kayalExcludeArea: parseFloat(row.kayal_excluded) ,
+        kayalExcludeArea: parseFloat(row.kayal_excluded) || 0,
         
         // ===== AREA AVAILABLE FOR ESTIMATION (Tab 3) =====
         otherExcludeFWet: 0,
         otherExcludedFDry: 0,
         otherExcludeFTotal: 0,
-        totalAreaWet: parseFloat(row.total_area_wet_19) ,
-        totalAreaDry: parseFloat(row.total_area_dry_21) ,
-        totalAreaForEstimation: parseFloat(row.total_area_total_20) ,
+        totalAreaWet: parseFloat(row.total_area_wet_19) || 0,
+        totalAreaDry: parseFloat(row.total_area_dry_21) || 0,
+        totalAreaForEstimation: parseFloat(row.total_area_total_20) || 0,
         
         // ===== NUMBER OF PLOTS (Tab 3) =====
-        noOfPlotsWet: parseFloat(row.plots_wet_17) ,
-        noOfPlotsDry: parseFloat(row.plots_dry_16) ,
-        noOfPlotsTotal: parseFloat(row.plots_total) ,
+        noOfPlotsWet: parseFloat(row.plots_wet_17) || 0,
+        noOfPlotsDry: parseFloat(row.plots_dry_16) || 0,
+        noOfPlotsTotal: parseFloat(row.plots_total) || 0,
         
         remarks: row.remarks || "",
         userId: user_id,
@@ -557,36 +628,36 @@ function WorkAllocationForm() {
       const token = localStorage.getItem('token');
       const user_id = authservice.userid();
 
-      const rowsToSave = data.map((row) => ({
+    const rowsToSave = data.map((row) => ({
         zoneId: resolvedZoneId,
         lbcode: row.lbcode || "LB-2025-001",
         
         // ===== AREA DETAILS (Tab 1) =====
-        villageWetArea: parseFloat(row.Wet_area) ,
-        villageDryArea: parseFloat(row.Dry_area) ,
-        villageTotalArea: parseFloat(row.Total_area) ,
+        villageWetArea: parseFloat(row.Wet_area) || 0,
+        villageDryArea: parseFloat(row.Dry_area) || 0,
+        villageTotalArea: parseFloat(row.Total_area) || 0,
         
         // ===== EXCLUDED AREAS (Tab 2) =====
-        forestAreaA: parseFloat(row.forest_a) ,
+        forestAreaA: parseFloat(row.forest_a) || 0,
         forestAreaB: 0,
         forestAreaC: 0,
-        areaUnderPlant: parseFloat(row.area_under) ,
-        forestExcludeUnclutivate: parseFloat(row.plantation_under) ,
+        areaUnderPlant: parseFloat(row.area_under) || 0,
+        forestExcludeUnclutivate: parseFloat(row.plantation_under) || 0,
         forestExcludeNotUnclutivate: 0,
-        kayalExcludeArea: parseFloat(row.kayal_excluded) ,
+        kayalExcludeArea: parseFloat(row.kayal_excluded) || 0,
         
         // ===== AREA AVAILABLE FOR ESTIMATION (Tab 3) =====
         otherExcludeFWet: 0,
         otherExcludedFDry: 0,
         otherExcludeFTotal: 0,
-        totalAreaWet: parseFloat(row.total_area_wet_19) ,
-        totalAreaDry: parseFloat(row.total_area_dry_21) ,
-        totalAreaForEstimation: parseFloat(row.total_area_total_20) ,
+        totalAreaWet: parseFloat(row.total_area_wet_19) || 0,
+        totalAreaDry: parseFloat(row.total_area_dry_21) || 0,
+        totalAreaForEstimation: parseFloat(row.total_area_total_20) || 0,
         
         // ===== NUMBER OF PLOTS (Tab 3) =====
-        noOfPlotsWet: parseFloat(row.plots_wet_17) ,
-        noOfPlotsDry: parseFloat(row.plots_dry_16) ,
-        noOfPlotsTotal: parseFloat(row.plots_total) ,
+        noOfPlotsWet: parseFloat(row.plots_wet_17) || 0,
+        noOfPlotsDry: parseFloat(row.plots_dry_16) || 0,
+        noOfPlotsTotal: parseFloat(row.plots_total) || 0,
         
         remarks: row.remarks || "",
         userId: user_id,
@@ -681,89 +752,98 @@ function WorkAllocationForm() {
     }
   };
 
-  const renderStatusBanner = () => {
-    const adminNotes = workAllocationData[0]?.adminRemarks || workAllocationData[0]?.remarks;
+ const renderStatusBanner = () => {
+  const adminNotes = workAllocationData[0]?.adminRemarks || workAllocationData[0]?.remarks;
 
-    const statusConfig = {
-      'SUBMITTED': {
-        severity: 'warning',
-        title: 'Waiting for Approval',
-        message: 'This form has been submitted and is currently under review by the administrator. Editing is locked until a decision is made.',
-        action: null
-      },
-      'PENDING': {
-        severity: 'warning',
-        title: 'Pending Approval',
-        message: 'Your submission is in the approval queue. You will be notified once reviewed.',
-        action: null
-      },
-      'APPROVED': {
-        severity: 'success',
-        title: 'Form Approved',
-        message: 'This statement has been successfully approved by the admin. The data is now finalized and view-only.',
-        action: null
-      },
-      'UNDER REVIEW': {
-        severity: 'info',
-        title: isAdmin ? '🔍 Under Review - Admin Action Required' : '📋 Under Review',
-        message: isAdmin 
-          ? 'This form is currently under review. You can approve it, return it for corrections, or keep it under review for further examination.'
-          : 'Your form is currently under review by the administrator. The admin may request changes or approve it soon. Please check back later.',
-        action: isAdmin ? null : null
-      },
-      'RETURNED': {
-        severity: 'error',
-        title: 'Form Returned',
-        message: 'The administrator has requested changes. Please review the remarks, make corrections, and resubmit.',
-        action: (
-          <Stack direction="row" spacing={2} alignItems="center">
-            {adminNotes && (
-              <GlowingActionButton 
-                variant="outlined" 
-                onClick={() => setRemarksDialogOpen(true)}
-                startIcon={<VisibilityIcon />}
-              >
-                View Remarks
-              </GlowingActionButton>
-            )}
-          </Stack>
-        )
-      },
-      'DRAFT': {
-        severity: 'info',
-        title: 'Draft Mode',
-        message: 'This is a work in progress. Fill in all required fields to enable submission.',
-        action: null
-      }
-    };
+  const statusConfig = {
+    'SUBMITTED': {
+      severity: 'warning',
+      title: 'Waiting for Approval',
+      message: 'This form has been submitted and is currently under review by the administrator. Editing is locked until a decision is made.',
+      action: null
+    },
+    'PENDING': {
+      severity: 'warning',
+      title: 'Pending Approval',
+      message: 'Your submission is in the approval queue. You will be notified once reviewed.',
+      action: null
+    },
+    'APPROVED': {
+      severity: 'success',
+      title: 'Form Approved',
+      message: 'This statement has been successfully approved by the admin. The data is now finalized and view-only.',
+      action: null
+    },
+    'UNDER REVIEW': {
+      severity: 'info',
+      title: isAdmin ? '🔍 Under Review - Admin Action Required' : '📋 Under Review',
+      message: isAdmin 
+        ? 'This form is currently under review. You can approve it, return it for corrections, or keep it under review for further examination.'
+        : 'Your form is currently under review by the administrator. The admin may request changes or approve it soon. Please check back later.',
+      action: isAdmin ? null : null
+    },
+    'RETURNED': {
+      severity: 'error',
+      title: 'Form Returned',
+      message: 'The administrator has requested changes. Please review the remarks, make corrections, and resubmit.',
+      action: (
+        <Stack direction="row" spacing={2} alignItems="center">
+          {adminNotes && (
+            <GlowingActionButton 
+              variant="outlined" 
+              onClick={() => setRemarksDialogOpen(true)}
+              startIcon={<VisibilityIcon />}
+            >
+              View Remarks
+            </GlowingActionButton>
+          )}
+        </Stack>
+      )
+    },
+    'DRAFT': {
+      severity: 'info',
+      title: 'Draft Mode',
+      message: 'This is a work in progress. Fill in all required fields to enable submission.',
+      action: null
+    }
+  };
 
-    const config = statusConfig[formStatus] || statusConfig['DRAFT'];
+  const config = statusConfig[formStatus] || statusConfig['DRAFT'];
 
-    return (
-      <Zoom in>
-        <StatusCard status={formStatus} elevation={0}>
-          <Grid container alignItems="center" spacing={2}>
-            <Grid item>
-              {getStatusIcon()}
-            </Grid>
-            <Grid item xs>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                {config.title}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {config.message}
-              </Typography>
-            </Grid>
-            {config.action && (
-              <Grid item>
-                {config.action}
-              </Grid>
+  return (
+    <Zoom in>
+      <StatusCard status={formStatus} elevation={0}>
+        <Grid container alignItems="center" spacing={2}>
+          <Grid item>
+            {getStatusIcon()}
+          </Grid>
+          <Grid item xs>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+              {config.title}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {config.message}
+            </Typography>
+            {/* Show verification status if available */}
+            {approvalLogId && verifyStatus && (
+              <Chip 
+                size="small"
+                label={`Verification: ${verifyStatus}`}
+                color={verifyStatus === 'VERIFIED' ? 'success' : 'warning'}
+                sx={{ mt: 1 }}
+              />
             )}
           </Grid>
-        </StatusCard>
-      </Zoom>
-    );
-  };
+          {config.action && (
+            <Grid item>
+              {config.action}
+            </Grid>
+          )}
+        </Grid>
+      </StatusCard>
+    </Zoom>
+  );
+};
 
   // ============================================================
   // TAB 1: AREA AS PER VILLAGE RECORDS
@@ -784,8 +864,8 @@ function WorkAllocationForm() {
       </TableHead>
       <TableBody>
         {data.map((row, index) => {
-          const wet = parseFloat(row.Wet_area) ;
-          const dry = parseFloat(row.Dry_area) ;
+          const wet = parseFloat(row.Wet_area) || 0 ;
+          const dry = parseFloat(row.Dry_area) || 0 ;
           const total = wet + dry;
           
           return (
@@ -866,11 +946,12 @@ function WorkAllocationForm() {
       </TableHead>
       <TableBody>
         {data.map((row, index) => {
-          const forest = parseFloat(row.forest_a) ;
-          const plantation = parseFloat(row.area_under) ;
-          const water = parseFloat(row.kayal_excluded) ;
-          const other = parseFloat(row.plantation_under) ;
-          const totalExcluded = forest + plantation + water + other;
+          // Replace the top lines inside data.map with:
+const forest = parseFloat(row.forest_a) || 0;
+const plantation = parseFloat(row.area_under) || 0;
+const water = parseFloat(row.kayal_excluded) || 0;
+const other = parseFloat(row.plantation_under) || 0;
+const totalExcluded = forest + plantation + water + other;
           
           return (
             <TableRow key={index}>
@@ -982,20 +1063,21 @@ function WorkAllocationForm() {
       <TableBody>
         {data.map((row, index) => {
           // Get values for calculations
-          const wetArea = parseFloat(row.Wet_area) ;
-          const dryArea = parseFloat(row.Dry_area) ;
-          const forest = parseFloat(row.forest_a) ;
-          const plantation = parseFloat(row.area_under) ;
-          const water = parseFloat(row.kayal_excluded) ;
-          const other = parseFloat(row.plantation_under) ;
-          const totalExcluded = forest + plantation + water + other;
-          const estimationDry = Math.max(0, dryArea - totalExcluded);
-          const estimationTotal = wetArea + estimationDry;
-          
-          // Plots calculations
-          const plotsWet = parseFloat(row.plots_wet_17) ;
-          const plotsDry = parseFloat(row.plots_dry_16) ;
-          const plotsTotal = plotsWet + plotsDry;
+          // Replace the top lines inside data.map with:
+const wetArea = parseFloat(row.Wet_area) || 0;
+const dryArea = parseFloat(row.Dry_area) || 0;
+const forest = parseFloat(row.forest_a) || 0;
+const plantation = parseFloat(row.area_under) || 0;
+const water = parseFloat(row.kayal_excluded) || 0;
+const other = parseFloat(row.plantation_under) || 0;
+const totalExcluded = forest + plantation + water + other;
+const estimationDry = Math.max(0, dryArea - totalExcluded);
+const estimationTotal = wetArea + estimationDry;
+
+// Plots calculations
+const plotsWet = parseFloat(row.plots_wet_17) || 0;
+const plotsDry = parseFloat(row.plots_dry_16) || 0;
+const plotsTotal = plotsWet + plotsDry;
           
           return (
             <TableRow key={index}>
@@ -1167,14 +1249,78 @@ function WorkAllocationForm() {
             />
           )}
         </Box>
-        
+      
         {/* Alerts Center Notification Toast */}
         <Fade in={showSuccessMessage}>
           <Alert severity={successMessage.includes('✅') ? 'success' : 'error'} sx={{ position: 'fixed', top: '10%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 9999, minWidth: 300, boxShadow: 3 }} onClose={() => setShowSuccessMessage(false)}>
             {successMessage}
           </Alert>
         </Fade>
-
+{/* Verification Status Display - Only when approval exists */}
+{approvalLogId && verifyStatus && (
+  <Box sx={{ mb: 3 }}>
+    <Paper 
+      elevation={0} 
+      sx={{ 
+        p: 2, 
+        bgcolor: verifyStatus === 'VERIFIED' ? '#e8f5e9' : '#fff3e0',
+        border: `1px solid ${verifyStatus === 'VERIFIED' ? '#4caf50' : '#ff9800'}`,
+        borderRadius: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 2
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        {verifyStatus === 'VERIFIED' ? (
+          <CheckCircleIcon sx={{ color: '#4caf50' }} />
+        ) : (
+          <PendingIcon sx={{ color: '#ff9800' }} />
+        )}
+        <Box>
+          <Typography variant="subtitle2" fontWeight={600}>
+            Field Inspector Verification: 
+            <Chip 
+              label={verifyStatus} 
+              size="small" 
+              color={verifyStatus === 'VERIFIED' ? 'success' : 'warning'}
+              sx={{ ml: 1, fontWeight: 600 }}
+            />
+          </Typography>
+          {verifyDate && (
+            <Typography variant="caption" color="text.secondary" display="block">
+              Verified on: {verifyDate}
+            </Typography>
+          )}
+        </Box>
+      </Box>
+      
+      {/* Verification Button for Field Inspector */}
+      {isFieldInspector && formStatus === 'SUBMITTED' && verifyStatus !== 'VERIFIED' && (
+        <Button 
+          variant="contained" 
+          color="warning"
+          size="small"
+          onClick={() => setVerifyDialogOpen(true)}
+          startIcon={<PendingIcon />}
+        >
+          Verify Field Data
+        </Button>
+      )}
+      
+      {verifyStatus === 'VERIFIED' && (
+        <Chip 
+          icon={<CheckCircleIcon />} 
+          label="Verified" 
+          color="success" 
+          variant="outlined"
+        />
+      )}
+    </Paper>
+  </Box>
+)}
         {/* Dynamic Status Display Banner */}
         {renderStatusBanner()}
 
@@ -1354,7 +1500,81 @@ function WorkAllocationForm() {
           </Button>
         </DialogActions>
       </StyledDialog>
-
+{/* Verification Dialog for Field Inspector */}
+<StyledDialog 
+  open={verifyDialogOpen} 
+  onClose={() => setVerifyDialogOpen(false)} 
+  TransitionComponent={Transition}
+>
+  <DialogTitle sx={{ 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
+    bgcolor: 'warning.lighter',
+    borderBottom: '1px solid',
+    borderColor: 'divider'
+  }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <PendingIcon color="warning" />
+      <Typography variant="h6" fontWeight={600}>Field Verification</Typography>
+    </Box>
+    <IconButton onClick={() => setVerifyDialogOpen(false)} size="small">
+      <CloseIcon />
+    </IconButton>
+  </DialogTitle>
+  <DialogContent sx={{ mt: 2 }}>
+    <Alert severity="info" sx={{ mb: 2 }}>
+      <AlertTitle>📋 Field Verification Required</AlertTitle>
+      Please verify that the field data has been collected and validated correctly.
+    </Alert>
+    
+    <Grid container spacing={2} sx={{ mt: 1 }}>
+      <Grid item xs={12}>
+        <FormControl fullWidth>
+          <InputLabel>Verification Status</InputLabel>
+          <Select
+            value={verifyStatusValue}
+            onChange={(e) => setVerifyStatusValue(e.target.value)}
+            label="Verification Status"
+          >
+            <MenuItem value="VERIFIED">✅ Verified</MenuItem>
+            <MenuItem value="REJECTED">❌ Rejected</MenuItem>
+            <MenuItem value="PENDING">⏳ Pending</MenuItem>
+          </Select>
+        </FormControl>
+      </Grid>
+      <Grid item xs={12}>
+        <TextField
+          fullWidth
+          multiline
+          rows={3}
+          label="Remarks / Comments"
+          value={verifyRemarks}
+          onChange={(e) => setVerifyRemarks(e.target.value)}
+          placeholder="Add any observations or comments about the field verification..."
+        />
+      </Grid>
+    </Grid>
+  </DialogContent>
+  <DialogActions sx={{ p: 2, gap: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+    <Button 
+      onClick={() => setVerifyDialogOpen(false)} 
+      variant="outlined" 
+      color="inherit"
+    >
+      Cancel
+    </Button>
+    <Button 
+      onClick={handleVerification} 
+      variant="contained" 
+      color="warning"
+      disabled={isSubmitting || !verifyStatusValue}
+      startIcon={<SendIcon />}
+    >
+      {isSubmitting ? 'Submitting...' : 'Submit Verification'}
+    </Button>
+  </DialogActions>
+</StyledDialog>
       {/* Admin Remarks Dialog */}
       <StyledDialog open={remarksDialogOpen} onClose={() => setRemarksDialogOpen(false)} TransitionComponent={Transition}>
         <DialogTitle sx={{ 

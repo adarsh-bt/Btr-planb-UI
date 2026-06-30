@@ -437,7 +437,7 @@ const normalizeActiveStatus = (status) => {
   const fetchCropGroups = async () => {
     try {
       setLoadingGroups(true);
-      const response = await api.get(`${BASE_URL}//earas-form1-entry/api/master-crop-group/fetch-all`);
+      const response = await api.get(`${BASE_URL}/earas-form1-entry/api/master-crop-group/fetch-all`);
       const data = response.data;
       
       let groupsArray = [];
@@ -559,7 +559,7 @@ const normalizeActiveStatus = (status) => {
     }
 
     try {
-      const response = await api.post("http://localhost:9114/earas-form1-entry/api/master-crop/add", {
+      const response = await api.post(`${BASE_URL}/earas-form1-entry/api/master-crop/add`, {
         cropNameEn: newCropFormData.cropNameEn,
         cropNameMal: newCropFormData.cropNameMal,
         isActive: newCropFormData.isActive,
@@ -624,7 +624,7 @@ const normalizeActiveStatus = (status) => {
     }
 
     try {
-      const response = await api.post("http://localhost:9114/earas-form1-entry/api/master-crop/add", {
+      const response = await api.post(`${BASE_URL}/earas-form1-entry/api/master-crop/add`, {
         cropId: editCropFormData.cropId,
         cropNameEn: editCropFormData.cropNameEn,
         cropNameMal: editCropFormData.cropNameMal,
@@ -675,7 +675,7 @@ const normalizeActiveStatus = (status) => {
     }
 
     try {
-      const response = await api.post("http://localhost:9114/earas-form1-entry/api/master-unit/add", unitFormData);
+      const response = await api.post(`${BASE_URL}/earas-form1-entry/api/master-unit/add`, unitFormData);
       
       if (response.status === 200 || response.status === 201) {
         setSnackbar({ open: true, message: editingUnit ? "Unit updated successfully" : "Unit added successfully", severity: "success" });
@@ -727,7 +727,7 @@ const normalizeActiveStatus = (status) => {
     }
 
     try {
-      const response = await api.post("http://localhost:9114/earas-form1-entry/api/master-stands-per-hectare/add", standsFormData);
+      const response = await api.post(`${BASE_URL}/earas-form1-entry/api/master-stands-per-hectare/add`, standsFormData);
       
       if (response.status === 200 || response.status === 201) {
         setSnackbar({ open: true, message: editingStands ? "Stands data updated successfully" : "Stands data added successfully", severity: "success" });
@@ -777,7 +777,7 @@ const normalizeActiveStatus = (status) => {
       isActive: irrigationFormData.isActive === true || irrigationFormData.isActive === "true" || irrigationFormData.isActive === 1
     };
     
-    const response = await api.post("http://localhost:9114/earas-form1-entry/irrigation-details/master-irrigation-source/add", payload);
+    const response = await api.post(`${BASE_URL}/earas-form1-entry/irrigation-details/master-irrigation-source/add`, payload);
     
     if (response.status === 200 || response.status === 201) {
       setSnackbar({ open: true, message: editingIrrigation ? "Irrigation source updated successfully" : "Irrigation source added successfully", severity: "success" });
@@ -871,7 +871,7 @@ const handleSaveCce = async () => {
       frameId: cceFormData.frameId ? parseInt(cceFormData.frameId) : null
     };
     
-    const response = await api.post("http://localhost:9114/earas-form1-entry/cce-crop-details/master-cce-crop/add", payload);
+    const response = await api.post(`${BASE_URL}/earas-form1-entry/cce-crop-details/master-cce-crop/add`, payload);
     
     if (response.status === 200 || response.status === 201) {
       setSnackbar({ open: true, message: editingCce ? "CCE Crop updated successfully" : "CCE Crop added successfully", severity: "success" });

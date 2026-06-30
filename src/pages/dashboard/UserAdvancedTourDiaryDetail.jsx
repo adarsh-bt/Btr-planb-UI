@@ -61,11 +61,24 @@ const UserAdvancedTourDiaryDetail = () => {
   const theme = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
+
+  const getLocalStorageYear = (currentMonth) => {
+  const agriYear = localStorage.getItem("activeAgriYear");
+  
+  if (agriYear && agriYear.includes('-')) {
+    const [startYear, endYear] = agriYear.split('-').map(Number);
+    if (!isNaN(startYear) && !isNaN(endYear)) {
+      // July to December belongs to startYear, January to June belongs to endYear
+      return currentMonth >= 7 ? startYear : endYear;
+    }
+  }
+  return new Date().getFullYear(); 
+};
   
   // Get userId and month/year from location state
   const { userId, month: monthParam, year: yearParam, userDetails: userInfo } = location.state || {};
   const [selectedMonth, setSelectedMonth] = useState(monthParam || new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(yearParam || new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState(yearParam || getLocalStorageYear());
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -249,29 +262,73 @@ const UserAdvancedTourDiaryDetail = () => {
   };
 
   // ============================ FETCH SUBMISSION DETAILS ============================
-  const fetchSubmissionDetails = async () => {
-    if (!userId) return;
+//   const fetchSubmissionDetails = async () => {
+//   if (!userId) return;
+  
+//   setLoadingSubmissionDetails(true);
+//   try {
+//     const response = await tourDiaryService.getAdminSubmissionView(userId, selectedYear);
     
-    setLoadingSubmissionDetails(true);
-    try {
-      const response = await tourDiaryService.getAdminSubmissionDetails(
-        userId, selectedYear, selectedMonth
-      );
-      
-      if (!response.error && response.data) {
-        console.log("Submission details:", response.data);
-        setSubmissionDetails(response.data);
-      } else {
-        console.error("Error fetching submission details:", response.message);
-        setSubmissionDetails(null);
-      }
-    } catch (error) {
-      console.error("Exception in fetchSubmissionDetails:", error);
-      setSubmissionDetails(null);
-    } finally {
-      setLoadingSubmissionDetails(false);
+//     if (!response.error && response.data) {
+//       // Find the entry matching the selected month
+//       const monthData = Array.isArray(response.data)
+//         ? response.data.find(item => item.month === selectedMonth)
+//         : response.data;
+
+//       console.log("Submission details for month:", monthData);
+//       setSubmissionDetails(monthData || null);
+//     } else {
+//       console.error("Error fetching submission details:", response.message);
+//       setSubmissionDetails(null);
+//     }
+//   } catch (error) {
+//     console.error("Exception in fetchSubmissionDetails:", error);
+//     setSubmissionDetails(null);
+//   } finally {
+//     setLoadingSubmissionDetails(false);
+//   }
+// };
+
+const fetchSubmissionDetails = async () => {
+  if (!userId) return;
+  
+  setLoadingSubmissionDetails(true);
+  try {
+    // Call 1: Get submission view (has submitted dates, admin statuses)
+    const viewResponse = await tourDiaryService.getAdminSubmissionView(userId, selectedYear);
+    
+    // Call 2: Get submission details (has firstHalfId, secondHalfId)
+    const detailResponse = await tourDiaryService.getAdminSubmissionDetails(
+      userId, selectedYear, selectedMonth
+    );
+
+    let monthData = null;
+
+    if (!viewResponse.error && viewResponse.data) {
+      monthData = Array.isArray(viewResponse.data)
+        ? viewResponse.data.find(item => item.month === selectedMonth)
+        : viewResponse.data;
     }
-  };
+
+    // Merge the IDs from detailResponse into monthData
+    if (monthData && !detailResponse.error && detailResponse.data) {
+      monthData = {
+        ...monthData,
+        firstHalfId: detailResponse.data.firstHalfId || null,
+        secondHalfId: detailResponse.data.secondHalfId || null,
+      };
+    }
+
+    console.log("Merged submission details:", monthData);
+    setSubmissionDetails(monthData || null);
+
+  } catch (error) {
+    console.error("Exception in fetchSubmissionDetails:", error);
+    setSubmissionDetails(null);
+  } finally {
+    setLoadingSubmissionDetails(false);
+  }
+};
 
   // ============================ EFFECTS ============================
   // Initial fetch of schemes
@@ -300,20 +357,35 @@ const UserAdvancedTourDiaryDetail = () => {
   };
 
   const handleMonthChange = (offset) => {
-    let newMonth = selectedMonth + offset;
-    let newYear = selectedYear;
-    
-    if (newMonth > 12) {
-      newMonth = 1;
-      newYear += 1;
-    } else if (newMonth < 1) {
-      newMonth = 12;
-      newYear -= 1;
+  const agriYear = localStorage.getItem("activeAgriYear") || "";
+  const [startYear, endYear] = agriYear ? agriYear.split('-').map(Number) : [null, null];
+
+  let newMonth = selectedMonth + offset;
+  let newYear = selectedYear;
+  
+  if (newMonth > 12) {
+    newMonth = 1;
+    newYear += 1;
+  } else if (newMonth < 1) {
+    newMonth = 12;
+    newYear -= 1;
+  }
+  
+  // Guard clause: Prevent navigating out of the bounds of the active agricultural window
+  if (startYear && endYear) {
+    if (newYear < startYear || (newYear === startYear && newMonth < 7)) {
+      showNotification('info', `Cannot navigate prior to the start of Agri Year ${agriYear}`);
+      return;
     }
-    
-    setSelectedMonth(newMonth);
-    setSelectedYear(newYear);
-  };
+    if (newYear > endYear || (newYear === endYear && newMonth > 6)) {
+      showNotification('info', `Cannot navigate past the end of Agri Year ${agriYear}`);
+      return;
+    }
+  }
+  
+  setSelectedMonth(newMonth);
+  setSelectedYear(newYear);
+};
 
   const handleDateClick = (day) => {
     const dateKey = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -419,61 +491,60 @@ const UserAdvancedTourDiaryDetail = () => {
   };
 
   const confirmBulkApproval = async () => {
-    try {
-      setApprovalLoading(true);
-      
-      const adminId = authservice.userid();
-      
-      if (!adminId) {
-        showNotification('error', 'Admin session expired. Please login again.');
-        setBulkApprovalDialogOpen(false);
-        return;
-      }
+  try {
+    setApprovalLoading(true);
 
-      // Get the correct submission ID based on the selected half
-      let submissionId = null;
-      if (approvalHalf === 'First Half' && submissionDetails?.firstHalfId) {
-        submissionId = submissionDetails.firstHalfId;
-      } else if (approvalHalf === 'Second Half' && submissionDetails?.secondHalfId) {
-        submissionId = submissionDetails.secondHalfId;
-      }
+    const adminId = authservice.userid();
 
-      if (!submissionId) {
-        showNotification('error', `No submission found for ${approvalHalf}. The user may not have submitted this half.`);
-        setBulkApprovalDialogOpen(false);
-        return;
-      }
-      
-      // Prepare payload for admin approval - matches your backend DTO
-      const payload = {
-        id: submissionId,
-        adminId: adminId,
-        adminRemark: remarks || `${selectedStatus} for ${approvalHalf} of ${monthNames[selectedMonth - 1]} ${selectedYear}`,
-        adminStatus: selectedStatus
-      };
-      
-      console.log("Bulk approval payload:", payload);
-      
-      const response = await tourDiaryService.submitAdminApproval(payload);
-      
-      if (!response.error) {
-        // Refresh submission details and tour entries to get updated statuses
-        await fetchSubmissionDetails();
-        await fetchUserTourEntries();
-        
-        showNotification('success', `${approvalHalf} ${selectedStatus} successfully`);
-        setBulkApprovalDialogOpen(false);
-        setRemarks('');
-      } else {
-        showNotification('error', response.message || 'Failed to process bulk approval');
-      }
-    } catch (error) {
-      console.error("Bulk approval error:", error);
-      showNotification('error', 'Failed to process bulk approval');
-    } finally {
-      setApprovalLoading(false);
+    if (!adminId) {
+      showNotification('error', 'Admin session expired. Please login again.');
+      setBulkApprovalDialogOpen(false);
+      return;
     }
-  };
+
+    // Get submission ID from merged details
+    let submissionId = null;
+    if (approvalHalf === 'First Half') {
+      submissionId = submissionDetails?.firstHalfId;
+    } else if (approvalHalf === 'Second Half') {
+      submissionId = submissionDetails?.secondHalfId;
+    }
+
+    if (!submissionId) {
+      showNotification('error', `No submission ID found for ${approvalHalf}. The user may not have submitted this half.`);
+      setBulkApprovalDialogOpen(false);
+      return;
+    }
+
+    const payload = {
+      id: submissionId,
+      adminId: adminId,
+      adminRemark: remarks || `${selectedStatus} for ${approvalHalf} of ${monthNames[selectedMonth - 1]} ${selectedYear}`,
+      adminStatus: selectedStatus
+    };
+
+    console.log("Bulk approval payload:", payload);
+
+    const response = await tourDiaryService.submitAdminApproval(payload);
+
+    if (!response.error) {
+      await fetchSubmissionDetails();
+      await fetchUserTourEntries();
+      showNotification('success', `${approvalHalf} ${selectedStatus} successfully`);
+      setBulkApprovalDialogOpen(false);
+      setRemarks('');
+    } else {
+      showNotification('error', response.message || 'Failed to process bulk approval');
+    }
+  } catch (error) {
+    console.error("Bulk approval error:", error);
+    showNotification('error', 'Failed to process bulk approval');
+  } finally {
+    setApprovalLoading(false);
+  }
+};
+
+
 
   // ============================ NOTIFICATION HANDLERS ============================
   const showNotification = (type, message) => {
@@ -1237,64 +1308,108 @@ const renderTableView = () => {
     
     {submissionDetails && (
       <Paper
-        elevation={1}
-        sx={{
-          p: 1.5,
-          backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : '#f0f7ff',
-          border: `1px solid ${theme.palette.divider}`,
-          borderRadius: 2
-        }}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4 }}>
-          {/* First Half */}
+  elevation={1}
+  sx={{
+    p: 1.5,
+    backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : '#f0f7ff',
+    border: `1px solid ${theme.palette.divider}`,
+    borderRadius: 2
+  }}
+>
+  {/* Changed layout direction to 'column' and aligned items to the start */}
+  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1.5 }}>
+    
+    {/* First Half */}
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+        FH:
+      </Typography>
+      {submissionDetails.firstHalfSubmitted && submissionDetails.firstHalfSubmittedDate ? (
+        <Tooltip
+          title={
+            submissionDetails.firstHalfAdminStatus
+              ? `Status: ${submissionDetails.firstHalfAdminStatus}`
+              : ''
+          }
+          arrow
+        >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-              FH:
+            <Typography variant="caption" color="text.secondary">
+              {`Submitted on ${new Date(submissionDetails.firstHalfSubmittedDate).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric'
+              })}, ${new Date(submissionDetails.firstHalfSubmittedDate).toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+              })}`}
             </Typography>
-            {submissionDetails.firstHalfIsLate ? (
-              <Chip 
-                label="LATE" 
-                size="small" 
-                color="warning" 
-                sx={{ height: '24px', fontWeight: 'bold' }} 
+            {submissionDetails.firstHalfAdminStatus && (
+              <Chip
+                label={submissionDetails.firstHalfAdminStatus}
+                size="small"
+                color={
+                  submissionDetails.firstHalfAdminStatus === 'APPROVED' ? 'success' :
+                  submissionDetails.firstHalfAdminStatus === 'REJECTED' ? 'error' : 'warning'
+                }
+                sx={{ height: '20px', fontSize: '0.65rem', fontWeight: 'bold' }}
               />
-            ) : (
-              submissionDetails.firstHalfId && (
-                <Chip 
-                  label="ON TIME" 
-                  size="small" 
-                  color="success" 
-                  sx={{ height: '24px', fontWeight: 'bold' }} 
-                />
-              )
             )}
           </Box>
+        </Tooltip>
+      ) : (
+        <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+          Not submitted
+        </Typography>
+      )}
+    </Box>
 
-          {/* Second Half */}
+    {/* Second Half */}
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+        SH:
+      </Typography>
+      {submissionDetails.secondHalfSubmitted && submissionDetails.secondHalfSubmittedDate ? (
+        <Tooltip
+          title={
+            submissionDetails.secondHalfAdminStatus
+              ? `Status: ${submissionDetails.secondHalfAdminStatus}`
+              : ''
+          }
+          arrow
+        >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-              SH:
+            <Typography variant="caption" color="text.secondary">
+              {`Submitted on ${new Date(submissionDetails.secondHalfSubmittedDate).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric'
+              })}, ${new Date(submissionDetails.secondHalfSubmittedDate).toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+              })}`}
             </Typography>
-            {submissionDetails.secondHalfIsLate ? (
-              <Chip 
-                label="LATE" 
-                size="small" 
-                color="warning" 
-                sx={{ height: '24px', fontWeight: 'bold' }} 
+            {submissionDetails.secondHalfSubmittedDate && (
+              <Chip
+                label={submissionDetails.secondHalfAdminStatus}
+                size="small"
+                color={
+                  submissionDetails.secondHalfAdminStatus === 'APPROVED' ? 'success' :
+                  submissionDetails.secondHalfAdminStatus === 'REJECTED' ? 'error' : 'warning'
+                }
+                sx={{ height: '20px', fontSize: '0.65rem', fontWeight: 'bold' }}
               />
-            ) : (
-              submissionDetails.secondHalfId && (
-                <Chip 
-                  label="ON TIME" 
-                  size="small" 
-                  color="success" 
-                  sx={{ height: '24px', fontWeight: 'bold' }} 
-                />
-              )
             )}
           </Box>
-        </Box>
-      </Paper>
+        </Tooltip>
+      ) : (
+        <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+          Not submitted
+        </Typography>
+      )}
+    </Box>
+  </Box>
+</Paper>
     )}
   </Box>
 
@@ -1366,33 +1481,82 @@ const renderTableView = () => {
         {loadingSubmissionDetails ? "Loading..." : "Approval"}
       </Button>
       <Menu
-        anchorEl={approvalAnchorEl}
-        open={Boolean(approvalAnchorEl)}
-        onClose={closeApprovalMenu}
-      >
-        <MenuItem 
-          onClick={() => handleBulkApprovalHalf('First Half')}
-          disabled={!submissionDetails?.firstHalfId}
-        >
-          First Half
-          {!submissionDetails?.firstHalfId && (
-            <Typography variant="caption" color="text.disabled" sx={{ ml: 1 }}>
-              (Not submitted)
-            </Typography>
-          )}
-        </MenuItem>
-        <MenuItem 
-          onClick={() => handleBulkApprovalHalf('Second Half')}
-          disabled={!submissionDetails?.secondHalfId}
-        >
-          Second Half
-          {!submissionDetails?.secondHalfId && (
-            <Typography variant="caption" color="text.disabled" sx={{ ml: 1 }}>
-              (Not submitted)
-            </Typography>
-          )}
-        </MenuItem>
-      </Menu>
+  anchorEl={approvalAnchorEl}
+  open={Boolean(approvalAnchorEl)}
+  onClose={closeApprovalMenu}
+>
+  <MenuItem
+    onClick={() => handleBulkApprovalHalf('First Half')}
+    disabled={
+      !submissionDetails?.firstHalfSubmitted ||
+      submissionDetails?.firstHalfAdminStatus === 'APPROVED'
+    }
+  >
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Typography>First Half</Typography>
+      {!submissionDetails?.firstHalfSubmitted ? (
+        <Typography variant="caption" color="text.disabled">(Not submitted)</Typography>
+      ) : submissionDetails?.firstHalfAdminStatus === 'APPROVED' ? (
+        <Chip
+          label="Already Approved"
+          size="small"
+          color="success"
+          sx={{ height: '20px', fontSize: '0.65rem', fontWeight: 'bold' }}
+        />
+      ) : submissionDetails?.firstHalfAdminStatus === 'REJECTED' ? (
+        <Chip
+          label="Rejected"
+          size="small"
+          color="error"
+          sx={{ height: '20px', fontSize: '0.65rem', fontWeight: 'bold' }}
+        />
+      ) : (
+        <Chip
+          label="Pending"
+          size="small"
+          color="warning"
+          sx={{ height: '20px', fontSize: '0.65rem', fontWeight: 'bold' }}
+        />
+      )}
+    </Box>
+  </MenuItem>
+
+  <MenuItem
+    onClick={() => handleBulkApprovalHalf('Second Half')}
+    disabled={
+      !submissionDetails?.secondHalfSubmitted ||
+      submissionDetails?.secondHalfAdminStatus === 'APPROVED'
+    }
+  >
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Typography>Second Half</Typography>
+      {!submissionDetails?.secondHalfSubmitted ? (
+        <Typography variant="caption" color="text.disabled">(Not submitted)</Typography>
+      ) : submissionDetails?.secondHalfAdminStatus === 'APPROVED' ? (
+        <Chip
+          label="Already Approved"
+          size="small"
+          color="success"
+          sx={{ height: '20px', fontSize: '0.65rem', fontWeight: 'bold' }}
+        />
+      ) : submissionDetails?.secondHalfAdminStatus === 'REJECTED' ? (
+        <Chip
+          label="Rejected"
+          size="small"
+          color="error"
+          sx={{ height: '20px', fontSize: '0.65rem', fontWeight: 'bold' }}
+        />
+      ) : (
+        <Chip
+          label="Pending"
+          size="small"
+          color="warning"
+          sx={{ height: '20px', fontSize: '0.65rem', fontWeight: 'bold' }}
+        />
+      )}
+    </Box>
+  </MenuItem>
+</Menu>
     </Box>
   </Box>
 </Box>
@@ -1450,61 +1614,6 @@ const renderTableView = () => {
     </Box>
   </FormControl>
 </Box>
-
-            {/* Legend */}
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'center',
-                gap: 3,
-                marginBottom: 2,
-                flexWrap: 'wrap'
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Box
-                  sx={{
-                    width: '16px',
-                    height: '16px',
-                    backgroundColor: theme.palette.mode === 'dark' ? '#4a2a2a' : '#ffe6e6',
-                    border: `1px solid ${theme.palette.divider}`,
-                    borderRadius: '3px'
-                  }}
-                />
-                <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
-                  Sunday
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Box
-                  sx={{
-                    width: '16px',
-                    height: '16px',
-                    backgroundColor: theme.palette.mode === 'dark' ? '#4a3a2a' : '#fff4e6',
-                    border: `1px solid ${theme.palette.divider}`,
-                    borderRadius: '3px'
-                  }}
-                />
-                <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
-                  2nd Saturday
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Box
-                  sx={{
-                    width: '16px',
-                    height: '16px',
-                    backgroundColor: '#27ae60',
-                    border: `1px solid ${theme.palette.divider}`,
-                    borderRadius: '3px'
-                  }}
-                />
-                <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
-                  Has Entries
-                </Typography>
-              </Box>
-            </Box>
-
             {/* Loading State */}
             {loading && (
               <Typography align="center" color="text.secondary" sx={{ mb: 2 }}>

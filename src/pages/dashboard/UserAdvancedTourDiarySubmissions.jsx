@@ -7,10 +7,6 @@ import {
   Card,
   CardContent,
   Chip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   CircularProgress,
   Alert,
   Button,
@@ -32,13 +28,20 @@ const UserAdvancedTourDiarySubmissions = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [submissions, setSubmissions] = useState([]);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [years, setYears] = useState([]);
 
-  // Fetch submissions when component mounts or year changes
+  // 1. Retrieve and parse the Agri Year from localStorage (e.g., "2025-2026")
+  const agriYear = localStorage.getItem("activeAgriYear") || "";
+  const [startYear, endYear] = agriYear ? agriYear.split('-').map(Number) : [null, null];
+
   useEffect(() => {
     if (!userId) {
       setError("No user selected");
+      setLoading(false);
+      return;
+    }
+
+    if (!agriYear || !startYear || !endYear) {
+      setError("Active Agricultural Year is missing or invalid in local storage.");
       setLoading(false);
       return;
     }
@@ -48,22 +51,46 @@ const UserAdvancedTourDiarySubmissions = () => {
       setError("");
       
       try {
-        const response = await tourDiaryService.getAdminSubmissionView(userId, selectedYear);
-        
-        if (response.error) {
-          setError(response.message || "Failed to fetch submissions");
-          setSubmissions([]);
-        } else {
-          setSubmissions(response.data || []);
-          
-          // Extract unique years from the data if available
-          const uniqueYears = [...new Set((response.data || []).map(item => item.year))];
-          if (uniqueYears.length > 0) {
-            setYears(uniqueYears);
-          } else {
-            // Default to current year if no years in data
-            setYears([selectedYear]);
+        // Fetch data for both calendar years spanning the agricultural year
+        const [startYearResponse, endYearResponse] = await Promise.all([
+          tourDiaryService.getAdminSubmissionView(userId, startYear),
+          tourDiaryService.getAdminSubmissionView(userId, endYear)
+        ]);
+
+        let combinedData = [];
+
+        if (!startYearResponse.error && startYearResponse.data) {
+          // Filter for July (7) to December (12) from the start year
+          const startYearMonths = startYearResponse.data.filter(
+            (item) => item.month >= 7 && item.month <= 12
+          );
+          combinedData = [...combinedData, ...startYearMonths];
+        }
+
+        if (!endYearResponse.error && endYearResponse.data) {
+          // Filter for January (1) to June (6) from the end year
+          const endYearMonths = endYearResponse.data.filter(
+            (item) => item.month >= 1 && item.month <= 6
+          );
+          combinedData = [...combinedData, ...endYearMonths];
+        }
+
+        // 2. Generate the sequential Agricultural sequence (July -> Dec, Jan -> Jun)
+        // This ensures the custom sort handles chronological ordering spanning across two calendar years
+        const getAgriMonthOrder = (month) => (month >= 7 ? month - 7 : month + 5);
+
+        combinedData.sort((a, b) => {
+          if (a.year !== b.year) {
+            return a.year - b.year;
           }
+          return getAgriMonthOrder(a.month) - getAgriMonthOrder(b.month);
+        });
+
+        setSubmissions(combinedData);
+
+        // Handle error responses if both calls fail
+        if (startYearResponse.error && endYearResponse.error) {
+          setError(startYearResponse.message || "Failed to fetch submissions");
         }
       } catch (err) {
         setError("An error occurred while fetching data");
@@ -74,24 +101,22 @@ const UserAdvancedTourDiarySubmissions = () => {
     };
 
     fetchSubmissions();
-  }, [userId, selectedYear]);
+  }, [userId, agriYear, startYear, endYear]);
 
   const handleBack = () => {
-    navigate(-1); // Go back to previous page
+    navigate(-1);
   };
 
-  const handleViewDetailedDiary = (month) => {
-  // Navigate to detailed calendar view for admin approval
-  navigate("/approval_manage/advancedtourdiary/user-details", { 
-    state: { 
-      userId: userId,
-      month: month,
-      year: selectedYear
-    } 
-  });
-};
+  const handleViewDetailedDiary = (month, targetYear) => {
+    navigate("/approval_manage/advancedtourdiary/user-details", { 
+      state: { 
+        userId: userId,
+        month: month,
+        year: targetYear
+      } 
+    });
+  };
 
-  // If no userId, show error
   if (!userId) {
     return (
       <Grid container spacing={3}>
@@ -143,13 +168,11 @@ const UserAdvancedTourDiarySubmissions = () => {
 
   return (
     <Grid container spacing={3}>
-        <Breadcrumb />
-      <Grid item xs={12}>
-      </Grid>
+      <Breadcrumb />
+      <Grid item xs={12}></Grid>
 
       <Grid item xs={12}>
         <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
-          {/* Header with back button */}
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Button
               variant="outlined"
@@ -161,38 +184,13 @@ const UserAdvancedTourDiarySubmissions = () => {
             </Button>
             
             <Typography variant="h4" sx={{ color: "#04255e", fontWeight: "bold" }}>
-              ATP Submissions
+              ATP Submissions ({agriYear})
             </Typography>
             
-            <FormControl sx={{ minWidth: 120 }} size="small">
-              <InputLabel>Year</InputLabel>
-              <Select
-                value={selectedYear}
-                label="Year"
-                onChange={(e) => setSelectedYear(e.target.value)}
-              >
-                {years.length > 0 ? (
-                  years.map((year) => (
-                    <MenuItem key={year} value={year}>{year}</MenuItem>
-                  ))
-                ) : (
-                  <MenuItem value={selectedYear}>{selectedYear}</MenuItem>
-                )}
-                {/* Add option to select other years if needed */}
-                <MenuItem value={2025}>2025</MenuItem>
-                <MenuItem value={2026}>2026</MenuItem>
-                <MenuItem value={2024}>2024</MenuItem>
-              </Select>
-            </FormControl>
+            <Box sx={{ minWidth: 120 }}></Box>
           </Box>
 
           <Divider sx={{ mb: 3 }} />
-
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-              {/* <strong>User ID:</strong> {userId} */}
-            </Typography>
-          </Box>
 
           {loading ? (
             <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -202,12 +200,12 @@ const UserAdvancedTourDiarySubmissions = () => {
             <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>
           ) : submissions.length === 0 ? (
             <Alert severity="info" sx={{ mt: 2 }}>
-              No tour diary submissions found for this user in {selectedYear}.
+              No tour diary submissions found for this user in the agricultural year {agriYear}.
             </Alert>
           ) : (
             <Grid container spacing={2} sx={{ mt: 1 }}>
               {submissions.map((item) => (
-                <Grid item xs={12} sm={6} md={4} lg={3} key={item.month}>
+                <Grid item xs={12} sm={6} md={4} lg={3} key={`${item.year}-${item.month}`}>
                   <Card 
                     elevation={2} 
                     sx={{ 
@@ -262,7 +260,7 @@ const UserAdvancedTourDiarySubmissions = () => {
                           variant="outlined"
                           size="small"
                           startIcon={<VisibilityIcon />}
-                          onClick={() => handleViewDetailedDiary(item.month)}
+                          onClick={() => handleViewDetailedDiary(item.month, item.year)}
                           sx={{ mt: 1 }}
                         >
                           View Details

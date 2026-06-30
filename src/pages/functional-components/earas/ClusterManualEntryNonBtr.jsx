@@ -23,6 +23,7 @@ import {
   Alert
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import { ArrowDownward, ArrowUpward, TrendingFlat } from '@mui/icons-material';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import MapIcon from '@mui/icons-material/Map';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
@@ -304,6 +305,29 @@ const fetchCceCropDetails = async () => {
     setSnackbarMessage("This plot cannot be used. Please enter a different one.");
     setSnackbarOpen(true);
   };
+const handleMovePlot = (index, direction) => {
+    if (index === 0) return; // Never allow moving 'K' (Keyplot)
+
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    
+    // Boundary checks: don't move into K's slot (index 0) and don't go out of bounds
+    if (newIndex === 0 || newIndex >= keyplotsData.length) return;
+
+    setKeyplotsData(prevData => {
+        const updatedData = [...prevData];
+        // Swap the items
+        const temp = updatedData[index];
+        updatedData[index] = updatedData[newIndex];
+        updatedData[newIndex] = temp;
+
+        // Sync the currentLabels array to reflect the new visual order
+        const labels = updatedData.map(kp => kp.label).filter(label => label);
+        setCurrentLabels(labels);
+
+        return updatedData;
+    });
+};
+
   const handleUseRecommendedPlot = (type) => {
     if (!validatingRow || !validationInfo) return;
 
@@ -2701,7 +2725,7 @@ const getMissingLabels = () => {
         </Box>
 
         {/* Keyplot Sections - REFACTORED TO STACKED FORM FIELDS */}
-        {keyplotsData.map((keyplot) => {
+        {keyplotsData.map((keyplot, index) => {
           let isNewRowIncomplete = false;
           
           if (BtrTypeId === 2) {
@@ -2796,6 +2820,58 @@ const getMissingLabels = () => {
       })}
     </Select>
   </FormControl>
+  {/* 2. ENHANCED REORDER CONTROLS */}
+<Box 
+    sx={{ 
+        display: 'flex', 
+        ml: 3, 
+        backgroundColor: 'rgba(255, 255, 255, 0.1)', // Subtle light background
+        borderRadius: '6px', // Rounded corners
+        border: '1px solid rgba(255, 255, 255, 0.3)', // Light border
+        overflow: 'hidden' 
+    }}
+>
+    <Tooltip title="Move Up">
+        <span>
+            <IconButton 
+                size="small" 
+                onClick={() => handleMovePlot(index, 'up')} 
+                disabled={index === 1} // Disabled if it's right below K
+                sx={{ 
+                    color: 'white',
+                    borderRadius: 0, // Remove default circle hover for a cleaner look
+                    padding: '4px 8px',
+                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+                    '&.Mui-disabled': { color: 'rgba(255, 255, 255, 0.3)' }
+                }}
+            >
+                <ArrowUpward fontSize="small" />
+            </IconButton>
+        </span>
+    </Tooltip>
+
+    {/* Vertical line separating the two buttons */}
+    <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255, 255, 255, 0.3)' }} />
+    
+    <Tooltip title="Move Down">
+        <span>
+            <IconButton 
+                size="small" 
+                onClick={() => handleMovePlot(index, 'down')} 
+                disabled={index === keyplotsData.length - 1} // Disabled if it's at the very bottom
+                sx={{ 
+                    color: 'white',
+                    borderRadius: 0,
+                    padding: '4px 8px',
+                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+                    '&.Mui-disabled': { color: 'rgba(255, 255, 255, 0.3)' }
+                }}
+            >
+                <ArrowDownward fontSize="small" />
+            </IconButton>
+        </span>
+    </Tooltip>
+</Box>
 </Box>
                 )}
                 <Box sx={{

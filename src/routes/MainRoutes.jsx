@@ -536,6 +536,14 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
+       {
+      path: '/schemes/earas/Zone_Details/Work_Allocation/:zoneId',
+      element: (
+        <PrivateRoute>
+          <WorkAllocation />
+        </PrivateRoute>
+      )
+    },
     {
       path: '/schemes/earas/Clusters_Form',
       element: (
