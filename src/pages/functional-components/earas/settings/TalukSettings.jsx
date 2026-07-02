@@ -78,6 +78,9 @@ const TalukSettings = () => {
         {/* <Typography variant="h4" align="center" gutterBottom sx={{ mb: 2, color: '#05307a' }}>
           Taluk Management
         </Typography> */}
+         <Typography variant="h3" sx={{ marginBottom: 2 }}>
+          Taluk Management
+        </Typography>
         
         <Paper elevation={2} sx={{ mb: 3 }}>
           <Tabs 

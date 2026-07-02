@@ -95,13 +95,14 @@ useEffect(() => {
   const fetchClusterApprovals = async () => {
     try {
       setLoading(true);
-
+      const agriYear = authservice.agriyear();
       const response = await api.get(
         `${BASE_URL}/user-access/zones/zone_work_allocation_approvals`,
         {
           params: {
             page,
-            size: rowsPerPage
+            size: rowsPerPage,
+            agriYear:agriYear
           }
         }
       );

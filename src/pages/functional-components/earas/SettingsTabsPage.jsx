@@ -30,7 +30,7 @@ const SettingsTabsPage = () => {
   <Grid item xs={12} sm={6} md={4} lg={3}>
     <Card
       component={Link}
-      to="/schemes/earas/district_settings"
+      to="/schemes/earas/earas_management/Office_settings/district_settings"
       sx={{
         textDecoration: 'none',
         display: 'flex',
@@ -95,7 +95,7 @@ const SettingsTabsPage = () => {
   <Grid item xs={12} sm={6} md={4} lg={3}>
     <Card
       component={Link}
-      to="/schemes/earas/taluk_settings"
+      to="/schemes/earas/earas_management/Office_settings/taluk_settings"
       sx={{
         textDecoration: 'none',
         display: 'flex',
@@ -160,7 +160,7 @@ const SettingsTabsPage = () => {
   <Grid item xs={12} sm={6} md={4} lg={3}>
     <Card
       component={Link}
-      to="/schemes/earas/village_settings"
+      to="/schemes/earas/earas_management/Office_settings/village_settings"
       sx={{
         textDecoration: 'none',
         display: 'flex',
@@ -225,7 +225,7 @@ const SettingsTabsPage = () => {
   <Grid item xs={12} sm={6} md={4} lg={3}>
     <Card
       component={Link}
-      to="/schemes/earas/master_zone_settings"
+      to="/schemes/earas/earas_management/Office_settings/master_zone_settings"
       sx={{
         textDecoration: 'none',
         display: 'flex',

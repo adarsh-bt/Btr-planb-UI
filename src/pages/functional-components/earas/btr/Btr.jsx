@@ -31,7 +31,8 @@ import InfoOutlineIcon from '@mui/icons-material/InfoOutlined';
 import IconButton from '@mui/material/IconButton';
 import { use } from 'react';
 
-
+// --- Sample Data for Dropdowns & Modal ---
+const role = authservice.getrole();
 
 // Define the columns for the data table
 // const columns = (handleEdit, handleView,page,size) => [
@@ -136,11 +137,17 @@ import { use } from 'react';
 {
   name: 'Plot Edit',
   cell: (row) => (
-    <Button 
-      color="primary" 
+    // <Button 
+    //   color="primary" 
+    //   onClick={() => handlePlotUsage(row)}
+    //   // variant="outlined"
+    //   size="small"
+    // >
+    <Button
+      color="primary"
       onClick={() => handlePlotUsage(row)}
-      // variant="outlined"
       size="small"
+      disabled={role !== 'Field Data Collector'}
     >
       <EditIcon fontSize="small" />
       

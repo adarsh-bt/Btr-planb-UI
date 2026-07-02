@@ -385,6 +385,9 @@ const MasterZoneSettings = () => {
   return (
     <Grid container spacing={3}>
       <Breadcrumb />
+       <Typography variant="h3" sx={{ marginBottom: 2 }}>
+          Crops Management
+        </Typography>
       <Box sx={{ p: 3, maxWidth: 1400, margin: "0 auto", width: "100%" }}>
         <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4, color: '#05307a' }}>
           Master Zone Management

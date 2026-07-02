@@ -117,12 +117,15 @@ const [openPreCheckDialog, setOpenPreCheckDialog] = useState(false);
 const [preCheckData, setPreCheckData] = useState({
   hasCrops: false,
   cropsCount: 0,
-  loading: false
+  loading: false,
+  status: '',
+  isStatusBlocked: false
 });
 
 const [showCropsList, setShowCropsList] = useState(false);
 const [cropsList, setCropsList] = useState([]);
 const [cropsLoading, setCropsLoading] = useState(false);
+const role = authservice.getrole();
   // const { hasPermission } = usePermission();
 // const { roles, hasRole } = usePermission();
 
@@ -227,6 +230,7 @@ const validateEnumArea = (value, totalArea) => {
       oldsuvNo: plot.oldsuvNo,
       oldsubNo: plot.oldsubNo,
       enumarea: plot.enumArea,
+      status:plot.status,
       action: "View Cluster"
     }));
   };
@@ -557,7 +561,7 @@ const fetchPlotDetails = async (plotId) => {
   // Filter and sort data
   const filteredSortedAndPaginatedData = useMemo(() => {
     const visibleKeys = ['slNo', 'cluster', 'panchayth', 'village','area', 'syNo','villageBlock', 'landType'];
-
+console.log("plotss ",plotData);
     let filtered = plotData.filter((row) => {
       const matchesSearch = !searchTerm || 
         visibleKeys.some((key) =>
@@ -640,9 +644,25 @@ const fetchPlotDetails = async (plotId) => {
 
 const handleOpenRemoveDialog = async (row) => {
   setSelectedRowToRemove(row);
+  console.log('Viewing plot:', row);
   setRemovalValidationError('');
-  setPreCheckData({ hasCrops: false, cropsCount: 0, loading: true });
+  setPreCheckData({ hasCrops: false, cropsCount: 0, loading: true, status: row.status });
   setOpenPreCheckDialog(true);
+  
+  // Check if status allows removal
+  const allowedStatuses = ['On Going', 'Not Started'];
+  const status = row.status || '';
+  
+  if (!allowedStatuses.includes(status)) {
+    setPreCheckData({
+      hasCrops: false,
+      cropsCount: 0,
+      loading: false,
+      status: status,
+      isStatusBlocked: true
+    });
+    return;
+  }
   
   try {
     // Check if crops exist for this cluster
@@ -652,7 +672,9 @@ const handleOpenRemoveDialog = async (row) => {
     setPreCheckData({
       hasCrops: crops.length > 0,
       cropsCount: crops.length,
-      loading: false
+      loading: false,
+      status: status,
+      isStatusBlocked: false
     });
     
   } catch (err) {
@@ -660,7 +682,9 @@ const handleOpenRemoveDialog = async (row) => {
     setPreCheckData({
       hasCrops: false,
       cropsCount: 0,
-      loading: false
+      loading: false,
+      status: status,
+      isStatusBlocked: false
     });
   }
 };
@@ -1124,6 +1148,7 @@ const hasDuplicateClusterNumbers = () => {
   variant="contained"
   color="primary"
   disabled={
+     role !== 'Field Data Collector' ||//to diasable from other roles
     Object.keys(clusterChanges).length === 0 ||
     hasDuplicateClusters() ||
     hasAnyErrors()
@@ -1292,6 +1317,7 @@ const hasDuplicateClusterNumbers = () => {
                 size="small"
                 color="primary"
                 onClick={() => handleViewPlot(row.plot_id)}
+                 disabled={role !== 'Field Data Collector'}//to diable from other roles
                 sx={{ minWidth: 'unset', px: 0.5 }}
               >
                 <ViewIcon fontSize="small" />
@@ -1302,6 +1328,7 @@ const hasDuplicateClusterNumbers = () => {
                 sx={{ color: 'error.main', minWidth: 'unset', px: 0.5 }}
                 size="small"
                 onClick={() => handleOpenRemoveDialog(row)}
+                disabled={role !== 'Field Data Collector'}//to disable from other roles 
               >
                 <RemoveIcon fontSize="small" />
               </Button>
@@ -2460,37 +2487,75 @@ try {
   </>
 ) : null}
       
-      <DialogContent dividers>
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-            ⚠️ This action cannot be undone!
-          </Typography>
-          <Typography variant="body2">
-            Removing this KeyPlot will permanently delete:
-          </Typography>
-          <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
-            <li>The KeyPlot record</li>
-            <li>Associated cluster</li>
-            <li>Related Keyplot BTR data</li>
-            <li>Related Form1 data will be removed</li>
-          </ul>
-          <Typography variant="h6" fontWeight="bold" sx={{ mt: 2 }}>
-            ❗ If the selected cluster is Complete ,On Going ,Not Started, it will also be deleted.<br />
-            ❗ If CCE crops are selected, remove them first before deleting the KeyPlot.
-          </Typography>
-        </Alert>
-        <Typography variant="h6" fontWeight="bold" gutterBottom>
-         Your are about remove the cluster : {selectedRowToRemove?.cluster_number}
+{/* Normal Confirmation Dialog content */}
+<DialogContent dividers>
+  <Alert severity="warning" sx={{ mb: 3 }}>
+    <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+      ⚠️ This action cannot be undone!
+    </Typography>
+    <Typography variant="body2">
+      Removing this KeyPlot will permanently delete:
+    </Typography>
+    <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+      <li>The KeyPlot record</li>
+      <li>Associated cluster</li>
+      <li>Related Form1 data will be removed</li>
+    </ul>
+    <Typography variant="h6" fontWeight="bold" sx={{ mt: 2 }}>
+      ❗ Before Delete the Cluster/Keyplots please Check Your Cluster Status is On Going or Not Started.<br />
+      ❗ Cluster Status is "Completed" Or "Under Review" please Contact your Tso and Change to Edit/On Going mode.<br />
+      ❗ If the selected cluster is On Going ,Not Started, it will also be deleted.
+    </Typography>
+  </Alert>
+  
+  <Typography variant="h6" fontWeight="bold" gutterBottom>
+    You are about remove the cluster: {selectedRowToRemove?.cluster_number}
+  </Typography>
+  
+  <Typography variant="body1" sx={{ mb: 2 }}>
+    You are about to remove Survey Number:{' '}
+    <Typography component="span" fontWeight="bold" color="error.main">
+      {selectedRowToRemove?.syNo} 
+    </Typography>
+  </Typography>
+  
+  {/* Added status display */}
+  <Box sx={{ 
+    mt: 2, 
+    p: 2, 
+    bgcolor: selectedRowToRemove?.status === 'Completed' || selectedRowToRemove?.status === 'Under Review' 
+      ? '#ffebee' 
+      : '#e8f5e9',
+    borderRadius: 1,
+    border: `1px solid ${selectedRowToRemove?.status === 'Completed' || selectedRowToRemove?.status === 'Under Review' 
+      ? '#ef9a9a' 
+      : '#81c784'}`
+  }}>
+    <Typography variant="body2">
+      <strong>Cluster Status:</strong>{' '}
+      <Typography 
+        component="span" 
+        sx={{ 
+          fontWeight: 'bold',
+          color: selectedRowToRemove?.status === 'Completed' || selectedRowToRemove?.status === 'Under Review' 
+            ? '#d32f2f' 
+            : '#2e7d32'
+        }}
+      >
+        {selectedRowToRemove?.status || 'Unknown'}
+      </Typography>
+      {selectedRowToRemove?.status === 'Completed' || selectedRowToRemove?.status === 'Under Review' ? (
+        <Typography component="span" sx={{ ml: 1, color: '#d32f2f', fontWeight: 'bold' }}>
+          ⚠️ Removal not allowed - Only "On Going" or "Not Started" clusters can be removed
         </Typography>
-
-        <Typography variant="body1" sx={{ mb: 2 }}>
-          You are about to remove Survey Number:{' '}
-          <Typography component="span" fontWeight="bold" color="error.main">
-            {selectedRowToRemove?.syNo} 
-          </Typography>
-          
+      ) : (
+        <Typography component="span" sx={{ ml: 1, color: '#2e7d32', fontWeight: 'bold' }}>
+          ✅ Eligible for removal
         </Typography>
-      </DialogContent>
+      )}
+    </Typography>
+  </Box>
+</DialogContent>
       
       <DialogActions sx={{ p: 2, gap: 1 }}>
         <Button 
@@ -2516,6 +2581,7 @@ try {
 </Dialog>
 
 
+
 {/* Pre-Check Dialog - Shows before removal */}
 <Dialog 
   open={openPreCheckDialog} 
@@ -2529,21 +2595,27 @@ try {
   maxWidth="sm"
 >
   <DialogTitle sx={{ 
-    background: preCheckData.hasCrops 
-      ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)' 
-      : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
+    background: preCheckData.isStatusBlocked 
+      ? 'linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%)'
+      : preCheckData.hasCrops 
+        ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)' 
+        : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
     color: 'white'
   }}>
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
       {preCheckData.loading ? (
         <CircularProgress size={24} color="inherit" />
+      ) : preCheckData.isStatusBlocked ? (
+        <ErrorIcon sx={{ fontSize: 28 }} />
       ) : preCheckData.hasCrops ? (
         <WarningIcon sx={{ fontSize: 28 }} />
       ) : (
         <CheckCircleIcon sx={{ fontSize: 28 }} />
       )}
       <Typography variant="h6" fontWeight="bold">
-        {preCheckData.loading ? 'Checking...' : preCheckData.hasCrops ? '⚠️ Crops Detected' : '✅ Ready for Removal'}
+        {preCheckData.loading ? 'Checking...' : 
+         preCheckData.isStatusBlocked ? '⛔ Removal Blocked' :
+         preCheckData.hasCrops ? '⚠️ Crops Detected' : '✅ Ready for Removal'}
       </Typography>
     </Box>
   </DialogTitle>
@@ -2552,8 +2624,49 @@ try {
     {preCheckData.loading ? (
       <Box textAlign="center">
         <CircularProgress size={40} />
-        <Typography sx={{ mt: 2 }}>Checking for existing crops...</Typography>
+        <Typography sx={{ mt: 2 }}>Checking cluster status and crops...</Typography>
       </Box>
+    ) : preCheckData.isStatusBlocked ? (
+      <>
+        <Box sx={{ textAlign: 'center', mb: 3 }}>
+          <ErrorIcon sx={{ fontSize: 60, color: '#d32f2f', mb: 2 }} />
+          <Typography variant="h6" color="error" gutterBottom fontWeight="bold">
+            Cannot Remove KeyPlot
+          </Typography>
+        </Box>
+        
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <Typography variant="body1" fontWeight="bold" gutterBottom>
+            ❌ Cluster Status: <strong style={{ textTransform: 'uppercase' }}>"{preCheckData.status}"</strong>
+          </Typography>
+          <Typography variant="body2">
+            Only clusters with status <strong>"On Going"</strong> or <strong>"Not Started"</strong> can be removed.
+          </Typography>
+        </Alert>
+        
+        <Paper sx={{ p: 3, bgcolor: '#ffebee', border: '1px solid #ef9a9a' }}>
+          <Typography variant="body2" gutterBottom fontWeight="bold" color="error">
+            ⚠️ Why can't this be removed?
+          </Typography>
+          <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+            <li>Cluster status is <strong>"{preCheckData.status}"</strong></li>
+            <li>This status indicates the cluster has been reviewed or completed</li>
+            <li>To remove this cluster, contact your TSO to change the status to "On Going" or "Not Started"</li>
+          </ul>
+        </Paper>
+        
+        <Box sx={{ mt: 3, p: 2, bgcolor: '#fff3e0', borderRadius: 1, border: '1px solid #ffb74d' }}>
+          <Typography variant="body2">
+            <strong>📋 Cluster Details:</strong>
+          </Typography>
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="body2">• Cluster Number: <strong>{selectedRowToRemove?.cluster_number}</strong></Typography>
+            <Typography variant="body2">• Survey Number: <strong>{selectedRowToRemove?.syNo}</strong></Typography>
+            <Typography variant="body2">• Panchayath: <strong>{selectedRowToRemove?.panchayth}</strong></Typography>
+            <Typography variant="body2">• Village: <strong>{selectedRowToRemove?.kvillageName}</strong></Typography>
+          </Box>
+        </Box>
+      </>
     ) : preCheckData.hasCrops ? (
       <>
         <Box sx={{ textAlign: 'center', mb: 3 }}>
@@ -2605,6 +2718,7 @@ try {
             <strong>Cluster Details:</strong>
           </Typography>
           <Box sx={{ mt: 1 }}>
+            <Typography variant="body2">• Status: <strong style={{ color: '#2e7d32' }}>{preCheckData.status}</strong></Typography>
             <Typography variant="body2">• Cluster Number: <strong>{selectedRowToRemove?.cluster_number}</strong></Typography>
             <Typography variant="body2">• Survey Number: <strong>{selectedRowToRemove?.syNo}</strong></Typography>
             <Typography variant="body2">• Panchayath: <strong>{selectedRowToRemove?.panchayth}</strong></Typography>
@@ -2627,7 +2741,7 @@ try {
       Cancel
     </Button>
     
-    {!preCheckData.loading && (
+    {!preCheckData.loading && !preCheckData.isStatusBlocked && (
       <Button
         onClick={handleProceedFromPreCheck}
         variant="contained"
@@ -2640,7 +2754,6 @@ try {
     )}
   </DialogActions>
 </Dialog>
-
 
        <Dialog open={openEditEnumDialog} onClose={() => setOpenEditEnumDialog(false)} fullWidth maxWidth="sm">
   <DialogTitle>Edit Enumerated Area</DialogTitle>

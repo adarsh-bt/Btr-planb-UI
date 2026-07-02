@@ -48,6 +48,7 @@ const ZoneSettings = Loadable(lazy(() => import('pages/functional-components/ear
 const SettingsMenu = Loadable(lazy(() => import('pages/functional-components/earas/SettingsMenu')));
 const CCE_crop_selection = Loadable(lazy(() => import('pages/functional-components/earas/CceCropSelection')));
 const CropsManagement = Loadable(lazy(() => import('pages/functional-components/earas/CropsManagement')));
+const CropsMenus = Loadable(lazy(() => import('pages/functional-components/earas/CropsMenus')));
 
 const MappingManagement = Loadable(lazy(() => import('pages/functional-components/earas/MappingSettings/MappingMenus')));
 const ZoneList = Loadable(lazy(() => import('pages/functional-components/earas/MappingSettings/ZoneListing')));
@@ -65,6 +66,7 @@ const Approvel = Loadable(lazy(() => import('pages/functional-components/approve
 const ApprovelMenu = Loadable(lazy(() => import('pages/functional-components/approvels/ApprovalMenus')));
 
 const ClusterApprovals = Loadable(lazy(() => import('pages/functional-components/approvels/Cluster_approvals')));
+const FormApprovals = Loadable(lazy(() => import('pages/functional-components/approvels/Form_approvals.jsx')));
 const WorkallocationsApprovals = Loadable(lazy(() => import('pages/functional-components/approvels/Workallocation_approvals')));
 
 const CCE_menus = Loadable(lazy(() => import('pages/functional-components/earas/cce_menus')));
@@ -82,6 +84,9 @@ const ClusterManualEntry = Loadable(lazy(() => import('pages/functional-componen
 const ClusterManualEntryNonBtr = Loadable(lazy(() => import('pages/functional-components/earas/ClusterManualEntryNonBtr')));
 
 const CceView = Loadable(lazy(() => import('pages/functional-components/earas/cce/cceview')));
+
+const Excel = Loadable(lazy(() => import('pages/functional-components/earas/form1/ExcelView')));
+
 const CceReport = Loadable(lazy(() => import('pages/functional-components/earas/cce/CceReport')));
 
 const UserAdvancedTourDiarySubmissions = Loadable(lazy(() => import('pages/dashboard/UserAdvancedTourDiarySubmissions')));
@@ -570,7 +575,7 @@ const MainRoutes = {
       )
     },
     {
-      path: '/schemes/earas/earas_management/CCE_crop_selection',
+      path: '/schemes/earas/earas_management/crops_management/CCE_crop_selection',
       element: (
         <PrivateRoute>
           <CCE_crop_selection />
@@ -578,10 +583,18 @@ const MainRoutes = {
       )
     },
      {
-      path: '/schemes/earas/earas_management/crops_management',
+      path: '/schemes/earas/earas_management/crops_management/crops_settings',
       element: (
         <PrivateRoute>
           <CropsManagement />
+        </PrivateRoute>
+      )
+    },
+     {
+      path: '/schemes/earas/earas_management/crops_management',
+      element: (
+        <PrivateRoute>
+          <CropsMenus />
         </PrivateRoute>
       )
     },
@@ -649,6 +662,14 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
+    {
+      path: 'approval_manage/form_approvals',
+      element: (
+        <PrivateRoute>
+          <FormApprovals />
+        </PrivateRoute>
+      )
+    },
      {
       path: 'approval_manage/work_allocation_approvals',
       element: (
@@ -662,6 +683,7 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <CceView />
+          {/* <Excel /> */}
         </PrivateRoute>
       )
     },
@@ -778,7 +800,7 @@ const MainRoutes = {
       )
     },
     {
-      path: '/schemes/earas/district_settings',
+      path: '/schemes/earas/earas_management/Office_settings/district_settings',
       element: (
         <PrivateRoute>
           <DistrictSettingss />
@@ -786,7 +808,7 @@ const MainRoutes = {
       )
     },
     {
-      path: '/schemes/earas/Settings_Tabs_Page',
+      path: '/schemes/earas/earas_management/Office_settings',
       element: (
         <PrivateRoute>
           <SettingsTabsPage />
@@ -794,7 +816,7 @@ const MainRoutes = {
       )
     },
   {
-  path: '/schemes/earas/taluk_settings',
+  path: '/schemes/earas/earas_management/Office_settings/taluk_settings',
   element: (
     <PrivateRoute> 
       <TalukSettings />
@@ -802,7 +824,7 @@ const MainRoutes = {
   )
   },
   {
-  path: '/schemes/earas/village_settings',
+  path: '/schemes/earas/earas_management/Office_settings/village_settings',
   element: (
     <PrivateRoute> 
       <VillageSettings />
@@ -810,7 +832,7 @@ const MainRoutes = {
   )
   },
   {
-  path: '/schemes/earas/master_zone_settings',
+  path: '/schemes/earas/earas_management/Office_settings/master_zone_settings',
   element: (
     <PrivateRoute> 
       <MasterZoneSettings />

@@ -51,6 +51,7 @@ import AgricultureIcon from '@mui/icons-material/Agriculture';
 import StorageIcon from '@mui/icons-material/Storage';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CommentIcon from '@mui/icons-material/Comment';
+import ExcelView from './ExcelView'; 
 import api from 'api/api';
 // --- Theme Constants ---
 const TABLE_HEADER_BG = '#04255e';
@@ -216,6 +217,7 @@ const [availableCropSeasons, setAvailableCropSeasons] = useState([]);
   const [isCropLoading, setIsCropLoading] = useState(false);
 const [cropFetchError, setCropFetchError] = useState(null);
 const [seasonSwitchPending, setSeasonSwitchPending] = useState(false);
+const [openExcelView, setOpenExcelView] = useState(false);
 
  const [isDownloading, setIsDownloading] = useState(false);
 
@@ -257,6 +259,13 @@ const StyledDetailItem = ({ label, value, icon }) => (
     setSearchTerm(term.toLowerCase());
   };
 
+const handleOpenExcelView = () => {
+  setOpenExcelView(true);
+  alert("ok")
+};
+const handleCloseExcelView = () => {
+  setOpenExcelView(false);
+};
   // Download Handler
   const handleDownload = (format, data, filename) => {
    
@@ -1320,11 +1329,11 @@ const renderCropDetails = () => {
                       {item.irrigationType}
                     </Box>
                   </TableCell>
-                  <TableCell align="right">
-                    <Typography variant="body2" fontWeight="medium">
-                      {item.irrigatedArea.toFixed(2) || ''}
-                    </Typography>
-                  </TableCell>
+                 <TableCell align="right">
+  <Typography variant="body2" fontWeight="medium">
+    {typeof item.irrigatedArea === 'number' ? item.irrigatedArea.toFixed(2) : '0.00'}
+  </Typography>
+</TableCell>
                   <TableCell align="center">
                     <Chip 
                       label={item.sourceCount || '--'} 
@@ -1345,7 +1354,7 @@ const renderCropDetails = () => {
                 </TableCell>
                 <TableCell align="right">
                   <Typography variant="subtitle1" fontWeight="bold">
-                    {filteredData.reduce((sum, item) => sum + item.irrigatedArea, 0).toFixed(2)}
+                   {filteredData.reduce((sum, item) => sum + (item.irrigatedArea || 0), 0).toFixed(2)}
                   </Typography>
                 </TableCell>
                 <TableCell></TableCell>
@@ -1376,10 +1385,10 @@ const renderCropDetails = () => {
       )
     );
 
-    const totals = areaFields.reduce((acc, field) => {
-      acc[field] = filteredData.reduce((sum, item) => sum + item[field], 0).toFixed(2);
-      return acc;
-    }, {});
+const totals = areaFields.reduce((acc, field) => {
+  acc[field] = filteredData.reduce((sum, item) => sum + (Number(item[field]) || 0), 0).toFixed(2);
+  return acc;
+}, {});
 
     return (
       <Box>
@@ -1490,20 +1499,20 @@ const renderCropDetails = () => {
                   >
                     <Chip label={lu.clusterLabel} size="small" color="primary" />
                   </TableCell>
-                  <TableCell align="right">{lu.netAreasSown.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.currentFallowArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.otherFallowArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.cultivableWasteArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.permanentPasturesArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.barrenArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.nonAgriculturalArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.buildingArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.miscellaneousTreesArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.areaUnderSocialForestry.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.waterloggedArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.stillWaterLand.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.marshyLand.toFixed(2)}</TableCell>
-                </TableRow>
+              <TableCell align="right">{(lu.netAreasSown ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.currentFallowArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.otherFallowArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.cultivableWasteArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.permanentPasturesArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.barrenArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.nonAgriculturalArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.buildingArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.miscellaneousTreesArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.areaUnderSocialForestry ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.waterloggedArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.stillWaterLand ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.marshyLand ?? 0).toFixed(2)}</TableCell>
+              </TableRow>
               ))}
               
               {/* Summary Row */}
@@ -1944,7 +1953,7 @@ const renderNucDetails = () => {
             Refresh All
           </Button> */}
         </Box>
-      <Button
+      {/* <Button
   onClick={testExcelDownload}
   disabled={isDownloading || isLoading}
   variant="contained"
@@ -1971,9 +1980,13 @@ const renderNucDetails = () => {
   ) : (
     'Download'
   )}
-</Button>
-      
-    
+</Button> */}
+           <ExcelView 
+  open={openExcelView} 
+  onClose={handleCloseExcelView} 
+  clusterId={clusterId}
+/>
+ 
         <MainCard 
           title=""
           sx={{ 
@@ -2040,6 +2053,8 @@ const renderNucDetails = () => {
             {renderNucDetails()}
         </TabPanel>
         </MainCard>
+
+
       </Grid>
     </Grid>
   );

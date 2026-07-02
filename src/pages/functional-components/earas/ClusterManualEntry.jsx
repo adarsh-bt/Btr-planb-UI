@@ -1190,6 +1190,7 @@ const hasValidRow = (keyplot) => {
                     addedBy: authservice.userid(),
                     rejectedBy: null,
                     rejectedAt: null,
+                    agriYear:authservice.agriyear(),
                     assignedOn: new Date().toISOString().slice(0, 19) // Format: YYYY-MM-DDTHH:mm:ss
                 };
             });
@@ -2332,6 +2333,7 @@ const validateSidePlotLabels = () => {
                                                         <Grid item xs={2}><TextField label="Area" size="small" fullWidth type="number" value={row.area} InputProps={{ readOnly: isAreaReadOnly }}  onWheel={(e) => e.target.blur()}   onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'area')} /></Grid>
                                                         <Grid item xs={2}><TextField label="Enum. Area" size="small" fullWidth type="number" value={row.enumeratedArea}  onWheel={(e) => e.target.blur()}   onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')} onBlur={(e) => handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')} error={hasError} helperText={hasError ? errors[errorKey] : ''} /></Grid>
                                                         <Grid item xs={2}><Tooltip title="Remove Row"><IconButton color="error" onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)}><RemoveCircleOutlineIcon /></IconButton></Tooltip></Grid>
+                                                        
                                                     </>
                                                 ) : (
                                                     <>
@@ -2342,7 +2344,7 @@ const validateSidePlotLabels = () => {
                                                         <Grid item xs={2}><TextField value={row.area} InputProps={{ readOnly: !isKeyPlotFirstRow && isAreaReadOnly || row.isExisting }} fullWidth size="small" type="number" onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'area')} /></Grid>
                                                         <Grid item xs={2}><TextField label="Enum. Area" size="small" InputProps={{ readOnly: row.isExisting }} fullWidth type="number" value={row.enumeratedArea} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')} onBlur={(e) => handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')} error={hasError} helperText={hasError ? errors[errorKey] : ''} /></Grid>
                                                          {(status != "Completed" && status != "Under Review") && (
-                                                        <Grid item xs={1}>{!isKeyPlotFirstRow && (<Tooltip title="Remove Row"><IconButton onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)} size="small" color="error"><RemoveCircleOutlineIcon /></IconButton></Tooltip>)}</Grid>
+                                                        <Grid item xs={1}>{!isKeyPlotFirstRow && (<Tooltip title="Remove Row"><IconButton onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)} size="small" color="error"disabled={role !== 'Field Data Collector'}><RemoveCircleOutlineIcon /></IconButton></Tooltip>)}</Grid>
                                                          )}
                                                         <Grid item xs={1}>
                                                             {row.isExisting && (
@@ -2450,9 +2452,17 @@ const validateSidePlotLabels = () => {
                         {/* ABOVE MEAN */}
                         {limitSeverity === 'success' && (
                             <>
-                                <Button onClick={() => proceedSubmit('SAVE')}>
-                                    Save
-                                </Button>
+                                <Button
+  onClick={() => proceedSubmit('SAVE')}
+  style={{
+    backgroundColor: '#1677ff', // primary blue
+    color: '#fff',
+    width: '7rem',
+    borderColor: '#1677ff',
+  }}
+>
+  Save
+</Button>
 
                                 <Button
                                     variant="contained"

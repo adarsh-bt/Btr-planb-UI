@@ -25,6 +25,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import AgricultureIcon from '@mui/icons-material/Agriculture';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import BusinessIcon from '@mui/icons-material/Business';
+import SpaIcon from '@mui/icons-material/Spa';
 
 const SettingsMenu = () => {
   return (
@@ -105,7 +106,7 @@ const SettingsMenu = () => {
   <Grid item xs={12} sm={6} md={4} lg={3}>
     <Card
       component={Link}
-      to="/schemes/earas/earas_management/CCE_crop_selection"
+      to="/schemes/earas/earas_management/crops_management"
       sx={{
         textDecoration: 'none',
         display: 'flex',
@@ -153,21 +154,21 @@ const SettingsMenu = () => {
           justifyContent: 'center',
         }}
       >
-        <AgricultureIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
+        <SpaIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
       </Box>
       <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
         <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.25rem' }, mb: 0.5 }}>
-          CCE Crop
+          Crops 
         </Typography>
         <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
-          Selection
+          Management
         </Typography>
       </Box>
     </Card>
   </Grid>
 
   {/* Schedule List Card */}
-  <Grid item xs={12} sm={6} md={4} lg={3}>
+  {/* <Grid item xs={12} sm={6} md={4} lg={3}>
     <Card
       component={Link}
       // to="/schemes/earas/zone_season_shedule_list"
@@ -229,13 +230,13 @@ const SettingsMenu = () => {
         </Typography>
       </Box>
     </Card>
-  </Grid>
+  </Grid> */}
 
   {/* Office Settings Card */}
   <Grid item xs={12} sm={6} md={4} lg={3}>
     <Card
       component={Link}
-      to="/schemes/earas/Settings_Tabs_Page"
+      to="/schemes/earas/earas_management/Office_settings"
       sx={{
         textDecoration: 'none',
         display: 'flex',

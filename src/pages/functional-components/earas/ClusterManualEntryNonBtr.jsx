@@ -36,9 +36,12 @@ import Autocomplete from '@mui/material/Autocomplete';
 import authservice from 'pages/authentication/services/authservice';
 import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest';
 import { set } from 'lodash';
+import api from 'api/api';
 
 const BASE_URL = mainapi.BASE_URL;
 const FORM_URL = mainapi.FORM_API;
+
+
 
 // --- Constant for Side Plot Dropdown ---
 const SIDE_PLOT_OPTIONS = ['S1', 'S2', 'S3', 'S4', 'E1', 'E2', 'E3', 'E4', 'N1', 'N2', 'N3', 'N4', 'W1', 'W2', 'W3', 'W4'];
@@ -204,7 +207,8 @@ const fetchCceCropDetails = async () => {
       `${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops`,
       {
         params: {
-          zoneId: zoneid
+          zoneId: zoneid,
+          agriYear: authservice.agriyear()
         }
       }
     );
@@ -1088,6 +1092,7 @@ const proceedSubmit = async (mode) => {
           addedBy: authservice.userid(),
           rejectedBy: null,
           rejectedAt: null,
+          agriYear:authservice.agriyear(),
           assignedOn: new Date().toISOString().slice(0, 19)
         };
       });
@@ -2498,6 +2503,7 @@ const getMissingLabels = () => {
                 <IconButton
                   color="error"
                   onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)}
+                  disabled={role !== 'Field Data Collector'}
                 >
                   <RemoveCircleOutlineIcon />
                 </IconButton>
