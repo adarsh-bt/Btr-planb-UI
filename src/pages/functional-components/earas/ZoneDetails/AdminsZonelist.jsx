@@ -39,6 +39,7 @@ import {
 } from '@mui/icons-material';
 import AppsIcon from '@mui/icons-material/Apps';
 import SummarizeIcon from '@mui/icons-material/Summarize';
+import WorkIcon from '@mui/icons-material/Work';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
 import mainapi from 'api/mainapi';
@@ -81,6 +82,7 @@ function AdminsZonelistUI() {
       'view-keyplots': `/schemes/earas/Zone_Details/Key_plots/${selectedZone.zoneId}`,
       'view-clusters': `/schemes/earas/Zone_Details/clusters/${selectedZone.zoneId}`,
       'view-forms': `/schemes/earas/Zone_Details/Clusters_Form/${selectedZone.zoneId}`,
+      'view-work': `/schemes/earas/Zone_Details/Work_Allocation/${selectedZone.zoneId}`
     };
 
     if (routes[menuItem]) {
@@ -528,6 +530,12 @@ useEffect(() => {
                   key: 'view-forms', 
                   icon: <SummarizeIcon sx={{ fontSize: 32 }} />, 
                   label: 'View Forms',
+                  color: '#1a237e'
+                },
+                { 
+                  key: 'view-work', 
+                  icon: <WorkIcon sx={{ fontSize: 32 }} />, 
+                  label: 'View Work Allocation',
                   color: '#1a237e'
                 }
               ].map((item) => (

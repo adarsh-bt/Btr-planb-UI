@@ -261,7 +261,7 @@ const StyledDetailItem = ({ label, value, icon }) => (
 
 const handleOpenExcelView = () => {
   setOpenExcelView(true);
-  alert("ok")
+ 
 };
 const handleCloseExcelView = () => {
   setOpenExcelView(false);
@@ -473,6 +473,7 @@ const fetchCropDetails = useCallback(async (seasonOverride = null) => {
     );
 
     const data = response.data;
+console.log('Crop Details API response:', data);
 
     // Verify we're still on the same season before updating state
     if (seasonOverride !== null ? seasonOverride === seasonId : true) {

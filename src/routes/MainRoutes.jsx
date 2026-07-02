@@ -536,6 +536,14 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
+       {
+      path: '/schemes/earas/Zone_Details/Work_Allocation/:zoneId',
+      element: (
+        <PrivateRoute>
+          <WorkAllocation />
+        </PrivateRoute>
+      )
+    },
     {
       path: '/schemes/earas/Clusters_Form',
       element: (
@@ -577,15 +585,7 @@ const MainRoutes = {
       )
     },
     {
-      path: '/schemes/earas/GCESDashboard',
-      element: (
-        <PrivateRoute>
-          <GCESDashboard />
-        </PrivateRoute>
-      )
-    },
-    {
-      path: '/schemes/earas/earas_management/CCE_crop_selection',
+      path: '/schemes/earas/earas_management/crops_management/CCE_crop_selection',
       element: (
         <PrivateRoute>
           <CCE_crop_selection />
