@@ -177,6 +177,12 @@ const TourDiary = () => {
         return zone ? zone.zoneName : zoneId;
     };
 
+    // Returns true if the given half has already been submitted and should be locked
+    const isHalfLocked = (isFirstHalf) => {
+        if (!submissionView) return false;
+        return isFirstHalf ? !!submissionView.firstHalfSubmitted : !!submissionView.secondHalfSubmitted;
+    };
+
     // Open view details modal
     const openViewModal = (event) => {
         setViewEvent(event);
@@ -522,16 +528,22 @@ useEffect(() => {
 
     // Open modal for a given date key (add mode)
     const openAddModal = (dateKey) => {
-        setEntryType('WORKING');
-        setSelectedScheme('');
-        setSelectedDate(dateKey);
-        const { year, month, day } = parseDateKey(dateKey);
-        const dayEvents = getEventsForDay(year, month, day);
-        setSelectedDayEvents(dayEvents);
-        setFormData({ place: '', purpose: '', remarks: '' });
-        setActiveTab(0);
-        setModalOpen(true);
-    };
+    const { day } = parseDateKey(dateKey);
+    const isFirstHalfDay = day <= 15;
+    if (isHalfLocked(isFirstHalfDay)) {
+        showNotification('info', `${isFirstHalfDay ? 'First' : 'Second'} Half has already been submitted. You cannot add entries for this period.`);
+        return;
+    }
+    setEntryType('WORKING');
+    setSelectedScheme('');
+    setSelectedDate(dateKey);
+    const { year, month, day: d } = parseDateKey(dateKey);
+    const dayEvents = getEventsForDay(year, month, d);
+    setSelectedDayEvents(dayEvents);
+    setFormData({ place: '', purpose: '', remarks: '' });
+    setActiveTab(0);
+    setModalOpen(true);
+};
 
     const closeModal = () => {
         setModalOpen(false);
@@ -543,6 +555,14 @@ useEffect(() => {
     };
 
     const openEditModal = async (event) => {
+        if (event.createdAt) {
+        const eventDay = new Date(event.createdAt).getDate();
+        const isFirstHalfDay = eventDay <= 15;
+        if (isHalfLocked(isFirstHalfDay)) {
+            showNotification('info', `${isFirstHalfDay ? 'First' : 'Second'} Half has already been submitted. You cannot edit entries for this period.`);
+            return;
+        }
+    }
     setSelectedEvent(event);
     setEditEntryType(event.entryType || 'WORKING');
     setEditFormData({ id: event.id, place: event.location || '', purpose: event.purposeId || '', remarks: event.remark || '' });
@@ -800,10 +820,11 @@ useEffect(() => {
                             {/* empty actions */}
                         </TableCell>
                         <TableCell sx={{ py: 1, px: 1, textAlign: 'center', borderBottom: `1px solid ${theme.palette.divider}` }}>
-                            <Tooltip title="Add entry">
+                            <Tooltip title={isHalfLocked(isFirstHalf) ? `${isFirstHalf ? 'First' : 'Second'} Half submitted — locked` : "Add entry"}>
                                 <IconButton
                                     size="small"
                                     onClick={() => openAddModal(dateKey)}
+                                    disabled={isHalfLocked(isFirstHalf)}
                                     sx={{
                                         backgroundColor: theme.palette.mode === 'dark' ? '#1976d2' : '#1976d2',
                                         color: '#fff',
@@ -899,23 +920,28 @@ useEffect(() => {
                             </TableCell>
                             {/* Actions */}
                             <TableCell sx={{ py: 0.75, px: 1, borderBottom: cellBorderBottom, whiteSpace: 'nowrap' }}>
-                                <Tooltip title="Edit">
+                                <Tooltip title={isHalfLocked(isFirstHalf) ? "Locked — half submitted" : "Edit"}>
                                     <IconButton size="small" onClick={(e) => {
                                         e.stopPropagation();
                                         openEditModal(event);
                                         }} 
-                                    disabled={deleteLoading} sx={{ mr: 0.5 }}>
+                                    disabled={deleteLoading || isHalfLocked(isFirstHalf)} 
+                                    sx={{ mr: 0.5 }}>
                                         <EditIcon sx={{ fontSize: 16 }} />
                                     </IconButton>
                                 </Tooltip>
-                                <Tooltip title="Delete">
+                                <Tooltip title={isHalfLocked(isFirstHalf) ? "Locked — half submitted" : "Delete"}>
                                     <IconButton 
                                         size="small" 
                                         onClick={(e) => {
                                             e.stopPropagation(); // Add this
-                                            openDeleteDialog(event.id);
-                                        }} 
-                                        disabled={deleteLoading} 
+                                            if (isHalfLocked(isFirstHalf)) {
+                                                    showNotification('info', `${isFirstHalf ? 'First' : 'Second'} Half has already been submitted. You cannot delete entries for this period.`);
+                                                    return;
+                                                }
+                                                openDeleteDialog(event.id);
+                                            }}
+                                        disabled={deleteLoading || isHalfLocked(isFirstHalf)} 
                                         color="error"
                                     >
                                         <DeleteIcon sx={{ fontSize: 16 }} />
@@ -925,32 +951,27 @@ useEffect(() => {
                             {/* + button — only on last row, spanning all rows */}
                             {/* + button — only on last row */}
                             {isLast && (
-                                <TableCell
-                                    sx={{
-                                        py: 1, 
-                                        px: 1,
-                                        textAlign: 'center',
-                                        verticalAlign: 'middle',
-                                        borderBottom: cellBorderBottom
-                                    }}
-                                >
-                                    <Tooltip title="Add another entry">
-                                        <IconButton
-                                            size="small"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                openAddModal(dateKey);
-                                            }}
-                                            sx={{
-                                                backgroundColor: '#1976d2',
-                                                color: '#fff',
-                                                width: 26,
-                                                height: 26,
-                                                '&:hover': { backgroundColor: '#1565c0' }
-                                            }}
-                                        >
-                                            <AddIcon sx={{ fontSize: 16 }} />
-                                        </IconButton>
+                                <TableCell sx={{ py: 1, px: 1, textAlign: 'center', verticalAlign: 'middle', borderBottom: cellBorderBottom }}>
+                                    <Tooltip title={isHalfLocked(isFirstHalf) ? `${isFirstHalf ? 'First' : 'Second'} Half submitted — locked` : "Add another entry"}>
+                                        <span>
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openAddModal(dateKey);
+                                                }}
+                                                disabled={isHalfLocked(isFirstHalf)}
+                                                sx={{
+                                                    backgroundColor: isHalfLocked(isFirstHalf) ? undefined : '#1976d2',
+                                                    color: '#fff',
+                                                    width: 26,
+                                                    height: 26,
+                                                    '&:hover': { backgroundColor: isHalfLocked(isFirstHalf) ? undefined : '#1565c0' }
+                                                }}
+                                            >
+                                                <AddIcon sx={{ fontSize: 16 }} />
+                                            </IconButton>
+                                        </span>
                                     </Tooltip>
                                 </TableCell>
                             )}
