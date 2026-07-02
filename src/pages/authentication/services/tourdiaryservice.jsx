@@ -142,7 +142,7 @@ async getActiveHalves() {
   const token = localStorage.getItem('token');
 
   try {
-    const response = await axios.put(
+    const response = await axios.post(
       `${BASE_URL}/tour-diary/api/advanced-tour/active-halves`,
       {}, // Empty body as per your API (though you showed a body in the example)
       {

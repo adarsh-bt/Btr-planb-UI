@@ -498,7 +498,7 @@ function Earas_menus() {
       textShadow: '0 2px 4px rgba(0,0,0,0.2)'
     }}>
       <AssessmentIcon sx={{ fontSize: '2rem', color: '#4facfe' }} />
-      STATUS OVERVIEW
+      STATUS OVERVIEW (AGRI YEAR: {localStorage.getItem('activeAgriYear') || 'N/A'} under Process)
     </Typography>
     
     {/* Status Summary Cards */}
@@ -1057,7 +1057,7 @@ function Earas_menus() {
   )}
 
   {/* GCES View Card */}
-            {role === 'Field Data Collector' && (
+            {/* {role === 'Field Data Collector' && (
               <Grid item xs={12} sm={6} md={4} lg={3}>
                 <Card
                   component={Link}
@@ -1118,7 +1118,7 @@ function Earas_menus() {
                   </Box>
                 </Card>
               </Grid>
-            )}
+            )} */}
 
            
               <Grid item xs={12} sm={6} md={4} lg={3}>
