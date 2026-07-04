@@ -114,7 +114,7 @@ const SettingsMenu = () => {
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
                     <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      CCE Crops Management
+                      CCE Crop Management
                     </Typography>
                     {/* Subtitle removed from here */}
                   </CardContent>
@@ -125,7 +125,7 @@ const SettingsMenu = () => {
   <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card
                 component={Link}
-                to="/schemes/earas/earas_management/crops_management"
+                to="/schemes/earas/earas_management/crop_management"
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',
@@ -158,7 +158,7 @@ const SettingsMenu = () => {
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
                     <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Crops Management
+                      Crop Management
                     </Typography>
                     {/* Subtitle removed from here */}
                   </CardContent>

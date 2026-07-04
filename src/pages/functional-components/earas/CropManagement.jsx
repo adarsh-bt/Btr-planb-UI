@@ -981,7 +981,7 @@ const sortedCce = sortData(filteredCce, getComparator(cceOrder, cceOrderBy));
 const paginatedCce = sortedCce.slice(ccePage * cceRowsPerPage, ccePage * cceRowsPerPage + cceRowsPerPage);
   // Table columns
   const cropColumns = [
-    { id: "slNo", label: "SL No", minWidth: 70, sortable: false },
+    { id: "slNo", label: "Sl.No", minWidth: 70, sortable: false },
     { id: "cropNameEn", label: "Crop Name (English)", minWidth: 180 },
     { id: "cropNameMal", label: "Crop Name (Malayalam)", minWidth: 180 },
     { id: "scientificName", label: "Scientific Name", minWidth: 180 },
@@ -996,14 +996,14 @@ const paginatedCce = sortedCce.slice(ccePage * cceRowsPerPage, ccePage * cceRows
   ];
 
   const unitColumns = [
-    { id: "slNo", label: "SL No", minWidth: 70, sortable: false },
+    { id: "slNo", label: "Sl.No", minWidth: 70, sortable: false },
     { id: "unitName", label: "Unit Name", minWidth: 250 },
     { id: "isActive", label: "Status", minWidth: 100 },
     { id: "actions", label: "Actions", minWidth: 100, sortable: false }
   ];
 
   const standsColumns = [
-    { id: "slNo", label: "SL No", minWidth: 70, sortable: false },
+    { id: "slNo", label: "Sl.No", minWidth: 70, sortable: false },
     { id: "cropName", label: "Crop Name", minWidth: 180 },
     { id: "isState", label: "Level", minWidth: 100 },
     { id: "districtName", label: "District Name", minWidth: 150 },
@@ -1014,7 +1014,7 @@ const paginatedCce = sortedCce.slice(ccePage * cceRowsPerPage, ccePage * cceRows
   ];
 
   const irrigationColumns = [
-    { id: "slNo", label: "SL No", minWidth: 70, sortable: false },
+    { id: "slNo", label: "Sl.No", minWidth: 70, sortable: false },
     { id: "irrigationType", label: "Irrigation Type", minWidth: 250 },
     { id: "irrigationCodeDes", label: "Irrigation Code", minWidth: 150 },
     { id: "isActive", label: "Status", minWidth: 100 },
@@ -1022,7 +1022,7 @@ const paginatedCce = sortedCce.slice(ccePage * cceRowsPerPage, ccePage * cceRows
   ];
 
 const cceColumns = [
-  { id: "slNo", label: "SL No", minWidth: 70, sortable: false },
+  { id: "slNo", label: "Sl.No", minWidth: 70, sortable: false },
   { id: "cceCropType", label: "CCE Crop Type", minWidth: 180 },
   { id: "cropName", label: "Crop Name", minWidth: 180 },
   { id: "noOfCce", label: "No. of CCE", minWidth: 120 },
@@ -1070,11 +1070,11 @@ const cceColumns = [
             <Divider sx={{ mb: 3 }} />
             
             <Tabs value={activeTab} onChange={handleTabChange} sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}>
-              <Tab label="Crops Management" />
+              <Tab label="Crop Management" />
               <Tab label="Unit Management" />
               <Tab label="Stands Per Hectare Management" />
               <Tab label="Irrigation Source Management" />
-              <Tab label="CCE Crops Management" />
+              <Tab label="CCE Crop Management" />
             </Tabs>
 
             {/* Crops Tab */}
