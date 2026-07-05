@@ -142,7 +142,7 @@ async getActiveHalves() {
   const token = localStorage.getItem('token');
 
   try {
-    const response = await axios.put(
+    const response = await axios.post(
       `${BASE_URL}/tour-diary/api/advanced-tour/active-halves`,
       {}, // Empty body as per your API (though you showed a body in the example)
       {
@@ -180,28 +180,28 @@ async submitTourHalf(data) {
       }
     );
 
-   
-    if (typeof response.data === 'string') {
-      return response.data;
-    }
-    
-    // If it's an object with data
+    // Backend returns strings directly for both success and error cases
+    // e.g., "Submitted FirstHalf successfully on time"
+    // e.g., "Missing dates: [3, 7, 12]"
+    // e.g., "No entries found for given month and year"
     return response.data;
 
   } catch (err) {
-    // If error response has data (like "Missing entries for...")
+    // Handle validation errors that might come as 400 or other status codes
     if (err.response?.data) {
-      // If it's a string error message
+      // If the error response is a string (like "Missing dates: [1, 3]")
       if (typeof err.response.data === 'string') {
         return err.response.data;
       }
       // If it's an object with message
-      return err.response.data.message || "Validation failed";
+      if (err.response.data.message) {
+        return err.response.data.message;
+      }
     }
     
-    return {
-      message: err.message || "An error occurred while submitting."
-    };
+    // Network errors or other issues
+    console.error("Submit error:", err);
+    return "An error occurred while submitting. Please try again.";
   }
 },
 

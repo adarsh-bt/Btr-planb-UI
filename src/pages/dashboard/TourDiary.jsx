@@ -60,6 +60,21 @@ const TourDiary = () => {
         return value;
     };
 
+    const role = authservice.getrole();
+    const isFieldDataCollector = role === "Field Data Collector";
+
+    const handleSubmitClick = (event) => {
+    if (isFieldDataCollector) {
+        openSubmitMenu(event);
+    } else {
+        if (submissionView?.fullMonthSubmitted) {
+            showNotification('info', `Entry already submitted on ${new Date(submissionView.fullMonthSubmittedDate).toLocaleString()}`);
+            return;
+        }
+        setSubmitDialog({ open: true, half: 'Month' });
+    }
+};
+
     // ============================ STATE MANAGEMENT ============================
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(null);
@@ -437,85 +452,98 @@ useEffect(() => {
 
     // ============================ HALF SUBMIT ============================
     const handleSubmitHalf = async (half) => {
-        if (half === 'First Half' && submissionStatus.firstHalf?.isSubmitted) {
-            showNotification('info', `First Half already submitted on ${new Date(submissionStatus.firstHalf.submittedAt).toLocaleString()}`);
-            closeSubmitMenu();
-            return;
-        }
-        if (half === 'Second Half' && submissionStatus.secondHalf?.isSubmitted) {
-            showNotification('info', `Second Half already submitted on ${new Date(submissionStatus.secondHalf.submittedAt).toLocaleString()}`);
-            closeSubmitMenu();
-            return;
-        }
-        setSubmitDialog({ open: true, half });
+    if (half === 'First Half' && submissionView?.firstHalfSubmitted) {
+        showNotification('info', `First Half already submitted on ${new Date(submissionView.firstHalfSubmittedDate).toLocaleString()}`);
         closeSubmitMenu();
-    };
+        return;
+    }
+    if (half === 'Second Half' && submissionView?.secondHalfSubmitted) {
+        showNotification('info', `Second Half already submitted on ${new Date(submissionView.secondHalfSubmittedDate).toLocaleString()}`);
+        closeSubmitMenu();
+        return;
+    }
+    setSubmitDialog({ open: true, half });
+    closeSubmitMenu();
+};
 
     const confirmSubmit = async () => {
-        const zoneId = Number(authservice.getzone());
-        const userId = authservice.userid();
-        if (!zoneId || !userId) { showNotification('error', 'No zone assigned.'); return; }
+    const userId = authservice.userid();
+    if (!userId) {
+        showNotification('error', 'User not authenticated');
+        return;
+    }
 
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth() + 1;
-        const periodType = submitDialog.half === 'First Half' ? 'FIRST_HALF' : 'SECOND_HALF';
-        const payload = { periodType, zoneId: Number(zoneId), month, year, userId };
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth() + 1;
 
-        try {
-            setSubmitLoading(true);
-            const response = await tourDiaryService.submitTourHalf(payload);
-            if (typeof response === 'string') {
-                if (response.toLowerCase().includes('successfully')) {
-                    showNotification('success', response);
+    let submissionType;
+    let zoneId = null;
 
-                    // 🔧 FIX: Update submission status immediately after successful submission
-                const now = new Date();
-                const currentDateStr = now.toISOString();
-                
+    if (isFieldDataCollector) {
+        submissionType = submitDialog.half === 'First Half' ? 'FIRST_HALF' : 'SECOND_HALF';
+        zoneId = Number(authservice.getzone());
+        if (!zoneId) {
+            showNotification('error', 'No zone assigned.');
+            return;
+        }
+    } else {
+        // Other roles submit the whole month, zoneId is not mandatory
+        submissionType = 'FULL_MONTH';
+        const rawZone = authservice.getzone();
+        zoneId = rawZone ? Number(rawZone) : null; // send if available, but don't block on it
+    }
+
+    const payload = {
+        submissionType,
+        month,
+        year,
+        userId,
+        ...(zoneId ? { zoneId } : {})
+    };
+
+    try {
+        setSubmitLoading(true);
+        const response = await tourDiaryService.submitTourHalf(payload);
+
+        if (typeof response === 'string') {
+            if (response.toLowerCase().includes('successfully')) {
+                showNotification('success', response);
+
+                const currentDateStr = new Date().toISOString();
+
                 if (submitDialog.half === 'First Half') {
                     setSubmissionStatus(prev => ({
                         ...prev,
-                        firstHalf: {
-                            id: response.id || Date.now(), // Use response id if available
-                            isSubmitted: true,
-                            isLate: false,
-                            submittedAt: currentDateStr,
-                            zoneId: zoneId
-                        }
+                        firstHalf: { isSubmitted: true, isLate: false, submittedAt: currentDateStr, zoneId }
                     }));
                 } else if (submitDialog.half === 'Second Half') {
                     setSubmissionStatus(prev => ({
                         ...prev,
-                        secondHalf: {
-                            id: response.id || Date.now(), // Use response id if available
-                            isSubmitted: true,
-                            isLate: false,
-                            submittedAt: currentDateStr,
-                            zoneId: zoneId
-                        }
+                        secondHalf: { isSubmitted: true, isLate: false, submittedAt: currentDateStr, zoneId }
                     }));
                 }
 
-                    await fetchActiveHalves();
-                    await fetchSubmissionView();
-                    await fetchTourData();
-                } else {
-                    showNotification('error', response);
-                }
-            } else if (response.message) {
-                showNotification('error', response.message);
-            } else {
-                showNotification('success', 'Submitted successfully');
                 await fetchActiveHalves();
+                await fetchSubmissionView();
                 await fetchTourData();
+            } else {
+                showNotification('error', response);
             }
-            setSubmitDialog({ open: false, half: null });
-        } catch (error) {
-            showNotification('error', error.response?.data || 'Failed to submit');
-        } finally {
-            setSubmitLoading(false);
+        } else if (response.message) {
+            showNotification('error', response.message);
+        } else {
+            showNotification('success', 'Submitted successfully');
+            await fetchActiveHalves();
+            await fetchSubmissionView();
+            await fetchTourData();
         }
-    };
+        setSubmitDialog({ open: false, half: null });
+    } catch (error) {
+        showNotification('error', error.response?.data || 'Failed to submit');
+    } finally {
+        setSubmitLoading(false);
+    }
+};
 
     // ============================ CALENDAR HANDLERS ============================
     const changeMonth = (offset) => {
@@ -604,127 +632,190 @@ useEffect(() => {
     };
 
     // ============================ CRUD OPERATIONS ============================
-    const saveEvent = async () => {
-        if (!selectedDate) return;
-        const zoneIdToUse = selectedZoneId || (assignedZones.length === 1 ? assignedZones[0].zoneId : null);
+    // In the saveEvent function, modify the zoneIdToUse logic:
 
-        if (entryType === 'WORKING') {
-            if (!formData.purpose || !formData.place || !selectedScheme) {
-                showNotification('error', 'Please fill all required fields');
-                return;
-            }
-            if (!zoneIdToUse) { showNotification('error', 'Please select a zone'); return; }
+const saveEvent = async () => {
+    if (!selectedDate) return;
+    
+    // For non-field collectors, use a default zone or the first assigned zone
+    let zoneIdToUse;
+    if (!isFieldDataCollector) {
+        // For non-field collectors, get the first assigned zone or use a default
+        if (assignedZones.length > 0) {
+            zoneIdToUse = assignedZones[0].zoneId;
+        } else {
+            // If no zones assigned, use a default or handle appropriately
+            // You might want to use the user's default zone from auth
+            zoneIdToUse = Number(authservice.getzone()) || null;
         }
+    } else {
+        // For field collectors, use selected zone or first available
+        zoneIdToUse = selectedZoneId || (assignedZones.length === 1 ? assignedZones[0].zoneId : null);
+    }
 
-        const userId = authservice.userid();
-        if (!userId || !zoneIdToUse) { showNotification('error', 'No zone assigned.'); return; }
-
-        const { year, month, day } = parseDateKey(selectedDate);
-        const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T10:30:00`;
-
-        const payload = {
-            purposeId: entryType === 'WORKING' ? Number(formData.purpose) : null,
-            userId,
-            location: entryType === 'WORKING' ? formData.place : '',
-            remark: formData.remarks,
-            status: "DRAFT",
-            zoneId: zoneIdToUse,
-            createdAt: formattedDate,
-            entryType
-        };
-
-        try {
-            setLoading(true);
-            const response = await tourDiaryService.saveOrUpdateTour(payload);
-            if (response.id) {
-                const completeEvent = {
-                    id: response.id,
-                    purposeId: entryType === 'WORKING' ? Number(formData.purpose) : null,
-                    location: entryType === 'WORKING' ? formData.place : '',
-                    remark: formData.remarks,
-                    userId,
-                    zoneId: zoneIdToUse,
-                    createdAt: formattedDate,
-                    entryType,
-                    status: "DRAFT"
-                };
-                const updatedTourEvents = [...tourEvents, completeEvent];
-                setTourEvents(updatedTourEvents);
-                const updatedDayEvents = updatedTourEvents.filter(event => {
-                    const eventDate = new Date(event.createdAt);
-                    return eventDate.getFullYear() === year && eventDate.getMonth() === month && eventDate.getDate() === day;
-                });
-                setSelectedDayEvents(updatedDayEvents);
-                setFormData({ place: '', purpose: '', remarks: '' });
-                setActiveTab(0);
-                closeModal();
-                showNotification('success', 'Tour saved successfully');
-            } else {
-                showNotification('error', response.message || "Failed to save tour");
-            }
-        } catch (error) {
-            showNotification('error', 'Something went wrong');
-        } finally {
-            setLoading(false);
+    // Only validate zone for field data collectors
+    if (isFieldDataCollector && entryType === 'WORKING') {
+        if (!formData.purpose || !formData.place || !selectedScheme) {
+            showNotification('error', 'Please fill all required fields');
+            return;
         }
+        if (!zoneIdToUse) {
+            showNotification('error', 'Please select a zone');
+            return;
+        }
+    } else if (!isFieldDataCollector && entryType === 'WORKING') {
+        // For non-field collectors, only validate purpose, place, scheme
+        if (!formData.purpose || !formData.place || !selectedScheme) {
+            showNotification('error', 'Please fill all required fields');
+            return;
+        }
+        // If zoneIdToUse is null, set a default or get from auth
+        if (!zoneIdToUse) {
+            zoneIdToUse = Number(authservice.getzone()); // Use a default zone ID
+        }
+    } else {
+        // For non-WORKING entries, still need zoneId
+        if (!zoneIdToUse) {
+            zoneIdToUse = Number(authservice.getzone()); // Use a default zone ID
+        }
+    }
+
+    // The rest of the function remains the same...
+    const userId = authservice.userid();
+    if (!userId) {
+        showNotification('error', 'User not authenticated');
+        return;
+    }
+
+    const { year, month, day } = parseDateKey(selectedDate);
+    const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T10:30:00`;
+
+    const payload = {
+        purposeId: entryType === 'WORKING' ? Number(formData.purpose) : null,
+        userId,
+        location: entryType === 'WORKING' ? formData.place : '',
+        remark: formData.remarks,
+        status: "DRAFT",
+        zoneId: zoneIdToUse,
+        createdAt: formattedDate,
+        entryType
     };
 
-    const updateEvent = async () => {
-        const zoneIdToUse = editSelectedZoneId || selectedZoneId;
-        if (editEntryType === 'WORKING') {
-            if (!editFormData.purpose || !editFormData.place || !editSelectedScheme) {
-                showNotification('error', 'Please fill all required fields');
-                return;
-            }
-            if (!zoneIdToUse) { showNotification('error', 'Please select a zone'); return; }
+    try {
+        setLoading(true);
+        const response = await tourDiaryService.saveOrUpdateTour(payload);
+        if (response.id) {
+            const completeEvent = {
+                id: response.id,
+                purposeId: entryType === 'WORKING' ? Number(formData.purpose) : null,
+                location: entryType === 'WORKING' ? formData.place : '',
+                remark: formData.remarks,
+                userId,
+                zoneId: zoneIdToUse,
+                createdAt: formattedDate,
+                entryType,
+                status: "DRAFT"
+            };
+            const updatedTourEvents = [...tourEvents, completeEvent];
+            setTourEvents(updatedTourEvents);
+            const updatedDayEvents = updatedTourEvents.filter(event => {
+                const eventDate = new Date(event.createdAt);
+                return eventDate.getFullYear() === year && eventDate.getMonth() === month && eventDate.getDate() === day;
+            });
+            setSelectedDayEvents(updatedDayEvents);
+            setFormData({ place: '', purpose: '', remarks: '' });
+            setActiveTab(0);
+            closeModal();
+            showNotification('success', 'Tour saved successfully');
+        } else {
+            showNotification('error', response.message || "Failed to save tour");
         }
+    } catch (error) {
+        showNotification('error', 'Something went wrong');
+    } finally {
+        setLoading(false);
+    }
+};
 
-        const userId = authservice.userid();
-        if (!userId || !zoneIdToUse) { alert("No zone assigned."); return; }
-
-        const originalEvent = selectedEvent;
-        const createdAt = originalEvent?.createdAt;
-
-        const payload = {
-            id: editFormData.id,
-            purposeId: editEntryType === 'WORKING' ? Number(editFormData.purpose) : null,
-            userId,
-            location: editEntryType === 'WORKING' ? editFormData.place : '',
-            remark: editFormData.remarks,
-            status: "DRAFT",
-            zoneId: zoneIdToUse,
-            createdAt,
-            entryType: editEntryType
-        };
-
-        try {
-            setEditLoading(true);
-            const response = await tourDiaryService.saveOrUpdateTour(payload);
-            if (response.id) {
-                const completeEvent = {
-                    id: response.id,
-                    purposeId: editEntryType === 'WORKING' ? Number(editFormData.purpose) : null,
-                    location: editEntryType === 'WORKING' ? editFormData.place : '',
-                    remark: editFormData.remarks,
-                    userId,
-                    zoneId: zoneIdToUse,
-                    createdAt,
-                    entryType: editEntryType,
-                    status: "DRAFT"
-                };
-                const updatedTourEvents = tourEvents.map(event => event.id === completeEvent.id ? completeEvent : event);
-                setTourEvents(updatedTourEvents);
-                closeEditModal();
-                showNotification('success', 'Tour updated successfully');
-            } else {
-                showNotification('error', response.message || "Failed to update tour");
-            }
-        } catch (error) {
-            showNotification('error', 'Something went wrong');
-        } finally {
-            setEditLoading(false);
+    // In the updateEvent function:
+const updateEvent = async () => {
+    // For non-field collectors, use a default zone
+    let zoneIdToUse;
+    if (!isFieldDataCollector) {
+        if (assignedZones.length > 0) {
+            zoneIdToUse = assignedZones[0].zoneId;
+        } else {
+            zoneIdToUse = Number(authservice.getzone()) || 1;
         }
+    } else {
+        zoneIdToUse = editSelectedZoneId || selectedZoneId;
+    }
+
+    if (editEntryType === 'WORKING') {
+        if (!editFormData.purpose || !editFormData.place || !editSelectedScheme) {
+            showNotification('error', 'Please fill all required fields');
+            return;
+        }
+        if (isFieldDataCollector && !zoneIdToUse) {
+            showNotification('error', 'Please select a zone');
+            return;
+        }
+    }
+
+    // Non-field collectors don't need zone validation, but need zoneId for the payload
+    if (!zoneIdToUse) {
+        zoneIdToUse = Number(authservice.getzone()) || 1;
+    }
+
+    const userId = authservice.userid();
+    if (!userId) {
+        showNotification('error', 'User not authenticated');
+        return;
+    }
+
+    const originalEvent = selectedEvent;
+    const createdAt = originalEvent?.createdAt;
+
+    const payload = {
+        id: editFormData.id,
+        purposeId: editEntryType === 'WORKING' ? Number(editFormData.purpose) : null,
+        userId,
+        location: editEntryType === 'WORKING' ? editFormData.place : '',
+        remark: editFormData.remarks,
+        status: "DRAFT",
+        zoneId: zoneIdToUse,
+        createdAt,
+        entryType: editEntryType
     };
+
+    try {
+        setEditLoading(true);
+        const response = await tourDiaryService.saveOrUpdateTour(payload);
+        if (response.id) {
+            const completeEvent = {
+                id: response.id,
+                purposeId: editEntryType === 'WORKING' ? Number(editFormData.purpose) : null,
+                location: editEntryType === 'WORKING' ? editFormData.place : '',
+                remark: editFormData.remarks,
+                userId,
+                zoneId: zoneIdToUse,
+                createdAt,
+                entryType: editEntryType,
+                status: "DRAFT"
+            };
+            const updatedTourEvents = tourEvents.map(event => event.id === completeEvent.id ? completeEvent : event);
+            setTourEvents(updatedTourEvents);
+            closeEditModal();
+            showNotification('success', 'Tour updated successfully');
+        } else {
+            showNotification('error', response.message || "Failed to update tour");
+        }
+    } catch (error) {
+        showNotification('error', 'Something went wrong');
+    } finally {
+        setEditLoading(false);
+    }
+};
 
     const handleDeleteEvent = async (eventId) => {
         if (!eventId) return;
@@ -802,16 +893,30 @@ useEffect(() => {
                 />
             );
 
+            // In the renderTableRows function, for no entries case:
             if (dayEvents.length === 0) {
+                // Calculate the correct colSpan based on role
+                let colSpan = 5; // Default for non-field collectors (Entry Type, Scheme, Purpose, Place, Remarks)
+                if (isFieldDataCollector) {
+                    colSpan = 5; // Still 5 because FH/SH and Zone are separate columns
+                }
+                
                 rows.push(
                     <TableRow key={`day-${day}`} sx={{ backgroundColor: rowBg, '&:hover': { filter: 'brightness(0.97)' } }}>
                         <TableCell sx={{ py: 1, px: 1.5, whiteSpace: 'nowrap', borderBottom: `1px solid ${theme.palette.divider}` }}>
                             {dateLabel}
                         </TableCell>
-                        <TableCell sx={{ py: 1, px: 1, borderBottom: `1px solid ${theme.palette.divider}` }}>
-                            {halfChip}
-                        </TableCell>
-                        <TableCell colSpan={6} sx={{ py: 1, px: 1.5, borderBottom: `1px solid ${theme.palette.divider}` }}>
+                        {isFieldDataCollector && (
+                            <TableCell sx={{ py: 1, px: 1, borderBottom: `1px solid ${theme.palette.divider}` }}>
+                                {halfChip}
+                            </TableCell>
+                        )}
+                        {isFieldDataCollector && (
+                            <TableCell sx={{ py: 1, px: 1, borderBottom: `1px solid ${theme.palette.divider}` }}>
+                                <Typography variant="caption" color="text.disabled">—</Typography>
+                            </TableCell>
+                        )}
+                        <TableCell colSpan={colSpan} sx={{ py: 1, px: 1.5, borderBottom: `1px solid ${theme.palette.divider}` }}>
                             <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
                                 No entries
                             </Typography>
@@ -839,7 +944,8 @@ useEffect(() => {
                         </TableCell>
                     </TableRow>
                 );
-            } else {
+            }
+                else {
                 dayEvents.forEach((event, idx) => {
                     const isLast = idx === dayEvents.length - 1;
                     const isFirst = idx === 0;
@@ -869,7 +975,7 @@ useEffect(() => {
                                 </TableCell>
                             )}
                             {/* FH/SH – only on first row */}
-                            {isFirst && (
+                            {isFirst && isFieldDataCollector && (
                                 <TableCell
                                     rowSpan={dayEvents.length}
                                     sx={{
@@ -882,9 +988,11 @@ useEffect(() => {
                                 </TableCell>
                             )}
                             {/* Zone */}
+                            {isFieldDataCollector && (
                             <TableCell sx={{ py: 0.75, px: 1, borderBottom: cellBorderBottom }}>
                                 <Typography variant="caption">{getZoneName(event.zoneId)}</Typography>
                             </TableCell>
+                            )}
                             {/* Entry Type */}
                             <TableCell sx={{ py: 0.75, px: 1, borderBottom: cellBorderBottom }}>
                                 <Chip
@@ -1024,74 +1132,99 @@ useEffect(() => {
                                     Prev
                                 </Button>
 
-                                <Paper
-                                elevation={2}
-                                sx={{
-                                    p: 1.5,
-                                    minWidth: '280px',
-                                    backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : '#f8f9fa',
-                                    border: `1px solid ${theme.palette.divider}`,
-                                    borderRadius: 2
-                                }}
-                            >
-                                {submissionViewLoading ? (
-                                    <Typography variant="body2" color="text.secondary" align="center">Loading...</Typography>
-                                ) : (
-                                    <Box>
-                                        {/* First Half */}
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
-                                <Box
-                                    sx={{
-                                        width: 8,
-                                        height: 8,
-                                        borderRadius: '50%',
-                                        backgroundColor: submissionView?.firstHalfSubmitted ? '#27ae60' : '#bdbdbd',
-                                        flexShrink: 0
-                                    }}
-                                />
-                                <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
-                                    {submissionView?.firstHalfSubmitted
-                                        ? `First Half submitted on ${new Date(
-                                            submissionView.firstHalfSubmittedDate
-                                        ).toLocaleString('en-US', {
-                                            month: 'short',
-                                            day: 'numeric',
-                                            hour: 'numeric',
-                                            minute: '2-digit',
-                                            hour12: true
-                                        })}`
-                                        : 'First Half not submitted'}
-                                </Typography>
-                            </Box>
+                                {isFieldDataCollector ? (
+                                    <Paper
+                                        elevation={2}
+                                        sx={{
+                                            p: 1.5,
+                                            minWidth: '280px',
+                                            backgroundColor: theme.palette.mode === 'dark'
+                                                ? theme.palette.grey[800]
+                                                : '#f8f9fa',
+                                            border: `1px solid ${theme.palette.divider}`,
+                                            borderRadius: 2
+                                        }}
+                                    >
+                                        {submissionViewLoading ? (
+                                            <Typography variant="body2" color="text.secondary" align="center">
+                                                Loading...
+                                            </Typography>
+                                        ) : (
+                                            <Box>
+                                                {/* First Half */}
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
+                                                    <Box
+                                                        sx={{
+                                                            width: 8,
+                                                            height: 8,
+                                                            borderRadius: '50%',
+                                                            backgroundColor: submissionView?.firstHalfSubmitted ? '#27ae60' : '#bdbdbd'
+                                                        }}
+                                                    />
+                                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                                        {submissionView?.firstHalfSubmitted
+                                                            ? `First Half submitted on ${new Date(
+                                                                submissionView.firstHalfSubmittedDate
+                                                            ).toLocaleString()}`
+                                                            : 'First Half not submitted'}
+                                                    </Typography>
+                                                </Box>
 
-                            {/* Second Half */}
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                                <Box
-                                    sx={{
-                                        width: 8,
-                                        height: 8,
-                                        borderRadius: '50%',
-                                        backgroundColor: submissionView?.secondHalfSubmitted ? '#27ae60' : '#bdbdbd',
-                                        flexShrink: 0
-                                    }}
-                                />
-                                <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
-                                    {submissionView?.secondHalfSubmitted
-                                        ? `Second Half submitted on ${new Date(
-                                            submissionView.secondHalfSubmittedDate
-                                        ).toLocaleString('en-US', {
-                                            month: 'short',
-                                            day: 'numeric',
-                                            hour: 'numeric',
-                                            minute: '2-digit',
-                                            hour12: true
-                                        })}`
-                                        : 'Second Half not submitted'}
-                                </Typography>
-                            </Box>
-                                    </Box>
+                                                {/* Second Half */}
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                                    <Box
+                                                        sx={{
+                                                            width: 8,
+                                                            height: 8,
+                                                            borderRadius: '50%',
+                                                            backgroundColor: submissionView?.secondHalfSubmitted ? '#27ae60' : '#bdbdbd'
+                                                        }}
+                                                    />
+                                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                                        {submissionView?.secondHalfSubmitted
+                                                            ? `Second Half submitted on ${new Date(
+                                                                submissionView.secondHalfSubmittedDate
+                                                            ).toLocaleString()}`
+                                                            : 'Second Half not submitted'}
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
+                                        )}
+                                    </Paper>
+                                ) : (
+                                    <Paper
+                                        elevation={2}
+                                        sx={{
+                                            p: 1.5,
+                                            minWidth: '280px',
+                                            border: `1px solid ${theme.palette.divider}`,
+                                            borderRadius: 2
+                                        }}
+                                    >
+                                        {submissionViewLoading ? (
+                                            <Typography align="center">Loading...</Typography>
+                                        ) : (
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <Box
+                                                    sx={{
+                                                        width: 8,
+                                                        height: 8,
+                                                        borderRadius: '50%',
+                                                        backgroundColor: submissionView?.fullMonthSubmitted ? '#27ae60' : '#bdbdbd'
+                                                    }}
+                                                />
+                                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                                    {submissionView?.fullMonthSubmitted
+                                                        ? `Entry submitted on ${new Date(
+                                                            submissionView.fullMonthSubmittedDate
+                                                        ).toLocaleString()}`
+                                                        : 'Entry not submitted'}
+                                                </Typography>
+                                            </Box>
+                                        )}
+                                    </Paper>
                                 )}
-                            </Paper>
+
                             </Box>
 
                             <Typography
@@ -1113,97 +1246,105 @@ useEffect(() => {
                                 <Box>
                                     <Button
                                         variant="contained"
-                                        onClick={openSubmitMenu}
+                                        onClick={handleSubmitClick}
                                         sx={{ backgroundColor: '#27ae60', '&:hover': { backgroundColor: '#1e8449' }, whiteSpace: 'nowrap', minWidth: '90px' }}
                                     >
                                         Submit
                                     </Button>
-                                    <Menu anchorEl={submitAnchorEl} open={Boolean(submitAnchorEl)} onClose={closeSubmitMenu}>
-                                        {/* Menu items remain the same */}
-                                        <MenuItem
-                                            onClick={() => handleSubmitHalf('First Half')}
-                                            disabled={submissionView?.firstHalfSubmitted}
+                                    {isFieldDataCollector && (
+                                        <Menu
+                                        anchorEl={submitAnchorEl}
+                                        open={Boolean(submitAnchorEl)}
+                                        onClose={closeSubmitMenu}
                                         >
-                                            <Box
-                                                sx={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'space-between',
-                                                    width: '100%'
-                                                }}
+                                      
+                                            {/* First Half */}
+                                            <MenuItem
+                                                onClick={() => handleSubmitHalf("First Half")}
+                                                disabled={submissionView?.firstHalfSubmitted}
                                             >
-                                                <span>First Half</span>
+                                                <Box
+                                                    sx={{
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "space-between",
+                                                        width: "100%"
+                                                    }}
+                                                >
+                                                    <span>First Half</span>
 
-                                                {submissionView?.firstHalfSubmitted &&
-                                                    submissionView?.firstHalfSubmittedDate && (
-                                                        <Chip
-                                                            size="small"
-                                                            label={`Submitted ${new Date(
-                                                                submissionView.firstHalfSubmittedDate
-                                                            ).toLocaleString('en-US', {
-                                                                month: 'short',
-                                                                day: 'numeric',
-                                                                hour: 'numeric',
-                                                                minute: '2-digit',
-                                                                hour12: true
-                                                            })}`}
-                                                            sx={{
-                                                                ml: 1,
-                                                                backgroundColor: '#4caf50',
-                                                                color: 'white',
-                                                                height: '24px',
-                                                                '& .MuiChip-label': {
-                                                                    fontSize: '0.7rem',
-                                                                    px: 1
-                                                                }
-                                                            }}
-                                                        />
-                                                    )}
-                                            </Box>
-                                        </MenuItem>
+                                                    {submissionView?.firstHalfSubmitted &&
+                                                        submissionView?.firstHalfSubmittedDate && (
+                                                            <Chip
+                                                                size="small"
+                                                                label={`Submitted ${new Date(
+                                                                    submissionView.firstHalfSubmittedDate
+                                                                ).toLocaleString("en-US", {
+                                                                    month: "short",
+                                                                    day: "numeric",
+                                                                    hour: "numeric",
+                                                                    minute: "2-digit",
+                                                                    hour12: true
+                                                                })}`}
+                                                                sx={{
+                                                                    ml: 1,
+                                                                    backgroundColor: "#4caf50",
+                                                                    color: "white",
+                                                                    height: "24px",
+                                                                    "& .MuiChip-label": {
+                                                                        fontSize: "0.7rem",
+                                                                        px: 1
+                                                                    }
+                                                                }}
+                                                            />
+                                                        )}
+                                                </Box>
+                                            </MenuItem>
 
-                                        <MenuItem
-                                            onClick={() => handleSubmitHalf('Second Half')}
-                                            disabled={submissionView?.secondHalfSubmitted}
-                                        >
-                                            <Box
-                                                sx={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'space-between',
-                                                    width: '100%'
-                                                }}
+                                            {/* Second Half */}
+                                            <MenuItem
+                                                onClick={() => handleSubmitHalf("Second Half")}
+                                                disabled={submissionView?.secondHalfSubmitted}
                                             >
-                                                <span>Second Half</span>
+                                                <Box
+                                                    sx={{
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "space-between",
+                                                        width: "100%"
+                                                    }}
+                                                >
+                                                    <span>Second Half</span>
 
-                                                {submissionView?.secondHalfSubmitted &&
-                                                    submissionView?.secondHalfSubmittedDate && (
-                                                        <Chip
-                                                            size="small"
-                                                            label={`Submitted ${new Date(
-                                                                submissionView.secondHalfSubmittedDate
-                                                            ).toLocaleString('en-US', {
-                                                                month: 'short',
-                                                                day: 'numeric',
-                                                                hour: 'numeric',
-                                                                minute: '2-digit',
-                                                                hour12: true
-                                                            })}`}
-                                                            sx={{
-                                                                ml: 1,
-                                                                backgroundColor: '#4caf50',
-                                                                color: 'white',
-                                                                height: '24px',
-                                                                '& .MuiChip-label': {
-                                                                    fontSize: '0.7rem',
-                                                                    px: 1
-                                                                }
-                                                            }}
-                                                        />
-                                                    )}
-                                            </Box>
-                                        </MenuItem>
+                                                    {submissionView?.secondHalfSubmitted &&
+                                                        submissionView?.secondHalfSubmittedDate && (
+                                                            <Chip
+                                                                size="small"
+                                                                label={`Submitted ${new Date(
+                                                                    submissionView.secondHalfSubmittedDate
+                                                                ).toLocaleString("en-US", {
+                                                                    month: "short",
+                                                                    day: "numeric",
+                                                                    hour: "numeric",
+                                                                    minute: "2-digit",
+                                                                    hour12: true
+                                                                })}`}
+                                                                sx={{
+                                                                    ml: 1,
+                                                                    backgroundColor: "#4caf50",
+                                                                    color: "white",
+                                                                    height: "24px",
+                                                                    "& .MuiChip-label": {
+                                                                        fontSize: "0.7rem",
+                                                                        px: 1
+                                                                    }
+                                                                }}
+                                                            />
+                                                        )}
+                                                </Box>
+                                            </MenuItem>
                                     </Menu>
+                                    )}
                                 </Box>
                                 <Button
                                     variant="contained"
@@ -1255,7 +1396,7 @@ useEffect(() => {
                         <Table size="small" stickyHeader>
                             <TableHead>
                                 <TableRow>
-                                    {['Date', 'FH/SH', 'Zone', 'Entry Type', 'Scheme', 'Purpose of Tour', 'Cluster.No / Place of Visit', 'Remarks', 'Actions'].map((col) => (
+                                    {['Date', ...(isFieldDataCollector ? ['FH/SH', 'Zone'] : []), 'Entry Type', 'Scheme', 'Purpose of Tour', 'Cluster.No / Place of Visit', 'Remarks', 'Actions'].map((col) => (
                                         <TableCell
                                             key={col}
                                             sx={{
@@ -1321,7 +1462,7 @@ useEffect(() => {
 
                     <Box component="div" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         {/* Zone */}
-                        {!zonesLoading && assignedZones.length > 1 && (
+                        {isFieldDataCollector && !zonesLoading && assignedZones.length > 1 && (
                             <FormControl fullWidth size="small">
                                 <InputLabel>Zone</InputLabel>
                                 <Select value={selectedZoneId || ''} label="Zone" onChange={(e) => setSelectedZoneId(e.target.value)}>
@@ -1337,7 +1478,7 @@ useEffect(() => {
                                 <Typography variant="body2">Loading zones...</Typography>
                             </Box>
                         )}
-                        {!zonesLoading && assignedZones.length === 0 && (
+                        {isFieldDataCollector && !zonesLoading && assignedZones.length === 0 && (
                             <Alert severity="error">No zones assigned to you. Please contact administrator.</Alert>
                         )}
 
@@ -1442,7 +1583,7 @@ useEffect(() => {
                             <Button
                                 variant="contained"
                                 onClick={saveEvent}
-                                disabled={loading || zonesLoading || assignedZones.length === 0}
+                                disabled={loading || zonesLoading || (isFieldDataCollector && assignedZones.length === 0)}
                                 sx={{ backgroundColor: '#27ae60', '&:hover': { backgroundColor: '#1e8449' } }}
                             >
                                 {loading ? "Saving..." : "Save"}
@@ -1476,7 +1617,7 @@ useEffect(() => {
                     </Box>
 
                     <Box component="div" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {!zonesLoading && assignedZones.length > 1 && (
+                        {isFieldDataCollector && !zonesLoading && assignedZones.length > 1 && (
                             <FormControl fullWidth size="small">
                                 <InputLabel>Zone</InputLabel>
                                 <Select value={editSelectedZoneId || ''} label="Zone" onChange={(e) => setEditSelectedZoneId(e.target.value)}>
@@ -1640,10 +1781,12 @@ useEffect(() => {
 
             {/* ==================== SUBMIT CONFIRMATION DIALOG ==================== */}
             <Dialog open={submitDialog.open} onClose={() => setSubmitDialog({ open: false, half: null })} maxWidth="xs" fullWidth>
-                <DialogTitle sx={{ fontWeight: 600 }}>Confirm {submitDialog.half} Submission</DialogTitle>
+                <DialogTitle sx={{ fontWeight: 600 }}>
+                    Confirm {submitDialog.half === 'Month' ? 'Full Month' : submitDialog.half} Submission
+                </DialogTitle>
                 <DialogContent>
                     <Typography sx={{ mb: 2 }}>
-                        Are you sure you want to submit {submitDialog.half?.toLowerCase()} for{' '}
+                        Are you sure you want to submit {submitDialog.half === 'Month' ? 'the full month' : submitDialog.half?.toLowerCase()} for{' '}
                         {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}?
                     </Typography>
                     <Alert severity="info" sx={{ mt: 2 }}>
@@ -1657,28 +1800,23 @@ useEffect(() => {
                         </Alert>
                     )} */}
 
-                    {activeHalves && submitDialog.half === 'First Half' && (() => {
-                        // Get the deadline date for First Half (which is in previous month)
-                        const prevMonth = new Date(currentDate);
-                        prevMonth.setMonth(currentDate.getMonth() - 1);
-                        const deadlineDate = new Date(prevMonth.getFullYear(), prevMonth.getMonth(), activeHalves.firstHalf);
-                        const today = new Date();
-                        
-                        // Check if today is after the deadline date
-                        const isLate = today > deadlineDate;
-                        
-                        if (isLate) {
-                            return (
-                                <Alert severity="warning" sx={{ mt: 2 }}>
-                                    <Typography variant="body2">
-                                        Note: First Half submission deadline was on {deadlineDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}. 
-                                        This may be marked as LATE.
-                                    </Typography>
-                                </Alert>
-                            );
-                        }
-                        return null;
-                    })()}
+                    {activeHalves && (submitDialog.half === 'First Half' || submitDialog.half === 'Month') && (() => {
+                    const prevMonth = new Date(currentDate);
+                    prevMonth.setMonth(currentDate.getMonth() - 1);
+                    const deadlineDate = new Date(prevMonth.getFullYear(), prevMonth.getMonth(), activeHalves.firstHalf);
+                    const isLate = new Date() > deadlineDate;
+
+                    if (isLate) {
+                        return (
+                            <Alert severity="warning" sx={{ mt: 2 }}>
+                                <Typography variant="body2">
+                                    Note: Submission deadline was on {deadlineDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}. This may be marked as LATE.
+                                </Typography>
+                            </Alert>
+                        );
+                    }
+                    return null;
+                })()}
                     {activeHalves && submitDialog.half === 'Second Half' && activeHalves.secondHalf < currentDate.getDate() && (
                         <Alert severity="warning" sx={{ mt: 2 }}>
                             <Typography variant="body2">
@@ -1747,6 +1885,7 @@ useEffect(() => {
                             }}
                         />
                     </Grid>
+                    {isFieldDataCollector && (
                     <Grid item xs={12} sm={4}>
                         <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5 }}>
                             Zone
@@ -1755,10 +1894,12 @@ useEffect(() => {
                             {getZoneName(viewEvent.zoneId)}
                         </Typography>
                     </Grid>
+                    )}
                 </Grid>
 
                 {/* Row 2: Half, Scheme, Purpose of Tour */}
                 <Grid container spacing={3}>
+                    {isFieldDataCollector && (
                     <Grid item xs={12} sm={4}>
                         <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5 }}>
                             Half
@@ -1776,6 +1917,7 @@ useEffect(() => {
                             }}
                         />
                     </Grid>
+                    )}
                     {viewEvent.entryType === 'WORKING' ? (
                         <>
                             <Grid item xs={12} sm={4}>
