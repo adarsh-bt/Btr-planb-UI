@@ -76,6 +76,7 @@ const UserAdvancedTourDiaryDetail = () => {
 };
   
   // Get userId and month/year from location state
+  const [roleName, setRoleName] = useState("");
   const { userId, month: monthParam, year: yearParam, userDetails: userInfo } = location.state || {};
   const [selectedMonth, setSelectedMonth] = useState(monthParam || new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(yearParam || getLocalStorageYear());
@@ -147,6 +148,25 @@ const UserAdvancedTourDiaryDetail = () => {
   };
 
   // ============================ FETCH SCHEMES AND PURPOSES ============================
+
+  const fetchUserRole = async () => {
+  if (!userId) return;
+
+  try {
+    const response = await tourDiaryService.getUserRole(userId);
+
+    if (
+      !response.error &&
+      response.data?.payload?.roles?.length > 0
+    ) {
+      setRoleName(response.data.payload.roles[0].roleName);
+    }
+  } catch (err) {
+    console.error("Failed to fetch role", err);
+  }
+};
+
+
   const fetchSchemes = async () => {
     try {
       const data = await tourDiaryService.getAllSchemes();
@@ -316,6 +336,7 @@ const fetchSubmissionDetails = async () => {
         ...monthData,
         firstHalfId: detailResponse.data.firstHalfId || null,
         secondHalfId: detailResponse.data.secondHalfId || null,
+        fullMonthId: detailResponse.data.fullMonthId || null,
       };
     }
 
@@ -346,6 +367,7 @@ const fetchSubmissionDetails = async () => {
   // Fetch tour entries and submission details when dependencies change
   useEffect(() => {
     if (userId) {
+      fetchUserRole();
       fetchUserTourEntries();
       fetchSubmissionDetails();
     }
@@ -504,10 +526,12 @@ const fetchSubmissionDetails = async () => {
 
     // Get submission ID from merged details
     let submissionId = null;
-    if (approvalHalf === 'First Half') {
+    if (approvalHalf === "First Half") {
       submissionId = submissionDetails?.firstHalfId;
-    } else if (approvalHalf === 'Second Half') {
+    } else if (approvalHalf === "Second Half") {
       submissionId = submissionDetails?.secondHalfId;
+    } else if (approvalHalf === "Full Month") {
+      submissionId = submissionDetails?.fullMonthId;
     }
 
     if (!submissionId) {
@@ -1318,97 +1342,208 @@ const renderTableView = () => {
 >
   {/* Changed layout direction to 'column' and aligned items to the start */}
   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1.5 }}>
-    
-    {/* First Half */}
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+
+  {roleName === "Field Data Collector" ? (
+
+    <>
+      {/* ================= First Half ================= */}
+
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+          FH:
+        </Typography>
+
+        {submissionDetails.firstHalfSubmitted &&
+        submissionDetails.firstHalfSubmittedDate ? (
+          <Tooltip
+            title={
+              submissionDetails.firstHalfAdminStatus
+                ? `Status: ${submissionDetails.firstHalfAdminStatus}`
+                : ""
+            }
+            arrow
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <Typography variant="caption" color="text.secondary">
+                {`Submitted on ${new Date(
+                  submissionDetails.firstHalfSubmittedDate
+                ).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric"
+                })}, ${new Date(
+                  submissionDetails.firstHalfSubmittedDate
+                ).toLocaleTimeString("en-US", {
+                  hour: "numeric",
+                  minute: "2-digit",
+                  hour12: true
+                })}`}
+              </Typography>
+
+              {submissionDetails.firstHalfAdminStatus && (
+                <Chip
+                  label={submissionDetails.firstHalfAdminStatus}
+                  size="small"
+                  color={
+                    submissionDetails.firstHalfAdminStatus === "APPROVED"
+                      ? "success"
+                      : submissionDetails.firstHalfAdminStatus === "REJECTED"
+                      ? "error"
+                      : "warning"
+                  }
+                  sx={{
+                    height: "20px",
+                    fontSize: "0.65rem",
+                    fontWeight: "bold"
+                  }}
+                />
+              )}
+            </Box>
+          </Tooltip>
+        ) : (
+          <Typography
+            variant="caption"
+            color="text.disabled"
+            sx={{ fontStyle: "italic" }}
+          >
+            Not submitted
+          </Typography>
+        )}
+      </Box>
+
+      {/* ================= Second Half ================= */}
+
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+          SH:
+        </Typography>
+
+        {submissionDetails.secondHalfSubmitted &&
+        submissionDetails.secondHalfSubmittedDate ? (
+          <Tooltip
+            title={
+              submissionDetails.secondHalfAdminStatus
+                ? `Status: ${submissionDetails.secondHalfAdminStatus}`
+                : ""
+            }
+            arrow
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <Typography variant="caption" color="text.secondary">
+                {`Submitted on ${new Date(
+                  submissionDetails.secondHalfSubmittedDate
+                ).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric"
+                })}, ${new Date(
+                  submissionDetails.secondHalfSubmittedDate
+                ).toLocaleTimeString("en-US", {
+                  hour: "numeric",
+                  minute: "2-digit",
+                  hour12: true
+                })}`}
+              </Typography>
+
+              {submissionDetails.secondHalfAdminStatus && (
+                <Chip
+                  label={submissionDetails.secondHalfAdminStatus}
+                  size="small"
+                  color={
+                    submissionDetails.secondHalfAdminStatus === "APPROVED"
+                      ? "success"
+                      : submissionDetails.secondHalfAdminStatus === "REJECTED"
+                      ? "error"
+                      : "warning"
+                  }
+                  sx={{
+                    height: "20px",
+                    fontSize: "0.65rem",
+                    fontWeight: "bold"
+                  }}
+                />
+              )}
+            </Box>
+          </Tooltip>
+        ) : (
+          <Typography
+            variant="caption"
+            color="text.disabled"
+            sx={{ fontStyle: "italic" }}
+          >
+            Not submitted
+          </Typography>
+        )}
+      </Box>
+    </>
+
+  ) : (
+
+    /* ================= Full Month ================= */
+
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
       <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-        FH:
+        Month:
       </Typography>
-      {submissionDetails.firstHalfSubmitted && submissionDetails.firstHalfSubmittedDate ? (
+
+      {submissionDetails.fullMonthSubmitted &&
+      submissionDetails.fullMonthSubmittedDate ? (
         <Tooltip
           title={
-            submissionDetails.firstHalfAdminStatus
-              ? `Status: ${submissionDetails.firstHalfAdminStatus}`
-              : ''
+            submissionDetails.fullMonthAdminStatus
+              ? `Status: ${submissionDetails.fullMonthAdminStatus}`
+              : ""
           }
           arrow
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
             <Typography variant="caption" color="text.secondary">
-              {`Submitted on ${new Date(submissionDetails.firstHalfSubmittedDate).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric'
-              })}, ${new Date(submissionDetails.firstHalfSubmittedDate).toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
+              {`Submitted on ${new Date(
+                submissionDetails.fullMonthSubmittedDate
+              ).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric"
+              })}, ${new Date(
+                submissionDetails.fullMonthSubmittedDate
+              ).toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit",
                 hour12: true
               })}`}
             </Typography>
-            {submissionDetails.firstHalfAdminStatus && (
+
+            {submissionDetails.fullMonthAdminStatus && (
               <Chip
-                label={submissionDetails.firstHalfAdminStatus}
+                label={submissionDetails.fullMonthAdminStatus}
                 size="small"
                 color={
-                  submissionDetails.firstHalfAdminStatus === 'APPROVED' ? 'success' :
-                  submissionDetails.firstHalfAdminStatus === 'REJECTED' ? 'error' : 'warning'
+                  submissionDetails.fullMonthAdminStatus === "APPROVED"
+                    ? "success"
+                    : submissionDetails.fullMonthAdminStatus === "REJECTED"
+                    ? "error"
+                    : "warning"
                 }
-                sx={{ height: '20px', fontSize: '0.65rem', fontWeight: 'bold' }}
+                sx={{
+                  height: "20px",
+                  fontSize: "0.65rem",
+                  fontWeight: "bold"
+                }}
               />
             )}
           </Box>
         </Tooltip>
       ) : (
-        <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+        <Typography
+          variant="caption"
+          color="text.disabled"
+          sx={{ fontStyle: "italic" }}
+        >
           Not submitted
         </Typography>
       )}
     </Box>
 
-    {/* Second Half */}
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-        SH:
-      </Typography>
-      {submissionDetails.secondHalfSubmitted && submissionDetails.secondHalfSubmittedDate ? (
-        <Tooltip
-          title={
-            submissionDetails.secondHalfAdminStatus
-              ? `Status: ${submissionDetails.secondHalfAdminStatus}`
-              : ''
-          }
-          arrow
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography variant="caption" color="text.secondary">
-              {`Submitted on ${new Date(submissionDetails.secondHalfSubmittedDate).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric'
-              })}, ${new Date(submissionDetails.secondHalfSubmittedDate).toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true
-              })}`}
-            </Typography>
-            {submissionDetails.secondHalfSubmittedDate && (
-              <Chip
-                label={submissionDetails.secondHalfAdminStatus}
-                size="small"
-                color={
-                  submissionDetails.secondHalfAdminStatus === 'APPROVED' ? 'success' :
-                  submissionDetails.secondHalfAdminStatus === 'REJECTED' ? 'error' : 'warning'
-                }
-                sx={{ height: '20px', fontSize: '0.65rem', fontWeight: 'bold' }}
-              />
-            )}
-          </Box>
-        </Tooltip>
-      ) : (
-        <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
-          Not submitted
-        </Typography>
-      )}
-    </Box>
-  </Box>
+  )}
+
+</Box>
 </Paper>
     )}
   </Box>
@@ -1485,77 +1620,131 @@ const renderTableView = () => {
   open={Boolean(approvalAnchorEl)}
   onClose={closeApprovalMenu}
 >
-  <MenuItem
-    onClick={() => handleBulkApprovalHalf('First Half')}
-    disabled={
-      !submissionDetails?.firstHalfSubmitted ||
-      submissionDetails?.firstHalfAdminStatus === 'APPROVED'
-    }
-  >
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <Typography>First Half</Typography>
-      {!submissionDetails?.firstHalfSubmitted ? (
-        <Typography variant="caption" color="text.disabled">(Not submitted)</Typography>
-      ) : submissionDetails?.firstHalfAdminStatus === 'APPROVED' ? (
-        <Chip
-          label="Already Approved"
-          size="small"
-          color="success"
-          sx={{ height: '20px', fontSize: '0.65rem', fontWeight: 'bold' }}
-        />
-      ) : submissionDetails?.firstHalfAdminStatus === 'REJECTED' ? (
-        <Chip
-          label="Rejected"
-          size="small"
-          color="error"
-          sx={{ height: '20px', fontSize: '0.65rem', fontWeight: 'bold' }}
-        />
-      ) : (
-        <Chip
-          label="Pending"
-          size="small"
-          color="warning"
-          sx={{ height: '20px', fontSize: '0.65rem', fontWeight: 'bold' }}
-        />
-      )}
-    </Box>
-  </MenuItem>
+  {roleName === "Field Data Collector" ? (
+    <>
+      {/* ---------- First Half ---------- */}
+      <MenuItem
+        onClick={() => handleBulkApprovalHalf("First Half")}
+        disabled={
+          !submissionDetails?.firstHalfSubmitted ||
+          submissionDetails?.firstHalfAdminStatus === "APPROVED"
+        }
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography>First Half</Typography>
 
-  <MenuItem
-    onClick={() => handleBulkApprovalHalf('Second Half')}
-    disabled={
-      !submissionDetails?.secondHalfSubmitted ||
-      submissionDetails?.secondHalfAdminStatus === 'APPROVED'
-    }
-  >
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <Typography>Second Half</Typography>
-      {!submissionDetails?.secondHalfSubmitted ? (
-        <Typography variant="caption" color="text.disabled">(Not submitted)</Typography>
-      ) : submissionDetails?.secondHalfAdminStatus === 'APPROVED' ? (
-        <Chip
-          label="Already Approved"
-          size="small"
-          color="success"
-          sx={{ height: '20px', fontSize: '0.65rem', fontWeight: 'bold' }}
-        />
-      ) : submissionDetails?.secondHalfAdminStatus === 'REJECTED' ? (
-        <Chip
-          label="Rejected"
-          size="small"
-          color="error"
-          sx={{ height: '20px', fontSize: '0.65rem', fontWeight: 'bold' }}
-        />
-      ) : (
-        <Chip
-          label="Pending"
-          size="small"
-          color="warning"
-          sx={{ height: '20px', fontSize: '0.65rem', fontWeight: 'bold' }}
-        />
-      )}
-    </Box>
-  </MenuItem>
+          {!submissionDetails?.firstHalfSubmitted ? (
+            <Typography variant="caption" color="text.disabled">
+              (Not submitted)
+            </Typography>
+          ) : submissionDetails?.firstHalfAdminStatus === "APPROVED" ? (
+            <Chip
+              label="Already Approved"
+              size="small"
+              color="success"
+              sx={{ height: "20px", fontSize: "0.65rem", fontWeight: "bold" }}
+            />
+          ) : submissionDetails?.firstHalfAdminStatus === "REJECTED" ? (
+            <Chip
+              label="Rejected"
+              size="small"
+              color="error"
+              sx={{ height: "20px", fontSize: "0.65rem", fontWeight: "bold" }}
+            />
+          ) : (
+            <Chip
+              label="Pending"
+              size="small"
+              color="warning"
+              sx={{ height: "20px", fontSize: "0.65rem", fontWeight: "bold" }}
+            />
+          )}
+        </Box>
+      </MenuItem>
+
+      {/* ---------- Second Half ---------- */}
+      <MenuItem
+        onClick={() => handleBulkApprovalHalf("Second Half")}
+        disabled={
+          !submissionDetails?.secondHalfSubmitted ||
+          submissionDetails?.secondHalfAdminStatus === "APPROVED"
+        }
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography>Second Half</Typography>
+
+          {!submissionDetails?.secondHalfSubmitted ? (
+            <Typography variant="caption" color="text.disabled">
+              (Not submitted)
+            </Typography>
+          ) : submissionDetails?.secondHalfAdminStatus === "APPROVED" ? (
+            <Chip
+              label="Already Approved"
+              size="small"
+              color="success"
+              sx={{ height: "20px", fontSize: "0.65rem", fontWeight: "bold" }}
+            />
+          ) : submissionDetails?.secondHalfAdminStatus === "REJECTED" ? (
+            <Chip
+              label="Rejected"
+              size="small"
+              color="error"
+              sx={{ height: "20px", fontSize: "0.65rem", fontWeight: "bold" }}
+            />
+          ) : (
+            <Chip
+              label="Pending"
+              size="small"
+              color="warning"
+              sx={{ height: "20px", fontSize: "0.65rem", fontWeight: "bold" }}
+            />
+          )}
+        </Box>
+      </MenuItem>
+    </>
+  ) : (
+    <>
+      {/* ---------- Full Month ---------- */}
+      <MenuItem
+        onClick={() => handleBulkApprovalHalf("Full Month")}
+        disabled={
+          !submissionDetails?.fullMonthSubmitted ||
+          submissionDetails?.fullMonthAdminStatus === "APPROVED"
+        }
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography>Full Month</Typography>
+
+          {!submissionDetails?.fullMonthSubmitted ? (
+            <Typography variant="caption" color="text.disabled">
+              (Not submitted)
+            </Typography>
+          ) : submissionDetails?.fullMonthAdminStatus === "APPROVED" ? (
+            <Chip
+              label="Already Approved"
+              size="small"
+              color="success"
+              sx={{ height: "20px", fontSize: "0.65rem", fontWeight: "bold" }}
+            />
+          ) : submissionDetails?.fullMonthAdminStatus === "REJECTED" ? (
+            <Chip
+              label="Rejected"
+              size="small"
+              color="error"
+              sx={{ height: "20px", fontSize: "0.65rem", fontWeight: "bold" }}
+            />
+          ) : (
+            <Chip
+              label="Pending"
+              size="small"
+              color="warning"
+              sx={{ height: "20px", fontSize: "0.65rem", fontWeight: "bold" }}
+            />
+          )}
+        </Box>
+      </MenuItem>
+    </>
+  )}
 </Menu>
     </Box>
   </Box>

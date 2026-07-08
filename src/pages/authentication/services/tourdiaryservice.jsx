@@ -543,7 +543,39 @@ async getSubmissionView(userId, year) {
       message: error.response?.data?.message || error.message
     };
   }
-}
+},
+
+// ✅ Get User Role
+async getUserRole(userId) {
+  const token = localStorage.getItem("token");
+
+  try {
+    const response = await axios.get(
+      `${BASE_URL}/user-access/api/user-profile/user-role/${userId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    return {
+      data: response.data,
+      error: false
+    };
+  } catch (err) {
+    console.error("Error fetching user role:", err);
+
+    return {
+      error: true,
+      message:
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to fetch user role"
+    };
+  }
+},
 
 };
 
