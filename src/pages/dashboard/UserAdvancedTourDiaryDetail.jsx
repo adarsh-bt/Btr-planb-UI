@@ -1265,9 +1265,13 @@ const renderTableView = () => {
   }
 
   return (
-    <Grid container spacing={3}>
+    <Grid container spacing={2}>
         <Breadcrumb />
+        
       <Grid item xs={12}>
+       <Typography variant="h3" align="center" sx={{ color: theme.palette.text.primary }}>
+                                  Advanced Tour Program Management
+                              </Typography>
       </Grid>
 
       <Grid item xs={12}>
@@ -1589,7 +1593,7 @@ const renderTableView = () => {
           htmlFor="table-view"
           sx={{ cursor: 'pointer', fontWeight: viewMode === 'table' ? 600 : 400 }}
         >
-          Table View
+          Table View 
         </Typography>
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center' }}>

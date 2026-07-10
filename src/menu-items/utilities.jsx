@@ -158,7 +158,7 @@ if (role == 'Super Admin' ||role === 'IT Admin' || role === 'District Level Appr
     clusterFormation,
     ClusterFormView,
     workallocation,
-    cceview,
+    // cceview,
     ccereport
   );
 } else if (role === 'EARAS Admin') {

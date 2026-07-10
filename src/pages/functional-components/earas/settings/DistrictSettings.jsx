@@ -181,6 +181,7 @@ const paginatedDistricts = filteredDistricts.slice(page * rowsPerPage, page * ro
     setError("");
     try {
       const data = await SettingService.fetchDistricts();
+     
       setDistricts(data);
       setFilteredDistricts(data);
     } catch (err) {
@@ -1022,7 +1023,8 @@ const DistrictOfficeManagementTab = () => {
   // Fetch districts for dropdown
   const fetchDistricts = useCallback(async () => {
   try {
-    const mappedDistricts = await SettingService.fetchDistrictsForDropdown();
+    const mappedDistricts = await SettingService.fetchDistricts();
+    console.log("Fetched districts for dropdown:", mappedDistricts);
     setDistricts(mappedDistricts);
   } catch (err) {
     console.error("Error fetching districts:", err);
@@ -1049,6 +1051,7 @@ const DistrictOfficeManagementTab = () => {
 
   const getDistrictDisplay = (distId) => {
     const district = districts.find(d => d.dist_id === distId);
+    console.log("getDistrictDisplay:", distId, districts);
     if (district) {
       return `${district.dist_name_en} / ${district.dist_name_mal}`;
     }

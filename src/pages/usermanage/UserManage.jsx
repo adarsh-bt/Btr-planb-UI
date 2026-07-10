@@ -125,7 +125,8 @@ const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [errors, setErrors] = useState({ district: '', office: '' });
-
+const isZoneManager =
+  userData?.roleSchemeResponses?.[0]?.roleId === 1;
   // Fetch districts on component mount
   useEffect(() => {
     const fetchDistricts = async () => {
@@ -1383,10 +1384,11 @@ console.log("roleScheme ",roleScheme)
   <Tab label="Change Schemes & Roles" />
   <Tab label="Change Designations" />
   <Tab label="Change Office Type" />
-  {userData.roleSchemeResponses?.[0]?.roleId === 1 && (
+  {isZoneManager && (
     <Tab label="Zone Manage" />
   )}
-  <Tab label="Change user status" />
+
+  <Tab label="Change User Status" />
 </Tabs>
 
                   {/* Change Schemes & Roles */}
@@ -1924,7 +1926,7 @@ console.log("roleScheme ",roleScheme)
 </Grid>
                   )}
 
-                  {innerTabValue === 3 && (
+                 {isZoneManager && innerTabValue === 3 && (
                     
                       <Grid container spacing={2}>
                         <Grid item xs={12} >
@@ -1985,7 +1987,7 @@ console.log("roleScheme ",roleScheme)
                   )}
 
                   {/* Change user status */}
-                  {innerTabValue === 4 && (
+                 {innerTabValue === (isZoneManager ? 4 : 3) && (
                 <Card variant="outlined" sx={{ p: 2, mt: 2,background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', }}>
   <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
     <Typography variant="subtitle1" fontWeight="bold">

@@ -221,6 +221,7 @@ function WorkAllocationForm() {
   const [formStatus, setFormStatus] = useState('NEW');
   const [verifyStatus, setverifyStatus] = useState('');
   const [verifyDate, setverifyDate] = useState('');
+    const [verifyInspectorRemark, setverifyInspectorRemarks] = useState('');
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -329,10 +330,12 @@ const fetchWorkAllocation = React.useCallback(async () => {
         const backendStatus = allocations[0].status || (allocations[0].isEdit ? 'DRAFT' : 'SUBMITTED');
         const verifyStatus = allocations[0].verifiedStatus || '';
 const verifyDate = allocations[0].verifiedDate || '';
+const verifyInspectorRemark = allocations[0].verifiedRemarks || '';
 setFormStatus(backendStatus);
 setverifyStatus(verifyStatus);  // ✅ Changed: lowercase 'v'
 setverifyDate(verifyDate);      // ✅ Changed: lowercase 'v'
-        
+ setverifyInspectorRemarks(verifyInspectorRemark);        
+ setAdminRemarks(allocations[0].adminRemarks || '');
         if (isAdmin) {
           setIsDisabled(true);
         } else {
@@ -853,7 +856,7 @@ const handleInputChange = (index, field, value) => {
       <TableHead>
         <TableRow>
           <StyledTableCell rowSpan={2}>Panchayat / Municipality / Corporation Zone</StyledTableCell>
-          <StyledTableCell rowSpan={2}>Name Of Villages</StyledTableCell>
+          {/* <StyledTableCell rowSpan={2}>Name Of Villages</StyledTableCell> */}
           <StyledTableCell align="center" colSpan={3}>Area as per village records (in cents)</StyledTableCell>
         </TableRow>
         <TableRow>
@@ -873,9 +876,9 @@ const handleInputChange = (index, field, value) => {
               <StyledTableCell>
                 <FormInput size="small" value={row.p_name} disabled={true} variant="outlined" />
               </StyledTableCell>
-              <StyledTableCell>
+              {/* <StyledTableCell>
                 <FormInput size="small" value={row.villages ? row.villages.join(', ') : 'N/A'} disabled={true} variant="outlined" />
-              </StyledTableCell>
+              </StyledTableCell> */}
               
               {/* Wet Area - User Editable */}
               <StyledTableCell>
@@ -936,7 +939,7 @@ const handleInputChange = (index, field, value) => {
       <TableHead>
         <TableRow>
           <StyledTableCell align="center">NAME OF PANCHAYATH</StyledTableCell>
-          <StyledTableCell align="center">NAME OF VILLAGE</StyledTableCell>
+          {/* <StyledTableCell align="center">NAME OF VILLAGE</StyledTableCell> */}
           <StyledTableCell align="center">FOREST AREAS</StyledTableCell>
           <StyledTableCell align="center">PLANTATION AREA</StyledTableCell>
           <StyledTableCell align="center">AREA OF WATER BODIES</StyledTableCell>
@@ -958,9 +961,9 @@ const totalExcluded = forest + plantation + water + other;
               <StyledTableCell>
                 <Typography variant="body2" fontWeight={500}>{row.p_name}</Typography>
               </StyledTableCell>
-              <StyledTableCell>
+              {/* <StyledTableCell>
                 <FormInput size="small" value={row.villages ? row.villages.join(', ') : 'N/A'} disabled={true} variant="outlined" />
-              </StyledTableCell>
+              </StyledTableCell> */}
               
               {/* Forest Areas - User Editable */}
               <StyledTableCell>
@@ -1235,7 +1238,7 @@ const plotsTotal = plotsWet + plotsDry;
       <Container maxWidth="xl">
         <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
           <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#00796b' }}>
-            WORK ALLOCATION STATEMENT
+            WORK ALLOCATION STATEMENT 
           </Typography>
           {isAdmin && (
             <Chip icon={<LockIcon />} label="Admin View Mode" color="secondary" sx={{ fontWeight: 600 }} />
@@ -1259,62 +1262,103 @@ const plotsTotal = plotsWet + plotsDry;
 {/* Verification Status Display - Only when approval exists */}
 {approvalLogId && verifyStatus && (
   <Box sx={{ mb: 3 }}>
-    <Paper 
-      elevation={0} 
-      sx={{ 
-        p: 2, 
-        bgcolor: verifyStatus === 'VERIFIED' ? '#e8f5e9' : '#fff3e0',
-        border: `1px solid ${verifyStatus === 'VERIFIED' ? '#4caf50' : '#ff9800'}`,
+    <Paper
+      elevation={0}
+      sx={{
+        p: 2,
+        bgcolor: verifyStatus === "VERIFIED" ? "#e8f5e9" : "#fff3e0",
+        border: `1px solid ${
+          verifyStatus === "VERIFIED" ? "#4caf50" : "#ff9800"
+        }`,
         borderRadius: 1,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 2
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        flexWrap: "wrap",
+        gap: 2,
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-        {verifyStatus === 'VERIFIED' ? (
-          <CheckCircleIcon sx={{ color: '#4caf50' }} />
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        {verifyStatus === "VERIFIED" ? (
+          <CheckCircleIcon sx={{ color: "#4caf50" }} />
         ) : (
-          <PendingIcon sx={{ color: '#ff9800' }} />
+          <PendingIcon sx={{ color: "#ff9800" }} />
         )}
+
         <Box>
           <Typography variant="subtitle2" fontWeight={600}>
-            Field Inspector Verification: 
-            <Chip 
-              label={verifyStatus} 
-              size="small" 
-              color={verifyStatus === 'VERIFIED' ? 'success' : 'warning'}
+            Field Inspector Verification:
+            <Chip
+              label={verifyStatus}
+              size="small"
+              color={
+                verifyStatus === "VERIFIED" ? "success" : "warning"
+              }
               sx={{ ml: 1, fontWeight: 600 }}
             />
           </Typography>
+
           {verifyDate && (
-            <Typography variant="caption" color="text.secondary" display="block">
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+            >
               Verified on: {verifyDate}
             </Typography>
           )}
+
+          {verifyDate && verifyInspectorRemark && (
+            <Box
+              sx={{
+                mt: 1,
+                p: 1,
+                bgcolor: "grey.50",
+                borderRadius: 1,
+                border: "1px solid",
+                borderColor: "divider",
+                overflow: "auto",
+              }}
+            >
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                fontWeight="medium"
+              >
+                Verification Remark:
+              </Typography>
+
+              <Typography
+                variant="body2"
+                sx={{ mt: 0.5, whiteSpace: "pre-wrap" }}
+              >
+                {verifyInspectorRemark}
+              </Typography>
+            </Box>
+          )}
         </Box>
       </Box>
-      
+
       {/* Verification Button for Field Inspector */}
-      {isFieldInspector && formStatus === 'SUBMITTED' && verifyStatus !== 'VERIFIED' && (
-        <Button 
-          variant="contained" 
-          color="warning"
-          size="small"
-          onClick={() => setVerifyDialogOpen(true)}
-          startIcon={<PendingIcon />}
-        >
-          Verify Field Data
-        </Button>
-      )}
-      
-      {verifyStatus === 'VERIFIED' && (
-        <Chip 
-          icon={<CheckCircleIcon />} 
-          label="Verified" 
-          color="success" 
+      {isFieldInspector &&
+        formStatus === "SUBMITTED" &&
+        verifyStatus !== "VERIFIED" && (
+          <Button
+            variant="contained"
+            color="warning"
+            size="small"
+            onClick={() => setVerifyDialogOpen(true)}
+            startIcon={<PendingIcon />}
+          >
+            Verify Field Data
+          </Button>
+        )}
+
+      {verifyStatus === "VERIFIED" && (
+        <Chip
+          icon={<CheckCircleIcon />}
+          label="Verified"
+          color="success"
           variant="outlined"
         />
       )}
@@ -1388,9 +1432,16 @@ const plotsTotal = plotsWet + plotsDry;
                       fullWidth
                       multiline
                       rows={3}
+                      onChange={(e) => {
+      if (e.target.value.length <= 350) {
+        setAdminRemarks(e.target.value);
+      }
+    }}
+     inputProps={{ maxLength: 350 }}
                       label="Approver Decision Notes / Remarks"
+                       helperText={`${adminRemarks.length}/350 characters`}
                       value={adminRemarks}
-                      onChange={(e) => setAdminRemarks(e.target.value)}
+                      
                       placeholder={formStatus === 'UNDER REVIEW' ? 'Add additional notes or final decision remarks...' : 'Add observations, notes, or required amendments context...'}
                     />
                   </Grid>
@@ -1550,7 +1601,10 @@ const plotsTotal = plotsWet + plotsDry;
           rows={3}
           label="Remarks / Comments"
           value={verifyRemarks}
-          onChange={(e) => setVerifyRemarks(e.target.value)}
+          
+           onChange={(e) => setVerifyRemarks(e.target.value.slice(0, 350))}
+    inputProps={{ maxLength: 350 }}
+    helperText={`${verifyRemarks.length}/350 characters`}
           placeholder="Add any observations or comments about the field verification..."
         />
       </Grid>

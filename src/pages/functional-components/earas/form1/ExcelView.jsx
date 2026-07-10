@@ -378,11 +378,23 @@ const ExcelView = ({ open, onClose, clusterId }) => {
       ? `${crop.malayalamName || crop.cropName} (${crop.growthStage})`
       : crop.malayalamName || crop.cropName;
 
-    // Get values for active clusters (I and UI)
-    const clusterData = activeClusters.map(cluster => ({
-      i: crop[`${cluster.toLowerCase()}I`] ?? 0,
-      ui: crop[`${cluster.toLowerCase()}UI`] ?? 0
-    }));
+const clusterData = activeClusters.map(cluster => {
+  const key = cluster.toLowerCase();
+
+  if (key === "k") {
+    return {
+      i: crop.ki ?? 0,
+      ui: crop.kui ?? 0
+    };
+  }
+
+  return {
+    i: crop[`${key}I`] ?? 0,
+    ui: crop[`${key}UI`] ?? 0
+  };
+});
+
+    
 
     return (
       <TableRow>

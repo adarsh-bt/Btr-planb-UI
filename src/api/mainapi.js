@@ -33,9 +33,9 @@ class mainapi {
 //   static FORM_API = 'https://www.aidea.kerala.gov.in';
 
   // static BASE_URL = 'https://staging.aieda.kerala.gov.in';
-  // static USER_API = 'https://staging.aidea.kerala.gov.in';
-  // static BTR_API  = 'https://staging.aidea.kerala.gov.in';
-  // static FORM_API = 'https://staging.aidea.kerala.gov.in';
+  // static USER_API = 'https://staging.aieda.kerala.gov.in';
+  // static BTR_API  = 'https://staging.aieda.kerala.gov.in';
+  // static FORM_API = 'https://staging.aieda.kerala.gov.in';
   
 }
 

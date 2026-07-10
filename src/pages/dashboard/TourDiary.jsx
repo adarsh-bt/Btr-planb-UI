@@ -45,6 +45,7 @@ import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
 import tourDiaryService from 'pages/authentication/services/tourdiaryservice';
 import authservice from 'pages/authentication/services/authservice';
+import { id } from 'date-fns/locale';
 
 const TourDiary = () => {
     const theme = useTheme();
@@ -89,7 +90,7 @@ const TourDiary = () => {
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [halvesLoading, setHalvesLoading] = useState(false);
     const [submitLoading, setSubmitLoading] = useState(false);
-    const [submitDialog, setSubmitDialog] = useState({ open: false, half: null });
+    const [submitDialog, setSubmitDialog] = useState({ open: false, half: null,id: null });
     const [submitAnchorEl, setSubmitAnchorEl] = useState(null);
     const [notification, setNotification] = useState({ open: false, type: 'success', message: '' });
     const [deleteDialog, setDeleteDialog] = useState({ open: false, eventId: null });
@@ -178,11 +179,19 @@ const TourDiary = () => {
     };
 
     // Returns true if the given half has already been submitted and should be locked
-    const isHalfLocked = (isFirstHalf) => {
-        if (!submissionView) return false;
-        return isFirstHalf ? !!submissionView.firstHalfSubmitted : !!submissionView.secondHalfSubmitted;
-    };
-
+    // const isHalfLocked = (isFirstHalf) => {
+    //     if (!submissionView) return false;
+    //     return isFirstHalf ? !!submissionView.firstHalfSubmitted : !!submissionView.secondHalfSubmitted;
+    // };
+const isHalfLocked = (isFirstHalf) => {
+    if (!submissionView) return false;
+    if (isFirstHalf) {
+        // If submitted and not rejected -> locked
+        return submissionView.firstHalfSubmitted && submissionView.firstHalfAdminStatus !== 'REJECTED';
+    } else {
+        return submissionView.secondHalfSubmitted && submissionView.secondHalfAdminStatus !== 'REJECTED';
+    }
+};
     // Open view details modal
     const openViewModal = (event) => {
         setViewEvent(event);
@@ -321,6 +330,7 @@ const getUsedPurposesForEventDate = (event) => {
         setSubmissionStatus(prev => ({ ...prev, loading: true }));
         try {
             const response = await tourDiaryService.getAdminSubmissionDetails(userId, year, month);
+            console.log("Submission Details API Response:", response);
             if (!response.error && response.data) {
                 setSubmissionStatus({
                     firstHalf: {
@@ -330,7 +340,8 @@ const getUsedPurposesForEventDate = (event) => {
                         endDate: response.data.firstHalfEndDate,
                         isLate: response.data.firstHalfIsLate,
                         submittedAt: response.data.firstHalfSubmittedAt,
-                        isSubmitted: !!response.data.firstHalfId
+                        isSubmitted: !!response.data.firstHalfId,
+                        adminstatus: response.data.adminFirstStatus || null
                     },
                     secondHalf: {
                         id: response.data.secondHalfId,
@@ -339,7 +350,8 @@ const getUsedPurposesForEventDate = (event) => {
                         endDate: response.data.secondHalfEndDate,
                         isLate: response.data.secondHalfIsLate,
                         submittedAt: response.data.secondHalfSubmittedAt,
-                        isSubmitted: !!response.data.secondHalfId
+                        isSubmitted: !!response.data.secondHalfId,
+                        adminstatus: response.data.adminSecondStatus || null
                     },
                     loading: false
                 });
@@ -358,7 +370,7 @@ const getUsedPurposesForEventDate = (event) => {
     setSubmissionViewLoading(true);
     try {
         const response = await tourDiaryService.getSubmissionView(userId, year);
-        console.log("Submission View API Response:", response);
+      
         if (Array.isArray(response)) {
             const currentMonth = currentDate.getMonth() + 1;
             const monthData = response.find(item => item.month === currentMonth);
@@ -437,16 +449,19 @@ useEffect(() => {
 
     // ============================ HALF SUBMIT ============================
     const handleSubmitHalf = async (half) => {
-        if (half === 'First Half' && submissionStatus.firstHalf?.isSubmitted) {
+
+        // if (half === 'First Half' && submissionStatus.firstHalf?.isSubmitted && submissionStatus.firstHalf.adminstatus === 'REJECTED') {
+        if (half === 'First Half' && submissionStatus.firstHalf?.isSubmitted && submissionStatus.firstHalf.adminstatus !== 'REJECTED') {
             showNotification('info', `First Half already submitted on ${new Date(submissionStatus.firstHalf.submittedAt).toLocaleString()}`);
             closeSubmitMenu();
             return;
         }
-        if (half === 'Second Half' && submissionStatus.secondHalf?.isSubmitted) {
+        if (half === 'Second Half' && submissionStatus.secondHalf?.isSubmitted && submissionStatus.secondHalf.adminstatus !== 'REJECTED') {
             showNotification('info', `Second Half already submitted on ${new Date(submissionStatus.secondHalf.submittedAt).toLocaleString()}`);
             closeSubmitMenu();
             return;
         }
+        console.log("Opening submit dialog for half:", submissionStatus);
         setSubmitDialog({ open: true, half });
         closeSubmitMenu();
     };
@@ -459,8 +474,9 @@ useEffect(() => {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth() + 1;
         const periodType = submitDialog.half === 'First Half' ? 'FIRST_HALF' : 'SECOND_HALF';
-        const payload = { periodType, zoneId: Number(zoneId), month, year, userId };
-
+        console.log("Submitting half:", submitDialog);
+        const payload = { periodType, zoneId: Number(zoneId), month, year, userId ,submitId: submitDialog.half === 'First Half' ? submissionStatus.firstHalf?.id : submissionStatus.secondHalf?.id};
+console.log("Submitting payload:", payload);
         try {
             setSubmitLoading(true);
             const response = await tourDiaryService.submitTourHalf(payload);
@@ -999,7 +1015,7 @@ useEffect(() => {
                     {/* Header - This will now stay on top */}
                     <Box>
                         <Typography variant="h3" align="center" sx={{ marginBottom: 3, color: theme.palette.text.primary }}>
-                            Advanced Tour Program
+                            Advanced Tour Program 
                         </Typography>
 
                         {/* Calendar Header */}
@@ -1122,8 +1138,10 @@ useEffect(() => {
                                         {/* Menu items remain the same */}
                                         <MenuItem
                                             onClick={() => handleSubmitHalf('First Half')}
-                                            disabled={submissionView?.firstHalfSubmitted}
-                                        >
+                                           disabled={
+  submissionView?.firstHalfSubmitted &&
+  submissionView?.firstHalfAdminStatus !== "REJECTED"
+}         >
                                             <Box
                                                 sx={{
                                                     display: 'flex',
@@ -1138,7 +1156,7 @@ useEffect(() => {
                                                     submissionView?.firstHalfSubmittedDate && (
                                                         <Chip
                                                             size="small"
-                                                            label={`Submitted ${new Date(
+                                                            label={`${submissionView.firstHalfAdminStatus} ${new Date(
                                                                 submissionView.firstHalfSubmittedDate
                                                             ).toLocaleString('en-US', {
                                                                 month: 'short',
@@ -1164,8 +1182,9 @@ useEffect(() => {
 
                                         <MenuItem
                                             onClick={() => handleSubmitHalf('Second Half')}
-                                            disabled={submissionView?.secondHalfSubmitted}
-                                        >
+                                            // disabled={submissionView?.secondHalfSubmitted}
+                                                                                      
+                                     disabled={submissionView?.secondHalfSubmitted && submissionView?.secondHalfAdminStatus !== "REJECTED"}>
                                             <Box
                                                 sx={{
                                                     display: 'flex',
@@ -1180,7 +1199,9 @@ useEffect(() => {
                                                     submissionView?.secondHalfSubmittedDate && (
                                                         <Chip
                                                             size="small"
-                                                            label={`Submitted ${new Date(
+                                                            // label={`Submitted ${new Date(
+                                                            //     submissionView.secondHalfSubmittedDate
+                                                             label={`${submissionView.secondHalfAdminStatus} ${new Date(
                                                                 submissionView.secondHalfSubmittedDate
                                                             ).toLocaleString('en-US', {
                                                                 month: 'short',
