@@ -111,6 +111,13 @@ const UserAdvancedTourDiaryDetail = () => {
   
   // ========== BULK APPROVAL STATES ==========
   const [approvalAnchorEl, setApprovalAnchorEl] = useState(null);
+
+  const [verifyAnchorEl, setVerifyAnchorEl] = useState(null);
+  const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
+  const [verifyHalf, setVerifyHalf] = useState('');
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifyRemarks, setVerifyRemarks] = useState('');
+
   const [bulkApprovalDialogOpen, setBulkApprovalDialogOpen] = useState(false);
   const [approvalHalf, setApprovalHalf] = useState('');
   const [approvalLoading, setApprovalLoading] = useState(false);
@@ -131,6 +138,30 @@ const UserAdvancedTourDiaryDetail = () => {
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
   ];
+
+  const loggedInRole = authservice.getrole();
+
+const showVerifyButton =
+  (roleName === "District Officer" &&
+    loggedInRole === "District Level Approver") ||
+
+  (roleName === "Field Data Collector" &&
+    loggedInRole === "Taluk Level Approver");
+
+  const openVerifyMenu = (event) => {
+  setVerifyAnchorEl(event.currentTarget);
+};
+
+const closeVerifyMenu = () => {
+  setVerifyAnchorEl(null);
+};
+
+const handleVerifyHalf = (half) => {
+  setVerifyHalf(half);
+  setVerifyRemarks('');
+  setVerifyDialogOpen(true);
+  closeVerifyMenu();
+};
 
   // Add these handler functions
   const handleClearSearch = () => {
@@ -1600,21 +1631,29 @@ const renderTableView = () => {
   }}>
     <Box>
       <Button
-        variant="contained"
-        onClick={openApprovalMenu}
-        disabled={loadingSubmissionDetails}
-        sx={{
-          backgroundColor: '#27ae60',
-          '&:hover': { backgroundColor: '#1e8449' },
-          '&.Mui-disabled': {
-            backgroundColor: theme.palette.action.disabledBackground
-          },
-          whiteSpace: 'nowrap',
-          minWidth: '90px'
-        }}
-      >
-        {loadingSubmissionDetails ? "Loading..." : "Approval"}
-      </Button>
+  variant="contained"
+  onClick={
+    showVerifyButton
+      ? openVerifyMenu
+      : openApprovalMenu
+  }
+  disabled={loadingSubmissionDetails}
+  sx={{
+    backgroundColor: '#27ae60',
+    '&:hover': { backgroundColor: '#1e8449' },
+    '&.Mui-disabled': {
+      backgroundColor: theme.palette.action.disabledBackground
+    },
+    whiteSpace: 'nowrap',
+    minWidth: '90px'
+  }}
+>
+  {loadingSubmissionDetails
+    ? "Loading..."
+    : showVerifyButton
+      ? "Verify"
+      : "Approval"}
+</Button>
       <Menu
   anchorEl={approvalAnchorEl}
   open={Boolean(approvalAnchorEl)}

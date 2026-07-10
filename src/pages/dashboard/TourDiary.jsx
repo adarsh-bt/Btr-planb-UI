@@ -1217,9 +1217,16 @@ const updateEvent = async () => {
                                                     {submissionView?.fullMonthSubmitted
                                                         ? `Entry submitted on ${new Date(
                                                             submissionView.fullMonthSubmittedDate
-                                                        ).toLocaleString()}`
+                                                        ).toLocaleString('en-IN', {
+                                                            day: '2-digit',
+                                                            month: 'short',
+                                                            year: 'numeric',
+                                                            hour: '2-digit',
+                                                            minute: '2-digit',
+                                                            hour12: true,
+                                                        })}`
                                                         : 'Entry not submitted'}
-                                                </Typography>
+                                                    </Typography>
                                             </Box>
                                         )}
                                     </Paper>

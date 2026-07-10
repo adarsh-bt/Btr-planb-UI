@@ -73,7 +73,7 @@ const AdminTourDiary = () => {
     }
     
     if (type === 'advanced') {
-      navigate("/approval_manage/tourdiary/user-submissions", { 
+      navigate("/approval_manage/advancedtourdiary/user-submissions", { 
         state: { userId: selectedUserId } 
       });
     } else if (type === 'regular') {

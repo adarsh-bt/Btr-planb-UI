@@ -690,7 +690,7 @@ const MainRoutes = {
       )
     },
     {
-  path: 'approval_manage/tourdiary/user-submissions',
+  path: 'approval_manage/advancedtourdiary/user-submissions',
   element: (
     <PrivateRoute>
       <UserAdvancedTourDiarySubmissions />
