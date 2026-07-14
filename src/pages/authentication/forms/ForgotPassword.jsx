@@ -14,16 +14,17 @@ const isValidEmail = (email) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}
 // Password validation function - MODIFIED to return an object of booleans
 function validatePassword(password) {
     const errors = {
-        length: password.length < 8 || password.length > 16,
+        // Updated to match your 8-character minimum choice
+        length: !password || password.length < 8,
+        
         uppercase: !/[A-Z]/.test(password),
         lowercase: !/[a-z]/.test(password),
         number: !/[0-9]/.test(password),
-        specialChar: !/[!@#$%^&*(),.?\":{}|<>]/.test(password),
+        specialChar: !/[@$!%*?&]/.test(password),
         noSpaces: /\s/.test(password),
     };
     return errors;
 }
-
 const ForgotPassword = ({ onBack }) => {
   const [step, setStep] = useState(1); // Step 1: Email, Step 2: OTP, Step 3: Password Reset
   const [email, setEmail] = useState('');
@@ -196,9 +197,11 @@ const handleEmailSubmit = async (e) => {
 };
     const response = await authservice.passwordReset(userLogin);
     if (response.status === 200) {
+      setError(''); 
       setSuccess('Password Successfully changed');
       setGlobalError('');
     } else {
+       setSuccess(''); 
       setGlobalError(response.message);
       setSuccess('');
     }

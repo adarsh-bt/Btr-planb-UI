@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Grid,
   Typography,
@@ -52,6 +52,18 @@ import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import AuthService from 'pages/authentication/services/authservice';
 
+/* ─────────────────────────── session persistence ─────────────────────────── */
+
+const SESSION_KEY = 'talukFormReportState';
+
+function getSavedState() {
+  try {
+    return JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
 function TalukFormReport() {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -102,32 +114,46 @@ function TalukFormReport() {
     return new Date().getMonth() + 1;
   };
 
-  // Initialize filters from navigation state or defaults
-  const getInitialFilters = () => {
-    const state = location.state || {};
-    
-    // Check if a district context was sent over from the parent view
-    if (state.districtId !== undefined && state.districtId !== null) {
-      return {
-        districtId: state.districtId,
-        filterType: state.filterType || 'single',
-        fromMonth: state.fromMonth || '',
-        toMonth: state.toMonth || '',
-        singleMonth: state.singleMonth !== undefined ? state.singleMonth : getCurrentMonth(),
-        seasonTab: state.seasonTab || 'ALL',
-        selectedSeason: state.selectedSeason || ''
-      };
-    }
+  /* ── merge location.state with saved sessionStorage state.
+        location.state wins when present (fresh navigation); saved state
+        is the fallback on refresh / breadcrumb return with no state. ── */
+  const stateData = useMemo(() => {
+    const saved = getSavedState();
+    return { ...saved, ...(location.state || {}) };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Fallback default properties if accessed without route state
+  /* ── resolve district ID once, keep in a ref ──
+        Priority:
+        1. stateData.districtId        (normal drill-down OR direct access)
+        2. stateData.districtOfficeId  (direct access from ReportMenuWrapper)  */
+  const resolvedDistrictId = useRef(null);
+
+  const resolveDistrictId = () => {
+    if (stateData.districtId !== undefined && stateData.districtId !== null) {
+      return stateData.districtId;
+    }
+    if (stateData.districtOfficeId !== undefined && stateData.districtOfficeId !== null) {
+      return stateData.districtOfficeId;
+    }
+    return null;
+  };
+
+  if (resolvedDistrictId.current === null) {
+    resolvedDistrictId.current = resolveDistrictId();
+  }
+
+  // Initialize filters from merged state or defaults
+  const getInitialFilters = () => {
     return {
-      districtId: null,
-      filterType: 'single',
-      fromMonth: '',
-      toMonth: '',
-      singleMonth: getCurrentMonth(),
-      seasonTab: 'ALL',
-      selectedSeason: ''
+      districtId: resolvedDistrictId.current,
+      filterType: stateData.filterType || 'single',
+      fromMonth: stateData.fromMonth || '',
+      toMonth: stateData.toMonth || '',
+      singleMonth: stateData.singleMonth !== undefined && stateData.singleMonth !== ''
+        ? stateData.singleMonth
+        : getCurrentMonth(),
+      seasonTab: stateData.seasonTab || 'ALL',
+      selectedSeason: stateData.selectedSeason || ''
     };
   };
 
@@ -151,23 +177,53 @@ function TalukFormReport() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
-  // Fetch data from API - Using districtId directly
+  /* ── display name: URL param (normal navigation) → state (direct access) → fallback ── */
+  const displayDistrictName =
+  (districtName && districtName !== 'direct' &&
+    districtName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')) ||
+  stateData.districtName ||
+  'District';
+
+  /* ── persist district context so refresh / breadcrumb back still works ── */
+  useEffect(() => {
+    if (resolvedDistrictId.current) {
+      sessionStorage.setItem(
+        SESSION_KEY,
+        JSON.stringify({
+          districtId: resolvedDistrictId.current,
+          districtOfficeId: resolvedDistrictId.current,
+          districtName: stateData.districtName || displayDistrictName || '',
+          isDirectAccess: stateData.isDirectAccess || false,
+          filterType: stateData.filterType || 'single',
+          fromMonth: stateData.fromMonth || '',
+          toMonth: stateData.toMonth || '',
+          singleMonth: stateData.singleMonth || getCurrentMonth(),
+          seasonTab: stateData.seasonTab || 'ALL',
+          selectedSeason: stateData.selectedSeason || ''
+        })
+      );
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch data from API - Using resolved districtId
   const fetchTalukData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      if (!districtId) {
-        setError('District ID not found');
+      const districtIdValue = resolvedDistrictId.current || districtId;
+
+      if (!districtIdValue) {
+        setError('District ID is required. Please navigate from the district report page.');
         setLoading(false);
         return;
       }
 
       let requestBody = {
-        agriYear: AuthService.agriyear() || "2025-2026", 
+        agriYear: AuthService.agriyear() || "2025-2026",
         seasonId: selectedSeason ? seasonToId[selectedSeason] : 3,
         landType: landTypeMapping[seasonTab] || 'WET',
-        distId: districtId  // Use the districtId passed from parent
+        distId: districtIdValue
       };
 
       // Handle different filter types
@@ -223,6 +279,7 @@ function TalukFormReport() {
   // Fetch data when filters change
   useEffect(() => {
     fetchTalukData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromMonth, toMonth, singleMonth, seasonTab, filterType, selectedSeason, districtId]);
 
   // Transform API data to match the table format
@@ -286,41 +343,44 @@ function TalukFormReport() {
   };
 
   const handleGoBack = () => {
-    // Pass current filter state back to district page
-    navigate('/kerala_form_report/district-wise-status-summary', {
-      state: { 
-        fromMonth, 
-        toMonth, 
-        seasonTab, 
-        filterType, 
-        singleMonth, 
-        selectedSeason 
+    // Pass current filter state back to the state-level district page
+    navigate('/FormReport/Kerala', {
+      state: {
+        fromMonth,
+        toMonth,
+        seasonTab,
+        filterType,
+        singleMonth,
+        selectedSeason
       }
     });
   };
 
   const handleViewBlockDetails = (talukName, talukId) => {
     const formattedTalukName = talukName.toLowerCase().replace(/\s+/g, '-');
-    const formattedDistrictName = districtName.toLowerCase().replace(/\s+/g, '-');
-    
+    // districtName param is undefined on the /direct route — fall back to the display name
+    const safeDistrictName = districtName || displayDistrictName || 'district';
+    const formattedDistrictName = safeDistrictName.toLowerCase().replace(/\s+/g, '-');
+
     navigate(`/kerala_form_report/zone_form_report/${formattedDistrictName}/${formattedTalukName}`, {
-      state: { 
-        districtId: districtId,  // Passed down as distId to your API call
-        talukId: talukId,        // CRITICAL FIX: Pinpoints the selected Taluk context
+      state: {
+        districtId: resolvedDistrictId.current || districtId,  // Passed down as distId to your API call
+        districtName: displayDistrictName,
+        talukId: talukId,        // CRITICAL: Pinpoints the selected Taluk context
         talukName: talukName,
-        fromMonth, 
-        toMonth, 
-        seasonTab, 
-        filterType, 
-        singleMonth, 
-        selectedSeason 
+        fromMonth,
+        toMonth,
+        seasonTab,
+        filterType,
+        singleMonth,
+        selectedSeason
       }
     });
   };
 
   const StatCard = ({ label, value, color, bgColor, icon, subtext }) => (
-    <Card sx={{ 
-      bgcolor: bgColor, 
+    <Card sx={{
+      bgcolor: bgColor,
       borderRadius: 3,
       transition: 'transform 0.2s, box-shadow 0.2s',
       '&:hover': {
@@ -367,9 +427,9 @@ function TalukFormReport() {
       <Grid container spacing={3} justifyContent="center" alignItems="center" sx={{ minHeight: '60vh' }}>
         <Grid item>
           <Typography color="error" variant="h6">Error: {error}</Typography>
-          <Button 
-            variant="contained" 
-            onClick={fetchTalukData} 
+          <Button
+            variant="contained"
+            onClick={fetchTalukData}
             sx={{ mt: 2 }}
           >
             Retry
@@ -390,7 +450,7 @@ function TalukFormReport() {
             <LocationOnIcon sx={{ fontSize: 40, color: '#1a237e' }} />
             <Box>
               <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1a237e' }}>
-                {districtName?.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} - Taluk wise Report
+                {displayDistrictName} - Taluk wise Report
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {filterType === 'single' && singleMonth && ` • ${singleMonth}`}
@@ -466,11 +526,11 @@ function TalukFormReport() {
                 <>
                   <FormControl size="small" sx={{ minWidth: 130 }}>
                     <InputLabel>From Month</InputLabel>
-                    <Select 
-                      value={fromMonth} 
-                      label="From Month" 
-                      onChange={(e) => { 
-                        setFromMonth(e.target.value); 
+                    <Select
+                      value={fromMonth}
+                      label="From Month"
+                      onChange={(e) => {
+                        setFromMonth(e.target.value);
                         setPage(0);
                         if (e.target.value && !toMonth) {
                           setToMonth(getCurrentMonth());
@@ -483,11 +543,11 @@ function TalukFormReport() {
                   <Typography variant="body2" color="text.secondary">→</Typography>
                   <FormControl size="small" sx={{ minWidth: 130 }}>
                     <InputLabel>To Month</InputLabel>
-                    <Select 
-                      value={toMonth} 
-                      label="To Month" 
-                      onChange={(e) => { 
-                        setToMonth(e.target.value); 
+                    <Select
+                      value={toMonth}
+                      label="To Month"
+                      onChange={(e) => {
+                        setToMonth(e.target.value);
                         setPage(0);
                         if (e.target.value && !fromMonth) {
                           setFromMonth('January');
@@ -510,7 +570,7 @@ function TalukFormReport() {
                   </Select>
                 </FormControl>
               )}
-              
+
               <FormControl size="small" sx={{ minWidth: 180 }}>
                 <InputLabel>Season</InputLabel>
                 <Select
@@ -545,7 +605,7 @@ function TalukFormReport() {
           }}
         >
           <Chip
-            label={`${districtName?.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} - District Report Summary`}
+            label={`${displayDistrictName} - District Report Summary`}
             color="primary"
             size="small"
             sx={{
@@ -560,48 +620,48 @@ function TalukFormReport() {
           />
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6} md={2.4}>
-              <StatCard 
-                label="Total Clusters" 
-                value={stats.total} 
-                color="#1565c0" 
-                bgColor={alpha('#1565c0', 0.08)} 
-                icon={<AssessmentIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />} 
+              <StatCard
+                label="Total Clusters"
+                value={stats.total}
+                color="#1565c0"
+                bgColor={alpha('#1565c0', 0.08)}
+                icon={<AssessmentIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />}
               />
             </Grid>
             <Grid item xs={12} sm={6} md={2.4}>
-              <StatCard 
-                label="Completed" 
-                value={stats.completed} 
-                color="#2e7d32" 
-                bgColor={alpha('#2e7d32', 0.08)} 
+              <StatCard
+                label="Completed"
+                value={stats.completed}
+                color="#2e7d32"
+                bgColor={alpha('#2e7d32', 0.08)}
                 icon={<CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />}
               />
             </Grid>
             <Grid item xs={12} sm={6} md={2.4}>
-              <StatCard 
-                label="Ongoing" 
-                value={stats.ongoing} 
-                color="#ed6c02" 
-                bgColor={alpha('#ed6c02', 0.08)} 
-                icon={<PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} />} 
+              <StatCard
+                label="Ongoing"
+                value={stats.ongoing}
+                color="#ed6c02"
+                bgColor={alpha('#ed6c02', 0.08)}
+                icon={<PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} />}
               />
             </Grid>
             <Grid item xs={12} sm={6} md={2.4}>
-              <StatCard 
-                label="Not Started" 
-                value={stats.notStarted} 
-                color="#757575" 
-                bgColor={alpha('#757575', 0.08)} 
-                icon={<ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} />} 
+              <StatCard
+                label="Not Started"
+                value={stats.notStarted}
+                color="#757575"
+                bgColor={alpha('#757575', 0.08)}
+                icon={<ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} />}
               />
             </Grid>
             <Grid item xs={12} sm={6} md={2.4}>
-              <StatCard 
-                label="Under Review" 
-                value={stats.underReview} 
-                color="#b76e00" 
-                bgColor={alpha('#b76e00', 0.08)} 
-                icon={<RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} />} 
+              <StatCard
+                label="Under Review"
+                value={stats.underReview}
+                color="#b76e00"
+                bgColor={alpha('#b76e00', 0.08)}
+                icon={<RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} />}
               />
             </Grid>
           </Grid>
@@ -632,7 +692,7 @@ function TalukFormReport() {
             }}
           />
           <MainCard
-            title={`Taluks in ${districtName?.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}`}
+            title={`Taluks in ${displayDistrictName}`}
             secondary={
               <TextField
                 placeholder="Search taluk..."
@@ -743,28 +803,31 @@ function TalukFormReport() {
         </Box>
       </Grid>
 
-      {/* Back Button */}
-      <Grid item xs={12}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-          <Button
-            variant="outlined"
-            onClick={handleGoBack}
-            startIcon={<ArrowBackIcon />}
-            sx={{
-              color: '#04255e',
-              borderColor: '#04255e',
-              borderRadius: 2,
-              px: 4,
-              '&:hover': {
+      {/* Back Button — hidden for direct-access (district approver) users,
+          who have no state-level page to go back to */}
+      {!stateData.isDirectAccess && (
+        <Grid item xs={12}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+            <Button
+              variant="outlined"
+              onClick={handleGoBack}
+              startIcon={<ArrowBackIcon />}
+              sx={{
+                color: '#04255e',
                 borderColor: '#04255e',
-                bgcolor: alpha('#04255e', 0.04)
-              }
-            }}
-          >
-            Back to Kerala Report
-          </Button>
-        </Box>
-      </Grid>
+                borderRadius: 2,
+                px: 4,
+                '&:hover': {
+                  borderColor: '#04255e',
+                  bgcolor: alpha('#04255e', 0.04)
+                }
+              }}
+            >
+              Back to Kerala Report
+            </Button>
+          </Box>
+        </Grid>
+      )}
     </Grid>
   );
 }

@@ -202,7 +202,7 @@ const Form5 = () => {
   // Cards configuration with actual data
   const cards = [
     {
-      title: 'Total CCE',
+      title: 'ALLOWTED CCE',
       count: stats.totalCCECrops,
       icon: Hub,
       color: theme.palette.success.dark,

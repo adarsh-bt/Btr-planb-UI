@@ -21,6 +21,9 @@ const ChangePassword = () => {
   const [loading, setLoading] = useState(false);
   const [otpVerifiedToken, setOtpVerifiedToken] = useState(null);
 
+const [showOldPassword, setShowOldPassword] = useState(false);
+
+
 
   // Step 1: Email Verification
  const handleEmailSubmit = async (e) => {
@@ -125,6 +128,7 @@ if (!otpVerifiedToken) {
 
       // Handling the response from the backend
       if (response.status === 200) {
+        setError('');
         setSuccess('Password changed successfully!');
         setStep(4); // Proceed to the next step, if applicable
       } else {
@@ -132,6 +136,7 @@ if (!otpVerifiedToken) {
       }
     } catch (error) {
       console.error('Error details:', error); // Log the error details
+        setSuccess('');
       setError('Error updating password.');
     }
   };
@@ -215,14 +220,26 @@ if (!otpVerifiedToken) {
         {/* Step 3: Change Password */}
         {step === 3 && (
           <>
-            <TextField
-              fullWidth
-              variant="outlined"
-              type="password"
-              label="Old Password"
-              value={oldPassword}
-              onChange={(e) => setOldPassword(e.target.value)}
-            />
+<TextField
+  fullWidth
+  variant="outlined"
+  type={showOldPassword ? "text" : "password"}
+  label="Old Password"
+  value={oldPassword}
+  onChange={(e) => setOldPassword(e.target.value)}
+  InputProps={{
+    endAdornment: (
+      <InputAdornment position="end">
+        <IconButton
+          onClick={() => setShowOldPassword(!showOldPassword)}
+          edge="end"
+        >
+          {showOldPassword ? <VisibilityOff /> : <Visibility />}
+        </IconButton>
+      </InputAdornment>
+    ),
+  }}
+/>
             <TextField
               fullWidth
               variant="outlined"

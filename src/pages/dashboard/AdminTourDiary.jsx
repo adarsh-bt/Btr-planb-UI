@@ -473,7 +473,7 @@ const AdminTourDiary = () => {
                 onClick={() => handleMenuSelect('advanced')}
                 sx={{ backgroundColor: '#1976d2' }}
               >
-                Advanced Tour Program
+                Advanced Tour Program  
               </Button>
               <Button
                 variant="contained"

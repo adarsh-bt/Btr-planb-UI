@@ -34,9 +34,15 @@ const TalukForm2 = () => {
   // Get district name and active tab from navigation state
   const selectedDistrict = location.state?.districtName || location.state?.selectedDistrict || "Kannur";
   const initialTab = location.state?.activeTab || 0;
-  
+
   // Tab state
   const [activeTab, setActiveTab] = useState(initialTab);
+
+  // Shared style for numeric cells - tabular numerals keep digits vertically aligned
+  const numericCellSx = {
+    fontVariantNumeric: 'tabular-nums',
+    whiteSpace: 'nowrap',
+  };
 
   // Taluk level data for different districts
   const talukDataMap = {
@@ -147,21 +153,22 @@ const TalukForm2 = () => {
     netAreaSown: 0
   });
 
+  // Taluk column stays left-aligned (text); all numeric columns are right-aligned
   const landUtilizationColumns = [
-    { id: 'taluk', label: 'Taluk', minWidth: 160 },
-    { id: 'buildingCourtyard', label: 'Building and Courtyard', minWidth: 160 },
-    { id: 'otherNonAgri', label: 'Other Non-Agricultural Uses', minWidth: 190 },
-    { id: 'barrenUncultivable', label: 'Barren and uncultivable land', minWidth: 190 },
-    { id: 'miscTreeCrops', label: 'Miscellaneous tree crops and groves', minWidth: 210 },
-    { id: 'permanentPastures', label: 'Permanent pastures and other grazing land', minWidth: 240 },
-    { id: 'cultivableWaste', label: 'Cultivable waste', minWidth: 140 },
-    { id: 'otherFallow', label: 'Other Fallow', minWidth: 110 },
-    { id: 'currentFallow', label: 'Current Fallow', minWidth: 120 },
-    { id: 'socialForestry', label: 'Area under Social Forestry', minWidth: 170 },
-    { id: 'waterLogged', label: 'Water logged area', minWidth: 140 },
-    { id: 'stillWater', label: 'Still water land (Water bodies)', minWidth: 190 },
-    { id: 'marshyLand', label: 'Marshy land', minWidth: 110 },
-    { id: 'netAreaSown', label: 'Net areas sown', minWidth: 130 }
+    { id: 'taluk', label: 'Taluk', minWidth: 160, align: 'left' },
+    { id: 'buildingCourtyard', label: 'Building and Courtyard', minWidth: 160, align: 'right' },
+    { id: 'otherNonAgri', label: 'Other Non-Agricultural Uses', minWidth: 190, align: 'right' },
+    { id: 'barrenUncultivable', label: 'Barren and uncultivable land', minWidth: 190, align: 'right' },
+    { id: 'miscTreeCrops', label: 'Miscellaneous tree crops and groves', minWidth: 210, align: 'right' },
+    { id: 'permanentPastures', label: 'Permanent pastures and other grazing land', minWidth: 240, align: 'right' },
+    { id: 'cultivableWaste', label: 'Cultivable waste', minWidth: 140, align: 'right' },
+    { id: 'otherFallow', label: 'Other Fallow', minWidth: 110, align: 'right' },
+    { id: 'currentFallow', label: 'Current Fallow', minWidth: 120, align: 'right' },
+    { id: 'socialForestry', label: 'Area under Social Forestry', minWidth: 170, align: 'right' },
+    { id: 'waterLogged', label: 'Water logged area', minWidth: 140, align: 'right' },
+    { id: 'stillWater', label: 'Still water land (Water bodies)', minWidth: 190, align: 'right' },
+    { id: 'marshyLand', label: 'Marshy land', minWidth: 110, align: 'right' },
+    { id: 'netAreaSown', label: 'Net areas sown', minWidth: 130, align: 'right' }
   ];
 
   const handleTabChange = (event, newValue) => {
@@ -179,7 +186,7 @@ const TalukForm2 = () => {
   const handleTalukClick = (talukName, tabIndex) => {
     // Navigate to ZoneForm2 with tab state
     navigate(`/schemes/earas/cce/ZoneForm2`, {
-      state: { 
+      state: {
         districtName: selectedDistrict,
         talukName: talukName,
         selectedTaluk: talukName,
@@ -202,12 +209,12 @@ const TalukForm2 = () => {
 
         {/* Header with Back Button */}
         <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box 
+          <Box
             onClick={handleBack}
-            sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 0.5, 
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
               cursor: 'pointer',
               color: themeColor,
               '&:hover': { opacity: 0.7 }
@@ -272,18 +279,20 @@ const TalukForm2 = () => {
           <Box role="tabpanel" hidden={activeTab !== 0} sx={{ p: 0 }}>
             {activeTab === 0 && (
               <TableContainer sx={{ maxHeight: 500, overflowX: 'auto' }}>
-                <Table stickyHeader sx={{ minWidth: 2000 }}>
+                <Table stickyHeader size="small" sx={{ minWidth: 2000 }}>
                   <TableHead>
                     <TableRow>
                       {landUtilizationColumns.map((col) => (
                         <TableCell
                           key={col.id}
+                          align={col.align}
                           sx={{
                             backgroundColor: themeColor,
                             color: 'white',
                             fontWeight: 700,
                             whiteSpace: 'nowrap',
                             minWidth: col.minWidth,
+                            py: 1.5,
                           }}
                         >
                           {col.label}
@@ -293,66 +302,56 @@ const TalukForm2 = () => {
                   </TableHead>
                   <TableBody>
                     {talukData.map((row, index) => (
-                      <TableRow 
-                        key={index} 
+                      <TableRow
+                        key={index}
                         hover
                         onClick={() => handleTalukClick(row.taluk, 0)}
-                        sx={{ 
+                        sx={{
                           cursor: 'pointer',
-                          '&:hover': { 
+                          '&:hover': {
                             backgroundColor: alpha(themeColor, 0.08),
                             transition: '0.2s'
                           }
                         }}
                       >
-                        <TableCell>
-                          <Chip
-                            label={row.taluk}
-                            size="small"
-                            sx={{
-                              backgroundColor: alpha(themeColor, 0.1),
-                              color: themeColor,
-                              fontWeight: 500,
-                              borderRadius: 1.5,
-                              '&:hover': {
-                                backgroundColor: alpha(themeColor, 0.2),
-                              }
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>{formatNumber(row.buildingCourtyard)}</TableCell>
-                        <TableCell>{formatNumber(row.otherNonAgri)}</TableCell>
-                        <TableCell>{formatNumber(row.barrenUncultivable)}</TableCell>
-                        <TableCell>{formatNumber(row.miscTreeCrops)}</TableCell>
-                        <TableCell>{formatNumber(row.permanentPastures)}</TableCell>
-                        <TableCell>{formatNumber(row.cultivableWaste)}</TableCell>
-                        <TableCell>{formatNumber(row.otherFallow)}</TableCell>
-                        <TableCell>{formatNumber(row.currentFallow)}</TableCell>
-                        <TableCell>{formatNumber(row.socialForestry)}</TableCell>
-                        <TableCell>{formatNumber(row.waterLogged)}</TableCell>
-                        <TableCell>{formatNumber(row.stillWater)}</TableCell>
-                        <TableCell>{formatNumber(row.marshyLand)}</TableCell>
-                        <TableCell>{formatNumber(row.netAreaSown)}</TableCell>
+                        {landUtilizationColumns.map((col) => (
+                          col.id === 'taluk' ? (
+                            <TableCell key={col.id} align="left">
+                              <Chip
+                                label={row.taluk}
+                                size="small"
+                                sx={{
+                                  backgroundColor: alpha(themeColor, 0.1),
+                                  color: themeColor,
+                                  fontWeight: 500,
+                                  borderRadius: 1.5,
+                                  '&:hover': {
+                                    backgroundColor: alpha(themeColor, 0.2),
+                                  }
+                                }}
+                              />
+                            </TableCell>
+                          ) : (
+                            <TableCell key={col.id} align="right" sx={numericCellSx}>
+                              {formatNumber(row[col.id])}
+                            </TableCell>
+                          )
+                        ))}
                       </TableRow>
                     ))}
                     {/* Total Row */}
                     <TableRow sx={{ backgroundColor: alpha(themeColor, 0.08) }}>
-                      <TableCell sx={{ fontWeight: 700, color: themeColor }}>
-                        <strong>TOTAL</strong>
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>{formatNumber(landUtilizationTotals.buildingCourtyard)}</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>{formatNumber(landUtilizationTotals.otherNonAgri)}</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>{formatNumber(landUtilizationTotals.barrenUncultivable)}</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>{formatNumber(landUtilizationTotals.miscTreeCrops)}</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>{formatNumber(landUtilizationTotals.permanentPastures)}</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>{formatNumber(landUtilizationTotals.cultivableWaste)}</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>{formatNumber(landUtilizationTotals.otherFallow)}</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>{formatNumber(landUtilizationTotals.currentFallow)}</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>{formatNumber(landUtilizationTotals.socialForestry)}</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>{formatNumber(landUtilizationTotals.waterLogged)}</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>{formatNumber(landUtilizationTotals.stillWater)}</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>{formatNumber(landUtilizationTotals.marshyLand)}</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>{formatNumber(landUtilizationTotals.netAreaSown)}</TableCell>
+                      {landUtilizationColumns.map((col) => (
+                        col.id === 'taluk' ? (
+                          <TableCell key={col.id} align="left" sx={{ fontWeight: 700, color: themeColor }}>
+                            TOTAL
+                          </TableCell>
+                        ) : (
+                          <TableCell key={col.id} align="right" sx={{ ...numericCellSx, fontWeight: 700 }}>
+                            {formatNumber(landUtilizationTotals[col.id])}
+                          </TableCell>
+                        )
+                      ))}
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -364,12 +363,12 @@ const TalukForm2 = () => {
           <Box role="tabpanel" hidden={activeTab !== 1} sx={{ p: 0 }}>
             {activeTab === 1 && (
               <TableContainer sx={{ maxHeight: 500, overflowX: 'auto' }}>
-                <Table stickyHeader sx={{ minWidth: 1200 }}>
+                <Table stickyHeader size="small" sx={{ minWidth: 1200 }}>
                   <TableHead>
                     <TableRow>
                       <TableCell
-                        rowSpan={2}
-                        align="center"
+                        rowSpan={3}
+                        align="left"
                         sx={{
                           backgroundColor: themeColor,
                           color: 'white',
@@ -393,13 +392,12 @@ const TalukForm2 = () => {
                       </TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.85), color: 'white', fontWeight: 600, minWidth: 120 }}>Tube well</TableCell>
-                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.85), color: 'white', fontWeight: 600, minWidth: 140 }}>Government tanks</TableCell>
-                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.85), color: 'white', fontWeight: 600, minWidth: 120 }}>Private wells</TableCell>
-                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.85), color: 'white', fontWeight: 600, minWidth: 120 }}>Private tanks</TableCell>
+                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.85), color: 'white', fontWeight: 600, minWidth: 130 }}>Tube well</TableCell>
+                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.85), color: 'white', fontWeight: 600, minWidth: 150 }}>Government tanks</TableCell>
+                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.85), color: 'white', fontWeight: 600, minWidth: 130 }}>Private wells</TableCell>
+                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.85), color: 'white', fontWeight: 600, minWidth: 130 }}>Private tanks</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell sx={{ backgroundColor: alpha(themeColor, 0.7), color: 'white', fontWeight: 600 }}>Taluk</TableCell>
                       <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.7), color: 'white', fontWeight: 600 }}>Count | Area (Ha)</TableCell>
                       <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.7), color: 'white', fontWeight: 600 }}>Count | Area (Ha)</TableCell>
                       <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.7), color: 'white', fontWeight: 600 }}>Count | Area (Ha)</TableCell>
@@ -442,6 +440,12 @@ const TalukForm2 = () => {
                         privateTanks: { count: 0, area: 0 }
                       };
 
+                      const renderSourceCell = (source) => (
+                        source.count > 0
+                          ? `${source.count} | ${formatNumber(source.area)}`
+                          : '\u2014'
+                      );
+
                       return Object.keys(talukMap).map(taluk => {
                         const data = talukMap[taluk];
                         totals.tubeWell.count += data.tubeWell.count;
@@ -454,52 +458,44 @@ const TalukForm2 = () => {
                         totals.privateTanks.area += data.privateTanks.area;
 
                         return (
-                          <TableRow 
-                            key={taluk} 
+                          <TableRow
+                            key={taluk}
                             hover
                             onClick={() => handleTalukClick(taluk, 1)}
-                            sx={{ 
+                            sx={{
                               cursor: 'pointer',
-                              '&:hover': { 
+                              '&:hover': {
                                 backgroundColor: alpha(themeColor, 0.08)
                               }
                             }}
                           >
-                            <TableCell>
-                              <Chip 
-                                label={taluk} 
-                                size="small" 
-                                sx={{ 
-                                  backgroundColor: alpha(themeColor, 0.1), 
-                                  color: themeColor, 
+                            <TableCell align="left">
+                              <Chip
+                                label={taluk}
+                                size="small"
+                                sx={{
+                                  backgroundColor: alpha(themeColor, 0.1),
+                                  color: themeColor,
                                   fontWeight: 500,
                                   '&:hover': {
                                     backgroundColor: alpha(themeColor, 0.2),
                                   }
-                                }} 
+                                }}
                               />
                             </TableCell>
-                            <TableCell align="center">
-                              {data.tubeWell.count > 0 ? `${data.tubeWell.count} | ${formatNumber(data.tubeWell.area)}` : '-'}
-                            </TableCell>
-                            <TableCell align="center">
-                              {data.govtTanks.count > 0 ? `${data.govtTanks.count} | ${formatNumber(data.govtTanks.area)}` : '-'}
-                            </TableCell>
-                            <TableCell align="center">
-                              {data.privateWells.count > 0 ? `${data.privateWells.count} | ${formatNumber(data.privateWells.area)}` : '-'}
-                            </TableCell>
-                            <TableCell align="center">
-                              {data.privateTanks.count > 0 ? `${data.privateTanks.count} | ${formatNumber(data.privateTanks.area)}` : '-'}
-                            </TableCell>
+                            <TableCell align="center" sx={numericCellSx}>{renderSourceCell(data.tubeWell)}</TableCell>
+                            <TableCell align="center" sx={numericCellSx}>{renderSourceCell(data.govtTanks)}</TableCell>
+                            <TableCell align="center" sx={numericCellSx}>{renderSourceCell(data.privateWells)}</TableCell>
+                            <TableCell align="center" sx={numericCellSx}>{renderSourceCell(data.privateTanks)}</TableCell>
                           </TableRow>
                         );
                       }).concat(
-                        <TableRow key="total" sx={{ backgroundColor: alpha(themeColor, 0.08), fontWeight: 'bold' }}>
-                          <TableCell sx={{ fontWeight: 700, color: themeColor }}><strong>TOTAL</strong></TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 700 }}>{totals.tubeWell.count} | {formatNumber(totals.tubeWell.area)}</TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 700 }}>{totals.govtTanks.count} | {formatNumber(totals.govtTanks.area)}</TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 700 }}>{totals.privateWells.count} | {formatNumber(totals.privateWells.area)}</TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 700 }}>{totals.privateTanks.count} | {formatNumber(totals.privateTanks.area)}</TableCell>
+                        <TableRow key="total" sx={{ backgroundColor: alpha(themeColor, 0.08) }}>
+                          <TableCell align="left" sx={{ fontWeight: 700, color: themeColor }}>TOTAL</TableCell>
+                          <TableCell align="center" sx={{ ...numericCellSx, fontWeight: 700 }}>{totals.tubeWell.count} | {formatNumber(totals.tubeWell.area)}</TableCell>
+                          <TableCell align="center" sx={{ ...numericCellSx, fontWeight: 700 }}>{totals.govtTanks.count} | {formatNumber(totals.govtTanks.area)}</TableCell>
+                          <TableCell align="center" sx={{ ...numericCellSx, fontWeight: 700 }}>{totals.privateWells.count} | {formatNumber(totals.privateWells.area)}</TableCell>
+                          <TableCell align="center" sx={{ ...numericCellSx, fontWeight: 700 }}>{totals.privateTanks.count} | {formatNumber(totals.privateTanks.area)}</TableCell>
                         </TableRow>
                       );
                     })()}

@@ -28,6 +28,7 @@ function ReportMenuWrapper({ children }) {
   }, []);
 
   const handleReportNavigation = (reportPath) => {
+    // ═══════════════════ CLUSTER REPORT ═══════════════════
     if (reportPath === '/kerala_cluster_report') {
       if (!officeInfo) {
         console.error('Office info not loaded');
@@ -116,7 +117,104 @@ function ReportMenuWrapper({ children }) {
           },
         });
       }
-    } else {
+    }
+
+    // ═══════════════════ FORM REPORT (Cluster Enumeration) ═══════════════════
+    else if (reportPath === '/FormReport/Kerala' || reportPath === '/kerala_form_report') {
+      if (!officeInfo) {
+        console.error('Office info not loaded');
+        return;
+      }
+
+      const {
+        officeType,
+        districtOfficeId,
+        districtId,
+        talukOfficeId,
+        talukId,
+        districtName,
+        talukName,
+      } = officeInfo;
+
+      const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+
+      console.log('Form Report Navigation - Office Type:', officeType);
+
+      // ── DIRECTORATE ── State-level view
+      if (officeType === 'DIRECTORATE') {
+        navigate('/FormReport/Kerala', {
+          state: {
+            officeType,
+            viewLevel: 'state',
+          },
+        });
+      }
+
+      // ── DISTRICT ── Jump straight to Taluk form report for this district
+      else if (officeType === 'DISTRICT') {
+        const districtIdValue = districtOfficeId || districtId;
+
+        if (!districtIdValue) {
+          console.error('District ID not found for DISTRICT office type');
+          return;
+        }
+
+        console.log('Navigating to TalukFormReport with districtId:', districtIdValue);
+
+        navigate('/kerala_form_report/taluk_form_report/direct', {
+          state: {
+            officeType,
+            viewLevel: 'district',
+            // Pass BOTH so TalukFormReport always finds the id
+            districtId: districtIdValue,
+            districtOfficeId: districtIdValue,
+            districtName: districtName || '',
+            isDirectAccess: true,
+            filterType: 'single',
+            singleMonth: currentMonth,
+            fromMonth: '',
+            toMonth: '',
+            seasonTab: 'ALL',
+            selectedSeason: '',
+          },
+        });
+      }
+
+      // ── TALUK ── Jump straight to Zone form report for this taluk
+      else if (officeType === 'TALUK') {
+        const talukIdValue = talukOfficeId || talukId;
+
+        if (!talukIdValue) {
+          console.error('Taluk ID not found for TALUK office type');
+          return;
+        }
+
+        console.log('Navigating to ZoneFormReport with talukId:', talukIdValue);
+
+        // Route already defined in MainRoutes:
+        // 'kerala_form_report/zone_form_report/direct/:talukId'
+        navigate(`/kerala_form_report/zone_form_report/direct/${talukIdValue}`, {
+          state: {
+            officeType,
+            viewLevel: 'taluk',
+            talukId: talukIdValue,
+            talukOfficeId: talukIdValue,
+            talukName: talukName || '',
+            districtName: districtName || '',
+            isDirectAccess: true,
+            filterType: 'single',
+            singleMonth: currentMonth,
+            fromMonth: '',
+            toMonth: '',
+            seasonTab: 'ALL',
+            selectedSeason: '',
+          },
+        });
+      }
+    }
+
+    // ═══════════════════ EVERYTHING ELSE ═══════════════════
+    else {
       navigate(reportPath);
     }
   };

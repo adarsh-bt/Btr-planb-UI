@@ -19,7 +19,7 @@ const tourDiaryService = {
           }
         }
       );
-console.log("getAllSchemes response:", response.data);
+
       return response.data;   // modify if your API returns payload inside object
 
     } catch (err) {

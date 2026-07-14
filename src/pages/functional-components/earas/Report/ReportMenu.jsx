@@ -22,6 +22,15 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
       onReportNavigation('/kerala_cluster_report');
     }
   };
+
+  const handleFormReportClick = (e) => {
+  e.preventDefault();
+  if (onReportNavigation) {
+    onReportNavigation('/FormReport/Kerala');
+  } else {
+    navigate('/FormReport/Kerala'); // fallback if opened outside the wrapper
+  }
+};
   
   return (
     <Grid container spacing={3}>
@@ -103,7 +112,7 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
   <Grid item xs={12} sm={6} md={4} lg={3}>
     <Card
       component={Link}
-      to="/FormReport/Kerala"
+      onClick={handleFormReportClick}
       sx={{
         textDecoration: 'none',
         display: 'flex',
@@ -168,7 +177,8 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
   <Grid item xs={12} sm={6} md={4} lg={3}>
     <Card
       component={Link}
-      to="/schemes/earas/cce/Form5"
+      // to="/schemes/earas/cce/Form5"
+      to = "/schemes/earas/cce/KeralaForm5ReportList"
       sx={{
         textDecoration: 'none',
         display: 'flex',
@@ -233,7 +243,8 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
   <Grid item xs={12} sm={6} md={4} lg={3}>
     <Card
       component={Link}
-      to="/schemes/earas/cce/Form2"
+      // to="/schemes/earas/cce/Form2"
+      to = "/schemes/earas/cce/KeralaForm2"
       sx={{
         textDecoration: 'none',
         display: 'flex',
