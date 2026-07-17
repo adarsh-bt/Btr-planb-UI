@@ -21,7 +21,8 @@ import {
   LocationOn,
   WaterDrop,
   Agriculture,
-  ArrowBack
+  ArrowBack,
+  WbSunny
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -37,6 +38,9 @@ const TalukForm2 = () => {
 
   // Tab state
   const [activeTab, setActiveTab] = useState(initialTab);
+
+  // Land Type filter state: 'all' | 'wet' | 'dry'
+  const [landTypeFilter, setLandTypeFilter] = useState('all');
 
   // Shared style for numeric cells - tabular numerals keep digits vertically aligned
   const numericCellSx = {
@@ -153,23 +157,41 @@ const TalukForm2 = () => {
     netAreaSown: 0
   });
 
-  // Taluk column stays left-aligned (text); all numeric columns are right-aligned
+  // Taluk column stays left-aligned (text); all numeric columns are right-aligned.
+  // `category` classifies each column as 'wet', 'dry', or 'always' (always visible regardless of filter)
   const landUtilizationColumns = [
-    { id: 'taluk', label: 'Taluk', minWidth: 160, align: 'left' },
-    { id: 'buildingCourtyard', label: 'Building and Courtyard', minWidth: 160, align: 'right' },
-    { id: 'otherNonAgri', label: 'Other Non-Agricultural Uses', minWidth: 190, align: 'right' },
-    { id: 'barrenUncultivable', label: 'Barren and uncultivable land', minWidth: 190, align: 'right' },
-    { id: 'miscTreeCrops', label: 'Miscellaneous tree crops and groves', minWidth: 210, align: 'right' },
-    { id: 'permanentPastures', label: 'Permanent pastures and other grazing land', minWidth: 240, align: 'right' },
-    { id: 'cultivableWaste', label: 'Cultivable waste', minWidth: 140, align: 'right' },
-    { id: 'otherFallow', label: 'Other Fallow', minWidth: 110, align: 'right' },
-    { id: 'currentFallow', label: 'Current Fallow', minWidth: 120, align: 'right' },
-    { id: 'socialForestry', label: 'Area under Social Forestry', minWidth: 170, align: 'right' },
-    { id: 'waterLogged', label: 'Water logged area', minWidth: 140, align: 'right' },
-    { id: 'stillWater', label: 'Still water land (Water bodies)', minWidth: 190, align: 'right' },
-    { id: 'marshyLand', label: 'Marshy land', minWidth: 110, align: 'right' },
-    { id: 'netAreaSown', label: 'Net areas sown', minWidth: 130, align: 'right' }
+    { id: 'taluk', label: 'Taluk', minWidth: 160, align: 'left', category: 'always' },
+    { id: 'buildingCourtyard', label: 'Building and Courtyard', minWidth: 160, align: 'right', category: 'dry' },
+    { id: 'otherNonAgri', label: 'Other Non-Agricultural Uses', minWidth: 190, align: 'right', category: 'dry' },
+    { id: 'barrenUncultivable', label: 'Barren and uncultivable land', minWidth: 190, align: 'right', category: 'dry' },
+    { id: 'miscTreeCrops', label: 'Miscellaneous tree crops and groves', minWidth: 210, align: 'right', category: 'dry' },
+    { id: 'permanentPastures', label: 'Permanent pastures and other grazing land', minWidth: 240, align: 'right', category: 'dry' },
+    { id: 'cultivableWaste', label: 'Cultivable waste', minWidth: 140, align: 'right', category: 'dry' },
+    { id: 'otherFallow', label: 'Other Fallow', minWidth: 110, align: 'right', category: 'dry' },
+    { id: 'currentFallow', label: 'Current Fallow', minWidth: 120, align: 'right', category: 'dry' },
+    { id: 'socialForestry', label: 'Area under Social Forestry', minWidth: 170, align: 'right', category: 'dry' },
+    { id: 'waterLogged', label: 'Water logged area', minWidth: 140, align: 'right', category: 'wet' },
+    { id: 'stillWater', label: 'Still water land (Water bodies)', minWidth: 190, align: 'right', category: 'wet' },
+    { id: 'marshyLand', label: 'Marshy land', minWidth: 110, align: 'right', category: 'wet' },
+    { id: 'netAreaSown', label: 'Net areas sown', minWidth: 130, align: 'right', category: 'always' }
   ];
+
+  // All columns always render. The filter only decides whether a cell shows its
+  // real value or a placeholder dash — columns are never added/removed.
+  const isColumnActive = (col) =>
+    col.category === 'always' || landTypeFilter === 'all' || col.category === landTypeFilter;
+
+  // Irrigation source types, tagged wet/dry so they respond to the same filter.
+  // Government/Private tanks are surface-water sources (wet cultivation); tube
+  // wells and private wells are groundwater sources (dry cultivation).
+  const irrigationSourceTypes = [
+    { key: 'tubeWell', label: 'Tube well', category: 'dry' },
+    { key: 'govtTanks', label: 'Government tanks', category: 'wet' },
+    { key: 'privateWells', label: 'Private wells', category: 'dry' },
+    { key: 'privateTanks', label: 'Private tanks', category: 'wet' }
+  ];
+  const isSourceActive = (source) =>
+    landTypeFilter === 'all' || source.category === landTypeFilter;
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
@@ -194,6 +216,13 @@ const TalukForm2 = () => {
       }
     });
   };
+
+  // Land Type filter options
+  const landTypeOptions = [
+    { value: 'all', label: 'All', icon: null },
+    { value: 'wet', label: 'Wet', icon: <WaterDrop sx={{ fontSize: 18 }} /> },
+    { value: 'dry', label: 'Dry', icon: <WbSunny sx={{ fontSize: 18 }} /> }
+  ];
 
   return (
     <Card
@@ -231,6 +260,76 @@ const TalukForm2 = () => {
             (Click on any Taluk to view Zone-wise details)
           </Typography>
         </Box>
+
+        {/* Land Type Filter - applies to both Land Utilization and Irrigation Details */}
+        <Paper
+          elevation={0}
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            borderRadius: 3,
+            border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+            mb: 2,
+            overflow: 'hidden',
+          }}
+        >
+          {landTypeOptions.map((opt, idx) => {
+            const isActive = landTypeFilter === opt.value;
+            return (
+              <Box
+                key={opt.value}
+                onClick={() => setLandTypeFilter(opt.value)}
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  px: 2.5,
+                  py: 1.25,
+                  cursor: 'pointer',
+                  borderRight: idx < landTypeOptions.length - 1
+                    ? `1px solid ${alpha(theme.palette.divider, 0.15)}`
+                    : 'none',
+                  transition: '0.2s',
+                  '&:hover': {
+                    backgroundColor: alpha(themeColor, 0.04),
+                  },
+                }}
+              >
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.75,
+                    color: isActive ? themeColor : 'text.secondary',
+                  }}
+                >
+                  {opt.icon}
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 600,
+                      letterSpacing: 0.3,
+                      textTransform: 'uppercase',
+                      fontSize: '0.8rem',
+                    }}
+                  >
+                    {opt.label}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    width: '100%',
+                    height: 2.5,
+                    borderRadius: 1,
+                    backgroundColor: isActive ? themeColor : 'transparent',
+                    transition: '0.2s',
+                  }}
+                />
+              </Box>
+            );
+          })}
+        </Paper>
 
         {/* Tabs Section */}
         <Paper
@@ -282,22 +381,25 @@ const TalukForm2 = () => {
                 <Table stickyHeader size="small" sx={{ minWidth: 2000 }}>
                   <TableHead>
                     <TableRow>
-                      {landUtilizationColumns.map((col) => (
-                        <TableCell
-                          key={col.id}
-                          align={col.align}
-                          sx={{
-                            backgroundColor: themeColor,
-                            color: 'white',
-                            fontWeight: 700,
-                            whiteSpace: 'nowrap',
-                            minWidth: col.minWidth,
-                            py: 1.5,
-                          }}
-                        >
-                          {col.label}
-                        </TableCell>
-                      ))}
+                      {landUtilizationColumns.map((col) => {
+                        const active = isColumnActive(col);
+                        return (
+                          <TableCell
+                            key={col.id}
+                            align={col.align}
+                            sx={{
+                              backgroundColor: themeColor,
+                              color: active ? 'white' : alpha('#ffffff', 0.5),
+                              fontWeight: 700,
+                              whiteSpace: 'nowrap',
+                              minWidth: col.minWidth,
+                              py: 1.5,
+                            }}
+                          >
+                            {col.label}
+                          </TableCell>
+                        );
+                      })}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -314,44 +416,67 @@ const TalukForm2 = () => {
                           }
                         }}
                       >
-                        {landUtilizationColumns.map((col) => (
-                          col.id === 'taluk' ? (
-                            <TableCell key={col.id} align="left">
-                              <Chip
-                                label={row.taluk}
-                                size="small"
-                                sx={{
-                                  backgroundColor: alpha(themeColor, 0.1),
-                                  color: themeColor,
-                                  fontWeight: 500,
-                                  borderRadius: 1.5,
-                                  '&:hover': {
-                                    backgroundColor: alpha(themeColor, 0.2),
-                                  }
-                                }}
-                              />
+                        {landUtilizationColumns.map((col) => {
+                          if (col.id === 'taluk') {
+                            return (
+                              <TableCell key={col.id} align="left">
+                                <Chip
+                                  label={row.taluk}
+                                  size="small"
+                                  sx={{
+                                    backgroundColor: alpha(themeColor, 0.1),
+                                    color: themeColor,
+                                    fontWeight: 500,
+                                    borderRadius: 1.5,
+                                    '&:hover': {
+                                      backgroundColor: alpha(themeColor, 0.2),
+                                    }
+                                  }}
+                                />
+                              </TableCell>
+                            );
+                          }
+                          const active = isColumnActive(col);
+                          return (
+                            <TableCell
+                              key={col.id}
+                              align="right"
+                              sx={{
+                                ...numericCellSx,
+                                color: active ? 'inherit' : 'text.disabled',
+                              }}
+                            >
+                              {active ? formatNumber(row[col.id]) : '—'}
                             </TableCell>
-                          ) : (
-                            <TableCell key={col.id} align="right" sx={numericCellSx}>
-                              {formatNumber(row[col.id])}
-                            </TableCell>
-                          )
-                        ))}
+                          );
+                        })}
                       </TableRow>
                     ))}
                     {/* Total Row */}
                     <TableRow sx={{ backgroundColor: alpha(themeColor, 0.08) }}>
-                      {landUtilizationColumns.map((col) => (
-                        col.id === 'taluk' ? (
-                          <TableCell key={col.id} align="left" sx={{ fontWeight: 700, color: themeColor }}>
-                            TOTAL
+                      {landUtilizationColumns.map((col) => {
+                        if (col.id === 'taluk') {
+                          return (
+                            <TableCell key={col.id} align="left" sx={{ fontWeight: 700, color: themeColor }}>
+                              TOTAL
+                            </TableCell>
+                          );
+                        }
+                        const active = isColumnActive(col);
+                        return (
+                          <TableCell
+                            key={col.id}
+                            align="right"
+                            sx={{
+                              ...numericCellSx,
+                              fontWeight: 700,
+                              color: active ? 'inherit' : 'text.disabled',
+                            }}
+                          >
+                            {active ? formatNumber(landUtilizationTotals[col.id]) : '—'}
                           </TableCell>
-                        ) : (
-                          <TableCell key={col.id} align="right" sx={{ ...numericCellSx, fontWeight: 700 }}>
-                            {formatNumber(landUtilizationTotals[col.id])}
-                          </TableCell>
-                        )
-                      ))}
+                        );
+                      })}
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -392,16 +517,35 @@ const TalukForm2 = () => {
                       </TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.85), color: 'white', fontWeight: 600, minWidth: 130 }}>Tube well</TableCell>
-                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.85), color: 'white', fontWeight: 600, minWidth: 150 }}>Government tanks</TableCell>
-                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.85), color: 'white', fontWeight: 600, minWidth: 130 }}>Private wells</TableCell>
-                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.85), color: 'white', fontWeight: 600, minWidth: 130 }}>Private tanks</TableCell>
+                      {irrigationSourceTypes.map((source) => (
+                        <TableCell
+                          key={source.key}
+                          align="center"
+                          sx={{
+                            backgroundColor: alpha(themeColor, 0.85),
+                            color: isSourceActive(source) ? 'white' : alpha('#ffffff', 0.5),
+                            fontWeight: 600,
+                            minWidth: 130,
+                          }}
+                        >
+                          {source.label}
+                        </TableCell>
+                      ))}
                     </TableRow>
                     <TableRow>
-                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.7), color: 'white', fontWeight: 600 }}>Count | Area (Ha)</TableCell>
-                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.7), color: 'white', fontWeight: 600 }}>Count | Area (Ha)</TableCell>
-                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.7), color: 'white', fontWeight: 600 }}>Count | Area (Ha)</TableCell>
-                      <TableCell align="center" sx={{ backgroundColor: alpha(themeColor, 0.7), color: 'white', fontWeight: 600 }}>Count | Area (Ha)</TableCell>
+                      {irrigationSourceTypes.map((source) => (
+                        <TableCell
+                          key={source.key}
+                          align="center"
+                          sx={{
+                            backgroundColor: alpha(themeColor, 0.7),
+                            color: isSourceActive(source) ? 'white' : alpha('#ffffff', 0.5),
+                            fontWeight: 600,
+                          }}
+                        >
+                          Count | Area (Ha)
+                        </TableCell>
+                      ))}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -440,11 +584,12 @@ const TalukForm2 = () => {
                         privateTanks: { count: 0, area: 0 }
                       };
 
-                      const renderSourceCell = (source) => (
-                        source.count > 0
-                          ? `${source.count} | ${formatNumber(source.area)}`
-                          : '\u2014'
-                      );
+                      const renderSourceCell = (sourceData, sourceMeta) => {
+                        if (!isSourceActive(sourceMeta)) return '\u2014';
+                        return sourceData.count > 0
+                          ? `${sourceData.count} | ${formatNumber(sourceData.area)}`
+                          : '\u2014';
+                      };
 
                       return Object.keys(talukMap).map(taluk => {
                         const data = talukMap[taluk];
@@ -483,19 +628,40 @@ const TalukForm2 = () => {
                                 }}
                               />
                             </TableCell>
-                            <TableCell align="center" sx={numericCellSx}>{renderSourceCell(data.tubeWell)}</TableCell>
-                            <TableCell align="center" sx={numericCellSx}>{renderSourceCell(data.govtTanks)}</TableCell>
-                            <TableCell align="center" sx={numericCellSx}>{renderSourceCell(data.privateWells)}</TableCell>
-                            <TableCell align="center" sx={numericCellSx}>{renderSourceCell(data.privateTanks)}</TableCell>
+                            {irrigationSourceTypes.map((source) => (
+                              <TableCell
+                                key={source.key}
+                                align="center"
+                                sx={{
+                                  ...numericCellSx,
+                                  color: isSourceActive(source) ? 'inherit' : 'text.disabled',
+                                }}
+                              >
+                                {renderSourceCell(data[source.key], source)}
+                              </TableCell>
+                            ))}
                           </TableRow>
                         );
                       }).concat(
                         <TableRow key="total" sx={{ backgroundColor: alpha(themeColor, 0.08) }}>
                           <TableCell align="left" sx={{ fontWeight: 700, color: themeColor }}>TOTAL</TableCell>
-                          <TableCell align="center" sx={{ ...numericCellSx, fontWeight: 700 }}>{totals.tubeWell.count} | {formatNumber(totals.tubeWell.area)}</TableCell>
-                          <TableCell align="center" sx={{ ...numericCellSx, fontWeight: 700 }}>{totals.govtTanks.count} | {formatNumber(totals.govtTanks.area)}</TableCell>
-                          <TableCell align="center" sx={{ ...numericCellSx, fontWeight: 700 }}>{totals.privateWells.count} | {formatNumber(totals.privateWells.area)}</TableCell>
-                          <TableCell align="center" sx={{ ...numericCellSx, fontWeight: 700 }}>{totals.privateTanks.count} | {formatNumber(totals.privateTanks.area)}</TableCell>
+                          {irrigationSourceTypes.map((source) => {
+                            const active = isSourceActive(source);
+                            const t = totals[source.key];
+                            return (
+                              <TableCell
+                                key={source.key}
+                                align="center"
+                                sx={{
+                                  ...numericCellSx,
+                                  fontWeight: 700,
+                                  color: active ? 'inherit' : 'text.disabled',
+                                }}
+                              >
+                                {active ? `${t.count} | ${formatNumber(t.area)}` : '\u2014'}
+                              </TableCell>
+                            );
+                          })}
                         </TableRow>
                       );
                     })()}
