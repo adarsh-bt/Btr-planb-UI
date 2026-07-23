@@ -28,6 +28,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
 import AuthService from 'pages/authentication/services/authservice';
+import Breadcrumb from 'routes/Breadcrumb';
 
 // Gateway root (e.g. http://localhost:8080). The '/earas-form1-entry' service
 // prefix is added on the request path below.
@@ -273,6 +274,10 @@ const KeralaForm2 = () => {
   }
 
   return (
+  <Box>
+    <Box sx={{ mb: 2 }}>
+      <Breadcrumb />
+    </Box>
     <Card
       elevation={0}
       sx={{
@@ -677,6 +682,7 @@ const KeralaForm2 = () => {
         </Paper>
       </CardContent>
     </Card>
+    </Box>
   );
 };
 

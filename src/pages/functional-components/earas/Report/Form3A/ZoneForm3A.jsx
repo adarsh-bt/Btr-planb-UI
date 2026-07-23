@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -17,19 +17,64 @@ import {
   Tab,
   Chip,
   Stack,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem
+  CircularProgress
 } from '@mui/material';
-import {
-  LocationOn,
-  WaterDrop,
-  WbSunny,
-  ArrowBack,
-  Store
-} from '@mui/icons-material';
+import { LocationOn, ArrowBack, Store } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
+import mainapi from 'api/mainapi';
+import AuthService from 'pages/authentication/services/authservice';
+
+// Gateway root (e.g. http://localhost:8080). '/earas-form1-entry' added below.
+// NOTE: if mainapi.FORM_API already ends in '/earas-form1-entry', drop the
+// duplicate segment from the URL to avoid a doubled prefix (404).
+const BASE_URL = mainapi.FORM_API;
+
+// sessionStorage key: remembers taluk/district context + active crop-group
+// tab, so navigating back here (e.g. from the Panchayath-level page) or
+// refreshing restores the same view instead of resetting.
+const SESSION_KEY = 'zoneForm3AState';
+
+// Static crop groups (tbl_master_crop_group) — same list used by
+// KeralaForm3A / TalukForm3A. The tab index maps to a group, whose id is
+// sent to the API as cropGroupId.
+const CROP_GROUPS = [
+  { id: 1, name: 'Food crops' },
+  { id: 2, name: 'Non food crops' },
+  { id: 3, name: 'Trees' },
+  { id: 4, name: 'Aromatic plants' },
+  { id: 5, name: 'Drugs and Narcotics' },
+  { id: 6, name: 'Cereals' },
+  { id: 7, name: 'Fibre' },
+  { id: 8, name: 'Flowers' },
+  { id: 9, name: 'Fodder crops' },
+  { id: 10, name: 'Fruits' },
+  { id: 11, name: 'Grains' },
+  { id: 12, name: 'Green manure crops' },
+  { id: 13, name: 'Medicinal plants' },
+  { id: 14, name: 'Oil seeds' },
+  { id: 15, name: 'Other medicinal plants' },
+  { id: 16, name: 'Other trees' },
+  { id: 17, name: 'Plantation crops' },
+  { id: 18, name: 'Pulses' },
+  { id: 19, name: 'Spices' },
+  { id: 20, name: 'Sugar crops' },
+  { id: 21, name: 'Tubers' },
+  { id: 22, name: 'Vegetables' },
+  { id: 23, name: 'Dry fruit' }
+];
+
+// Collapse whitespace/newlines in crop labels (some come as
+// "OTHER VEGETABLES\n(Please Specify)\n").
+const cleanName = (name) => (name || '').replace(/\s+/g, ' ').trim();
+
+function getSavedState() {
+  try {
+    return JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
 
 // =====================================================================
 // COLUMN WIDTHS — single source of truth.
@@ -41,7 +86,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 // table-layout: fixed only respects columns with an explicit width, so any
 // space left over after Block + Zone + crop columns is handed to that
 // spacer instead of being left outside the table as blank container
-// background. On tabs with few crop columns (e.g. Cereals) this keeps the
+// background. On tabs with few crop columns this keeps the
 // header/subtotal/grand-total color bands running edge-to-edge instead of
 // stopping short and leaving a ragged white gap on the right. On tabs
 // where columns already exceed the container width, the spacer collapses
@@ -49,7 +94,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 // =====================================================================
 const BLOCK_W = 160;
 const ZONE_W = 180;
-const CROP_COL_W = 140;
+const CROP_COL_W = 150;
 
 // ---- Solid (non-transparent) tint colors for sticky cells ----
 // Solid hex avoids the "ghosting / clipped digit" artifact that happens when
@@ -64,213 +109,189 @@ const ZoneForm3A = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const selectedDistrict = location.state?.districtName || location.state?.selectedDistrict || "Thiruvananthapuram";
-  const selectedTaluk = location.state?.talukName || location.state?.selectedTaluk || "Thiruvananthapuram";
-  const initialTab = location.state?.activeTab || 0;
+  // Merge saved sessionStorage state with location.state (state wins on fresh nav).
+  const stateData = useMemo(() => {
+    const saved = getSavedState();
+    return { ...saved, ...(location.state || {}) };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const districtId = stateData.districtId ?? null;
+  const districtName = stateData.districtName || stateData.selectedDistrict || 'District';
+  const talukId = stateData.talukId ?? null;
+  const talukName = stateData.talukName || stateData.selectedTaluk || 'Taluk';
+  const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
 
-  // Land Type filter: 'all' | 'wet' | 'dry' — applies to the crop columns
-  const [landTypeFilter, setLandTypeFilter] = useState('all');
+  const [activeTab, setActiveTab] = useState(stateData.activeTab ?? 0);
+  const [apiData, setApiData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Irrigation Type filter: which figure populates each cell
-  const [irrigationType, setIrrigationType] = useState('total');
+  const cropGroupId = CROP_GROUPS[activeTab]?.id;
+  const cropGroupName = CROP_GROUPS[activeTab]?.name;
 
-  // Deterministic pseudo-random generator so every cell gets a stable,
-  // distinct value without hand-authoring every figure.
-  const seededArea = (key, min, max) => {
-    let hash = 0;
-    for (let i = 0; i < key.length; i++) {
-      hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  /* ── persist taluk/district context so back-nav / refresh keeps working ── */
+  useEffect(() => {
+    if (talukId != null) {
+      sessionStorage.setItem(
+        SESSION_KEY,
+        JSON.stringify({
+          districtId,
+          districtName,
+          selectedDistrict: districtName,
+          talukId,
+          talukName,
+          selectedTaluk: talukName,
+          agriculturalYear,
+          activeTab: stateData.activeTab ?? 0
+        })
+      );
     }
-    const frac = (hash % 10000) / 10000;
-    return min + frac * (max - min);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Blocks + zones under the selected taluk. Real block/zone administrative
-  // boundaries vary by taluk, so these are generated deterministically per
-  // district+taluk rather than hand-authored for all 77 taluks — swap in
-  // real block/zone master data here once available.
-  const blockNames = ['North Block', 'South Block', 'Central Block'];
-  const zoneNamesPerBlock = ['Zone 1', 'Zone 2', 'Zone 3'];
+  /* ── keep the active crop-group tab in sync in sessionStorage too ── */
+  useEffect(() => {
+    const saved = getSavedState();
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ...saved, activeTab }));
+  }, [activeTab]);
 
-  const groupedByBlock = {};
-  blockNames.forEach((block) => {
-    groupedByBlock[block] = zoneNamesPerBlock.map((zone) => ({ block, zone }));
-  });
+  /* ─────────────────────────── fetch (per crop group) ─────────────────────────── */
 
-  // Same seasonal crop tabs as the District/Taluk level reports. minArea/maxArea
-  // are scaled down further since a zone is smaller than a taluk.
-  const cropCategories = [
-    {
-      id: 'cereals',
-      icon: '🌾',
-      label: 'Cereals',
-      minArea: 20,
-      maxArea: 320,
-      crops: [
-        { name: 'Rice', category: 'wet' },
-        { name: 'Wheat', category: 'dry' },
-        { name: 'Maize', category: 'dry' },
-        { name: 'Barley', category: 'dry' }
-      ]
-    },
-    {
-      id: 'pulses',
-      icon: '🌱',
-      label: 'Pulses',
-      minArea: 3,
-      maxArea: 60,
-      crops: [
-        { name: 'Green gram', category: 'dry' },
-        { name: 'Black gram', category: 'dry' },
-        { name: 'Red gram', category: 'dry' },
-        { name: 'Bengal gram', category: 'dry' },
-        { name: 'Cowpea', category: 'dry' },
-        { name: 'Horse gram', category: 'dry' }
-      ]
-    },
-    {
-      id: 'vegetables',
-      icon: '🥔',
-      label: 'Vegetables',
-      minArea: 2,
-      maxArea: 45,
-      crops: [
-        { name: 'Tomato', category: 'dry' },
-        { name: 'Brinjal', category: 'dry' },
-        { name: 'Potato', category: 'dry' },
-        { name: 'Onion', category: 'dry' },
-        { name: 'Cabbage', category: 'dry' },
-        { name: 'Cauliflower', category: 'dry' },
-        { name: 'Okra', category: 'wet' },
-        { name: 'Bitter gourd', category: 'wet' },
-        { name: 'Bottle gourd', category: 'wet' },
-        { name: 'Pumpkin', category: 'wet' },
-        { name: 'Carrot', category: 'dry' },
-        { name: 'Beetroot', category: 'dry' },
-        { name: 'Radish', category: 'dry' },
-        { name: 'Spinach', category: 'dry' },
-        { name: 'Cucumber', category: 'wet' },
-        { name: 'Beans', category: 'dry' },
-        { name: 'Chilli', category: 'dry' }
-      ]
-    },
-    {
-      id: 'spices',
-      icon: '🌶️',
-      label: 'Spices',
-      minArea: 6,
-      maxArea: 140,
-      crops: [
-        { name: 'Black Pepper', category: 'wet' },
-        { name: 'Cardamom', category: 'wet' },
-        { name: 'Ginger', category: 'wet' },
-        { name: 'Turmeric', category: 'wet' },
-        { name: 'Garlic', category: 'dry' },
-        { name: 'Cinnamon', category: 'dry' },
-        { name: 'Clove', category: 'dry' },
-        { name: 'Nutmeg', category: 'dry' },
-        { name: 'Coriander', category: 'dry' },
-        { name: 'Cumin', category: 'dry' }
-      ]
-    },
-    {
-      id: 'plantation',
-      icon: '☕',
-      label: 'Plantation Crops',
-      minArea: 12,
-      maxArea: 550,
-      crops: [
-        { name: 'Rubber', category: 'dry' },
-        { name: 'Tea', category: 'dry' },
-        { name: 'Coffee', category: 'dry' },
-        { name: 'Cocoa', category: 'dry' },
-        { name: 'Coconut', category: 'wet' },
-        { name: 'Arecanut', category: 'wet' }
-      ]
+  useEffect(() => {
+    if (talukId == null) {
+      setError('Taluk is required. Please navigate from the District (Taluk) report page.');
+      return;
     }
-  ];
+    if (!cropGroupId) return;
 
-  const irrigationTypeOptions = [
-    { value: 'total', label: 'Total' },
-    { value: 'irrigated', label: 'Irrigated' },
-    { value: 'unirrigated', label: 'Unirrigated' }
-  ];
+    const fetchZoneData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) throw new Error('Authorization token missing');
 
-  const activeCategory = cropCategories[activeTab];
+        const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/taluk?agriYear=${agriculturalYear}&talukId=${talukId}&cropGroupId=${cropGroupId}`;
+        console.log('Fetching Zone Form 3A data from:', url);
 
-  const isCropActive = (crop) =>
-    landTypeFilter === 'all' || crop.category === landTypeFilter;
+        const response = await axios.get(url, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
 
-  // Zone-wise data for the active category, grouped by block. Each cell
-  // carries irrigated/unirrigated/total; the Irrigation Type dropdown picks
-  // which one is displayed.
-  const zoneDataByBlock = {};
-  Object.entries(groupedByBlock).forEach(([blockName, zones]) => {
-    zoneDataByBlock[blockName] = zones.map(({ zone }) => {
-      const row = { block: blockName, zone };
-      activeCategory.crops.forEach((crop) => {
-        const seedBase = `${selectedDistrict}-${selectedTaluk}-${blockName}-${zone}-${crop.name}`;
-        const irrigated = seededArea(`${seedBase}-irrigated`, activeCategory.minArea * 0.3, activeCategory.maxArea * 0.65);
-        const unirrigated = seededArea(`${seedBase}-unirrigated`, activeCategory.minArea * 0.2, activeCategory.maxArea * 0.55);
-        row[crop.name] = { irrigated, unirrigated, total: irrigated + unirrigated };
+        setApiData(Array.isArray(response.data) ? response.data : []);
+      } catch (err) {
+        console.error('Error fetching Zone Form 3A data:', err);
+        if (err.response?.status === 401) setError('Session expired. Please login again.');
+        else if (err.response?.status === 403) setError("You don't have permission to access this data.");
+        else if (err.response?.status === 404) setError('Taluk not found.');
+        else setError(err.response?.data?.message || err.message || 'Failed to fetch data');
+        setApiData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchZoneData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cropGroupId, talukId, agriculturalYear]);
+
+  /* ─────────────────────────── derived data ─────────────────────────── */
+
+  // Crop columns = union of crops across all zones for this group, sorted by name.
+  const cropColumns = useMemo(() => {
+    const map = new Map();
+    apiData.forEach((z) =>
+      (z.crops || []).forEach((c) => {
+        if (!map.has(c.cropId)) map.set(c.cropId, { cropId: c.cropId, cropName: cleanName(c.cropName) });
+      })
+    );
+    return Array.from(map.values()).sort((a, b) => a.cropName.localeCompare(b.cropName));
+  }, [apiData]);
+
+  // Zones grouped by block, preserving first-seen block order.
+  // Each block: { blockId, blockName, zones: [{ zoneId, zoneName, byId }] }
+  const blocksData = useMemo(() => {
+    const order = [];
+    const map = new Map();
+    apiData.forEach((z) => {
+      const blockName = z.blockName || 'Unassigned';
+      const key = z.blockId ?? `unassigned-${blockName}`;
+      if (!map.has(key)) {
+        map.set(key, { blockId: z.blockId ?? null, blockName, zones: [] });
+        order.push(key);
+      }
+      const byId = {};
+      (z.crops || []).forEach((c) => {
+        byId[c.cropId] = Number(c.areaInCents) || 0;
       });
-      return row;
+      map.get(key).zones.push({ zoneId: z.zoneId ?? null, zoneName: z.zoneName || 'Unassigned', byId });
     });
-  });
+    return order.map((key) => map.get(key));
+  }, [apiData]);
 
-  const getCellValue = (row, cropName) => row[cropName][irrigationType];
+  // Block subtotals for the active group, keyed by blockId ?? blockName.
+  const blockTotals = useMemo(() => {
+    const totals = {};
+    blocksData.forEach((block) => {
+      const t = {};
+      cropColumns.forEach((c) => (t[c.cropId] = 0));
+      block.zones.forEach((zone) => {
+        cropColumns.forEach((c) => {
+          if (zone.byId[c.cropId] !== undefined) t[c.cropId] += zone.byId[c.cropId];
+        });
+      });
+      totals[block.blockId ?? block.blockName] = t;
+    });
+    return totals;
+  }, [blocksData, cropColumns]);
 
-  // Block subtotals for the active category
-  const blockTotals = {};
-  Object.entries(zoneDataByBlock).forEach(([blockName, rows]) => {
-    blockTotals[blockName] = activeCategory.crops.reduce((acc, crop) => {
-      acc[crop.name] = rows.reduce((sum, row) => sum + getCellValue(row, crop.name), 0);
-      return acc;
-    }, {});
-  });
-
-  // Grand totals across all blocks for the active category
-  const grandTotals = activeCategory.crops.reduce((acc, crop) => {
-    acc[crop.name] = Object.values(blockTotals).reduce((sum, block) => sum + block[crop.name], 0);
-    return acc;
-  }, {});
+  // Grand totals across all blocks for the active group.
+  const grandTotals = useMemo(() => {
+    const totals = {};
+    cropColumns.forEach((c) => (totals[c.cropId] = 0));
+    blocksData.forEach((block) => {
+      const bt = blockTotals[block.blockId ?? block.blockName] || {};
+      cropColumns.forEach((c) => {
+        totals[c.cropId] += bt[c.cropId] || 0;
+      });
+    });
+    return totals;
+  }, [blocksData, blockTotals, cropColumns]);
 
   // Minimum width the table needs for its "real" columns (Block + Zone +
   // crop columns). The table itself is rendered at width: 100% with this
   // as its minWidth — see tableSx() below — so the spacer column can
   // absorb any leftover container width instead of it showing up as a
   // blank gap outside the table.
-  const TABLE_MIN_W = BLOCK_W + ZONE_W + activeCategory.crops.length * CROP_COL_W;
+  const TABLE_MIN_W = BLOCK_W + ZONE_W + Math.max(cropColumns.length, 1) * CROP_COL_W;
 
   const handleTabChange = (event, newValue) => setActiveTab(newValue);
-  const formatNumber = (num) => num.toFixed(2);
+  const formatNumber = (num) => Number(num || 0).toFixed(2);
   const handleBack = () => navigate(-1);
 
   // Drill down from a Zone row into its Panchayath-wise breakdown
-  const handleZoneClick = (blockName, zoneName) => {
-    navigate(`/schemes/earas/Report/Form3A/Form3A`, {
+  const handleZoneClick = (blockId, blockName, zoneId, zoneName) => {
+    if (zoneId == null) return; // skip the Unassigned / taluk-level bucket
+    navigate('/schemes/earas/Report/Form3A/Form3A', {
       state: {
-        districtName: selectedDistrict,
-        selectedDistrict: selectedDistrict,
-        talukName: selectedTaluk,
-        selectedTaluk: selectedTaluk,
-        blockName: blockName,
+        districtId,
+        districtName,
+        selectedDistrict: districtName,
+        talukId,
+        talukName,
+        selectedTaluk: talukName,
+        blockId,
+        blockName,
         selectedBlock: blockName,
-        zoneName: zoneName,
+        zoneId,
+        zoneName,
         selectedZone: zoneName,
-        activeTab: activeTab
+        cropGroupId,
+        cropGroupName,
+        agriculturalYear,
+        activeTab
       }
     });
   };
-
-  // Land Type filter options
-  const landTypeOptions = [
-    { value: 'all', label: 'All', icon: null },
-    { value: 'wet', label: 'Wet', icon: <WaterDrop sx={{ fontSize: 18 }} /> },
-    { value: 'dry', label: 'Dry', icon: <WbSunny sx={{ fontSize: 18 }} /> }
-  ];
 
   // ---- Reusable sticky cell style (solid bg + border-box, widths come from <colgroup>) ----
   const stickyCellSx = (leftPx, bg, extra = {}) => ({
@@ -297,6 +318,8 @@ const ZoneForm3A = () => {
     borderSpacing: 0
   });
 
+  const colSpanAll = cropColumns.length + 2; // Block + Zone + crop columns
+
   return (
     <Card sx={{ borderRadius: 3, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
       <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
@@ -318,102 +341,19 @@ const ZoneForm3A = () => {
           </Box>
           <LocationOn sx={{ fontSize: 32, color: themeColor }} />
           <Typography variant="h5" sx={{ fontWeight: 'bold', color: themeColor }}>
-            {selectedTaluk} Taluk ({selectedDistrict} District) - Zone-wise Seasonal Crops Report
+            {talukName} Taluk ({districtName} District) - Zone-wise Crop Area Report (Form 3A)
+          </Typography>
+          <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
+            (Click on any zone to view Panchayath-wise details) • Agricultural Year: {agriculturalYear} • Area in Cents
           </Typography>
         </Box>
 
-        {/* Filters: Land Type (All/Wet/Dry) + Irrigation Type dropdown */}
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2, mb: 2 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              borderRadius: 3,
-              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-              overflow: 'hidden',
-            }}
-          >
-            {landTypeOptions.map((opt, idx) => {
-              const isActive = landTypeFilter === opt.value;
-              return (
-                <Box
-                  key={opt.value}
-                  onClick={() => setLandTypeFilter(opt.value)}
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    px: 2.5,
-                    py: 1.25,
-                    cursor: 'pointer',
-                    borderRight: idx < landTypeOptions.length - 1
-                      ? `1px solid ${alpha(theme.palette.divider, 0.15)}`
-                      : 'none',
-                    transition: '0.2s',
-                    '&:hover': {
-                      backgroundColor: alpha(themeColor, 0.04),
-                    },
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.75,
-                      color: isActive ? themeColor : 'text.secondary',
-                    }}
-                  >
-                    {opt.icon}
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 600,
-                        letterSpacing: 0.3,
-                        textTransform: 'uppercase',
-                        fontSize: '0.8rem',
-                      }}
-                    >
-                      {opt.label}
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      width: '100%',
-                      height: 2.5,
-                      borderRadius: 1,
-                      backgroundColor: isActive ? themeColor : 'transparent',
-                      transition: '0.2s',
-                    }}
-                  />
-                </Box>
-              );
-            })}
+        {/* Error */}
+        {error && (
+          <Paper sx={{ p: 2, mb: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
+            <Typography color="error">Error: {error}</Typography>
           </Paper>
-
-          <FormControl size="small" sx={{ minWidth: 190 }}>
-            <InputLabel id="irrigation-type-label">Irrigation Type</InputLabel>
-            <Select
-              labelId="irrigation-type-label"
-              value={irrigationType}
-              label="Irrigation Type"
-              onChange={(e) => setIrrigationType(e.target.value)}
-              sx={{
-                borderRadius: 2,
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: alpha(theme.palette.divider, 0.3),
-                },
-              }}
-            >
-              {irrigationTypeOptions.map((opt) => (
-                <MenuItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Box>
+        )}
 
         <Paper elevation={2} sx={{ borderRadius: 2, overflow: 'hidden', border: `1px solid ${alpha(themeColor, 0.1)}` }}>
           <Tabs
@@ -424,12 +364,12 @@ const ZoneForm3A = () => {
             allowScrollButtonsMobile
             sx={{
               bgcolor: alpha(themeColor, 0.05),
-              '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: '1rem', py: 1.5 },
+              '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: '0.95rem', py: 1.5 },
               '& .MuiTabs-indicator': { backgroundColor: themeColor, height: 3 }
             }}
           >
-            {cropCategories.map((cat) => (
-              <Tab key={cat.id} label={`${cat.icon} ${cat.label}`} />
+            {CROP_GROUPS.map((g) => (
+              <Tab key={g.id} label={g.name} />
             ))}
           </Tabs>
 
@@ -442,8 +382,8 @@ const ZoneForm3A = () => {
               <colgroup>
                 <col style={{ width: BLOCK_W }} />
                 <col style={{ width: ZONE_W }} />
-                {activeCategory.crops.map((crop) => (
-                  <col key={crop.name} style={{ width: CROP_COL_W }} />
+                {cropColumns.map((crop) => (
+                  <col key={crop.cropId} style={{ width: CROP_COL_W }} />
                 ))}
                 <col style={{ width: 'auto' }} />
               </colgroup>
@@ -476,29 +416,26 @@ const ZoneForm3A = () => {
                   >
                     Zone
                   </TableCell>
-                  {activeCategory.crops.map((crop) => {
-                    const active = isCropActive(crop);
-                    return (
-                      <TableCell
-                        key={crop.name}
-                        align="right"
-                        sx={{
-                          bgcolor: themeColor,
-                          color: active ? 'white' : alpha('#ffffff', 0.5),
-                          fontWeight: 700,
-                          whiteSpace: 'nowrap',
-                          py: 1.5,
-                          position: 'sticky',
-                          top: 0,
-                          zIndex: 3,
-                          borderRight: `1px solid ${alpha('#fff', 0.15)}`,
-                          '&:last-child': { borderRight: 'none' }
-                        }}
-                      >
-                        {crop.name}
-                      </TableCell>
-                    );
-                  })}
+                  {cropColumns.map((crop) => (
+                    <TableCell
+                      key={crop.cropId}
+                      align="right"
+                      sx={{
+                        bgcolor: themeColor,
+                        color: 'white',
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                        py: 1.5,
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 3,
+                        borderRight: `1px solid ${alpha('#fff', 0.15)}`,
+                        '&:last-child': { borderRight: 'none' }
+                      }}
+                    >
+                      {crop.cropName}
+                    </TableCell>
+                  ))}
                   {/* spacer header cell — keeps the header color band full-width */}
                   <TableCell
                     aria-hidden
@@ -513,172 +450,186 @@ const ZoneForm3A = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {Object.entries(zoneDataByBlock).map(([blockName, rows]) => {
-                  const trs = [];
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={colSpanAll} align="center" sx={{ py: 6 }}>
+                      <CircularProgress size={36} />
+                    </TableCell>
+                  </TableRow>
+                ) : blocksData.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={colSpanAll} align="center" sx={{ py: 6 }}>
+                      <Typography color="text.secondary">No data available for {cropGroupName}</Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  <>
+                    {blocksData.map((block) => {
+                      const trs = [];
+                      const blockKey = block.blockId ?? block.blockName;
 
-                  rows.forEach((row, idx) => {
-                    const isLastInGroup = idx === rows.length - 1;
-                    trs.push(
-                      <TableRow
-                        key={`${blockName}-${row.zone}`}
-                        hover
-                        onClick={() => handleZoneClick(blockName, row.zone)}
-                        sx={{
-                          cursor: 'pointer',
-                          '&:hover': {
-                            backgroundColor: alpha(themeColor, 0.06),
-                            transition: '0.2s'
-                          }
-                        }}
-                      >
-                        {/*
-                          NO rowSpan here. Every row owns its own sticky Block
-                          cell (content only on the first row, bottom border
-                          suppressed in between) so the "merged" look is kept
-                          while sticky positioning stays perfectly aligned.
-                        */}
-                        <TableCell
-                          align="center"
-                          sx={{
-                            ...stickyCellSx(0, stickyTintLight),
-                            verticalAlign: 'middle',
-                            fontWeight: 700,
-                            borderRight: `1px solid ${alpha(themeColor, 0.15)}`,
-                            borderBottom: isLastInGroup ? undefined : 'none',
-                            zIndex: 2
-                          }}
-                        >
-                          {idx === 0 && (
-                            <Stack alignItems="center" spacing={0.5}>
-                              <Store sx={{ fontSize: 26, color: themeColor, opacity: 0.8 }} />
-                              <Typography fontWeight={700} color={themeColor} variant="subtitle2">
-                                {blockName}
-                              </Typography>
-                              <Chip
-                                label={`${rows.length} Zones`}
-                                size="small"
-                                sx={{ fontSize: '0.7rem', bgcolor: alpha(themeColor, 0.1), color: themeColor }}
-                              />
-                            </Stack>
-                          )}
-                        </TableCell>
-                        <TableCell
-                          align="left"
-                          sx={{
-                            ...stickyCellSx(BLOCK_W, '#ffffff'),
-                            zIndex: 1,
-                            borderRight: `1px solid ${alpha(themeColor, 0.1)}`
-                          }}
-                        >
-                          <Chip
-                            label={row.zone}
-                            size="small"
+                      block.zones.forEach((zone, idx) => {
+                        const isLastInGroup = idx === block.zones.length - 1;
+                        const clickable = zone.zoneId != null;
+                        trs.push(
+                          <TableRow
+                            key={`${blockKey}-${zone.zoneId ?? zone.zoneName}`}
+                            hover={clickable}
+                            onClick={() => handleZoneClick(block.blockId, block.blockName, zone.zoneId, zone.zoneName)}
                             sx={{
-                              bgcolor: alpha(themeColor, 0.1),
-                              color: themeColor,
-                              fontWeight: 600,
-                              borderRadius: 1.5
+                              cursor: clickable ? 'pointer' : 'default',
+                              '&:hover': clickable
+                                ? { backgroundColor: alpha(themeColor, 0.06), transition: '0.2s' }
+                                : undefined
                             }}
-                          />
-                        </TableCell>
-                        {activeCategory.crops.map((crop) => {
-                          const active = isCropActive(crop);
-                          return (
+                          >
+                            {/*
+                              NO rowSpan here. Every row owns its own sticky Block
+                              cell (content only on the first row, bottom border
+                              suppressed in between) so the "merged" look is kept
+                              while sticky positioning stays perfectly aligned.
+                            */}
                             <TableCell
-                              key={crop.name}
-                              align="right"
+                              align="center"
                               sx={{
-                                fontVariantNumeric: 'tabular-nums',
-                                whiteSpace: 'nowrap',
+                                ...stickyCellSx(0, stickyTintLight),
                                 verticalAlign: 'middle',
-                                color: active ? 'inherit' : 'text.disabled',
+                                fontWeight: 700,
+                                borderRight: `1px solid ${alpha(themeColor, 0.15)}`,
+                                borderBottom: isLastInGroup ? undefined : 'none',
+                                zIndex: 2
                               }}
                             >
-                              {active ? formatNumber(getCellValue(row, crop.name)) : '—'}
+                              {idx === 0 && (
+                                <Stack alignItems="center" spacing={0.5}>
+                                  <Store sx={{ fontSize: 26, color: themeColor, opacity: 0.8 }} />
+                                  <Typography fontWeight={700} color={themeColor} variant="subtitle2">
+                                    {block.blockName}
+                                  </Typography>
+                                  <Chip
+                                    label={`${block.zones.length} Zones`}
+                                    size="small"
+                                    sx={{ fontSize: '0.7rem', bgcolor: alpha(themeColor, 0.1), color: themeColor }}
+                                  />
+                                </Stack>
+                              )}
                             </TableCell>
-                          );
-                        })}
-                        {/* spacer body cell — keeps row height/alignment consistent, no visible content */}
-                        <TableCell aria-hidden sx={{ p: 0 }} />
-                      </TableRow>
-                    );
-                  });
+                            <TableCell
+                              align="left"
+                              sx={{
+                                ...stickyCellSx(BLOCK_W, '#ffffff'),
+                                zIndex: 1,
+                                borderRight: `1px solid ${alpha(themeColor, 0.1)}`
+                              }}
+                            >
+                              <Chip
+                                label={zone.zoneName}
+                                size="small"
+                                sx={{
+                                  bgcolor: alpha(themeColor, 0.1),
+                                  color: themeColor,
+                                  fontWeight: 600,
+                                  borderRadius: 1.5
+                                }}
+                              />
+                            </TableCell>
+                            {cropColumns.map((crop) => {
+                              const val = zone.byId[crop.cropId];
+                              return (
+                                <TableCell
+                                  key={crop.cropId}
+                                  align="right"
+                                  sx={{
+                                    fontVariantNumeric: 'tabular-nums',
+                                    whiteSpace: 'nowrap',
+                                    verticalAlign: 'middle'
+                                  }}
+                                >
+                                  {val ? formatNumber(val) : '—'}
+                                </TableCell>
+                              );
+                            })}
+                            {/* spacer body cell — keeps row height/alignment consistent, no visible content */}
+                            <TableCell aria-hidden sx={{ p: 0 }} />
+                          </TableRow>
+                        );
+                      });
 
-                  trs.push(
-                    <TableRow key={`${blockName}-subtotal`} sx={{ bgcolor: stickyTintSubtotal }}>
+                      trs.push(
+                        <TableRow key={`${blockKey}-subtotal`} sx={{ bgcolor: stickyTintSubtotal }}>
+                          <TableCell
+                            colSpan={2}
+                            sx={{
+                              ...stickyCellSx(0, stickyTintSubtotal),
+                              fontWeight: 700,
+                              color: themeColor,
+                              py: 1,
+                              zIndex: 2
+                            }}
+                          >
+                            <strong>📊 Total for {block.blockName}</strong>
+                          </TableCell>
+                          {cropColumns.map((crop) => {
+                            const val = blockTotals[blockKey]?.[crop.cropId];
+                            return (
+                              <TableCell
+                                key={crop.cropId}
+                                align="right"
+                                sx={{
+                                  fontVariantNumeric: 'tabular-nums',
+                                  whiteSpace: 'nowrap',
+                                  fontWeight: 700,
+                                  bgcolor: stickyTintSubtotal
+                                }}
+                              >
+                                {val ? formatNumber(val) : '—'}
+                              </TableCell>
+                            );
+                          })}
+                          {/* spacer subtotal cell — keeps the subtotal band full-width */}
+                          <TableCell aria-hidden sx={{ bgcolor: stickyTintSubtotal, p: 0 }} />
+                        </TableRow>
+                      );
+
+                      return trs;
+                    })}
+
+                    <TableRow sx={{ bgcolor: stickyTintGrand }}>
                       <TableCell
                         colSpan={2}
                         sx={{
-                          ...stickyCellSx(0, stickyTintSubtotal),
-                          fontWeight: 700,
+                          ...stickyCellSx(0, stickyTintGrand),
+                          fontWeight: 800,
                           color: themeColor,
-                          py: 1,
+                          fontSize: '1rem',
+                          py: 1.5,
                           zIndex: 2
                         }}
                       >
-                        <strong>📊 Total for {blockName}</strong>
+                        <strong>🏆 GRAND TOTAL</strong>
                       </TableCell>
-                      {activeCategory.crops.map((crop) => {
-                        const active = isCropActive(crop);
+                      {cropColumns.map((crop) => {
+                        const val = grandTotals[crop.cropId];
                         return (
                           <TableCell
-                            key={crop.name}
+                            key={crop.cropId}
                             align="right"
                             sx={{
                               fontVariantNumeric: 'tabular-nums',
                               whiteSpace: 'nowrap',
-                              fontWeight: 700,
-                              bgcolor: stickyTintSubtotal,
-                              color: active ? 'inherit' : 'text.disabled',
+                              fontWeight: 800,
+                              bgcolor: stickyTintGrand
                             }}
                           >
-                            {active ? formatNumber(blockTotals[blockName][crop.name]) : '—'}
+                            {val ? formatNumber(val) : '—'}
                           </TableCell>
                         );
                       })}
-                      {/* spacer subtotal cell — keeps the subtotal band full-width */}
-                      <TableCell aria-hidden sx={{ bgcolor: stickyTintSubtotal, p: 0 }} />
+                      {/* spacer grand-total cell — keeps the grand-total band full-width */}
+                      <TableCell aria-hidden sx={{ bgcolor: stickyTintGrand, p: 0 }} />
                     </TableRow>
-                  );
-
-                  return trs;
-                })}
-
-                <TableRow sx={{ bgcolor: stickyTintGrand }}>
-                  <TableCell
-                    colSpan={2}
-                    sx={{
-                      ...stickyCellSx(0, stickyTintGrand),
-                      fontWeight: 800,
-                      color: themeColor,
-                      fontSize: '1rem',
-                      py: 1.5,
-                      zIndex: 2
-                    }}
-                  >
-                    <strong>🏆 GRAND TOTAL</strong>
-                  </TableCell>
-                  {activeCategory.crops.map((crop) => {
-                    const active = isCropActive(crop);
-                    return (
-                      <TableCell
-                        key={crop.name}
-                        align="right"
-                        sx={{
-                          fontVariantNumeric: 'tabular-nums',
-                          whiteSpace: 'nowrap',
-                          fontWeight: 800,
-                          bgcolor: stickyTintGrand,
-                          color: active ? 'inherit' : 'text.disabled',
-                        }}
-                      >
-                        {active ? formatNumber(grandTotals[crop.name]) : '—'}
-                      </TableCell>
-                    );
-                  })}
-                  {/* spacer grand-total cell — keeps the grand-total band full-width */}
-                  <TableCell aria-hidden sx={{ bgcolor: stickyTintGrand, p: 0 }} />
-                </TableRow>
+                  </>
+                )}
               </TableBody>
             </Table>
           </TableContainer>

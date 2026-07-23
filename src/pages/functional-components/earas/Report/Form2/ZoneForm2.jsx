@@ -31,6 +31,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
 import AuthService from 'pages/authentication/services/authservice';
+import Breadcrumb from 'routes/Breadcrumb';
 
 // =====================================================================
 // COLUMN WIDTHS — single source of truth.
@@ -402,227 +403,264 @@ const ZoneForm2 = () => {
   }
 
   return (
-    <Card sx={{ borderRadius: 3, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
-      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-          <Box
-            onClick={handleBack}
+    <Box>
+      <Box sx={{ mb: 2 }}>
+        <Breadcrumb />
+      </Box>
+      <Card sx={{ borderRadius: 3, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+          <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            <Box
+              onClick={handleBack}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5,
+                cursor: 'pointer',
+                color: themeColor,
+                '&:hover': { opacity: 0.7 }
+              }}
+            >
+              <ArrowBack />
+              <Typography variant="body2">Back</Typography>
+            </Box>
+            <LocationOn sx={{ fontSize: 32, color: themeColor }} />
+            <Typography variant="h5" sx={{ fontWeight: 'bold', color: themeColor }}>
+              {selectedTaluk} Taluk ({selectedDistrict} District) - Zone wise Land Utilization &amp; Irrigation Report
+            </Typography>
+            <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
+              (Click on any Zone to view detailed report) • Agricultural Year: {agriculturalYear}
+            </Typography>
+          </Box>
+
+          {/* Error */}
+          {error && (
+            <Paper sx={{ p: 2, mb: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
+              <Typography color="error">Error: {error}</Typography>
+            </Paper>
+          )}
+
+          {/* Land Type Filter - applies to both tabs */}
+          <Paper
+            elevation={0}
             sx={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: 0.5,
-              cursor: 'pointer',
-              color: themeColor,
-              '&:hover': { opacity: 0.7 }
+              borderRadius: 3,
+              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+              mb: 2,
+              overflow: 'hidden'
             }}
           >
-            <ArrowBack />
-            <Typography variant="body2">Back</Typography>
-          </Box>
-          <LocationOn sx={{ fontSize: 32, color: themeColor }} />
-          <Typography variant="h5" sx={{ fontWeight: 'bold', color: themeColor }}>
-            {selectedTaluk} Taluk ({selectedDistrict} District) - Zone wise Land Utilization &amp; Irrigation Report
-          </Typography>
-          <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
-            (Click on any Zone to view detailed report) • Agricultural Year: {agriculturalYear}
-          </Typography>
-        </Box>
-
-        {/* Error */}
-        {error && (
-          <Paper sx={{ p: 2, mb: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
-            <Typography color="error">Error: {error}</Typography>
-          </Paper>
-        )}
-
-        {/* Land Type Filter - applies to both tabs */}
-        <Paper
-          elevation={0}
-          sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            borderRadius: 3,
-            border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-            mb: 2,
-            overflow: 'hidden'
-          }}
-        >
-          {landTypeOptions.map((opt, idx) => {
-            const isActive = landTypeFilter === opt.value;
-            return (
-              <Box
-                key={opt.value}
-                onClick={() => setLandTypeFilter(opt.value)}
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 0.5,
-                  px: 2.5,
-                  py: 1.25,
-                  cursor: 'pointer',
-                  borderRight: idx < landTypeOptions.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.15)}` : 'none',
-                  transition: '0.2s',
-                  '&:hover': {
-                    backgroundColor: alpha(themeColor, 0.04)
-                  }
-                }}
-              >
+            {landTypeOptions.map((opt, idx) => {
+              const isActive = landTypeFilter === opt.value;
+              return (
                 <Box
+                  key={opt.value}
+                  onClick={() => setLandTypeFilter(opt.value)}
                   sx={{
                     display: 'flex',
+                    flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 0.75,
-                    color: isActive ? themeColor : 'text.secondary'
+                    gap: 0.5,
+                    px: 2.5,
+                    py: 1.25,
+                    cursor: 'pointer',
+                    borderRight: idx < landTypeOptions.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.15)}` : 'none',
+                    transition: '0.2s',
+                    '&:hover': {
+                      backgroundColor: alpha(themeColor, 0.04)
+                    }
                   }}
                 >
-                  {opt.icon}
-                  <Typography
-                    variant="body2"
+                  <Box
                     sx={{
-                      fontWeight: 600,
-                      letterSpacing: 0.3,
-                      textTransform: 'uppercase',
-                      fontSize: '0.8rem'
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.75,
+                      color: isActive ? themeColor : 'text.secondary'
                     }}
                   >
-                    {opt.label}
-                  </Typography>
+                    {opt.icon}
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 600,
+                        letterSpacing: 0.3,
+                        textTransform: 'uppercase',
+                        fontSize: '0.8rem'
+                      }}
+                    >
+                      {opt.label}
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      width: '100%',
+                      height: 2.5,
+                      borderRadius: 1,
+                      backgroundColor: isActive ? themeColor : 'transparent',
+                      transition: '0.2s'
+                    }}
+                  />
                 </Box>
-                <Box
-                  sx={{
-                    width: '100%',
-                    height: 2.5,
-                    borderRadius: 1,
-                    backgroundColor: isActive ? themeColor : 'transparent',
-                    transition: '0.2s'
-                  }}
-                />
-              </Box>
-            );
-          })}
-        </Paper>
+              );
+            })}
+          </Paper>
 
-        <Paper elevation={2} sx={{ borderRadius: 2, overflow: 'hidden', border: `1px solid ${alpha(themeColor, 0.1)}` }}>
-          <Tabs
-            value={activeTab}
-            onChange={handleTabChange}
-            centered
-            sx={{
-              bgcolor: alpha(themeColor, 0.05),
-              '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: '1rem', py: 1.5 }
-            }}
-          >
-            <Tab icon={<Agriculture sx={{ fontSize: 20 }} />} iconPosition="start" label="Land Utilization" />
-            <Tab icon={<WaterDrop sx={{ fontSize: 20 }} />} iconPosition="start" label="Irrigation Details" />
-          </Tabs>
+          <Paper elevation={2} sx={{ borderRadius: 2, overflow: 'hidden', border: `1px solid ${alpha(themeColor, 0.1)}` }}>
+            <Tabs
+              value={activeTab}
+              onChange={handleTabChange}
+              centered
+              sx={{
+                bgcolor: alpha(themeColor, 0.05),
+                '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: '1rem', py: 1.5 }
+              }}
+            >
+              <Tab icon={<Agriculture sx={{ fontSize: 20 }} />} iconPosition="start" label="Land Utilization" />
+              <Tab icon={<WaterDrop sx={{ fontSize: 20 }} />} iconPosition="start" label="Irrigation Details" />
+            </Tabs>
 
-          {/* ==================== LAND UTILIZATION TAB ==================== */}
-          {activeTab === 0 && (
-            <TableContainer sx={{ maxHeight: 550, overflow: 'auto' }}>
-              <Table stickyHeader sx={tableSx(LU_TABLE_W)}>
-                <colgroup>
-                  {landUtilizationColumns.map((col) => (
-                    <col key={col.id} style={{ width: col.minWidth }} />
-                  ))}
-                </colgroup>
+            {/* ==================== LAND UTILIZATION TAB ==================== */}
+            {activeTab === 0 && (
+              <TableContainer sx={{ maxHeight: 550, overflow: 'auto' }}>
+                <Table stickyHeader sx={tableSx(LU_TABLE_W)}>
+                  <colgroup>
+                    {landUtilizationColumns.map((col) => (
+                      <col key={col.id} style={{ width: col.minWidth }} />
+                    ))}
+                  </colgroup>
 
-                <TableHead>
-                  <TableRow>
-                    {landUtilizationColumns.map((col, index) => {
-                      const isBlock = index === 0;
-                      const isZone = index === 1;
-                      const active = isColumnActive(col);
-                      const baseSx = {
-                        bgcolor: themeColor,
-                        color: active ? 'white' : alpha('#ffffff', 0.5),
-                        fontWeight: 700,
-                        boxSizing: 'border-box',
-                        py: 1.5,
-                        borderRight: `1px solid ${alpha('#fff', 0.15)}`,
-                        '&:last-child': { borderRight: 'none' },
-                        position: 'sticky',
-                        top: 0,
-                        zIndex: isBlock || isZone ? 4 : 3
-                      };
-                      return (
-                        <TableCell
-                          key={col.id}
-                          align={col.align}
-                          sx={isBlock ? { ...baseSx, left: 0 } : isZone ? { ...baseSx, left: LU_BLOCK_W } : baseSx}
-                        >
-                          {col.label}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {Object.keys(landGrouped).length === 0 && (
+                  <TableHead>
                     <TableRow>
-                      <TableCell colSpan={landUtilizationColumns.length} align="center" sx={{ py: 6 }}>
-                        <Typography color="text.secondary">No data available</Typography>
-                      </TableCell>
-                    </TableRow>
-                  )}
-
-                  {Object.entries(landGrouped).map(([blockName, zones]) => {
-                    const rows = [];
-                    const blockTotal = landBlockTotals[blockName];
-
-                    zones.forEach((zone, idx) => {
-                      const isLastInGroup = idx === zones.length - 1;
-                      rows.push(
-                        <TableRow
-                          key={`${blockName}-${zone.zone}-${zone.zoneId}`}
-                          hover
-                          onClick={() => handleZoneClick(zone.zone, zone.zoneId)}
-                          sx={{ cursor: 'pointer', '&:hover': { bgcolor: alpha(themeColor, 0.08) } }}
-                        >
+                      {landUtilizationColumns.map((col, index) => {
+                        const isBlock = index === 0;
+                        const isZone = index === 1;
+                        const active = isColumnActive(col);
+                        const baseSx = {
+                          bgcolor: themeColor,
+                          color: active ? 'white' : alpha('#ffffff', 0.5),
+                          fontWeight: 700,
+                          boxSizing: 'border-box',
+                          py: 1.5,
+                          borderRight: `1px solid ${alpha('#fff', 0.15)}`,
+                          '&:last-child': { borderRight: 'none' },
+                          position: 'sticky',
+                          top: 0,
+                          zIndex: isBlock || isZone ? 4 : 3
+                        };
+                        return (
                           <TableCell
-                            align="center"
+                            key={col.id}
+                            align={col.align}
+                            sx={isBlock ? { ...baseSx, left: 0 } : isZone ? { ...baseSx, left: LU_BLOCK_W } : baseSx}
+                          >
+                            {col.label}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {Object.keys(landGrouped).length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={landUtilizationColumns.length} align="center" sx={{ py: 6 }}>
+                          <Typography color="text.secondary">No data available</Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+
+                    {Object.entries(landGrouped).map(([blockName, zones]) => {
+                      const rows = [];
+                      const blockTotal = landBlockTotals[blockName];
+
+                      zones.forEach((zone, idx) => {
+                        const isLastInGroup = idx === zones.length - 1;
+                        rows.push(
+                          <TableRow
+                            key={`${blockName}-${zone.zone}-${zone.zoneId}`}
+                            hover
+                            onClick={() => handleZoneClick(zone.zone, zone.zoneId)}
+                            sx={{ cursor: 'pointer', '&:hover': { bgcolor: alpha(themeColor, 0.08) } }}
+                          >
+                            <TableCell
+                              align="center"
+                              sx={{
+                                ...stickyCellSx(0, stickyTintLight),
+                                verticalAlign: 'middle',
+                                fontWeight: 700,
+                                borderRight: `1px solid ${alpha(themeColor, 0.15)}`,
+                                borderBottom: isLastInGroup ? undefined : 'none',
+                                zIndex: 2
+                              }}
+                            >
+                              {idx === 0 && (
+                                <Stack alignItems="center" spacing={0.5}>
+                                  <Store sx={{ fontSize: 28, color: themeColor, opacity: 0.8 }} />
+                                  <Typography fontWeight={700} color={themeColor} variant="subtitle1">
+                                    {blockName}
+                                  </Typography>
+                                  <Chip
+                                    label={`${zones.length} Zones`}
+                                    size="small"
+                                    sx={{ fontSize: '0.7rem', bgcolor: alpha(themeColor, 0.1), color: themeColor }}
+                                  />
+                                </Stack>
+                              )}
+                            </TableCell>
+                            <TableCell
+                              align="left"
+                              sx={{
+                                ...stickyCellSx(LU_BLOCK_W, '#ffffff'),
+                                zIndex: 1,
+                                borderRight: `1px solid ${alpha(themeColor, 0.1)}`
+                              }}
+                            >
+                              <Chip
+                                label={zone.zone}
+                                size="small"
+                                sx={{
+                                  bgcolor: alpha(themeColor, 0.1),
+                                  color: themeColor,
+                                  fontWeight: 600,
+                                  borderRadius: 1.5,
+                                  '&:hover': { bgcolor: alpha(themeColor, 0.2) }
+                                }}
+                              />
+                            </TableCell>
+                            {landUtilizationDataColumns.map((col) => {
+                              const active = isColumnActive(col);
+                              return (
+                                <TableCell
+                                  key={col.id}
+                                  align="right"
+                                  sx={{
+                                    fontWeight: col.id === 'netAreaSown' ? 600 : 400,
+                                    color: active ? 'inherit' : 'text.disabled'
+                                  }}
+                                >
+                                  {active ? formatNumber(zone[col.id]) : '—'}
+                                </TableCell>
+                              );
+                            })}
+                          </TableRow>
+                        );
+                      });
+
+                      rows.push(
+                        <TableRow key={`${blockName}-subtotal`} sx={{ bgcolor: stickyTintSubtotal }}>
+                          <TableCell
+                            colSpan={2}
                             sx={{
-                              ...stickyCellSx(0, stickyTintLight),
-                              verticalAlign: 'middle',
+                              ...stickyCellSx(0, stickyTintSubtotal),
                               fontWeight: 700,
-                              borderRight: `1px solid ${alpha(themeColor, 0.15)}`,
-                              borderBottom: isLastInGroup ? undefined : 'none',
+                              color: themeColor,
+                              py: 1,
                               zIndex: 2
                             }}
                           >
-                            {idx === 0 && (
-                              <Stack alignItems="center" spacing={0.5}>
-                                <Store sx={{ fontSize: 28, color: themeColor, opacity: 0.8 }} />
-                                <Typography fontWeight={700} color={themeColor} variant="subtitle1">
-                                  {blockName}
-                                </Typography>
-                                <Chip
-                                  label={`${zones.length} Zones`}
-                                  size="small"
-                                  sx={{ fontSize: '0.7rem', bgcolor: alpha(themeColor, 0.1), color: themeColor }}
-                                />
-                              </Stack>
-                            )}
-                          </TableCell>
-                          <TableCell
-                            align="left"
-                            sx={{
-                              ...stickyCellSx(LU_BLOCK_W, '#ffffff'),
-                              zIndex: 1,
-                              borderRight: `1px solid ${alpha(themeColor, 0.1)}`
-                            }}
-                          >
-                            <Chip
-                              label={zone.zone}
-                              size="small"
-                              sx={{
-                                bgcolor: alpha(themeColor, 0.1),
-                                color: themeColor,
-                                fontWeight: 600,
-                                borderRadius: 1.5,
-                                '&:hover': { bgcolor: alpha(themeColor, 0.2) }
-                              }}
-                            />
+                            <strong>📊 Total for {blockName}</strong>
                           </TableCell>
                           {landUtilizationDataColumns.map((col) => {
                             const active = isColumnActive(col);
@@ -631,31 +669,35 @@ const ZoneForm2 = () => {
                                 key={col.id}
                                 align="right"
                                 sx={{
-                                  fontWeight: col.id === 'netAreaSown' ? 600 : 400,
+                                  fontWeight: 700,
+                                  bgcolor: stickyTintSubtotal,
                                   color: active ? 'inherit' : 'text.disabled'
                                 }}
                               >
-                                {active ? formatNumber(zone[col.id]) : '—'}
+                                {active ? formatNumber(blockTotal[col.id]) : '—'}
                               </TableCell>
                             );
                           })}
                         </TableRow>
                       );
-                    });
 
-                    rows.push(
-                      <TableRow key={`${blockName}-subtotal`} sx={{ bgcolor: stickyTintSubtotal }}>
+                      return rows;
+                    })}
+
+                    {/* {Object.keys(landGrouped).length > 0 && (
+                      <TableRow sx={{ bgcolor: stickyTintGrand }}>
                         <TableCell
                           colSpan={2}
                           sx={{
-                            ...stickyCellSx(0, stickyTintSubtotal),
-                            fontWeight: 700,
+                            ...stickyCellSx(0, stickyTintGrand),
+                            fontWeight: 800,
                             color: themeColor,
-                            py: 1,
+                            fontSize: '1rem',
+                            py: 1.5,
                             zIndex: 2
                           }}
                         >
-                          <strong>📊 Total for {blockName}</strong>
+                          <strong>🏆 GRAND TOTAL</strong>
                         </TableCell>
                         {landUtilizationDataColumns.map((col) => {
                           const active = isColumnActive(col);
@@ -664,309 +706,273 @@ const ZoneForm2 = () => {
                               key={col.id}
                               align="right"
                               sx={{
-                                fontWeight: 700,
-                                bgcolor: stickyTintSubtotal,
+                                fontWeight: 800,
+                                bgcolor: stickyTintGrand,
                                 color: active ? 'inherit' : 'text.disabled'
                               }}
                             >
-                              {active ? formatNumber(blockTotal[col.id]) : '—'}
+                              {active ? formatNumber(landGrandTotals[col.id]) : '—'}
                             </TableCell>
                           );
                         })}
                       </TableRow>
-                    );
+                    )} */}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
 
-                    return rows;
-                  })}
+            {/* ==================== IRRIGATION DETAILS TAB ==================== */}
+            {activeTab === 1 && (
+              <TableContainer sx={{ maxHeight: 550, overflow: 'auto' }}>
+                <Table stickyHeader sx={{ ...tableSx(IRR_TABLE_W), width: '100%' }}>
+                  <colgroup>
+                    <col style={{ width: IRR_BLOCK_W }} />
+                    <col style={{ width: IRR_ZONE_W }} />
+                    {irrigationSources.map((s) => (
+                      <React.Fragment key={s.sourceId}>
+                        <col />
+                        <col />
+                      </React.Fragment>
+                    ))}
+                  </colgroup>
 
-                  {/* {Object.keys(landGrouped).length > 0 && (
-                    <TableRow sx={{ bgcolor: stickyTintGrand }}>
+                  <TableHead>
+                    <TableRow>
                       <TableCell
-                        colSpan={2}
+                        rowSpan={2}
+                        align="center"
                         sx={{
-                          ...stickyCellSx(0, stickyTintGrand),
-                          fontWeight: 800,
-                          color: themeColor,
-                          fontSize: '1rem',
-                          py: 1.5,
-                          zIndex: 2
+                          ...stickyCellSx(0, themeColor, { color: 'white' }),
+                          top: 0,
+                          fontWeight: 700,
+                          verticalAlign: 'middle',
+                          zIndex: 4
                         }}
                       >
-                        <strong>🏆 GRAND TOTAL</strong>
+                        Block
                       </TableCell>
-                      {landUtilizationDataColumns.map((col) => {
-                        const active = isColumnActive(col);
+                      <TableCell
+                        rowSpan={2}
+                        align="center"
+                        sx={{
+                          ...stickyCellSx(IRR_BLOCK_W, themeColor, { color: 'white' }),
+                          top: 0,
+                          fontWeight: 700,
+                          verticalAlign: 'middle',
+                          zIndex: 4
+                        }}
+                      >
+                        Zone
+                      </TableCell>
+                      {irrigationSources.map((source) => {
+                        const active = isSourceActive(source.sourceId);
                         return (
                           <TableCell
-                            key={col.id}
-                            align="right"
+                            key={source.sourceId}
+                            colSpan={2}
+                            align="center"
                             sx={{
-                              fontWeight: 800,
-                              bgcolor: stickyTintGrand,
-                              color: active ? 'inherit' : 'text.disabled'
+                              bgcolor: themeColor,
+                              color: active ? 'white' : alpha('#ffffff', 0.5),
+                              fontWeight: 700,
+                              whiteSpace: 'nowrap',
+                              height: IRR_HEADER_ROW1_H,
+                              py: 0,
+                              position: 'sticky',
+                              top: 0,
+                              zIndex: 3
                             }}
                           >
-                            {active ? formatNumber(landGrandTotals[col.id]) : '—'}
+                            {source.sourceName}
                           </TableCell>
                         );
                       })}
                     </TableRow>
-                  )} */}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-
-          {/* ==================== IRRIGATION DETAILS TAB ==================== */}
-          {activeTab === 1 && (
-            <TableContainer sx={{ maxHeight: 550, overflow: 'auto' }}>
-              <Table stickyHeader sx={{ ...tableSx(IRR_TABLE_W), width: '100%' }}>
-                <colgroup>
-                  <col style={{ width: IRR_BLOCK_W }} />
-                  <col style={{ width: IRR_ZONE_W }} />
-                  {irrigationSources.map((s) => (
-                    <React.Fragment key={s.sourceId}>
-                      <col />
-                      <col />
-                    </React.Fragment>
-                  ))}
-                </colgroup>
-
-                <TableHead>
-                  <TableRow>
-                    <TableCell
-                      rowSpan={2}
-                      align="center"
-                      sx={{
-                        ...stickyCellSx(0, themeColor, { color: 'white' }),
-                        top: 0,
-                        fontWeight: 700,
-                        verticalAlign: 'middle',
-                        zIndex: 4
-                      }}
-                    >
-                      Block
-                    </TableCell>
-                    <TableCell
-                      rowSpan={2}
-                      align="center"
-                      sx={{
-                        ...stickyCellSx(IRR_BLOCK_W, themeColor, { color: 'white' }),
-                        top: 0,
-                        fontWeight: 700,
-                        verticalAlign: 'middle',
-                        zIndex: 4
-                      }}
-                    >
-                      Zone
-                    </TableCell>
-                    {irrigationSources.map((source) => {
-                      const active = isSourceActive(source.sourceId);
-                      return (
-                        <TableCell
-                          key={source.sourceId}
-                          colSpan={2}
-                          align="center"
-                          sx={{
-                            bgcolor: themeColor,
-                            color: active ? 'white' : alpha('#ffffff', 0.5),
-                            fontWeight: 700,
-                            whiteSpace: 'nowrap',
-                            height: IRR_HEADER_ROW1_H,
-                            py: 0,
-                            position: 'sticky',
-                            top: 0,
-                            zIndex: 3
-                          }}
-                        >
-                          {source.sourceName}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                  <TableRow>
-                    {irrigationSources.flatMap((source) => {
-                      const active = isSourceActive(source.sourceId);
-                      return ['Count', 'Area (Ha)'].map((label, i) => (
-                        <TableCell
-                          key={`${source.sourceId}-${i}`}
-                          align="center"
-                          sx={{
-                            bgcolor: stickyHeaderSub,
-                            color: active ? 'white' : alpha('#ffffff', 0.5),
-                            fontWeight: 600,
-                            whiteSpace: 'nowrap',
-                            position: 'sticky',
-                            top: IRR_HEADER_ROW1_H,
-                            zIndex: 3
-                          }}
-                        >
-                          {label}
-                        </TableCell>
-                      ));
-                    })}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {Object.keys(irrGrouped).length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={(irrigationSources.length || 1) * 2 + 2} align="center" sx={{ py: 6 }}>
-                        <Typography color="text.secondary">No data available</Typography>
-                      </TableCell>
-                    </TableRow>
-                  )}
-
-                  {Object.entries(irrGrouped).map(([blockName, zones]) => {
-                    const rows = [];
-
-                    zones.forEach((zone, idx) => {
-                      const isLastInGroup = idx === zones.length - 1;
-                      rows.push(
-                        <TableRow
-                          key={`${blockName}-${zone.zone}-${zone.zoneId}`}
-                          hover
-                          onClick={() => handleZoneClick(zone.zone, zone.zoneId)}
-                          sx={{ cursor: 'pointer', '&:hover': { bgcolor: alpha(themeColor, 0.08) } }}
-                        >
+                      {irrigationSources.flatMap((source) => {
+                        const active = isSourceActive(source.sourceId);
+                        return ['Count', 'Area (Ha)'].map((label, i) => (
                           <TableCell
+                            key={`${source.sourceId}-${i}`}
                             align="center"
                             sx={{
-                              ...stickyCellSx(0, stickyTintLight),
-                              verticalAlign: 'middle',
+                              bgcolor: stickyHeaderSub,
+                              color: active ? 'white' : alpha('#ffffff', 0.5),
+                              fontWeight: 600,
+                              whiteSpace: 'nowrap',
+                              position: 'sticky',
+                              top: IRR_HEADER_ROW1_H,
+                              zIndex: 3
+                            }}
+                          >
+                            {label}
+                          </TableCell>
+                        ));
+                      })}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {Object.keys(irrGrouped).length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={(irrigationSources.length || 1) * 2 + 2} align="center" sx={{ py: 6 }}>
+                          <Typography color="text.secondary">No data available</Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+
+                    {Object.entries(irrGrouped).map(([blockName, zones]) => {
+                      const rows = [];
+
+                      zones.forEach((zone, idx) => {
+                        const isLastInGroup = idx === zones.length - 1;
+                        rows.push(
+                          <TableRow
+                            key={`${blockName}-${zone.zone}-${zone.zoneId}`}
+                            hover
+                            onClick={() => handleZoneClick(zone.zone, zone.zoneId)}
+                            sx={{ cursor: 'pointer', '&:hover': { bgcolor: alpha(themeColor, 0.08) } }}
+                          >
+                            <TableCell
+                              align="center"
+                              sx={{
+                                ...stickyCellSx(0, stickyTintLight),
+                                verticalAlign: 'middle',
+                                fontWeight: 700,
+                                borderRight: `1px solid ${alpha(themeColor, 0.15)}`,
+                                borderBottom: isLastInGroup ? undefined : 'none',
+                                zIndex: 2
+                              }}
+                            >
+                              {idx === 0 && (
+                                <Stack alignItems="center" spacing={0.5}>
+                                  <Store sx={{ fontSize: 24, color: themeColor }} />
+                                  <Typography fontWeight={700} color={themeColor}>
+                                    {blockName}
+                                  </Typography>
+                                </Stack>
+                              )}
+                            </TableCell>
+                            <TableCell
+                              sx={{
+                                ...stickyCellSx(IRR_BLOCK_W, '#ffffff'),
+                                zIndex: 1,
+                                borderRight: `1px solid ${alpha(themeColor, 0.1)}`
+                              }}
+                            >
+                              <Chip
+                                label={zone.zone}
+                                size="small"
+                                sx={{
+                                  bgcolor: alpha(themeColor, 0.1),
+                                  color: themeColor,
+                                  fontWeight: 500,
+                                  '&:hover': { bgcolor: alpha(themeColor, 0.2) }
+                                }}
+                              />
+                            </TableCell>
+                            {irrigationSources.map((source) => {
+                              const active = isSourceActive(source.sourceId);
+                              const data = zone.byId[source.sourceId] || { count: 0, area: 0 };
+                              return (
+                                <React.Fragment key={source.sourceId}>
+                                  <TableCell align="center">
+                                    {active && data.count > 0 ? (
+                                      <Chip
+                                        label={data.count}
+                                        size="small"
+                                        sx={{ bgcolor: alpha(themeColor, 0.1), color: themeColor, fontWeight: 600, minWidth: 40 }}
+                                      />
+                                    ) : (
+                                      <Box component="span" sx={{ color: active ? 'inherit' : 'text.disabled' }}>
+                                        -
+                                      </Box>
+                                    )}
+                                  </TableCell>
+                                  <TableCell align="right" sx={{ fontWeight: 500, color: active ? 'inherit' : 'text.disabled' }}>
+                                    {active && data.area > 0 ? formatNumber(data.area) : '-'}
+                                  </TableCell>
+                                </React.Fragment>
+                              );
+                            })}
+                          </TableRow>
+                        );
+                      });
+
+                      const blockTotal = irrBlockTotals[blockName];
+                      rows.push(
+                        <TableRow key={`${blockName}-subtotal-irr`} sx={{ bgcolor: stickyTintSubtotal }}>
+                          <TableCell
+                            colSpan={2}
+                            sx={{
+                              ...stickyCellSx(0, stickyTintSubtotal),
                               fontWeight: 700,
-                              borderRight: `1px solid ${alpha(themeColor, 0.15)}`,
-                              borderBottom: isLastInGroup ? undefined : 'none',
+                              color: themeColor,
+                              py: 1,
                               zIndex: 2
                             }}
                           >
-                            {idx === 0 && (
-                              <Stack alignItems="center" spacing={0.5}>
-                                <Store sx={{ fontSize: 24, color: themeColor }} />
-                                <Typography fontWeight={700} color={themeColor}>
-                                  {blockName}
-                                </Typography>
-                              </Stack>
-                            )}
-                          </TableCell>
-                          <TableCell
-                            sx={{
-                              ...stickyCellSx(IRR_BLOCK_W, '#ffffff'),
-                              zIndex: 1,
-                              borderRight: `1px solid ${alpha(themeColor, 0.1)}`
-                            }}
-                          >
-                            <Chip
-                              label={zone.zone}
-                              size="small"
-                              sx={{
-                                bgcolor: alpha(themeColor, 0.1),
-                                color: themeColor,
-                                fontWeight: 500,
-                                '&:hover': { bgcolor: alpha(themeColor, 0.2) }
-                              }}
-                            />
+                            <strong>📊 Total for {blockName}</strong>
                           </TableCell>
                           {irrigationSources.map((source) => {
                             const active = isSourceActive(source.sourceId);
-                            const data = zone.byId[source.sourceId] || { count: 0, area: 0 };
+                            const t = blockTotal[source.sourceId] || { count: 0, area: 0 };
                             return (
                               <React.Fragment key={source.sourceId}>
-                                <TableCell align="center">
-                                  {active && data.count > 0 ? (
-                                    <Chip
-                                      label={data.count}
-                                      size="small"
-                                      sx={{ bgcolor: alpha(themeColor, 0.1), color: themeColor, fontWeight: 600, minWidth: 40 }}
-                                    />
-                                  ) : (
-                                    <Box component="span" sx={{ color: active ? 'inherit' : 'text.disabled' }}>
-                                      -
-                                    </Box>
-                                  )}
+                                <TableCell align="center" sx={{ fontWeight: 700, bgcolor: stickyTintSubtotal, color: active ? 'inherit' : 'text.disabled' }}>
+                                  {active && t.count > 0 ? t.count : '-'}
                                 </TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 500, color: active ? 'inherit' : 'text.disabled' }}>
-                                  {active && data.area > 0 ? formatNumber(data.area) : '-'}
+                                <TableCell align="right" sx={{ fontWeight: 700, bgcolor: stickyTintSubtotal, color: active ? 'inherit' : 'text.disabled' }}>
+                                  {active && t.area > 0 ? formatNumber(t.area) : '-'}
                                 </TableCell>
                               </React.Fragment>
                             );
                           })}
                         </TableRow>
                       );
-                    });
 
-                    const blockTotal = irrBlockTotals[blockName];
-                    rows.push(
-                      <TableRow key={`${blockName}-subtotal-irr`} sx={{ bgcolor: stickyTintSubtotal }}>
+                      return rows;
+                    })}
+
+                    {/* {Object.keys(irrGrouped).length > 0 && (
+                      <TableRow sx={{ bgcolor: stickyTintGrand }}>
                         <TableCell
                           colSpan={2}
                           sx={{
-                            ...stickyCellSx(0, stickyTintSubtotal),
-                            fontWeight: 700,
+                            ...stickyCellSx(0, stickyTintGrand),
+                            fontWeight: 800,
                             color: themeColor,
-                            py: 1,
+                            fontSize: '1rem',
+                            py: 1.5,
                             zIndex: 2
                           }}
                         >
-                          <strong>📊 Total for {blockName}</strong>
+                          <strong>🏆 GRAND TOTAL</strong>
                         </TableCell>
                         {irrigationSources.map((source) => {
                           const active = isSourceActive(source.sourceId);
-                          const t = blockTotal[source.sourceId] || { count: 0, area: 0 };
+                          const t = irrGrandTotals[source.sourceId] || { count: 0, area: 0 };
                           return (
                             <React.Fragment key={source.sourceId}>
-                              <TableCell align="center" sx={{ fontWeight: 700, bgcolor: stickyTintSubtotal, color: active ? 'inherit' : 'text.disabled' }}>
-                                {active && t.count > 0 ? t.count : '-'}
+                              <TableCell align="center" sx={{ fontWeight: 800, bgcolor: stickyTintGrand, color: active ? 'inherit' : 'text.disabled' }}>
+                                {active ? t.count : '—'}
                               </TableCell>
-                              <TableCell align="right" sx={{ fontWeight: 700, bgcolor: stickyTintSubtotal, color: active ? 'inherit' : 'text.disabled' }}>
-                                {active && t.area > 0 ? formatNumber(t.area) : '-'}
+                              <TableCell align="right" sx={{ fontWeight: 800, bgcolor: stickyTintGrand, color: active ? 'inherit' : 'text.disabled' }}>
+                                {active ? formatNumber(t.area) : '—'}
                               </TableCell>
                             </React.Fragment>
                           );
                         })}
                       </TableRow>
-                    );
-
-                    return rows;
-                  })}
-
-                  {/* {Object.keys(irrGrouped).length > 0 && (
-                    <TableRow sx={{ bgcolor: stickyTintGrand }}>
-                      <TableCell
-                        colSpan={2}
-                        sx={{
-                          ...stickyCellSx(0, stickyTintGrand),
-                          fontWeight: 800,
-                          color: themeColor,
-                          fontSize: '1rem',
-                          py: 1.5,
-                          zIndex: 2
-                        }}
-                      >
-                        <strong>🏆 GRAND TOTAL</strong>
-                      </TableCell>
-                      {irrigationSources.map((source) => {
-                        const active = isSourceActive(source.sourceId);
-                        const t = irrGrandTotals[source.sourceId] || { count: 0, area: 0 };
-                        return (
-                          <React.Fragment key={source.sourceId}>
-                            <TableCell align="center" sx={{ fontWeight: 800, bgcolor: stickyTintGrand, color: active ? 'inherit' : 'text.disabled' }}>
-                              {active ? t.count : '—'}
-                            </TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 800, bgcolor: stickyTintGrand, color: active ? 'inherit' : 'text.disabled' }}>
-                              {active ? formatNumber(t.area) : '—'}
-                            </TableCell>
-                          </React.Fragment>
-                        );
-                      })}
-                    </TableRow>
-                  )} */}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </Paper>
-      </CardContent>
-    </Card>
+                    )} */}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Paper>
+        </CardContent>
+      </Card>
+    </Box>
   );
 };
 

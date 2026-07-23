@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -16,227 +16,204 @@ import {
   Tabs,
   Tab,
   Chip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  IconButton
+  IconButton,
+  CircularProgress
 } from '@mui/material';
-import { LocationOn, WaterDrop, WbSunny, ArrowBack } from '@mui/icons-material';
+import { LocationOn, ArrowBack } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
+import mainapi from 'api/mainapi';
+import AuthService from 'pages/authentication/services/authservice';
+
+// Gateway root (e.g. http://localhost:8080). '/earas-form1-entry' added below.
+// NOTE: if mainapi.FORM_API already ends in '/earas-form1-entry', drop the
+// duplicate segment from the URL to avoid a doubled prefix (404).
+const BASE_URL = mainapi.FORM_API;
+
+const SESSION_KEY = 'talukForm3AState';
+
+// Static crop groups (tbl_master_crop_group). Tab index → group; its id is
+// sent to the API as cropGroupId.
+const CROP_GROUPS = [
+  { id: 1, name: 'Food crops' },
+  { id: 2, name: 'Non food crops' },
+  { id: 3, name: 'Trees' },
+  { id: 4, name: 'Aromatic plants' },
+  { id: 5, name: 'Drugs and Narcotics' },
+  { id: 6, name: 'Cereals' },
+  { id: 7, name: 'Fibre' },
+  { id: 8, name: 'Flowers' },
+  { id: 9, name: 'Fodder crops' },
+  { id: 10, name: 'Fruits' },
+  { id: 11, name: 'Grains' },
+  { id: 12, name: 'Green manure crops' },
+  { id: 13, name: 'Medicinal plants' },
+  { id: 14, name: 'Oil seeds' },
+  { id: 15, name: 'Other medicinal plants' },
+  { id: 16, name: 'Other trees' },
+  { id: 17, name: 'Plantation crops' },
+  { id: 18, name: 'Pulses' },
+  { id: 19, name: 'Spices' },
+  { id: 20, name: 'Sugar crops' },
+  { id: 21, name: 'Tubers' },
+  { id: 22, name: 'Vegetables' },
+  { id: 23, name: 'Dry fruit' }
+];
+
+const cleanName = (name) => (name || '').replace(/\s+/g, ' ').trim();
+
+function getSavedState() {
+  try {
+    return JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
 
 const TalukForm3A = () => {
   const theme = useTheme();
-  const themeColor = "#05307a";
+  const themeColor = '#05307a';
   const navigate = useNavigate();
   const location = useLocation();
 
-  // District and starting tab handed off from KeralaForm3A
-  const selectedDistrict = location.state?.selectedDistrict || location.state?.districtName || "Thiruvananthapuram";
+  // Merge saved sessionStorage state with location.state (state wins on fresh nav).
+  const stateData = useMemo(() => {
+    const saved = getSavedState();
+    return { ...saved, ...(location.state || {}) };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Active seasonal-crop tab (defaults to whichever tab was active on the district view)
-  const [activeTab, setActiveTab] = useState(location.state?.activeTab || 0);
+  const districtId = stateData.districtId ?? null;
+  const districtName = stateData.districtName || stateData.selectedDistrict || 'District';
+  const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
 
-  // Land Type filter: 'all' | 'wet' | 'dry' — applies to the crop columns
-  const [landTypeFilter, setLandTypeFilter] = useState('all');
+  const [activeTab, setActiveTab] = useState(stateData.activeTab ?? 0);
+  const [apiData, setApiData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Irrigation Type filter: which figure populates each cell
-  const [irrigationType, setIrrigationType] = useState('total');
+  const cropGroupId = CROP_GROUPS[activeTab]?.id;
+  const cropGroupName = CROP_GROUPS[activeTab]?.name;
 
-  // Shared style for numeric cells - tabular numerals keep digits vertically aligned
   const numericCellSx = {
     fontVariantNumeric: 'tabular-nums',
-    whiteSpace: 'nowrap',
+    whiteSpace: 'nowrap'
   };
 
-  // Taluks by district
-  const taluksByDistrict = {
-    "Thiruvananthapuram": ["Thiruvananthapuram", "Neyyattinkara", "Chirayinkeezhu", "Nedumangad"],
-    "Kollam": ["Kollam", "Karunagappally", "Kunnathur", "Kottarakkara", "Punalur"],
-    "Pathanamthitta": ["Pathanamthitta", "Adoor", "Ranni", "Thiruvalla", "Konni", "Mallapally"],
-    "Alappuzha": ["Alappuzha", "Cherthala", "Ambalappuzha", "Kuttanad"],
-    "Kottayam": ["Kottayam", "Changanassery", "Kanjirappally", "Pala"],
-    "Idukki": ["Thodupuzha", "Devikulam", "Peermedu", "Udumbanchola"],
-    "Ernakulam": ["Kochi", "Paravur", "Aluva", "Kunnathunadu", "Kothamangalam", "Muvattupuzha"],
-    "Thrissur": ["Thrissur", "Chalakudy", "Kodungallur", "Kunnamkulam", "Guruvayur"],
-    "Palakkad": ["Palakkad", "Alathur", "Chittur", "Mannarkkad"],
-    "Malappuram": ["Malappuram", "Perinthalmanna", "Tirur", "Ponnani"],
-    "Kozhikode": ["Kozhikode", "Koyilandy", "Vadakara", "Thamarassery"],
-    "Wayanad": ["Vythiri", "Sulthan Bathery", "Mananthavady"],
-    "Kannur": ["Kannur", "Thalassery", "Taliparamba", "Iritty"],
-    "Kasaragod": ["Kasaragod", "Hosdurg", "Manjeshwar", "Vellarikundu"]
-  };
-
-  const taluks = taluksByDistrict[selectedDistrict] || [];
-
-  // Deterministic pseudo-random generator so each Taluk x Crop cell gets a
-  // stable, distinct value (in hectares) without hand-authoring every figure.
-  const seededArea = (key, min, max) => {
-    let hash = 0;
-    for (let i = 0; i < key.length; i++) {
-      hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  /* ── persist district context so breadcrumb/refresh keeps working ── */
+  useEffect(() => {
+    if (districtId != null) {
+      sessionStorage.setItem(
+        SESSION_KEY,
+        JSON.stringify({
+          districtId,
+          districtName,
+          selectedDistrict: districtName,
+          agriculturalYear,
+          activeTab: stateData.activeTab ?? 0
+        })
+      );
     }
-    const frac = (hash % 10000) / 10000;
-    return min + frac * (max - min);
-  };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Same seasonal crop tabs as the district-level report. minArea/maxArea are
-  // scaled down since a taluk is a smaller unit than a whole district.
-  const cropCategories = [
-    {
-      id: 'cereals',
-      icon: '🌾',
-      label: 'Cereals',
-      minArea: 80,
-      maxArea: 1100,
-      crops: [
-        { name: 'Rice', category: 'wet' },
-        { name: 'Wheat', category: 'dry' },
-        { name: 'Maize', category: 'dry' },
-        { name: 'Barley', category: 'dry' }
-      ]
-    },
-    {
-      id: 'pulses',
-      icon: '🌱',
-      label: 'Pulses',
-      minArea: 8,
-      maxArea: 180,
-      crops: [
-        { name: 'Green gram', category: 'dry' },
-        { name: 'Black gram', category: 'dry' },
-        { name: 'Red gram', category: 'dry' },
-        { name: 'Bengal gram', category: 'dry' },
-        { name: 'Cowpea', category: 'dry' },
-        { name: 'Horse gram', category: 'dry' }
-      ]
-    },
-    {
-      id: 'vegetables',
-      icon: '🥔',
-      label: 'Vegetables',
-      minArea: 5,
-      maxArea: 140,
-      crops: [
-        { name: 'Tomato', category: 'dry' },
-        { name: 'Brinjal', category: 'dry' },
-        { name: 'Potato', category: 'dry' },
-        { name: 'Onion', category: 'dry' },
-        { name: 'Cabbage', category: 'dry' },
-        { name: 'Cauliflower', category: 'dry' },
-        { name: 'Okra', category: 'wet' },
-        { name: 'Bitter gourd', category: 'wet' },
-        { name: 'Bottle gourd', category: 'wet' },
-        { name: 'Pumpkin', category: 'wet' },
-        { name: 'Carrot', category: 'dry' },
-        { name: 'Beetroot', category: 'dry' },
-        { name: 'Radish', category: 'dry' },
-        { name: 'Spinach', category: 'dry' },
-        { name: 'Cucumber', category: 'wet' },
-        { name: 'Beans', category: 'dry' },
-        { name: 'Chilli', category: 'dry' }
-      ]
-    },
-    {
-      id: 'spices',
-      icon: '🌶️',
-      label: 'Spices',
-      minArea: 18,
-      maxArea: 450,
-      crops: [
-        { name: 'Black Pepper', category: 'wet' },
-        { name: 'Cardamom', category: 'wet' },
-        { name: 'Ginger', category: 'wet' },
-        { name: 'Turmeric', category: 'wet' },
-        { name: 'Garlic', category: 'dry' },
-        { name: 'Cinnamon', category: 'dry' },
-        { name: 'Clove', category: 'dry' },
-        { name: 'Nutmeg', category: 'dry' },
-        { name: 'Coriander', category: 'dry' },
-        { name: 'Cumin', category: 'dry' }
-      ]
-    },
-    {
-      id: 'plantation',
-      icon: '☕',
-      label: 'Plantation Crops',
-      minArea: 35,
-      maxArea: 1750,
-      crops: [
-        { name: 'Rubber', category: 'dry' },
-        { name: 'Tea', category: 'dry' },
-        { name: 'Coffee', category: 'dry' },
-        { name: 'Cocoa', category: 'dry' },
-        { name: 'Coconut', category: 'wet' },
-        { name: 'Arecanut', category: 'wet' }
-      ]
+  /* ─────────────────────────── fetch (per crop group) ─────────────────────────── */
+
+  useEffect(() => {
+    if (districtId == null) {
+      setError('District is required. Please navigate from the state (district) report page.');
+      return;
     }
-  ];
+    if (!cropGroupId) return;
 
-  const irrigationTypeOptions = [
-    { value: 'total', label: 'Total' },
-    { value: 'irrigated', label: 'Irrigated' },
-    { value: 'unirrigated', label: 'Unirrigated' }
-  ];
+    const fetchGroupData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) throw new Error('Authorization token missing');
 
-  const activeCategory = cropCategories[activeTab];
+        const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/district?agriYear=${agriculturalYear}&districtId=${districtId}&cropGroupId=${cropGroupId}`;
+        console.log('Fetching Taluk Form 3A data from:', url);
 
-  const isCropActive = (crop) =>
-    landTypeFilter === 'all' || crop.category === landTypeFilter;
+        const response = await axios.get(url, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
 
-  // Taluk-wise data for the active category: one row per taluk, with
-  // irrigated/unirrigated/total area generated per crop in that category's
-  // list. The Irrigation Type filter picks which of the three is displayed.
-  const categoryData = taluks.map((taluk) => {
-    const row = { taluk };
-    activeCategory.crops.forEach((crop) => {
-      const irrigated = seededArea(`${selectedDistrict}-${taluk}-${crop.name}-irrigated`, activeCategory.minArea * 0.3, activeCategory.maxArea * 0.65);
-      const unirrigated = seededArea(`${selectedDistrict}-${taluk}-${crop.name}-unirrigated`, activeCategory.minArea * 0.2, activeCategory.maxArea * 0.55);
-      row[crop.name] = {
-        irrigated,
-        unirrigated,
-        total: irrigated + unirrigated
-      };
+        setApiData(Array.isArray(response.data) ? response.data : []);
+      } catch (err) {
+        console.error('Error fetching Taluk Form 3A data:', err);
+        if (err.response?.status === 401) setError('Session expired. Please login again.');
+        else if (err.response?.status === 403) setError("You don't have permission to access this data.");
+        else if (err.response?.status === 404) setError('District not found.');
+        else setError(err.response?.data?.message || err.message || 'Failed to fetch data');
+        setApiData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchGroupData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cropGroupId, districtId, agriculturalYear]);
+
+  /* ─────────────────────────── derived data ─────────────────────────── */
+
+  const cropColumns = useMemo(() => {
+    const map = new Map();
+    apiData.forEach((t) =>
+      (t.crops || []).forEach((c) => {
+        if (!map.has(c.cropId)) map.set(c.cropId, { cropId: c.cropId, cropName: cleanName(c.cropName) });
+      })
+    );
+    return Array.from(map.values()).sort((a, b) => a.cropName.localeCompare(b.cropName));
+  }, [apiData]);
+
+  const talukRows = useMemo(() => {
+    return apiData.map((t) => {
+      const byId = {};
+      (t.crops || []).forEach((c) => {
+        byId[c.cropId] = Number(c.areaInCents) || 0;
+      });
+      return { talukId: t.talukId ?? null, taluk: t.talukName || 'Unassigned', byId };
     });
-    return row;
-  });
+  }, [apiData]);
 
-  const getCellValue = (row, cropName) => row[cropName][irrigationType];
+  const cropTotals = useMemo(() => {
+    const totals = {};
+    cropColumns.forEach((c) => (totals[c.cropId] = 0));
+    talukRows.forEach((row) => {
+      cropColumns.forEach((c) => {
+        if (row.byId[c.cropId] !== undefined) totals[c.cropId] += row.byId[c.cropId];
+      });
+    });
+    return totals;
+  }, [talukRows, cropColumns]);
 
-  // Column totals across all taluks for the active category
-  const categoryTotals = activeCategory.crops.reduce((acc, crop) => {
-    acc[crop.name] = categoryData.reduce((sum, row) => sum + getCellValue(row, crop.name), 0);
-    return acc;
-  }, {});
+  /* ─────────────────────────── handlers ─────────────────────────── */
 
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
-  };
+  const handleTabChange = (event, newValue) => setActiveTab(newValue);
 
-  const formatNumber = (num) => num.toFixed(2);
+  const formatNumber = (num) => Number(num || 0).toFixed(2);
 
-  const handleBack = () => {
-    navigate(`/schemes/earas/Report/Form3A`);
-  };
+  const handleBack = () => navigate(-1);
 
-  const handleTalukClick = (talukName) => {
-    navigate(`/schemes/earas/Report/Form3A/ZoneForm3A`, {
+  const handleTalukClick = (talukName, talukId) => {
+    if (talukId == null) return;
+    navigate('/schemes/earas/Report/Form3A/ZoneForm3A', {
       state: {
-        districtName: selectedDistrict,
-        selectedDistrict: selectedDistrict,
-        talukName: talukName,
+        districtId,
+        districtName,
+        selectedDistrict: districtName,
+        talukId,
+        talukName,
         selectedTaluk: talukName,
-        activeTab: activeTab
+        cropGroupId,
+        cropGroupName,
+        agriculturalYear,
+        activeTab
       }
     });
   };
 
-  // Land Type filter options
-  const landTypeOptions = [
-    { value: 'all', label: 'All', icon: null },
-    { value: 'wet', label: 'Wet', icon: <WaterDrop sx={{ fontSize: 18 }} /> },
-    { value: 'dry', label: 'Dry', icon: <WbSunny sx={{ fontSize: 18 }} /> }
-  ];
+  /* ─────────────────────────── render ─────────────────────────── */
 
   return (
     <Card
@@ -245,122 +222,38 @@ const TalukForm3A = () => {
         borderRadius: 4,
         overflow: 'visible',
         background: theme.palette.background.paper,
-        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`
       }}
     >
       <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-
         {/* Header */}
-        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
           <IconButton onClick={handleBack} size="small" sx={{ color: themeColor }}>
             <ArrowBack />
           </IconButton>
           <LocationOn sx={{ fontSize: 32, color: themeColor }} />
           <Typography variant="h5" sx={{ fontWeight: 'bold', color: themeColor }}>
-            {selectedDistrict} District - Taluk-wise Seasonal Crops Report
+            {districtName} District - Taluk-wise Crop Area Report (Form 3A)
+          </Typography>
+          <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
+            (Click on any taluk to view Zone-wise details) • Agricultural Year: {agriculturalYear} • Area in Cents
           </Typography>
         </Box>
 
-        {/* Filters: Land Type (All/Wet/Dry) + Irrigation Type dropdown */}
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2, mb: 2 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              borderRadius: 3,
-              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-              overflow: 'hidden',
-            }}
-          >
-            {landTypeOptions.map((opt, idx) => {
-              const isActive = landTypeFilter === opt.value;
-              return (
-                <Box
-                  key={opt.value}
-                  onClick={() => setLandTypeFilter(opt.value)}
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    px: 2.5,
-                    py: 1.25,
-                    cursor: 'pointer',
-                    borderRight: idx < landTypeOptions.length - 1
-                      ? `1px solid ${alpha(theme.palette.divider, 0.15)}`
-                      : 'none',
-                    transition: '0.2s',
-                    '&:hover': {
-                      backgroundColor: alpha(themeColor, 0.04),
-                    },
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.75,
-                      color: isActive ? themeColor : 'text.secondary',
-                    }}
-                  >
-                    {opt.icon}
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 600,
-                        letterSpacing: 0.3,
-                        textTransform: 'uppercase',
-                        fontSize: '0.8rem',
-                      }}
-                    >
-                      {opt.label}
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      width: '100%',
-                      height: 2.5,
-                      borderRadius: 1,
-                      backgroundColor: isActive ? themeColor : 'transparent',
-                      transition: '0.2s',
-                    }}
-                  />
-                </Box>
-              );
-            })}
+        {/* Error */}
+        {error && (
+          <Paper sx={{ p: 2, mb: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
+            <Typography color="error">Error: {error}</Typography>
           </Paper>
+        )}
 
-          <FormControl size="small" sx={{ minWidth: 190 }}>
-            <InputLabel id="irrigation-type-label">Irrigation Type</InputLabel>
-            <Select
-              labelId="irrigation-type-label"
-              value={irrigationType}
-              label="Irrigation Type"
-              onChange={(e) => setIrrigationType(e.target.value)}
-              sx={{
-                borderRadius: 2,
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: alpha(theme.palette.divider, 0.3),
-                },
-              }}
-            >
-              {irrigationTypeOptions.map((opt) => (
-                <MenuItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Box>
-
-        {/* Tabs Section */}
+        {/* Tabs Section — one tab per crop group */}
         <Paper
           elevation={2}
           sx={{
             borderRadius: 3,
             overflow: 'hidden',
-            border: `1px solid ${alpha(themeColor, 0.1)}`,
+            border: `1px solid ${alpha(themeColor, 0.1)}`
           }}
         >
           <Tabs
@@ -374,28 +267,28 @@ const TalukForm3A = () => {
               '& .MuiTab-root': {
                 textTransform: 'none',
                 fontWeight: 600,
-                fontSize: '1rem',
+                fontSize: '0.95rem',
                 py: 1.5,
                 minHeight: 'auto',
                 '&.Mui-selected': {
-                  color: themeColor,
-                },
+                  color: themeColor
+                }
               },
               '& .MuiTabs-indicator': {
                 backgroundColor: themeColor,
-                height: 3,
-              },
+                height: 3
+              }
             }}
           >
-            {cropCategories.map((cat) => (
-              <Tab key={cat.id} label={`${cat.icon} ${cat.label}`} />
+            {CROP_GROUPS.map((g) => (
+              <Tab key={g.id} label={g.name} />
             ))}
           </Tabs>
 
-          {/* Active category's table: Taluk, <crop columns...> */}
+          {/* Active group's table: Taluk, <crop columns...> */}
           <Box role="tabpanel" sx={{ p: 0 }}>
             <TableContainer sx={{ maxHeight: 600, overflowX: 'auto' }}>
-              <Table stickyHeader size="small" sx={{ minWidth: 200 + activeCategory.crops.length * 140 }}>
+              <Table stickyHeader size="small" sx={{ minWidth: 200 + Math.max(cropColumns.length, 1) * 150 }}>
                 <TableHead>
                   <TableRow>
                     <TableCell
@@ -407,99 +300,101 @@ const TalukForm3A = () => {
                         whiteSpace: 'nowrap',
                         minWidth: 180,
                         py: 1.5,
+                        position: 'sticky',
+                        left: 0,
+                        zIndex: 3
                       }}
                     >
                       Taluk
                     </TableCell>
-                    {activeCategory.crops.map((crop) => {
-                      const active = isCropActive(crop);
-                      return (
-                        <TableCell
-                          key={crop.name}
-                          align="right"
-                          sx={{
-                            backgroundColor: themeColor,
-                            color: active ? 'white' : alpha('#ffffff', 0.5),
-                            fontWeight: 700,
-                            whiteSpace: 'nowrap',
-                            minWidth: 140,
-                            py: 1.5,
-                          }}
-                        >
-                          {crop.name}
-                        </TableCell>
-                      );
-                    })}
+                    {cropColumns.map((crop) => (
+                      <TableCell
+                        key={crop.cropId}
+                        align="right"
+                        sx={{
+                          backgroundColor: themeColor,
+                          color: 'white',
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                          minWidth: 150,
+                          py: 1.5
+                        }}
+                      >
+                        {crop.cropName}
+                      </TableCell>
+                    ))}
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {categoryData.map((row, index) => (
-                    <TableRow
-                      key={index}
-                      hover
-                      onClick={() => handleTalukClick(row.taluk)}
-                      sx={{
-                        cursor: 'pointer',
-                        '&:hover': {
-                          backgroundColor: alpha(themeColor, 0.08),
-                          transition: '0.2s'
-                        }
-                      }}
-                    >
-                      <TableCell align="left">
-                        <Chip
-                          label={row.taluk}
-                          size="small"
-                          sx={{
-                            backgroundColor: alpha(themeColor, 0.1),
-                            color: themeColor,
-                            fontWeight: 500,
-                            borderRadius: 1.5,
-                            '&:hover': {
-                              backgroundColor: alpha(themeColor, 0.2),
-                            }
-                          }}
-                        />
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={cropColumns.length + 1} align="center" sx={{ py: 6 }}>
+                        <CircularProgress size={36} />
                       </TableCell>
-                      {activeCategory.crops.map((crop) => {
-                        const active = isCropActive(crop);
+                    </TableRow>
+                  ) : talukRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={cropColumns.length + 1} align="center" sx={{ py: 6 }}>
+                        <Typography color="text.secondary">No data available for {cropGroupName}</Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    <>
+                      {talukRows.map((row, index) => {
+                        const clickable = row.talukId != null;
                         return (
-                          <TableCell
-                            key={crop.name}
-                            align="right"
+                          <TableRow
+                            key={row.talukId ?? `row-${index}`}
+                            hover={clickable}
+                            onClick={() => handleTalukClick(row.taluk, row.talukId)}
                             sx={{
-                              ...numericCellSx,
-                              color: active ? 'inherit' : 'text.disabled',
+                              cursor: clickable ? 'pointer' : 'default',
+                              '&:hover': clickable ? { backgroundColor: alpha(themeColor, 0.08), transition: '0.2s' } : undefined
                             }}
                           >
-                            {active ? formatNumber(getCellValue(row, crop.name)) : '—'}
-                          </TableCell>
+                            <TableCell
+                              align="left"
+                              sx={{ position: 'sticky', left: 0, zIndex: 1, backgroundColor: theme.palette.background.paper }}
+                            >
+                              <Chip
+                                label={row.taluk}
+                                size="small"
+                                sx={{
+                                  backgroundColor: alpha(themeColor, 0.1),
+                                  color: themeColor,
+                                  fontWeight: 500,
+                                  borderRadius: 1.5,
+                                  '&:hover': clickable ? { backgroundColor: alpha(themeColor, 0.2) } : undefined
+                                }}
+                              />
+                            </TableCell>
+                            {cropColumns.map((crop) => {
+                              const val = row.byId[crop.cropId];
+                              return (
+                                <TableCell key={crop.cropId} align="right" sx={numericCellSx}>
+                                  {val ? formatNumber(val) : '—'}
+                                </TableCell>
+                              );
+                            })}
+                          </TableRow>
                         );
                       })}
-                    </TableRow>
-                  ))}
-                  {/* Total Row */}
-                  <TableRow sx={{ backgroundColor: alpha(themeColor, 0.08) }}>
-                    <TableCell align="left" sx={{ fontWeight: 700, color: themeColor }}>
-                      TOTAL
-                    </TableCell>
-                    {activeCategory.crops.map((crop) => {
-                      const active = isCropActive(crop);
-                      return (
+                      {/* Total Row */}
+                      <TableRow sx={{ backgroundColor: alpha(themeColor, 0.08) }}>
                         <TableCell
-                          key={crop.name}
-                          align="right"
-                          sx={{
-                            ...numericCellSx,
-                            fontWeight: 700,
-                            color: active ? 'inherit' : 'text.disabled',
-                          }}
+                          align="left"
+                          sx={{ fontWeight: 700, color: themeColor, position: 'sticky', left: 0, zIndex: 1, backgroundColor: '#eef1f7' }}
                         >
-                          {active ? formatNumber(categoryTotals[crop.name]) : '—'}
+                          TOTAL
                         </TableCell>
-                      );
-                    })}
-                  </TableRow>
+                        {cropColumns.map((crop) => (
+                          <TableCell key={crop.cropId} align="right" sx={{ ...numericCellSx, fontWeight: 700 }}>
+                            {cropTotals[crop.cropId] ? formatNumber(cropTotals[crop.cropId]) : '—'}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    </>
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>

@@ -28,6 +28,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
 import AuthService from 'pages/authentication/services/authservice';
+import Breadcrumb from 'routes/Breadcrumb';
 
 // Gateway root (e.g. http://localhost:8080). The '/earas-form1-entry' service
 // prefix is added on the request path below.
@@ -296,188 +297,226 @@ const handleTalukClick = (talukName, talukId) => {
   }
 
   return (
-    <Card
-      elevation={0}
-      sx={{
-        borderRadius: 4,
-        overflow: 'visible',
-        background: theme.palette.background.paper,
-        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`
-      }}
-    >
-      <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-        {/* Header */}
-        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-          <LocationOn sx={{ fontSize: 32, color: themeColor }} />
-          <Typography variant="h5" sx={{ fontWeight: 'bold', color: themeColor }}>
-            {districtName} District - Taluk-wise Land Utilization &amp; Irrigation Report
-          </Typography>
-          <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
-            Agricultural Year: {agriculturalYear}
-          </Typography>
-        </Box>
+    <Box>
+      <Box sx={{ mb: 2 }}>
+      <Breadcrumb />
+    </Box>
+      <Card
+        elevation={0}
+        sx={{
+          borderRadius: 4,
+          overflow: 'visible',
+          background: theme.palette.background.paper,
+          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+        }}
+      >
+        <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
+          {/* Header */}
+          <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <LocationOn sx={{ fontSize: 32, color: themeColor }} />
+            <Typography variant="h5" sx={{ fontWeight: 'bold', color: themeColor }}>
+              {districtName} District - Taluk-wise Land Utilization &amp; Irrigation Report
+            </Typography>
+            <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
+              Agricultural Year: {agriculturalYear}
+            </Typography>
+          </Box>
 
-        {/* Error */}
-        {error && (
-          <Paper sx={{ p: 2, mb: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
-            <Typography color="error">Error: {error}</Typography>
-          </Paper>
-        )}
+          {/* Error */}
+          {error && (
+            <Paper sx={{ p: 2, mb: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
+              <Typography color="error">Error: {error}</Typography>
+            </Paper>
+          )}
 
-        {/* Land Type Filter - applies to both tabs */}
-        <Paper
-          elevation={0}
-          sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            borderRadius: 3,
-            border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-            mb: 2,
-            overflow: 'hidden'
-          }}
-        >
-          {landTypeOptions.map((opt, idx) => {
-            const isActive = landTypeFilter === opt.value;
-            return (
-              <Box
-                key={opt.value}
-                onClick={() => setLandTypeFilter(opt.value)}
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 0.5,
-                  px: 2.5,
-                  py: 1.25,
-                  cursor: 'pointer',
-                  borderRight: idx < landTypeOptions.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.15)}` : 'none',
-                  transition: '0.2s',
-                  '&:hover': {
-                    backgroundColor: alpha(themeColor, 0.04)
-                  }
-                }}
-              >
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.75,
-                    color: isActive ? themeColor : 'text.secondary'
-                  }}
-                >
-                  {opt.icon}
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontWeight: 600,
-                      letterSpacing: 0.3,
-                      textTransform: 'uppercase',
-                      fontSize: '0.8rem'
-                    }}
-                  >
-                    {opt.label}
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    width: '100%',
-                    height: 2.5,
-                    borderRadius: 1,
-                    backgroundColor: isActive ? themeColor : 'transparent',
-                    transition: '0.2s'
-                  }}
-                />
-              </Box>
-            );
-          })}
-        </Paper>
-
-        {/* Tabs Section */}
-        <Paper
-          elevation={2}
-          sx={{
-            borderRadius: 3,
-            overflow: 'hidden',
-            border: `1px solid ${alpha(themeColor, 0.1)}`
-          }}
-        >
-          <Tabs
-            value={activeTab}
-            onChange={handleTabChange}
-            centered
+          {/* Land Type Filter - applies to both tabs */}
+          <Paper
+            elevation={0}
             sx={{
-              backgroundColor: alpha(themeColor, 0.05),
-              '& .MuiTab-root': {
-                textTransform: 'none',
-                fontWeight: 600,
-                fontSize: '1rem',
-                py: 1.5,
-                minHeight: 'auto',
-                '&.Mui-selected': {
-                  color: themeColor
-                }
-              },
-              '& .MuiTabs-indicator': {
-                backgroundColor: themeColor,
-                height: 3
-              }
+              display: 'inline-flex',
+              alignItems: 'center',
+              borderRadius: 3,
+              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+              mb: 2,
+              overflow: 'hidden'
             }}
           >
-            <Tab icon={<Agriculture sx={{ fontSize: 20 }} />} iconPosition="start" label="Land Utilization" />
-            <Tab icon={<WaterDrop sx={{ fontSize: 20 }} />} iconPosition="start" label="Irrigation Details" />
-          </Tabs>
+            {landTypeOptions.map((opt, idx) => {
+              const isActive = landTypeFilter === opt.value;
+              return (
+                <Box
+                  key={opt.value}
+                  onClick={() => setLandTypeFilter(opt.value)}
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    px: 2.5,
+                    py: 1.25,
+                    cursor: 'pointer',
+                    borderRight: idx < landTypeOptions.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.15)}` : 'none',
+                    transition: '0.2s',
+                    '&:hover': {
+                      backgroundColor: alpha(themeColor, 0.04)
+                    }
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.75,
+                      color: isActive ? themeColor : 'text.secondary'
+                    }}
+                  >
+                    {opt.icon}
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 600,
+                        letterSpacing: 0.3,
+                        textTransform: 'uppercase',
+                        fontSize: '0.8rem'
+                      }}
+                    >
+                      {opt.label}
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      width: '100%',
+                      height: 2.5,
+                      borderRadius: 1,
+                      backgroundColor: isActive ? themeColor : 'transparent',
+                      transition: '0.2s'
+                    }}
+                  />
+                </Box>
+              );
+            })}
+          </Paper>
 
-          {/* Land Utilization Tab */}
-          <Box role="tabpanel" hidden={activeTab !== 0} sx={{ p: 0 }}>
-            {activeTab === 0 && (
-              <TableContainer sx={{ maxHeight: 600, overflowX: 'auto' }}>
-                <Table stickyHeader size="small" sx={{ minWidth: 2000 }}>
-                  <TableHead>
-                    <TableRow>
-                      {landUtilizationColumns.map((col) => {
-                        const active = isColumnActive(col);
-                        return (
-                          <TableCell
-                            key={col.id}
-                            align={col.align}
-                            sx={{
-                              backgroundColor: themeColor,
-                              color: active ? 'white' : alpha('#ffffff', 0.5),
-                              fontWeight: 700,
-                              whiteSpace: 'nowrap',
-                              minWidth: col.minWidth,
-                              py: 1.5
-                            }}
+          {/* Tabs Section */}
+          <Paper
+            elevation={2}
+            sx={{
+              borderRadius: 3,
+              overflow: 'hidden',
+              border: `1px solid ${alpha(themeColor, 0.1)}`
+            }}
+          >
+            <Tabs
+              value={activeTab}
+              onChange={handleTabChange}
+              centered
+              sx={{
+                backgroundColor: alpha(themeColor, 0.05),
+                '& .MuiTab-root': {
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '1rem',
+                  py: 1.5,
+                  minHeight: 'auto',
+                  '&.Mui-selected': {
+                    color: themeColor
+                  }
+                },
+                '& .MuiTabs-indicator': {
+                  backgroundColor: themeColor,
+                  height: 3
+                }
+              }}
+            >
+              <Tab icon={<Agriculture sx={{ fontSize: 20 }} />} iconPosition="start" label="Land Utilization" />
+              <Tab icon={<WaterDrop sx={{ fontSize: 20 }} />} iconPosition="start" label="Irrigation Details" />
+            </Tabs>
+
+            {/* Land Utilization Tab */}
+            <Box role="tabpanel" hidden={activeTab !== 0} sx={{ p: 0 }}>
+              {activeTab === 0 && (
+                <TableContainer sx={{ maxHeight: 600, overflowX: 'auto' }}>
+                  <Table stickyHeader size="small" sx={{ minWidth: 2000 }}>
+                    <TableHead>
+                      <TableRow>
+                        {landUtilizationColumns.map((col) => {
+                          const active = isColumnActive(col);
+                          return (
+                            <TableCell
+                              key={col.id}
+                              align={col.align}
+                              sx={{
+                                backgroundColor: themeColor,
+                                color: active ? 'white' : alpha('#ffffff', 0.5),
+                                fontWeight: 700,
+                                whiteSpace: 'nowrap',
+                                minWidth: col.minWidth,
+                                py: 1.5
+                              }}
+                            >
+                              {col.label}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {talukData.length > 0 ? (
+                        talukData.map((row, index) => (
+                          <TableRow
+                            key={index}
+                            hover
+                            onClick={() => handleTalukClick(row.taluk, row.talukId)}
+                            sx={{ cursor: 'pointer', '&:hover': { backgroundColor: alpha(themeColor, 0.08) } }}
                           >
-                            {col.label}
+                            {landUtilizationColumns.map((col) => {
+                              if (col.id === 'taluk') {
+                                return (
+                                  <TableCell key={col.id} align="left">
+                                    <Chip
+                                      label={row.taluk}
+                                      size="small"
+                                      sx={{
+                                        backgroundColor: alpha(themeColor, 0.1),
+                                        color: themeColor,
+                                        fontWeight: 500,
+                                        borderRadius: 1.5
+                                      }}
+                                    />
+                                  </TableCell>
+                                );
+                              }
+                              const active = isColumnActive(col);
+                              return (
+                                <TableCell
+                                  key={col.id}
+                                  align="right"
+                                  sx={{
+                                    ...numericCellSx,
+                                    color: active ? 'inherit' : 'text.disabled'
+                                  }}
+                                >
+                                  {active ? formatNumber(row[col.id]) : '—'}
+                                </TableCell>
+                              );
+                            })}
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={landUtilizationColumns.length} align="center" sx={{ py: 6 }}>
+                            <Typography color="text.secondary">No data available</Typography>
                           </TableCell>
-                        );
-                      })}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {talukData.length > 0 ? (
-                      talukData.map((row, index) => (
-                        <TableRow
-                          key={index}
-                          hover
-                          onClick={() => handleTalukClick(row.taluk, row.talukId)}
-                          sx={{ cursor: 'pointer', '&:hover': { backgroundColor: alpha(themeColor, 0.08) } }}
-                        >
+                        </TableRow>
+                      )}
+                      {/* Total Row */}
+                      {talukData.length > 0 && (
+                        <TableRow sx={{ backgroundColor: alpha(themeColor, 0.08) }}>
                           {landUtilizationColumns.map((col) => {
                             if (col.id === 'taluk') {
                               return (
-                                <TableCell key={col.id} align="left">
-                                  <Chip
-                                    label={row.taluk}
-                                    size="small"
-                                    sx={{
-                                      backgroundColor: alpha(themeColor, 0.1),
-                                      color: themeColor,
-                                      fontWeight: 500,
-                                      borderRadius: 1.5
-                                    }}
-                                  />
+                                <TableCell key={col.id} align="left" sx={{ fontWeight: 700, color: themeColor }}>
+                                  TOTAL
                                 </TableCell>
                               );
                             }
@@ -488,199 +527,166 @@ const handleTalukClick = (talukName, talukId) => {
                                 align="right"
                                 sx={{
                                   ...numericCellSx,
+                                  fontWeight: 700,
                                   color: active ? 'inherit' : 'text.disabled'
                                 }}
                               >
-                                {active ? formatNumber(row[col.id]) : '—'}
+                                {active ? formatNumber(landUtilizationTotals[col.id]) : '—'}
                               </TableCell>
                             );
                           })}
                         </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={landUtilizationColumns.length} align="center" sx={{ py: 6 }}>
-                          <Typography color="text.secondary">No data available</Typography>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    {/* Total Row */}
-                    {talukData.length > 0 && (
-                      <TableRow sx={{ backgroundColor: alpha(themeColor, 0.08) }}>
-                        {landUtilizationColumns.map((col) => {
-                          if (col.id === 'taluk') {
-                            return (
-                              <TableCell key={col.id} align="left" sx={{ fontWeight: 700, color: themeColor }}>
-                                TOTAL
-                              </TableCell>
-                            );
-                          }
-                          const active = isColumnActive(col);
-                          return (
-                            <TableCell
-                              key={col.id}
-                              align="right"
-                              sx={{
-                                ...numericCellSx,
-                                fontWeight: 700,
-                                color: active ? 'inherit' : 'text.disabled'
-                              }}
-                            >
-                              {active ? formatNumber(landUtilizationTotals[col.id]) : '—'}
-                            </TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </Box>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </Box>
 
-          {/* Irrigation Details Tab */}
-          <Box role="tabpanel" hidden={activeTab !== 1} sx={{ p: 0 }}>
-            {activeTab === 1 && (
-              <TableContainer sx={{ maxHeight: 600, overflowX: 'auto' }}>
-                <Table stickyHeader size="small" sx={{ minWidth: 1200 }}>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell
-                        rowSpan={3}
-                        align="left"
-                        sx={{
-                          backgroundColor: themeColor,
-                          color: 'white',
-                          fontWeight: 700,
-                          verticalAlign: 'middle',
-                          minWidth: 150
-                        }}
-                      >
-                        Taluk
-                      </TableCell>
-                      <TableCell
-                        colSpan={irrigationSources.length || 1}
-                        align="center"
-                        sx={{
-                          backgroundColor: themeColor,
-                          color: 'white',
-                          fontWeight: 700
-                        }}
-                      >
-                        Source Type
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      {irrigationSources.map((source) => (
+            {/* Irrigation Details Tab */}
+            <Box role="tabpanel" hidden={activeTab !== 1} sx={{ p: 0 }}>
+              {activeTab === 1 && (
+                <TableContainer sx={{ maxHeight: 600, overflowX: 'auto' }}>
+                  <Table stickyHeader size="small" sx={{ minWidth: 1200 }}>
+                    <TableHead>
+                      <TableRow>
                         <TableCell
-                          key={source.sourceId}
-                          align="center"
+                          rowSpan={3}
+                          align="left"
                           sx={{
-                            backgroundColor: alpha(themeColor, 0.85),
-                            color: isSourceActive(source.sourceId) ? 'white' : alpha('#ffffff', 0.5),
-                            fontWeight: 600,
-                            minWidth: 150,
-                            whiteSpace: 'nowrap'
+                            backgroundColor: themeColor,
+                            color: 'white',
+                            fontWeight: 700,
+                            verticalAlign: 'middle',
+                            minWidth: 150
                           }}
                         >
-                          {source.sourceName}
+                          Taluk
                         </TableCell>
-                      ))}
-                    </TableRow>
-                    <TableRow>
-                      {irrigationSources.map((source) => (
                         <TableCell
-                          key={source.sourceId}
+                          colSpan={irrigationSources.length || 1}
                           align="center"
                           sx={{
-                            backgroundColor: alpha(themeColor, 0.7),
-                            color: isSourceActive(source.sourceId) ? 'white' : alpha('#ffffff', 0.5),
-                            fontWeight: 600
+                            backgroundColor: themeColor,
+                            color: 'white',
+                            fontWeight: 700
                           }}
                         >
-                          Count | Area (Ha)
+                          Source Type
                         </TableCell>
-                      ))}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {irrigationRows.length > 0 ? (
-                      <>
-                        {irrigationRows.map((row) => (
-                          <TableRow
-                            key={row.talukId ?? row.taluk}
-                            hover
-                            onClick={() => handleTalukClick(row.taluk, row.talukId)}
-                            sx={{ cursor: 'pointer', '&:hover': { backgroundColor: alpha(themeColor, 0.08) } }}
+                      </TableRow>
+                      <TableRow>
+                        {irrigationSources.map((source) => (
+                          <TableCell
+                            key={source.sourceId}
+                            align="center"
+                            sx={{
+                              backgroundColor: alpha(themeColor, 0.85),
+                              color: isSourceActive(source.sourceId) ? 'white' : alpha('#ffffff', 0.5),
+                              fontWeight: 600,
+                              minWidth: 150,
+                              whiteSpace: 'nowrap'
+                            }}
                           >
-                            <TableCell align="left">
-                              <Chip
-                                label={row.taluk}
-                                size="small"
-                                sx={{
-                                  backgroundColor: alpha(themeColor, 0.1),
-                                  color: themeColor,
-                                  fontWeight: 500
-                                }}
-                              />
+                            {source.sourceName}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                      <TableRow>
+                        {irrigationSources.map((source) => (
+                          <TableCell
+                            key={source.sourceId}
+                            align="center"
+                            sx={{
+                              backgroundColor: alpha(themeColor, 0.7),
+                              color: isSourceActive(source.sourceId) ? 'white' : alpha('#ffffff', 0.5),
+                              fontWeight: 600
+                            }}
+                          >
+                            Count | Area (Ha)
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {irrigationRows.length > 0 ? (
+                        <>
+                          {irrigationRows.map((row) => (
+                            <TableRow
+                              key={row.talukId ?? row.taluk}
+                              hover
+                              onClick={() => handleTalukClick(row.taluk, row.talukId)}
+                              sx={{ cursor: 'pointer', '&:hover': { backgroundColor: alpha(themeColor, 0.08) } }}
+                            >
+                              <TableCell align="left">
+                                <Chip
+                                  label={row.taluk}
+                                  size="small"
+                                  sx={{
+                                    backgroundColor: alpha(themeColor, 0.1),
+                                    color: themeColor,
+                                    fontWeight: 500
+                                  }}
+                                />
+                              </TableCell>
+                              {irrigationSources.map((source) => {
+                                const active = isSourceActive(source.sourceId);
+                                const cell = row.byId[source.sourceId];
+                                return (
+                                  <TableCell
+                                    key={source.sourceId}
+                                    align="center"
+                                    sx={{
+                                      ...numericCellSx,
+                                      color: active ? 'inherit' : 'text.disabled'
+                                    }}
+                                  >
+                                    {!active ? '—' : cell ? `${cell.count} | ${formatNumber(cell.area)}` : '—'}
+                                  </TableCell>
+                                );
+                              })}
+                            </TableRow>
+                          ))}
+                          {/* Total Row */}
+                          <TableRow sx={{ backgroundColor: alpha(themeColor, 0.08) }}>
+                            <TableCell align="left" sx={{ fontWeight: 700, color: themeColor }}>
+                              TOTAL
                             </TableCell>
                             {irrigationSources.map((source) => {
                               const active = isSourceActive(source.sourceId);
-                              const cell = row.byId[source.sourceId];
+                              const t = irrigationTotals[source.sourceId] || { count: 0, area: 0 };
                               return (
                                 <TableCell
                                   key={source.sourceId}
                                   align="center"
                                   sx={{
                                     ...numericCellSx,
+                                    fontWeight: 700,
                                     color: active ? 'inherit' : 'text.disabled'
                                   }}
                                 >
-                                  {!active ? '—' : cell ? `${cell.count} | ${formatNumber(cell.area)}` : '—'}
+                                  {active ? `${t.count} | ${formatNumber(t.area)}` : '—'}
                                 </TableCell>
                               );
                             })}
                           </TableRow>
-                        ))}
-                        {/* Total Row */}
-                        <TableRow sx={{ backgroundColor: alpha(themeColor, 0.08) }}>
-                          <TableCell align="left" sx={{ fontWeight: 700, color: themeColor }}>
-                            TOTAL
+                        </>
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={(irrigationSources.length || 1) + 1} align="center" sx={{ py: 6 }}>
+                            <Typography color="text.secondary">No data available</Typography>
                           </TableCell>
-                          {irrigationSources.map((source) => {
-                            const active = isSourceActive(source.sourceId);
-                            const t = irrigationTotals[source.sourceId] || { count: 0, area: 0 };
-                            return (
-                              <TableCell
-                                key={source.sourceId}
-                                align="center"
-                                sx={{
-                                  ...numericCellSx,
-                                  fontWeight: 700,
-                                  color: active ? 'inherit' : 'text.disabled'
-                                }}
-                              >
-                                {active ? `${t.count} | ${formatNumber(t.area)}` : '—'}
-                              </TableCell>
-                            );
-                          })}
                         </TableRow>
-                      </>
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={(irrigationSources.length || 1) + 1} align="center" sx={{ py: 6 }}>
-                          <Typography color="text.secondary">No data available</Typography>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </Box>
-        </Paper>
-      </CardContent>
-    </Card>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </Box>
+          </Paper>
+        </CardContent>
+      </Card>
+    </Box>
   );
 };
 

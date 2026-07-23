@@ -114,6 +114,11 @@ const TalukForm3A = Loadable(lazy(() => import('pages/functional-components/eara
 const ZoneForm3A = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3A/ZoneForm3A')));
 const Form3A = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3A/Form3A')));
 
+const KeralaForm3B = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3B/KeralaForm3B')));
+const TalukForm3B = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3B/TalukForm3B')));
+const ZoneForm3B = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3B/ZoneForm3B')));
+const Form3B = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3B/Form3B')));
+
 
 const KeralaForm5ReportList= Loadable(lazy(() => import('pages/functional-components/earas/Report/Form5Report/KeralaForm5ReportList')));
 const TalukForm5Report= Loadable(lazy(() => import('pages/functional-components/earas/Report/Form5Report/TalukForm5Report')));
@@ -890,7 +895,7 @@ const MainRoutes = {
       path: '/schemes/earas/Report/Form3B/KeralaForm3B',
       element: (
         <PrivateRoute>
-          <KeralaForm3A />
+          <KeralaForm3B />
         </PrivateRoute>
       )
     },
@@ -898,7 +903,15 @@ const MainRoutes = {
       path: '/schemes/earas/Report/Form3B/TalukForm3B',
       element: (
         <PrivateRoute>
-          <TalukForm3A />
+          <TalukForm3B />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3B/TalukForm3B',
+      element: (
+        <PrivateRoute>
+          <TalukForm3B />
         </PrivateRoute>
       )
     },
@@ -906,7 +919,7 @@ const MainRoutes = {
       path: '/schemes/earas/Report/Form3B/ZoneForm3B',
       element: (
         <PrivateRoute>
-          <ZoneForm3A />
+          <ZoneForm3B />
         </PrivateRoute>
       )
     },
@@ -914,7 +927,7 @@ const MainRoutes = {
       path: '/schemes/earas/Report/Form3B/Form3B',
       element: (
         <PrivateRoute>
-          <Form3A />
+          <Form3B />
         </PrivateRoute>
       )
     },
