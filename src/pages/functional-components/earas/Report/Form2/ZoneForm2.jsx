@@ -679,7 +679,7 @@ const ZoneForm2 = () => {
                     return rows;
                   })}
 
-                  {Object.keys(landGrouped).length > 0 && (
+                  {/* {Object.keys(landGrouped).length > 0 && (
                     <TableRow sx={{ bgcolor: stickyTintGrand }}>
                       <TableCell
                         colSpan={2}
@@ -711,7 +711,7 @@ const ZoneForm2 = () => {
                         );
                       })}
                     </TableRow>
-                  )}
+                  )} */}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -929,7 +929,7 @@ const ZoneForm2 = () => {
                     return rows;
                   })}
 
-                  {Object.keys(irrGrouped).length > 0 && (
+                  {/* {Object.keys(irrGrouped).length > 0 && (
                     <TableRow sx={{ bgcolor: stickyTintGrand }}>
                       <TableCell
                         colSpan={2}
@@ -959,7 +959,7 @@ const ZoneForm2 = () => {
                         );
                       })}
                     </TableRow>
-                  )}
+                  )} */}
                 </TableBody>
               </Table>
             </TableContainer>

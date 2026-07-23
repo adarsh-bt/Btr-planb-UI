@@ -49,7 +49,13 @@ const AdminTourDiary = () => {
 
   const role = authservice.getrole();
   const userId = authservice.userid();
+const isTalukRole =
+  role === "Taluk Level Approver" ||
+  role === "Field Inspector";
 
+const isDistrictRole =
+  role === "District Level Approver" ||
+  role === "District Level Data Viewer";
   // Handle modal close
   const handleCloseModal = () => {
     setOpenModal(false);
@@ -212,7 +218,7 @@ const AdminTourDiary = () => {
 
   // Reset district/taluk when level changes
   useEffect(() => {
-    if (role !== "District Level Approver") {
+   if (!isDistrictRole) {
       if (level === "ALL" || level === "DIRECTORATE") {
         setDistrict("");
         setTaluk("");
@@ -226,10 +232,10 @@ const AdminTourDiary = () => {
 
   useEffect(() => {
     if (
-      role === "District Level Approver" &&
-      loggedDistrictId &&
-      !district
-    ) {
+  isDistrictRole &&
+  loggedDistrictId &&
+  !district
+) {
       setDistrict(loggedDistrictId);
       setLevel("DISTRICT");
     }
@@ -347,7 +353,7 @@ const AdminTourDiary = () => {
             </TextField>
 
             {/* LEVEL - Only show for non-district/taluk approvers */}
-            {(role !== "Taluk Level Approver" && role !== "District Level Approver") &&
+            {(!isTalukRole && !isDistrictRole) &&
               <TextField
                 label="Office Type"
                 select
@@ -363,7 +369,7 @@ const AdminTourDiary = () => {
               </TextField>}
 
             {/* DISTRICT - Hide for taluk level */}
-            {role !== "Taluk Level Approver" && (
+           {!isTalukRole && (
               <TextField
                 label="District"
                 select
@@ -372,11 +378,11 @@ const AdminTourDiary = () => {
                 onChange={(e) => setDistrict(e.target.value)}
                 style={{ width: "180px" }}
                 disabled={
-                  level === "DIRECTORATE" ||
-                  role === "District Level Approver"
-                }
+  level === "DIRECTORATE" ||
+  isDistrictRole
+}
               >
-                {role !== "District Level Approver" && (
+                {!isDistrictRole && (
                   <MenuItem value="">All</MenuItem>
                 )}
 
@@ -392,7 +398,7 @@ const AdminTourDiary = () => {
             )}
 
             {/* TALUK */}
-            {role !== "Taluk Level Approver" &&
+       {!isTalukRole &&
               <TextField
                 label="Taluk"
                 select
@@ -402,7 +408,7 @@ const AdminTourDiary = () => {
                 style={{ width: "180px" }}
                 disabled={!district || level === "DIRECTORATE"}
               >
-                {role !== "District Level Approver" && (
+              {!isDistrictRole && (
                   <MenuItem value="">All</MenuItem>
                 )}
 

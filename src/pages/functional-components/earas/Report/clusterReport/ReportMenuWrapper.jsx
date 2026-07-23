@@ -15,6 +15,9 @@ function ReportMenuWrapper({ children }) {
       try {
         const info = await AuthService.getUserOfficeInfo();
         console.log('Office Info received:', info);
+        if (info) {
+          sessionStorage.setItem('userOfficeInfo', JSON.stringify(info));
+        }
         setOfficeInfo(info);
       } catch (err) {
         setError('Failed to load office information');
@@ -43,7 +46,7 @@ function ReportMenuWrapper({ children }) {
 
       // ── DIRECTORATE ── State-level view
       if (officeType === 'DIRECTORATE') {
-        navigate('/kerala_cluster_report', {
+        navigate('/Report/kerala_cluster_report', {
           state: {
             officeType,
             viewLevel: 'state',
@@ -63,7 +66,7 @@ function ReportMenuWrapper({ children }) {
 
         console.log('Navigating to TalukClusterReport with districtId:', districtIdValue);
 
-        navigate('/kerala_cluster_report/taluk_cluster_report/direct', {
+        navigate('/Report/kerala_cluster_report/taluk_cluster_report/direct', {
           state: {
             officeType,
             viewLevel: 'district',
@@ -94,8 +97,8 @@ function ReportMenuWrapper({ children }) {
         console.log('Navigating to ZoneClusterReport with talukId:', talukIdValue);
 
         // Use the same route pattern that MainRoutes already defines:
-        // 'kerala_cluster_report/zone_cluster_report/direct/:talukId'
-        navigate(`/kerala_cluster_report/zone_cluster_report/direct/${talukIdValue}`, {
+        // 'Report/kerala_cluster_report/zone_cluster_report/direct/:talukId'
+        navigate(`/Report/kerala_cluster_report/zone_cluster_report/direct/${talukIdValue}`, {
           state: {
             officeType,
             viewLevel: 'taluk',

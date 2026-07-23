@@ -1942,7 +1942,7 @@ const renderNucDetails = () => {
       <Grid item xs={12}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h3" sx={{ color: TABLE_HEADER_BG, fontWeight: 'bold' }}>
-            Form 1 Details Viewer : {zonename} 
+            Form 1 Details Viewer : {zonename} <Chip label={`Cluster : ${slNo}`} size="small" color="primary" variant="outlined" sx={{ ml: 1 }} />
           </Typography>
           {/* <Button 
             variant="outlined" 

@@ -157,25 +157,30 @@ const UserAdvancedTourDiarySubmissions = () => {
     "July", "August", "September", "October", "November", "December"
   ];
 
-  const getStatusChip = (submitted) => {
-    return submitted ? (
-      <Chip
-        icon={<CheckCircleIcon />}
-        label="Submitted"
-        color="success"
-        size="small"
-        sx={{ fontWeight: "bold", width: "100%" }}
-      />
-    ) : (
-      <Chip
-        icon={<CancelIcon />}
-        label="Not Submitted"
-        color="default"
-        size="small"
-        sx={{ fontWeight: "bold", width: "100%" }}
-      />
-    );
-  };
+// In UserAdvancedTourDiarySubmissions.jsx
+const getStatusChip = (submitted, submitId) => {
+  // Consider it submitted if either flag is true or submitId exists
+
+  const isSubmitted = submitted || submitId;
+ 
+  return isSubmitted ? (
+    <Chip
+      icon={<CheckCircleIcon />}
+      label="Submitted"
+      color="success"
+      size="small"
+      sx={{ fontWeight: "bold", width: "100%" }}
+    />
+  ) : (
+    <Chip
+      icon={<CancelIcon />}
+      label="Not Submitted"
+      color="default"
+      size="small"
+      sx={{ fontWeight: "bold", width: "100%" }}
+    />
+  );
+};
 
   return (
     <Grid container spacing={3}>
@@ -253,46 +258,30 @@ const UserAdvancedTourDiarySubmissions = () => {
                       </Typography>
                       
                       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                        {roleName === "Field Data Collector" ? (
-                          <>
-                            <Box>
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                gutterBottom
-                                sx={{ fontWeight: "bold" }}
-                              >
-                                First Half (1st - 15th)
-                              </Typography>
-                              {getStatusChip(item.firstHalfSubmitted)}
-                            </Box>
+                      {roleName === "Field Data Collector" ? (
+  <>
+    <Box>
+      <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
+        First Half (1st - 15th)
+      </Typography>
+      {getStatusChip(item.firstHalfSubmitted, item.firstHalfSubmitId)}
+    </Box>
 
-                            <Box>
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                gutterBottom
-                                sx={{ fontWeight: "bold" }}
-                              >
-                                Second Half (16th - End)
-                              </Typography>
-                              {getStatusChip(item.secondHalfSubmitted)}
-                            </Box>
-                          </>
-                        ) : (
-                          <Box>
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                              gutterBottom
-                              sx={{ fontWeight: "bold" }}
-                            >
-                              Month Status
-                            </Typography>
-
-                            {getStatusChip(item.fullMonthSubmitted)}
-                          </Box>
-                        )}
+    <Box>
+      <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
+        Second Half (16th - End)
+      </Typography>
+      {getStatusChip(item.secondHalfSubmitted, item.secondHalfSubmitId)}
+    </Box>
+  </>
+) : (
+  <Box>
+    <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
+      Month Status
+    </Typography>
+    {getStatusChip(item.fullMonthSubmitted, item.fullMonthSubmitId)}
+  </Box>
+)}
 
                         <Button
                           variant="outlined"

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import mainapi from 'api/mainapi';
+import api from 'api/api';
 
 
 const BASE_URL = mainapi.BASE_URL;
@@ -8,17 +9,11 @@ const tourDiaryService = {
 
   // ✅ Get All Schemes
   async getAllSchemes() {
-    const token = localStorage.getItem('token');
-
+    
     try {
-      const response = await axios.get(
-        `${BASE_URL}/tour-diary/api/advanced-tour/getAll`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
+      const response = await api.get(
+        `${BASE_URL}/tour-diary/api/advanced-tour/getAll`);
+console.log("getAllSchemes response: ", response.data);
 
       return response.data;   // modify if your API returns payload inside object
 
@@ -34,18 +29,12 @@ const tourDiaryService = {
 
   // ✅ Get Active Purposes By Scheme ID
   async getActivePurposes(schemeId) {
-    const token = localStorage.getItem('token');
-
+  
     try {
-      const response = await axios.get(
-        `${BASE_URL}/tour-diary/api/purposes/active/${schemeId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
-
+      const response = await api.get(
+        `${BASE_URL}/tour-diary/api/purposes/active/${schemeId}`);
+console.log("getActivePurposes response: ", response.data);
+console.log("getActivePurposes response: " + JSON.stringify(response.data));
       return response.data;
 
     } catch (err) {
@@ -56,7 +45,43 @@ const tourDiaryService = {
       };
     }
   },
+// Add these methods to your tourdiaryservice.js
 
+// Get zone dropdown (for Field Inspector & Taluk Level Approver)
+async getZoneDropdown() {
+    try {
+        const response = await api.get(`${BASE_URL}/user-access/zones/zone_dropdown`);
+        return response.data;
+    } catch (err) {
+        return {
+            message: err.response?.data?.message || "An error occurred while fetching zones."
+        };
+    }
+},
+
+// Get taluk dropdown (for District Level roles)
+async getTalukDropdown() {
+    try {
+        const response = await api.get(`${BASE_URL}/user-access/zones/taluk_dropdown`);
+        return response.data;
+    } catch (err) {
+        return {
+            message: err.response?.data?.message || "An error occurred while fetching taluks."
+        };
+    }
+},
+
+// Get zones by taluk ID (for District Level roles)
+async getZonesByTaluk(talukId) {
+    try {
+        const response = await api.get(`${BASE_URL}/btr-service/admin-manage/zones/dropdown/Taluk/${talukId}`);
+        return response.data;
+    } catch (err) {
+        return {
+            message: err.response?.data?.message || "An error occurred while fetching zones."
+        };
+    }
+},
   // ✅ Save or Update Advanced Tour
 async saveOrUpdateTour(data) {
   const token = localStorage.getItem('token');
@@ -207,22 +232,19 @@ async submitTourHalf(data) {
 
 // ✅ NEW METHOD: Get admin submission view for a specific user and year
   async getAdminSubmissionView(userId, year) {
-    const token = localStorage.getItem('token');
+    console.log("getAdminSubmissionView called with userId:", userId, "year:", year);
 
     try {
-      const response = await axios.get(
+      const response = await api.get(
         `${BASE_URL}/tour-diary/api/purposes/admin/submission-view`,
         {
           params: {
             userId,
             year
-          },
-          headers: {
-            Authorization: `Bearer ${token}`
           }
         }
       );
-
+console.log("getAdminSubmissionView response: ", response.data);
       return {
         data: response.data,
         error: false
@@ -349,7 +371,10 @@ async getAssignedZones(userId) {
     }
 
     try {
-   
+     const zoneId = localStorage.getItem("activeZone");
+     if (zoneId == null || zoneId === undefined) {
+      return false
+     } // Call getUserRole to ensure the user role is fetched and logged
         const response = await axios.get(
             `${BASE_URL}/btr-service/btr-api/zones/assigned/${userId}`,
             {
@@ -379,6 +404,21 @@ async getAssignedZones(userId) {
     }
 },
 
+
+async getCrops(zoneId, agriYear) {
+  const token = localStorage.getItem('token');
+  const zone = 2222
+  try {
+    const response = await api.get(
+      `${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops?zoneId=${zone}&agriYear=${agriYear}`
+    );
+    
+    return response.data;
+  } catch (err) {
+    console.error("Error fetching crops:", err);
+    return [];
+  }
+},
 // Add this method to tourDiaryService for updating SYSTEM entries
 async updateSystemTourEntry(data) {
   const token = localStorage.getItem('token');
@@ -431,6 +471,20 @@ async saveOrUpdateManualEntry(data) {
   }
 },
 
+
+async getClusters(zoneId, agriYear) {
+  const token = localStorage.getItem('token');
+  
+  try {
+    const response = await api.get(
+      `${BASE_URL}/btr-service/cluster-api/cluster-list?zoneId=${zoneId}&agriYear=${agriYear}`);
+    
+    return response.data;
+  } catch (err) {
+    console.error("Error fetching clusters:", err);
+    return [];
+  }
+},
 // Add this method to your tourDiaryService object
 async submitFullMonth(userId, month, year, zoneId) {
   const token = localStorage.getItem('token');
@@ -468,6 +522,7 @@ async submitFullMonth(userId, month, year, zoneId) {
     };
   }
 },
+
 
 // Get full year view with month statuses
 async getFullYearView(userId, year) {
@@ -551,7 +606,7 @@ async getUserRole(userId) {
 
   try {
     const response = await axios.get(
-      `${BASE_URL}/user-access/api/user-profile/user-role/${userId}`,
+      `${BASE_URL}/user-access/user-profile/user-role/${userId}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -577,6 +632,25 @@ async getUserRole(userId) {
   }
 },
 
+
+// In tourDiaryService.js
+async saveOrUpdateVerification(payload) {
+  console.log("saveOrUpdateVerification payload: ", payload);
+  return api.post(`${BASE_URL}/tour-diary/api/purposes/save-or-update-verification`, payload)
+    .then(response => {
+      if (response.data) {
+        return { data: response.data, error: null };
+      }
+      return { data: null, error: 'No data received' };
+    })
+    .catch(error => {
+      console.error('Verification error:', error);
+      return { 
+        data: null, 
+        error: error.response?.data || 'Failed to save verification' 
+      };
+    });
+}
 };
 
 export default tourDiaryService;

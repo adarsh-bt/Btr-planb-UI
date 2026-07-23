@@ -727,7 +727,7 @@ const handleSubmitAction = async (isApprove) => {
                               </Tooltip>
                               
                               {/* {!approval.approved && role?.includes('Approver') && ( */}
-                                <>
+                                {/* <>
                                   <Tooltip title="Approve Cluster">
                                     <IconButton
                                     disabled={statusInfo.label === 'Approved'}
@@ -739,7 +739,7 @@ const handleSubmitAction = async (isApprove) => {
                                     </IconButton>
                                   </Tooltip>
                                  
-                                </>
+                                </> */}
                               {/* )} */}
                             </Stack>
                           </TableCell>

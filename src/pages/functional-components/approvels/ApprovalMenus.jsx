@@ -99,7 +99,8 @@ function ApprovalMenus() {
   </Grid>
 )}
 
-{/* Zone Cluster Approvals Card */}
+{(role === 'IT Admin' || role === 'District Level Approver' || role === 'Taluk Level Approver') && (
+
 <Grid item xs={12} sm={6} md={4} lg={3}>
   <Card
     component={Link}
@@ -166,6 +167,7 @@ function ApprovalMenus() {
     </Box>
   </Card>
 </Grid>
+)}
 
 <Grid item xs={12} sm={6} md={4} lg={3}>
   <Card

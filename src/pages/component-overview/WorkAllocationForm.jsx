@@ -239,6 +239,10 @@ const [verifyStatusValue, setVerifyStatusValue] = useState('');
 const [verifyRemarks, setVerifyRemarks] = useState('');
 // const [isFieldInspector, setIsFieldInspector] = useState(false);
 
+// Revoke States
+const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
+const [revokeRemarks, setRevokeRemarks] = useState('');
+
   const BASE_URL = mainapi.BASE_URL;
 
   // Determine if the current role context is an administrator
@@ -296,8 +300,9 @@ const isFieldInspector = useMemo(() => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await api.get(`${BASE_URL}/btr-service/btr-api/zone-details/${resolvedZoneId}`);
+        const response = await api.get(`${BASE_URL}/btr-service/btr-api/zone-details-workallocation/${resolvedZoneId}`);
         const result = response.data;
+        console.log("Zone details fetched: ", result.payload);
         setResult(result.payload);
         setZoneData(result.payload?.data || []);
       } catch (error) {
@@ -329,20 +334,22 @@ const fetchWorkAllocation = React.useCallback(async () => {
         setApprovalLogId(allocations[0].approveId);
         const backendStatus = allocations[0].status || (allocations[0].isEdit ? 'DRAFT' : 'SUBMITTED');
         const verifyStatus = allocations[0].verifiedStatus || '';
-const verifyDate = allocations[0].verifiedDate || '';
-const verifyInspectorRemark = allocations[0].verifiedRemarks || '';
-setFormStatus(backendStatus);
-setverifyStatus(verifyStatus);  // ✅ Changed: lowercase 'v'
-setverifyDate(verifyDate);      // ✅ Changed: lowercase 'v'
- setverifyInspectorRemarks(verifyInspectorRemark);        
- setAdminRemarks(allocations[0].adminRemarks || '');
+        const verifyDate = allocations[0].verifiedDate || '';
+        const verifyInspectorRemark = allocations[0].verifiedRemarks || '';
+        setFormStatus(backendStatus);
+        setverifyStatus(verifyStatus);
+        setverifyDate(verifyDate);
+        setverifyInspectorRemarks(verifyInspectorRemark);        
+        setAdminRemarks(allocations[0].adminRemarks || '');
+        
         if (isAdmin) {
           setIsDisabled(true);
         } else {
-          if (backendStatus === 'SUBMITTED' || backendStatus === 'PENDING' || backendStatus === 'APPROVED') {
-            setIsDisabled(true);
-          } else {
+          // Allow editing if status is RETURNED or DRAFT
+          if (backendStatus === 'RETURNED' || backendStatus === 'DRAFT') {
             setIsDisabled(false);
+          } else {
+            setIsDisabled(true);
           }
         }
       }
@@ -416,7 +423,51 @@ setverifyDate(verifyDate);      // ✅ Changed: lowercase 'v'
   };
 
   // Check if user is Field Inspector
+// ===== ADMIN REVOKE ACTION =====
+const handleRevoke = async () => {
+  if (!revokeRemarks.trim()) {
+    showTemporaryMessage('⚠️ Please provide remarks for revoking.', true);
+    return;
+  }
 
+  setIsSubmitting(true);
+  try {
+    const token = localStorage.getItem('token');
+    const user_id = authservice.userid();
+
+    const requestBody = {
+      approvalId: approvalLogId,
+      remarks: revokeRemarks,
+      revokedBy: user_id
+    };
+
+    const response = await fetch(`${BASE_URL}/btr-service/btr-api/work-allocation-revoke`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) throw new Error('Failed to revoke form.');
+
+    setRevokeRemarks('');
+    setRevokeDialogOpen(false);
+    showTemporaryMessage('✅ Form revoked successfully! User can now edit and resubmit.');
+    
+    // Refresh data
+    await fetchWorkAllocation();
+    // Enable edit mode
+    setIsDisabled(false);
+
+  } catch (error) {
+    console.error('❌ Error:', error);
+    showTemporaryMessage('Error revoking form: ' + error.message, true);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
   // ===== FIELD INSPECTOR VERIFICATION =====
 const handleVerification = async () => {
   if (!verifyStatusValue) {
@@ -1240,17 +1291,22 @@ const plotsTotal = plotsWet + plotsDry;
           <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#00796b' }}>
             WORK ALLOCATION STATEMENT 
           </Typography>
-          {isAdmin && (
-            <Chip icon={<LockIcon />} label="Admin View Mode" color="secondary" sx={{ fontWeight: 600 }} />
-          )}
-          {!isAdmin && isDisabled && formStatus !== 'RETURNED' && (
-            <Chip 
-              icon={<LockIcon />} 
-              label={formStatus === 'APPROVED' ? 'Approved & Locked' : formStatus === 'UNDER REVIEW' ? 'Under Review' : 'Under Review'} 
-              color={formStatus === 'APPROVED' ? 'success' : formStatus === 'UNDER REVIEW' ? 'info' : 'warning'} 
-              sx={{ fontWeight: 500 }} 
-            />
-          )}
+         {!isAdmin && isDisabled && formStatus !== 'RETURNED' && (
+  <Chip 
+    icon={<LockIcon />} 
+    label={formStatus === 'APPROVED' ? 'Approved & Locked' : formStatus === 'UNDER REVIEW' ? 'Under Review' : 'Under Review'} 
+    color={formStatus === 'APPROVED' ? 'success' : formStatus === 'UNDER REVIEW' ? 'info' : 'warning'} 
+    sx={{ fontWeight: 500 }} 
+  />
+)}
+{!isAdmin && formStatus === 'RETURNED' && !isDisabled && (
+  <Chip 
+    icon={<EditIcon />} 
+    label="Returned for Edit" 
+    color="error" 
+    sx={{ fontWeight: 500 }} 
+  />
+)}
         </Box>
       
         {/* Alerts Center Notification Toast */}
@@ -1407,10 +1463,10 @@ const plotsTotal = plotsWet + plotsDry;
           <Divider sx={{ my: 3 }} />
 
           {/* DYNAMIC ACTION RENDERING BLOCK */}
-          {isAdmin ? (
-            ['SUBMITTED', 'PENDING', 'UNDER REVIEW'].includes(formStatus) && (
-              <Box sx={{ p: 3, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
-                <Typography variant="h5" sx={{ fontWeight: 600, color: '#05307a', mb: 2 }}>
+        {isAdmin ? (
+  ['SUBMITTED', 'PENDING', 'UNDER REVIEW', 'APPROVED'].includes(formStatus) && (
+    <Box sx={{ p: 3, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+      <Typography variant="h5" sx={{ fontWeight: 600, color: '#05307a', mb: 2 }}>
                   Administrative Approval Panel
                 </Typography>
                 
@@ -1446,7 +1502,7 @@ const plotsTotal = plotsWet + plotsDry;
                     />
                   </Grid>
 
-                  <Grid item xs={12} md={5}>
+                  {/* <Grid item xs={12} md={5}>
                     <Card variant="outlined" sx={{ p: 2, bgcolor: isAdminEditEnabled ? '#fff8e1' : '#f0fdf4', border: 1, borderColor: isAdminEditEnabled ? '#ffb74d' : '#bbf7d0' }}>
                       <FormControlLabel
                         control={
@@ -1464,32 +1520,53 @@ const plotsTotal = plotsWet + plotsDry;
                           : '✓ OFF: Form metrics will lock down completely into view-only records upon approval.'}
                       </Typography>
                     </Card>
-                  </Grid>
+                  </Grid> */}
+                  
                 </Grid>
 
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3 }}>
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    startIcon={<CancelIcon />}
-                    onClick={() => handleAdminAction(false)}
-                    disabled={isSubmitting || !adminRemarks.trim()}
-                  >
-                    Return for Correction
-                  </Button>
-                  <Button
-                    variant="contained"
-                    color={isAdminEditEnabled ? "warning" : "success"}
-                    startIcon={<CheckCircleIcon />}
-                    onClick={() => handleAdminAction(true)}
-                    disabled={isSubmitting}
-                  >
-                    {isAdminEditEnabled ? 'Save Under Review' : 'Approve Statement'}
-                  </Button>
-                </Box>
-              </Box>
-            )
-          ) : (
+               <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3 }}>
+        {/* Show Revoke button when form is APPROVED */}
+        {formStatus === 'APPROVED' && (
+          <Button
+            variant="outlined"
+            color="warning"
+            startIcon={<CancelIcon />}
+            onClick={() => setRevokeDialogOpen(true)}
+            disabled={isSubmitting}
+          >
+            Revoke & Return for Edit
+          </Button>
+        )}
+        
+        {/* Show Return button for non-approved submissions */}
+        {formStatus !== 'APPROVED' && (
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={<CancelIcon />}
+            onClick={() => handleAdminAction(false)}
+            disabled={isSubmitting || !adminRemarks.trim()}
+          >
+            Return for Correction
+          </Button>
+        )}
+        
+        {/* Approve button for SUBMITTED and UNDER REVIEW */}
+        {['SUBMITTED', 'PENDING', 'UNDER REVIEW'].includes(formStatus) && (
+          <Button
+            variant="contained"
+            color={isAdminEditEnabled ? "warning" : "success"}
+            startIcon={<CheckCircleIcon />}
+            onClick={() => handleAdminAction(true)}
+            disabled={isSubmitting}
+          >
+            {isAdminEditEnabled ? 'Save Under Review' : 'Approve Statement'}
+          </Button>
+        )}
+      </Box>
+    </Box>
+  )
+) : (
             <Grid container spacing={2} justifyContent="flex-end">
               <Grid item>
                 <Tooltip title={isDisabled ? 'Form parameters are currently locked' : 'Save entries as draft'}>
@@ -1708,6 +1785,75 @@ const plotsTotal = plotsWet + plotsDry;
           <Button onClick={() => setInfoDialogOpen(false)} variant="contained" color="primary" fullWidth>Got it, Thanks!</Button>
         </DialogActions>
       </StyledDialog>
+
+      {/* Revoke Dialog for Admin */}
+<StyledDialog 
+  open={revokeDialogOpen} 
+  onClose={() => setRevokeDialogOpen(false)} 
+  TransitionComponent={Transition}
+>
+  <DialogTitle sx={{ 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
+    bgcolor: 'warning.lighter',
+    borderBottom: '1px solid',
+    borderColor: 'divider'
+  }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <WarningIcon color="warning" />
+      <Typography variant="h6" fontWeight={600}>Revoke & Return for Edit</Typography>
+    </Box>
+    <IconButton onClick={() => setRevokeDialogOpen(false)} size="small">
+      <CloseIcon />
+    </IconButton>
+  </DialogTitle>
+  <DialogContent sx={{ mt: 2 }}>
+    <Alert severity="error" sx={{ mb: 2 }}>
+      <AlertTitle>⚠️ This action will:</AlertTitle>
+      <ul style={{ marginTop: 4, marginBottom: 0 }}>
+        <li>Unlock the form for editing</li>
+        <li>Allow the user to make changes and resubmit</li>
+        <li>Reset verification status to PENDING</li>
+      </ul>
+    </Alert>
+    
+    <Grid container spacing={2} sx={{ mt: 1 }}>
+      <Grid item xs={12}>
+        <TextField
+          fullWidth
+          multiline
+          rows={3}
+          label="Reason for Revoke / Remarks"
+          value={revokeRemarks}
+          onChange={(e) => setRevokeRemarks(e.target.value.slice(0, 350))}
+          placeholder="Please provide a reason for revoking the approved form..."
+          required
+          inputProps={{ maxLength: 350 }}
+          helperText={`${revokeRemarks.length}/350 characters`}
+        />
+      </Grid>
+    </Grid>
+  </DialogContent>
+  <DialogActions sx={{ p: 2, gap: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+    <Button 
+      onClick={() => setRevokeDialogOpen(false)} 
+      variant="outlined" 
+      color="inherit"
+    >
+      Cancel
+    </Button>
+    <Button 
+      onClick={handleRevoke} 
+      variant="contained" 
+      color="warning"
+      disabled={isSubmitting || !revokeRemarks.trim()}
+      startIcon={<CancelIcon />}
+    >
+      {isSubmitting ? 'Revoking...' : 'Revoke & Return for Edit'}
+    </Button>
+  </DialogActions>
+</StyledDialog>
     </Grid>
   );
 }

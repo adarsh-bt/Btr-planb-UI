@@ -372,6 +372,30 @@ console.log('API response:', response.data);
     setPage(0);
   };
 
+  useEffect(() => {
+    if (resolvedTalukId.current) {
+      try {
+        sessionStorage.setItem(
+          'zoneReportState',
+          JSON.stringify({
+            talukId: resolvedTalukId.current,
+            talukName: stateData.talukName || talukName || '',
+            districtName: stateData.districtName || districtName || '',
+            districtId: stateData.districtId || null,
+            landType,
+            seasonTab,
+            filterType,
+            fromMonth,
+            toMonth,
+            singleMonth,
+          })
+        );
+      } catch (e) {
+        console.error('Failed to save zoneReportState:', e);
+      }
+    }
+  }, [landType, seasonTab, filterType, fromMonth, toMonth, stateData, districtName, talukName]);
+
   const handleClearFilters = () => {
     setSingleMonth(getCurrentMonthName()); setFromMonth(''); setToMonth('');
     setSeasonTab('ALL'); setLandType(null); setFilterType('single'); setPage(0);
@@ -379,7 +403,7 @@ console.log('API response:', response.data);
 
  const handleViewZoneDetails = (zoneName, clickedZoneId) => {
     // Navigate to the exact same page, but append the clickedZoneId to the URL
-    navigate(`/kerala_cluster_report/taluk_cluster_report/zone_cluster_report/${districtName}/${talukName}/clusters/${clickedZoneId}`);
+    navigate(`/Report/kerala_cluster_report/taluk_cluster_report/zone_cluster_report/${districtName}/${talukName}/clusters/${clickedZoneId}`);
     
     // Optional: Smooth scroll down to where the component will render
     setTimeout(() => {

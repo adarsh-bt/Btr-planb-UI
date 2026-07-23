@@ -141,7 +141,7 @@ const userManagement = {
 };
 
 // Role-based logic with fallback
-if (role == 'Super Admin' ||role === 'IT Admin' || role === 'District Level Approver' || role === 'Taluk Level Approver' ) {
+if (role == 'Super Admin' ||role === 'IT Admin' || role === 'District Level Approver' || role === 'Taluk Level Approver') {
   utilities.children.push(
     userApproval,
     userManagement,
@@ -149,6 +149,13 @@ if (role == 'Super Admin' ||role === 'IT Admin' || role === 'District Level Appr
     // viewBtr,
     // keyPlot,
     // clusterFormation
+  );
+}else if (role === 'District Level Data Viewer') {
+  utilities.children.push(
+    // userApproval,
+    // userManagement,
+    zoneDetails
+
   );
 } else if (role === 'Field Data Collector') {
   utilities.children.push(
