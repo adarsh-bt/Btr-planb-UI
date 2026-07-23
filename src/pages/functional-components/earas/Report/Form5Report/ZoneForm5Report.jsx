@@ -53,68 +53,11 @@ import axios from 'axios';
 import mainapi from 'api/mainapi';
 import AuthService from 'pages/authentication/services/authservice';
 
-const BASE_URL = mainapi.EARAS_FORM1_API; // TODO: point this to your earas-form1-entry service base URL
-
-/* ─────────────────────────── dummy data ───────────────────────────
-   Remove this block and set USE_DUMMY_DATA = false once the backend
-   is ready.                                                          */
-
-const USE_DUMMY_DATA = true;
-
-const DUMMY_API_RESPONSE = {
-  totalCCECrops: 45,
-  cropList: ['Paddy', 'Coconut', 'Banana', 'Tapioca'],
-  allSubDetails: {
-    'Athiyannoor Zone 1': {
-      zoneId: 501,
-      blockId: 11,
-      blockName: 'Athiyannoor',
-      allowtedCce: 12,
-      selectedCce: 10,
-      completed: 5,
-      ongoing: 2,
-      notAvailable: 1,
-      notStarted: 2,
-      underReview: 0
-    },
-    'Athiyannoor Zone 2': {
-      zoneId: 502,
-      blockId: 11,
-      blockName: 'Athiyannoor',
-      allowtedCce: 10,
-      selectedCce: 8,
-      completed: 4,
-      ongoing: 2,
-      notAvailable: 0,
-      notStarted: 1,
-      underReview: 1
-    },
-    'Parassala Zone 1': {
-      zoneId: 503,
-      blockId: 12,
-      blockName: 'Parassala',
-      allowtedCce: 14,
-      selectedCce: 11,
-      completed: 6,
-      ongoing: 3,
-      notAvailable: 1,
-      notStarted: 1,
-      underReview: 0
-    },
-    'Neyyattinkara Municipality': {
-      zoneId: 504,
-      blockId: null,
-      blockName: null,
-      allowtedCce: 9,
-      selectedCce: 7,
-      completed: 3,
-      ongoing: 2,
-      notAvailable: 0,
-      notStarted: 1,
-      underReview: 1
-    }
-  }
-};
+// Gateway root (e.g. http://localhost:8080). The '/earas-form1-entry' service
+// prefix is added on the request path below.
+// NOTE: if mainapi.FORM_API already ends in '/earas-form1-entry',
+// drop the duplicate segment from the URL to avoid a doubled prefix (404).
+const BASE_URL = mainapi.FORM_API;
 
 /* ─────────────────────────── helpers ─────────────────────────── */
 
@@ -143,6 +86,12 @@ function getDefaultSingleMonth(agriYearMonths) {
   const now = new Date();
   const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   return agriYearMonths.some((m) => m.value === current) ? current : agriYearMonths[0]?.value || '';
+}
+
+// Extract the API-ready month number (1–12) from a 'YYYY-MM' value.
+// e.g. '2025-07' → 7
+function monthNum(value) {
+  return value ? parseInt(value.split('-')[1], 10) : null;
 }
 
 /* ─────────────────────────── component ─────────────────────────── */
@@ -180,21 +129,22 @@ function ZoneForm5Report() {
     resolvedTalukId.current = resolveTalukId();
   }
 
-  /* ── filter state - Crop Name + months ── */
+  // Agricultural year from AuthService (e.g. '2025-2026'), and its month list.
+  const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
+  const agriYearMonths = useMemo(() => getAgriYearMonths(agriculturalYear), [agriculturalYear]);
+  const defaultSingleMonth = useMemo(() => getDefaultSingleMonth(agriYearMonths), [agriYearMonths]);
+  const monthLabel = (value) => agriYearMonths.find((m) => m.value === value)?.label || '';
+
+  /* ── filter state - Crop Name (UI only) + months ── */
+  // Backend does not accept cropName yet, so the param is not sent —
+  // see the TODO in fetchZoneWiseData to enable it later.
   const [cropName, setCropName] = useState(stateData.cropName || 'ALL');
   const [cropOptions, setCropOptions] = useState([]);
-
-  // Agricultural year from AuthService (e.g. '2025-2026')
-  const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
-  const agriYearMonths = getAgriYearMonths(agriculturalYear);
-  const monthLabel = (value) => agriYearMonths.find((m) => m.value === value)?.label || '';
 
   // Month filter states (values are API-ready 'YYYY-MM'), carried over from the taluk page
   const [filterType, setFilterType] = useState(stateData.filterType || 'single');
   const [singleMonth, setSingleMonth] = useState(
-    stateData.singleMonth !== undefined && stateData.filterType
-      ? stateData.singleMonth
-      : getDefaultSingleMonth(agriYearMonths)
+    stateData.singleMonth !== undefined && stateData.filterType ? stateData.singleMonth : defaultSingleMonth
   );
   const [fromMonth, setFromMonth] = useState(stateData.fromMonth || '');
   const [toMonth, setToMonth] = useState(stateData.toMonth || '');
@@ -210,7 +160,7 @@ function ZoneForm5Report() {
 
   /* ─────────────────────────── fetch ─────────────────────────── */
 
-  const fetchZoneWiseData = async (overrides = {}) => {
+  const fetchZoneWiseData = async () => {
     const talukIdValue = resolvedTalukId.current;
 
     if (!talukIdValue) {
@@ -221,50 +171,35 @@ function ZoneForm5Report() {
     setLoading(true);
     setError(null);
 
-    const effectiveCropName = overrides.cropName !== undefined ? overrides.cropName : cropName;
-    const effectiveFilterType = overrides.filterType !== undefined ? overrides.filterType : filterType;
-    const effectiveSingleMonth = overrides.singleMonth !== undefined ? overrides.singleMonth : singleMonth;
-    const effectiveFromMonth = overrides.fromMonth !== undefined ? overrides.fromMonth : fromMonth;
-    const effectiveToMonth = overrides.toMonth !== undefined ? overrides.toMonth : toMonth;
-
-    /* ---- DUMMY DATA MODE (remove after backend integration) ---- */
-    if (USE_DUMMY_DATA) {
-      setTimeout(() => {
-        setApiData(DUMMY_API_RESPONSE);
-        setTotalElements(Object.keys(DUMMY_API_RESPONSE.allSubDetails || {}).length);
-        if (effectiveCropName === 'ALL' && Array.isArray(DUMMY_API_RESPONSE.cropList)) {
-          setCropOptions(DUMMY_API_RESPONSE.cropList);
-        }
-        setLoading(false);
-      }, 400); // small delay to mimic network
-      return;
-    }
-    /* ------------------------------------------------------------ */
-
     try {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('Authorization token missing');
 
+      let url = `${BASE_URL}/earas-form1-entry/api/progress-report/cce-summary`;
       const params = new URLSearchParams();
-      params.append('page', 0);
-      params.append('size', 100);
-      params.append('agriculturalYear', agriculturalYear);
 
-      if (effectiveCropName && effectiveCropName !== 'ALL') {
-        params.append('cropName', effectiveCropName);
+      // agriYear (mandatory) — e.g. '2025-2026'
+      params.append('agriYear', agriculturalYear);
+
+      // Month filters — API expects a numeric month (1–12). startMonth is mandatory.
+      if (filterType === 'single') {
+        // Single month: send only startMonth (backend defaults endMonth = startMonth).
+        const start = monthNum(singleMonth) || monthNum(defaultSingleMonth);
+        params.append('startMonth', start);
+      } else {
+        // Month range: startMonth mandatory, endMonth optional.
+        const start = monthNum(fromMonth) || monthNum(agriYearMonths[0]?.value);
+        params.append('startMonth', start);
+        if (toMonth) params.append('endMonth', monthNum(toMonth));
       }
 
-      // Add month filters (values already in YYYY-MM)
-      if (effectiveFilterType === 'single' && effectiveSingleMonth) {
-        params.append('startMonth', effectiveSingleMonth);
-        params.append('endMonth', effectiveSingleMonth);
-      } else if (effectiveFilterType === 'range') {
-        if (effectiveFromMonth) params.append('startMonth', effectiveFromMonth);
-        if (effectiveToMonth) params.append('endMonth', effectiveToMonth);
-      }
+      // Zone drill-down → backend returns the zones for this taluk.
+      params.append('talukId', talukIdValue);
 
-      // TODO: confirm the zone-wise CCE summary endpoint with backend
-      const url = `${BASE_URL}/earas-form1-entry/cce-crop-details/cce-summary/taluk/${talukIdValue}/zones?${params.toString()}`;
+      // TODO: enable when the backend controller accepts a cropName param.
+      // if (cropName && cropName !== 'ALL') params.append('cropName', cropName);
+
+      url += `?${params.toString()}`;
       console.log('Fetching zone Form 5 data from:', url);
 
       const response = await axios.get(url, {
@@ -274,11 +209,11 @@ function ZoneForm5Report() {
 
       if (response.data) {
         setApiData(response.data);
-        setTotalElements(response.data.totalElements || Object.keys(response.data.allSubDetails || {}).length);
+        setTotalElements(Array.isArray(response.data.zones) ? response.data.zones.length : 0);
 
-        // Build the crop dropdown options from the API (only refresh on
-        // unfiltered load so the list doesn't shrink to the selected crop)
-        if (effectiveCropName === 'ALL' && Array.isArray(response.data.cropList)) {
+        // Populate the crop dropdown if/when the endpoint returns a cropList.
+        // (Currently not returned, so the dropdown stays at ALL.)
+        if (cropName === 'ALL' && Array.isArray(response.data.cropList)) {
           setCropOptions(response.data.cropList);
         }
       }
@@ -287,71 +222,68 @@ function ZoneForm5Report() {
       if (err.response?.status === 401) setError('Session expired. Please login again.');
       else if (err.response?.status === 403) setError("You don't have permission to access this data.");
       else if (err.response?.status === 404) setError('Taluk not found.');
-      else setError(err.response?.data?.message || 'Failed to fetch zone data');
+      else setError(err.response?.data?.message || err.message || 'Failed to fetch zone data');
     } finally {
-      if (!USE_DUMMY_DATA) setLoading(false);
+      setLoading(false);
     }
   };
 
   /* ─────────────────────────── effects ─────────────────────────── */
 
+  // Fetch data when month filters change.
+  // (cropName is intentionally excluded — it is not sent to the API yet.)
   useEffect(() => {
-    fetchZoneWiseData({ cropName, filterType, singleMonth, fromMonth, toMonth });
+    fetchZoneWiseData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cropName, filterType, singleMonth, fromMonth, toMonth]);
+  }, [filterType, singleMonth, fromMonth, toMonth]);
 
   /* ─────────────────────────── derived data ─────────────────────────── */
 
-  // Expected shape: apiData.allSubDetails = {
-  //   "Zone Name": { zoneId, blockId, blockName, allowtedCce, selectedCce,
-  //                  completed, ongoing, notAvailable, notStarted, underReview },
+  // Live shape: apiData.zones = [
+  //   { zoneId, zoneName, blockId, blockName, allowedCCECrops, ongoing,
+  //     completed, notStarted, underReview, notAvailable, selectedCce },
   //   ...
-  // }
-  const getZoneStats = (details) => {
-    if (!details) {
-      return { allowtedCce: 0, selectedCce: 0, completed: 0, ongoing: 0, notAvailable: 0, notStarted: 0, underReview: 0 };
-    }
-    return {
-      allowtedCce: details.allowtedCce || 0,
-      selectedCce: details.selectedCce || 0,
-      completed: details.completed || 0,
-      ongoing: details.ongoing || 0,
-      notAvailable: details.notAvailable || 0,
-      notStarted: details.notStarted || 0,
-      underReview: details.underReview || 0
-    };
-  };
-
+  // ]
+  // Grouping rules:
+  //   • zones sharing the same blockName are grouped together
+  //   • blockId null → bucket by keyword in zoneName:
+  //       'municipality' → Municipality block, 'corporation' → Corporation block,
+  //       otherwise → Unassigned block
+  // Internal key stays `allowtedCce` so the table/stat config is unchanged.
   const processedData = useMemo(() => {
-    const allSubDetails = apiData?.content ?? apiData?.allSubDetails ?? null;
-
-    if (!allSubDetails) return [];
+    const zones = Array.isArray(apiData?.zones) ? apiData.zones : [];
+    if (!zones.length) return [];
 
     const blockMap = new Map();
     const municipalityZones = [];
     const corporationZones = [];
     const unassignedZones = [];
 
-    Object.entries(allSubDetails).forEach(([zoneName, details]) => {
-      const stats = getZoneStats(details);
+    zones.forEach((z) => {
       const zoneData = {
-        zoneId: details.zoneId,
-        zoneName,
-        ...stats
+        zoneId: z.zoneId,
+        zoneName: z.zoneName,
+        allowtedCce: z.allowedCCECrops || 0,
+        selectedCce: z.selectedCce || 0,
+        completed: z.completed || 0,
+        ongoing: z.ongoing || 0,
+        notAvailable: z.notAvailable || 0,
+        notStarted: z.notStarted || 0,
+        underReview: z.underReview || 0
       };
 
-      if (!details.blockId || !details.blockName) {
-        const lower = zoneName.toLowerCase();
+      if (!z.blockId || !z.blockName) {
+        const lower = (z.zoneName || '').toLowerCase();
         if (lower.includes('municipality')) municipalityZones.push(zoneData);
         else if (lower.includes('corporation')) corporationZones.push(zoneData);
         else unassignedZones.push(zoneData);
         return;
       }
 
-      if (!blockMap.has(details.blockName)) {
-        blockMap.set(details.blockName, { blockId: details.blockId, blockName: details.blockName, zones: [] });
+      if (!blockMap.has(z.blockName)) {
+        blockMap.set(z.blockName, { blockId: z.blockId, blockName: z.blockName, zones: [] });
       }
-      blockMap.get(details.blockName).zones.push(zoneData);
+      blockMap.get(z.blockName).zones.push(zoneData);
     });
 
     const blocks = Array.from(blockMap.values()).sort((a, b) => a.blockName.localeCompare(b.blockName));
@@ -382,27 +314,20 @@ function ZoneForm5Report() {
     return blocks;
   }, [apiData]);
 
-  const stats = useMemo(() => {
-    let allowtedCce = 0,
-      selectedCce = 0,
-      completed = 0,
-      ongoing = 0,
-      notAvailable = 0,
-      notStarted = 0,
-      underReview = 0;
-    processedData.forEach((block) =>
-      block.zones.forEach((zone) => {
-        allowtedCce += zone.allowtedCce;
-        selectedCce += zone.selectedCce;
-        completed += zone.completed;
-        ongoing += zone.ongoing;
-        notAvailable += zone.notAvailable;
-        notStarted += zone.notStarted;
-        underReview += zone.underReview;
-      })
-    );
-    return { allowtedCce, selectedCce, completed, ongoing, notAvailable, notStarted, underReview };
-  }, [processedData]);
+  // Taluk-level stats come straight from the top-level totals returned by the API
+  // (authoritative — do not re-sum the zone rows).
+  const stats = useMemo(
+    () => ({
+      allowtedCce: apiData?.allowedCCECrops || 0,
+      selectedCce: apiData?.selectedCce || 0,
+      completed: apiData?.completed || 0,
+      ongoing: apiData?.ongoing || 0,
+      notAvailable: apiData?.notAvailable || 0,
+      notStarted: apiData?.notStarted || 0,
+      underReview: apiData?.underReview || 0
+    }),
+    [apiData]
+  );
 
   const flattenedTableData = useMemo(() => {
     const result = [];
@@ -492,7 +417,7 @@ function ZoneForm5Report() {
     if (newValue === null) return;
     setFilterType(newValue);
     if (newValue === 'single') {
-      setSingleMonth(getDefaultSingleMonth(agriYearMonths));
+      setSingleMonth(defaultSingleMonth);
       setFromMonth('');
       setToMonth('');
     } else {
@@ -507,7 +432,7 @@ function ZoneForm5Report() {
   const handleClearFilters = () => {
     setCropName('ALL');
     setFilterType('single');
-    setSingleMonth(getDefaultSingleMonth(agriYearMonths));
+    setSingleMonth(defaultSingleMonth);
     setFromMonth('');
     setToMonth('');
     setPage(0);
@@ -621,7 +546,7 @@ function ZoneForm5Report() {
               </Typography>
             </Box>
           </Stack>
-          {(cropName !== 'ALL' || fromMonth || toMonth || singleMonth) && (
+          {(cropName !== 'ALL' || fromMonth || toMonth || (filterType === 'single' && singleMonth !== defaultSingleMonth)) && (
             <Button variant="outlined" onClick={handleClearFilters} startIcon={<ClearIcon />} size="small" sx={{ borderRadius: 2 }}>
               Clear All Filters
             </Button>
@@ -638,7 +563,7 @@ function ZoneForm5Report() {
         </Grid>
       )}
 
-      {/* Filters - single filter: Crop Name */}
+      {/* Filters - Crop Name (UI only for now) + month single / range */}
       <Grid item xs={12}>
         <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
@@ -683,7 +608,6 @@ function ZoneForm5Report() {
                       setPage(0);
                     }}
                   >
-                    <MenuItem value="">None</MenuItem>
                     {agriYearMonths.map((m) => (
                       <MenuItem key={m.value} value={m.value}>
                         {m.label}
@@ -724,7 +648,6 @@ function ZoneForm5Report() {
                     setPage(0);
                   }}
                 >
-                  <MenuItem value="">None</MenuItem>
                   {agriYearMonths.map((m) => (
                     <MenuItem key={m.value} value={m.value}>
                       {m.label}
@@ -765,7 +688,7 @@ function ZoneForm5Report() {
               { label: 'Not Started', value: stats.notStarted, color: '#757575', icon: <ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} /> },
               { label: 'Under Review', value: stats.underReview, color: '#b76e00', icon: <RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} /> }
             ].map(({ label, value, color, icon }) => (
-              <Grid item xs={12} sm={6} md={true} key={label}>
+              <Grid item xs={12} sm={6} md={4} lg key={label}>
                 <StatCard label={label} value={value} color={color} bgColor={alpha(color, 0.08)} icon={icon} />
               </Grid>
             ))}

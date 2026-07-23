@@ -51,6 +51,7 @@ import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import AuthService from 'pages/authentication/services/authservice';
+import api from 'api/api';
 
 /* ─────────────────────────── session persistence ─────────────────────────── */
 
@@ -253,15 +254,15 @@ function TalukFormReport() {
 
       console.log('Taluk API Request:', requestBody);
 
-      const response = await axios.post(
-        'http://localhost:9114/earas-form1-entry/form1/taluk-wise-status-summary',
-        requestBody,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        }
-      );
+      const response = await api.post(
+  '/earas-form1-entry/form1/taluk-wise-status-summary',
+  requestBody,
+  {
+    headers: {
+      'Content-Type': 'application/json',
+    }
+  }
+);
 
       if (response.data && response.data.payload) {
         setApiData(response.data.payload);

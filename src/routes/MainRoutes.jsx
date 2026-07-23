@@ -761,6 +761,15 @@ const MainRoutes = {
       path: '/kerala_form5_report/taluk_form5_report/:districtId',
       element: <TalukForm5Report />
     },
+    // TALUK direct access: /kerala_form5_report/zone_form5_report/direct/:talukId
+    {
+      path: '/kerala_form5_report/zone_form5_report/direct/:talukId',
+      element: (
+        <PrivateRoute>
+          <ZoneForm5Report />
+        </PrivateRoute>
+      )
+    },
     {
       path: '/kerala_form5_report/taluk_form5_report/zone_form5_report/:districtName/:talukName',
       element: <ZoneForm5Report />

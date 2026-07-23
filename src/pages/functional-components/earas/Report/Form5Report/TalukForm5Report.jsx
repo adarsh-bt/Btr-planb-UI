@@ -50,42 +50,14 @@ import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
 import AuthService from 'pages/authentication/services/authservice';
-const BASE_URL = mainapi.EARAS_FORM1_API; // TODO: point this to your earas-form1-entry service base URL
+
+// Gateway root (e.g. http://localhost:8080). The '/earas-form1-entry' service
+// prefix is added on the request path below.
+// NOTE: if mainapi.FORM_API already ends in '/earas-form1-entry',
+// drop the duplicate segment from the URL to avoid a doubled prefix (404).
+const BASE_URL = mainapi.FORM_API;
 
 const SESSION_KEY = 'talukForm5ReportState';
-
-/* ─────────────────────────── dummy data ───────────────────────────
-   Remove this block and set USE_DUMMY_DATA = false once the backend
-   is ready.                                                          */
-
-const USE_DUMMY_DATA = true;
-
-const DUMMY_API_RESPONSE = {
-  totalCCECrops: 120,
-  cropList: ['Paddy', 'Coconut', 'Banana', 'Tapioca'],
-  allSubDetails: {
-    Neyyattinkara: {
-      id: 101,
-      allowtedCce: 45,
-      selectedCce: 38,
-      completed: 18,
-      ongoing: 9,
-      notAvailable: 2,
-      notStarted: 7,
-      underReview: 2
-    },
-    Chirayinkeezhu: {
-      id: 102,
-      allowtedCce: 35,
-      selectedCce: 27,
-      completed: 12,
-      ongoing: 6,
-      notAvailable: 1,
-      notStarted: 6,
-      underReview: 2
-    }
-  }
-};
 
 /* ─────────────────────────── helpers ─────────────────────────── */
 
@@ -124,6 +96,12 @@ function getDefaultSingleMonth(agriYearMonths) {
   return agriYearMonths.some((m) => m.value === current) ? current : agriYearMonths[0]?.value || '';
 }
 
+// Extract the API-ready month number (1–12) from a 'YYYY-MM' value.
+// e.g. '2025-07' → 7
+function monthNum(value) {
+  return value ? parseInt(value.split('-')[1], 10) : null;
+}
+
 /* ─────────────────────────── component ─────────────────────────── */
 
 function TalukForm5Report() {
@@ -156,21 +134,22 @@ function TalukForm5Report() {
     resolvedDistrictId.current = resolveDistrictId();
   }
 
-  /* ── filter state - Crop Name + months ── */
+  // Agricultural year from AuthService (e.g. '2025-2026'), and its month list.
+  const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
+  const agriYearMonths = useMemo(() => getAgriYearMonths(agriculturalYear), [agriculturalYear]);
+  const defaultSingleMonth = useMemo(() => getDefaultSingleMonth(agriYearMonths), [agriYearMonths]);
+  const monthLabel = (value) => agriYearMonths.find((m) => m.value === value)?.label || '';
+
+  /* ── filter state - Crop Name (UI only) + months ── */
+  // Backend does not accept cropName yet, so the param is not sent —
+  // see the TODO in fetchTalukWiseData to enable it later.
   const [cropName, setCropName] = useState(stateData.cropName || 'ALL');
   const [cropOptions, setCropOptions] = useState([]);
-
-  // Agricultural year from AuthService (e.g. '2025-2026')
-  const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
-  const agriYearMonths = getAgriYearMonths(agriculturalYear);
-  const monthLabel = (value) => agriYearMonths.find((m) => m.value === value)?.label || '';
 
   // Month filter states (values are API-ready 'YYYY-MM'), carried over from the district page
   const [filterType, setFilterType] = useState(stateData.filterType || 'single');
   const [singleMonth, setSingleMonth] = useState(
-    stateData.singleMonth !== undefined && stateData.filterType
-      ? stateData.singleMonth
-      : getDefaultSingleMonth(agriYearMonths)
+    stateData.singleMonth !== undefined && stateData.filterType ? stateData.singleMonth : defaultSingleMonth
   );
   const [fromMonth, setFromMonth] = useState(stateData.fromMonth || '');
   const [toMonth, setToMonth] = useState(stateData.toMonth || '');
@@ -204,7 +183,7 @@ function TalukForm5Report() {
 
   /* ─────────────────────────── fetch ─────────────────────────── */
 
-  const fetchTalukWiseData = async (overrides = {}) => {
+  const fetchTalukWiseData = async () => {
     const districtIdValue = resolvedDistrictId.current;
 
     if (!districtIdValue) {
@@ -215,44 +194,35 @@ function TalukForm5Report() {
     setLoading(true);
     setError(null);
 
-    const effectiveCropName = overrides.cropName !== undefined ? overrides.cropName : cropName;
-    const effectiveFilterType = overrides.filterType !== undefined ? overrides.filterType : filterType;
-    const effectiveSingleMonth = overrides.singleMonth !== undefined ? overrides.singleMonth : singleMonth;
-    const effectiveFromMonth = overrides.fromMonth !== undefined ? overrides.fromMonth : fromMonth;
-    const effectiveToMonth = overrides.toMonth !== undefined ? overrides.toMonth : toMonth;
-
-    /* ---- DUMMY DATA MODE (remove after backend integration) ---- */
-    if (USE_DUMMY_DATA) {
-      setTimeout(() => {
-        setApiData(DUMMY_API_RESPONSE);
-        if (effectiveCropName === 'ALL' && Array.isArray(DUMMY_API_RESPONSE.cropList)) {
-          setCropOptions(DUMMY_API_RESPONSE.cropList);
-        }
-        setLoading(false);
-      }, 400); // small delay to mimic network
-      return;
-    }
-    /* ------------------------------------------------------------ */
-
     try {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('Authorization token missing');
 
-      // TODO: confirm the taluk-wise CCE summary endpoint with backend
-      let url = `${BASE_URL}/earas-form1-entry/cce-crop-details/cce-summary/district/taluk-wise?districtId=${districtIdValue}&agriculturalYear=${agriculturalYear}`;
+      let url = `${BASE_URL}/earas-form1-entry/api/progress-report/cce-summary`;
+      const params = new URLSearchParams();
 
-      if (effectiveCropName && effectiveCropName !== 'ALL') {
-        url += `&cropName=${encodeURIComponent(effectiveCropName)}`;
+      // agriYear (mandatory) — e.g. '2025-2026'
+      params.append('agriYear', agriculturalYear);
+
+      // Month filters — API expects a numeric month (1–12). startMonth is mandatory.
+      if (filterType === 'single') {
+        // Single month: send only startMonth (backend defaults endMonth = startMonth).
+        const start = monthNum(singleMonth) || monthNum(defaultSingleMonth);
+        params.append('startMonth', start);
+      } else {
+        // Month range: startMonth mandatory, endMonth optional.
+        const start = monthNum(fromMonth) || monthNum(agriYearMonths[0]?.value);
+        params.append('startMonth', start);
+        if (toMonth) params.append('endMonth', monthNum(toMonth));
       }
 
-      // Add month filters (values already in YYYY-MM)
-      if (effectiveFilterType === 'single' && effectiveSingleMonth) {
-        url += `&startMonth=${effectiveSingleMonth}&endMonth=${effectiveSingleMonth}`;
-      } else if (effectiveFilterType === 'range') {
-        if (effectiveFromMonth) url += `&startMonth=${effectiveFromMonth}`;
-        if (effectiveToMonth) url += `&endMonth=${effectiveToMonth}`;
-      }
+      // District drill-down → backend returns the taluks for this district.
+      params.append('districtId', districtIdValue);
 
+      // TODO: enable when the backend controller accepts a cropName param.
+      // if (cropName && cropName !== 'ALL') params.append('cropName', cropName);
+
+      url += `?${params.toString()}`;
       console.log('Fetching taluk Form 5 data from:', url);
 
       const response = await axios.get(url, {
@@ -262,9 +232,9 @@ function TalukForm5Report() {
       if (response.data) {
         setApiData(response.data);
 
-        // Build the crop dropdown options from the API (only refresh on
-        // unfiltered load so the list doesn't shrink to the selected crop)
-        if (effectiveCropName === 'ALL' && Array.isArray(response.data.cropList)) {
+        // Populate the crop dropdown if/when the endpoint returns a cropList.
+        // (Currently not returned, so the dropdown stays at ALL.)
+        if (cropName === 'ALL' && Array.isArray(response.data.cropList)) {
           setCropOptions(response.data.cropList);
         }
       }
@@ -273,52 +243,57 @@ function TalukForm5Report() {
       if (err.response?.status === 401) setError('Session expired. Please login again.');
       else if (err.response?.status === 403) setError("You don't have permission to access this data.");
       else if (err.response?.status === 404) setError('District not found.');
-      else setError(err.response?.data?.message || 'Failed to fetch taluk data');
+      else setError(err.response?.data?.message || err.message || 'Failed to fetch taluk data');
     } finally {
-      if (!USE_DUMMY_DATA) setLoading(false);
+      setLoading(false);
     }
   };
 
   /* ─────────────────────────── effects ─────────────────────────── */
 
+  // Fetch data when month filters change.
+  // (cropName is intentionally excluded — it is not sent to the API yet.)
   useEffect(() => {
-    fetchTalukWiseData({ cropName, filterType, singleMonth, fromMonth, toMonth });
+    fetchTalukWiseData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cropName, filterType, singleMonth, fromMonth, toMonth]);
+  }, [filterType, singleMonth, fromMonth, toMonth]);
 
   /* ─────────────────────────── derived data ─────────────────────────── */
 
-  // Expected shape (mirrors district-level report): apiData.allSubDetails = {
-  //   "Neyyattinkara": { id, allowtedCce, selectedCce, completed, ongoing,
-  //                      notAvailable, notStarted, underReview },
+  // Live shape: apiData.taluks = [
+  //   { talukId, talukName, allowedCCECrops, ongoing, completed,
+  //     notStarted, underReview, notAvailable, selectedCce },
   //   ...
-  // }
+  // ]
+  // Internal key stays `allowtedCce` so downstream table/stat config is unchanged.
   const talukData = useMemo(() => {
-    if (!apiData?.allSubDetails) return [];
-    return Object.entries(apiData.allSubDetails).map(([talukName, details]) => ({
-      id: details.id,
-      taluk: talukName,
-      allowtedCce: details.allowtedCce || 0,
-      selectedCce: details.selectedCce || 0,
-      completed: details.completed || 0,
-      ongoing: details.ongoing || 0,
-      notAvailable: details.notAvailable || 0,
-      notStarted: details.notStarted || 0,
-      underReview: details.underReview || 0
+    if (!apiData || !Array.isArray(apiData.taluks)) return [];
+    return apiData.taluks.map((t) => ({
+      id: t.talukId,
+      taluk: t.talukName,
+      allowtedCce: t.allowedCCECrops || 0,
+      selectedCce: t.selectedCce || 0,
+      completed: t.completed || 0,
+      ongoing: t.ongoing || 0,
+      notAvailable: t.notAvailable || 0,
+      notStarted: t.notStarted || 0,
+      underReview: t.underReview || 0
     }));
   }, [apiData]);
 
+  // District-level stats come straight from the top-level totals returned by the
+  // API (authoritative — do not re-sum the taluk rows).
   const stats = useMemo(
     () => ({
-      allowtedCce: talukData.reduce((sum, r) => sum + r.allowtedCce, 0),
-      selectedCce: talukData.reduce((sum, r) => sum + r.selectedCce, 0),
-      completed: talukData.reduce((sum, r) => sum + r.completed, 0),
-      ongoing: talukData.reduce((sum, r) => sum + r.ongoing, 0),
-      notAvailable: talukData.reduce((sum, r) => sum + r.notAvailable, 0),
-      notStarted: talukData.reduce((sum, r) => sum + r.notStarted, 0),
-      underReview: talukData.reduce((sum, r) => sum + r.underReview, 0)
+      allowtedCce: apiData?.allowedCCECrops || 0,
+      selectedCce: apiData?.selectedCce || 0,
+      completed: apiData?.completed || 0,
+      ongoing: apiData?.ongoing || 0,
+      notAvailable: apiData?.notAvailable || 0,
+      notStarted: apiData?.notStarted || 0,
+      underReview: apiData?.underReview || 0
     }),
-    [talukData]
+    [apiData]
   );
 
   const searchFilteredData = useMemo(() => {
@@ -342,7 +317,7 @@ function TalukForm5Report() {
     if (newValue === null) return;
     setFilterType(newValue);
     if (newValue === 'single') {
-      setSingleMonth(getDefaultSingleMonth(agriYearMonths));
+      setSingleMonth(defaultSingleMonth);
       setFromMonth('');
       setToMonth('');
     } else {
@@ -357,7 +332,7 @@ function TalukForm5Report() {
   const handleClearFilters = () => {
     setCropName('ALL');
     setFilterType('single');
-    setSingleMonth(getDefaultSingleMonth(agriYearMonths));
+    setSingleMonth(defaultSingleMonth);
     setFromMonth('');
     setToMonth('');
     setPage(0);
@@ -459,11 +434,11 @@ function TalukForm5Report() {
                 {filterType === 'range' && fromMonth && !toMonth && ` • From ${monthLabel(fromMonth)}`}
                 {filterType === 'range' && !fromMonth && toMonth && ` • Until ${monthLabel(toMonth)}`}
                 {cropName !== 'ALL' && ` • Crop: ${cropName}`}
-                {apiData && ` • Total CCE Crops: ${apiData.totalCCECrops || 0}`}
+                {apiData?.allowedCCECrops != null && ` • Total Allowted CCE: ${apiData.allowedCCECrops}`}
               </Typography>
             </Box>
           </Stack>
-          {(cropName !== 'ALL' || fromMonth || toMonth || singleMonth) && (
+          {(cropName !== 'ALL' || fromMonth || toMonth || (filterType === 'single' && singleMonth !== defaultSingleMonth)) && (
             <Button variant="outlined" onClick={handleClearFilters} startIcon={<ClearIcon />} size="small" sx={{ borderRadius: 2 }}>
               Clear All Filters
             </Button>
@@ -480,7 +455,7 @@ function TalukForm5Report() {
         </Grid>
       )}
 
-      {/* Filters - single filter: Crop Name */}
+      {/* Filters - Crop Name (UI only for now) + month single / range */}
       <Grid item xs={12}>
         <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
@@ -525,7 +500,6 @@ function TalukForm5Report() {
                       setPage(0);
                     }}
                   >
-                    <MenuItem value="">None</MenuItem>
                     {agriYearMonths.map((m) => (
                       <MenuItem key={m.value} value={m.value}>
                         {m.label}
@@ -566,7 +540,6 @@ function TalukForm5Report() {
                     setPage(0);
                   }}
                 >
-                  <MenuItem value="">None</MenuItem>
                   {agriYearMonths.map((m) => (
                     <MenuItem key={m.value} value={m.value}>
                       {m.label}
@@ -615,7 +588,7 @@ function TalukForm5Report() {
               { label: 'Not Started', value: stats.notStarted, color: '#757575', icon: <ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} /> },
               { label: 'Under Review', value: stats.underReview, color: '#b76e00', icon: <RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} /> }
             ].map(({ label, value, color, icon }) => (
-              <Grid item xs={12} sm={6} md={true} key={label}>
+              <Grid item xs={12} sm={6} md={4} lg key={label}>
                 <StatCard label={label} value={value} color={color} bgColor={alpha(color, 0.08)} icon={icon} />
               </Grid>
             ))}

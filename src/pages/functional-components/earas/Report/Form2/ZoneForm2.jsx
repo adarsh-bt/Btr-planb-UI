@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -16,7 +16,8 @@ import {
   Tabs,
   Tab,
   Chip,
-  Stack
+  Stack,
+  CircularProgress
 } from '@mui/material';
 import {
   LocationOn,
@@ -27,6 +28,9 @@ import {
   WbSunny
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
+import mainapi from 'api/mainapi';
+import AuthService from 'pages/authentication/services/authservice';
 
 // =====================================================================
 // COLUMN WIDTHS — single source of truth.
@@ -48,192 +52,264 @@ const IRR_AREA_W = 90;
 const IRR_HEADER_ROW1_H = 44;
 
 // ---- Solid (non-transparent) tint colors for sticky cells ----
-// Solid hex avoids the "ghosting / clipped digit" artifact that happens when
-// a semi-transparent sticky cell blends with content scrolling underneath it.
 const themeColor = '#05307a';
 const stickyTintLight = '#eef1f7';    // ~ alpha(themeColor, 0.06) over white
 const stickyTintSubtotal = '#e4e9f2'; // ~ alpha(themeColor, 0.08) over white
 const stickyTintGrand = '#d2dbe9';    // ~ alpha(themeColor, 0.15) over white
 const stickyHeaderSub = '#22528b';    // ~ alpha(themeColor, 0.85) over white
 
+// Gateway root (e.g. http://localhost:8080). '/earas-form1-entry' added below.
+// NOTE: if mainapi.FORM_API already ends in '/earas-form1-entry', drop the
+// duplicate segment from the URL to avoid a doubled prefix (404).
+const BASE_URL = mainapi.FORM_API;
+
+const SESSION_KEY = 'zoneForm2State';
+
+// Internal column id → API field name (same land shape at every level).
+const LAND_FIELD_MAP = {
+  buildingCourtyard: 'buildingArea',
+  otherNonAgri: 'nonAgriculturalArea',
+  barrenUncultivable: 'barrenArea',
+  miscTreeCrops: 'miscellaneousTreesArea',
+  permanentPastures: 'permanentPasturesArea',
+  cultivableWaste: 'cultivableWasteArea',
+  otherFallow: 'otherFallowArea',
+  currentFallow: 'currentFallowArea',
+  socialForestry: 'areaUnderSocialForestry',
+  waterLogged: 'waterloggedArea',
+  stillWater: 'stillWaterLand',
+  marshyLand: 'marshyLand',
+  netAreaSown: 'netAreasSown'
+};
+
+// Wet/Dry classification for irrigation sources, keyed by sourceId.
+// ⚠️ VERIFY against the official source definitions — the API does not return a
+// category. Any sourceId NOT listed here is always shown under any filter.
+const IRRIGATION_SOURCE_CATEGORY = {
+  1: 'wet', // Government canals
+  2: 'wet', // Private canals
+  3: 'wet', // Government tanks
+  4: 'wet', // Private tank
+  5: 'dry', // Government wells
+  6: 'dry', // Private wells
+  7: 'dry', // Test well
+  9: 'wet', // By pumps from rivers, lakes, rivulets, etc
+  10: 'wet', // By country wheels from rivers, lakes...
+  11: 'wet' // By other means from rivers, lakes, rivulets and springs
+  // 8, 12, 13 intentionally unmapped → always shown.
+};
+
+function getSavedState() {
+  try {
+    return JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+// Resolve the block a zone belongs to.
+//   real block   → blockName (when blockId & blockName present)
+//   blockId null  → keyword in zoneName: 'municipality' → Municipality,
+//                   'corporation' → Corporation, otherwise → Unassigned
+function resolveBlockName(blockId, blockName, zoneName) {
+  if (blockId && blockName) return blockName;
+  const lower = (zoneName || '').toLowerCase();
+  if (lower.includes('municipality')) return 'Municipality';
+  if (lower.includes('corporation')) return 'Corporation';
+  return 'Unassigned';
+}
+
+// Group rows by block: sorted real blocks first, then Municipality,
+// Corporation, Unassigned (only those that exist). Returns an insertion-ordered
+// plain object so the render can iterate with Object.entries.
+function buildOrderedGroups(rows) {
+  const real = new Map();
+  const muni = [];
+  const corp = [];
+  const un = [];
+  rows.forEach((r) => {
+    if (r.block === 'Municipality') muni.push(r);
+    else if (r.block === 'Corporation') corp.push(r);
+    else if (r.block === 'Unassigned') un.push(r);
+    else {
+      if (!real.has(r.block)) real.set(r.block, []);
+      real.get(r.block).push(r);
+    }
+  });
+  const ordered = {};
+  Array.from(real.keys())
+    .sort((a, b) => a.localeCompare(b))
+    .forEach((k) => (ordered[k] = real.get(k)));
+  if (muni.length) ordered['Municipality'] = muni;
+  if (corp.length) ordered['Corporation'] = corp;
+  if (un.length) ordered['Unassigned'] = un;
+  return ordered;
+}
+
 const ZoneForm2 = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const selectedDistrict = location.state?.districtName || location.state?.selectedDistrict || "Kannur";
-  const selectedTaluk = location.state?.talukName || location.state?.selectedTaluk || "Taliparamba";
-  const initialTab = location.state?.activeTab || 0;
+  // Merge saved sessionStorage state with location.state (state wins on fresh nav).
+  const stateData = useMemo(() => {
+    const saved = getSavedState();
+    return { ...saved, ...(location.state || {}) };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const talukId = stateData.talukId ?? null;
+  const selectedDistrict = stateData.districtName || stateData.selectedDistrict || 'District';
+  const selectedTaluk = stateData.talukName || stateData.selectedTaluk || 'Taluk';
+  const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
 
-  // Land Type filter state: 'all' | 'wet' | 'dry'
+  const [activeTab, setActiveTab] = useState(stateData.activeTab || 0);
   const [landTypeFilter, setLandTypeFilter] = useState('all');
 
-  const zoneData = [
-    { block: "Taliparamba", zone: "North Zone", buildingCourtyard: 12.50, otherNonAgri: 8.30, barrenUncultivable: 42.20, miscTreeCrops: 7.40, permanentPastures: 3.60, cultivableWaste: 2.10, otherFallow: 1.20, currentFallow: 1.80, socialForestry: 5.70, waterLogged: 4.20, stillWater: 22.80, marshyLand: 1.10, netAreaSown: 267.00 },
-    { block: "Taliparamba", zone: "South Zone", buildingCourtyard: 10.80, otherNonAgri: 7.20, barrenUncultivable: 38.50, miscTreeCrops: 6.80, permanentPastures: 3.20, cultivableWaste: 1.90, otherFallow: 1.00, currentFallow: 1.60, socialForestry: 5.20, waterLogged: 3.80, stillWater: 20.40, marshyLand: 1.00, netAreaSown: 242.00 },
-    { block: "Taliparamba", zone: "East Zone", buildingCourtyard: 11.20, otherNonAgri: 7.80, barrenUncultivable: 40.10, miscTreeCrops: 7.10, permanentPastures: 3.40, cultivableWaste: 2.00, otherFallow: 1.10, currentFallow: 1.70, socialForestry: 5.50, waterLogged: 4.00, stillWater: 21.60, marshyLand: 1.05, netAreaSown: 258.00 },
-    { block: "Iritty", zone: "Iritty Central", buildingCourtyard: 8.40, otherNonAgri: 5.60, barrenUncultivable: 35.20, miscTreeCrops: 6.20, permanentPastures: 2.80, cultivableWaste: 1.70, otherFallow: 0.90, currentFallow: 1.40, socialForestry: 4.80, waterLogged: 3.20, stillWater: 18.40, marshyLand: 0.90, netAreaSown: 195.00 },
-    { block: "Iritty", zone: "Iritty West", buildingCourtyard: 7.80, otherNonAgri: 5.20, barrenUncultivable: 32.80, miscTreeCrops: 5.80, permanentPastures: 2.60, cultivableWaste: 1.50, otherFallow: 0.80, currentFallow: 1.30, socialForestry: 4.50, waterLogged: 2.90, stillWater: 17.20, marshyLand: 0.85, netAreaSown: 182.00 },
-    { block: "Payyannur", zone: "Payyannur North", buildingCourtyard: 9.60, otherNonAgri: 6.40, barrenUncultivable: 38.50, miscTreeCrops: 6.80, permanentPastures: 3.10, cultivableWaste: 1.80, otherFallow: 1.00, currentFallow: 1.50, socialForestry: 5.00, waterLogged: 3.50, stillWater: 19.80, marshyLand: 0.95, netAreaSown: 210.00 },
-    { block: "Payyannur", zone: "Payyannur South", buildingCourtyard: 8.90, otherNonAgri: 5.90, barrenUncultivable: 35.60, miscTreeCrops: 6.30, permanentPastures: 2.90, cultivableWaste: 1.70, otherFallow: 0.90, currentFallow: 1.40, socialForestry: 4.70, waterLogged: 3.20, stillWater: 18.20, marshyLand: 0.88, netAreaSown: 198.00 },
-    { block: "Municipality", zone: "Taliparamba Municipality", buildingCourtyard: 15.20, otherNonAgri: 10.80, barrenUncultivable: 28.50, miscTreeCrops: 5.20, permanentPastures: 2.40, cultivableWaste: 1.40, otherFallow: 0.80, currentFallow: 1.20, socialForestry: 4.00, waterLogged: 2.80, stillWater: 15.60, marshyLand: 0.75, netAreaSown: 165.00 },
-    { block: "Municipality", zone: "Iritty Municipality", buildingCourtyard: 13.80, otherNonAgri: 9.60, barrenUncultivable: 25.80, miscTreeCrops: 4.80, permanentPastures: 2.20, cultivableWaste: 1.30, otherFallow: 0.70, currentFallow: 1.10, socialForestry: 3.80, waterLogged: 2.60, stillWater: 14.20, marshyLand: 0.70, netAreaSown: 152.00 },
-    { block: "Corporation", zone: "Kannur Corporation", buildingCourtyard: 25.40, otherNonAgri: 18.20, barrenUncultivable: 45.80, miscTreeCrops: 8.50, permanentPastures: 4.20, cultivableWaste: 2.80, otherFallow: 1.50, currentFallow: 2.20, socialForestry: 6.50, waterLogged: 5.20, stillWater: 28.40, marshyLand: 1.30, netAreaSown: 285.00 }
-  ];
+  // API data
+  const [landZonesApi, setLandZonesApi] = useState([]);
+  const [irrZonesApi, setIrrZonesApi] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const blockTotals = {};
-  zoneData.forEach(row => {
-    if (!blockTotals[row.block]) {
-      blockTotals[row.block] = {
-        buildingCourtyard: 0, otherNonAgri: 0, barrenUncultivable: 0,
-        miscTreeCrops: 0, permanentPastures: 0, cultivableWaste: 0,
-        otherFallow: 0, currentFallow: 0, socialForestry: 0,
-        waterLogged: 0, stillWater: 0, marshyLand: 0, netAreaSown: 0,
-        zoneCount: 0
-      };
+  /* ── persist taluk context so breadcrumb/refresh keeps working ── */
+  useEffect(() => {
+    if (talukId != null) {
+      sessionStorage.setItem(
+        SESSION_KEY,
+        JSON.stringify({
+          talukId,
+          talukName: selectedTaluk,
+          districtId: stateData.districtId ?? null,
+          districtName: selectedDistrict,
+          agriculturalYear,
+          activeTab: stateData.activeTab || 0
+        })
+      );
     }
-    blockTotals[row.block].buildingCourtyard += row.buildingCourtyard;
-    blockTotals[row.block].otherNonAgri += row.otherNonAgri;
-    blockTotals[row.block].barrenUncultivable += row.barrenUncultivable;
-    blockTotals[row.block].miscTreeCrops += row.miscTreeCrops;
-    blockTotals[row.block].permanentPastures += row.permanentPastures;
-    blockTotals[row.block].cultivableWaste += row.cultivableWaste;
-    blockTotals[row.block].otherFallow += row.otherFallow;
-    blockTotals[row.block].currentFallow += row.currentFallow;
-    blockTotals[row.block].socialForestry += row.socialForestry;
-    blockTotals[row.block].waterLogged += row.waterLogged;
-    blockTotals[row.block].stillWater += row.stillWater;
-    blockTotals[row.block].marshyLand += row.marshyLand;
-    blockTotals[row.block].netAreaSown += row.netAreaSown;
-    blockTotals[row.block].zoneCount += 1;
-  });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const grandTotals = Object.values(blockTotals).reduce((acc, block) => {
-    acc.buildingCourtyard += block.buildingCourtyard;
-    acc.otherNonAgri += block.otherNonAgri;
-    acc.barrenUncultivable += block.barrenUncultivable;
-    acc.miscTreeCrops += block.miscTreeCrops;
-    acc.permanentPastures += block.permanentPastures;
-    acc.cultivableWaste += block.cultivableWaste;
-    acc.otherFallow += block.otherFallow;
-    acc.currentFallow += block.currentFallow;
-    acc.socialForestry += block.socialForestry;
-    acc.waterLogged += block.waterLogged;
-    acc.stillWater += block.stillWater;
-    acc.marshyLand += block.marshyLand;
-    acc.netAreaSown += block.netAreaSown;
-    return acc;
-  }, {
-    buildingCourtyard: 0, otherNonAgri: 0, barrenUncultivable: 0,
-    miscTreeCrops: 0, permanentPastures: 0, cultivableWaste: 0,
-    otherFallow: 0, currentFallow: 0, socialForestry: 0,
-    waterLogged: 0, stillWater: 0, marshyLand: 0, netAreaSown: 0
-  });
+  /* ─────────────────────────── fetch ─────────────────────────── */
 
-  const irrigationData = [
-    { zone: "North Zone", sourceType: "Tube well", irrigatedArea: 15.50, sourceCount: 3 },
-    { zone: "North Zone", sourceType: "Private wells", irrigatedArea: 28.80, sourceCount: 10 },
-    { zone: "North Zone", sourceType: "Private tanks", irrigatedArea: 8.20, sourceCount: 2 },
-    { zone: "South Zone", sourceType: "Tube well", irrigatedArea: 12.80, sourceCount: 2 },
-    { zone: "South Zone", sourceType: "Private wells", irrigatedArea: 22.40, sourceCount: 8 },
-    { zone: "South Zone", sourceType: "Government tanks", irrigatedArea: 5.60, sourceCount: 1 },
-    { zone: "East Zone", sourceType: "Private wells", irrigatedArea: 25.60, sourceCount: 9 },
-    { zone: "East Zone", sourceType: "Private tanks", irrigatedArea: 12.20, sourceCount: 2 },
-    { zone: "Iritty Central", sourceType: "Private wells", irrigatedArea: 18.50, sourceCount: 6 },
-    { zone: "Iritty Central", sourceType: "Tube well", irrigatedArea: 6.80, sourceCount: 1 },
-    { zone: "Iritty West", sourceType: "Tube well", irrigatedArea: 8.50, sourceCount: 1 },
-    { zone: "Iritty West", sourceType: "Private wells", irrigatedArea: 15.80, sourceCount: 5 },
-    { zone: "Payyannur North", sourceType: "Government tanks", irrigatedArea: 12.30, sourceCount: 1 },
-    { zone: "Payyannur North", sourceType: "Private wells", irrigatedArea: 24.50, sourceCount: 8 },
-    { zone: "Payyannur South", sourceType: "Private wells", irrigatedArea: 19.80, sourceCount: 7 },
-    { zone: "Payyannur South", sourceType: "Tube well", irrigatedArea: 5.20, sourceCount: 1 },
-    { zone: "Taliparamba Municipality", sourceType: "Private wells", irrigatedArea: 32.40, sourceCount: 12 },
-    { zone: "Taliparamba Municipality", sourceType: "Government tanks", irrigatedArea: 15.60, sourceCount: 1 },
-    { zone: "Taliparamba Municipality", sourceType: "Tube well", irrigatedArea: 8.90, sourceCount: 2 },
-    { zone: "Iritty Municipality", sourceType: "Private wells", irrigatedArea: 28.60, sourceCount: 10 },
-    { zone: "Iritty Municipality", sourceType: "Private tanks", irrigatedArea: 6.40, sourceCount: 1 },
-    { zone: "Kannur Corporation", sourceType: "Private wells", irrigatedArea: 45.80, sourceCount: 18 },
-    { zone: "Kannur Corporation", sourceType: "Tube well", irrigatedArea: 12.50, sourceCount: 3 },
-    { zone: "Kannur Corporation", sourceType: "Government tanks", irrigatedArea: 8.20, sourceCount: 1 },
-    { zone: "Kannur Corporation", sourceType: "Private tanks", irrigatedArea: 15.60, sourceCount: 2 }
-  ];
-
-  const groupedByBlock = {};
-  zoneData.forEach(zone => {
-    if (!groupedByBlock[zone.block]) groupedByBlock[zone.block] = [];
-    groupedByBlock[zone.block].push(zone);
-  });
-
-  const irrigationMap = {};
-  irrigationData.forEach(item => {
-    if (!irrigationMap[item.zone]) {
-      irrigationMap[item.zone] = {
-        tubeWell: { count: 0, area: 0 },
-        govtTanks: { count: 0, area: 0 },
-        privateWells: { count: 0, area: 0 },
-        privateTanks: { count: 0, area: 0 }
-      };
+  useEffect(() => {
+    if (talukId == null) {
+      setError('Taluk is required. Please navigate from the taluk report page.');
+      return;
     }
-    switch (item.sourceType) {
-      case "Tube well":
-        irrigationMap[item.zone].tubeWell = { count: item.sourceCount, area: item.irrigatedArea };
-        break;
-      case "Government tanks":
-        irrigationMap[item.zone].govtTanks = { count: item.sourceCount, area: item.irrigatedArea };
-        break;
-      case "Private wells":
-        irrigationMap[item.zone].privateWells = { count: item.sourceCount, area: item.irrigatedArea };
-        break;
-      case "Private tanks":
-        irrigationMap[item.zone].privateTanks = { count: item.sourceCount, area: item.irrigatedArea };
-        break;
-      default: break;
-    }
-  });
 
-  const blockIrrigationTotals = {};
-  Object.entries(groupedByBlock).forEach(([blockName, zones]) => {
-    blockIrrigationTotals[blockName] = {
-      tubeWell: { count: 0, area: 0 },
-      govtTanks: { count: 0, area: 0 },
-      privateWells: { count: 0, area: 0 },
-      privateTanks: { count: 0, area: 0 }
+    const fetchAll = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) throw new Error('Authorization token missing');
+        const headers = { Authorization: `Bearer ${token}` };
+
+        const landUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/land-utilization/zone-summary?agriYear=${agriculturalYear}&talukId=${talukId}`;
+        const irrUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/zone?agriYear=${agriculturalYear}&talukId=${talukId}`;
+
+        const [landRes, irrRes] = await Promise.all([axios.get(landUrl, { headers }), axios.get(irrUrl, { headers })]);
+
+        setLandZonesApi(Array.isArray(landRes.data) ? landRes.data : []);
+        setIrrZonesApi(Array.isArray(irrRes.data) ? irrRes.data : []);
+      } catch (err) {
+        console.error('Error fetching Zone Form 2 data:', err);
+        if (err.response?.status === 401) setError('Session expired. Please login again.');
+        else if (err.response?.status === 403) setError("You don't have permission to access this data.");
+        else if (err.response?.status === 404) setError('Taluk not found.');
+        else setError(err.response?.data?.message || err.message || 'Failed to fetch data');
+      } finally {
+        setLoading(false);
+      }
     };
-    zones.forEach(zone => {
-      const irr = irrigationMap[zone.zone] || { tubeWell: { count: 0, area: 0 }, govtTanks: { count: 0, area: 0 }, privateWells: { count: 0, area: 0 }, privateTanks: { count: 0, area: 0 } };
-      blockIrrigationTotals[blockName].tubeWell.count += irr.tubeWell.count;
-      blockIrrigationTotals[blockName].tubeWell.area += irr.tubeWell.area;
-      blockIrrigationTotals[blockName].govtTanks.count += irr.govtTanks.count;
-      blockIrrigationTotals[blockName].govtTanks.area += irr.govtTanks.area;
-      blockIrrigationTotals[blockName].privateWells.count += irr.privateWells.count;
-      blockIrrigationTotals[blockName].privateWells.area += irr.privateWells.area;
-      blockIrrigationTotals[blockName].privateTanks.count += irr.privateTanks.count;
-      blockIrrigationTotals[blockName].privateTanks.area += irr.privateTanks.area;
+    fetchAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [talukId, agriculturalYear]);
+
+  /* ─────────────────── land utilization derived data ─────────────────── */
+
+  const landRows = useMemo(() => {
+    return landZonesApi.map((z) => {
+      const row = {
+        block: resolveBlockName(z.blockId, z.blockName, z.zoneName),
+        zone: z.zoneName || 'Unknown',
+        zoneId: z.zoneId
+      };
+      Object.entries(LAND_FIELD_MAP).forEach(([colId, apiKey]) => {
+        row[colId] = Number(z[apiKey]) || 0;
+      });
+      return row;
     });
-  });
+  }, [landZonesApi]);
 
-  const grandIrrigationTotals = Object.values(blockIrrigationTotals).reduce((acc, block) => {
-    acc.tubeWell.count += block.tubeWell.count;
-    acc.tubeWell.area += block.tubeWell.area;
-    acc.govtTanks.count += block.govtTanks.count;
-    acc.govtTanks.area += block.govtTanks.area;
-    acc.privateWells.count += block.privateWells.count;
-    acc.privateWells.area += block.privateWells.area;
-    acc.privateTanks.count += block.privateTanks.count;
-    acc.privateTanks.area += block.privateTanks.area;
-    return acc;
-  }, {
-    tubeWell: { count: 0, area: 0 },
-    govtTanks: { count: 0, area: 0 },
-    privateWells: { count: 0, area: 0 },
-    privateTanks: { count: 0, area: 0 }
-  });
+  const { landGrouped, landBlockTotals, landGrandTotals } = useMemo(() => {
+    const grouped = buildOrderedGroups(landRows);
+    const fields = Object.keys(LAND_FIELD_MAP);
+    const blockTotals = {};
+    const grand = {};
+    fields.forEach((f) => (grand[f] = 0));
+    Object.entries(grouped).forEach(([bn, rows]) => {
+      const bt = { zoneCount: 0 };
+      fields.forEach((f) => (bt[f] = 0));
+      rows.forEach((r) => {
+        fields.forEach((f) => (bt[f] += r[f]));
+        bt.zoneCount += 1;
+      });
+      blockTotals[bn] = bt;
+      fields.forEach((f) => (grand[f] += bt[f]));
+    });
+    return { landGrouped: grouped, landBlockTotals: blockTotals, landGrandTotals: grand };
+  }, [landRows]);
 
-  // `category` classifies each column as 'wet', 'dry', or 'always' (always visible
-  // regardless of filter). Columns are never added/removed — the filter only
-  // decides whether a cell shows its real value or a placeholder dash.
+  /* ─────────────────── irrigation derived data ─────────────────── */
+
+  const irrigationSources = useMemo(() => {
+    const map = new Map();
+    irrZonesApi.forEach((z) =>
+      (z.sources || []).forEach((s) => {
+        if (!map.has(s.sourceId)) map.set(s.sourceId, { sourceId: s.sourceId, sourceName: s.sourceName });
+      })
+    );
+    return Array.from(map.values()).sort((a, b) => a.sourceId - b.sourceId);
+  }, [irrZonesApi]);
+
+  const irrRows = useMemo(() => {
+    return irrZonesApi.map((z) => {
+      const byId = {};
+      (z.sources || []).forEach((s) => {
+        byId[s.sourceId] = { count: s.count || 0, area: s.area || 0 };
+      });
+      return { block: resolveBlockName(z.blockId, z.blockName, z.zoneName), zone: z.zoneName || 'Unknown', zoneId: z.zoneId, byId };
+    });
+  }, [irrZonesApi]);
+
+  const { irrGrouped, irrBlockTotals, irrGrandTotals } = useMemo(() => {
+    const grouped = buildOrderedGroups(irrRows);
+    const blockTotals = {};
+    const grand = {};
+    irrigationSources.forEach((s) => (grand[s.sourceId] = { count: 0, area: 0 }));
+    Object.entries(grouped).forEach(([bn, rows]) => {
+      const bt = {};
+      irrigationSources.forEach((s) => (bt[s.sourceId] = { count: 0, area: 0 }));
+      rows.forEach((r) =>
+        irrigationSources.forEach((s) => {
+          const c = r.byId[s.sourceId];
+          if (c) {
+            bt[s.sourceId].count += c.count;
+            bt[s.sourceId].area += c.area;
+          }
+        })
+      );
+      blockTotals[bn] = bt;
+      irrigationSources.forEach((s) => {
+        grand[s.sourceId].count += bt[s.sourceId].count;
+        grand[s.sourceId].area += bt[s.sourceId].area;
+      });
+    });
+    return { irrGrouped: grouped, irrBlockTotals: blockTotals, irrGrandTotals: grand };
+  }, [irrRows, irrigationSources]);
+
+  /* ─────────────────────────── column config ─────────────────────────── */
+
   const landUtilizationColumns = [
     { id: 'block', label: 'Block', align: 'center', minWidth: LU_BLOCK_W, category: 'always' },
     { id: 'zone', label: 'Zone', align: 'left', minWidth: LU_ZONE_W, category: 'always' },
@@ -252,51 +328,47 @@ const ZoneForm2 = () => {
     { id: 'netAreaSown', label: 'Net areas sown', align: 'right', minWidth: 130, category: 'always' }
   ];
 
-  // Data columns only (Block/Zone excluded — those are handled separately as
-  // the sticky identity cells).
   const landUtilizationDataColumns = landUtilizationColumns.slice(2);
 
-  const isColumnActive = (col) =>
-    col.category === 'always' || landTypeFilter === 'all' || col.category === landTypeFilter;
+  const isColumnActive = (col) => col.category === 'always' || landTypeFilter === 'all' || col.category === landTypeFilter;
 
-  // Irrigation source types, tagged wet/dry so they respond to the same filter.
-  // Government/Private tanks are surface-water sources (wet cultivation); tube
-  // wells and private wells are groundwater sources (dry cultivation).
-  const irrigationSourceTypes = [
-    { key: 'tubeWell', label: 'Tube Well', category: 'dry', color: '#1565c0' },
-    { key: 'govtTanks', label: 'Government Tanks', category: 'wet', color: '#2e7d32' },
-    { key: 'privateWells', label: 'Private Wells', category: 'dry', color: '#ed6c02' },
-    { key: 'privateTanks', label: 'Private Tanks', category: 'wet', color: '#9c27b0' }
-  ];
-  const isSourceActive = (source) =>
-    landTypeFilter === 'all' || source.category === landTypeFilter;
+  const isSourceActive = (sourceId) => {
+    const cat = IRRIGATION_SOURCE_CATEGORY[sourceId];
+    if (!cat) return true;
+    return landTypeFilter === 'all' || cat === landTypeFilter;
+  };
 
   // Exact table widths derived from the column definitions — never guessed.
   const LU_TABLE_W = landUtilizationColumns.reduce((sum, c) => sum + c.minWidth, 0);
-  const IRR_TABLE_W = IRR_BLOCK_W + IRR_ZONE_W + 4 * (IRR_COUNT_W + IRR_AREA_W);
+  const IRR_TABLE_W = IRR_BLOCK_W + IRR_ZONE_W + (irrigationSources.length || 1) * (IRR_COUNT_W + IRR_AREA_W);
+
+  /* ─────────────────────────── handlers ─────────────────────────── */
 
   const handleTabChange = (event, newValue) => setActiveTab(newValue);
-  const formatNumber = (num) => num.toFixed(2);
+  const formatNumber = (num) => Number(num || 0).toFixed(2);
   const handleBack = () => navigate(-1);
-  const handleZoneClick = (zoneName) => {
+  const handleZoneClick = (zoneName, zoneId) => {
     navigate(`/schemes/earas/cce/Form2`, {
       state: {
+        districtId: stateData.districtId ?? null,
         districtName: selectedDistrict,
+        talukId,
         talukName: selectedTaluk,
-        zoneName: zoneName,
-        activeTab: activeTab
+        zoneId,
+        zoneName,
+        agriculturalYear,
+        activeTab
       }
     });
   };
 
-  // Land Type filter options
   const landTypeOptions = [
     { value: 'all', label: 'All', icon: null },
     { value: 'wet', label: 'Wet', icon: <WaterDrop sx={{ fontSize: 18 }} /> },
     { value: 'dry', label: 'Dry', icon: <WbSunny sx={{ fontSize: 18 }} /> }
   ];
 
-  // ---- Reusable sticky cell style (solid bg + border-box, widths come from <colgroup>) ----
+  // ---- Reusable sticky cell style (solid bg + border-box, widths from <colgroup>) ----
   const stickyCellSx = (leftPx, bg, extra = {}) => ({
     position: 'sticky',
     left: leftPx,
@@ -308,9 +380,6 @@ const ZoneForm2 = () => {
     ...extra
   });
 
-  // Shared table sx: fixed layout + separate borders are BOTH required for
-  // sticky columns to stay pixel-aligned while scrolling/dragging.
-  // (border-collapse: collapse lets borders "detach" from sticky cells.)
   const tableSx = (widthPx) => ({
     width: widthPx,
     minWidth: widthPx,
@@ -319,10 +388,22 @@ const ZoneForm2 = () => {
     borderSpacing: 0
   });
 
+  /* ─────────────────────────── render ─────────────────────────── */
+
+  if (loading && landZonesApi.length === 0 && irrZonesApi.length === 0) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
+        <CircularProgress />
+        <Typography sx={{ mt: 2 }} color="text.secondary">
+          Loading zone report...
+        </Typography>
+      </Box>
+    );
+  }
+
   return (
     <Card sx={{ borderRadius: 3, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
       <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-
         <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
           <Box
             onClick={handleBack}
@@ -340,14 +421,21 @@ const ZoneForm2 = () => {
           </Box>
           <LocationOn sx={{ fontSize: 32, color: themeColor }} />
           <Typography variant="h5" sx={{ fontWeight: 'bold', color: themeColor }}>
-            {selectedTaluk} Taluk ({selectedDistrict} District) - Zone wise Land Utilization & Irrigation Report
+            {selectedTaluk} Taluk ({selectedDistrict} District) - Zone wise Land Utilization &amp; Irrigation Report
           </Typography>
           <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
-            (Click on any Zone to view detailed report)
+            (Click on any Zone to view detailed report) • Agricultural Year: {agriculturalYear}
           </Typography>
         </Box>
 
-        {/* Land Type Filter - applies to both Land Utilization and Irrigation Details */}
+        {/* Error */}
+        {error && (
+          <Paper sx={{ p: 2, mb: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
+            <Typography color="error">Error: {error}</Typography>
+          </Paper>
+        )}
+
+        {/* Land Type Filter - applies to both tabs */}
         <Paper
           elevation={0}
           sx={{
@@ -356,7 +444,7 @@ const ZoneForm2 = () => {
             borderRadius: 3,
             border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
             mb: 2,
-            overflow: 'hidden',
+            overflow: 'hidden'
           }}
         >
           {landTypeOptions.map((opt, idx) => {
@@ -373,13 +461,11 @@ const ZoneForm2 = () => {
                   px: 2.5,
                   py: 1.25,
                   cursor: 'pointer',
-                  borderRight: idx < landTypeOptions.length - 1
-                    ? `1px solid ${alpha(theme.palette.divider, 0.15)}`
-                    : 'none',
+                  borderRight: idx < landTypeOptions.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.15)}` : 'none',
                   transition: '0.2s',
                   '&:hover': {
-                    backgroundColor: alpha(themeColor, 0.04),
-                  },
+                    backgroundColor: alpha(themeColor, 0.04)
+                  }
                 }}
               >
                 <Box
@@ -387,7 +473,7 @@ const ZoneForm2 = () => {
                     display: 'flex',
                     alignItems: 'center',
                     gap: 0.75,
-                    color: isActive ? themeColor : 'text.secondary',
+                    color: isActive ? themeColor : 'text.secondary'
                   }}
                 >
                   {opt.icon}
@@ -397,7 +483,7 @@ const ZoneForm2 = () => {
                       fontWeight: 600,
                       letterSpacing: 0.3,
                       textTransform: 'uppercase',
-                      fontSize: '0.8rem',
+                      fontSize: '0.8rem'
                     }}
                   >
                     {opt.label}
@@ -409,7 +495,7 @@ const ZoneForm2 = () => {
                     height: 2.5,
                     borderRadius: 1,
                     backgroundColor: isActive ? themeColor : 'transparent',
-                    transition: '0.2s',
+                    transition: '0.2s'
                   }}
                 />
               </Box>
@@ -435,9 +521,8 @@ const ZoneForm2 = () => {
           {activeTab === 0 && (
             <TableContainer sx={{ maxHeight: 550, overflow: 'auto' }}>
               <Table stickyHeader sx={tableSx(LU_TABLE_W)}>
-                {/* colgroup is the ONLY place widths are defined */}
                 <colgroup>
-                  {landUtilizationColumns.map(col => (
+                  {landUtilizationColumns.map((col) => (
                     <col key={col.id} style={{ width: col.minWidth }} />
                   ))}
                 </colgroup>
@@ -464,13 +549,7 @@ const ZoneForm2 = () => {
                         <TableCell
                           key={col.id}
                           align={col.align}
-                          sx={
-                            isBlock
-                              ? { ...baseSx, left: 0 }
-                              : isZone
-                              ? { ...baseSx, left: LU_BLOCK_W }
-                              : baseSx
-                          }
+                          sx={isBlock ? { ...baseSx, left: 0 } : isZone ? { ...baseSx, left: LU_BLOCK_W } : baseSx}
                         >
                           {col.label}
                         </TableCell>
@@ -479,25 +558,27 @@ const ZoneForm2 = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {Object.entries(groupedByBlock).map(([blockName, zones]) => {
+                  {Object.keys(landGrouped).length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={landUtilizationColumns.length} align="center" sx={{ py: 6 }}>
+                        <Typography color="text.secondary">No data available</Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+
+                  {Object.entries(landGrouped).map(([blockName, zones]) => {
                     const rows = [];
-                    const blockTotal = blockTotals[blockName];
+                    const blockTotal = landBlockTotals[blockName];
 
                     zones.forEach((zone, idx) => {
                       const isLastInGroup = idx === zones.length - 1;
                       rows.push(
                         <TableRow
-                          key={`${blockName}-${zone.zone}`}
+                          key={`${blockName}-${zone.zone}-${zone.zoneId}`}
                           hover
-                          onClick={() => handleZoneClick(zone.zone)}
+                          onClick={() => handleZoneClick(zone.zone, zone.zoneId)}
                           sx={{ cursor: 'pointer', '&:hover': { bgcolor: alpha(themeColor, 0.08) } }}
                         >
-                          {/*
-                            NO rowSpan here. Every row owns its own sticky Block
-                            cell (content only on the first row, bottom border
-                            suppressed in between) so the "merged" look is kept
-                            while sticky positioning stays perfectly aligned.
-                          */}
                           <TableCell
                             align="center"
                             sx={{
@@ -551,7 +632,7 @@ const ZoneForm2 = () => {
                                 align="right"
                                 sx={{
                                   fontWeight: col.id === 'netAreaSown' ? 600 : 400,
-                                  color: active ? 'inherit' : 'text.disabled',
+                                  color: active ? 'inherit' : 'text.disabled'
                                 }}
                               >
                                 {active ? formatNumber(zone[col.id]) : '—'}
@@ -564,10 +645,6 @@ const ZoneForm2 = () => {
 
                     rows.push(
                       <TableRow key={`${blockName}-subtotal`} sx={{ bgcolor: stickyTintSubtotal }}>
-                        {/*
-                          colSpan is safe here because <colgroup> already fixed
-                          the column grid — body colSpans can no longer shift it.
-                        */}
                         <TableCell
                           colSpan={2}
                           sx={{
@@ -589,7 +666,7 @@ const ZoneForm2 = () => {
                               sx={{
                                 fontWeight: 700,
                                 bgcolor: stickyTintSubtotal,
-                                color: active ? 'inherit' : 'text.disabled',
+                                color: active ? 'inherit' : 'text.disabled'
                               }}
                             >
                               {active ? formatNumber(blockTotal[col.id]) : '—'}
@@ -602,37 +679,39 @@ const ZoneForm2 = () => {
                     return rows;
                   })}
 
-                  <TableRow sx={{ bgcolor: stickyTintGrand }}>
-                    <TableCell
-                      colSpan={2}
-                      sx={{
-                        ...stickyCellSx(0, stickyTintGrand),
-                        fontWeight: 800,
-                        color: themeColor,
-                        fontSize: '1rem',
-                        py: 1.5,
-                        zIndex: 2
-                      }}
-                    >
-                      <strong>🏆 GRAND TOTAL</strong>
-                    </TableCell>
-                    {landUtilizationDataColumns.map((col) => {
-                      const active = isColumnActive(col);
-                      return (
-                        <TableCell
-                          key={col.id}
-                          align="right"
-                          sx={{
-                            fontWeight: 800,
-                            bgcolor: stickyTintGrand,
-                            color: active ? 'inherit' : 'text.disabled',
-                          }}
-                        >
-                          {active ? formatNumber(grandTotals[col.id]) : '—'}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
+                  {Object.keys(landGrouped).length > 0 && (
+                    <TableRow sx={{ bgcolor: stickyTintGrand }}>
+                      <TableCell
+                        colSpan={2}
+                        sx={{
+                          ...stickyCellSx(0, stickyTintGrand),
+                          fontWeight: 800,
+                          color: themeColor,
+                          fontSize: '1rem',
+                          py: 1.5,
+                          zIndex: 2
+                        }}
+                      >
+                        <strong>🏆 GRAND TOTAL</strong>
+                      </TableCell>
+                      {landUtilizationDataColumns.map((col) => {
+                        const active = isColumnActive(col);
+                        return (
+                          <TableCell
+                            key={col.id}
+                            align="right"
+                            sx={{
+                              fontWeight: 800,
+                              bgcolor: stickyTintGrand,
+                              color: active ? 'inherit' : 'text.disabled'
+                            }}
+                          >
+                            {active ? formatNumber(landGrandTotals[col.id]) : '—'}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -642,19 +721,11 @@ const ZoneForm2 = () => {
           {activeTab === 1 && (
             <TableContainer sx={{ maxHeight: 550, overflow: 'auto' }}>
               <Table stickyHeader sx={{ ...tableSx(IRR_TABLE_W), width: '100%' }}>
-                {/*
-                  10 real columns; group headers only span them visually.
-                  Sticky columns keep fixed px widths (so left offsets stay
-                  valid); the 8 data columns have NO width, so with
-                  tableLayout: 'fixed' they share all remaining space equally
-                  and the table always fills the container. On narrow screens
-                  minWidth (IRR_TABLE_W) still forces horizontal scroll.
-                */}
                 <colgroup>
                   <col style={{ width: IRR_BLOCK_W }} />
                   <col style={{ width: IRR_ZONE_W }} />
-                  {[0, 1, 2, 3].map(i => (
-                    <React.Fragment key={i}>
+                  {irrigationSources.map((s) => (
+                    <React.Fragment key={s.sourceId}>
                       <col />
                       <col />
                     </React.Fragment>
@@ -689,11 +760,11 @@ const ZoneForm2 = () => {
                     >
                       Zone
                     </TableCell>
-                    {irrigationSourceTypes.map((source) => {
-                      const active = isSourceActive(source);
+                    {irrigationSources.map((source) => {
+                      const active = isSourceActive(source.sourceId);
                       return (
                         <TableCell
-                          key={source.key}
+                          key={source.sourceId}
                           colSpan={2}
                           align="center"
                           sx={{
@@ -708,17 +779,17 @@ const ZoneForm2 = () => {
                             zIndex: 3
                           }}
                         >
-                          {source.label}
+                          {source.sourceName}
                         </TableCell>
                       );
                     })}
                   </TableRow>
                   <TableRow>
-                    {irrigationSourceTypes.flatMap((source) => {
-                      const active = isSourceActive(source);
+                    {irrigationSources.flatMap((source) => {
+                      const active = isSourceActive(source.sourceId);
                       return ['Count', 'Area (Ha)'].map((label, i) => (
                         <TableCell
-                          key={`${source.key}-${i}`}
+                          key={`${source.sourceId}-${i}`}
                           align="center"
                           sx={{
                             bgcolor: stickyHeaderSub,
@@ -726,7 +797,7 @@ const ZoneForm2 = () => {
                             fontWeight: 600,
                             whiteSpace: 'nowrap',
                             position: 'sticky',
-                            top: IRR_HEADER_ROW1_H, // exactly the height of row 1
+                            top: IRR_HEADER_ROW1_H,
                             zIndex: 3
                           }}
                         >
@@ -737,26 +808,26 @@ const ZoneForm2 = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {Object.entries(groupedByBlock).map(([blockName, zones]) => {
+                  {Object.keys(irrGrouped).length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={(irrigationSources.length || 1) * 2 + 2} align="center" sx={{ py: 6 }}>
+                        <Typography color="text.secondary">No data available</Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+
+                  {Object.entries(irrGrouped).map(([blockName, zones]) => {
                     const rows = [];
 
                     zones.forEach((zone, idx) => {
                       const isLastInGroup = idx === zones.length - 1;
-                      const irr = irrigationMap[zone.zone] || {
-                        tubeWell: { count: 0, area: 0 },
-                        govtTanks: { count: 0, area: 0 },
-                        privateWells: { count: 0, area: 0 },
-                        privateTanks: { count: 0, area: 0 }
-                      };
-
                       rows.push(
                         <TableRow
-                          key={`${blockName}-${zone.zone}`}
+                          key={`${blockName}-${zone.zone}-${zone.zoneId}`}
                           hover
-                          onClick={() => handleZoneClick(zone.zone)}
+                          onClick={() => handleZoneClick(zone.zone, zone.zoneId)}
                           sx={{ cursor: 'pointer', '&:hover': { bgcolor: alpha(themeColor, 0.08) } }}
                         >
-                          {/* Per-row sticky block cell — same pattern as tab 1 */}
                           <TableCell
                             align="center"
                             sx={{
@@ -771,7 +842,9 @@ const ZoneForm2 = () => {
                             {idx === 0 && (
                               <Stack alignItems="center" spacing={0.5}>
                                 <Store sx={{ fontSize: 24, color: themeColor }} />
-                                <Typography fontWeight={700} color={themeColor}>{blockName}</Typography>
+                                <Typography fontWeight={700} color={themeColor}>
+                                  {blockName}
+                                </Typography>
                               </Stack>
                             )}
                           </TableCell>
@@ -793,20 +866,22 @@ const ZoneForm2 = () => {
                               }}
                             />
                           </TableCell>
-                          {irrigationSourceTypes.map((source) => {
-                            const active = isSourceActive(source);
-                            const data = irr[source.key];
+                          {irrigationSources.map((source) => {
+                            const active = isSourceActive(source.sourceId);
+                            const data = zone.byId[source.sourceId] || { count: 0, area: 0 };
                             return (
-                              <React.Fragment key={source.key}>
+                              <React.Fragment key={source.sourceId}>
                                 <TableCell align="center">
                                   {active && data.count > 0 ? (
                                     <Chip
                                       label={data.count}
                                       size="small"
-                                      sx={{ bgcolor: alpha(source.color, 0.1), color: source.color, fontWeight: 600, minWidth: 40 }}
+                                      sx={{ bgcolor: alpha(themeColor, 0.1), color: themeColor, fontWeight: 600, minWidth: 40 }}
                                     />
                                   ) : (
-                                    <Box component="span" sx={{ color: active ? 'inherit' : 'text.disabled' }}>-</Box>
+                                    <Box component="span" sx={{ color: active ? 'inherit' : 'text.disabled' }}>
+                                      -
+                                    </Box>
                                   )}
                                 </TableCell>
                                 <TableCell align="right" sx={{ fontWeight: 500, color: active ? 'inherit' : 'text.disabled' }}>
@@ -819,7 +894,7 @@ const ZoneForm2 = () => {
                       );
                     });
 
-                    const blockTotal = blockIrrigationTotals[blockName];
+                    const blockTotal = irrBlockTotals[blockName];
                     rows.push(
                       <TableRow key={`${blockName}-subtotal-irr`} sx={{ bgcolor: stickyTintSubtotal }}>
                         <TableCell
@@ -834,11 +909,11 @@ const ZoneForm2 = () => {
                         >
                           <strong>📊 Total for {blockName}</strong>
                         </TableCell>
-                        {irrigationSourceTypes.map((source) => {
-                          const active = isSourceActive(source);
-                          const t = blockTotal[source.key];
+                        {irrigationSources.map((source) => {
+                          const active = isSourceActive(source.sourceId);
+                          const t = blockTotal[source.sourceId] || { count: 0, area: 0 };
                           return (
-                            <React.Fragment key={source.key}>
+                            <React.Fragment key={source.sourceId}>
                               <TableCell align="center" sx={{ fontWeight: 700, bgcolor: stickyTintSubtotal, color: active ? 'inherit' : 'text.disabled' }}>
                                 {active && t.count > 0 ? t.count : '-'}
                               </TableCell>
@@ -854,35 +929,37 @@ const ZoneForm2 = () => {
                     return rows;
                   })}
 
-                  <TableRow sx={{ bgcolor: stickyTintGrand }}>
-                    <TableCell
-                      colSpan={2}
-                      sx={{
-                        ...stickyCellSx(0, stickyTintGrand),
-                        fontWeight: 800,
-                        color: themeColor,
-                        fontSize: '1rem',
-                        py: 1.5,
-                        zIndex: 2
-                      }}
-                    >
-                      <strong>🏆 GRAND TOTAL</strong>
-                    </TableCell>
-                    {irrigationSourceTypes.map((source) => {
-                      const active = isSourceActive(source);
-                      const t = grandIrrigationTotals[source.key];
-                      return (
-                        <React.Fragment key={source.key}>
-                          <TableCell align="center" sx={{ fontWeight: 800, bgcolor: stickyTintGrand, color: active ? 'inherit' : 'text.disabled' }}>
-                            {active ? t.count : '—'}
-                          </TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 800, bgcolor: stickyTintGrand, color: active ? 'inherit' : 'text.disabled' }}>
-                            {active ? formatNumber(t.area) : '—'}
-                          </TableCell>
-                        </React.Fragment>
-                      );
-                    })}
-                  </TableRow>
+                  {Object.keys(irrGrouped).length > 0 && (
+                    <TableRow sx={{ bgcolor: stickyTintGrand }}>
+                      <TableCell
+                        colSpan={2}
+                        sx={{
+                          ...stickyCellSx(0, stickyTintGrand),
+                          fontWeight: 800,
+                          color: themeColor,
+                          fontSize: '1rem',
+                          py: 1.5,
+                          zIndex: 2
+                        }}
+                      >
+                        <strong>🏆 GRAND TOTAL</strong>
+                      </TableCell>
+                      {irrigationSources.map((source) => {
+                        const active = isSourceActive(source.sourceId);
+                        const t = irrGrandTotals[source.sourceId] || { count: 0, area: 0 };
+                        return (
+                          <React.Fragment key={source.sourceId}>
+                            <TableCell align="center" sx={{ fontWeight: 800, bgcolor: stickyTintGrand, color: active ? 'inherit' : 'text.disabled' }}>
+                              {active ? t.count : '—'}
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 800, bgcolor: stickyTintGrand, color: active ? 'inherit' : 'text.disabled' }}>
+                              {active ? formatNumber(t.area) : '—'}
+                            </TableCell>
+                          </React.Fragment>
+                        );
+                      })}
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>
