@@ -340,7 +340,7 @@ function KeralaClusterReportList() {
     // Find district ID from data
     const district = transformApiDataToDistricts.find(d => d.district === districtName);
     if (district) {
-      navigate(`/kerala_cluster_report/taluk_cluster_report/${district.id}`, {
+      navigate(`/Report/kerala_cluster_report/district/taluk_cluster_report/${district.id}`, {
         state: { 
           districtId: district.id,
           districtName: districtName,
@@ -355,7 +355,7 @@ function KeralaClusterReportList() {
         }
       });
     } else {
-      navigate(`/kerala_cluster_report/taluk_cluster_report/${districtName.toLowerCase()}`, {
+      navigate(`/Report/kerala_cluster_report/taluk_cluster_report/${districtName.toLowerCase()}`, {
         state: { 
           districtName,
           landType: landType,

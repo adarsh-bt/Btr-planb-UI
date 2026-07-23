@@ -366,6 +366,31 @@ static async updateZoneAssignmentStatus(userdata) {
   }
 }
 
+static async fetchTourApprovedUsers(params) {
+  try {
+    const token = localStorage.getItem("token");
+
+    const response = await axios.get(
+      `${ApprovedUserService.USER_URL}/user-access/user-state/tour/approved-users`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        params
+      }
+    );
+
+    return response.data;
+  } catch (err) {
+    return {
+      error: true,
+      message:
+        err.response?.data?.message ||
+        "Failed to fetch tour approved users",
+    };
+  }
+}
+
 
 }
 // Export as default

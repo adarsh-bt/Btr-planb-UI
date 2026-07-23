@@ -319,7 +319,7 @@ function TalukClusterReport() {
     const districtName = stateData.districtName || 'district';
 
     navigate(
-      `/kerala_cluster_report/taluk_cluster_report/zone_cluster_report/${districtName}/${formattedTalukName}-${talukId}`,
+      `/Report/kerala_cluster_report/taluk_cluster_report/zone_cluster_report/${districtName}/${formattedTalukName}-${talukId}`,
       {
         state: {
           talukId,

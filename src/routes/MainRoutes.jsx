@@ -186,14 +186,22 @@ const MainRoutes = {
       )
     },
     {
-      path: 'kerala_cluster_report',
+      path: 'Report/kerala_cluster_report',
       element: (
         <PrivateRoute>
           <KeralaReportList />
         </PrivateRoute>
       )
     },
-    // DISTRICT direct access: /kerala_cluster_report/taluk_cluster_report/direct
+    // DISTRICT direct access: /Report/kerala_cluster_report/taluk_cluster_report/direct
+    {
+      path: 'Report/kerala_cluster_report/taluk_cluster_report/direct',
+      element: (
+        <PrivateRoute>
+          <TalukClusterReport />
+        </PrivateRoute>
+      )
+    },
     {
       path: 'kerala_cluster_report/taluk_cluster_report/direct',
       element: (
@@ -202,16 +210,24 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-    // Normal district→taluk navigation: /kerala_cluster_report/taluk_cluster_report/:districtId
+    // Normal district→taluk navigation: /Report/kerala_cluster_report/district/taluk_cluster_report/:districtId
     {
-      path: 'kerala_cluster_report/taluk_cluster_report/:districtId',
+      path: 'Report/kerala_cluster_report/district/taluk_cluster_report/:districtId',
       element: (
         <PrivateRoute>
           <TalukClusterReport />
         </PrivateRoute>
       )
     },
-    // TALUK direct access: /kerala_cluster_report/zone_cluster_report/direct/:talukId
+    // TALUK direct access: /Report/kerala_cluster_report/zone_cluster_report/direct/:talukId
+    {
+      path: 'Report/kerala_cluster_report/zone_cluster_report/direct/:talukId',
+      element: (
+        <PrivateRoute>
+          <ZoneClusterReport />
+        </PrivateRoute>
+      )
+    },
     {
       path: 'kerala_cluster_report/zone_cluster_report/direct/:talukId',
       element: (
@@ -220,7 +236,15 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-    // Normal taluk→zone navigation: /kerala_cluster_report/taluk_cluster_report/zone_cluster_report/:districtName/:talukName
+    // Normal taluk→zone navigation: /Report/kerala_cluster_report/taluk_cluster_report/zone_cluster_report/:districtName/:talukName
+    {
+      path: 'Report/kerala_cluster_report/taluk_cluster_report/zone_cluster_report/:districtName/:talukName',
+      element: (
+        <PrivateRoute>
+          <ZoneClusterReport />
+        </PrivateRoute>
+      )
+    },
     {
       path: 'kerala_cluster_report/taluk_cluster_report/zone_cluster_report/:districtName/:talukName',
       element: (
@@ -230,13 +254,21 @@ const MainRoutes = {
       )
     },
     {
-  path: 'kerala_cluster_report/taluk_cluster_report/zone_cluster_report/:districtName/:talukName/clusters/:zoneId?', 
-  element: (
-    <PrivateRoute>
-       <ClustersWrapper />
-    </PrivateRoute>
-  )
-},
+      path: 'Report/kerala_cluster_report/taluk_cluster_report/zone_cluster_report/:districtName/:talukName/clusters/:zoneId?', 
+      element: (
+        <PrivateRoute>
+          <ClustersWrapper />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'kerala_cluster_report/taluk_cluster_report/zone_cluster_report/:districtName/:talukName/clusters/:zoneId?', 
+      element: (
+        <PrivateRoute>
+          <ClustersWrapper />
+        </PrivateRoute>
+      )
+    },
 
  {
       path: '/schemes/earas/Clusters/:zoneId/Manual_Entry',
@@ -690,7 +722,7 @@ const MainRoutes = {
       )
     },
     {
-  path: 'approval_manage/tourdiary/user-submissions',
+  path: 'approval_manage/advancedtourdiary/user-submissions',
   element: (
     <PrivateRoute>
       <UserAdvancedTourDiarySubmissions />

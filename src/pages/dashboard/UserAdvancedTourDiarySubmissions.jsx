@@ -29,6 +29,8 @@ const UserAdvancedTourDiarySubmissions = () => {
   const [error, setError] = useState("");
   const [submissions, setSubmissions] = useState([]);
 
+  const [roleName, setRoleName] = useState("");
+
   // 1. Retrieve and parse the Agri Year from localStorage (e.g., "2025-2026")
   const agriYear = localStorage.getItem("activeAgriYear") || "";
   const [startYear, endYear] = agriYear ? agriYear.split('-').map(Number) : [null, null];
@@ -51,6 +53,15 @@ const UserAdvancedTourDiarySubmissions = () => {
       setError("");
       
       try {
+        // Fetch user role
+          const roleResponse = await tourDiaryService.getUserRole(userId);
+
+          if (
+            !roleResponse.error &&
+            roleResponse.data?.payload?.roles?.length > 0
+          ) {
+            setRoleName(roleResponse.data.payload.roles[0].roleName);
+          }
         // Fetch data for both calendar years spanning the agricultural year
         const [startYearResponse, endYearResponse] = await Promise.all([
           tourDiaryService.getAdminSubmissionView(userId, startYear),
@@ -146,25 +157,30 @@ const UserAdvancedTourDiarySubmissions = () => {
     "July", "August", "September", "October", "November", "December"
   ];
 
-  const getStatusChip = (submitted) => {
-    return submitted ? (
-      <Chip
-        icon={<CheckCircleIcon />}
-        label="Submitted"
-        color="success"
-        size="small"
-        sx={{ fontWeight: "bold", width: "100%" }}
-      />
-    ) : (
-      <Chip
-        icon={<CancelIcon />}
-        label="Not Submitted"
-        color="default"
-        size="small"
-        sx={{ fontWeight: "bold", width: "100%" }}
-      />
-    );
-  };
+// In UserAdvancedTourDiarySubmissions.jsx
+const getStatusChip = (submitted, submitId) => {
+  // Consider it submitted if either flag is true or submitId exists
+
+  const isSubmitted = submitted || submitId;
+ 
+  return isSubmitted ? (
+    <Chip
+      icon={<CheckCircleIcon />}
+      label="Submitted"
+      color="success"
+      size="small"
+      sx={{ fontWeight: "bold", width: "100%" }}
+    />
+  ) : (
+    <Chip
+      icon={<CancelIcon />}
+      label="Not Submitted"
+      color="default"
+      size="small"
+      sx={{ fontWeight: "bold", width: "100%" }}
+    />
+  );
+};
 
   return (
     <Grid container spacing={3}>
@@ -242,19 +258,30 @@ const UserAdvancedTourDiarySubmissions = () => {
                       </Typography>
                       
                       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                        <Box>
-                          <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
-                            First Half (1st - 15th)
-                          </Typography>
-                          {getStatusChip(item.firstHalfSubmitted)}
-                        </Box>
-                        
-                        <Box>
-                          <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
-                            Second Half (16th - End)
-                          </Typography>
-                          {getStatusChip(item.secondHalfSubmitted)}
-                        </Box>
+                      {roleName === "Field Data Collector" ? (
+  <>
+    <Box>
+      <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
+        First Half (1st - 15th)
+      </Typography>
+      {getStatusChip(item.firstHalfSubmitted, item.firstHalfSubmitId)}
+    </Box>
+
+    <Box>
+      <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
+        Second Half (16th - End)
+      </Typography>
+      {getStatusChip(item.secondHalfSubmitted, item.secondHalfSubmitId)}
+    </Box>
+  </>
+) : (
+  <Box>
+    <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
+      Month Status
+    </Typography>
+    {getStatusChip(item.fullMonthSubmitted, item.fullMonthSubmitId)}
+  </Box>
+)}
 
                         <Button
                           variant="outlined"

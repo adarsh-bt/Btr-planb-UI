@@ -8,8 +8,6 @@ class mainapi {
   // static BTR_API = 'http://65.2.110.20:8080';
   // static FORM_API = 'http://65.2.110.20:8080';
 
-
-
   // static BASE_URL = 'http://3.108.98.206:8080';
   // static USER_API = 'http://3.108.98.206:8080';
   // static BTR_API = 'http://3.108.98.206:8080';
