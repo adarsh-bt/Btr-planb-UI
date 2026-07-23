@@ -42,6 +42,7 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import StoreIcon from '@mui/icons-material/Store';
@@ -49,9 +50,13 @@ import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
+import api from 'api/api';
+import AuthService from 'pages/authentication/services/authservice';
+
 
 const BASE_URL = mainapi.BTR_API;
 
@@ -65,48 +70,84 @@ function getCurrentMonthName() {
   return names[new Date().getMonth()];
 }
 
-const monthToNumber = {
-  January: '01', February: '02', March: '03', April: '04',
-  May: '05', June: '06', July: '07', August: '08',
-  September: '09', October: '10', November: '11', December: '12',
-};
+// Agricultural year months (July to June)
+const AGRI_YEAR_MONTHS = [
+  'July', 'August', 'September', 'October', 'November', 'December',
+  'January', 'February', 'March', 'April', 'May', 'June'
+];
 
-function formatMonthForApi(monthName) {
-  if (!monthName) return null;
-  const year = new Date().getFullYear();
-  return `${year}-${monthToNumber[monthName]}`;
+function getAgriculturalYear() {
+  try {
+    const agriYear = AuthService.agriyear();
+    if (agriYear) {
+      const years = agriYear.split('-');
+      if (years.length === 2) {
+        const startYear = parseInt(years[0]);
+        const endYear = parseInt(years[1]);
+        return { startYear, endYear, display: agriYear };
+      }
+    }
+  } catch (error) {
+    console.error('Error getting agricultural year:', error);
+  }
+
+  // Fallback: calculate current agricultural year
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth();
+
+  if (currentMonth >= 6) {
+    return { startYear: currentYear, endYear: currentYear + 1, display: `${currentYear}-${currentYear + 1}` };
+  } else {
+    return { startYear: currentYear - 1, endYear: currentYear, display: `${currentYear - 1}-${currentYear}` };
+  }
 }
 
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
+function getMonthYearForApi(monthName, agriculturalYear) {
+  if (!monthName || !agriculturalYear) return null;
+
+  const monthIndex = AGRI_YEAR_MONTHS.indexOf(monthName);
+  if (monthIndex === -1) return null;
+
+  // Months July (0) to December (5) belong to startYear
+  // Months January (6) to June (11) belong to endYear
+  let year;
+  if (monthIndex <= 5) {
+    year = agriculturalYear.startYear;
+  } else {
+    year = agriculturalYear.endYear;
+  }
+
+  const monthNumber = monthIndex + 1; // 1-indexed for API
+  const monthStr = String(monthNumber).padStart(2, '0');
+  return `${year}-${monthStr}`;
+}
+
+function formatMonthForApi(monthName, agriculturalYear) {
+  if (!monthName || !agriculturalYear) return null;
+  return getMonthYearForApi(monthName, agriculturalYear);
+}
 
 /* ─────────────────────────── component ─────────────────────────── */
 
 function ZoneClusterReport() {
-  const theme    = useTheme();
+  const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const { districtName, talukName, talukId: routeTalukId } = useParams();
 
   const stateData = location.state || {};
+  const agriculturalYear = useRef(null);
 
   /* ── resolve taluk ID once and keep in a ref ── */
-  // Priority:
-  //  1. state.talukId / state.talukOfficeId  (set by both TalukClusterReport and ReportMenuWrapper)
-  //  2. :talukId route param  (direct route: zone_cluster_report/direct/:talukId)
-  //  3. last segment of :talukName  (nested route: .../:districtName/:talukName-{id})
   const resolvedTalukId = useRef(null);
 
   const resolveTalukId = () => {
-    if (stateData.talukId)       return stateData.talukId;
+    if (stateData.talukId) return stateData.talukId;
     if (stateData.talukOfficeId) return stateData.talukOfficeId;
-    // direct route param
     if (routeTalukId && !isNaN(routeTalukId)) return parseInt(routeTalukId, 10);
-    // nested route: talukName ends with "-{id}"
     if (talukName && talukName.includes('-')) {
-      const parts    = talukName.split('-');
+      const parts = talukName.split('-');
       const possible = parts[parts.length - 1];
       if (!isNaN(possible)) return parseInt(possible, 10);
     }
@@ -117,24 +158,50 @@ function ZoneClusterReport() {
     resolvedTalukId.current = resolveTalukId();
   }
 
+  // Initialize agricultural year
+  if (agriculturalYear.current === null) {
+    agriculturalYear.current = getAgriculturalYear();
+  }
+
   /* ── filter state ── */
-  const [seasonTab, setSeasonTab]     = useState(stateData.seasonTab  || 'ALL');
-  const [landType, setLandType]       = useState(stateData.landType   || null);
-  const [filterType, setFilterType]   = useState(stateData.filterType || 'single');
-  const [fromMonth, setFromMonth]     = useState(stateData.fromMonth  || '');
-  const [toMonth, setToMonth]         = useState(stateData.toMonth    || '');
+  const [seasonTab, setSeasonTab] = useState(stateData.seasonTab || 'ALL');
+  const [landType, setLandType] = useState(stateData.landType || null);
+  const [filterType, setFilterType] = useState(stateData.filterType || 'single');
+  const [fromMonth, setFromMonth] = useState(stateData.fromMonth || '');
+  const [toMonth, setToMonth] = useState(stateData.toMonth || '');
   const [singleMonth, setSingleMonth] = useState(stateData.singleMonth || getCurrentMonthName());
 
   /* ── ui state ── */
-  const [apiData, setApiData]             = useState(null);
-  const [loading, setLoading]             = useState(false);
-  const [error, setError]                 = useState(null);
+  const [apiData, setApiData] = useState(null);
+  const [zonesList, setZonesList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [totalElements, setTotalElements] = useState(0);
-  const [searchTerm, setSearchTerm]       = useState('');
-  const [page, setPage]                   = useState(0);
-  const [rowsPerPage, setRowsPerPage]     = useState(5);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
 
-  /* ─────────────────────────── fetch ─────────────────────────── */
+  /* ─────────────────────────── fetch master zones ─────────────────────────── */
+
+  const fetchMasterZones = async (talukId) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await api.get(`${BASE_URL}/btr-service/btr-api/zones?desTalukId=${talukId}`);
+      console.log('Master Zones Response:', response.data);
+
+      if (response.data && response.data.data) {
+        setZonesList(response.data.data);
+      } else if (Array.isArray(response.data)) {
+        setZonesList(response.data);
+      }
+    } catch (err) {
+      console.error('Error fetching master zones list:', err);
+    }
+  };
+
+  /* ─────────────────────────── fetch zone data ─────────────────────────── */
 
   const fetchZoneWiseData = async (overrides = {}) => {
     const talukIdValue = resolvedTalukId.current;
@@ -147,12 +214,12 @@ function ZoneClusterReport() {
     setLoading(true);
     setError(null);
 
-    const effectiveLandType    = overrides.landType    !== undefined ? overrides.landType    : landType;
-    const effectiveSeasonTab   = overrides.seasonTab   !== undefined ? overrides.seasonTab   : seasonTab;
-    const effectiveFilterType  = overrides.filterType  !== undefined ? overrides.filterType  : filterType;
+    const effectiveLandType = overrides.landType !== undefined ? overrides.landType : landType;
+    const effectiveSeasonTab = overrides.seasonTab !== undefined ? overrides.seasonTab : seasonTab;
+    const effectiveFilterType = overrides.filterType !== undefined ? overrides.filterType : filterType;
     const effectiveSingleMonth = overrides.singleMonth !== undefined ? overrides.singleMonth : singleMonth;
-    const effectiveFromMonth   = overrides.fromMonth   !== undefined ? overrides.fromMonth   : fromMonth;
-    const effectiveToMonth     = overrides.toMonth     !== undefined ? overrides.toMonth     : toMonth;
+    const effectiveFromMonth = overrides.fromMonth !== undefined ? overrides.fromMonth : fromMonth;
+    const effectiveToMonth = overrides.toMonth !== undefined ? overrides.toMonth : toMonth;
 
     try {
       const token = localStorage.getItem('token');
@@ -167,23 +234,28 @@ function ZoneClusterReport() {
       }
 
       if (effectiveFilterType === 'single' && effectiveSingleMonth) {
-        const fmt = formatMonthForApi(effectiveSingleMonth);
+        const fmt = formatMonthForApi(effectiveSingleMonth, agriculturalYear.current);
         if (fmt) params.append('startMonth', fmt);
       } else if (effectiveFilterType === 'range') {
-        if (effectiveFromMonth) params.append('startMonth', formatMonthForApi(effectiveFromMonth));
-        if (effectiveToMonth)   params.append('endMonth',   formatMonthForApi(effectiveToMonth));
+        if (effectiveFromMonth) {
+          const fmt = formatMonthForApi(effectiveFromMonth, agriculturalYear.current);
+          if (fmt) params.append('startMonth', fmt);
+        }
+        if (effectiveToMonth) {
+          const fmt = formatMonthForApi(effectiveToMonth, agriculturalYear.current);
+          if (fmt) params.append('endMonth', fmt);
+        }
       } else {
-        // fallback – always send startMonth
-        params.append('startMonth', formatMonthForApi(getCurrentMonthName()));
+        const fmt = formatMonthForApi(getCurrentMonthName(), agriculturalYear.current);
+        if (fmt) params.append('startMonth', fmt);
       }
 
       const url = `${BASE_URL}/btr-service/api/report/clusters/taluk/${talukIdValue}/zones?${params.toString()}`;
       console.log('Fetching zone data from:', url);
 
-      const response = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-console.log('API response:', response.data);
+      const response = await api.get(url);
+      console.log('Zone API Response:', response.data);
+
       if (response.data) {
         setApiData(response.data);
         setTotalElements(
@@ -193,7 +265,7 @@ console.log('API response:', response.data);
       }
     } catch (err) {
       console.error('Error fetching zone data:', err);
-      if      (err.response?.status === 401) setError('Session expired. Please login again.');
+      if (err.response?.status === 401) setError('Session expired. Please login again.');
       else if (err.response?.status === 403) setError("You don't have permission to access this data.");
       else if (err.response?.status === 404) setError('Taluk not found.');
       else setError(err.response?.data?.message || 'Failed to fetch zone data');
@@ -205,92 +277,185 @@ console.log('API response:', response.data);
   /* ─────────────────────────── effects ─────────────────────────── */
 
   useEffect(() => {
-    fetchZoneWiseData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (resolvedTalukId.current) {
+      fetchMasterZones(resolvedTalukId.current);
+      fetchZoneWiseData();
+    }
   }, []);
 
   useEffect(() => {
     fetchZoneWiseData({ landType, seasonTab, filterType, singleMonth, fromMonth, toMonth });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [landType, filterType, singleMonth, fromMonth, toMonth]);
 
   /* ─────────────────────────── derived data ─────────────────────────── */
 
   const getZoneStats = (details) => {
-    if (!details) return { completed: 0, ongoing: 0, notStarted: 0, underReview: 0 };
-    if (landType === 'WET') return {
-      completed: details.wetCompleted || 0, ongoing: details.wetOngoing || 0,
-      notStarted: details.wetNotStarted || 0, underReview: details.wetUnderView || 0,
-    };
-    if (landType === 'DRY') return {
-      completed: details.dryCompleted || 0, ongoing: details.dryOngoing || 0,
-      notStarted: details.dryNotStarted || 0, underReview: details.dryUnderView || 0,
-    };
+    if (!details) return { completed: 0, ongoing: 0, notStarted: 0, underReview: 0, hasData: false };
+
+    let stats;
+    if (landType === 'WET') {
+      stats = {
+        completed: details.wetCompleted || 0,
+        ongoing: details.wetOngoing || 0,
+        notStarted: details.wetNotStarted || 0,
+        underReview: details.wetUnderView || 0,
+      };
+    } else if (landType === 'DRY') {
+      stats = {
+        completed: details.dryCompleted || 0,
+        ongoing: details.dryOngoing || 0,
+        notStarted: details.dryNotStarted || 0,
+        underReview: details.dryUnderView || 0,
+      };
+    } else {
+      stats = {
+        completed: (details.wetCompleted || 0) + (details.dryCompleted || 0),
+        ongoing: (details.wetOngoing || 0) + (details.dryOngoing || 0),
+        notStarted: (details.wetNotStarted || 0) + (details.dryNotStarted || 0),
+        underReview: (details.wetUnderView || 0) + (details.dryUnderView || 0),
+      };
+    }
+
     return {
-      completed:   (details.wetCompleted  || 0) + (details.dryCompleted  || 0),
-      ongoing:     (details.wetOngoing    || 0) + (details.dryOngoing    || 0),
-      notStarted:  (details.wetNotStarted || 0) + (details.dryNotStarted || 0),
-      underReview: (details.wetUnderView  || 0) + (details.dryUnderView  || 0),
+      ...stats,
+      hasData: stats.completed > 0 || stats.ongoing > 0 || stats.notStarted > 0 || stats.underReview > 0
     };
   };
 
   const processedData = useMemo(() => {
-    const allSubDetails =
-      apiData?.content ?? apiData?.allSubDetails ?? null;
+    const subDetailsMap = apiData?.allSubDetails || null;
 
-    if (!allSubDetails) return [];
+    if (!subDetailsMap) {
+      if (zonesList && zonesList.length > 0) {
+        const blockMap = new Map();
 
-    const blockMap          = new Map();
-    const municipalityZones = [];
-    const corporationZones  = [];
-    const unassignedZones   = [];
+        zonesList.forEach(zone => {
+          const zoneId = zone.zoneId || zone.id;
+          const zoneName = zone.zoneNameEn || zone.name || zone.zoneName || `Zone ${zoneId}`;
+          const blockName = zone.blockName || 'Unassigned';
 
-    Object.entries(allSubDetails).forEach(([zoneName, details]) => {
+          if (!blockMap.has(blockName)) {
+            blockMap.set(blockName, {
+              blockId: zone.blockId || null,
+              blockName: blockName,
+              zones: []
+            });
+          }
+
+          blockMap.get(blockName).zones.push({
+            zoneId: zoneId,
+            zoneName: zoneName,
+            completed: 0,
+            ongoing: 0,
+            notStarted: 0,
+            underReview: 0,
+            hasData: false
+          });
+        });
+
+        return Array.from(blockMap.values()).sort((a, b) => a.blockName.localeCompare(b.blockName));
+      }
+      return [];
+    }
+
+    const normalizeName = (name) => (name ? String(name).toLowerCase().replace(/[^a-z0-9]/g, '') : '');
+
+    if (zonesList && zonesList.length > 0) {
+      const blockMap = new Map();
+
+      zonesList.forEach((zone) => {
+        const zoneId = zone.zoneId || zone.id;
+        const zoneName = zone.zoneNameEn || zone.name || zone.zoneName || `Zone ${zoneId}`;
+        const blockName = zone.blockName || 'Unassigned';
+        const blockId = zone.blockId || null;
+
+        const matchedKey = Object.keys(subDetailsMap).find((key) => {
+          const details = subDetailsMap[key];
+          return (
+            (details && (details.zoneId === zoneId)) ||
+            normalizeName(key) === normalizeName(zoneName)
+          );
+        });
+
+        let stats;
+        if (matchedKey && subDetailsMap[matchedKey]) {
+          stats = getZoneStats(subDetailsMap[matchedKey]);
+        } else {
+          stats = { completed: 0, ongoing: 0, notStarted: 0, underReview: 0, hasData: false };
+        }
+
+        if (!blockMap.has(blockName)) {
+          blockMap.set(blockName, {
+            blockId: blockId,
+            blockName: blockName,
+            zones: []
+          });
+        }
+
+        blockMap.get(blockName).zones.push({
+          zoneId: zoneId,
+          zoneName: zoneName,
+          completed: stats.completed,
+          ongoing: stats.ongoing,
+          notStarted: stats.notStarted,
+          underReview: stats.underReview,
+          hasData: stats.hasData
+        });
+      });
+
+      return Array.from(blockMap.values()).sort((a, b) => a.blockName.localeCompare(b.blockName));
+    }
+
+    const blockMap = new Map();
+
+    Object.entries(subDetailsMap).forEach(([zoneName, details]) => {
       const stats = getZoneStats(details);
-      const zoneData = {
-        zoneId:      details.zoneId,
-        zoneName,
-        completed:   stats.completed,
-        ongoing:     stats.ongoing,
-        notStarted:  stats.notStarted,
+      const blockName = details.blockName || 'Unassigned';
+      const blockId = details.blockId || null;
+
+      if (!blockMap.has(blockName)) {
+        blockMap.set(blockName, { blockId, blockName, zones: [] });
+      }
+
+      blockMap.get(blockName).zones.push({
+        zoneId: details.zoneId,
+        zoneName: zoneName,
+        completed: stats.completed,
+        ongoing: stats.ongoing,
+        notStarted: stats.notStarted,
         underReview: stats.underReview,
-      };
-
-      if (!details.blockId || !details.blockName) {
-        const lower = zoneName.toLowerCase();
-        if (lower.includes('municipality')) municipalityZones.push(zoneData);
-        else if (lower.includes('corporation')) corporationZones.push(zoneData);
-        else unassignedZones.push(zoneData);
-        return;
-      }
-
-      if (!blockMap.has(details.blockName)) {
-        blockMap.set(details.blockName, { blockId: details.blockId, blockName: details.blockName, zones: [] });
-      }
-      blockMap.get(details.blockName).zones.push(zoneData);
+        hasData: stats.hasData
+      });
     });
 
-    const blocks = Array.from(blockMap.values()).sort((a, b) => a.blockName.localeCompare(b.blockName));
-    blocks.forEach(b => b.zones.sort((a, z) => a.zoneName.localeCompare(z.zoneName)));
-
-    if (municipalityZones.length) blocks.push({ blockId: null, blockName: 'Municipality', isMunicipality: true, zones: municipalityZones.sort((a, b) => a.zoneName.localeCompare(b.zoneName)) });
-    if (corporationZones.length)  blocks.push({ blockId: null, blockName: 'Corporation',  isCorporation: true,  zones: corporationZones.sort((a, b)  => a.zoneName.localeCompare(b.zoneName)) });
-    if (unassignedZones.length)   blocks.push({ blockId: null, blockName: 'Unassigned',   isUnassigned: true,   zones: unassignedZones.sort((a, b)   => a.zoneName.localeCompare(b.zoneName)) });
-
-    return blocks;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiData, landType]);
+    return Array.from(blockMap.values()).sort((a, b) => a.blockName.localeCompare(b.blockName));
+  }, [apiData, zonesList, landType]);
 
   const stats = useMemo(() => {
     let total = 0, completed = 0, ongoing = 0, notStarted = 0, underReview = 0;
-    processedData.forEach(block => block.zones.forEach(zone => {
-      total       += zone.completed + zone.ongoing + zone.notStarted + zone.underReview;
-      completed   += zone.completed;
-      ongoing     += zone.ongoing;
-      notStarted  += zone.notStarted;
-      underReview += zone.underReview;
-    }));
-    return { total, completed, ongoing, notStarted, underReview };
+    let zonesWithData = 0, zonesWithoutData = 0;
+
+    processedData.forEach(block => {
+      block.zones.forEach(zone => {
+        total += zone.completed + zone.ongoing + zone.notStarted + zone.underReview;
+        completed += zone.completed;
+        ongoing += zone.ongoing;
+        notStarted += zone.notStarted;
+        underReview += zone.underReview;
+
+        if (zone.hasData) {
+          zonesWithData++;
+        } else {
+          zonesWithoutData++;
+        }
+      });
+    });
+
+    return {
+      total, completed, ongoing, notStarted, underReview,
+      zonesWithData, zonesWithoutData,
+      totalZones: processedData.reduce((sum, block) => sum + block.zones.length, 0)
+    };
   }, [processedData]);
 
   const flattenedTableData = useMemo(() => {
@@ -300,39 +465,42 @@ console.log('API response:', response.data);
 
       block.zones.forEach((zone, idx) => {
         const zTotal = zone.completed + zone.ongoing + zone.notStarted + zone.underReview;
-        bTotal       += zTotal;
-        bCompleted   += zone.completed;
-        bOngoing     += zone.ongoing;
-        bNotStarted  += zone.notStarted;
+        bTotal += zTotal;
+        bCompleted += zone.completed;
+        bOngoing += zone.ongoing;
+        bNotStarted += zone.notStarted;
         bUnderReview += zone.underReview;
 
         result.push({
           type: 'zone',
-          id:   `${block.blockId || 'nb'}_zone_${zone.zoneId}`,
-          blockId: block.blockId, blockName: block.blockName,
+          id: `${block.blockId || 'nb'}_zone_${zone.zoneId}`,
+          blockId: block.blockId,
+          blockName: block.blockName,
           isFirstZoneInBlock: idx === 0,
           zoneName: zone.zoneName,
           total: zTotal,
-          completed: zone.completed, ongoing: zone.ongoing,
-          notStarted: zone.notStarted, underReview: zone.underReview,
+          completed: zone.completed,
+          ongoing: zone.ongoing,
+          notStarted: zone.notStarted,
+          underReview: zone.underReview,
           zoneId: zone.zoneId,
-          isUnassigned:   block.isUnassigned   || false,
-          isMunicipality: block.isMunicipality || false,
-          isCorporation:  block.isCorporation  || false,
+          hasData: zone.hasData
         });
       });
 
       result.push({
         type: 'subtotal',
-        id:   `block_${block.blockId || block.blockName}_sub`,
-        blockId: block.blockId, blockName: block.blockName,
+        id: `block_${block.blockId || block.blockName}_sub`,
+        blockId: block.blockId,
+        blockName: block.blockName,
         zoneName: `Total for ${block.blockName}`,
-        total: bTotal, completed: bCompleted, ongoing: bOngoing,
-        notStarted: bNotStarted, underReview: bUnderReview,
+        total: bTotal,
+        completed: bCompleted,
+        ongoing: bOngoing,
+        notStarted: bNotStarted,
+        underReview: bUnderReview,
         isSubtotal: true,
-        isMunicipality: block.isMunicipality || false,
-        isCorporation:  block.isCorporation  || false,
-        isUnassigned:   block.isUnassigned   || false,
+        hasData: bTotal > 0
       });
     });
     return result;
@@ -365,50 +533,38 @@ console.log('API response:', response.data);
     if (newValue === null) return;
     setFilterType(newValue);
     if (newValue === 'single') {
-      setSingleMonth(getCurrentMonthName()); setFromMonth(''); setToMonth('');
+      setSingleMonth(getCurrentMonthName());
+      setFromMonth('');
+      setToMonth('');
     } else {
-      setFromMonth(getCurrentMonthName()); setSingleMonth(''); setToMonth('');
+      setFromMonth('July');
+      setSingleMonth('');
+      setToMonth('');
     }
     setPage(0);
   };
 
-  useEffect(() => {
-    if (resolvedTalukId.current) {
-      try {
-        sessionStorage.setItem(
-          'zoneReportState',
-          JSON.stringify({
-            talukId: resolvedTalukId.current,
-            talukName: stateData.talukName || talukName || '',
-            districtName: stateData.districtName || districtName || '',
-            districtId: stateData.districtId || null,
-            landType,
-            seasonTab,
-            filterType,
-            fromMonth,
-            toMonth,
-            singleMonth,
-          })
-        );
-      } catch (e) {
-        console.error('Failed to save zoneReportState:', e);
-      }
-    }
-  }, [landType, seasonTab, filterType, fromMonth, toMonth, stateData, districtName, talukName]);
-
   const handleClearFilters = () => {
-    setSingleMonth(getCurrentMonthName()); setFromMonth(''); setToMonth('');
-    setSeasonTab('ALL'); setLandType(null); setFilterType('single'); setPage(0);
+    setSingleMonth(getCurrentMonthName());
+    setFromMonth('');
+    setToMonth('');
+    setSeasonTab('ALL');
+    setLandType(null);
+    setFilterType('single');
+    setPage(0);
   };
 
- const handleViewZoneDetails = (zoneName, clickedZoneId) => {
-    // Navigate to the exact same page, but append the clickedZoneId to the URL
+  const handleViewZoneDetails = (zoneName, clickedZoneId) => {
     navigate(`/Report/kerala_cluster_report/taluk_cluster_report/zone_cluster_report/${districtName}/${talukName}/clusters/${clickedZoneId}`);
-    
-    // Optional: Smooth scroll down to where the component will render
+
     setTimeout(() => {
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     }, 100);
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setPage(0);
   };
 
   /* ─────────────────────────── sub-components ─────────────────────────── */
@@ -437,15 +593,15 @@ console.log('API response:', response.data);
     stateData.talukName ||
     (talukName
       ? talukName
-          .replace(/-\d+$/, '')           // strip trailing -id
-          .split('-')
-          .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(' ')
+        .replace(/-\d+$/, '')
+        .split('-')
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ')
       : 'Taluk');
 
   /* ─────────────────────────── render ─────────────────────────── */
 
-  if (loading && !apiData) {
+  if (loading && !apiData && zonesList.length === 0) {
     return (
       <Grid container spacing={3} justifyContent="center" alignItems="center" sx={{ minHeight: '400px' }}>
         <Grid item>
@@ -471,12 +627,14 @@ console.log('API response:', response.data);
                 {formattedTaluk} Taluk – Zone wise Cluster Progress Report
               </Typography>
               <Typography variant="body2" color="text.secondary">
+                {agriculturalYear.current && `Agricultural Year: ${agriculturalYear.current.display}`}
                 {landType && landType !== 'ALL' && ` • ${landType} Season`}
                 {filterType === 'single' && singleMonth && ` • ${singleMonth}`}
                 {filterType === 'range' && fromMonth && toMonth && ` • ${fromMonth} – ${toMonth}`}
                 {filterType === 'range' && fromMonth && !toMonth && ` • From ${fromMonth}`}
                 {filterType === 'range' && !fromMonth && toMonth && ` • Until ${toMonth}`}
-                {apiData && ` • Total Zones: ${totalElements}`}
+                {apiData && ` • Total Clusters: ${apiData.totalCluster || 0}`}
+                {stats.zonesWithoutData > 0 && ` • ${stats.zonesWithoutData} zones with no data`}
               </Typography>
             </Box>
           </Stack>
@@ -494,6 +652,30 @@ console.log('API response:', response.data);
         <Grid item xs={12}>
           <Paper sx={{ p: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
             <Typography color="error">Error: {error}</Typography>
+          </Paper>
+        </Grid>
+      )}
+
+      {/* Info Banner for zones with no data */}
+      {stats.zonesWithoutData > 0 && !loading && (
+        <Grid item xs={12}>
+          <Paper
+            sx={{
+              p: 1.5,
+              bgcolor: alpha('#ff9800', 0.08),
+              borderRadius: 2,
+              border: `1px solid ${alpha('#ff9800', 0.3)}`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}
+          >
+            <InfoOutlinedIcon sx={{ color: '#ff9800', fontSize: 20 }} />
+            <Typography variant="body2" color="text.secondary">
+              <strong>{stats.zonesWithoutData}</strong> zone{stats.zonesWithoutData > 1 ? 's' : ''} have no data available for the selected filters.
+              {landType ? ` This may be because no ${landType.toLowerCase()} season clusters were formed in these zones.` : ''}
+              <strong> View details is disabled for zones without data.</strong>
+            </Typography>
           </Paper>
         </Grid>
       )}
@@ -519,7 +701,7 @@ console.log('API response:', response.data);
                   <InputLabel>From Month</InputLabel>
                   <Select value={fromMonth} label="From Month" onChange={e => { setFromMonth(e.target.value); setPage(0); }}>
                     <MenuItem value="">None</MenuItem>
-                    {MONTHS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                    {AGRI_YEAR_MONTHS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
                   </Select>
                 </FormControl>
                 <Typography variant="body2" color="text.secondary">→</Typography>
@@ -527,7 +709,7 @@ console.log('API response:', response.data);
                   <InputLabel>To Month</InputLabel>
                   <Select value={toMonth} label="To Month" onChange={e => { setToMonth(e.target.value); setPage(0); }}>
                     <MenuItem value="">None</MenuItem>
-                    {MONTHS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                    {AGRI_YEAR_MONTHS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
                   </Select>
                 </FormControl>
               </>
@@ -536,7 +718,7 @@ console.log('API response:', response.data);
                 <InputLabel>Select Month</InputLabel>
                 <Select value={singleMonth} label="Select Month" onChange={e => { setSingleMonth(e.target.value); setPage(0); }}>
                   <MenuItem value="">None</MenuItem>
-                  {MONTHS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                  {AGRI_YEAR_MONTHS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
                 </Select>
               </FormControl>
             )}
@@ -551,13 +733,14 @@ console.log('API response:', response.data);
             sx={{ position: 'absolute', top: -12, left: 20, zIndex: 10, fontWeight: 600, bgcolor: '#04255e', color: '#fff', px: 1, boxShadow: 2 }} />
           <Grid container spacing={2}>
             {[
-              { label: 'Total Zones',  value: stats.total,       color: '#1565c0', icon: <StoreIcon       sx={{ fontSize: 32, color: '#1565c0',  opacity: 0.7 }} /> },
-              { label: 'Completed',    value: stats.completed,   color: '#2e7d32', icon: <CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32',  opacity: 0.7 }} /> },
-              { label: 'Ongoing',      value: stats.ongoing,     color: '#ed6c02', icon: <PendingIcon     sx={{ fontSize: 32, color: '#ed6c02',  opacity: 0.7 }} /> },
-              { label: 'Not Started',  value: stats.notStarted,  color: '#757575', icon: <ScheduleIcon   sx={{ fontSize: 32, color: '#757575',  opacity: 0.7 }} /> },
-              { label: 'Under Review', value: stats.underReview, color: '#b76e00', icon: <RateReviewIcon  sx={{ fontSize: 32, color: '#b76e00',  opacity: 0.7 }} /> },
+              { label: 'Total Zones', value: stats.totalZones, color: '#1565c0', icon: <StoreIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} /> },
+              { label: 'Total Clusters', value: stats.total, color: '#1565c0', icon: <AssessmentIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} /> },
+              { label: 'Completed', value: stats.completed, color: '#2e7d32', icon: <CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} /> },
+              { label: 'Ongoing', value: stats.ongoing, color: '#ed6c02', icon: <PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} /> },
+              { label: 'Not Started', value: stats.notStarted, color: '#757575', icon: <ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} /> },
+              { label: 'Under Review', value: stats.underReview, color: '#b76e00', icon: <RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} /> },
             ].map(({ label, value, color, icon }) => (
-              <Grid item xs={12} sm={6} md={2.4} key={label}>
+              <Grid item xs={12} sm={6} md={2} key={label}>
                 <StatCard label={label} value={value} color={color} bgColor={alpha(color, 0.08)} icon={icon} />
               </Grid>
             ))}
@@ -580,7 +763,7 @@ console.log('API response:', response.data);
                   startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
                   endAdornment: searchTerm && (
                     <InputAdornment position="end">
-                      <IconButton size="small" onClick={() => { setSearchTerm(''); setPage(0); }} edge="end">
+                      <IconButton size="small" onClick={handleClearSearch} edge="end">
                         <ClearIcon fontSize="small" />
                       </IconButton>
                     </InputAdornment>
@@ -594,12 +777,13 @@ console.log('API response:', response.data);
               <Table sx={{ borderCollapse: 'collapse' }}>
                 <TableHead>
                   <TableRow sx={{ bgcolor: '#04255e' }}>
-                    {['Block', 'Zone', 'Total', 'Completed', 'Ongoing', 'Not Started', 'Under Review', 'Actions'].map((label, idx) => (
+                    {['#', 'Block', 'Zone', 'Total', 'Completed', 'Ongoing', 'Not Started', 'Under Review', 'Actions'].map((label, idx) => (
                       <TableCell key={idx}
-                        align={idx === 0 ? 'center' : idx === 1 ? 'left' : 'center'}
-                        sx={{ color: 'white', fontWeight: 600, py: 1.5, border: 'none',
-                          ...(idx === 0 && { minWidth: 200 }),
-                          ...(idx === 1 && { minWidth: 200 }),
+                        align={idx === 0 ? 'center' : idx === 1 ? 'center' : idx === 2 ? 'left' : 'center'}
+                        sx={{
+                          color: 'white', fontWeight: 600, py: 1.5, border: 'none',
+                          ...(idx === 1 && { minWidth: 180 }),
+                          ...(idx === 2 && { minWidth: 200 }),
                         }}>
                         {label}
                       </TableCell>
@@ -610,36 +794,65 @@ console.log('API response:', response.data);
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={8} align="center" sx={{ py: 6 }}><CircularProgress size={40} /></TableCell>
+                      <TableCell colSpan={9} align="center" sx={{ py: 6 }}><CircularProgress size={40} /></TableCell>
                     </TableRow>
                   ) : paginatedData.length > 0 ? (() => {
                     const rows = [];
                     let lastBlockName = '';
+                    let serialNumber = page * rowsPerPage;
 
                     for (let i = 0; i < paginatedData.length; i++) {
                       const row = paginatedData[i];
-                      const isNewBlock        = row.blockName !== lastBlockName;
-                      const isSubtotalRow     = row.type === 'subtotal';
-                      if (isNewBlock) lastBlockName = row.blockName;
+                      const isNewBlock = row.blockName !== lastBlockName;
+                      const isSubtotalRow = row.type === 'subtotal';
+                      const hasNoData = !row.hasData && row.total === 0;
+
+                      if (isNewBlock) {
+                        lastBlockName = row.blockName;
+                      }
+
+                      if (!isSubtotalRow) {
+                        serialNumber++;
+                      }
 
                       const blockRowCount = isSubtotalRow
                         ? 0
-                        : paginatedData.filter(r => r.blockName === row.blockName).length;
+                        : paginatedData.filter(r => r.blockName === row.blockName && r.type !== 'subtotal').length;
 
                       rows.push(
                         <TableRow key={row.id} hover sx={{
-                          '&:hover': { bgcolor: alpha('#04255e', 0.04) }, transition: '0.2s',
+                          '&:hover': { bgcolor: alpha('#04255e', 0.04) },
+                          transition: '0.2s',
                           '& td': {
                             borderBottom: isSubtotalRow ? `1px solid ${theme.palette.primary.main}` : 'none',
-                            borderTop:    isSubtotalRow ? `0.01px solid ${theme.palette.primary.main}` : 'none',
+                            borderTop: isSubtotalRow ? `0.01px solid ${theme.palette.primary.main}` : 'none',
                             backgroundColor: isSubtotalRow ? alpha('#728ab4', 0.08) : 'transparent',
                           },
+                          ...(hasNoData && !isSubtotalRow && {
+                            bgcolor: alpha('#ff9800', 0.03),
+                            '&:hover': { bgcolor: alpha('#ff9800', 0.08) }
+                          })
                         }}>
+                          {/* Serial Number */}
+                          <TableCell align="center" sx={{ border: 'none' }}>
+                            {!isSubtotalRow && (
+                              <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                                {serialNumber}
+                              </Typography>
+                            )}
+                          </TableCell>
+
                           {/* Block cell – merged across all zone rows */}
                           {isNewBlock && !isSubtotalRow && (
                             <TableCell rowSpan={blockRowCount} align="center"
-                              sx={{ verticalAlign: 'middle', backgroundColor: alpha('#04255e', 0.04),
-                                fontWeight: 'bold', color: '#04255e', fontSize: '1rem', border: 'none' }}>
+                              sx={{
+                                verticalAlign: 'middle',
+                                backgroundColor: alpha('#04255e', 0.04),
+                                fontWeight: 'bold',
+                                color: '#04255e',
+                                fontSize: '1rem',
+                                border: 'none'
+                              }}>
                               <Stack direction="column" spacing={1} alignItems="center">
                                 <LocationOnIcon sx={{ fontSize: 24, color: '#04255e', opacity: 0.7 }} />
                                 <Typography fontWeight={700} sx={{ color: '#04255e' }}>{row.blockName}</Typography>
@@ -655,58 +868,126 @@ console.log('API response:', response.data);
                               </Typography>
                             ) : (
                               <Stack direction="row" spacing={1} alignItems="center">
-                                <StoreIcon sx={{ fontSize: 18, color: '#04255e', opacity: 0.7 }} />
-                                <Typography fontWeight={500}>{row.zoneName}</Typography>
+                                <StoreIcon sx={{ fontSize: 18, color: hasNoData ? '#ff9800' : '#04255e', opacity: 0.7 }} />
+                                <Typography fontWeight={hasNoData ? 400 : 500} color={hasNoData ? 'text.secondary' : 'text.primary'}>
+                                  {row.zoneName}
+                                  {hasNoData && (
+                                    <Chip
+                                      label="No Data"
+                                      size="small"
+                                      sx={{
+                                        ml: 1,
+                                        height: 18,
+                                        fontSize: '0.6rem',
+                                        bgcolor: alpha('#ff9800', 0.15),
+                                        color: '#e65100',
+                                        fontWeight: 600
+                                      }}
+                                    />
+                                  )}
+                                </Typography>
                               </Stack>
                             )}
                           </TableCell>
 
                           {/* Total */}
                           <TableCell align="center" sx={{ border: 'none' }}>
-                            <Chip label={row.total} size="small"
-                              variant={isSubtotalRow ? 'filled' : 'outlined'}
-                              sx={{ fontWeight: isSubtotalRow ? 700 : 600,
-                                bgcolor: isSubtotalRow ? alpha('#04255e', 0.15) : 'transparent',
-                                color:   isSubtotalRow ? '#04255e' : 'inherit' }} />
+                            {hasNoData && !isSubtotalRow ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : (
+                              <Chip label={row.total} size="small"
+                                variant={isSubtotalRow ? 'filled' : 'outlined'}
+                                sx={{
+                                  fontWeight: isSubtotalRow ? 700 : 600,
+                                  bgcolor: isSubtotalRow ? alpha('#04255e', 0.15) : 'transparent',
+                                  color: isSubtotalRow ? '#04255e' : 'inherit'
+                                }} />
+                            )}
                           </TableCell>
 
                           {/* Completed */}
                           <TableCell align="center" sx={{ border: 'none' }}>
-                            {row.completed > 0
-                              ? <Chip label={row.completed} size="small" color="success" variant={isSubtotalRow ? 'filled' : 'outlined'} sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
-                              : <Typography variant="body2" color="text.secondary">{row.completed}</Typography>}
+                            {hasNoData && !isSubtotalRow ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.completed > 0 ? (
+                              <Chip label={row.completed} size="small" color="success"
+                                variant={isSubtotalRow ? 'filled' : 'outlined'}
+                                sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">{row.completed}</Typography>
+                            )}
                           </TableCell>
 
                           {/* Ongoing */}
                           <TableCell align="center" sx={{ border: 'none' }}>
-                            {row.ongoing > 0
-                              ? <Chip label={row.ongoing} size="small" color="primary" variant={isSubtotalRow ? 'filled' : 'outlined'} sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
-                              : <Typography variant="body2" color="text.secondary">{row.ongoing}</Typography>}
+                            {hasNoData && !isSubtotalRow ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.ongoing > 0 ? (
+                              <Chip label={row.ongoing} size="small" color="primary"
+                                variant={isSubtotalRow ? 'filled' : 'outlined'}
+                                sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">{row.ongoing}</Typography>
+                            )}
                           </TableCell>
 
                           {/* Not Started */}
                           <TableCell align="center" sx={{ border: 'none' }}>
-                            {row.notStarted > 0
-                              ? <Chip label={row.notStarted} size="small" variant={isSubtotalRow ? 'filled' : 'outlined'} sx={{ fontWeight: isSubtotalRow ? 700 : 500, bgcolor: isSubtotalRow ? alpha('#757575', 0.15) : 'transparent' }} />
-                              : <Typography variant="body2" color="text.secondary">{row.notStarted}</Typography>}
+                            {hasNoData && !isSubtotalRow ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.notStarted > 0 ? (
+                              <Chip label={row.notStarted} size="small"
+                                variant={isSubtotalRow ? 'filled' : 'outlined'}
+                                sx={{
+                                  fontWeight: isSubtotalRow ? 700 : 500,
+                                  bgcolor: isSubtotalRow ? alpha('#757575', 0.15) : 'transparent'
+                                }} />
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">{row.notStarted}</Typography>
+                            )}
                           </TableCell>
 
                           {/* Under Review */}
                           <TableCell align="center" sx={{ border: 'none' }}>
-                            {row.underReview > 0
-                              ? <Chip label={row.underReview} size="small" color="warning" variant={isSubtotalRow ? 'filled' : 'outlined'} sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
-                              : <Typography variant="body2" color="text.secondary">{row.underReview}</Typography>}
+                            {hasNoData && !isSubtotalRow ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.underReview > 0 ? (
+                              <Chip label={row.underReview} size="small" color="warning"
+                                variant={isSubtotalRow ? 'filled' : 'outlined'}
+                                sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">{row.underReview}</Typography>
+                            )}
                           </TableCell>
 
-                          {/* Actions */}
+                          {/* Actions - Disabled for zones with no data */}
                           <TableCell align="center" sx={{ border: 'none' }}>
                             {!isSubtotalRow && (
-                              <Tooltip title="View Details">
-                                <IconButton size="small" onClick={() => handleViewZoneDetails(row.zoneName, row.zoneId)}
-                                  sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}>
-                                  <VisibilityIcon />
-                                </IconButton>
-                              </Tooltip>
+                              row.hasData ? (
+                                <Tooltip title="View Details">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleViewZoneDetails(row.zoneName, row.zoneId)}
+                                    sx={{
+                                      color: '#04255e',
+                                      '&:hover': { bgcolor: alpha('#04255e', 0.1) }
+                                    }}>
+                                    <VisibilityIcon />
+                                  </IconButton>
+                                </Tooltip>
+                              ) : (
+                                <Tooltip title="No data available - View disabled">
+                                  <IconButton
+                                    size="small"
+                                    disabled
+                                    sx={{
+                                      color: '#bdbdbd',
+                                      cursor: 'not-allowed'
+                                    }}>
+                                    <VisibilityOffIcon />
+                                  </IconButton>
+                                </Tooltip>
+                              )
                             )}
                           </TableCell>
                         </TableRow>
@@ -715,7 +996,7 @@ console.log('API response:', response.data);
                     return rows;
                   })() : (
                     <TableRow>
-                      <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                         <Typography color="text.secondary">
                           {searchTerm ? `No blocks/zones found matching "${searchTerm}"` : 'No data available for selected filters'}
                         </Typography>
