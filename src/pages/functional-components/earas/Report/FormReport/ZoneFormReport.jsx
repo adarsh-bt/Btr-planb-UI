@@ -53,6 +53,52 @@ import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import AuthService from 'pages/authentication/services/authservice';
+import mainapi from 'api/mainapi';
+
+// Builds the "July <startYear> → June <startYear + 1>" agricultural-year
+// month list used by the Single Month / From Month / To Month dropdowns.
+// Each option's `value` is sent to the API in "MM-YYYY" form (e.g. "07-2025"),
+// matching /form1-status/taluk?talukId=10&startMonth=07-2025&endMonth=09-2025&landType=DRY.
+function buildAgriMonthOptions() {
+  const agriYear = AuthService.agriyear() || '2025-2026';
+  const startYear = parseInt(agriYear.split('-')[0], 10) || new Date().getFullYear();
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const options = [];
+  for (let i = 0; i < 12; i++) {
+    const monthIndex = (6 + i) % 12; // start from July (index 6)
+    const year = startYear + Math.floor((6 + i) / 12);
+    const mm = String(monthIndex + 1).padStart(2, '0');
+    options.push({ label: `${monthNames[monthIndex]} ${year}`, value: `${mm}-${year}` });
+  }
+  return options;
+}
+
+// Per-zone metrics come split into wet*/dry* fields (e.g. wetCompleted,
+// dryCompleted). This picks the right one — or sums both — based on the
+// active WET / DRY / ALL tab. `metric` is one of:
+// 'Completed' | 'Ongoing' | 'NotStarted' | 'UnderReview' | 'ClusterArea'
+function pickMetric(zone, metric, seasonTab) {
+  if (seasonTab === 'WET') return Number(zone[`wet${metric}`]) || 0;
+  if (seasonTab === 'DRY') return Number(zone[`dry${metric}`]) || 0;
+  return (Number(zone[`wet${metric}`]) || 0) + (Number(zone[`dry${metric}`]) || 0);
+}
+
+// Resolve the block a zone belongs to.
+//   zoneName contains 'Municipality' / 'Corporation' → that keyword, regardless of blockId
+//   otherwise: real block → blockName (when blockId & blockName present), else Unassigned
+function resolveBlockName(blockId, blockName, zoneName) {
+  const lower = (zoneName || '').toLowerCase();
+  if (lower.includes('municipality')) return 'Municipality';
+  if (lower.includes('corporation')) return 'Corporation';
+  if (blockId && blockName) return blockName;
+  return 'Unassigned';
+}
+
+const formatArea = (num) =>
+  Number(num || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function ZoneFormReport() {
   const theme = useTheme();
@@ -64,28 +110,10 @@ function ZoneFormReport() {
 
   const stateData = location.state || {};
 
-  // Month helpers
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
+  const BASE_URL = mainapi.FORM_API;
 
-  const monthToNumber = {
-    'January': 1, 'February': 2, 'March': 3, 'April': 4,
-    'May': 5, 'June': 6, 'July': 7, 'August': 8,
-    'September': 9, 'October': 10, 'November': 11, 'December': 12
-  };
-
-  const seasonToId = {
-    'Winter': 1,
-    'Summer': 2,
-    'Autumn': 3
-  };
-
-  const getCurrentMonth = () => {
-    const currentDate = new Date();
-    return months[currentDate.getMonth()];
-  };
+  const MONTH_OPTIONS = buildAgriMonthOptions();
+  const getMonthLabel = (value) => MONTH_OPTIONS.find((o) => o.value === value)?.label || value;
 
   /* ── resolve taluk ID once and keep in a ref ──
         Priority:
@@ -117,13 +145,10 @@ function ZoneFormReport() {
       districtId: stateData.districtId || null,
       talukId: resolvedTalukId.current,
       filterType: stateData.filterType || 'single',
-      fromMonth: stateData.fromMonth || '',
+      fromMonth: stateData.fromMonth || MONTH_OPTIONS[0]?.value || '',
       toMonth: stateData.toMonth || '',
-      singleMonth: stateData.singleMonth !== undefined && stateData.singleMonth !== ''
-        ? stateData.singleMonth
-        : getCurrentMonth(),
-      seasonTab: stateData.seasonTab || 'ALL',
-      selectedSeason: stateData.selectedSeason || ''
+      singleMonth: stateData.singleMonth || MONTH_OPTIONS[0]?.value || '',
+      seasonTab: stateData.seasonTab || 'ALL'
     };
   };
 
@@ -133,12 +158,10 @@ function ZoneFormReport() {
   const [districtId, setDistrictId] = useState(initialFilters.districtId);
   const [talukId, setTalukId] = useState(initialFilters.talukId);
   const [seasonTab, setSeasonTab] = useState(initialFilters.seasonTab);
-  const [landType, setLandType] = useState(initialFilters.seasonTab === 'ALL' ? null : initialFilters.seasonTab);
   const [filterType, setFilterType] = useState(initialFilters.filterType);
   const [fromMonth, setFromMonth] = useState(initialFilters.fromMonth);
   const [toMonth, setToMonth] = useState(initialFilters.toMonth);
   const [singleMonth, setSingleMonth] = useState(initialFilters.singleMonth);
-  const [selectedSeason, setSelectedSeason] = useState(initialFilters.selectedSeason);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
@@ -155,7 +178,6 @@ function ZoneFormReport() {
       setLoading(true);
       setError(null);
 
-      // The backend expects the selected Taluk ID to be passed into the "distId" field.
       // The resolved taluk ID covers all entry points:
       // normal drill-down (state), direct access (state), and refresh (URL param).
       const targetQueryId = resolvedTalukId.current;
@@ -166,55 +188,34 @@ function ZoneFormReport() {
         return;
       }
 
-      let requestBody = {
-        agriYear: AuthService.agriyear() || "2025-2026",
-        seasonId: selectedSeason ? seasonToId[selectedSeason] : 3,
-        landType: seasonTab === 'ALL' ? 'WET' : seasonTab,
-        distId: Number(targetQueryId) // Maps to the selected/logged-in Taluk ID
-      };
+      let startMonthVal = MONTH_OPTIONS[0]?.value;
+      let endMonthVal = MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.value;
 
-      // Handle month filters
-      if (filterType === 'single' && singleMonth) {
-        requestBody.startMonth = monthToNumber[singleMonth];
-        requestBody.endMonth = monthToNumber[singleMonth];
-      } else if (filterType === 'range') {
-        if (fromMonth && toMonth) {
-          requestBody.startMonth = monthToNumber[fromMonth];
-          requestBody.endMonth = monthToNumber[toMonth];
-        } else if (fromMonth) {
-          requestBody.startMonth = monthToNumber[fromMonth];
-          requestBody.endMonth = 12;
-        } else if (toMonth) {
-          requestBody.startMonth = 1;
-          requestBody.endMonth = monthToNumber[toMonth];
-        } else {
-          const currentMonthNum = new Date().getMonth() + 1;
-          requestBody.startMonth = currentMonthNum;
-          requestBody.endMonth = currentMonthNum;
+      if (filterType === 'single') {
+        if (singleMonth) {
+          startMonthVal = singleMonth;
+          endMonthVal = singleMonth;
         }
       } else {
-        const currentMonthNum = new Date().getMonth() + 1;
-        requestBody.startMonth = currentMonthNum;
-        requestBody.endMonth = currentMonthNum;
+        if (fromMonth) startMonthVal = fromMonth;
+        if (toMonth) endMonthVal = toMonth;
       }
 
-      console.log('Zone API Request Payload executed:', requestBody);
+      const token = AuthService.getToken ? AuthService.getToken() : localStorage.getItem('token');
+      if (!token) throw new Error('Authentication session token missing. Please log in again.');
 
-      const response = await axios.post(
-        'http://localhost:9114/earas-form1-entry/form1/block-wise-status-summary',
-        requestBody,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        }
-      );
+      const params = new URLSearchParams({ talukId: targetQueryId, startMonth: startMonthVal });
+      if (endMonthVal) params.append('endMonth', endMonthVal);
+      if (seasonTab && seasonTab !== 'ALL') params.append('landType', seasonTab);
 
-      if (response.data && response.data.payload) {
-        setApiData(response.data.payload);
-      } else {
-        setError('Invalid response format from server');
-      }
+      const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/taluk?${params.toString()}`;
+      console.log('Zone API Request:', url);
+
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setApiData(response.data || null);
     } catch (err) {
       console.error('API Error:', err);
       setError(err.response?.data?.message || err.message || 'Failed to fetch data');
@@ -227,98 +228,49 @@ function ZoneFormReport() {
   useEffect(() => {
     fetchZoneData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [districtId, talukId, seasonTab, filterType, fromMonth, toMonth, singleMonth, selectedSeason]);
+  }, [districtId, talukId, seasonTab, filterType, fromMonth, toMonth, singleMonth]);
 
-  // Process API data to match the expected format
+  // Group allSubDetails entries into blocks. Each value already carries its
+  // own blockId/blockName/zoneId/zoneName, so grouping uses those directly
+  // rather than parsing the "Block - Zone" key string.
   const processedData = useMemo(() => {
-    if (!apiData || !apiData.formStatusSummaryResponseList) {
-      return [];
-    }
+    if (!apiData || !apiData.allSubDetails) return [];
 
     const blockMap = new Map();
-    const corporationZones = [];
     const municipalityZones = [];
+    const corporationZones = [];
 
-    apiData.formStatusSummaryResponseList.forEach(item => {
-      // 1. If a specific taluk filter is present, filter rows matching it here if needed
-      // (Note: If your backend endpoint returns all blocks for a district, this filter keeps it pristine)
-      if (talukId && item.talukId && item.talukId !== talukId) {
-        return;
-      }
-
-      let blockName = '';
-      let isCorporation = false;
-      let isMunicipality = false;
-
-      // 2. FIXED MAPPER: Read 'districtName' from your API payload to extract the Block Name string safely
-      if (item.districtName) {
-        blockName = item.districtName; // e.g. "Chittumala", "Ithikara", "Mukhathala"
-      } else if (item.localBodyName) {
-        blockName = item.localBodyName.trim();
-      } else {
-        blockName = 'Unassigned';
-      }
-
-      // Check if it belongs to urban collections based on zoneName nomenclature strings
-      const zoneNameLower = (item.zoneName || '').toLowerCase();
-      if (zoneNameLower.includes('corporation') || zoneNameLower.includes('corp')) {
-        isCorporation = true;
-        blockName = 'Corporation';
-      } else if (zoneNameLower.includes('municipality') || zoneNameLower.includes('municipal')) {
-        isMunicipality = true;
-        blockName = 'Municipality';
-      }
+    Object.values(apiData.allSubDetails).forEach((d) => {
+      const resolvedBlock = resolveBlockName(d.blockId, d.blockName, d.zoneName);
 
       const zoneData = {
-        zoneId: item.zoneId,
-        zoneName: item.zoneName,
-        completed: item.completedCount || 0,
-        ongoing: item.ongoingCount || 0,
-        notStarted: item.notStartedCount || 0,
-        underReview: item.underReviewCount || 0,
-        talukId: item.talukId || null,
-        talukName: item.talukName || null
+        zoneId: d.zoneId,
+        zoneName: d.zoneName || 'Unassigned',
+        completed: pickMetric(d, 'Completed', seasonTab),
+        ongoing: pickMetric(d, 'Ongoing', seasonTab),
+        notStarted: pickMetric(d, 'NotStarted', seasonTab),
+        underReview: pickMetric(d, 'UnderReview', seasonTab),
+        area: pickMetric(d, 'ClusterArea', seasonTab)
       };
 
-      if (isCorporation) {
+      if (resolvedBlock === 'Municipality') {
+        municipalityZones.push(zoneData);
+        return;
+      }
+      if (resolvedBlock === 'Corporation') {
         corporationZones.push(zoneData);
         return;
       }
 
-      if (isMunicipality) {
-        municipalityZones.push(zoneData);
-        return;
+      const key = d.blockId ?? resolvedBlock;
+      if (!blockMap.has(key)) {
+        blockMap.set(key, { blockId: key, blockName: resolvedBlock, zones: [] });
       }
-
-      // Append into grouped map layout cleanly
-      if (!blockMap.has(blockName)) {
-        blockMap.set(blockName, {
-          blockId: `block_${blockName.replace(/\s+/g, '_')}`,
-          blockName: blockName,
-          zones: []
-        });
-      }
-
-      blockMap.get(blockName).zones.push(zoneData);
+      blockMap.get(key).zones.push(zoneData);
     });
 
-    // Structure list presentation
-    const blocks = Array.from(blockMap.values()).sort((a, b) =>
-      a.blockName.localeCompare(b.blockName)
-    );
-
-    blocks.forEach(block => {
-      block.zones.sort((a, b) => a.zoneName.localeCompare(b.zoneName));
-    });
-
-    if (corporationZones.length > 0) {
-      blocks.push({
-        blockId: 'corporation',
-        blockName: 'Corporation',
-        isCorporation: true,
-        zones: corporationZones.sort((a, b) => a.zoneName.localeCompare(b.zoneName))
-      });
-    }
+    const blocks = Array.from(blockMap.values()).sort((a, b) => a.blockName.localeCompare(b.blockName));
+    blocks.forEach((block) => block.zones.sort((a, b) => a.zoneName.localeCompare(b.zoneName)));
 
     if (municipalityZones.length > 0) {
       blocks.push({
@@ -328,24 +280,38 @@ function ZoneFormReport() {
         zones: municipalityZones.sort((a, b) => a.zoneName.localeCompare(b.zoneName))
       });
     }
-
-    return blocks;
-  }, [apiData, talukId]);
-
-  // Calculate overall statistics
-  const stats = useMemo(() => {
-    if (!apiData) {
-      return { total: 0, completed: 0, ongoing: 0, notStarted: 0, underReview: 0 };
+    if (corporationZones.length > 0) {
+      blocks.push({
+        blockId: 'corporation',
+        blockName: 'Corporation',
+        isCorporation: true,
+        zones: corporationZones.sort((a, b) => a.zoneName.localeCompare(b.zoneName))
+      });
     }
 
+    return blocks;
+  }, [apiData, seasonTab]);
+
+  // Overall statistics — counts come straight from the top-level totals
+  // (already filtered server-side by landType); completedArea is summed
+  // client-side since the API only returns area at the zone level.
+  const stats = useMemo(() => {
+    if (!apiData) {
+      return { total: 0, completed: 0, ongoing: 0, notStarted: 0, underReview: 0, completedArea: 0 };
+    }
+    const completedArea = processedData.reduce(
+      (sum, block) => sum + block.zones.reduce((s, z) => s + z.area, 0),
+      0
+    );
     return {
-      total: apiData.totalClusterCount || 0,
-      completed: apiData.totalCompletedCount || 0,
-      ongoing: apiData.totalOngoingCount || 0,
-      notStarted: apiData.totalNotStartedCount || 0,
-      underReview: apiData.totalUnderReviewCount || 0
+      total: apiData.totalCluster || 0,
+      completed: apiData.completed || 0,
+      ongoing: apiData.ongoing || 0,
+      notStarted: apiData.notStarted || 0,
+      underReview: apiData.underView || 0,
+      completedArea
     };
-  }, [apiData]);
+  }, [apiData, processedData]);
 
   // Flatten data for table display with subtotals
   const flattenedTableData = useMemo(() => {
@@ -357,6 +323,7 @@ function ZoneFormReport() {
       let blockOngoing = 0;
       let blockNotStarted = 0;
       let blockUnderReview = 0;
+      let blockArea = 0;
 
       // Add each zone in the block
       block.zones.forEach((zone, zoneIndex) => {
@@ -371,6 +338,7 @@ function ZoneFormReport() {
         blockOngoing += zone.ongoing;
         blockNotStarted += zone.notStarted;
         blockUnderReview += zone.underReview;
+        blockArea += zone.area;
 
         result.push({
           type: 'zone',
@@ -384,6 +352,7 @@ function ZoneFormReport() {
           ongoing: zone.ongoing,
           notStarted: zone.notStarted,
           underReview: zone.underReview,
+          area: zone.area,
           zoneId: zone.zoneId,
           isCorporation: block.isCorporation || false,
           isMunicipality: block.isMunicipality || false
@@ -402,6 +371,7 @@ function ZoneFormReport() {
         ongoing: blockOngoing,
         notStarted: blockNotStarted,
         underReview: blockUnderReview,
+        area: blockArea,
         isSubtotal: true,
         isCorporation: block.isCorporation || false,
         isMunicipality: block.isMunicipality || false
@@ -439,21 +409,17 @@ function ZoneFormReport() {
   };
 
   const handleClearFilters = () => {
-    const currentMonth = getCurrentMonth();
-    setFromMonth('');
+    setFromMonth(MONTH_OPTIONS[0]?.value || '');
     setToMonth('');
-    setSingleMonth(currentMonth);
+    setSingleMonth(MONTH_OPTIONS[0]?.value || '');
     setSeasonTab('ALL');
-    setLandType(null);
     setFilterType('single');
-    setSelectedSeason('');
     setPage(0);
   };
 
   const handleSeasonTabChange = (event, newValue) => {
     if (newValue !== null) {
       setSeasonTab(newValue);
-      setLandType(newValue === 'ALL' ? null : newValue);
       setPage(0);
     }
   };
@@ -461,15 +427,9 @@ function ZoneFormReport() {
   const handleFilterTypeChange = (event, newValue) => {
     if (newValue !== null) {
       setFilterType(newValue);
-      if (newValue === 'single') {
-        setSingleMonth(getCurrentMonth());
-        setFromMonth('');
-        setToMonth('');
-      } else {
-        setFromMonth('');
-        setToMonth('');
-        setSingleMonth('');
-      }
+      setFromMonth(MONTH_OPTIONS[0]?.value || '');
+      setToMonth('');
+      setSingleMonth(MONTH_OPTIONS[0]?.value || '');
       setPage(0);
     }
   };
@@ -487,8 +447,7 @@ function ZoneFormReport() {
         toMonth,
         seasonTab,
         filterType,
-        singleMonth,
-        selectedSeason
+        singleMonth
       }
     });
   };
@@ -506,13 +465,12 @@ function ZoneFormReport() {
         toMonth,
         seasonTab,
         filterType,
-        singleMonth,
-        selectedSeason
+        singleMonth
       }
     });
   };
 
-  const StatCard = ({ label, value, color, bgColor, icon }) => (
+  const StatCard = ({ label, value, color, bgColor, icon, areaValue }) => (
     <Card sx={{
       bgcolor: bgColor,
       borderRadius: 3,
@@ -525,9 +483,19 @@ function ZoneFormReport() {
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Box>
-            <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
-              {loading ? <CircularProgress size={24} /> : value}
-            </Typography>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
+                {loading ? <CircularProgress size={24} /> : value}
+              </Typography>
+              {!loading && areaValue !== undefined && areaValue > 0 && (
+                <Chip
+                  label={`${formatArea(areaValue)} cents`}
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontSize: '0.7rem', height: 22, borderColor: alpha(color, 0.4), color }}
+                />
+              )}
+            </Stack>
             <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>
               {label}
             </Typography>
@@ -594,19 +562,16 @@ function ZoneFormReport() {
               <Typography variant="body2" color="text.secondary">
                 {(districtName || stateData.districtName) &&
                   `District: ${(districtName || stateData.districtName).split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}`}
-                {seasonTab !== 'ALL' && ` • ${seasonTab} Season`}
-                {filterType === 'single' && singleMonth && ` • ${singleMonth}`}
-                {filterType === 'range' && fromMonth && toMonth && ` • ${fromMonth} - ${toMonth}`}
-                {filterType === 'range' && fromMonth && !toMonth && ` • From ${fromMonth}`}
-                {filterType === 'range' && !fromMonth && toMonth && ` • Until ${toMonth}`}
-                {selectedSeason && ` • ${selectedSeason}`}
-                {apiData && ` • Total Zones: ${apiData.formStatusSummaryResponseList?.length || 0}`}
+                {seasonTab !== 'ALL' && ` • ${seasonTab} Land`}
+                {filterType === 'single' && singleMonth && ` • ${getMonthLabel(singleMonth)}`}
+                {filterType === 'range' && fromMonth && ` • ${getMonthLabel(fromMonth)}${toMonth ? ` - ${getMonthLabel(toMonth)}` : ''}`}
+                {apiData && ` • Total Zones: ${Object.keys(apiData.allSubDetails || {}).length}`}
                 {loading && ' • Loading...'}
               </Typography>
             </Box>
           </Stack>
           <Stack direction="row" spacing={1}>
-            {(fromMonth || toMonth || singleMonth || seasonTab !== 'ALL' || selectedSeason) && (
+            {(fromMonth !== MONTH_OPTIONS[0]?.value || toMonth || seasonTab !== 'ALL') && (
               <Button
                 variant="outlined"
                 onClick={handleClearFilters}
@@ -614,10 +579,10 @@ function ZoneFormReport() {
                 size="small"
                 sx={{ borderRadius: 2 }}
               >
-                Reset to Current Month
+                Reset Filters
               </Button>
             )}
-            <Button
+            {/* <Button
               variant="contained"
               onClick={fetchZoneData}
               size="small"
@@ -625,7 +590,7 @@ function ZoneFormReport() {
               disabled={loading}
             >
               {loading ? <CircularProgress size={20} /> : 'Refresh'}
-            </Button>
+            </Button> */}
           </Stack>
         </Stack>
       </Grid>
@@ -663,37 +628,27 @@ function ZoneFormReport() {
 
               {filterType === 'range' ? (
                 <>
-                  <FormControl size="small" sx={{ minWidth: 130 }}>
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
                     <InputLabel>From Month</InputLabel>
                     <Select
                       value={fromMonth}
                       label="From Month"
-                      onChange={(e) => {
-                        setFromMonth(e.target.value);
-                        setPage(0);
-                        if (e.target.value && !toMonth) {
-                          setToMonth(getCurrentMonth());
-                        }
-                      }}
+                      onChange={(e) => { setFromMonth(e.target.value); setPage(0); }}
                     >
-                      {months.map(month => <MenuItem key={month} value={month}>{month}</MenuItem>)}
+                      <MenuItem value="">{`None (${MONTH_OPTIONS[0]?.label})`}</MenuItem>
+                      {MONTH_OPTIONS.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
                     </Select>
                   </FormControl>
                   <Typography variant="body2" color="text.secondary">→</Typography>
-                  <FormControl size="small" sx={{ minWidth: 130 }}>
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
                     <InputLabel>To Month</InputLabel>
                     <Select
                       value={toMonth}
                       label="To Month"
-                      onChange={(e) => {
-                        setToMonth(e.target.value);
-                        setPage(0);
-                        if (e.target.value && !fromMonth) {
-                          setFromMonth('January');
-                        }
-                      }}
+                      onChange={(e) => { setToMonth(e.target.value); setPage(0); }}
                     >
-                      {months.map(month => <MenuItem key={month} value={month}>{month}</MenuItem>)}
+                      <MenuItem value="">{`None (${MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.label})`}</MenuItem>
+                      {MONTH_OPTIONS.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
                     </Select>
                   </FormControl>
                 </>
@@ -705,27 +660,10 @@ function ZoneFormReport() {
                     label="Select Month"
                     onChange={(e) => { setSingleMonth(e.target.value); setPage(0); }}
                   >
-                    {months.map(month => <MenuItem key={month} value={month}>{month}</MenuItem>)}
+                    {MONTH_OPTIONS.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
                   </Select>
                 </FormControl>
               )}
-
-              <FormControl size="small" sx={{ minWidth: 180 }}>
-                <InputLabel>Season</InputLabel>
-                <Select
-                  value={selectedSeason}
-                  label="Season"
-                  onChange={(e) => {
-                    setSelectedSeason(e.target.value);
-                    setPage(0);
-                  }}
-                >
-                  <MenuItem value="">All Seasons</MenuItem>
-                  <MenuItem value="Winter">Winter</MenuItem>
-                  <MenuItem value="Summer">Summer</MenuItem>
-                  <MenuItem value="Autumn">Autumn</MenuItem>
-                </Select>
-              </FormControl>
             </Stack>
           </Stack>
         </Paper>
@@ -768,6 +706,7 @@ function ZoneFormReport() {
                 color="#2e7d32"
                 bgColor={alpha('#2e7d32', 0.08)}
                 icon={<CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />}
+                areaValue={stats.completedArea}
               />
             </Grid>
 
@@ -968,19 +907,29 @@ function ZoneFormReport() {
                                   />
                                 </TableCell>
 
-                                {/* Completed */}
+                                {/* Completed (+ pinned area label) */}
                                 <TableCell align="center" sx={{ borderRight: 'none', borderLeft: 'none' }}>
-                                  {row.completed > 0 ? (
-                                    <Chip
-                                      label={row.completed}
-                                      size="small"
-                                      color="success"
-                                      variant={row.type === 'subtotal' ? "filled" : "outlined"}
-                                      sx={{ fontWeight: row.type === 'subtotal' ? 700 : 500 }}
-                                    />
-                                  ) : (
-                                    <Typography variant="body2" color="text.secondary">{row.completed}</Typography>
-                                  )}
+                                  <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
+                                    {row.completed > 0 ? (
+                                      <Chip
+                                        label={row.completed}
+                                        size="small"
+                                        color="success"
+                                        variant={row.type === 'subtotal' ? "filled" : "outlined"}
+                                        sx={{ fontWeight: row.type === 'subtotal' ? 700 : 500 }}
+                                      />
+                                    ) : (
+                                      <Typography variant="body2" color="text.secondary">{row.completed}</Typography>
+                                    )}
+                                    {row.area > 0 && (
+                                      <Chip
+                                        label={formatArea(row.area)}
+                                        size="small"
+                                        variant="outlined"
+                                        sx={{ fontSize: '0.65rem', height: 20, borderColor: alpha('#04255e', 0.3), color: '#04255e' }}
+                                      />
+                                    )}
+                                  </Stack>
                                 </TableCell>
 
                                 {/* Ongoing */}

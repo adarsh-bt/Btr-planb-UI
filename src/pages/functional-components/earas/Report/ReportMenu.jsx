@@ -53,6 +53,26 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
     }
   };
 
+  // Form 3A (Crop Area Report) — role-based direct access.
+  const handleForm3AClick = (e) => {
+    e.preventDefault();
+    if (onReportNavigation) {
+      onReportNavigation('/schemes/earas/Report/Form3A/KeralaForm3A');
+    } else {
+      navigate('/schemes/earas/Report/Form3A/KeralaForm3A');
+    }
+  };
+
+  // Form 3B (Crop Area Report) — role-based direct access.
+  const handleForm3BClick = (e) => {
+    e.preventDefault();
+    if (onReportNavigation) {
+      onReportNavigation('/schemes/earas/Report/Form3B/KeralaForm3B');
+    } else {
+      navigate('/schemes/earas/Report/Form3B/KeralaForm3B');
+    }
+  };
+
   return (
     <Grid container spacing={3}>
       <Breadcrumb />
@@ -328,11 +348,12 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
               </Card>
             </Grid>
 
-            {/* Form 3A Card — static link (hierarchy not wired) */}
+            {/* Form 3A Card — role-based direct access */}
             <Grid item xs={12} sm={6} md={4} lg={3}>
               <Card
                 component={Link}
                 to="/schemes/earas/Report/Form3A/KeralaForm3A"
+                onClick={handleForm3AClick}
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',
@@ -393,11 +414,12 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
               </Card>
             </Grid>
 
-            {/* Form 3B Card — static link (hierarchy not wired) */}
+            {/* Form 3B Card — role-based direct access */}
             <Grid item xs={12} sm={6} md={4} lg={3}>
               <Card
                 component={Link}
                 to="/schemes/earas/Report/Form3B/KeralaForm3B"
+                onClick={handleForm3BClick}
                 sx={{
                   textDecoration: 'none',
                   display: 'flex',

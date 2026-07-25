@@ -16,21 +16,21 @@ import {
   Tabs,
   Tab,
   Chip,
-  CircularProgress
+  CircularProgress,
+  TablePagination
 } from '@mui/material';
 import { LocationOn } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
 import AuthService from 'pages/authentication/services/authservice';
+import Breadcrumb from 'routes/Breadcrumb';
 
-// Gateway root (e.g. http://localhost:8080). '/earas-form1-entry' added below.
-// NOTE: if mainapi.FORM_API already ends in '/earas-form1-entry', drop the
-// duplicate segment from the URL to avoid a doubled prefix (404).
 const BASE_URL = mainapi.FORM_API;
 
-// Static crop groups (tbl_master_crop_group). Tab index → group; its id is
-// sent to the API as cropGroupId.
+const DISTRICT_W = 180;
+const CROP_W = 150;
+
 const CROP_GROUPS = [
   { id: 1, name: 'Food crops' },
   { id: 2, name: 'Non food crops' },
@@ -72,6 +72,8 @@ const KeralaForm3B = () => {
   const [apiData, setApiData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const cropGroupId = CROP_GROUPS[activeTab]?.id;
   const cropGroupName = CROP_GROUPS[activeTab]?.name;
@@ -138,8 +140,22 @@ const KeralaForm3B = () => {
     return totals;
   }, [districtRows, cropColumns]);
 
-  const handleTabChange = (event, newValue) => setActiveTab(newValue);
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+    setPage(0);
+  };
   const formatNumber = (num) => Number(num || 0).toFixed(2);
+
+  const handleChangePage = (event, newPage) => setPage(newPage);
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const paginatedRows = useMemo(
+    () => districtRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [districtRows, page, rowsPerPage]
+  );
 
   const handleDistrictClick = (districtName, districtId) => {
     if (districtId == null) return;
@@ -156,19 +172,19 @@ const KeralaForm3B = () => {
     });
   };
 
+  const TABLE_MIN_W = DISTRICT_W + Math.max(cropColumns.length, 1) * CROP_W;
+
   return (
     <Card
       elevation={0}
       sx={{ borderRadius: 4, overflow: 'visible', background: theme.palette.background.paper, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}
     >
+      <Breadcrumb/> 
       <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
         <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
           <LocationOn sx={{ fontSize: 32, color: themeColor }} />
           <Typography variant="h5" sx={{ fontWeight: 'bold', color: themeColor }}>
             Kerala State - Crop Area Report (Form 3B)
-          </Typography>
-          <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
-            (Click on any district to view Taluk-wise details) • Agricultural Year: {agriculturalYear} • Area in Cents
           </Typography>
         </Box>
 
@@ -198,12 +214,26 @@ const KeralaForm3B = () => {
 
           <Box role="tabpanel" sx={{ p: 0, position: 'relative' }}>
             <TableContainer sx={{ maxHeight: 600, overflowX: 'auto' }}>
-              <Table stickyHeader size="small" sx={{ minWidth: 200 + Math.max(cropColumns.length, 1) * 150 }}>
+              <Table
+                stickyHeader
+                size="small"
+                sx={{ width: '100%', minWidth: TABLE_MIN_W, tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0 }}
+              >
+                <colgroup>
+                  <col style={{ width: DISTRICT_W }} />
+                  {cropColumns.map((c) => (
+                    <col key={c.cropId} style={{ width: CROP_W }} />
+                  ))}
+                  {/* Spacer column absorbs any leftover width so the real
+                      columns keep a consistent, readable size instead of
+                      stretching when there are only one or two crop columns. */}
+                  <col style={{ width: 'auto' }} />
+                </colgroup>
                 <TableHead>
                   <TableRow>
                     <TableCell
                       align="left"
-                      sx={{ backgroundColor: themeColor, color: 'white', fontWeight: 700, whiteSpace: 'nowrap', minWidth: 180, py: 1.5, position: 'sticky', left: 0, zIndex: 3 }}
+                      sx={{ backgroundColor: themeColor, color: 'white', fontWeight: 700, whiteSpace: 'nowrap', py: 1.5, position: 'sticky', left: 0, zIndex: 3 }}
                     >
                       District
                     </TableCell>
@@ -211,29 +241,30 @@ const KeralaForm3B = () => {
                       <TableCell
                         key={crop.cropId}
                         align="right"
-                        sx={{ backgroundColor: themeColor, color: 'white', fontWeight: 700, whiteSpace: 'nowrap', minWidth: 150, py: 1.5 }}
+                        sx={{ backgroundColor: themeColor, color: 'white', fontWeight: 700, whiteSpace: 'nowrap', py: 1.5 }}
                       >
                         {crop.cropName}
                       </TableCell>
                     ))}
+                    <TableCell aria-hidden sx={{ backgroundColor: themeColor, padding: 0 }} />
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={cropColumns.length + 1} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={cropColumns.length + 2} align="center" sx={{ py: 6 }}>
                         <CircularProgress size={36} />
                       </TableCell>
                     </TableRow>
                   ) : districtRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={cropColumns.length + 1} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={cropColumns.length + 2} align="center" sx={{ py: 6 }}>
                         <Typography color="text.secondary">No data available for {cropGroupName}</Typography>
                       </TableCell>
                     </TableRow>
                   ) : (
                     <>
-                      {districtRows.map((row, index) => {
+                      {paginatedRows.map((row, index) => {
                         const clickable = row.districtId != null;
                         return (
                           <TableRow
@@ -257,6 +288,7 @@ const KeralaForm3B = () => {
                                 </TableCell>
                               );
                             })}
+                            <TableCell aria-hidden />
                           </TableRow>
                         );
                       })}
@@ -269,12 +301,23 @@ const KeralaForm3B = () => {
                             {cropTotals[crop.cropId] ? formatNumber(cropTotals[crop.cropId]) : '—'}
                           </TableCell>
                         ))}
+                        <TableCell aria-hidden sx={{ backgroundColor: alpha(themeColor, 0.08) }} />
                       </TableRow>
                     </>
                   )}
                 </TableBody>
               </Table>
             </TableContainer>
+            <TablePagination
+              component="div"
+              count={districtRows.length}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={[10, 25, 50]}
+              sx={{ borderTop: `1px solid ${alpha(themeColor, 0.1)}` }}
+            />
           </Box>
         </Paper>
       </CardContent>

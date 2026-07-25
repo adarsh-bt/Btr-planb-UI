@@ -51,7 +51,7 @@ import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import AuthService from 'pages/authentication/services/authservice';
-import api from 'api/api';
+import mainapi from 'api/mainapi';
 
 /* ─────────────────────────── session persistence ─────────────────────────── */
 
@@ -65,55 +65,50 @@ function getSavedState() {
   }
 }
 
+// Builds the "July <startYear> → June <startYear + 1>" agricultural-year
+// month list used by the Single Month / From Month / To Month dropdowns.
+// Each option's `value` is sent to the API in "MM-YYYY" form (e.g. "07-2025"),
+// matching /form1-status/district?districtId=1&startMonth=07-2025&endMonth=09-2025&landType=WET.
+function buildAgriMonthOptions() {
+  const agriYear = AuthService.agriyear() || '2025-2026';
+  const startYear = parseInt(agriYear.split('-')[0], 10) || new Date().getFullYear();
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const options = [];
+  for (let i = 0; i < 12; i++) {
+    const monthIndex = (6 + i) % 12; // start from July (index 6)
+    const year = startYear + Math.floor((6 + i) / 12);
+    const mm = String(monthIndex + 1).padStart(2, '0');
+    options.push({ label: `${monthNames[monthIndex]} ${year}`, value: `${mm}-${year}` });
+  }
+  return options;
+}
+
+// Per-taluk metrics come split into wet*/dry* fields (e.g. wetCompleted,
+// dryCompleted). This picks the right one — or sums both — based on the
+// active WET / DRY / ALL tab. `metric` is one of:
+// 'Completed' | 'Ongoing' | 'NotStarted' | 'UnderReview' | 'ClusterArea'
+function pickMetric(taluk, metric, seasonTab) {
+  if (seasonTab === 'WET') return Number(taluk[`wet${metric}`]) || 0;
+  if (seasonTab === 'DRY') return Number(taluk[`dry${metric}`]) || 0;
+  return (Number(taluk[`wet${metric}`]) || 0) + (Number(taluk[`dry${metric}`]) || 0);
+}
+
+const formatArea = (num) =>
+  Number(num || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 function TalukFormReport() {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const { districtName } = useParams();
 
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
+  const BASE_URL = mainapi.FORM_API;
 
-  // Month to number mapping
-  const monthToNumber = {
-    'January': 1, 'February': 2, 'March': 3, 'April': 4,
-    'May': 5, 'June': 6, 'July': 7, 'August': 8,
-    'September': 9, 'October': 10, 'November': 11, 'December': 12
-  };
-
-  // Season to ID mapping
-  const seasonToId = {
-    'Winter': 1,
-    'Summer': 2,
-    'Autumn': 3
-  };
-
-  // ID to Season mapping
-  const idToSeason = {
-    1: 'Winter',
-    2: 'Summer',
-    3: 'Autumn'
-  };
-
-  // Land type mapping
-  const landTypeMapping = {
-    'ALL': null,
-    'WET': 'WET',
-    'DRY': 'DRY'
-  };
-
-  // Get current month
-  const getCurrentMonth = () => {
-    const currentDate = new Date();
-    return months[currentDate.getMonth()];
-  };
-
-  // Get current month number
-  const getCurrentMonthNumber = () => {
-    return new Date().getMonth() + 1;
-  };
+  const MONTH_OPTIONS = buildAgriMonthOptions();
+  const getMonthLabel = (value) => MONTH_OPTIONS.find((o) => o.value === value)?.label || value;
 
   /* ── merge location.state with saved sessionStorage state.
         location.state wins when present (fresh navigation); saved state
@@ -148,13 +143,10 @@ function TalukFormReport() {
     return {
       districtId: resolvedDistrictId.current,
       filterType: stateData.filterType || 'single',
-      fromMonth: stateData.fromMonth || '',
+      fromMonth: stateData.fromMonth || MONTH_OPTIONS[0]?.value || '',
       toMonth: stateData.toMonth || '',
-      singleMonth: stateData.singleMonth !== undefined && stateData.singleMonth !== ''
-        ? stateData.singleMonth
-        : getCurrentMonth(),
-      seasonTab: stateData.seasonTab || 'ALL',
-      selectedSeason: stateData.selectedSeason || ''
+      singleMonth: stateData.singleMonth || MONTH_OPTIONS[0]?.value || '',
+      seasonTab: stateData.seasonTab || 'ALL'
     };
   };
 
@@ -167,7 +159,6 @@ function TalukFormReport() {
   const [fromMonth, setFromMonth] = useState(initialFilters.fromMonth);
   const [toMonth, setToMonth] = useState(initialFilters.toMonth);
   const [singleMonth, setSingleMonth] = useState(initialFilters.singleMonth);
-  const [selectedSeason, setSelectedSeason] = useState(initialFilters.selectedSeason);
 
   // State for API data
   const [apiData, setApiData] = useState(null);
@@ -196,11 +187,10 @@ function TalukFormReport() {
           districtName: stateData.districtName || displayDistrictName || '',
           isDirectAccess: stateData.isDirectAccess || false,
           filterType: stateData.filterType || 'single',
-          fromMonth: stateData.fromMonth || '',
+          fromMonth: stateData.fromMonth || MONTH_OPTIONS[0]?.value || '',
           toMonth: stateData.toMonth || '',
-          singleMonth: stateData.singleMonth || getCurrentMonth(),
-          seasonTab: stateData.seasonTab || 'ALL',
-          selectedSeason: stateData.selectedSeason || ''
+          singleMonth: stateData.singleMonth || MONTH_OPTIONS[0]?.value || '',
+          seasonTab: stateData.seasonTab || 'ALL'
         })
       );
     }
@@ -220,58 +210,37 @@ function TalukFormReport() {
         return;
       }
 
-      let requestBody = {
-        agriYear: AuthService.agriyear() || "2025-2026",
-        seasonId: selectedSeason ? seasonToId[selectedSeason] : 3,
-        landType: landTypeMapping[seasonTab] || 'WET',
-        distId: districtIdValue
-      };
+      let startMonthVal = MONTH_OPTIONS[0]?.value;
+      let endMonthVal = MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.value;
 
-      // Handle different filter types
-      if (filterType === 'single' && singleMonth) {
-        requestBody.startMonth = monthToNumber[singleMonth];
-        requestBody.endMonth = monthToNumber[singleMonth];
-      } else if (filterType === 'range') {
-        if (fromMonth && toMonth) {
-          requestBody.startMonth = monthToNumber[fromMonth];
-          requestBody.endMonth = monthToNumber[toMonth];
-        } else if (fromMonth) {
-          requestBody.startMonth = monthToNumber[fromMonth];
-          requestBody.endMonth = 12;
-        } else if (toMonth) {
-          requestBody.startMonth = 1;
-          requestBody.endMonth = monthToNumber[toMonth];
-        } else {
-          const currentMonthNum = getCurrentMonthNumber();
-          requestBody.startMonth = currentMonthNum;
-          requestBody.endMonth = currentMonthNum;
+      if (filterType === 'single') {
+        if (singleMonth) {
+          startMonthVal = singleMonth;
+          endMonthVal = singleMonth;
         }
       } else {
-        const currentMonthNum = getCurrentMonthNumber();
-        requestBody.startMonth = currentMonthNum;
-        requestBody.endMonth = currentMonthNum;
+        if (fromMonth) startMonthVal = fromMonth;
+        if (toMonth) endMonthVal = toMonth;
       }
 
-      console.log('Taluk API Request:', requestBody);
+      const token = AuthService.getToken ? AuthService.getToken() : localStorage.getItem('token');
+      if (!token) throw new Error('Authentication session token missing. Please log in again.');
 
-      const response = await api.post(
-  '/earas-form1-entry/form1/taluk-wise-status-summary',
-  requestBody,
-  {
-    headers: {
-      'Content-Type': 'application/json',
-    }
-  }
-);
+      const params = new URLSearchParams({ districtId: districtIdValue, startMonth: startMonthVal });
+      if (endMonthVal) params.append('endMonth', endMonthVal);
+      if (seasonTab && seasonTab !== 'ALL') params.append('landType', seasonTab);
 
-      if (response.data && response.data.payload) {
-        setApiData(response.data.payload);
-      } else {
-        setError('Invalid response format');
-      }
+      const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/district?${params.toString()}`;
+      console.log('Taluk API Request:', url);
+
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setApiData(response.data || null);
     } catch (err) {
       console.error('Error fetching taluk data:', err);
-      setError(err.message || 'Failed to fetch taluk data');
+      setError(err.response?.data?.message || err.message || 'Failed to fetch taluk data');
     } finally {
       setLoading(false);
     }
@@ -281,33 +250,46 @@ function TalukFormReport() {
   useEffect(() => {
     fetchTalukData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromMonth, toMonth, singleMonth, seasonTab, filterType, selectedSeason, districtId]);
+  }, [fromMonth, toMonth, singleMonth, seasonTab, filterType, districtId]);
 
-  // Transform API data to match the table format
+  // Map allSubDetails (keyed by taluk name) into UI rows, applying the
+  // WET/DRY/ALL split via pickMetric. `area` is the cluster area behind the
+  // Completed count for that taluk, shown as a pinned label in the table.
   const talukData = useMemo(() => {
-    if (!apiData || !apiData.formStatusSummaryResponseList) {
-      return [];
-    }
+    if (!apiData || !apiData.allSubDetails) return [];
+    return Object.entries(apiData.allSubDetails).map(([talukName, t]) => {
+      const completed = pickMetric(t, 'Completed', seasonTab);
+      const ongoing = pickMetric(t, 'Ongoing', seasonTab);
+      const notStarted = pickMetric(t, 'NotStarted', seasonTab);
+      const underReview = pickMetric(t, 'UnderReview', seasonTab);
+      const area = pickMetric(t, 'ClusterArea', seasonTab);
+      return {
+        id: t.id,
+        taluk: talukName,
+        total: completed + ongoing + notStarted + underReview,
+        completed,
+        ongoing,
+        notStarted,
+        underReview,
+        area
+      };
+    });
+  }, [apiData, seasonTab]);
 
-    return apiData.formStatusSummaryResponseList.map(taluk => ({
-      id: taluk.districtId, // The API maps the Taluk identifier onto this property name
-      taluk: taluk.districtName, // The API maps the Taluk name string onto this property name
-      total: (taluk.completedCount || 0) + (taluk.ongoingCount || 0) + (taluk.underReviewCount || 0) + (taluk.notStartedCount || 0),
-      completed: taluk.completedCount || 0,
-      ongoing: taluk.ongoingCount || 0,
-      notStarted: taluk.notStartedCount || 0,
-      underReview: taluk.underReviewCount || 0
-    }));
-  }, [apiData]);
-
-  // Stats from API
-  const stats = useMemo(() => ({
-    total: apiData?.totalClusterCount || 0,
-    completed: apiData?.totalCompletedCount || 0,
-    ongoing: apiData?.totalOngoingCount || 0,
-    notStarted: apiData?.totalNotStartedCount || 0,
-    underReview: apiData?.totalUnderReviewCount || 0
-  }), [apiData]);
+  // Stats from API. Counts come straight from the top-level totals (already
+  // filtered server-side by landType); completedArea is summed client-side
+  // since the API only returns area at the taluk level.
+  const stats = useMemo(
+    () => ({
+      total: apiData?.totalCluster || 0,
+      completed: apiData?.completed || 0,
+      ongoing: apiData?.ongoing || 0,
+      notStarted: apiData?.notStarted || 0,
+      underReview: apiData?.underView || 0,
+      completedArea: talukData.reduce((sum, t) => sum + t.area, 0)
+    }),
+    [apiData, talukData]
+  );
 
   const searchFilteredData = useMemo(() => {
     if (!searchTerm.trim()) return talukData;
@@ -333,13 +315,11 @@ function TalukFormReport() {
   };
 
   const handleClearFilters = () => {
-    const currentMonth = getCurrentMonth();
-    setFromMonth('');
+    setFromMonth(MONTH_OPTIONS[0]?.value || '');
     setToMonth('');
-    setSingleMonth(currentMonth);
+    setSingleMonth(MONTH_OPTIONS[0]?.value || '');
     setSeasonTab('ALL');
     setFilterType('single');
-    setSelectedSeason('');
     setPage(0);
   };
 
@@ -351,8 +331,7 @@ function TalukFormReport() {
         toMonth,
         seasonTab,
         filterType,
-        singleMonth,
-        selectedSeason
+        singleMonth
       }
     });
   };
@@ -373,13 +352,12 @@ function TalukFormReport() {
         toMonth,
         seasonTab,
         filterType,
-        singleMonth,
-        selectedSeason
+        singleMonth
       }
     });
   };
 
-  const StatCard = ({ label, value, color, bgColor, icon, subtext }) => (
+  const StatCard = ({ label, value, color, bgColor, icon, subtext, areaValue }) => (
     <Card sx={{
       bgcolor: bgColor,
       borderRadius: 3,
@@ -392,9 +370,19 @@ function TalukFormReport() {
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Box>
-            <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
-              {loading ? <CircularProgress size={24} /> : value}
-            </Typography>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
+                {loading ? <CircularProgress size={24} /> : value}
+              </Typography>
+              {!loading && areaValue !== undefined && areaValue > 0 && (
+                <Chip
+                  label={`${formatArea(areaValue)} cents`}
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontSize: '0.7rem', height: 22, borderColor: alpha(color, 0.4), color }}
+                />
+              )}
+            </Stack>
             <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>
               {label}
               {subtext && (
@@ -454,17 +442,14 @@ function TalukFormReport() {
                 {displayDistrictName} - Taluk wise Report
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {filterType === 'single' && singleMonth && ` • ${singleMonth}`}
-                {filterType === 'range' && fromMonth && toMonth && ` • ${fromMonth} - ${toMonth}`}
-                {filterType === 'range' && fromMonth && !toMonth && ` • From ${fromMonth}`}
-                {filterType === 'range' && !fromMonth && toMonth && ` • Until ${toMonth}`}
-                {seasonTab !== 'ALL' && ` • ${seasonTab} Season`}
-                {selectedSeason && ` • ${selectedSeason}`}
+                {filterType === 'single' && singleMonth && ` • ${getMonthLabel(singleMonth)}`}
+                {filterType === 'range' && fromMonth && ` • ${getMonthLabel(fromMonth)}${toMonth ? ` - ${getMonthLabel(toMonth)}` : ''}`}
+                {seasonTab !== 'ALL' && ` • ${seasonTab} Land`}
                 {loading && ' • Loading...'}
               </Typography>
             </Box>
           </Stack>
-          {(fromMonth || toMonth || singleMonth || seasonTab !== 'ALL' || selectedSeason) && (
+          {(fromMonth !== MONTH_OPTIONS[0]?.value || toMonth || seasonTab !== 'ALL') && (
             <Button
               variant="outlined"
               onClick={handleClearFilters}
@@ -472,7 +457,7 @@ function TalukFormReport() {
               size="small"
               sx={{ borderRadius: 2 }}
             >
-              Reset to Current Month
+              Reset Filters
             </Button>
           )}
         </Stack>
@@ -499,15 +484,9 @@ function TalukFormReport() {
                 onChange={(e, newValue) => {
                   if (newValue !== null) {
                     setFilterType(newValue);
-                    if (newValue === 'single') {
-                      setSingleMonth(getCurrentMonth());
-                      setFromMonth('');
-                      setToMonth('');
-                    } else {
-                      setFromMonth('');
-                      setToMonth('');
-                      setSingleMonth('');
-                    }
+                    setFromMonth(MONTH_OPTIONS[0]?.value || '');
+                    setToMonth('');
+                    setSingleMonth(MONTH_OPTIONS[0]?.value || '');
                     setPage(0);
                   }
                 }}
@@ -525,37 +504,27 @@ function TalukFormReport() {
 
               {filterType === 'range' ? (
                 <>
-                  <FormControl size="small" sx={{ minWidth: 130 }}>
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
                     <InputLabel>From Month</InputLabel>
                     <Select
                       value={fromMonth}
                       label="From Month"
-                      onChange={(e) => {
-                        setFromMonth(e.target.value);
-                        setPage(0);
-                        if (e.target.value && !toMonth) {
-                          setToMonth(getCurrentMonth());
-                        }
-                      }}
+                      onChange={(e) => { setFromMonth(e.target.value); setPage(0); }}
                     >
-                      {months.map(month => <MenuItem key={month} value={month}>{month}</MenuItem>)}
+                      <MenuItem value="">{`None (${MONTH_OPTIONS[0]?.label})`}</MenuItem>
+                      {MONTH_OPTIONS.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
                     </Select>
                   </FormControl>
                   <Typography variant="body2" color="text.secondary">→</Typography>
-                  <FormControl size="small" sx={{ minWidth: 130 }}>
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
                     <InputLabel>To Month</InputLabel>
                     <Select
                       value={toMonth}
                       label="To Month"
-                      onChange={(e) => {
-                        setToMonth(e.target.value);
-                        setPage(0);
-                        if (e.target.value && !fromMonth) {
-                          setFromMonth('January');
-                        }
-                      }}
+                      onChange={(e) => { setToMonth(e.target.value); setPage(0); }}
                     >
-                      {months.map(month => <MenuItem key={month} value={month}>{month}</MenuItem>)}
+                      <MenuItem value="">{`None (${MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.label})`}</MenuItem>
+                      {MONTH_OPTIONS.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
                     </Select>
                   </FormControl>
                 </>
@@ -567,27 +536,10 @@ function TalukFormReport() {
                     label="Select Month"
                     onChange={(e) => { setSingleMonth(e.target.value); setPage(0); }}
                   >
-                    {months.map(month => <MenuItem key={month} value={month}>{month}</MenuItem>)}
+                    {MONTH_OPTIONS.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
                   </Select>
                 </FormControl>
               )}
-
-              <FormControl size="small" sx={{ minWidth: 180 }}>
-                <InputLabel>Season</InputLabel>
-                <Select
-                  value={selectedSeason}
-                  label="Season"
-                  onChange={(e) => {
-                    setSelectedSeason(e.target.value);
-                    setPage(0);
-                  }}
-                >
-                  <MenuItem value="">All Seasons</MenuItem>
-                  <MenuItem value="Winter">Winter</MenuItem>
-                  <MenuItem value="Summer">Summer</MenuItem>
-                  <MenuItem value="Autumn">Autumn</MenuItem>
-                </Select>
-              </FormControl>
             </Stack>
           </Stack>
         </Paper>
@@ -636,6 +588,7 @@ function TalukFormReport() {
                 color="#2e7d32"
                 bgColor={alpha('#2e7d32', 0.08)}
                 icon={<CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />}
+                areaValue={stats.completedArea}
               />
             </Grid>
             <Grid item xs={12} sm={6} md={2.4}>
@@ -750,7 +703,17 @@ function TalukFormReport() {
                               <Chip label={row.total} size="small" variant="filled" sx={{ fontWeight: 600, bgcolor: alpha('#04255e', 0.1) }} />
                             </TableCell>
                             <TableCell align="center">
-                              {row.completed > 0 ? <Chip label={row.completed} size="small" color="success" variant="outlined" /> : row.completed}
+                              <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
+                                {row.completed > 0 ? <Chip label={row.completed} size="small" color="success" variant="outlined" /> : row.completed}
+                                {row.area > 0 && (
+                                  <Chip
+                                    label={formatArea(row.area)}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{ fontSize: '0.65rem', height: 20, borderColor: alpha('#04255e', 0.3), color: '#04255e' }}
+                                  />
+                                )}
+                              </Stack>
                             </TableCell>
                             <TableCell align="center">
                               {row.ongoing > 0 ? <Chip label={row.ongoing} size="small" color="primary" variant="outlined" /> : row.ongoing}

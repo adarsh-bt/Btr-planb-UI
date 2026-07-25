@@ -54,113 +54,104 @@ import axios from 'axios';
 import AuthService from 'pages/authentication/services/authservice';
 import mainapi from 'api/mainapi';
 
+// Builds the "July <startYear> → June <startYear + 1>" agricultural-year
+// month list used by the Single Month / From Month / To Month dropdowns.
+// Each option's `value` is sent to the API in "MM-YYYY" form (e.g. "07-2025"),
+// matching /form1-status/state?startMonth=07-2025&endMonth=09-2026&landType=WET.
+function buildAgriMonthOptions() {
+  const agriYear = AuthService.agriyear() || '2025-2026';
+  const startYear = parseInt(agriYear.split('-')[0], 10) || new Date().getFullYear();
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const options = [];
+  for (let i = 0; i < 12; i++) {
+    const monthIndex = (6 + i) % 12; // start from July (index 6)
+    const year = startYear + Math.floor((6 + i) / 12);
+    const mm = String(monthIndex + 1).padStart(2, '0');
+    options.push({ label: `${monthNames[monthIndex]} ${year}`, value: `${mm}-${year}` });
+  }
+  return options;
+}
+
+// Per-district metrics come split into wet*/dry* fields (e.g. wetCompleted,
+// dryCompleted). This picks the right one — or sums both — based on the
+// active WET / DRY / ALL tab. `metric` is one of:
+// 'Completed' | 'Ongoing' | 'NotStarted' | 'UnderReview' | 'ClusterArea'
+function pickMetric(district, metric, seasonTab) {
+  if (seasonTab === 'WET') return Number(district[`wet${metric}`]) || 0;
+  if (seasonTab === 'DRY') return Number(district[`dry${metric}`]) || 0;
+  return (Number(district[`wet${metric}`]) || 0) + (Number(district[`dry${metric}`]) || 0);
+}
+
+const formatArea = (num) =>
+  Number(num || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 function KeralaFormReportList() {
   const theme = useTheme();
   const navigate = useNavigate();
 
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
+  const BASE_URL = mainapi.FORM_API;
 
-  // Month to number mapping
-  const monthToNumber = useMemo(() => ({
-    'January': 1, 'February': 2, 'March': 3, 'April': 4,
-    'May': 5, 'June': 6, 'July': 7, 'August': 8,
-    'September': 9, 'October': 10, 'November': 11, 'December': 12
-  }), []);
+  const MONTH_OPTIONS = buildAgriMonthOptions();
+  const getMonthLabel = (value) => MONTH_OPTIONS.find((o) => o.value === value)?.label || value;
 
-  // Get current month name
-  const getCurrentMonth = () => {
-    const currentDate = new Date();
-    return months[currentDate.getMonth()];
-  };
-  const BASE_URL = mainapi.BASE_URL;
-  // State for filters - initialized to requirement specifications
-  const [seasonTab, setSeasonTab] = useState('ALL'); // Initially 'ALL'
+  // State for filters
+  const [seasonTab, setSeasonTab] = useState('ALL'); // 'ALL' | 'WET' | 'DRY' → landType query param
   const [filterType, setFilterType] = useState('single');
-  const [fromMonth, setFromMonth] = useState('');
+  const [fromMonth, setFromMonth] = useState(() => MONTH_OPTIONS[0]?.value || '');
   const [toMonth, setToMonth] = useState('');
-  const [singleMonth, setSingleMonth] = useState(getCurrentMonth()); // Initially current month
-  const [selectedSeason, setSelectedSeason] = useState('');
-  
+  const [singleMonth, setSingleMonth] = useState(() => MONTH_OPTIONS[0]?.value || '');
+
   // State for API data
   const [apiData, setApiData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+
   // State for search and pagination
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
-  // Season to ID mapping
-  const seasonToId = {
-    'Winter': 1,
-    'Summer': 2,
-    'Autumn': 3
-  };
-
-  // Fetch data from API
   // Fetch data from API
   const fetchDistrictData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Determine correct start and end month indices based on selection rules
-      let startMonthVal = 1;
-      let endMonthVal = 12;
+      let startMonthVal = MONTH_OPTIONS[0]?.value;
+      let endMonthVal = MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.value;
 
       if (filterType === 'single') {
         if (singleMonth) {
-          startMonthVal = monthToNumber[singleMonth];
-          endMonthVal = monthToNumber[singleMonth];
+          startMonthVal = singleMonth;
+          endMonthVal = singleMonth;
         }
       } else {
-        if (fromMonth) startMonthVal = monthToNumber[fromMonth];
-        if (toMonth) endMonthVal = monthToNumber[toMonth];
+        if (fromMonth) startMonthVal = fromMonth;
+        if (toMonth) endMonthVal = toMonth;
       }
 
-      // Build precise API request body context
-      const requestBody = {
-        agriYear: AuthService.agriyear() || "2025-2026",
-        seasonId: selectedSeason ? seasonToId[selectedSeason] : 3, // Defaults to 3 (Autumn) if none specified
-        startMonth: startMonthVal,
-        endMonth: endMonthVal,
-        landType: seasonTab // Maps directly to 'ALL', 'WET', or 'DRY'
-      };
-
-      console.log('Fetching data with payload:', requestBody);
-
-      // 1. Retrieve your authentication token safely
-      // Note: Modify this based on how your AuthService exposes the token (e.g., AuthService.getToken())
-      const token = AuthService.getToken ? AuthService.getToken() : localStorage.getItem('token'); 
-
+      const token = AuthService.getToken ? AuthService.getToken() : localStorage.getItem('token');
       if (!token) {
         throw new Error('Authentication session token missing. Please log in again.');
       }
 
-      // 2. Execute request passing the Authorization header
-      const response = await axios.post(
-        `http://localhost:8080/earas-form1-entry/form1/district-wise-status-summary`,
-        requestBody,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` // Dynamically appends your Postman bearer token configuration
-          }
-        }
-      );
+      const params = new URLSearchParams({ startMonth: startMonthVal });
+      if (endMonthVal) params.append('endMonth', endMonthVal);
+      if (seasonTab && seasonTab !== 'ALL') params.append('landType', seasonTab);
 
-      if (response.data && response.data.payload) {
-        setApiData(response.data.payload);
-      } else {
-        setError('Invalid response format received from server');
-      }
+      const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/state?${params.toString()}`;
+      console.log('Fetching Form1 status data from:', url);
+
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setApiData(response.data || null);
     } catch (err) {
       console.error('Error fetching data:', err);
-      // Fallback fallback verification for detailed error capture
       const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch district data';
       setError(errorMessage);
     } finally {
@@ -168,36 +159,50 @@ function KeralaFormReportList() {
     }
   };
 
-  // Fetch data cleanly whenever operational filters transform
+  // Fetch data whenever operational filters change
   useEffect(() => {
     fetchDistrictData();
-  }, [fromMonth, toMonth, singleMonth, seasonTab, filterType, selectedSeason]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromMonth, toMonth, singleMonth, seasonTab, filterType]);
 
-  // Map backend structure safely into UI schema
+  // Map allSubDetails (keyed by district name) into UI rows, applying the
+  // WET/DRY/ALL split via pickMetric. `area` is the cluster area behind the
+  // Completed count for that district, shown as a pinned label in the table.
   const districtData = useMemo(() => {
-    if (!apiData || !apiData.formStatusSummaryResponseList) {
-      return [];
-    }
+    if (!apiData || !apiData.allSubDetails) return [];
+    return Object.entries(apiData.allSubDetails).map(([districtName, d]) => {
+      const completed = pickMetric(d, 'Completed', seasonTab);
+      const ongoing = pickMetric(d, 'Ongoing', seasonTab);
+      const notStarted = pickMetric(d, 'NotStarted', seasonTab);
+      const underReview = pickMetric(d, 'UnderReview', seasonTab);
+      const area = pickMetric(d, 'ClusterArea', seasonTab);
+      return {
+        id: d.id,
+        district: districtName,
+        total: completed + ongoing + notStarted + underReview,
+        completed,
+        ongoing,
+        notStarted,
+        underReview,
+        area
+      };
+    });
+  }, [apiData, seasonTab]);
 
-    return apiData.formStatusSummaryResponseList.map(district => ({
-      id: district.districtId,
-      district: district.districtName,
-      total: (district.completedCount || 0) + (district.ongoingCount || 0) + (district.underReviewCount || 0) + (district.notStartedCount || 0),
-      completed: district.completedCount || 0,
-      ongoing: district.ongoingCount || 0,
-      notStarted: district.notStartedCount || 0,
-      underReview: district.underReviewCount || 0
-    }));
-  }, [apiData]);
-
-  // Aggregate stats payload
-  const stats = useMemo(() => ({
-    all: apiData?.totalClusterCount || 0,
-    completed: apiData?.totalCompletedCount || 0,
-    ongoing: apiData?.totalOngoingCount || 0,
-    notStarted: apiData?.totalNotStartedCount || 0,
-    underReview: apiData?.totalUnderReviewCount || 0
-  }), [apiData]);
+  // Aggregate stats payload. Counts come straight from the API's top-level
+  // totals (already filtered server-side by landType); completedArea is
+  // summed client-side since the API only returns area at the district level.
+  const stats = useMemo(
+    () => ({
+      all: apiData?.totalCluster || 0,
+      completed: apiData?.completed || 0,
+      ongoing: apiData?.ongoing || 0,
+      notStarted: apiData?.notStarted || 0,
+      underReview: apiData?.underView || 0,
+      completedArea: districtData.reduce((sum, d) => sum + d.area, 0)
+    }),
+    [apiData, districtData]
+  );
 
   // FIXED: Resolved search box reference crash (`searchToken` -> `searchTerm`)
   const filteredData = useMemo(() => {
@@ -224,12 +229,11 @@ function KeralaFormReportList() {
   };
 
   const handleClearFilters = () => {
-    setFromMonth('');
+    setFromMonth(MONTH_OPTIONS[0]?.value || '');
     setToMonth('');
-    setSingleMonth(getCurrentMonth());
+    setSingleMonth(MONTH_OPTIONS[0]?.value || '');
     setSeasonTab('ALL');
     setFilterType('single');
-    setSelectedSeason('');
     setPage(0);
   };
 
@@ -241,13 +245,12 @@ function KeralaFormReportList() {
         toMonth, 
         seasonTab, 
         filterType, 
-        singleMonth, 
-        selectedSeason 
+        singleMonth
       }
     });
   };
 
-  const StatCard = ({ label, value, color, bgColor, icon, subtext }) => (
+  const StatCard = ({ label, value, color, bgColor, icon, subtext, areaValue }) => (
     <Card sx={{ 
       bgcolor: bgColor, 
       borderRadius: 3,
@@ -260,9 +263,19 @@ function KeralaFormReportList() {
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Box>
-            <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
-              {loading ? <CircularProgress size={24} /> : value}
-            </Typography>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
+                {loading ? <CircularProgress size={24} /> : value}
+              </Typography>
+              {!loading && areaValue !== undefined && areaValue > 0 && (
+                <Chip
+                  label={`${formatArea(areaValue)} cents`}
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontSize: '0.7rem', height: 22, borderColor: alpha(color, 0.4), color }}
+                />
+              )}
+            </Stack>
             <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>
               {label}
               {subtext && (
@@ -305,15 +318,14 @@ function KeralaFormReportList() {
                 Cluster Enumeration Progress Report
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {filterType === 'single' && singleMonth && ` • ${singleMonth}`}
-                {filterType === 'range' && fromMonth && toMonth && ` • ${fromMonth} - ${toMonth}`}
+                {filterType === 'single' && singleMonth && ` • ${getMonthLabel(singleMonth)}`}
+                {filterType === 'range' && fromMonth && ` • ${getMonthLabel(fromMonth)}${toMonth ? ` - ${getMonthLabel(toMonth)}` : ''}`}
                 {seasonTab !== 'ALL' && ` • ${seasonTab} Land`}
-                {selectedSeason && ` • ${selectedSeason} Season`}
                 {loading && ' • Refreshing...'}
               </Typography>
             </Box>
           </Stack>
-          <Button 
+          {/* <Button 
             variant="outlined" 
             onClick={handleClearFilters}
             startIcon={<ClearIcon />}
@@ -321,7 +333,7 @@ function KeralaFormReportList() {
             sx={{ borderRadius: 2 }}
           >
             Reset Filters
-          </Button>
+          </Button> */}
         </Stack>
       </Grid>
 
@@ -346,9 +358,9 @@ function KeralaFormReportList() {
                 onChange={(e, newValue) => {
                   if (newValue !== null) {
                     setFilterType(newValue);
-                    setFromMonth('');
+                    setFromMonth(MONTH_OPTIONS[0]?.value || '');
                     setToMonth('');
-                    setSingleMonth(getCurrentMonth());
+                    setSingleMonth(MONTH_OPTIONS[0]?.value || '');
                     setPage(0);
                   }
                 }}
@@ -366,48 +378,34 @@ function KeralaFormReportList() {
 
               {filterType === 'range' ? (
                 <>
-                  <FormControl size="small" sx={{ minWidth: 130 }}>
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
                     <InputLabel>From Month</InputLabel>
                     <Select value={fromMonth} label="From Month" onChange={(e) => { setFromMonth(e.target.value); setPage(0); }}>
-                      <MenuItem value="">None (Jan)</MenuItem>
-                      {months.map(month => <MenuItem key={month} value={month}>{month}</MenuItem>)}
+                      <MenuItem value="">{`None (${MONTH_OPTIONS[0]?.label})`}</MenuItem>
+                      {MONTH_OPTIONS.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
                     </Select>
                   </FormControl>
                   <Typography variant="body2" color="text.secondary">→</Typography>
-                  <FormControl size="small" sx={{ minWidth: 130 }}>
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
                     <InputLabel>To Month</InputLabel>
                     <Select value={toMonth} label="To Month" onChange={(e) => { setToMonth(e.target.value); setPage(0); }}>
-                      <MenuItem value="">None (Dec)</MenuItem>
-                      {months.map(month => <MenuItem key={month} value={month}>{month}</MenuItem>)}
+                      <MenuItem value="">{`None (${MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.label})`}</MenuItem>
+                      {MONTH_OPTIONS.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
                     </Select>
                   </FormControl>
                 </>
               ) : (
-                <FormControl size="small" sx={{ minWidth: 160 }}>
+                <FormControl size="small" sx={{ minWidth: 170 }}>
                   <InputLabel>Select Month</InputLabel>
                   <Select 
                     value={singleMonth} 
                     label="Select Month" 
                     onChange={(e) => { setSingleMonth(e.target.value); setPage(0); }}
                   >
-                    {months.map(month => <MenuItem key={month} value={month}>{month}</MenuItem>)}
+                    {MONTH_OPTIONS.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
                   </Select>
                 </FormControl>
               )}
-              
-              <FormControl size="small" sx={{ minWidth: 150 }}>
-                <InputLabel>Season</InputLabel>
-                <Select
-                  value={selectedSeason}
-                  label="Season"
-                  onChange={(e) => { setSelectedSeason(e.target.value); setPage(0); }}
-                >
-                  <MenuItem value="">Default (Autumn)</MenuItem>
-                  <MenuItem value="Winter">Winter</MenuItem>
-                  <MenuItem value="Summer">Summer</MenuItem>
-                  <MenuItem value="Autumn">Autumn</MenuItem>
-                </Select>
-              </FormControl>
             </Stack>
           </Stack>
         </Paper>
@@ -419,7 +417,7 @@ function KeralaFormReportList() {
           <Chip label="State Summary" color="primary" size="small" sx={{ position: 'absolute', top: -12, left: 20, fontWeight: 600, bgcolor: '#04255e', px: 1 }} />
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6} md={2.4}><StatCard label="Total Clusters" value={stats.all} color="#1565c0" bgColor={alpha('#1565c0', 0.08)} icon={<AssessmentIcon sx={{ color: '#1565c0', opacity: 0.7 }} />} /></Grid>
-            <Grid item xs={12} sm={6} md={2.4}><StatCard label="Completed" value={stats.completed} color="#2e7d32" bgColor={alpha('#2e7d32', 0.08)} icon={<CheckCircleIcon sx={{ color: '#2e7d32', opacity: 0.7 }} />} /></Grid>
+            <Grid item xs={12} sm={6} md={2.4}><StatCard label="Completed" value={stats.completed} color="#2e7d32" bgColor={alpha('#2e7d32', 0.08)} icon={<CheckCircleIcon sx={{ color: '#2e7d32', opacity: 0.7 }} />} areaValue={stats.completedArea} /></Grid>
             <Grid item xs={12} sm={6} md={2.4}><StatCard label="Ongoing" value={stats.ongoing} color="#ed6c02" bgColor={alpha('#ed6c02', 0.08)} icon={<PendingIcon sx={{ color: '#ed6c02', opacity: 0.7 }} />} /></Grid>
             <Grid item xs={12} sm={6} md={2.4}><StatCard label="Not Started" value={stats.notStarted} color="#757575" bgColor={alpha('#757575', 0.08)} icon={<ScheduleIcon sx={{ color: '#757575', opacity: 0.7 }} />} /></Grid>
             <Grid item xs={12} sm={6} md={2.4}><StatCard label="Under Review" value={stats.underReview} color="#b76e00" bgColor={alpha('#b76e00', 0.08)} icon={<RateReviewIcon sx={{ color: '#b76e00', opacity: 0.7 }} />} /></Grid>
@@ -486,7 +484,17 @@ function KeralaFormReportList() {
                           <Chip label={row.total} size="small" sx={{ fontWeight: 600, bgcolor: alpha('#04255e', 0.1) }} />
                         </TableCell>
                         <TableCell align="center">
-                          {row.completed > 0 ? <Chip label={row.completed} size="small" color="success" variant="outlined" /> : row.completed}
+                          <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
+                            {row.completed > 0 ? <Chip label={row.completed} size="small" color="success" variant="outlined" /> : row.completed}
+                            {row.area > 0 && (
+                              <Chip
+                                label={formatArea(row.area)}
+                                size="small"
+                                variant="outlined"
+                                sx={{ fontSize: '0.65rem', height: 20, borderColor: alpha('#04255e', 0.3), color: '#04255e' }}
+                              />
+                            )}
+                          </Stack>
                         </TableCell>
                         <TableCell align="center">
                           {row.ongoing > 0 ? <Chip label={row.ongoing} size="small" color="primary" variant="outlined" /> : row.ongoing}

@@ -20,10 +20,15 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  IconButton
+  IconButton,
+  TablePagination
 } from '@mui/material';
 import { LocationOn, WaterDrop, WbSunny, ArrowBack } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
+
+// Sticky/column widths
+const PANCHAYATH_W = 180;
+const CROP_W = 140;
 
 const Form3B = () => {
   const theme = useTheme();
@@ -46,6 +51,9 @@ const Form3B = () => {
   // Irrigation Type filter: which figure populates each cell
   const [irrigationType, setIrrigationType] = useState('total');
 
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+
   // Shared style for numeric cells - tabular numerals keep digits vertically aligned
   const numericCellSx = {
     fontVariantNumeric: 'tabular-nums',
@@ -63,15 +71,8 @@ const Form3B = () => {
     return min + frac * (max - min);
   };
 
-  // Panchayaths under the selected zone. Real panchayath administrative
-  // boundaries vary by zone, so these are placeholder names generated the
-  // same way Block/Zone were on ZoneForm3B — swap in real panchayath
-  // master data here once available.
   const panchayaths = ['Panchayath 1', 'Panchayath 2', 'Panchayath 3', 'Panchayath 4', 'Panchayath 5'];
 
-  // Same seasonal crop tabs as the District/Taluk/Zone level reports.
-  // minArea/maxArea are scaled down further since a panchayath is a smaller
-  // unit than a zone.
   const cropCategories = [
     {
       id: 'cereals',
@@ -174,9 +175,6 @@ const Form3B = () => {
   const isCropActive = (crop) =>
     landTypeFilter === 'all' || crop.category === landTypeFilter;
 
-  // Panchayath-wise data for the active category: one row per panchayath, with
-  // irrigated/unirrigated/total area generated per crop in that category's
-  // list. The Irrigation Type filter picks which of the three is displayed.
   const categoryData = panchayaths.map((panchayath) => {
     const row = { panchayath };
     activeCategory.crops.forEach((crop) => {
@@ -202,24 +200,30 @@ const Form3B = () => {
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
+    setPage(0);
   };
 
   const formatNumber = (num) => num.toFixed(2);
+
+  const handleChangePage = (event, newPage) => setPage(newPage);
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const paginatedData = categoryData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   const handleBack = () => {
     navigate(-1);
   };
 
-  // Panchayath is currently the lowest level in this drill-down, so rows
-  // aren't clickable. If a further level (e.g. Ward) becomes available,
-  // wire up an onClick here the same way ZoneForm3A/TalukForm3A do.
-
-  // Land Type filter options
   const landTypeOptions = [
     { value: 'all', label: 'All', icon: null },
     { value: 'wet', label: 'Wet', icon: <WaterDrop sx={{ fontSize: 18 }} /> },
     { value: 'dry', label: 'Dry', icon: <WbSunny sx={{ fontSize: 18 }} /> }
   ];
+
+  const TABLE_MIN_W = PANCHAYATH_W + Math.max(activeCategory.crops.length, 1) * CROP_W;
 
   return (
     <Card
@@ -378,7 +382,21 @@ const Form3B = () => {
           {/* Active category's table: Panchayath, <crop columns...> */}
           <Box role="tabpanel" sx={{ p: 0 }}>
             <TableContainer sx={{ maxHeight: 600, overflowX: 'auto' }}>
-              <Table stickyHeader size="small" sx={{ minWidth: 200 + activeCategory.crops.length * 140 }}>
+              <Table
+                stickyHeader
+                size="small"
+                sx={{ width: '100%', minWidth: TABLE_MIN_W, tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0 }}
+              >
+                <colgroup>
+                  <col style={{ width: PANCHAYATH_W }} />
+                  {activeCategory.crops.map((crop) => (
+                    <col key={crop.name} style={{ width: CROP_W }} />
+                  ))}
+                  {/* Spacer column absorbs any leftover width so the real
+                      columns keep a consistent, readable size instead of
+                      stretching when there are only one or two crop columns. */}
+                  <col style={{ width: 'auto' }} />
+                </colgroup>
                 <TableHead>
                   <TableRow>
                     <TableCell
@@ -388,7 +406,6 @@ const Form3B = () => {
                         color: 'white',
                         fontWeight: 700,
                         whiteSpace: 'nowrap',
-                        minWidth: 180,
                         py: 1.5,
                       }}
                     >
@@ -405,7 +422,6 @@ const Form3B = () => {
                             color: active ? 'white' : alpha('#ffffff', 0.5),
                             fontWeight: 700,
                             whiteSpace: 'nowrap',
-                            minWidth: 140,
                             py: 1.5,
                           }}
                         >
@@ -413,10 +429,11 @@ const Form3B = () => {
                         </TableCell>
                       );
                     })}
+                    <TableCell aria-hidden sx={{ backgroundColor: themeColor, padding: 0 }} />
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {categoryData.map((row, index) => (
+                  {paginatedData.map((row, index) => (
                     <TableRow key={index} hover>
                       <TableCell align="left">
                         <Chip
@@ -445,6 +462,7 @@ const Form3B = () => {
                           </TableCell>
                         );
                       })}
+                      <TableCell aria-hidden />
                     </TableRow>
                   ))}
                   {/* Total Row */}
@@ -468,10 +486,21 @@ const Form3B = () => {
                         </TableCell>
                       );
                     })}
+                    <TableCell aria-hidden sx={{ backgroundColor: alpha(themeColor, 0.08) }} />
                   </TableRow>
                 </TableBody>
               </Table>
             </TableContainer>
+            <TablePagination
+              component="div"
+              count={categoryData.length}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={[10, 25, 50]}
+              sx={{ borderTop: `1px solid ${alpha(themeColor, 0.1)}` }}
+            />
           </Box>
         </Paper>
       </CardContent>

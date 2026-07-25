@@ -17,27 +17,20 @@ import {
   Tab,
   Chip,
   Stack,
-  CircularProgress
+  CircularProgress,
+  TablePagination
 } from '@mui/material';
 import { LocationOn, ArrowBack, Store } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
 import AuthService from 'pages/authentication/services/authservice';
+import Breadcrumb from 'routes/Breadcrumb';
 
-// Gateway root (e.g. http://localhost:8080). '/earas-form1-entry' added below.
-// NOTE: if mainapi.FORM_API already ends in '/earas-form1-entry', drop the
-// duplicate segment from the URL to avoid a doubled prefix (404).
 const BASE_URL = mainapi.FORM_API;
 
-// sessionStorage key: remembers taluk/district context + active crop-group
-// tab, so navigating back here (e.g. from the Panchayath-level page) or
-// refreshing restores the same view instead of resetting.
 const SESSION_KEY = 'zoneForm3AState';
 
-// Static crop groups (tbl_master_crop_group) — same list used by
-// KeralaForm3A / TalukForm3A. The tab index maps to a group, whose id is
-// sent to the API as cropGroupId.
 const CROP_GROUPS = [
   { id: 1, name: 'Food crops' },
   { id: 2, name: 'Non food crops' },
@@ -64,9 +57,16 @@ const CROP_GROUPS = [
   { id: 23, name: 'Dry fruit' }
 ];
 
-// Collapse whitespace/newlines in crop labels (some come as
-// "OTHER VEGETABLES\n(Please Specify)\n").
+
 const cleanName = (name) => (name || '').replace(/\s+/g, ' ').trim();
+
+function resolveBlockName(blockId, blockName, zoneName) {
+  const lower = (zoneName || '').toLowerCase();
+  if (lower.includes('municipality')) return 'Municipality';
+  if (lower.includes('corporation')) return 'Corporation';
+  if (blockId && blockName) return blockName;
+  return 'Unassigned';
+}
 
 function getSavedState() {
   try {
@@ -76,29 +76,10 @@ function getSavedState() {
   }
 }
 
-// =====================================================================
-// COLUMN WIDTHS — single source of truth.
-// Every table uses a <colgroup> built from these numbers, so the header,
-// body, subtotal and grand-total rows can never disagree about widths.
-// Only Block and Zone are sticky; crop columns scroll normally.
-//
-// A trailing "spacer" <col width: auto> is appended to every <colgroup>.
-// table-layout: fixed only respects columns with an explicit width, so any
-// space left over after Block + Zone + crop columns is handed to that
-// spacer instead of being left outside the table as blank container
-// background. On tabs with few crop columns this keeps the
-// header/subtotal/grand-total color bands running edge-to-edge instead of
-// stopping short and leaving a ragged white gap on the right. On tabs
-// where columns already exceed the container width, the spacer collapses
-// to ~0 and horizontal scrolling behaves exactly as before.
-// =====================================================================
 const BLOCK_W = 160;
 const ZONE_W = 180;
 const CROP_COL_W = 150;
 
-// ---- Solid (non-transparent) tint colors for sticky cells ----
-// Solid hex avoids the "ghosting / clipped digit" artifact that happens when
-// a semi-transparent sticky cell blends with content scrolling underneath it.
 const themeColor = '#05307a';
 const stickyTintLight = '#eef1f7';    // ~ alpha(themeColor, 0.06) over white
 const stickyTintSubtotal = '#e4e9f2'; // ~ alpha(themeColor, 0.08) over white
@@ -125,6 +106,10 @@ const ZoneForm3A = () => {
   const [apiData, setApiData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Pagination is by Block (not raw zone rows) so a block's zones and its
+  // subtotal row always stay together on the same page.
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const cropGroupId = CROP_GROUPS[activeTab]?.id;
   const cropGroupName = CROP_GROUPS[activeTab]?.name;
@@ -207,14 +192,13 @@ const ZoneForm3A = () => {
     return Array.from(map.values()).sort((a, b) => a.cropName.localeCompare(b.cropName));
   }, [apiData]);
 
-  // Zones grouped by block, preserving first-seen block order.
-  // Each block: { blockId, blockName, zones: [{ zoneId, zoneName, byId }] }
+
   const blocksData = useMemo(() => {
     const order = [];
     const map = new Map();
     apiData.forEach((z) => {
-      const blockName = z.blockName || 'Unassigned';
-      const key = z.blockId ?? `unassigned-${blockName}`;
+      const blockName = resolveBlockName(z.blockId, z.blockName, z.zoneName);
+      const key = blockName;
       if (!map.has(key)) {
         map.set(key, { blockId: z.blockId ?? null, blockName, zones: [] });
         order.push(key);
@@ -257,16 +241,26 @@ const ZoneForm3A = () => {
     return totals;
   }, [blocksData, blockTotals, cropColumns]);
 
-  // Minimum width the table needs for its "real" columns (Block + Zone +
-  // crop columns). The table itself is rendered at width: 100% with this
-  // as its minWidth — see tableSx() below — so the spacer column can
-  // absorb any leftover container width instead of it showing up as a
-  // blank gap outside the table.
+
   const TABLE_MIN_W = BLOCK_W + ZONE_W + Math.max(cropColumns.length, 1) * CROP_COL_W;
 
-  const handleTabChange = (event, newValue) => setActiveTab(newValue);
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+    setPage(0);
+  };
   const formatNumber = (num) => Number(num || 0).toFixed(2);
   const handleBack = () => navigate(-1);
+
+  const handleChangePage = (event, newPage) => setPage(newPage);
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const paginatedBlocks = useMemo(
+    () => blocksData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [blocksData, page, rowsPerPage]
+  );
 
   // Drill down from a Zone row into its Panchayath-wise breakdown
   const handleZoneClick = (blockId, blockName, zoneId, zoneName) => {
@@ -305,11 +299,6 @@ const ZoneForm3A = () => {
     ...extra
   });
 
-  // Shared table sx: fixed layout + separate borders are BOTH required for
-  // sticky columns to stay pixel-aligned while scrolling/dragging.
-  // width: 100% (with minWidth as a floor) lets the table fill the
-  // container on tabs with few columns, instead of shrinking to its
-  // intrinsic content width and leaving blank space beside it.
   const tableSx = (minWidthPx) => ({
     width: '100%',
     minWidth: minWidthPx,
@@ -318,10 +307,12 @@ const ZoneForm3A = () => {
     borderSpacing: 0
   });
 
-  const colSpanAll = cropColumns.length + 2; // Block + Zone + crop columns
+  // Block + Zone + crop columns + trailing spacer column.
+  const colSpanAll = cropColumns.length + 3;
 
   return (
     <Card sx={{ borderRadius: 3, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+      <Breadcrumb/> 
       <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
 
         <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
@@ -464,7 +455,7 @@ const ZoneForm3A = () => {
                   </TableRow>
                 ) : (
                   <>
-                    {blocksData.map((block) => {
+                    {paginatedBlocks.map((block) => {
                       const trs = [];
                       const blockKey = block.blockId ?? block.blockName;
 
@@ -593,46 +584,22 @@ const ZoneForm3A = () => {
 
                       return trs;
                     })}
-
-                    <TableRow sx={{ bgcolor: stickyTintGrand }}>
-                      <TableCell
-                        colSpan={2}
-                        sx={{
-                          ...stickyCellSx(0, stickyTintGrand),
-                          fontWeight: 800,
-                          color: themeColor,
-                          fontSize: '1rem',
-                          py: 1.5,
-                          zIndex: 2
-                        }}
-                      >
-                        <strong>🏆 GRAND TOTAL</strong>
-                      </TableCell>
-                      {cropColumns.map((crop) => {
-                        const val = grandTotals[crop.cropId];
-                        return (
-                          <TableCell
-                            key={crop.cropId}
-                            align="right"
-                            sx={{
-                              fontVariantNumeric: 'tabular-nums',
-                              whiteSpace: 'nowrap',
-                              fontWeight: 800,
-                              bgcolor: stickyTintGrand
-                            }}
-                          >
-                            {val ? formatNumber(val) : '—'}
-                          </TableCell>
-                        );
-                      })}
-                      {/* spacer grand-total cell — keeps the grand-total band full-width */}
-                      <TableCell aria-hidden sx={{ bgcolor: stickyTintGrand, p: 0 }} />
-                    </TableRow>
                   </>
                 )}
               </TableBody>
             </Table>
           </TableContainer>
+          <TablePagination
+            component="div"
+            count={blocksData.length}
+            page={page}
+            onPageChange={handleChangePage}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            rowsPerPageOptions={[5, 10, 25]}
+            labelRowsPerPage="Blocks per page"
+            sx={{ borderTop: `1px solid ${alpha(themeColor, 0.1)}` }}
+          />
         </Paper>
       </CardContent>
     </Card>
