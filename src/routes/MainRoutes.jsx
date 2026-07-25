@@ -109,7 +109,22 @@ const TalukForm2 = Loadable(lazy(() => import('pages/functional-components/earas
 const ZoneForm2 = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form2/ZoneForm2')));
 const Form2 = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form2/Form2')));
 
-const Form5 = Loadable(lazy(() => import('pages/functional-components/earas/Report/Cce/Form5')));
+const KeralaForm3A = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3A/KeralaForm3A')));
+const TalukForm3A = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3A/TalukForm3A')));
+const ZoneForm3A = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3A/ZoneForm3A')));
+const Form3A = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3A/Form3A')));
+
+const KeralaForm3B = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3B/KeralaForm3B')));
+const TalukForm3B = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3B/TalukForm3B')));
+const ZoneForm3B = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3B/ZoneForm3B')));
+const Form3B = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3B/Form3B')));
+
+
+const KeralaForm5ReportList= Loadable(lazy(() => import('pages/functional-components/earas/Report/Form5Report/KeralaForm5ReportList')));
+const TalukForm5Report= Loadable(lazy(() => import('pages/functional-components/earas/Report/Form5Report/TalukForm5Report')));
+const ZoneForm5Report= Loadable(lazy(() => import('pages/functional-components/earas/Report/Form5Report/ZoneForm5Report')));
+const Form5 = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form5Report/Form5')));
+
 const CceDataView = Loadable(lazy(() => import('pages/functional-components/earas/Report/Cce/CceDataView')));
 const OutOfClusterList = Loadable(lazy(() => import('pages/functional-components/earas/Report/Cce/OutOfClusterList')));
 
@@ -304,6 +319,8 @@ const MainRoutes = {
       path: '/kerala_form_report/zone_form_report/:districtName/:talukName',
       element: <PrivateRoute><ZoneFormReport /></PrivateRoute>
     },
+
+    
     {
       path: 'tourdiary',
       element: (
@@ -770,6 +787,31 @@ const MainRoutes = {
       )
     },
     {
+      path: '/schemes/earas/cce/KeralaForm5ReportList',
+      element: (
+        <PrivateRoute>
+          <KeralaForm5ReportList />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/kerala_form5_report/taluk_form5_report/:districtId',
+      element: <TalukForm5Report />
+    },
+    // TALUK direct access: /kerala_form5_report/zone_form5_report/direct/:talukId
+    {
+      path: '/kerala_form5_report/zone_form5_report/direct/:talukId',
+      element: (
+        <PrivateRoute>
+          <ZoneForm5Report />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/kerala_form5_report/taluk_form5_report/zone_form5_report/:districtName/:talukName',
+      element: <ZoneForm5Report />
+    },
+    {
       path: '/schemes/earas/cce/Form5',
       element: (
         <PrivateRoute>
@@ -814,6 +856,78 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <Form2 />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3A/KeralaForm3A',
+      element: (
+        <PrivateRoute>
+          <KeralaForm3A />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3A/TalukForm3A',
+      element: (
+        <PrivateRoute>
+          <TalukForm3A />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3A/ZoneForm3A',
+      element: (
+        <PrivateRoute>
+          <ZoneForm3A />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3A/Form3A',
+      element: (
+        <PrivateRoute>
+          <Form3A />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3B/KeralaForm3B',
+      element: (
+        <PrivateRoute>
+          <KeralaForm3B />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3B/TalukForm3B',
+      element: (
+        <PrivateRoute>
+          <TalukForm3B />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3B/TalukForm3B',
+      element: (
+        <PrivateRoute>
+          <TalukForm3B />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3B/ZoneForm3B',
+      element: (
+        <PrivateRoute>
+          <ZoneForm3B />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3B/Form3B',
+      element: (
+        <PrivateRoute>
+          <Form3B />
         </PrivateRoute>
       )
     },

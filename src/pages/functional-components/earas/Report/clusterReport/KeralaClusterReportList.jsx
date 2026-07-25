@@ -45,21 +45,22 @@ import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
-import FilterAltIcon from '@mui/icons-material/FilterAlt';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import Breadcrumb from 'routes/Breadcrumb';
-import axios from 'axios';
 import mainapi from 'api/mainapi';
 import api from 'api/api';
 import AuthService from 'pages/authentication/services/authservice';
 
-
-// API base URL - adjust based on your environment
-// const API_BASE_URL = 'http://localhost:8082/btr-service';
+// API base URL
 const BASE_URL = mainapi.BTR_API;
+
+// Month names for display
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
 
 function KeralaClusterReportList() {
   const theme = useTheme();
@@ -73,30 +74,24 @@ function KeralaClusterReportList() {
 
   // Filter states
   const [seasonTab, setSeasonTab] = useState('ALL');
-  const [landType, setLandType] = useState(null); // 'WET' or 'DRY' or null for ALL
+  const [landType, setLandType] = useState(null);
   const [filterType, setFilterType] = useState('single');
-  const [fromMonth, setFromMonth] = useState('');
-  const [toMonth, setToMonth] = useState('');
-  const [singleMonth, setSingleMonth] = useState('');
+  const [fromMonth, setFromMonth] = useState(''); // 'YYYY-MM' format
+  const [toMonth, setToMonth] = useState(''); // 'YYYY-MM' format
+  const [singleMonth, setSingleMonth] = useState(''); // 'YYYY-MM' format
 
   // UI states
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(15);
   const [agriculturalYear, setAgriculturalYear] = useState(null);
+  const [agriYearMonths, setAgriYearMonths] = useState([]);
 
-  // Agricultural year months (July to June)
-  const agriYearMonths = [
-    'July', 'August', 'September', 'October', 'November', 'December',
-    'January', 'February', 'March', 'April', 'May', 'June'
-  ];
-
-  // Get current agricultural year from AuthService
+  // Get agricultural year from AuthService
   const getAgriculturalYear = () => {
     try {
       const agriYear = AuthService.agriyear();
       if (agriYear) {
-        // Parse the agricultural year string like "2025-2026"
         const years = agriYear.split('-');
         if (years.length === 2) {
           const startYear = parseInt(years[0]);
@@ -111,9 +106,8 @@ function KeralaClusterReportList() {
     // Fallback: calculate current agricultural year
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth(); // 0-indexed
+    const currentMonth = currentDate.getMonth();
 
-    // If month is July (6) or later, agricultural year starts this year
     if (currentMonth >= 6) {
       return { startYear: currentYear, endYear: currentYear + 1, display: `${currentYear}-${currentYear + 1}` };
     } else {
@@ -121,36 +115,39 @@ function KeralaClusterReportList() {
     }
   };
 
-  // Get current month in agricultural year context
-  const getCurrentAgriMonth = () => {
-    const currentDate = new Date();
-    const currentMonth = currentDate.getMonth(); // 0-indexed (0 = January)
-    const monthNames = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return monthNames[currentMonth];
+  // Build agricultural year months with years
+  const buildAgriYearMonths = (startYear, endYear) => {
+    const months = [];
+    // July to December of start year
+    for (let m = 6; m < 12; m++) {
+      months.push({
+        label: `${MONTH_NAMES[m]} ${startYear}`,
+        value: `${startYear}-${String(m + 1).padStart(2, '0')}`
+      });
+    }
+    // January to June of end year
+    for (let m = 0; m < 6; m++) {
+      months.push({
+        label: `${MONTH_NAMES[m]} ${endYear}`,
+        value: `${endYear}-${String(m + 1).padStart(2, '0')}`
+      });
+    }
+    return months;
   };
 
-  // Month name to number mapping for API (with year context)
-  const getMonthYearForApi = (monthName) => {
-    if (!monthName || !agriculturalYear) return null;
+  // Get default month (current month if in agricultural year, else July)
+  const getDefaultMonth = (months) => {
+    const now = new Date();
+    const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const exists = months.some(m => m.value === current);
+    return exists ? current : (months[0]?.value || '');
+  };
 
-    const monthIndex = agriYearMonths.indexOf(monthName);
-    if (monthIndex === -1) return null;
-
-    // Months July (0) to December (5) belong to startYear
-    // Months January (6) to June (11) belong to endYear
-    let year;
-    if (monthIndex <= 5) {
-      year = agriculturalYear.startYear;
-    } else {
-      year = agriculturalYear.endYear;
-    }
-
-    const monthNumber = monthIndex + 1; // 1-indexed for API
-    const monthStr = String(monthNumber).padStart(2, '0');
-    return `${year}-${monthStr}`;
+  // Get month label from value
+  const getMonthLabel = (value) => {
+    if (!value) return '';
+    const found = agriYearMonths.find(m => m.value === value);
+    return found ? found.label : value;
   };
 
   // Helper function to get district statistics based on land type
@@ -159,7 +156,6 @@ function KeralaClusterReportList() {
       return { completed: 0, ongoing: 0, notStarted: 0, underReview: 0, hasData: false };
     }
 
-    // If land type is WET, use wet statistics
     if (landType === 'WET') {
       const stats = {
         completed: districtDetails.wetCompleted || 0,
@@ -171,9 +167,7 @@ function KeralaClusterReportList() {
         ...stats,
         hasData: stats.completed > 0 || stats.ongoing > 0 || stats.notStarted > 0 || stats.underReview > 0
       };
-    }
-    // If land type is DRY, use dry statistics
-    else if (landType === 'DRY') {
+    } else if (landType === 'DRY') {
       const stats = {
         completed: districtDetails.dryCompleted || 0,
         ongoing: districtDetails.dryOngoing || 0,
@@ -184,9 +178,7 @@ function KeralaClusterReportList() {
         ...stats,
         hasData: stats.completed > 0 || stats.ongoing > 0 || stats.notStarted > 0 || stats.underReview > 0
       };
-    }
-    // If ALL, combine both wet and dry statistics
-    else {
+    } else {
       const stats = {
         completed: (districtDetails.wetCompleted || 0) + (districtDetails.dryCompleted || 0),
         ongoing: (districtDetails.wetOngoing || 0) + (districtDetails.dryOngoing || 0),
@@ -206,7 +198,6 @@ function KeralaClusterReportList() {
     setError(null);
 
     try {
-      // Get token from localStorage
       const token = localStorage.getItem('token');
       if (!token) {
         throw new Error('Authorization token missing');
@@ -220,37 +211,25 @@ function KeralaClusterReportList() {
         params.append('landType', landType.toLowerCase());
       }
 
-      // Add date filters - ALWAYS include startMonth (backend requires it)
+      // IMPORTANT: Send full YYYY-MM format (YearMonth object expected by backend)
       if (filterType === 'single' && singleMonth) {
-        const formattedMonth = getMonthYearForApi(singleMonth);
-        if (formattedMonth) {
-          params.append('startMonth', formattedMonth);
-          params.append('endMonth', formattedMonth);
-        }
+        params.append('startMonth', singleMonth);
+        params.append('endMonth', singleMonth);
       } else if (filterType === 'range') {
-        // For range filter, we need at least startMonth
         if (fromMonth) {
-          const formattedFromMonth = getMonthYearForApi(fromMonth);
-          if (formattedFromMonth) {
-            params.append('startMonth', formattedFromMonth);
-          }
+          params.append('startMonth', fromMonth);
         }
-
         if (toMonth) {
-          const formattedToMonth = getMonthYearForApi(toMonth);
-          if (formattedToMonth) {
-            params.append('endMonth', formattedToMonth);
-          }
+          params.append('endMonth', toMonth);
         }
       }
 
-      // If no valid date params, use current month as default
+      // If no valid date params, use default
       if (!params.has('startMonth')) {
-        const currentMonth = getCurrentAgriMonth();
-        const formattedMonth = getMonthYearForApi(currentMonth);
-        if (formattedMonth) {
-          params.append('startMonth', formattedMonth);
-          params.append('endMonth', formattedMonth);
+        const defaultMonth = getDefaultMonth(agriYearMonths);
+        if (defaultMonth) {
+          params.append('startMonth', defaultMonth);
+          params.append('endMonth', defaultMonth);
         }
       }
 
@@ -260,9 +239,7 @@ function KeralaClusterReportList() {
       }
 
       console.log('Fetching data from:', url);
-      console.log('Agricultural Year:', agriculturalYear);
 
-      // Make request with authorization header
       const response = await api.get(url);
       console.log('Response data:', response.data);
 
@@ -272,7 +249,6 @@ function KeralaClusterReportList() {
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
 
-      // Handle specific error cases
       if (err.response?.status === 401) {
         setError('Session expired. Please login again.');
       } else if (err.response?.status === 403) {
@@ -287,7 +263,7 @@ function KeralaClusterReportList() {
     }
   };
 
-  // Transform API data to district data format with proper wet/dry handling and all master districts included
+  // Transform API data to district data format
   const transformApiDataToDistricts = useMemo(() => {
     if (!apiData || !apiData.allSubDetails) {
       return [];
@@ -301,7 +277,6 @@ function KeralaClusterReportList() {
         const distId = dist.distId || dist.id;
         const distName = dist.distNameEn || dist.districtName || dist.name;
 
-        // Find matching entry in allSubDetails by distId or normalized district name
         const matchedKey = Object.keys(subDetailsMap).find((key) => {
           const details = subDetailsMap[key];
           return (
@@ -338,7 +313,7 @@ function KeralaClusterReportList() {
       });
     }
 
-    // Fallback if master districtsList is not loaded yet
+    // Fallback if master districtsList is not loaded
     return Object.entries(subDetailsMap).map(([districtName, details]) => {
       const stats = getDistrictStats(details);
       return {
@@ -396,13 +371,12 @@ function KeralaClusterReportList() {
     if (newValue !== null) {
       setFilterType(newValue);
       if (newValue === 'single') {
-        // When switching to single month, set to current agricultural month
-        setSingleMonth(getCurrentAgriMonth());
+        const defaultMonth = getDefaultMonth(agriYearMonths);
+        setSingleMonth(defaultMonth);
         setFromMonth('');
         setToMonth('');
       } else {
-        // When switching to range, set fromMonth to July (start of agricultural year)
-        setFromMonth('July');
+        setFromMonth(agriYearMonths[0]?.value || '');
         setSingleMonth('');
         setToMonth('');
       }
@@ -431,9 +405,10 @@ function KeralaClusterReportList() {
   };
 
   const handleClearFilters = () => {
+    const defaultMonth = getDefaultMonth(agriYearMonths);
     setFromMonth('');
     setToMonth('');
-    setSingleMonth(getCurrentAgriMonth());
+    setSingleMonth(defaultMonth);
     setSeasonTab('ALL');
     setLandType(null);
     setFilterType('single');
@@ -442,7 +417,6 @@ function KeralaClusterReportList() {
   };
 
   const handleViewDetails = (districtName) => {
-    // Find district ID from data
     const district = transformApiDataToDistricts.find(d => d.district === districtName);
     const startMonthParam = filterType === 'single' ? singleMonth : fromMonth;
     const endMonthParam = filterType === 'single' ? singleMonth : toMonth;
@@ -454,8 +428,8 @@ function KeralaClusterReportList() {
           districtName: districtName,
           landType: landType,
           seasonTab: seasonTab,
-          startMonth: startMonthParam ? getMonthYearForApi(startMonthParam) : null,
-          endMonth: endMonthParam ? getMonthYearForApi(endMonthParam) : null,
+          startMonth: startMonthParam,
+          endMonth: endMonthParam,
           filterType,
           fromMonth,
           toMonth,
@@ -469,8 +443,8 @@ function KeralaClusterReportList() {
           districtName,
           landType: landType,
           seasonTab: seasonTab,
-          startMonth: startMonthParam ? getMonthYearForApi(startMonthParam) : null,
-          endMonth: endMonthParam ? getMonthYearForApi(endMonthParam) : null,
+          startMonth: startMonthParam,
+          endMonth: endMonthParam,
           filterType,
           fromMonth,
           toMonth,
@@ -486,11 +460,15 @@ function KeralaClusterReportList() {
     const agriYear = getAgriculturalYear();
     setAgriculturalYear(agriYear);
 
-    // Set initial month based on current date
-    const currentAgriMonth = getCurrentAgriMonth();
-    setSingleMonth(currentAgriMonth);
+    if (agriYear) {
+      const months = buildAgriYearMonths(agriYear.startYear, agriYear.endYear);
+      setAgriYearMonths(months);
 
-    // Store in localStorage for other components
+      const defaultMonth = getDefaultMonth(months);
+      setSingleMonth(defaultMonth);
+      setFromMonth(months[0]?.value || '');
+    }
+
     localStorage.setItem('agriculturalYear', JSON.stringify(agriYear));
   }, []);
 
@@ -514,10 +492,10 @@ function KeralaClusterReportList() {
 
   // Fetch data when filters change
   useEffect(() => {
-    if (agriculturalYear) {
+    if (agriculturalYear && agriYearMonths.length > 0) {
       fetchDashboardData();
     }
-  }, [landType, fromMonth, toMonth, singleMonth, filterType, agriculturalYear]);
+  }, [landType, fromMonth, toMonth, singleMonth, filterType, agriculturalYear, agriYearMonths]);
 
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
@@ -578,17 +556,17 @@ function KeralaClusterReportList() {
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {agriculturalYear && `Agricultural Year: ${agriculturalYear.display}`}
-                {filterType === 'single' && singleMonth && ` • ${singleMonth}`}
-                {filterType === 'range' && fromMonth && toMonth && ` • ${fromMonth} - ${toMonth}`}
-                {filterType === 'range' && fromMonth && !toMonth && ` • From ${fromMonth}`}
-                {filterType === 'range' && !fromMonth && toMonth && ` • Until ${toMonth}`}
+                {filterType === 'single' && singleMonth && ` • ${getMonthLabel(singleMonth)}`}
+                {filterType === 'range' && fromMonth && toMonth && ` • ${getMonthLabel(fromMonth)} – ${getMonthLabel(toMonth)}`}
+                {filterType === 'range' && fromMonth && !toMonth && ` • From ${getMonthLabel(fromMonth)}`}
+                {filterType === 'range' && !fromMonth && toMonth && ` • Until ${getMonthLabel(toMonth)}`}
                 {seasonTab !== 'ALL' && ` • ${seasonTab} Season`}
                 {apiData && ` • Total Clusters: ${apiData.totalCluster || 0}`}
                 {stats.districtsWithoutData > 0 && ` • ${stats.districtsWithoutData} districts with no data`}
               </Typography>
             </Box>
           </Stack>
-          {(fromMonth || toMonth || singleMonth || seasonTab !== 'ALL') && (
+          {(fromMonth || toMonth || (filterType === 'single' && singleMonth !== getDefaultMonth(agriYearMonths)) || seasonTab !== 'ALL') && (
             <Button
               variant="outlined"
               onClick={handleClearFilters}
@@ -669,19 +647,34 @@ function KeralaClusterReportList() {
 
               {filterType === 'range' ? (
                 <>
-                  <FormControl size="small" sx={{ minWidth: 130 }}>
+                  <FormControl size="small" sx={{ minWidth: 170 }}>
                     <InputLabel>From Month</InputLabel>
-                    <Select value={fromMonth} label="From Month" onChange={handleFromMonthChange}>
-                      <MenuItem value="">None</MenuItem>
-                      {agriYearMonths.map(month => <MenuItem key={month} value={month}>{month}</MenuItem>)}
+                    <Select
+                      value={fromMonth}
+                      label="From Month"
+                      onChange={handleFromMonthChange}
+                    >
+                      {agriYearMonths.map((m) => (
+                        <MenuItem key={m.value} value={m.value}>
+                          {m.label}
+                        </MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
                   <Typography variant="body2" color="text.secondary">→</Typography>
-                  <FormControl size="small" sx={{ minWidth: 130 }}>
+                  <FormControl size="small" sx={{ minWidth: 170 }}>
                     <InputLabel>To Month</InputLabel>
-                    <Select value={toMonth} label="To Month" onChange={handleToMonthChange}>
+                    <Select
+                      value={toMonth}
+                      label="To Month"
+                      onChange={handleToMonthChange}
+                    >
                       <MenuItem value="">None</MenuItem>
-                      {agriYearMonths.map(month => <MenuItem key={month} value={month}>{month}</MenuItem>)}
+                      {agriYearMonths.map((m) => (
+                        <MenuItem key={m.value} value={m.value}>
+                          {m.label}
+                        </MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
                 </>
@@ -693,8 +686,11 @@ function KeralaClusterReportList() {
                     label="Select Month"
                     onChange={handleSingleMonthChange}
                   >
-                    <MenuItem value="">None</MenuItem>
-                    {agriYearMonths.map(month => <MenuItem key={month} value={month}>{month}</MenuItem>)}
+                    {agriYearMonths.map((m) => (
+                      <MenuItem key={m.value} value={m.value}>
+                        {m.label}
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
               )}

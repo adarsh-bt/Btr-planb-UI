@@ -143,7 +143,7 @@ function KeralaFormReportList() {
 
       // 2. Execute request passing the Authorization header
       const response = await axios.post(
-        `${BASE_URL}/earas-form1-entry/form1/district-wise-status-summary`,
+        `http://localhost:8080/earas-form1-entry/form1/district-wise-status-summary`,
         requestBody,
         {
           headers: {

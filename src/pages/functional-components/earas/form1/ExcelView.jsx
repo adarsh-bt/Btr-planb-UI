@@ -168,13 +168,13 @@ const sortCropsAlphabetically = (crops) => {
 // Define the desired cluster order
 const getActiveClusters = (data) => {
   if (!data) return [];
-  
+
   // 1. If backend provides clusterLabels, use that order
   if (data.clusterLabels && Array.isArray(data.clusterLabels) && data.clusterLabels.length > 0) {
     // Only return clusters that actually have data
     const clustersWithData = data.clusterLabels.filter(cluster => {
       let hasData = false;
-      
+
       // Check landUtilization
       if (data.landUtilization) {
         const landArray = toArray(data.landUtilization);
@@ -185,7 +185,7 @@ const getActiveClusters = (data) => {
           }
         }
       }
-      
+
       // Check crop sections
       if (!hasData) {
         const cropSections = [data.virippu, data.mundakan, data.puncha, data.annualCrops, data.perennialCrops];
@@ -203,18 +203,18 @@ const getActiveClusters = (data) => {
           if (hasData) break;
         }
       }
-      
+
       return hasData;
     });
-    
+
     if (clustersWithData.length > 0) {
       return clustersWithData;
     }
   }
-  
+
   // 2. Fallback: detect from ALL_CLUSTER_LABELS
   const clusters = new Set();
-  
+
   if (data.landUtilization) {
     const landArray = toArray(data.landUtilization);
     landArray.forEach(item => {
@@ -226,7 +226,7 @@ const getActiveClusters = (data) => {
       });
     });
   }
-  
+
   const cropSections = [data.virippu, data.mundakan, data.puncha, data.annualCrops, data.perennialCrops];
   cropSections.forEach(section => {
     if (!section) return;
@@ -241,7 +241,7 @@ const getActiveClusters = (data) => {
       });
     });
   });
-  
+
   if (!clusters.has('K') && data.landUtilization) {
     const landArray = toArray(data.landUtilization);
     landArray.forEach(item => {
@@ -250,7 +250,7 @@ const getActiveClusters = (data) => {
       }
     });
   }
-  
+
   return ALL_CLUSTER_LABELS.filter(cluster => clusters.has(cluster));
 };
 
@@ -369,7 +369,7 @@ const ExcelView = ({ open, onClose, clusterId }) => {
   const renderNucRow = (nuc) => {
     let CellComponent = DataCell;
     let cellStyle = {};
-    
+
     if (nuc.label === 'NUC Area' || nuc.malayalamLabel === 'NUC') {
       CellComponent = NucCell;
       cellStyle = { backgroundColor: '#FFF2CC !important' };
@@ -398,10 +398,10 @@ const ExcelView = ({ open, onClose, clusterId }) => {
       </TableRow>
     );
   };
-  
+
 
   const renderCropRow = (crop) => {
-    const displayName = crop.growthStage && crop.growthStage !== 'no classification' 
+    const displayName = crop.growthStage && crop.growthStage !== 'no classification'
       ? `${crop.malayalamName || crop.cropName} (${crop.growthStage})`
       : crop.cropName || crop.cropName;
 
@@ -428,26 +428,42 @@ const ExcelView = ({ open, onClose, clusterId }) => {
       </TableRow>
     );
   };
-// Add this helper function after the toArray function
-// In ExcelView.jsx, update the renderLandUtilization function
+  // Add this helper function after the toArray function
+  // In ExcelView.jsx, update the renderLandUtilization function
 
-const renderLandUtilization = (landData) => {
-  const landArray = toArray(landData);
-  const totalClusters = activeClusters.length;
-  const totalCols = 6 + 1 + (totalClusters * 2) + 2;
+  const renderLandUtilization = (landData) => {
+    const landArray = toArray(landData);
+    const totalClusters = activeClusters.length;
+    const totalCols = 6 + 1 + (totalClusters * 2) + 2;
 
-  // Get cluster labels with area from formData
-  const clusterLabelsWithArea = formData?.clusterLabelsWithArea || [];
-  
-  // Create a map for quick lookup
-  const areaMap = {};
-  let totalArea = 0;
-  clusterLabelsWithArea.forEach(item => {
-    areaMap[item.label] = item.totalEnumeratedArea || 0;
-    totalArea += item.totalEnumeratedArea || 0;
-  });
+    // Get cluster labels with area from formData
+    const clusterLabelsWithArea = formData?.clusterLabelsWithArea || [];
 
-  if (landArray.length === 0) {
+    // Create a map for quick lookup
+    const areaMap = {};
+    let totalArea = 0;
+    clusterLabelsWithArea.forEach(item => {
+      areaMap[item.label] = item.totalEnumeratedArea || 0;
+      totalArea += item.totalEnumeratedArea || 0;
+    });
+
+    if (landArray.length === 0) {
+      return (
+        <>
+          <TableRow>
+            <SectionHeaderCell colSpan={totalCols} sx={{ backgroundColor: '#d9e1f2', fontWeight: 'bold', fontSize: '10px', padding: '6px 4px' }}>
+              എ . ഭൂവിനിയോഗം
+            </SectionHeaderCell>
+          </TableRow>
+          <TableRow>
+            <DataCell colSpan={totalCols} sx={{ textAlign: 'center', color: '#999' }}>
+              No land utilization data available
+            </DataCell>
+          </TableRow>
+        </>
+      );
+    }
+
     return (
       <>
         <TableRow>
@@ -456,307 +472,298 @@ const renderLandUtilization = (landData) => {
           </SectionHeaderCell>
         </TableRow>
         <TableRow>
-          <DataCell colSpan={totalCols} sx={{ textAlign: 'center', color: '#999' }}>
-            No land utilization data available
-          </DataCell>
+          <HeaderCell colSpan={2} sx={{ minWidth: '50px' }}>നമ്പർ</HeaderCell>
+          <HeaderCell colSpan={4} sx={{ minWidth: '120px' }}>വിസ്‌തൃതി (എന്യൂമറേറ്റഡ്‌)</HeaderCell>
+          <HeaderCell sx={{ minWidth: '60px' }}>സെന്റ്</HeaderCell>
+          {activeClusters.map((label) => {
+            const area = areaMap[label] || 0;
+            return (
+              <HeaderCell key={label} colSpan={2} sx={{ minWidth: '50px' }}>
+                <span style={{ fontSize: '10px', fontWeight: 'normal' }}>{area.toFixed(2)}</span>
+              </HeaderCell>
+            );
+          })}
+          <HeaderCell colSpan={2} sx={{ minWidth: '60px' }}>
+            <span style={{ fontSize: '10px', fontWeight: 'bold' }}>{totalArea.toFixed(2)}</span>
+          </HeaderCell>
+        </TableRow>
+
+        {landArray.map((item, index) => {
+          const clusterValues = activeClusters.map(cluster => item[cluster.toLowerCase()] ?? 0);
+          return (
+            <TableRow key={index}>
+              <DataCell sx={{ minWidth: '50px' }}>{index + 1}</DataCell>
+              <DataCell colSpan={5} sx={{ textAlign: 'left' }}>{item.malayalamLabel}</DataCell>
+              <DataCell>"</DataCell>
+              {clusterValues.map((val, idx) => (
+                <DataCell key={idx} colSpan={2}>
+                  {typeof val === 'number' ? val.toFixed(2) : '0.00'}
+                </DataCell>
+              ))}
+              <TotalCell colSpan={2}>{(item.total ?? 0).toFixed(2)}</TotalCell>
+            </TableRow>
+          );
+        })}
+      </>
+    );
+  };
+
+  const renderSeasonalSection = (title, data, headerColor = '#FFE699') => {
+    if (!data) return null;
+    const { crops = [], nucRows = [] } = data;
+    const totalClusters = activeClusters.length;
+    const totalCols = 6 + 1 + (totalClusters * 2) + 2;
+
+    // Sort crops alphabetically
+    const sortedCrops = sortCropsAlphabetically(crops);
+
+    return (
+      <>
+        <TableRow>
+          <SectionHeaderCell colSpan={totalCols} sx={{ backgroundColor: headerColor, fontWeight: 'bold', fontSize: '10px', padding: '6px 4px' }}>
+            {title}
+          </SectionHeaderCell>
+        </TableRow>
+        <TableRow>
+          <SectionHeaderCell colSpan={6} sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', fontSize: '9px' }}>
+            വിളകൾ
+          </SectionHeaderCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '50px' }}></DataCell>
+          {activeClusters.map((label) => (
+            <React.Fragment key={label}>
+              <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '45px' }}>I</DataCell>
+              <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '45px' }}>UI</DataCell>
+            </React.Fragment>
+          ))}
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '45px' }}>I</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '45px' }}>UI</DataCell>
+        </TableRow>
+
+        {sortedCrops.length > 0 ? (
+          sortedCrops.map((crop, idx) => renderCropRow(crop))
+        ) : (
+          <TableRow>
+            <CropNameCell colSpan={totalCols} sx={{ textAlign: 'center', color: '#999' }}>
+              No crops data available
+            </CropNameCell>
+          </TableRow>
+        )}
+
+        {nucRows.length > 0 && nucRows.map((nuc, idx) => renderNucRow(nuc))}
+      </>
+    );
+  };
+
+  const renderRegularCropSection = (title, crops, headerColor) => {
+    const cropArray = toArray(crops);
+    const totalClusters = activeClusters.length;
+    const totalCols = 6 + 1 + (totalClusters * 2) + 2;
+
+    // Sort crops alphabetically
+    const sortedCrops = sortCropsAlphabetically(cropArray);
+
+    return (
+      <>
+        <TableRow>
+          <SectionHeaderCell colSpan={totalCols} sx={{ backgroundColor: headerColor, fontWeight: 'bold', fontSize: '10px', padding: '6px 4px' }}>
+            {title}
+          </SectionHeaderCell>
+        </TableRow>
+        <TableRow>
+          <SectionHeaderCell colSpan={6} sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', fontSize: '9px' }}>
+            വിളകൾ
+          </SectionHeaderCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '50px' }}>"</DataCell>
+          {activeClusters.map((label) => (
+            <React.Fragment key={label}>
+              <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '45px' }}>I</DataCell>
+              <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '45px' }}>UI</DataCell>
+            </React.Fragment>
+          ))}
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '45px' }}>I</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '45px' }}>UI</DataCell>
+        </TableRow>
+
+        {sortedCrops.length > 0 ? (
+          sortedCrops.map((crop, idx) => renderCropRow(crop))
+        ) : (
+          <TableRow>
+            <CropNameCell colSpan={totalCols} sx={{ textAlign: 'center', color: '#999' }}>
+              No {title} crops data available
+            </CropNameCell>
+          </TableRow>
+        )}
+      </>
+    );
+  };
+
+  // In renderIrrigationSection
+  const renderIrrigationSection = (irrigationData) => {
+    const items = toArray(irrigationData?.items);
+    const totalClusters = activeClusters.length;
+    const totalCols = 3 + 1 + (totalClusters * 2) + 2;
+
+    // Get area map for header
+    const clusterLabelsWithArea = formData?.clusterLabelsWithArea || [];
+    const areaMap = {};
+    clusterLabelsWithArea.forEach(item => {
+      areaMap[item.label] = item.totalEnumeratedArea || 0;
+    });
+
+    return (
+      <>
+        <TableRow>
+          <SectionHeaderCell
+            colSpan={totalCols}
+            sx={{
+              backgroundColor: '#B7DEE8',
+              fontWeight: 'bold',
+              fontSize: '10px',
+              padding: '6px 4px'
+            }}
+          >
+            ഇ. ജലസേചനമുള്ള സ്ഥലവിസ്തൃതി
+          </SectionHeaderCell>
+        </TableRow>
+
+        <TableRow>
+          <HeaderCell colSpan={3} sx={{ minWidth: '100px' }}>ജലസേചന മാർഗ്ഗം</HeaderCell>
+          <HeaderCell sx={{ minWidth: '40px' }}>കോഡ്</HeaderCell>
+          {activeClusters.map((label) => {
+            const area = areaMap[label] || 0;
+            return (
+              <HeaderCell key={label} colSpan={2} sx={{ minWidth: '45px' }}>
+                {label}
+                <br />
+                <span style={{ fontSize: '6px', fontWeight: 'normal' }}>({area.toFixed(2)})</span>
+              </HeaderCell>
+            );
+          })}
+          <HeaderCell colSpan={2} sx={{ minWidth: '55px' }}>ആകെ</HeaderCell>
+        </TableRow>
+
+        <TableRow>
+          <HeaderCell colSpan={4} sx={{ backgroundColor: '#e8f0fe' }}></HeaderCell>
+          {activeClusters.map((label) => (
+            <React.Fragment key={label}>
+              <HeaderCell sx={{ backgroundColor: '#e8f0fe', minWidth: '35px' }}>എണ്ണം</HeaderCell>
+              <HeaderCell sx={{ backgroundColor: '#e8f0fe', minWidth: '35px' }}>വിസ്തൃതി</HeaderCell>
+            </React.Fragment>
+          ))}
+          <HeaderCell colSpan={2} sx={{ backgroundColor: '#e8f0fe' }}></HeaderCell>
+        </TableRow>
+
+        {items.length > 0 ? (
+          items.map((item, idx) => {
+            let sourceTotal = 0;
+            const clusterData = activeClusters.map(cluster => {
+              const areaKey = `${cluster.toLowerCase()}Area`;
+              const countKey = `${cluster.toLowerCase()}Count`;
+              const area = item[areaKey] || 0;
+              const count = item[countKey] || 0;
+              sourceTotal += area;
+              return { area, count };
+            });
+
+            return (
+              <TableRow key={idx}>
+                <DataCell colSpan={3}>{item.irrigationType || 'N/A'}</DataCell>
+                <DataCell>{item.code || 'N/A'}</DataCell>
+                {clusterData.map((data, idx) => (
+                  <React.Fragment key={idx}>
+                    <DataCell>{data.count}</DataCell>
+                    <DataCell>{data.area.toFixed(2)}</DataCell>
+                  </React.Fragment>
+                ))}
+                <TotalCell colSpan={2}>{sourceTotal.toFixed(2)}</TotalCell>
+              </TableRow>
+            );
+          })
+        ) : (
+          <TableRow>
+            <DataCell colSpan={totalCols} sx={{ textAlign: 'center', color: '#999' }}>
+              No irrigation data available
+            </DataCell>
+          </TableRow>
+        )}
+
+        {/* Gross Area Row - Calculate with stands per hectare logic */}
+        <TableRow sx={{ backgroundColor: '#c8e6c9' }}>
+          <DataCell colSpan={4} sx={{ fontWeight: 'bold' }}>Gross Area</DataCell>
+          {activeClusters.map((cluster) => {
+            let grossTotal = 0;
+            items.forEach(item => {
+              const areaKey = `${cluster.toLowerCase()}Area`;
+              const countKey = `${cluster.toLowerCase()}Count`;
+              const standsKey = `${cluster.toLowerCase()}StandsPerHectare`;
+              const area = item[areaKey] || 0;
+              const count = item[countKey] || 0;
+              const stands = item[standsKey] || 0;
+
+              // If stands per hectare is available and > 0, use it for conversion
+              if (stands > 0) {
+                // Gross Area = (count / stands) * area
+                grossTotal += (count / stands) * area;
+              } else {
+                // Fallback: simple multiplication
+                grossTotal += area * count;
+              }
+            });
+            return (
+              <React.Fragment key={cluster}>
+                <DataCell sx={{ fontWeight: 'bold' }}></DataCell>
+                <DataCell sx={{ fontWeight: 'bold' }}>
+                  {grossTotal.toFixed(2)}
+                </DataCell>
+              </React.Fragment>
+            );
+          })}
+          <TotalCell colSpan={2} sx={{ fontWeight: 'bold' }}>
+            {items.reduce((sum, item) => {
+              let total = 0;
+              activeClusters.forEach(cluster => {
+                const areaKey = `${cluster.toLowerCase()}Area`;
+                const countKey = `${cluster.toLowerCase()}Count`;
+                const standsKey = `${cluster.toLowerCase()}StandsPerHectare`;
+                const area = item[areaKey] || 0;
+                const count = item[countKey] || 0;
+                const stands = item[standsKey] || 0;
+                if (stands > 0) {
+                  total += (count / stands) * area;
+                } else {
+                  total += area * count;
+                }
+              });
+              return sum + total;
+            }, 0).toFixed(2)}
+          </TotalCell>
+        </TableRow>
+
+        {/* Net Area Row */}
+        <TableRow sx={{ backgroundColor: '#e8f5e9', borderTop: '2px solid #388e3c' }}>
+          <DataCell colSpan={4} sx={{ fontWeight: 'bold' }}>Net Area</DataCell>
+          {activeClusters.map((cluster) => {
+            let netTotal = 0;
+            items.forEach(item => {
+              const areaKey = `${cluster.toLowerCase()}Area`;
+              netTotal += item[areaKey] || 0;
+            });
+            return (
+              <React.Fragment key={cluster}>
+                <DataCell sx={{ fontWeight: 'bold' }}></DataCell>
+                <DataCell sx={{ fontWeight: 'bold' }}>
+                  {netTotal.toFixed(2)}
+                </DataCell>
+              </React.Fragment>
+            );
+          })}
+          <TotalCell colSpan={2} sx={{ fontWeight: 'bold' }}>
+            {items.reduce((sum, item) => sum + (item.totalArea || 0), 0).toFixed(2)}
+          </TotalCell>
         </TableRow>
       </>
     );
-  }
-
-  return (
-    <>
-      <TableRow>
-        <SectionHeaderCell colSpan={totalCols} sx={{ backgroundColor: '#d9e1f2', fontWeight: 'bold', fontSize: '10px', padding: '6px 4px' }}>
-          എ . ഭൂവിനിയോഗം
-        </SectionHeaderCell>
-      </TableRow>
-      <TableRow>
-        <HeaderCell colSpan={2} sx={{ minWidth: '50px' }}>നമ്പർ</HeaderCell>
-        <HeaderCell colSpan={4} sx={{ minWidth: '120px' }}>വിസ്‌തൃതി (എന്യൂമറേറ്റഡ്‌)</HeaderCell>
-        <HeaderCell sx={{ minWidth: '60px' }}>സെന്റ്</HeaderCell>
-        {activeClusters.map((label) => {
-          const area = areaMap[label] || 0;
-          return (
-            <HeaderCell key={label} colSpan={2} sx={{ minWidth: '50px' }}>
-              <span style={{ fontSize: '10px', fontWeight: 'normal' }}>{area.toFixed(2)}</span>
-            </HeaderCell>
-          );
-        })}
-        <HeaderCell colSpan={2} sx={{ minWidth: '60px' }}>
-          <span style={{ fontSize: '10px', fontWeight: 'bold' }}>{totalArea.toFixed(2)}</span>
-        </HeaderCell>
-      </TableRow>
-
-      {landArray.map((item, index) => {
-        const clusterValues = activeClusters.map(cluster => item[cluster.toLowerCase()] ?? 0);
-        return (
-          <TableRow key={index}>
-            <DataCell sx={{ minWidth: '50px' }}>{index + 1}</DataCell>
-            <DataCell colSpan={5} sx={{ textAlign: 'left' }}>{item.malayalamLabel}</DataCell>
-            <DataCell>"</DataCell>
-            {clusterValues.map((val, idx) => (
-              <DataCell key={idx} colSpan={2}>
-                {typeof val === 'number' ? val.toFixed(2) : '0.00'}
-              </DataCell>
-            ))}
-            <TotalCell colSpan={2}>{(item.total ?? 0).toFixed(2)}</TotalCell>
-          </TableRow>
-        );
-      })}
-    </>
-  );
-};
-
-const renderSeasonalSection = (title, data, headerColor = '#FFE699') => {
-  if (!data) return null;
-  const { crops = [], nucRows = [] } = data;
-  const totalClusters = activeClusters.length;
-  const totalCols = 6 + 1 + (totalClusters * 2) + 2;
-
-  // Sort crops alphabetically
-  const sortedCrops = sortCropsAlphabetically(crops);
-
-  return (
-    <>
-      <TableRow>
-        <SectionHeaderCell colSpan={totalCols} sx={{ backgroundColor: headerColor, fontWeight: 'bold', fontSize: '10px', padding: '6px 4px' }}>
-          {title}
-        </SectionHeaderCell>
-      </TableRow>
-      <TableRow>
-        <SectionHeaderCell colSpan={6} sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', fontSize: '9px' }}>
-          വിളകൾ
-        </SectionHeaderCell>
-        <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '50px' }}></DataCell>
-        {activeClusters.map((label) => (
-          <React.Fragment key={label}>
-            <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '45px' }}>I</DataCell>
-            <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '45px' }}>UI</DataCell>
-          </React.Fragment>
-        ))}
-        <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '45px' }}>I</DataCell>
-        <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '45px' }}>UI</DataCell>
-      </TableRow>
-
-      {sortedCrops.length > 0 ? (
-        sortedCrops.map((crop, idx) => renderCropRow(crop))
-      ) : (
-        <TableRow>
-          <CropNameCell colSpan={totalCols} sx={{ textAlign: 'center', color: '#999' }}>
-            No crops data available
-          </CropNameCell>
-        </TableRow>
-      )}
-
-      {nucRows.length > 0 && nucRows.map((nuc, idx) => renderNucRow(nuc))}
-    </>
-  );
-};
-
-const renderRegularCropSection = (title, crops, headerColor) => {
-  const cropArray = toArray(crops);
-  const totalClusters = activeClusters.length;
-  const totalCols = 6 + 1 + (totalClusters * 2) + 2;
-
-  // Sort crops alphabetically
-  const sortedCrops = sortCropsAlphabetically(cropArray);
-
-  return (
-    <>
-      <TableRow>
-        <SectionHeaderCell colSpan={totalCols} sx={{ backgroundColor: headerColor, fontWeight: 'bold', fontSize: '10px', padding: '6px 4px' }}>
-          {title}
-        </SectionHeaderCell>
-      </TableRow>
-      <TableRow>
-        <SectionHeaderCell colSpan={6} sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', fontSize: '9px' }}>
-          വിളകൾ
-        </SectionHeaderCell>
-        <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '50px' }}>"</DataCell>
-        {activeClusters.map((label) => (
-          <React.Fragment key={label}>
-            <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '45px' }}>I</DataCell>
-            <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '45px' }}>UI</DataCell>
-          </React.Fragment>
-        ))}
-        <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '45px' }}>I</DataCell>
-        <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '45px' }}>UI</DataCell>
-      </TableRow>
-
-      {sortedCrops.length > 0 ? (
-        sortedCrops.map((crop, idx) => renderCropRow(crop))
-      ) : (
-        <TableRow>
-          <CropNameCell colSpan={totalCols} sx={{ textAlign: 'center', color: '#999' }}>
-            No {title} crops data available
-          </CropNameCell>
-        </TableRow>
-      )}
-    </>
-  );
-};
-
-const renderIrrigationSection = (irrigationData) => {
-  const items = toArray(irrigationData?.items);
-  const totalClusters = activeClusters.length;
-  // Columns: Description (colSpan 3) + Code (1) + (clusters * 2 for Count + Area) + Total (2)
-  const totalCols = 3 + 1 + (totalClusters * 2) + 2;
-
-  // Calculate Net Area and Gross Area totals per cluster
-  const netTotals = {};
-  const grossTotals = {};
-  let totalNetAreaAll = 0;
-  let totalGrossAreaAll = 0;
-
-  items.forEach(item => {
-    activeClusters.forEach(cluster => {
-      const areaKey = `${cluster.toLowerCase()}Area`;
-      const area = item[areaKey] || 0;
-      const count = item.sourceCount || 0;
-      
-      // Net Area (just the area)
-      if (!netTotals[cluster]) netTotals[cluster] = 0;
-      netTotals[cluster] += area;
-      totalNetAreaAll += area;
-
-      // Gross Area (area × count)
-      const grossArea = area * count;
-      if (!grossTotals[cluster]) grossTotals[cluster] = 0;
-      grossTotals[cluster] += grossArea;
-      totalGrossAreaAll += grossArea;
-    });
-  });
-
-  // Get area map from formData for header
-  const clusterLabelsWithArea = formData?.clusterLabelsWithArea || [];
-  const areaMap = {};
-  clusterLabelsWithArea.forEach(item => {
-    areaMap[item.label] = item.totalEnumeratedArea || 0;
-  });
-
-  return (
-    <>
-      <TableRow>
-        <SectionHeaderCell 
-          colSpan={totalCols} 
-          sx={{ 
-            backgroundColor: '#B7DEE8', 
-            fontWeight: 'bold', 
-            fontSize: '10px', 
-            padding: '6px 4px' 
-          }}
-        >
-          ഇ. ജലസേചനമുള്ള സ്ഥലവിസ്തൃതി
-        </SectionHeaderCell>
-      </TableRow>
-      
-      {/* Main Header Row with Cluster Labels (same as top) */}
-      <TableRow>
-        <HeaderCell colSpan={3} sx={{ minWidth: '100px' }}>ജലസേചന മാർഗ്ഗം</HeaderCell>
-        <HeaderCell sx={{ minWidth: '40px' }}>കോഡ്</HeaderCell>
-        {activeClusters.map((label) => {
-          const area = areaMap[label] || 0;
-          return (
-            <HeaderCell key={label} colSpan={2} sx={{ minWidth: '45px' }}>
-              {label}
-              <br />
-              <span style={{ fontSize: '6px', fontWeight: 'normal' }}>({area.toFixed(2)})</span>
-            </HeaderCell>
-          );
-        })}
-        <HeaderCell colSpan={2} sx={{ minWidth: '55px' }}>ആകെ</HeaderCell>
-      </TableRow>
-      
-      {/* Sub-header Row: Count and Area */}
-      <TableRow>
-        <HeaderCell colSpan={4} sx={{ backgroundColor: '#e8f0fe' }}></HeaderCell>
-        {activeClusters.map((label) => (
-          <React.Fragment key={label}>
-            <HeaderCell sx={{ backgroundColor: '#e8f0fe', minWidth: '35px' }}>എണ്ണം</HeaderCell>
-            <HeaderCell sx={{ backgroundColor: '#e8f0fe', minWidth: '35px' }}>വിസ്തൃതി</HeaderCell>
-          </React.Fragment>
-        ))}
-        <HeaderCell colSpan={2} sx={{ backgroundColor: '#e8f0fe' }}></HeaderCell>
-      </TableRow>
-
-      {/* Irrigation Source Rows */}
-      {items.length > 0 ? (
-        items.map((item, idx) => {
-          // Calculate total for this source
-          let sourceTotal = 0;
-          const clusterData = activeClusters.map(cluster => {
-            const areaKey = `${cluster.toLowerCase()}Area`;
-            const countKey = `${cluster.toLowerCase()}Count`;
-            const area = item[areaKey] || 0;
-            const count = item[countKey] || 0;
-            sourceTotal += area;
-            return { area, count };
-          });
-
-          return (
-            <TableRow key={idx}>
-              <DataCell colSpan={3}>{item.irrigationType || 'N/A'}</DataCell>
-              <DataCell>{item.code || 'N/A'}</DataCell>
-              {clusterData.map((data, idx) => (
-                <React.Fragment key={idx}>
-                  <DataCell>{data.count}</DataCell>
-                  <DataCell>{data.area.toFixed(2)}</DataCell>
-                </React.Fragment>
-              ))}
-              <TotalCell colSpan={2}>{sourceTotal.toFixed(2)}</TotalCell>
-            </TableRow>
-          );
-        })
-      ) : (
-        <TableRow>
-          <DataCell colSpan={totalCols} sx={{ textAlign: 'center', color: '#999' }}>
-            No irrigation data available
-          </DataCell>
-        </TableRow>
-      )}
-
-      {/* Net Area Total Row */}
-      <TableRow sx={{ backgroundColor: '#e8f5e9' }}>
-        <DataCell colSpan={4} sx={{ fontWeight: 'bold' }}>Net Area</DataCell>
-        {activeClusters.map((cluster) => {
-          const netVal = netTotals[cluster] || 0;
-          return (
-            <React.Fragment key={cluster}>
-              <DataCell sx={{ fontWeight: 'bold' }}></DataCell>
-              <DataCell sx={{ fontWeight: 'bold' }}>
-                {netVal.toFixed(2)}
-              </DataCell>
-            </React.Fragment>
-          );
-        })}
-        <TotalCell colSpan={2} sx={{ fontWeight: 'bold' }}>
-          {totalNetAreaAll.toFixed(2)}
-        </TotalCell>
-      </TableRow>
-
-      {/* Gross Area Total Row */}
-      <TableRow sx={{ backgroundColor: '#c8e6c9', borderTop: '2px solid #388e3c' }}>
-        <DataCell colSpan={4} sx={{ fontWeight: 'bold' }}>Gross Area</DataCell>
-        {activeClusters.map((cluster) => {
-          const grossVal = grossTotals[cluster] || 0;
-          return (
-            <React.Fragment key={cluster}>
-              <DataCell sx={{ fontWeight: 'bold' }}></DataCell>
-              <DataCell sx={{ fontWeight: 'bold' }}>
-                {grossVal.toFixed(2)}
-              </DataCell>
-            </React.Fragment>
-          );
-        })}
-        <TotalCell colSpan={2} sx={{ fontWeight: 'bold' }}>
-          {totalGrossAreaAll.toFixed(2)}
-        </TotalCell>
-      </TableRow>
-    </>
-  );
-};
-
+  };
   const renderOwnerDetails = (owner) => {
     const totalClusters = activeClusters.length;
     const totalCols = 6 + 1 + (totalClusters * 2) + 2;
@@ -822,10 +829,10 @@ const renderIrrigationSection = (irrigationData) => {
   const totalCols = 6 + 1 + (totalClusters * 2) + 2;
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="xl" 
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="xl"
       fullWidth
       PaperProps={{
         sx: {
@@ -834,10 +841,10 @@ const renderIrrigationSection = (irrigationData) => {
         }
       }}
     >
-      <DialogTitle sx={{ 
-        m: 0, 
-        p: 1.5, 
-        backgroundColor: '#04255e', 
+      <DialogTitle sx={{
+        m: 0,
+        p: 1.5,
+        backgroundColor: '#04255e',
         color: '#ffffff',
         display: 'flex',
         justifyContent: 'space-between',
@@ -845,14 +852,14 @@ const renderIrrigationSection = (irrigationData) => {
       }}>
         <Typography variant="h6" fontWeight="bold" fontSize="1rem">
           Form 1 - Report View
-          <Chip 
-            label={`Cluster: ${header?.clusterNumber || 'N/A'}`} 
-            size="small" 
+          <Chip
+            label={`Cluster: ${header?.clusterNumber || 'N/A'}`}
+            size="small"
             sx={{ ml: 2, backgroundColor: '#ffffff20', color: '#ffffff' }}
           />
-          <Chip 
-            label={`Active Clusters: ${activeClusters.join(', ')}`} 
-            size="small" 
+          <Chip
+            label={`Active Clusters: ${activeClusters.join(', ')}`}
+            size="small"
             sx={{ ml: 1, backgroundColor: '#ffffff20', color: '#ffffff' }}
           />
         </Typography>
@@ -862,7 +869,7 @@ const renderIrrigationSection = (irrigationData) => {
             startIcon={<PictureAsPdfIcon />}
             onClick={handlePrint}
             disabled={isPrinting}
-            sx={{ 
+            sx={{
               mr: 1,
               backgroundColor: '#ffffff',
               color: '#04255e',
@@ -878,17 +885,17 @@ const renderIrrigationSection = (irrigationData) => {
           </IconButton>
         </Box>
       </DialogTitle>
-      
+
       <DialogContent dividers sx={{ p: 1, backgroundColor: '#f5f5f5' }}>
         <PrintStyle />
         <PrintContainer ref={printRef} className="print-container" sx={{ p: 1, maxWidth: '100%' }}>
-          
+
           {/* ================= NEW BEAUTIFUL PDF HEADER UI ================= */}
-          <Box sx={{ 
-            border: '1px solid #ccc', 
-            borderRadius: '4px', 
-            p: 2, 
-            mb: 2, 
+          <Box sx={{
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            p: 2,
+            mb: 2,
             backgroundColor: '#fff',
             display: 'flex',
             flexDirection: 'column',
@@ -907,7 +914,7 @@ const renderIrrigationSection = (irrigationData) => {
                 }}
               />
             </Box>
-            
+
             {/* Symmetrical Informational Grid */}
             <Grid container spacing={1} sx={{ borderTop: '1px dashed #ccc', pt: 1.5, px: 2 }}>
               <Grid item xs={4}>
@@ -950,27 +957,27 @@ const renderIrrigationSection = (irrigationData) => {
               <Table size="small" sx={{ minWidth: 1200 }}>
                 <TableHead>
                   <TableRow>
-  <HeaderCell colSpan={6} sx={{ minWidth: '150px' }}>വിവരണങ്ങൾ</HeaderCell>
-  <HeaderCell sx={{ minWidth: '60px' }}>യൂണിറ്റ്</HeaderCell>
-  {activeClusters.map((label) => {
-    const clusterLabelsWithArea = formData?.clusterLabelsWithArea || [];
-    const areaMap = {};
-    clusterLabelsWithArea.forEach(item => {
-      areaMap[item.label] = item.totalEnumeratedArea || 0;
-    });
-    const area = areaMap[label] || 0;
-    return (
-      <HeaderCell key={label} colSpan={2} sx={{ minWidth: '45px' }}>
-        {label}
-        <br />
-        {/* <span style={{ fontSize: '6px', fontWeight: 'normal' }}>({area.toFixed(2)})</span> */}
-      </HeaderCell>
-    );
-  })}
-  <HeaderCell colSpan={2} sx={{ minWidth: '55px' }}>ആകെ</HeaderCell>
-</TableRow>
+                    <HeaderCell colSpan={6} sx={{ minWidth: '150px' }}>വിവരണങ്ങൾ</HeaderCell>
+                    <HeaderCell sx={{ minWidth: '60px' }}>യൂണിറ്റ്</HeaderCell>
+                    {activeClusters.map((label) => {
+                      const clusterLabelsWithArea = formData?.clusterLabelsWithArea || [];
+                      const areaMap = {};
+                      clusterLabelsWithArea.forEach(item => {
+                        areaMap[item.label] = item.totalEnumeratedArea || 0;
+                      });
+                      const area = areaMap[label] || 0;
+                      return (
+                        <HeaderCell key={label} colSpan={2} sx={{ minWidth: '45px' }}>
+                          {label}
+                          <br />
+                          {/* <span style={{ fontSize: '6px', fontWeight: 'normal' }}>({area.toFixed(2)})</span> */}
+                        </HeaderCell>
+                      );
+                    })}
+                    <HeaderCell colSpan={2} sx={{ minWidth: '55px' }}>ആകെ</HeaderCell>
+                  </TableRow>
                 </TableHead>
-                
+
                 <TableBody>
                   {/* ========== SECTION A: LAND UTILIZATION ========== */}
                   {renderLandUtilization(landUtilization)}
@@ -1043,10 +1050,10 @@ const Form1WithExcelView = ({ clusterId }) => {
       >
         View Report (PDF)
       </Button>
-      
-      <ExcelView 
-        open={openExcelView} 
-        onClose={() => setOpenExcelView(false)} 
+
+      <ExcelView
+        open={openExcelView}
+        onClose={() => setOpenExcelView(false)}
         clusterId={clusterId}
       />
     </>

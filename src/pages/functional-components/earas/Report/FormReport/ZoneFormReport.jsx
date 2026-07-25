@@ -1,5 +1,5 @@
 // ZoneFormReport.js - With API integration and navigation support
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Grid,
   Typography,
@@ -58,7 +58,11 @@ function ZoneFormReport() {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const { districtName, talukName } = useParams();
+  // routeTalukId comes from the TALUK-approver direct route:
+  //   kerala_form_report/zone_form_report/direct/:talukId
+  const { districtName, talukName, talukId: routeTalukId } = useParams();
+
+  const stateData = location.state || {};
 
   // Month helpers
   const months = [
@@ -83,34 +87,43 @@ function ZoneFormReport() {
     return months[currentDate.getMonth()];
   };
 
-  // Get initial filters from navigation state
-  const getInitialFilters = () => {
-    const state = location.state || {};
-    
-    // If we have state from navigation, use it
-    if (state.fromMonth || state.toMonth || state.singleMonth) {
-      return {
-        districtId: state.districtId,
-        talukId: state.talukId,
-        filterType: state.filterType || 'single',
-        fromMonth: state.fromMonth || '',
-        toMonth: state.toMonth || '',
-        singleMonth: state.singleMonth || getCurrentMonth(),
-        seasonTab: state.seasonTab || 'ALL',
-        selectedSeason: state.selectedSeason || ''
-      };
-    }
+  /* ── resolve taluk ID once and keep in a ref ──
+        Priority:
+        1. state.talukId        (normal drill-down from TalukFormReport)
+        2. state.talukOfficeId  (direct access from ReportMenuWrapper)
+        3. :talukId route param (direct route — survives page refresh)      */
+  const resolvedTalukId = useRef(null);
 
-    // Default: Single month with current month
+  const resolveTalukId = () => {
+    if (stateData.talukId !== undefined && stateData.talukId !== null) {
+      return stateData.talukId;
+    }
+    if (stateData.talukOfficeId !== undefined && stateData.talukOfficeId !== null) {
+      return stateData.talukOfficeId;
+    }
+    if (routeTalukId && !isNaN(routeTalukId)) {
+      return parseInt(routeTalukId, 10);
+    }
+    return null;
+  };
+
+  if (resolvedTalukId.current === null) {
+    resolvedTalukId.current = resolveTalukId();
+  }
+
+  // Get initial filters from navigation state (always merge with defaults)
+  const getInitialFilters = () => {
     return {
-      districtId: null,
-      talukId: null,
-      filterType: 'single',
-      fromMonth: '',
-      toMonth: '',
-      singleMonth: getCurrentMonth(),
-      seasonTab: 'ALL',
-      selectedSeason: ''
+      districtId: stateData.districtId || null,
+      talukId: resolvedTalukId.current,
+      filterType: stateData.filterType || 'single',
+      fromMonth: stateData.fromMonth || '',
+      toMonth: stateData.toMonth || '',
+      singleMonth: stateData.singleMonth !== undefined && stateData.singleMonth !== ''
+        ? stateData.singleMonth
+        : getCurrentMonth(),
+      seasonTab: stateData.seasonTab || 'ALL',
+      selectedSeason: stateData.selectedSeason || ''
     };
   };
 
@@ -137,30 +150,28 @@ function ZoneFormReport() {
   const [apiData, setApiData] = useState(null);
 
   // Fetch data from API
-  // Fetch data from API
   const fetchZoneData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // --- CRITICAL FIX HERE ---
       // The backend expects the selected Taluk ID to be passed into the "distId" field.
-      // We grab 'talukId' sent from the clicked row via location.state.
-      const targetQueryId = location.state?.talukId || districtId || 1;
-      
+      // The resolved taluk ID covers all entry points:
+      // normal drill-down (state), direct access (state), and refresh (URL param).
+      const targetQueryId = resolvedTalukId.current;
+
       if (!targetQueryId) {
-        setError('Location target ID context missing');
+        setError('Taluk ID is required. Please navigate from the taluk report page.');
         setLoading(false);
         return;
       }
 
       let requestBody = {
-        agriYear: AuthService.agriyear() || "2025-2026", 
+        agriYear: AuthService.agriyear() || "2025-2026",
         seasonId: selectedSeason ? seasonToId[selectedSeason] : 3,
         landType: seasonTab === 'ALL' ? 'WET' : seasonTab,
-        distId: Number(targetQueryId) // Ensure it maps to the clicked Taluk ID string/number
+        distId: Number(targetQueryId) // Maps to the selected/logged-in Taluk ID
       };
-      // --- END OF CRITICAL FIX ---
 
       // Handle month filters
       if (filterType === 'single' && singleMonth) {
@@ -190,7 +201,7 @@ function ZoneFormReport() {
       console.log('Zone API Request Payload executed:', requestBody);
 
       const response = await axios.post(
-        'http://localhost:9114/earas-form1-entry/form1/block-wise-status-summary',
+        'http://localhost:8080/earas-form1-entry/form1/block-wise-status-summary',
         requestBody,
         {
           headers: {
@@ -215,9 +226,9 @@ function ZoneFormReport() {
   // Initial fetch and refetch on filter changes
   useEffect(() => {
     fetchZoneData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [districtId, talukId, seasonTab, filterType, fromMonth, toMonth, singleMonth, selectedSeason]);
 
-  // Process API data to match the expected format
   // Process API data to match the expected format
   const processedData = useMemo(() => {
     if (!apiData || !apiData.formStatusSummaryResponseList) {
@@ -238,7 +249,7 @@ function ZoneFormReport() {
       let blockName = '';
       let isCorporation = false;
       let isMunicipality = false;
-      
+
       // 2. FIXED MAPPER: Read 'districtName' from your API payload to extract the Block Name string safely
       if (item.districtName) {
         blockName = item.districtName; // e.g. "Chittumala", "Ithikara", "Mukhathala"
@@ -273,7 +284,7 @@ function ZoneFormReport() {
         corporationZones.push(zoneData);
         return;
       }
-      
+
       if (isMunicipality) {
         municipalityZones.push(zoneData);
         return;
@@ -416,7 +427,7 @@ function ZoneFormReport() {
   }, [searchFilteredData, page, rowsPerPage]);
 
   const handleChangePage = (event, newPage) => setPage(newPage);
-  
+
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
@@ -471,7 +482,7 @@ function ZoneFormReport() {
         zoneName,
         zoneId,
         districtId,
-        talukId,
+        talukId: resolvedTalukId.current,
         fromMonth,
         toMonth,
         seasonTab,
@@ -483,11 +494,14 @@ function ZoneFormReport() {
   };
 
   const handleGoBack = () => {
-    // Navigate back to taluk report with current filters
-    const formattedDistrictName = districtName?.toLowerCase().replace(/\s+/g, '-') || '';
+    // Navigate back to taluk report with current filters.
+    // districtName param is undefined on the /direct route — fall back to state.
+    const safeDistrictName = districtName || stateData.districtName || '';
+    const formattedDistrictName = safeDistrictName.toLowerCase().replace(/\s+/g, '-');
     navigate(`/kerala_form_report/taluk_form_report/${formattedDistrictName}`, {
       state: {
         districtId: districtId,
+        districtName: stateData.districtName || '',
         fromMonth,
         toMonth,
         seasonTab,
@@ -524,9 +538,11 @@ function ZoneFormReport() {
     </Card>
   );
 
-  // Format display names
-  const formattedTaluk = talukName?.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || 
-                         location.state?.talukName || 'Taluk';
+  // Format display names — URL param (normal navigation) → state (direct access) → fallback
+  const formattedTaluk =
+    (talukName && talukName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')) ||
+    stateData.talukName ||
+    'Taluk';
 
   // Show loading state
   if (loading && !apiData) {
@@ -550,8 +566,8 @@ function ZoneFormReport() {
           <Alert severity="error" sx={{ mt: 2 }}>
             {error}
           </Alert>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             onClick={fetchZoneData}
             sx={{ mt: 2 }}
           >
@@ -576,7 +592,8 @@ function ZoneFormReport() {
                 {formattedTaluk} Taluk - Zone Form Report
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {districtName && `District: ${districtName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}`}
+                {(districtName || stateData.districtName) &&
+                  `District: ${(districtName || stateData.districtName).split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}`}
                 {seasonTab !== 'ALL' && ` • ${seasonTab} Season`}
                 {filterType === 'single' && singleMonth && ` • ${singleMonth}`}
                 {filterType === 'range' && fromMonth && toMonth && ` • ${fromMonth} - ${toMonth}`}
@@ -648,11 +665,11 @@ function ZoneFormReport() {
                 <>
                   <FormControl size="small" sx={{ minWidth: 130 }}>
                     <InputLabel>From Month</InputLabel>
-                    <Select 
-                      value={fromMonth} 
-                      label="From Month" 
-                      onChange={(e) => { 
-                        setFromMonth(e.target.value); 
+                    <Select
+                      value={fromMonth}
+                      label="From Month"
+                      onChange={(e) => {
+                        setFromMonth(e.target.value);
                         setPage(0);
                         if (e.target.value && !toMonth) {
                           setToMonth(getCurrentMonth());
@@ -665,11 +682,11 @@ function ZoneFormReport() {
                   <Typography variant="body2" color="text.secondary">→</Typography>
                   <FormControl size="small" sx={{ minWidth: 130 }}>
                     <InputLabel>To Month</InputLabel>
-                    <Select 
-                      value={toMonth} 
-                      label="To Month" 
-                      onChange={(e) => { 
-                        setToMonth(e.target.value); 
+                    <Select
+                      value={toMonth}
+                      label="To Month"
+                      onChange={(e) => {
+                        setToMonth(e.target.value);
                         setPage(0);
                         if (e.target.value && !fromMonth) {
                           setFromMonth('January');
@@ -692,7 +709,7 @@ function ZoneFormReport() {
                   </Select>
                 </FormControl>
               )}
-              
+
               <FormControl size="small" sx={{ minWidth: 180 }}>
                 <InputLabel>Season</InputLabel>
                 <Select
@@ -863,25 +880,25 @@ function ZoneFormReport() {
                           const rows = [];
                           let lastBlockName = '';
                           let blockRowCount = 0;
-                          
+
                           for (let i = 0; i < paginatedData.length; i++) {
                             const row = paginatedData[i];
                             const isNewBlock = row.blockName !== lastBlockName;
                             const isCurrentRowSubtotal = row.type === 'subtotal';
-                            
+
                             if (isNewBlock) {
                               blockRowCount = paginatedData.filter(r => r.blockName === row.blockName).length;
                               lastBlockName = row.blockName;
                             }
-                            
+
                             const isFirstRowOfBlock = isNewBlock;
-                            
+
                             rows.push(
-                              <TableRow 
-                                key={row.id} 
-                                hover 
-                                sx={{ 
-                                  '&:hover': { bgcolor: alpha('#04255e', 0.04) }, 
+                              <TableRow
+                                key={row.id}
+                                hover
+                                sx={{
+                                  '&:hover': { bgcolor: alpha('#04255e', 0.04) },
                                   transition: '0.2s',
                                   '& td': {
                                     borderBottom: isCurrentRowSubtotal ? `1px solid ${theme.palette.primary.main}` : 'none',
@@ -915,14 +932,14 @@ function ZoneFormReport() {
                                     </Stack>
                                   </TableCell>
                                 )}
-                                
+
                                 {/* Zone Column */}
                                 <TableCell sx={{ borderRight: 'none', borderLeft: 'none' }}>
                                   {row.type === 'subtotal' ? (
-                                    <Typography 
-                                      variant="body2" 
-                                      sx={{ 
-                                        fontWeight: 'bold', 
+                                    <Typography
+                                      variant="body2"
+                                      sx={{
+                                        fontWeight: 'bold',
                                         color: '#04255e',
                                         fontStyle: 'italic'
                                       }}
@@ -939,25 +956,25 @@ function ZoneFormReport() {
 
                                 {/* Total */}
                                 <TableCell align="center" sx={{ borderRight: 'none', borderLeft: 'none' }}>
-                                  <Chip 
-                                    label={row.total} 
-                                    size="small" 
+                                  <Chip
+                                    label={row.total}
+                                    size="small"
                                     variant={row.type === 'subtotal' ? "filled" : "outlined"}
-                                    sx={{ 
+                                    sx={{
                                       fontWeight: row.type === 'subtotal' ? 700 : 600,
                                       bgcolor: row.type === 'subtotal' ? alpha('#04255e', 0.15) : 'transparent',
                                       color: row.type === 'subtotal' ? '#04255e' : 'inherit'
-                                    }} 
+                                    }}
                                   />
                                 </TableCell>
 
                                 {/* Completed */}
                                 <TableCell align="center" sx={{ borderRight: 'none', borderLeft: 'none' }}>
                                   {row.completed > 0 ? (
-                                    <Chip 
-                                      label={row.completed} 
-                                      size="small" 
-                                      color="success" 
+                                    <Chip
+                                      label={row.completed}
+                                      size="small"
+                                      color="success"
                                       variant={row.type === 'subtotal' ? "filled" : "outlined"}
                                       sx={{ fontWeight: row.type === 'subtotal' ? 700 : 500 }}
                                     />
@@ -969,10 +986,10 @@ function ZoneFormReport() {
                                 {/* Ongoing */}
                                 <TableCell align="center" sx={{ borderRight: 'none', borderLeft: 'none' }}>
                                   {row.ongoing > 0 ? (
-                                    <Chip 
-                                      label={row.ongoing} 
-                                      size="small" 
-                                      color="primary" 
+                                    <Chip
+                                      label={row.ongoing}
+                                      size="small"
+                                      color="primary"
                                       variant={row.type === 'subtotal' ? "filled" : "outlined"}
                                       sx={{ fontWeight: row.type === 'subtotal' ? 700 : 500 }}
                                     />
@@ -984,11 +1001,11 @@ function ZoneFormReport() {
                                 {/* Not Started */}
                                 <TableCell align="center" sx={{ borderRight: 'none', borderLeft: 'none' }}>
                                   {row.notStarted > 0 ? (
-                                    <Chip 
-                                      label={row.notStarted} 
-                                      size="small" 
+                                    <Chip
+                                      label={row.notStarted}
+                                      size="small"
                                       variant={row.type === 'subtotal' ? "filled" : "outlined"}
-                                      sx={{ 
+                                      sx={{
                                         fontWeight: row.type === 'subtotal' ? 700 : 500,
                                         bgcolor: row.type === 'subtotal' ? alpha('#757575', 0.15) : 'transparent'
                                       }}
@@ -1001,10 +1018,10 @@ function ZoneFormReport() {
                                 {/* Under Review */}
                                 <TableCell align="center" sx={{ borderRight: 'none', borderLeft: 'none' }}>
                                   {row.underReview > 0 ? (
-                                    <Chip 
-                                      label={row.underReview} 
-                                      size="small" 
-                                      color="warning" 
+                                    <Chip
+                                      label={row.underReview}
+                                      size="small"
+                                      color="warning"
                                       variant={row.type === 'subtotal' ? "filled" : "outlined"}
                                       sx={{ fontWeight: row.type === 'subtotal' ? 700 : 500 }}
                                     />
@@ -1017,9 +1034,9 @@ function ZoneFormReport() {
                                 <TableCell align="center" sx={{ borderRight: 'none', borderLeft: 'none' }}>
                                   {row.type !== 'subtotal' && (
                                     <Tooltip title="View Details">
-                                      <IconButton 
-                                        size="small" 
-                                        onClick={() => handleViewZoneDetails(row.zoneName, row.zoneId)} 
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleViewZoneDetails(row.zoneName, row.zoneId)}
                                         sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
                                       >
                                         <VisibilityIcon />
@@ -1063,28 +1080,31 @@ function ZoneFormReport() {
         </Box>
       </Grid>
 
-      {/* Back Button */}
-      <Grid item xs={12}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-          <Button
-            variant="outlined"
-            onClick={handleGoBack}
-            startIcon={<ArrowBackIcon />}
-            sx={{
-              color: '#04255e',
-              borderColor: '#04255e',
-              borderRadius: 2,
-              px: 4,
-              '&:hover': {
+      {/* Back Button — hidden for direct-access (taluk approver) users,
+          who have no taluk-level page to go back to */}
+      {!stateData.isDirectAccess && (
+        <Grid item xs={12}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+            <Button
+              variant="outlined"
+              onClick={handleGoBack}
+              startIcon={<ArrowBackIcon />}
+              sx={{
+                color: '#04255e',
                 borderColor: '#04255e',
-                bgcolor: alpha('#04255e', 0.04)
-              }
-            }}
-          >
-            Back to Taluk Report
-          </Button>
-        </Box>
-      </Grid>
+                borderRadius: 2,
+                px: 4,
+                '&:hover': {
+                  borderColor: '#04255e',
+                  bgcolor: alpha('#04255e', 0.04)
+                }
+              }}
+            >
+              Back to Taluk Report
+            </Button>
+          </Box>
+        </Grid>
+      )}
     </Grid>
   );
 }
