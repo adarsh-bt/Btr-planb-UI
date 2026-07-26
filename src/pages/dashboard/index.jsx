@@ -221,96 +221,96 @@ export default function DashboardDefault() {
         </Grid>
 
         {["Field Data Collector",].includes(authservice.getrole()) && (
-        <Grid item xs={12} sm={4} md={4} lg={4}>
-          <Card
-            component={Link}
-            to="/tourdiary"
-            sx={{
-              textDecoration: 'none',
-              position: 'relative',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '2rem',
-              borderRadius: '1rem',
-              background: 'linear-gradient(135deg, rgba(99, 155, 255, 0.57), rgb(51, 125, 253))',
-              transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-              overflow: 'hidden',
-              '&:hover': {
-                transform: 'scale(1.05)',
-                boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
-              },
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                width: '200px',
-                height: '200px',
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.2)',
-                top: '-50px',
-                right: '-50px'
-              },
-              '&::after': {
-                content: '""',
-                position: 'absolute',
-                width: '150px',
-                height: '150px',
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.15)',
-                bottom: '-40px',
-                left: '-40px'
-              }
-            }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
-              -
-            </Typography>
-            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
-              Tour diary
-            </Typography>
-            <Typography
-              variant="body2"
+          <Grid item xs={12} sm={4} md={4} lg={4}>
+            <Card
+              component={Link}
+              to="/tourdiary"
               sx={{
-                color: '#f3f3f3',
-                fontWeight: 'lighter',
-                marginTop: '0.5rem',
-                textAlign: 'center',
-                marginBottom: '1.2rem'
-              }}
-            >
-              Tracking
-            </Typography>
-            <Box
-              sx={{
-                position: 'absolute',
-                top: '1rem',
-                right: '1rem',
-                background: 'rgba(255, 255, 255, 0.3)',
-                padding: '0.5rem',
-                borderRadius: '50%',
+                textDecoration: 'none',
+                position: 'relative',
                 display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
                 justifyContent: 'center',
-                alignItems: 'center'
+                padding: '2rem',
+                borderRadius: '1rem',
+                background: 'linear-gradient(135deg, rgba(99, 155, 255, 0.57), rgb(51, 125, 253))',
+                transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+                overflow: 'hidden',
+                '&:hover': {
+                  transform: 'scale(1.05)',
+                  boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
+                },
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  width: '200px',
+                  height: '200px',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  top: '-50px',
+                  right: '-50px'
+                },
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  width: '150px',
+                  height: '150px',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  bottom: '-40px',
+                  left: '-40px'
+                }
               }}
             >
-              <CardMedia
-                component="img"
+              <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
+                -
+              </Typography>
+              <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
+                Tour diary
+              </Typography>
+              <Typography
+                variant="body2"
                 sx={{
-                  width: '3rem',
-                  height: '3rem',
-                  borderRadius: '50%'
+                  color: '#f3f3f3',
+                  fontWeight: 'lighter',
+                  marginTop: '0.5rem',
+                  textAlign: 'center',
+                  marginBottom: '1.2rem'
                 }}
-                image={tourdiary} // <-- Use the imported image here
-                alt="Cluster Logo"
-              />
-            </Box>
-          </Card>
-        </Grid>
-          )}
+              >
+                Tracking
+              </Typography>
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: '1rem',
+                  right: '1rem',
+                  background: 'rgba(255, 255, 255, 0.3)',
+                  padding: '0.5rem',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}
+              >
+                <CardMedia
+                  component="img"
+                  sx={{
+                    width: '3rem',
+                    height: '3rem',
+                    borderRadius: '50%'
+                  }}
+                  image={tourdiary} // <-- Use the imported image here
+                  alt="Cluster Logo"
+                />
+              </Box>
+            </Card>
+          </Grid>
+        )}
 
-        {["Super Admin", "District Level Approver", "IT Admin","EARAS Admin","Taluk Level Approver"].includes(authservice.getrole()) && (
+        {["Super Admin", "District Level Approver", "IT Admin", "EARAS Admin", "Taluk Level Approver", "District Level Data Viewer"].includes(authservice.getrole()) && (
           <Grid item xs={12} sm={4} md={4} lg={4}>
             <Card
               component={Link}
@@ -398,9 +398,9 @@ export default function DashboardDefault() {
               </Box>
             </Card>
           </Grid>
-          )}
+        )}
 
-        {["Super Admin", "District Level Approver", "IT Admin", "Taluk Level Approver","Field Inspector"].includes(authservice.getrole()) && (
+        {["Super Admin", "District Level Approver", "IT Admin", "Taluk Level Approver", "Field Inspector"].includes(authservice.getrole()) && (
           <Grid item xs={12} sm={4} md={4} lg={4}>
             <Card
               component={Link}

@@ -603,18 +603,32 @@ const ExcelView = ({ open, onClose, clusterId }) => {
     const totalClusters = activeClusters.length;
     const totalCols = 3 + 1 + (totalClusters * 2) + 2;
 
-    // Get area map for header
     const clusterLabelsWithArea = formData?.clusterLabelsWithArea || [];
     const areaMap = {};
     clusterLabelsWithArea.forEach(item => {
       areaMap[item.label] = item.totalEnumeratedArea || 0;
     });
 
+    // Calculate totals
+    const netTotals = {};
+    const grossTotals = {};
+    items.forEach(item => {
+      activeClusters.forEach(cluster => {
+        const areaKey = `${cluster.toLowerCase()}Area`;
+        const grossKey = `${cluster.toLowerCase()}GrossArea`;
+        const area = item[areaKey] || 0;
+        const gross = item[grossKey] || 0;
+
+        netTotals[cluster] = (netTotals[cluster] || 0) + area;
+        grossTotals[cluster] = (grossTotals[cluster] || 0) + gross;
+      });
+    });
+
     return (
       <>
         <TableRow>
           <SectionHeaderCell
-            colSpan={totalCols}
+            colSpan={19}
             sx={{
               backgroundColor: '#B7DEE8',
               fontWeight: 'bold',
@@ -627,8 +641,8 @@ const ExcelView = ({ open, onClose, clusterId }) => {
         </TableRow>
 
         <TableRow>
-          <HeaderCell colSpan={3} sx={{ minWidth: '100px' }}>ജലസേചന മാർഗ്ഗം</HeaderCell>
-          <HeaderCell sx={{ minWidth: '40px' }}>കോഡ്</HeaderCell>
+          <HeaderCell colSpan={6} sx={{ minWidth: '100px' }}>ജലസേചന മാർഗ്ഗം</HeaderCell>
+          <HeaderCell sx={{ minWidth: '150px' }}>കോഡ്</HeaderCell>
           {activeClusters.map((label) => {
             const area = areaMap[label] || 0;
             return (
@@ -643,7 +657,7 @@ const ExcelView = ({ open, onClose, clusterId }) => {
         </TableRow>
 
         <TableRow>
-          <HeaderCell colSpan={4} sx={{ backgroundColor: '#e8f0fe' }}></HeaderCell>
+          <HeaderCell colSpan={7} sx={{ backgroundColor: '#e8f0fe' }}></HeaderCell>
           {activeClusters.map((label) => (
             <React.Fragment key={label}>
               <HeaderCell sx={{ backgroundColor: '#e8f0fe', minWidth: '35px' }}>എണ്ണം</HeaderCell>
@@ -667,7 +681,7 @@ const ExcelView = ({ open, onClose, clusterId }) => {
 
             return (
               <TableRow key={idx}>
-                <DataCell colSpan={3}>{item.irrigationType || 'N/A'}</DataCell>
+                <DataCell colSpan={6}>{item.irrigationType || 'N/A'}</DataCell>
                 <DataCell>{item.code || 'N/A'}</DataCell>
                 {clusterData.map((data, idx) => (
                   <React.Fragment key={idx}>
@@ -687,78 +701,36 @@ const ExcelView = ({ open, onClose, clusterId }) => {
           </TableRow>
         )}
 
-        {/* Gross Area Row - Calculate with stands per hectare logic */}
-        <TableRow sx={{ backgroundColor: '#c8e6c9' }}>
-          <DataCell colSpan={4} sx={{ fontWeight: 'bold' }}>Gross Area</DataCell>
-          {activeClusters.map((cluster) => {
-            let grossTotal = 0;
-            items.forEach(item => {
-              const areaKey = `${cluster.toLowerCase()}Area`;
-              const countKey = `${cluster.toLowerCase()}Count`;
-              const standsKey = `${cluster.toLowerCase()}StandsPerHectare`;
-              const area = item[areaKey] || 0;
-              const count = item[countKey] || 0;
-              const stands = item[standsKey] || 0;
+        {/* Gross Area Row - Uses stands per hectare logic */}
 
-              // If stands per hectare is available and > 0, use it for conversion
-              if (stands > 0) {
-                // Gross Area = (count / stands) * area
-                grossTotal += (count / stands) * area;
-              } else {
-                // Fallback: simple multiplication
-                grossTotal += area * count;
-              }
-            });
-            return (
-              <React.Fragment key={cluster}>
-                <DataCell sx={{ fontWeight: 'bold' }}></DataCell>
-                <DataCell sx={{ fontWeight: 'bold' }}>
-                  {grossTotal.toFixed(2)}
-                </DataCell>
-              </React.Fragment>
-            );
-          })}
-          <TotalCell colSpan={2} sx={{ fontWeight: 'bold' }}>
-            {items.reduce((sum, item) => {
-              let total = 0;
-              activeClusters.forEach(cluster => {
-                const areaKey = `${cluster.toLowerCase()}Area`;
-                const countKey = `${cluster.toLowerCase()}Count`;
-                const standsKey = `${cluster.toLowerCase()}StandsPerHectare`;
-                const area = item[areaKey] || 0;
-                const count = item[countKey] || 0;
-                const stands = item[standsKey] || 0;
-                if (stands > 0) {
-                  total += (count / stands) * area;
-                } else {
-                  total += area * count;
-                }
-              });
-              return sum + total;
-            }, 0).toFixed(2)}
-          </TotalCell>
-        </TableRow>
 
         {/* Net Area Row */}
         <TableRow sx={{ backgroundColor: '#e8f5e9', borderTop: '2px solid #388e3c' }}>
-          <DataCell colSpan={4} sx={{ fontWeight: 'bold' }}>Net Area</DataCell>
-          {activeClusters.map((cluster) => {
-            let netTotal = 0;
-            items.forEach(item => {
-              const areaKey = `${cluster.toLowerCase()}Area`;
-              netTotal += item[areaKey] || 0;
-            });
-            return (
-              <React.Fragment key={cluster}>
-                <DataCell sx={{ fontWeight: 'bold' }}></DataCell>
-                <DataCell sx={{ fontWeight: 'bold' }}>
-                  {netTotal.toFixed(2)}
-                </DataCell>
-              </React.Fragment>
-            );
-          })}
+          <DataCell colSpan={7} sx={{ fontWeight: 'bold' }}>Net Area</DataCell>
+          {activeClusters.map((cluster) => (
+            <React.Fragment key={cluster}>
+              <DataCell sx={{ fontWeight: 'bold' }}></DataCell>
+              <DataCell sx={{ fontWeight: 'bold' }}>
+                {(netTotals[cluster] || 0).toFixed(2)}
+              </DataCell>
+            </React.Fragment>
+          ))}
           <TotalCell colSpan={2} sx={{ fontWeight: 'bold' }}>
             {items.reduce((sum, item) => sum + (item.totalArea || 0), 0).toFixed(2)}
+          </TotalCell>
+        </TableRow>
+        <TableRow sx={{ backgroundColor: '#c8e6c9' }}>
+          <DataCell colSpan={7} sx={{ fontWeight: 'bold' }}>Gross Area</DataCell>
+          {activeClusters.map((cluster) => (
+            <React.Fragment key={cluster}>
+              <DataCell sx={{ fontWeight: 'bold' }}></DataCell>
+              <DataCell sx={{ fontWeight: 'bold' }}>
+                {(grossTotals[cluster] || 0).toFixed(2)}
+              </DataCell>
+            </React.Fragment>
+          ))}
+          <TotalCell colSpan={2} sx={{ fontWeight: 'bold' }}>
+            {items.reduce((sum, item) => sum + (item.totalGrossArea || 0), 0).toFixed(2)}
           </TotalCell>
         </TableRow>
       </>

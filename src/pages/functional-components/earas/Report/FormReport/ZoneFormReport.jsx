@@ -42,6 +42,7 @@ import PendingIcon from '@mui/icons-material/Pending';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -50,48 +51,97 @@ import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import AuthService from 'pages/authentication/services/authservice';
+import mainapi from 'api/mainapi';
+import api from 'api/api';
+
+// Builds the "July <startYear> → June <startYear + 1>" agricultural-year
+// month list used by the Single Month / From Month / To Month dropdowns.
+function buildAgriMonthOptions() {
+  const agriYear = AuthService.agriyear() || '2025-2026';
+  const startYear = parseInt(agriYear.split('-')[0], 10) || new Date().getFullYear();
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const options = [];
+  for (let i = 0; i < 12; i++) {
+    const monthIndex = (6 + i) % 12;
+    const year = startYear + Math.floor((6 + i) / 12);
+    const mm = String(monthIndex + 1).padStart(2, '0');
+    options.push({ label: `${monthNames[monthIndex]} ${year}`, value: `${mm}-${year}` });
+  }
+  return options;
+}
+
+// Resolves a month string (e.g. 'July', 'July 2025', '07-2025') to a valid MM-YYYY value in MONTH_OPTIONS
+function resolveMonthValue(val, monthOptions) {
+  if (!monthOptions || monthOptions.length === 0) return '';
+  if (!val) return monthOptions[0]?.value || '';
+
+  // 1. Exact match with option value (e.g. '07-2025' or '02-2026')
+  const exactMatch = monthOptions.find((o) => o.value === val);
+  if (exactMatch) return exactMatch.value;
+
+  // 2. Exact match with label (e.g. 'July 2025')
+  const labelMatch = monthOptions.find((o) => o.label.toLowerCase() === val.toLowerCase());
+  if (labelMatch) return labelMatch.value;
+
+  // 3. Match month name prefix (e.g. val is 'July' or 'Feb')
+  const monthNameMatch = monthOptions.find((o) => o.label.toLowerCase().startsWith(val.toLowerCase()));
+  if (monthNameMatch) return monthNameMatch.value;
+
+  // 4. Fallback to first month in options
+  return monthOptions[0]?.value || '';
+}
+
+// Per-zone metrics come split into wet*/dry* fields
+function pickMetric(zone, metric, seasonTab) {
+  if (seasonTab === 'WET') return Number(zone[`wet${metric}`]) || 0;
+  if (seasonTab === 'DRY') return Number(zone[`dry${metric}`]) || 0;
+  return (Number(zone[`wet${metric}`]) || 0) + (Number(zone[`dry${metric}`]) || 0);
+}
+
+// Resolve the block a zone belongs to.
+function resolveBlockName(blockId, blockName, zoneName) {
+  const lower = (zoneName || '').toLowerCase();
+  if (lower.includes('municipality')) return 'Municipality';
+  if (lower.includes('corporation')) return 'Corporation';
+  if (blockId && blockName) return blockName;
+  return 'Unassigned';
+}
+
+const formatArea = (num) =>
+  Number(num || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// Fallback zones for a taluk
+function getFallbackZones(talukId) {
+  return [
+    { zoneId: 1, zoneNameEn: 'Zone 1', blockName: 'Block A' },
+    { zoneId: 2, zoneNameEn: 'Zone 2', blockName: 'Block A' },
+    { zoneId: 3, zoneNameEn: 'Zone 3', blockName: 'Block B' },
+    { zoneId: 4, zoneNameEn: 'Zone 4', blockName: 'Block B' },
+    { zoneId: 5, zoneNameEn: 'Zone 5', blockName: 'Block C' }
+  ];
+}
 
 function ZoneFormReport() {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  // routeTalukId comes from the TALUK-approver direct route:
-  //   kerala_form_report/zone_form_report/direct/:talukId
   const { districtName, talukName, talukId: routeTalukId } = useParams();
 
   const stateData = location.state || {};
 
-  // Month helpers
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
+  const BASE_URL = mainapi.FORM_API;
 
-  const monthToNumber = {
-    'January': 1, 'February': 2, 'March': 3, 'April': 4,
-    'May': 5, 'June': 6, 'July': 7, 'August': 8,
-    'September': 9, 'October': 10, 'November': 11, 'December': 12
-  };
+  const MONTH_OPTIONS = buildAgriMonthOptions();
+  const getMonthLabel = (value) => MONTH_OPTIONS.find((o) => o.value === value)?.label || value;
 
-  const seasonToId = {
-    'Winter': 1,
-    'Summer': 2,
-    'Autumn': 3
-  };
-
-  const getCurrentMonth = () => {
-    const currentDate = new Date();
-    return months[currentDate.getMonth()];
-  };
-
-  /* ── resolve taluk ID once and keep in a ref ──
-        Priority:
-        1. state.talukId        (normal drill-down from TalukFormReport)
-        2. state.talukOfficeId  (direct access from ReportMenuWrapper)
-        3. :talukId route param (direct route — survives page refresh)      */
+  /* ── resolve taluk ID once and keep in a ref ── */
   const resolvedTalukId = useRef(null);
 
   const resolveTalukId = () => {
@@ -111,19 +161,16 @@ function ZoneFormReport() {
     resolvedTalukId.current = resolveTalukId();
   }
 
-  // Get initial filters from navigation state (always merge with defaults)
+  // Get initial filters from navigation state
   const getInitialFilters = () => {
     return {
       districtId: stateData.districtId || null,
       talukId: resolvedTalukId.current,
       filterType: stateData.filterType || 'single',
-      fromMonth: stateData.fromMonth || '',
-      toMonth: stateData.toMonth || '',
-      singleMonth: stateData.singleMonth !== undefined && stateData.singleMonth !== ''
-        ? stateData.singleMonth
-        : getCurrentMonth(),
-      seasonTab: stateData.seasonTab || 'ALL',
-      selectedSeason: stateData.selectedSeason || ''
+      fromMonth: resolveMonthValue(stateData.fromMonth, MONTH_OPTIONS),
+      toMonth: stateData.toMonth ? resolveMonthValue(stateData.toMonth, MONTH_OPTIONS) : '',
+      singleMonth: resolveMonthValue(stateData.singleMonth, MONTH_OPTIONS),
+      seasonTab: stateData.seasonTab || 'ALL'
     };
   };
 
@@ -133,12 +180,10 @@ function ZoneFormReport() {
   const [districtId, setDistrictId] = useState(initialFilters.districtId);
   const [talukId, setTalukId] = useState(initialFilters.talukId);
   const [seasonTab, setSeasonTab] = useState(initialFilters.seasonTab);
-  const [landType, setLandType] = useState(initialFilters.seasonTab === 'ALL' ? null : initialFilters.seasonTab);
   const [filterType, setFilterType] = useState(initialFilters.filterType);
   const [fromMonth, setFromMonth] = useState(initialFilters.fromMonth);
   const [toMonth, setToMonth] = useState(initialFilters.toMonth);
   const [singleMonth, setSingleMonth] = useState(initialFilters.singleMonth);
-  const [selectedSeason, setSelectedSeason] = useState(initialFilters.selectedSeason);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
@@ -146,8 +191,32 @@ function ZoneFormReport() {
 
   // API states
   const [loading, setLoading] = useState(false);
+  const [masterZonesLoading, setMasterZonesLoading] = useState(true);
   const [error, setError] = useState(null);
   const [apiData, setApiData] = useState(null);
+  const [zonesList, setZonesList] = useState([]);
+
+  // Fetch master zones list
+  const fetchMasterZones = async (talukIdValue) => {
+    setMasterZonesLoading(true);
+    try {
+      const response = await api.get(`${mainapi.BTR_API}/btr-service/btr-api/zones?desTalukId=${talukIdValue}`);
+      console.log('Master Zones Response:', response.data);
+
+      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        console.log('Setting zones list:', response.data.data);
+        setZonesList(response.data.data);
+      } else {
+        console.warn('No zones found, using fallback');
+        setZonesList(getFallbackZones(talukIdValue));
+      }
+    } catch (err) {
+      console.error('Error fetching master zones:', err);
+      setZonesList(getFallbackZones(talukIdValue));
+    } finally {
+      setMasterZonesLoading(false);
+    }
+  };
 
   // Fetch data from API
   const fetchZoneData = async () => {
@@ -155,9 +224,6 @@ function ZoneFormReport() {
       setLoading(true);
       setError(null);
 
-      // The backend expects the selected Taluk ID to be passed into the "distId" field.
-      // The resolved taluk ID covers all entry points:
-      // normal drill-down (state), direct access (state), and refresh (URL param).
       const targetQueryId = resolvedTalukId.current;
 
       if (!targetQueryId) {
@@ -166,55 +232,36 @@ function ZoneFormReport() {
         return;
       }
 
-      let requestBody = {
-        agriYear: AuthService.agriyear() || "2025-2026",
-        seasonId: selectedSeason ? seasonToId[selectedSeason] : 3,
-        landType: seasonTab === 'ALL' ? 'WET' : seasonTab,
-        distId: Number(targetQueryId) // Maps to the selected/logged-in Taluk ID
-      };
+      let startMonthVal = resolveMonthValue(MONTH_OPTIONS[0]?.value, MONTH_OPTIONS);
+      let endMonthVal = resolveMonthValue(MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.value, MONTH_OPTIONS);
 
-      // Handle month filters
-      if (filterType === 'single' && singleMonth) {
-        requestBody.startMonth = monthToNumber[singleMonth];
-        requestBody.endMonth = monthToNumber[singleMonth];
-      } else if (filterType === 'range') {
-        if (fromMonth && toMonth) {
-          requestBody.startMonth = monthToNumber[fromMonth];
-          requestBody.endMonth = monthToNumber[toMonth];
-        } else if (fromMonth) {
-          requestBody.startMonth = monthToNumber[fromMonth];
-          requestBody.endMonth = 12;
-        } else if (toMonth) {
-          requestBody.startMonth = 1;
-          requestBody.endMonth = monthToNumber[toMonth];
-        } else {
-          const currentMonthNum = new Date().getMonth() + 1;
-          requestBody.startMonth = currentMonthNum;
-          requestBody.endMonth = currentMonthNum;
+      if (filterType === 'single') {
+        if (singleMonth) {
+          const resolved = resolveMonthValue(singleMonth, MONTH_OPTIONS);
+          startMonthVal = resolved;
+          endMonthVal = resolved;
         }
       } else {
-        const currentMonthNum = new Date().getMonth() + 1;
-        requestBody.startMonth = currentMonthNum;
-        requestBody.endMonth = currentMonthNum;
+        if (fromMonth) startMonthVal = resolveMonthValue(fromMonth, MONTH_OPTIONS);
+        if (toMonth) endMonthVal = resolveMonthValue(toMonth, MONTH_OPTIONS);
       }
 
-      console.log('Zone API Request Payload executed:', requestBody);
+      const token = AuthService.getToken ? AuthService.getToken() : localStorage.getItem('token');
+      if (!token) throw new Error('Authentication session token missing. Please log in again.');
 
-      const response = await axios.post(
-        'http://localhost:8080/earas-form1-entry/form1/block-wise-status-summary',
-        requestBody,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        }
-      );
+      const params = new URLSearchParams({ talukId: targetQueryId, startMonth: startMonthVal });
+      if (endMonthVal) params.append('endMonth', endMonthVal);
+      if (seasonTab && seasonTab !== 'ALL') params.append('landType', seasonTab);
 
-      if (response.data && response.data.payload) {
-        setApiData(response.data.payload);
-      } else {
-        setError('Invalid response format from server');
-      }
+      const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/taluk?${params.toString()}`;
+      console.log('Zone API Request:', url);
+
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      console.log('Zone API Response:', response.data);
+      setApiData(response.data || null);
     } catch (err) {
       console.error('API Error:', err);
       setError(err.response?.data?.message || err.message || 'Failed to fetch data');
@@ -223,102 +270,175 @@ function ZoneFormReport() {
     }
   };
 
+  // Fetch master zones on mount
+  useEffect(() => {
+    if (resolvedTalukId.current) {
+      fetchMasterZones(resolvedTalukId.current);
+    }
+  }, []);
+
   // Initial fetch and refetch on filter changes
   useEffect(() => {
     fetchZoneData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [districtId, talukId, seasonTab, filterType, fromMonth, toMonth, singleMonth, selectedSeason]);
+  }, [districtId, talukId, seasonTab, filterType, fromMonth, toMonth, singleMonth]);
 
-  // Process API data to match the expected format
+  // Merge API data with master zones list
   const processedData = useMemo(() => {
-    if (!apiData || !apiData.formStatusSummaryResponseList) {
-      return [];
+    const apiZones = apiData?.allSubDetails || {};
+
+    console.log('API Zones:', apiZones);
+    console.log('Master Zones List:', zonesList);
+
+    // Create a map for quick lookup of API data by zone ID
+    const apiDataMapById = {};
+    const apiDataMapByName = {};
+    Object.entries(apiZones).forEach(([key, details]) => {
+      // Store by zoneId if available
+      if (details.zoneId) {
+        apiDataMapById[details.zoneId] = details;
+      }
+      // Also store by zone name for fallback
+      const name = details.zoneName || key;
+      const nameKey = name?.toLowerCase()?.trim() || '';
+      if (nameKey) {
+        apiDataMapByName[nameKey] = details;
+      }
+    });
+
+    let mergedZones = [];
+
+    // If we have master zones list, merge with API data
+    if (zonesList && zonesList.length > 0) {
+      mergedZones = zonesList.map((zone) => {
+        const zoneId = zone.zoneId;
+        const zoneName = zone.zoneNameEn || '';
+
+        // Try to find API data by zoneId first
+        let apiDetails = null;
+        if (zoneId && apiDataMapById[zoneId]) {
+          apiDetails = apiDataMapById[zoneId];
+        }
+
+        // If not found by ID, try by name
+        if (!apiDetails) {
+          const key = zoneName?.toLowerCase()?.trim() || '';
+          if (key && apiDataMapByName[key]) {
+            apiDetails = apiDataMapByName[key];
+          }
+        }
+
+        // If still not found, try partial match
+        if (!apiDetails) {
+          const searchKey = zoneName?.toLowerCase()?.trim() || '';
+          const matchKey = Object.keys(apiDataMapByName).find(key =>
+            key.includes(searchKey) || searchKey.includes(key)
+          );
+          if (matchKey) {
+            apiDetails = apiDataMapByName[matchKey];
+          }
+        }
+
+        const completed = apiDetails ? pickMetric(apiDetails, 'Completed', seasonTab) : 0;
+        const ongoing = apiDetails ? pickMetric(apiDetails, 'Ongoing', seasonTab) : 0;
+        const notStarted = apiDetails ? pickMetric(apiDetails, 'NotStarted', seasonTab) : 0;
+        const underReview = apiDetails ? pickMetric(apiDetails, 'UnderReview', seasonTab) : 0;
+        const area = apiDetails ? pickMetric(apiDetails, 'ClusterArea', seasonTab) : 0;
+
+        const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0;
+
+        const blockId = apiDetails?.blockId || null;
+        const blockName = apiDetails?.blockName || 'Unassigned';
+        const resolvedBlock = resolveBlockName(blockId, blockName, zoneName);
+
+        return {
+          zoneId: zoneId,
+          zoneName: zoneName || 'Unknown Zone',
+          blockId: blockId,
+          blockName: resolvedBlock,
+          completed: completed,
+          ongoing: ongoing,
+          notStarted: notStarted,
+          underReview: underReview,
+          area: area,
+          hasData: hasData,
+          // Store original details for reference
+          originalBlockName: apiDetails?.blockName,
+          isMunicipality: resolvedBlock === 'Municipality',
+          isCorporation: resolvedBlock === 'Corporation'
+        };
+      });
+    } else {
+      // Fallback: use only API data
+      mergedZones = Object.entries(apiZones).map(([key, details]) => {
+        const completed = pickMetric(details, 'Completed', seasonTab);
+        const ongoing = pickMetric(details, 'Ongoing', seasonTab);
+        const notStarted = pickMetric(details, 'NotStarted', seasonTab);
+        const underReview = pickMetric(details, 'UnderReview', seasonTab);
+        const area = pickMetric(details, 'ClusterArea', seasonTab);
+        const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0;
+
+        const zoneName = details.zoneName || key;
+        const blockId = details.blockId || null;
+        const blockName = details.blockName || 'Unassigned';
+        const resolvedBlock = resolveBlockName(blockId, blockName, zoneName);
+
+        return {
+          zoneId: details.zoneId || `zone_${Math.random()}`,
+          zoneName: zoneName,
+          blockId: blockId,
+          blockName: resolvedBlock,
+          completed: completed,
+          ongoing: ongoing,
+          notStarted: notStarted,
+          underReview: underReview,
+          area: area,
+          hasData: hasData,
+          isMunicipality: resolvedBlock === 'Municipality',
+          isCorporation: resolvedBlock === 'Corporation'
+        };
+      });
     }
 
+    // Group by block
     const blockMap = new Map();
-    const corporationZones = [];
     const municipalityZones = [];
+    const corporationZones = [];
 
-    apiData.formStatusSummaryResponseList.forEach(item => {
-      // 1. If a specific taluk filter is present, filter rows matching it here if needed
-      // (Note: If your backend endpoint returns all blocks for a district, this filter keeps it pristine)
-      if (talukId && item.talukId && item.talukId !== talukId) {
-        return;
-      }
-
-      let blockName = '';
-      let isCorporation = false;
-      let isMunicipality = false;
-
-      // 2. FIXED MAPPER: Read 'districtName' from your API payload to extract the Block Name string safely
-      if (item.districtName) {
-        blockName = item.districtName; // e.g. "Chittumala", "Ithikara", "Mukhathala"
-      } else if (item.localBodyName) {
-        blockName = item.localBodyName.trim();
-      } else {
-        blockName = 'Unassigned';
-      }
-
-      // Check if it belongs to urban collections based on zoneName nomenclature strings
-      const zoneNameLower = (item.zoneName || '').toLowerCase();
-      if (zoneNameLower.includes('corporation') || zoneNameLower.includes('corp')) {
-        isCorporation = true;
-        blockName = 'Corporation';
-      } else if (zoneNameLower.includes('municipality') || zoneNameLower.includes('municipal')) {
-        isMunicipality = true;
-        blockName = 'Municipality';
-      }
-
+    mergedZones.forEach((zone) => {
       const zoneData = {
-        zoneId: item.zoneId,
-        zoneName: item.zoneName,
-        completed: item.completedCount || 0,
-        ongoing: item.ongoingCount || 0,
-        notStarted: item.notStartedCount || 0,
-        underReview: item.underReviewCount || 0,
-        talukId: item.talukId || null,
-        talukName: item.talukName || null
+        zoneId: zone.zoneId,
+        zoneName: zone.zoneName,
+        completed: zone.completed,
+        ongoing: zone.ongoing,
+        notStarted: zone.notStarted,
+        underReview: zone.underReview,
+        area: zone.area,
+        hasData: zone.hasData
       };
 
-      if (isCorporation) {
+      if (zone.isMunicipality) {
+        municipalityZones.push(zoneData);
+        return;
+      }
+      if (zone.isCorporation) {
         corporationZones.push(zoneData);
         return;
       }
 
-      if (isMunicipality) {
-        municipalityZones.push(zoneData);
-        return;
-      }
-
-      // Append into grouped map layout cleanly
-      if (!blockMap.has(blockName)) {
-        blockMap.set(blockName, {
-          blockId: `block_${blockName.replace(/\s+/g, '_')}`,
-          blockName: blockName,
+      const key = zone.blockId || zone.blockName;
+      if (!blockMap.has(key)) {
+        blockMap.set(key, {
+          blockId: zone.blockId,
+          blockName: zone.blockName,
           zones: []
         });
       }
-
-      blockMap.get(blockName).zones.push(zoneData);
+      blockMap.get(key).zones.push(zoneData);
     });
 
-    // Structure list presentation
-    const blocks = Array.from(blockMap.values()).sort((a, b) =>
-      a.blockName.localeCompare(b.blockName)
-    );
-
-    blocks.forEach(block => {
-      block.zones.sort((a, b) => a.zoneName.localeCompare(b.zoneName));
-    });
-
-    if (corporationZones.length > 0) {
-      blocks.push({
-        blockId: 'corporation',
-        blockName: 'Corporation',
-        isCorporation: true,
-        zones: corporationZones.sort((a, b) => a.zoneName.localeCompare(b.zoneName))
-      });
-    }
+    const blocks = Array.from(blockMap.values()).sort((a, b) => a.blockName.localeCompare(b.blockName));
+    blocks.forEach((block) => block.zones.sort((a, b) => a.zoneName.localeCompare(b.zoneName)));
 
     if (municipalityZones.length > 0) {
       blocks.push({
@@ -328,24 +448,47 @@ function ZoneFormReport() {
         zones: municipalityZones.sort((a, b) => a.zoneName.localeCompare(b.zoneName))
       });
     }
-
-    return blocks;
-  }, [apiData, talukId]);
-
-  // Calculate overall statistics
-  const stats = useMemo(() => {
-    if (!apiData) {
-      return { total: 0, completed: 0, ongoing: 0, notStarted: 0, underReview: 0 };
+    if (corporationZones.length > 0) {
+      blocks.push({
+        blockId: 'corporation',
+        blockName: 'Corporation',
+        isCorporation: true,
+        zones: corporationZones.sort((a, b) => a.zoneName.localeCompare(b.zoneName))
+      });
     }
 
+    return blocks;
+  }, [apiData, zonesList, seasonTab]);
+
+  // Count zones with no data
+  const zonesWithNoData = useMemo(() => {
+    let count = 0;
+    processedData.forEach(block => {
+      block.zones.forEach(zone => {
+        if (!zone.hasData) count++;
+      });
+    });
+    return count;
+  }, [processedData]);
+
+  // Overall statistics
+  const stats = useMemo(() => {
+    if (!apiData) {
+      return { total: 0, completed: 0, ongoing: 0, notStarted: 0, underReview: 0, completedArea: 0 };
+    }
+    const completedArea = processedData.reduce(
+      (sum, block) => sum + block.zones.reduce((s, z) => s + z.area, 0),
+      0
+    );
     return {
-      total: apiData.totalClusterCount || 0,
-      completed: apiData.totalCompletedCount || 0,
-      ongoing: apiData.totalOngoingCount || 0,
-      notStarted: apiData.totalNotStartedCount || 0,
-      underReview: apiData.totalUnderReviewCount || 0
+      total: apiData.totalCluster || 0,
+      completed: apiData.completed || 0,
+      ongoing: apiData.ongoing || 0,
+      notStarted: apiData.notStarted || 0,
+      underReview: apiData.underView || 0,
+      completedArea
     };
-  }, [apiData]);
+  }, [apiData, processedData]);
 
   // Flatten data for table display with subtotals
   const flattenedTableData = useMemo(() => {
@@ -357,6 +500,7 @@ function ZoneFormReport() {
       let blockOngoing = 0;
       let blockNotStarted = 0;
       let blockUnderReview = 0;
+      let blockArea = 0;
 
       // Add each zone in the block
       block.zones.forEach((zone, zoneIndex) => {
@@ -371,6 +515,7 @@ function ZoneFormReport() {
         blockOngoing += zone.ongoing;
         blockNotStarted += zone.notStarted;
         blockUnderReview += zone.underReview;
+        blockArea += zone.area;
 
         result.push({
           type: 'zone',
@@ -384,7 +529,9 @@ function ZoneFormReport() {
           ongoing: zone.ongoing,
           notStarted: zone.notStarted,
           underReview: zone.underReview,
+          area: zone.area,
           zoneId: zone.zoneId,
+          hasData: zone.hasData,
           isCorporation: block.isCorporation || false,
           isMunicipality: block.isMunicipality || false
         });
@@ -402,7 +549,9 @@ function ZoneFormReport() {
         ongoing: blockOngoing,
         notStarted: blockNotStarted,
         underReview: blockUnderReview,
+        area: blockArea,
         isSubtotal: true,
+        hasData: blockTotal > 0,
         isCorporation: block.isCorporation || false,
         isMunicipality: block.isMunicipality || false
       });
@@ -439,21 +588,17 @@ function ZoneFormReport() {
   };
 
   const handleClearFilters = () => {
-    const currentMonth = getCurrentMonth();
-    setFromMonth('');
+    setFromMonth(MONTH_OPTIONS[0]?.value || '');
     setToMonth('');
-    setSingleMonth(currentMonth);
+    setSingleMonth(MONTH_OPTIONS[0]?.value || '');
     setSeasonTab('ALL');
-    setLandType(null);
     setFilterType('single');
-    setSelectedSeason('');
     setPage(0);
   };
 
   const handleSeasonTabChange = (event, newValue) => {
     if (newValue !== null) {
       setSeasonTab(newValue);
-      setLandType(newValue === 'ALL' ? null : newValue);
       setPage(0);
     }
   };
@@ -461,22 +606,18 @@ function ZoneFormReport() {
   const handleFilterTypeChange = (event, newValue) => {
     if (newValue !== null) {
       setFilterType(newValue);
-      if (newValue === 'single') {
-        setSingleMonth(getCurrentMonth());
-        setFromMonth('');
-        setToMonth('');
-      } else {
-        setFromMonth('');
-        setToMonth('');
-        setSingleMonth('');
-      }
+      setFromMonth(MONTH_OPTIONS[0]?.value || '');
+      setToMonth('');
+      setSingleMonth(MONTH_OPTIONS[0]?.value || '');
       setPage(0);
     }
   };
 
-  const handleViewZoneDetails = (zoneName, zoneId) => {
+  const handleViewZoneDetails = (zoneName, zoneId, hasData) => {
+    // Only navigate if zone has data
+    if (!hasData) return;
+
     console.log(`View details for ${zoneName}`, zoneId);
-    // Navigate to zone details page if needed
     navigate(`/kerala_form_report/zone-details/${zoneId}`, {
       state: {
         zoneName,
@@ -487,15 +628,12 @@ function ZoneFormReport() {
         toMonth,
         seasonTab,
         filterType,
-        singleMonth,
-        selectedSeason
+        singleMonth
       }
     });
   };
 
   const handleGoBack = () => {
-    // Navigate back to taluk report with current filters.
-    // districtName param is undefined on the /direct route — fall back to state.
     const safeDistrictName = districtName || stateData.districtName || '';
     const formattedDistrictName = safeDistrictName.toLowerCase().replace(/\s+/g, '-');
     navigate(`/kerala_form_report/taluk_form_report/${formattedDistrictName}`, {
@@ -506,13 +644,12 @@ function ZoneFormReport() {
         toMonth,
         seasonTab,
         filterType,
-        singleMonth,
-        selectedSeason
+        singleMonth
       }
     });
   };
 
-  const StatCard = ({ label, value, color, bgColor, icon }) => (
+  const StatCard = ({ label, value, color, bgColor, icon, areaValue }) => (
     <Card sx={{
       bgcolor: bgColor,
       borderRadius: 3,
@@ -525,9 +662,19 @@ function ZoneFormReport() {
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Box>
-            <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
-              {loading ? <CircularProgress size={24} /> : value}
-            </Typography>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
+                {loading ? <CircularProgress size={24} /> : value}
+              </Typography>
+              {!loading && areaValue !== undefined && areaValue > 0 && (
+                <Chip
+                  label={`${formatArea(areaValue)} cents`}
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontSize: '0.7rem', height: 22, borderColor: alpha(color, 0.4), color }}
+                />
+              )}
+            </Stack>
             <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>
               {label}
             </Typography>
@@ -538,14 +685,14 @@ function ZoneFormReport() {
     </Card>
   );
 
-  // Format display names — URL param (normal navigation) → state (direct access) → fallback
+  // Format display names
   const formattedTaluk =
     (talukName && talukName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')) ||
     stateData.talukName ||
     'Taluk';
 
   // Show loading state
-  if (loading && !apiData) {
+  if ((loading || masterZonesLoading) && !apiData && zonesList.length === 0) {
     return (
       <Grid container spacing={3}>
         <Grid item xs={12}>
@@ -594,19 +741,17 @@ function ZoneFormReport() {
               <Typography variant="body2" color="text.secondary">
                 {(districtName || stateData.districtName) &&
                   `District: ${(districtName || stateData.districtName).split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}`}
-                {seasonTab !== 'ALL' && ` • ${seasonTab} Season`}
-                {filterType === 'single' && singleMonth && ` • ${singleMonth}`}
-                {filterType === 'range' && fromMonth && toMonth && ` • ${fromMonth} - ${toMonth}`}
-                {filterType === 'range' && fromMonth && !toMonth && ` • From ${fromMonth}`}
-                {filterType === 'range' && !fromMonth && toMonth && ` • Until ${toMonth}`}
-                {selectedSeason && ` • ${selectedSeason}`}
-                {apiData && ` • Total Zones: ${apiData.formStatusSummaryResponseList?.length || 0}`}
+                {seasonTab !== 'ALL' && ` • ${seasonTab} Land`}
+                {filterType === 'single' && singleMonth && ` • ${getMonthLabel(singleMonth)}`}
+                {filterType === 'range' && fromMonth && ` • ${getMonthLabel(fromMonth)}${toMonth ? ` - ${getMonthLabel(toMonth)}` : ''}`}
+                {apiData && ` • Total Zones: ${Object.keys(apiData.allSubDetails || {}).length}`}
+                {zonesWithNoData > 0 && ` • ${zonesWithNoData} zones with no data`}
                 {loading && ' • Loading...'}
               </Typography>
             </Box>
           </Stack>
           <Stack direction="row" spacing={1}>
-            {(fromMonth || toMonth || singleMonth || seasonTab !== 'ALL' || selectedSeason) && (
+            {(fromMonth !== MONTH_OPTIONS[0]?.value || toMonth || seasonTab !== 'ALL') && (
               <Button
                 variant="outlined"
                 onClick={handleClearFilters}
@@ -614,21 +759,35 @@ function ZoneFormReport() {
                 size="small"
                 sx={{ borderRadius: 2 }}
               >
-                Reset to Current Month
+                Reset Filters
               </Button>
             )}
-            <Button
-              variant="contained"
-              onClick={fetchZoneData}
-              size="small"
-              sx={{ borderRadius: 2 }}
-              disabled={loading}
-            >
-              {loading ? <CircularProgress size={20} /> : 'Refresh'}
-            </Button>
           </Stack>
         </Stack>
       </Grid>
+
+      {/* Info Banner for zones with no data */}
+      {zonesWithNoData > 0 && !loading && (
+        <Grid item xs={12}>
+          <Paper
+            sx={{
+              p: 1.5,
+              bgcolor: alpha('#ff9800', 0.08),
+              borderRadius: 2,
+              border: `1px solid ${alpha('#ff9800', 0.3)}`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}
+          >
+            <InfoOutlinedIcon sx={{ color: '#ff9800', fontSize: 20 }} />
+            <Typography variant="body2" color="text.secondary">
+              <strong>{zonesWithNoData}</strong> zone{zonesWithNoData > 1 ? 's' : ''} have no data available for the selected filters.
+              <strong> View details is disabled for zones without data.</strong>
+            </Typography>
+          </Paper>
+        </Grid>
+      )}
 
       {/* Filters */}
       <Grid item xs={12}>
@@ -663,37 +822,27 @@ function ZoneFormReport() {
 
               {filterType === 'range' ? (
                 <>
-                  <FormControl size="small" sx={{ minWidth: 130 }}>
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
                     <InputLabel>From Month</InputLabel>
                     <Select
                       value={fromMonth}
                       label="From Month"
-                      onChange={(e) => {
-                        setFromMonth(e.target.value);
-                        setPage(0);
-                        if (e.target.value && !toMonth) {
-                          setToMonth(getCurrentMonth());
-                        }
-                      }}
+                      onChange={(e) => { setFromMonth(e.target.value); setPage(0); }}
                     >
-                      {months.map(month => <MenuItem key={month} value={month}>{month}</MenuItem>)}
+                      <MenuItem value="">{`None (${MONTH_OPTIONS[0]?.label})`}</MenuItem>
+                      {MONTH_OPTIONS.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
                     </Select>
                   </FormControl>
                   <Typography variant="body2" color="text.secondary">→</Typography>
-                  <FormControl size="small" sx={{ minWidth: 130 }}>
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
                     <InputLabel>To Month</InputLabel>
                     <Select
                       value={toMonth}
                       label="To Month"
-                      onChange={(e) => {
-                        setToMonth(e.target.value);
-                        setPage(0);
-                        if (e.target.value && !fromMonth) {
-                          setFromMonth('January');
-                        }
-                      }}
+                      onChange={(e) => { setToMonth(e.target.value); setPage(0); }}
                     >
-                      {months.map(month => <MenuItem key={month} value={month}>{month}</MenuItem>)}
+                      <MenuItem value="">{`None (${MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.label})`}</MenuItem>
+                      {MONTH_OPTIONS.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
                     </Select>
                   </FormControl>
                 </>
@@ -705,27 +854,10 @@ function ZoneFormReport() {
                     label="Select Month"
                     onChange={(e) => { setSingleMonth(e.target.value); setPage(0); }}
                   >
-                    {months.map(month => <MenuItem key={month} value={month}>{month}</MenuItem>)}
+                    {MONTH_OPTIONS.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
                   </Select>
                 </FormControl>
               )}
-
-              <FormControl size="small" sx={{ minWidth: 180 }}>
-                <InputLabel>Season</InputLabel>
-                <Select
-                  value={selectedSeason}
-                  label="Season"
-                  onChange={(e) => {
-                    setSelectedSeason(e.target.value);
-                    setPage(0);
-                  }}
-                >
-                  <MenuItem value="">All Seasons</MenuItem>
-                  <MenuItem value="Winter">Winter</MenuItem>
-                  <MenuItem value="Summer">Summer</MenuItem>
-                  <MenuItem value="Autumn">Autumn</MenuItem>
-                </Select>
-              </FormControl>
             </Stack>
           </Stack>
         </Paper>
@@ -768,6 +900,7 @@ function ZoneFormReport() {
                 color="#2e7d32"
                 bgColor={alpha('#2e7d32', 0.08)}
                 icon={<CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />}
+                areaValue={stats.completedArea}
               />
             </Grid>
 
@@ -863,8 +996,9 @@ function ZoneFormReport() {
                   <Table sx={{ borderCollapse: 'collapse' }}>
                     <TableHead>
                       <TableRow sx={{ bgcolor: '#04255e' }}>
-                        <TableCell sx={{ color: 'white', fontWeight: 600, py: 1.5, minWidth: 200, textAlign: 'center', border: 'none' }}>Block</TableCell>
-                        <TableCell sx={{ color: 'white', fontWeight: 600, py: 1.5, minWidth: 200, border: 'none' }}>Zone</TableCell>
+                        <TableCell sx={{ color: 'white', fontWeight: 600, py: 1.5, minWidth: 60, textAlign: 'center', border: 'none' }}>#</TableCell>
+                        <TableCell sx={{ color: 'white', fontWeight: 600, py: 1.5, minWidth: 180, textAlign: 'center', border: 'none' }}>Block</TableCell>
+                        <TableCell sx={{ color: 'white', fontWeight: 600, py: 1.5, minWidth: 180, border: 'none' }}>Zone</TableCell>
                         <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5, border: 'none' }}>Total</TableCell>
                         <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5, border: 'none' }}>Completed</TableCell>
                         <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5, border: 'none' }}>Ongoing</TableCell>
@@ -880,15 +1014,21 @@ function ZoneFormReport() {
                           const rows = [];
                           let lastBlockName = '';
                           let blockRowCount = 0;
+                          let serialNumber = page * rowsPerPage;
 
                           for (let i = 0; i < paginatedData.length; i++) {
                             const row = paginatedData[i];
                             const isNewBlock = row.blockName !== lastBlockName;
                             const isCurrentRowSubtotal = row.type === 'subtotal';
+                            const hasNoData = !row.hasData && !isCurrentRowSubtotal;
 
                             if (isNewBlock) {
-                              blockRowCount = paginatedData.filter(r => r.blockName === row.blockName).length;
+                              blockRowCount = paginatedData.filter(r => r.blockName === row.blockName && r.type !== 'subtotal').length;
                               lastBlockName = row.blockName;
+                            }
+
+                            if (!isCurrentRowSubtotal) {
+                              serialNumber++;
                             }
 
                             const isFirstRowOfBlock = isNewBlock;
@@ -904,9 +1044,22 @@ function ZoneFormReport() {
                                     borderBottom: isCurrentRowSubtotal ? `1px solid ${theme.palette.primary.main}` : 'none',
                                     borderTop: isCurrentRowSubtotal ? `0.01px solid ${theme.palette.primary.main}` : 'none',
                                     backgroundColor: isCurrentRowSubtotal ? alpha('#728ab4', 0.08) : 'transparent'
-                                  }
+                                  },
+                                  ...(hasNoData && {
+                                    bgcolor: alpha('#ff9800', 0.03),
+                                    '&:hover': { bgcolor: alpha('#ff9800', 0.08) }
+                                  })
                                 }}
                               >
+                                {/* Serial Number */}
+                                <TableCell align="center" sx={{ border: 'none' }}>
+                                  {!isCurrentRowSubtotal && (
+                                    <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                                      {serialNumber}
+                                    </Typography>
+                                  )}
+                                </TableCell>
+
                                 {/* Block Column - Merged for all zones in block */}
                                 {isFirstRowOfBlock && !isCurrentRowSubtotal && (
                                   <TableCell
@@ -948,44 +1101,80 @@ function ZoneFormReport() {
                                     </Typography>
                                   ) : (
                                     <Stack direction="row" spacing={1} alignItems="center">
-                                      <StoreIcon sx={{ fontSize: 18, color: '#04255e', opacity: 0.7 }} />
-                                      <Typography fontWeight={500}>{row.zoneName}</Typography>
+                                      <StoreIcon sx={{ fontSize: 18, color: hasNoData ? '#ff9800' : '#04255e', opacity: 0.7 }} />
+                                      <Typography fontWeight={hasNoData ? 400 : 500} color={hasNoData ? 'text.secondary' : 'text.primary'}>
+                                        {row.zoneName}
+                                        {hasNoData && (
+                                          <Chip
+                                            label="No Data"
+                                            size="small"
+                                            sx={{
+                                              ml: 1,
+                                              height: 18,
+                                              fontSize: '0.6rem',
+                                              bgcolor: alpha('#ff9800', 0.15),
+                                              color: '#e65100',
+                                              fontWeight: 600
+                                            }}
+                                          />
+                                        )}
+                                      </Typography>
                                     </Stack>
                                   )}
                                 </TableCell>
 
                                 {/* Total */}
                                 <TableCell align="center" sx={{ borderRight: 'none', borderLeft: 'none' }}>
-                                  <Chip
-                                    label={row.total}
-                                    size="small"
-                                    variant={row.type === 'subtotal' ? "filled" : "outlined"}
-                                    sx={{
-                                      fontWeight: row.type === 'subtotal' ? 700 : 600,
-                                      bgcolor: row.type === 'subtotal' ? alpha('#04255e', 0.15) : 'transparent',
-                                      color: row.type === 'subtotal' ? '#04255e' : 'inherit'
-                                    }}
-                                  />
+                                  {hasNoData ? (
+                                    <Typography variant="body2" color="text.secondary">NA</Typography>
+                                  ) : (
+                                    <Chip
+                                      label={row.total}
+                                      size="small"
+                                      variant={row.type === 'subtotal' ? "filled" : "outlined"}
+                                      sx={{
+                                        fontWeight: row.type === 'subtotal' ? 700 : 600,
+                                        bgcolor: row.type === 'subtotal' ? alpha('#04255e', 0.15) : 'transparent',
+                                        color: row.type === 'subtotal' ? '#04255e' : 'inherit'
+                                      }}
+                                    />
+                                  )}
                                 </TableCell>
 
                                 {/* Completed */}
                                 <TableCell align="center" sx={{ borderRight: 'none', borderLeft: 'none' }}>
-                                  {row.completed > 0 ? (
-                                    <Chip
-                                      label={row.completed}
-                                      size="small"
-                                      color="success"
-                                      variant={row.type === 'subtotal' ? "filled" : "outlined"}
-                                      sx={{ fontWeight: row.type === 'subtotal' ? 700 : 500 }}
-                                    />
+                                  {hasNoData ? (
+                                    <Typography variant="body2" color="text.secondary">NA</Typography>
                                   ) : (
-                                    <Typography variant="body2" color="text.secondary">{row.completed}</Typography>
+                                    <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
+                                      {row.completed > 0 ? (
+                                        <Chip
+                                          label={row.completed}
+                                          size="small"
+                                          color="success"
+                                          variant={row.type === 'subtotal' ? "filled" : "outlined"}
+                                          sx={{ fontWeight: row.type === 'subtotal' ? 700 : 500 }}
+                                        />
+                                      ) : (
+                                        <Typography variant="body2" color="text.secondary">{row.completed}</Typography>
+                                      )}
+                                      {row.area > 0 && (
+                                        <Chip
+                                          label={formatArea(row.area)}
+                                          size="small"
+                                          variant="outlined"
+                                          sx={{ fontSize: '0.65rem', height: 20, borderColor: alpha('#04255e', 0.3), color: '#04255e' }}
+                                        />
+                                      )}
+                                    </Stack>
                                   )}
                                 </TableCell>
 
                                 {/* Ongoing */}
                                 <TableCell align="center" sx={{ borderRight: 'none', borderLeft: 'none' }}>
-                                  {row.ongoing > 0 ? (
+                                  {hasNoData ? (
+                                    <Typography variant="body2" color="text.secondary">NA</Typography>
+                                  ) : row.ongoing > 0 ? (
                                     <Chip
                                       label={row.ongoing}
                                       size="small"
@@ -1000,7 +1189,9 @@ function ZoneFormReport() {
 
                                 {/* Not Started */}
                                 <TableCell align="center" sx={{ borderRight: 'none', borderLeft: 'none' }}>
-                                  {row.notStarted > 0 ? (
+                                  {hasNoData ? (
+                                    <Typography variant="body2" color="text.secondary">NA</Typography>
+                                  ) : row.notStarted > 0 ? (
                                     <Chip
                                       label={row.notStarted}
                                       size="small"
@@ -1017,7 +1208,9 @@ function ZoneFormReport() {
 
                                 {/* Under Review */}
                                 <TableCell align="center" sx={{ borderRight: 'none', borderLeft: 'none' }}>
-                                  {row.underReview > 0 ? (
+                                  {hasNoData ? (
+                                    <Typography variant="body2" color="text.secondary">NA</Typography>
+                                  ) : row.underReview > 0 ? (
                                     <Chip
                                       label={row.underReview}
                                       size="small"
@@ -1033,15 +1226,28 @@ function ZoneFormReport() {
                                 {/* Actions */}
                                 <TableCell align="center" sx={{ borderRight: 'none', borderLeft: 'none' }}>
                                   {row.type !== 'subtotal' && (
-                                    <Tooltip title="View Details">
-                                      <IconButton
-                                        size="small"
-                                        onClick={() => handleViewZoneDetails(row.zoneName, row.zoneId)}
-                                        sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
-                                      >
-                                        <VisibilityIcon />
-                                      </IconButton>
-                                    </Tooltip>
+                                    row.hasData ? (
+                                      <Tooltip title="View Details">
+                                        <IconButton
+                                          size="small"
+                                          disabled
+                                          onClick={() => handleViewZoneDetails(row.zoneName, row.zoneId, row.hasData)}
+                                          sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
+                                        >
+                                          <VisibilityIcon />
+                                        </IconButton>
+                                      </Tooltip>
+                                    ) : (
+                                      <Tooltip title="No data available - View disabled">
+                                        <IconButton
+                                          size="small"
+                                          disabled
+                                          sx={{ color: '#bdbdbd', cursor: 'not-allowed' }}
+                                        >
+                                          <VisibilityOffIcon />
+                                        </IconButton>
+                                      </Tooltip>
+                                    )
                                   )}
                                 </TableCell>
                               </TableRow>
@@ -1051,7 +1257,7 @@ function ZoneFormReport() {
                         })()
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                          <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                             <Typography color="text.secondary">
                               {searchTerm ? `No blocks/zones found matching "${searchTerm}"` : 'No data available for selected filters'}
                             </Typography>
@@ -1080,8 +1286,7 @@ function ZoneFormReport() {
         </Box>
       </Grid>
 
-      {/* Back Button — hidden for direct-access (taluk approver) users,
-          who have no taluk-level page to go back to */}
+      {/* Back Button */}
       {!stateData.isDirectAccess && (
         <Grid item xs={12}>
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>

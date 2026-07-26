@@ -100,9 +100,9 @@ const TalukClusterReport = Loadable(lazy(() => import('pages/functional-componen
 const ZoneClusterReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/clusterReport/ZoneClusterReport')));
 const ReportMenu = Loadable(lazy(() => import('pages/functional-components/earas/Report/ReportMenu')));
 
-const KeralaFormReportList = Loadable(lazy(() => import('pages/functional-components/earas/Report/formReport/KeralaFormReportList')));
-const TalukFormReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/formReport/TalukFormReport')));
-const ZoneFormReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/formReport/ZoneFormReport')));
+const KeralaFormReportList = Loadable(lazy(() => import('pages/functional-components/earas/Report/FormReport/KeralaFormReportList')));
+const TalukFormReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/FormReport/TalukFormReport')));
+const ZoneFormReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/FormReport/ZoneFormReport')));
 
 const KeralaForm2 = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form2/KeralaForm2')));
 const TalukForm2 = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form2/TalukForm2')));

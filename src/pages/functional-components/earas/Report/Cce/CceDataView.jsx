@@ -28,7 +28,9 @@ import {
   Agriculture as AgricultureIcon,
   LocationOn as LocationOnIcon,
   Warning as WarningIcon,
-  NoteAlt as RemarksIcon
+  NoteAlt as RemarksIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Breadcrumb from 'routes/Breadcrumb';
@@ -166,7 +168,7 @@ const CceDataView = () => {
 
       try {
         console.log("plotId", targetPlotId);
-        let response = await fetch(`${mainapi.FORM_API}/earas-form1-entry/cce-data-entry/frame-details/9de83462-0520-4815-b334-d078855987be`, { headers });
+        let response = await fetch(`${mainapi.FORM_API}/earas-form1-entry/cce-data-entry/frame-details/${targetPlotId}`, { headers });
         if (!response.ok) {
           response = await fetch(`${mainapi.FORM_API}/cce-data-entry/frame-details/${targetPlotId}`, { headers });
         }
@@ -242,6 +244,104 @@ const CceDataView = () => {
     };
 
     fetchSeedDetailsList();
+  }, [frameDetails]);
+
+  // Common Details state & fetch
+  const [commonDetails, setCommonDetails] = useState(null);
+  const [isCommonLoading, setIsCommonLoading] = useState(false);
+  const [commonError, setCommonError] = useState(null);
+
+  useEffect(() => {
+    const plotId = rowData.availableCcePlotId || rowData.cceAvailablePlotId;
+    const targetPlotId = plotId || '9de83462-0520-4815-b334-d078855987be';
+
+    const fetchCommonDetails = async () => {
+      setIsCommonLoading(true);
+      setCommonError(null);
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` })
+      };
+
+      try {
+        let response = await fetch(`${mainapi.FORM_API}/earas-form1-entry/cce-data-entry/fetch-common-details/${targetPlotId}`, { headers });
+        if (!response.ok) {
+          response = await fetch(`${mainapi.FORM_API}/earas-form1-entry/cce-data-entry/fetch-common-details/${targetPlotId}`, { headers });
+        }
+        if (!response.ok) throw new Error('Failed to fetch common details');
+
+        const data = await response.json();
+        const payload = data?.payload || data;
+        setCommonDetails(payload);
+      } catch (err) {
+        console.error('Error fetching common details:', err);
+        setCommonError('Unable to load common details');
+      } finally {
+        setIsCommonLoading(false);
+      }
+    };
+
+    fetchCommonDetails();
+  }, [rowData.availableCcePlotId, rowData.cceAvailablePlotId]);
+
+  // Irrigation Details per tree state & fetch
+  const [irrigationDetailsList, setIrrigationDetailsList] = useState([]);
+  const [isIrrigationLoading, setIsIrrigationLoading] = useState(false);
+  const [irrigationError, setIrrigationError] = useState(null);
+
+  useEffect(() => {
+    const treeItems = frameDetails?.ifTreeThenRandomNo || [];
+    if (treeItems.length === 0) {
+      setIrrigationDetailsList([]);
+      return;
+    }
+
+    const fetchIrrigationDetailsList = async () => {
+      setIsIrrigationLoading(true);
+      setIrrigationError(null);
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` })
+      };
+
+      try {
+        const results = await Promise.all(
+          treeItems.map(async (item) => {
+            const treeId = item.cceDataEntryPerTreeId;
+            if (!treeId) return null;
+            try {
+              let response = await fetch(`${mainapi.FORM_API}/earas-form1-entry/cce-data-entry/fetch-irrigation-details-per-tree/${treeId}`, { headers });
+              if (!response.ok) {
+                response = await fetch(`${mainapi.FORM_API}/cce-data-entry/fetch-irrigation-details-per-tree/${treeId}`, { headers });
+              }
+              if (!response.ok) return null;
+              const data = await response.json();
+              const payload = data?.payload || data;
+              return {
+                ...payload,
+                randomNo: item.randomNo,
+                cceDataEntryPerTreeId: treeId
+              };
+            } catch (e) {
+              console.error(`Error fetching irrigation details for tree ${treeId}:`, e);
+              return null;
+            }
+          })
+        );
+
+        const validResults = results.filter(Boolean);
+        setIrrigationDetailsList(validResults);
+      } catch (err) {
+        console.error('Error fetching irrigation details list:', err);
+        setIrrigationError('Unable to load irrigation details');
+      } finally {
+        setIsIrrigationLoading(false);
+      }
+    };
+
+    fetchIrrigationDetailsList();
   }, [frameDetails]);
 
   return (
@@ -324,7 +424,7 @@ const CceDataView = () => {
             }}
           >
             <Tab icon={<PersonIcon />} iconPosition="start" label="Cultivator Field Details" />
-            <Tab icon={<GridOnIcon />} iconPosition="start" label="Frame Selection" />
+            <Tab icon={<GridOnIcon />} iconPosition="start" label="Frame Selection Summary / Irrigation Method & Schedule" />
             <Tab icon={<SpaIcon />} iconPosition="start" label="Seed Details" />
             <Tab icon={<WaterDropIcon />} iconPosition="start" label="Irrigation" />
             <Tab icon={<AgricultureIcon />} iconPosition="start" label="Yield" />
@@ -374,7 +474,7 @@ const CceDataView = () => {
         {/* TAB 2: FRAME SELECTION */}
         <TabPanel value={tabValue} index={1}>
           <Box>
-            <SectionTitle icon={GridOnIcon} title="Frame Selection Summary" />
+            <SectionTitle icon={GridOnIcon} title="Frame Selection Summary / Irrigation Method & Schedule" />
 
             {isFrameLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 6 }}>
@@ -457,29 +557,72 @@ const CceDataView = () => {
                             <TableCell sx={{ fontWeight: 600 }}>S.No</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Random Tree Number</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Per Tree Reference ID</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>Drainage Available</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>Irrigation Schedule Regular</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>Irrigation Frequency</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
                           {frameDetails.ifTreeThenRandomNo && frameDetails.ifTreeThenRandomNo.length > 0 ? (
-                            frameDetails.ifTreeThenRandomNo.map((item, idx) => (
-                              <TableRow key={item.cceDataEntryPerTreeId || idx} hover>
-                                <TableCell sx={{ fontWeight: 500 }}>{idx + 1}</TableCell>
-                                <TableCell>
-                                  <Chip
-                                    label={`Tree #${item.randomNo}`}
-                                    size="small"
-                                    color="primary"
-                                    sx={{ fontWeight: 700 }}
-                                  />
-                                </TableCell>
-                                <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.85rem', color: 'text.secondary' }}>
-                                  {item.cceDataEntryPerTreeId || 'N/A'}
-                                </TableCell>
-                              </TableRow>
-                            ))
+                            frameDetails.ifTreeThenRandomNo.map((item, idx) => {
+                              const irr = irrigationDetailsList.find(i => i.cceDataEntryPerTreeId === item.cceDataEntryPerTreeId);
+                              return (
+                                <TableRow key={item.cceDataEntryPerTreeId || idx} hover>
+                                  <TableCell sx={{ fontWeight: 500 }}>{idx + 1}</TableCell>
+                                  <TableCell>
+                                    <Chip
+                                      label={`Tree #${item.randomNo}`}
+                                      size="small"
+                                      color="primary"
+                                      sx={{ fontWeight: 700 }}
+                                    />
+                                  </TableCell>
+                                  <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.85rem', color: 'text.secondary' }}>
+                                    {item.cceDataEntryPerTreeId || 'N/A'}
+                                  </TableCell>
+                                  <TableCell>
+                                    {isIrrigationLoading ? (
+                                      <CircularProgress size={16} />
+                                    ) : irr && irr.isDrainageAvailable !== undefined && irr.isDrainageAvailable !== null ? (
+                                      <Chip
+                                        label={irr.isDrainageAvailable ? "Yes" : "No"}
+                                        size="small"
+                                        color={irr.isDrainageAvailable ? "success" : "error"}
+                                        variant="outlined"
+                                        sx={{ fontWeight: 600 }}
+                                      />
+                                    ) : (
+                                      'N/A'
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    {isIrrigationLoading ? (
+                                      <CircularProgress size={16} />
+                                    ) : irr && irr.isIrrigationScheduleRegular !== undefined && irr.isIrrigationScheduleRegular !== null ? (
+                                      <Chip
+                                        label={irr.isIrrigationScheduleRegular ? "Regular" : "Irregular"}
+                                        size="small"
+                                        color={irr.isIrrigationScheduleRegular ? "success" : "warning"}
+                                        variant="outlined"
+                                        sx={{ fontWeight: 600 }}
+                                      />
+                                    ) : (
+                                      'N/A'
+                                    )}
+                                  </TableCell>
+                                  <TableCell sx={{ fontWeight: 500 }}>
+                                    {isIrrigationLoading ? (
+                                      <CircularProgress size={16} />
+                                    ) : (
+                                      irr?.irrigationFrequency || 'N/A'
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })
                           ) : (
                             <TableRow>
-                              <TableCell colSpan={3} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                              <TableCell colSpan={6} align="center" sx={{ py: 3, color: 'text.secondary' }}>
                                 No random trees available.
                               </TableCell>
                             </TableRow>
@@ -524,19 +667,61 @@ const CceDataView = () => {
                             />
                           </TableCell>
                         </TableRow>
-                        {frameDetails.ifTreeThenRandomNo && frameDetails.ifTreeThenRandomNo.length > 0 && (
-                          <TableRow hover>
-                            <TableCell sx={{ fontWeight: 600 }}>Selected Crop Random Number</TableCell>
-                            <TableCell colSpan={2}>
-                              <Chip
-                                label={`Random No: ${frameDetails.ifTreeThenRandomNo[0].randomNo}`}
-                                size="small"
-                                color="primary"
-                                sx={{ fontWeight: 700 }}
-                              />
-                            </TableCell>
-                          </TableRow>
-                        )}
+                        {frameDetails.ifTreeThenRandomNo && frameDetails.ifTreeThenRandomNo.length > 0 && (() => {
+                          const item = frameDetails.ifTreeThenRandomNo[0];
+                          const irr = irrigationDetailsList.find(i => i.cceDataEntryPerTreeId === item.cceDataEntryPerTreeId);
+                          return (
+                            <>
+                              <TableRow hover>
+                                <TableCell sx={{ fontWeight: 600 }}>Selected Crop Random Number</TableCell>
+                                <TableCell colSpan={2}>
+                                  <Chip
+                                    label={`Random No: ${item.randomNo}`}
+                                    size="small"
+                                    color="primary"
+                                    sx={{ fontWeight: 700 }}
+                                  />
+                                </TableCell>
+                              </TableRow>
+                              {irr && (
+                                <>
+                                  <TableRow hover>
+                                    <TableCell sx={{ fontWeight: 600 }}>Drainage Available</TableCell>
+                                    <TableCell colSpan={2}>
+                                      {irr.isDrainageAvailable !== undefined && irr.isDrainageAvailable !== null ? (
+                                        <Chip
+                                          label={irr.isDrainageAvailable ? "Yes" : "No"}
+                                          size="small"
+                                          color={irr.isDrainageAvailable ? "success" : "error"}
+                                          variant="outlined"
+                                          sx={{ fontWeight: 600 }}
+                                        />
+                                      ) : 'N/A'}
+                                    </TableCell>
+                                  </TableRow>
+                                  <TableRow hover>
+                                    <TableCell sx={{ fontWeight: 600 }}>Irrigation Schedule Regular</TableCell>
+                                    <TableCell colSpan={2}>
+                                      {irr.isIrrigationScheduleRegular !== undefined && irr.isIrrigationScheduleRegular !== null ? (
+                                        <Chip
+                                          label={irr.isIrrigationScheduleRegular ? "Regular" : "Irregular"}
+                                          size="small"
+                                          color={irr.isIrrigationScheduleRegular ? "success" : "warning"}
+                                          variant="outlined"
+                                          sx={{ fontWeight: 600 }}
+                                        />
+                                      ) : 'N/A'}
+                                    </TableCell>
+                                  </TableRow>
+                                  <TableRow hover>
+                                    <TableCell sx={{ fontWeight: 600 }}>Irrigation Frequency</TableCell>
+                                    <TableCell colSpan={2}>{irr.irrigationFrequency || 'N/A'}</TableCell>
+                                  </TableRow>
+                                </>
+                              )}
+                            </>
+                          );
+                        })()}
                       </TableBody>
                     </Table>
                   </TableContainer>
@@ -660,19 +845,104 @@ const CceDataView = () => {
         </TabPanel>
 
         {/* TAB 4: IRRIGATION */}
+        {/* TAB 4: IRRIGATION */}
         <TabPanel value={tabValue} index={3}>
           <Box sx={{ mb: 4 }}>
             <SectionTitle icon={WaterDropIcon} title="Irrigation Method & Schedule" />
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={3}><DataItem label="Method" value="Flood Irrigation" /></Grid>
-              <Grid item xs={12} sm={6} md={3}><DataItem label="Number of Irrigations" value="8" /></Grid>
-            </Grid>
-          </Box>
-          <Box>
-            <SectionTitle icon={GridOnIcon} title="Drainage System" />
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}><DataItem label="Drainage Status" value="Good" /></Grid>
-            </Grid>
+
+            {/* Irrigation Sources from Common Details API */}
+            {isCommonLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 6 }}>
+                <CircularProgress size={40} />
+              </Box>
+            ) : commonError ? (
+              <Alert severity="warning" sx={{ mb: 2 }}>{commonError}</Alert>
+            ) : commonDetails?.irrigationSources && commonDetails.irrigationSources.length > 0 ? (
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, color: 'text.primary' }}>
+                  Irrigation Sources
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                  {commonDetails.irrigationSources.map((source, index) => (
+                    <Chip
+                      key={source.sourceId || index}
+                      label={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <span style={{ fontWeight: 600 }}>{source.irrigationType || 'N/A'}</span>
+                          {source.irrigationCodeDes !== undefined && source.irrigationCodeDes !== null && (
+                            <Chip
+                              label={`Code: ${source.irrigationCodeDes}`}
+                              size="small"
+                              sx={{
+                                backgroundColor: alpha(theme.palette.info.main, 0.15),
+                                color: theme.palette.info.dark,
+                                fontWeight: 500,
+                                fontSize: '0.7rem',
+                                height: 20,
+                                '& .MuiChip-label': {
+                                  px: 1,
+                                  py: 0.5
+                                }
+                              }}
+                            />
+                          )}
+                        </Box>
+                      }
+                      icon={<WaterDropIcon />}
+                      sx={{
+                        fontWeight: 500,
+                        py: 1,
+                        px: 0.5,
+                        backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.25)}`,
+                        borderRadius: 2,
+                        '& .MuiChip-label': {
+                          px: 1.5,
+                        },
+                        '& .MuiChip-icon': {
+                          color: theme.palette.primary.main,
+                        },
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.primary.main, 0.15),
+                          borderColor: theme.palette.primary.main,
+                        }
+                      }}
+                      size="medium"
+                    />
+                  ))}
+                </Box>
+              </Box>
+            ) : (
+              <Box sx={{ mb: 4, py: 2 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1, color: 'text.primary' }}>
+                  Irrigation Sources
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
+                  No irrigation sources available
+                </Typography>
+              </Box>
+            )}
+
+            {/* Additional Irrigation Information */}
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, color: 'text.primary' }}>
+                Irrigation Schedule
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <DataItem label="Irrigation Type" value={commonDetails?.irrigationType || 'N/A'} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <DataItem label="Number of Irrigations" value={commonDetails?.numberOfIrrigations || 'N/A'} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <DataItem label="Irrigation Interval" value={commonDetails?.irrigationInterval || 'N/A'} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <DataItem label="Drainage Status" value={commonDetails?.drainageStatus || 'Good'} />
+                </Grid>
+              </Grid>
+            </Box>
           </Box>
         </TabPanel>
 

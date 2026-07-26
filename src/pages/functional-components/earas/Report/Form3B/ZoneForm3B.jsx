@@ -19,13 +19,15 @@ import {
   Chip,
   Stack,
   IconButton,
-  CircularProgress
+  CircularProgress,
+  TablePagination
 } from '@mui/material';
 import { LocationOn, Store, ArrowBack } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
 import AuthService from 'pages/authentication/services/authservice';
+import Breadcrumb from 'routes/Breadcrumb';
 
 // Gateway root (e.g. http://localhost:8080). '/earas-form1-entry' added below.
 // NOTE: if mainapi.FORM_API already ends in '/earas-form1-entry', drop the
@@ -80,13 +82,13 @@ function getSavedState() {
 }
 
 // Resolve the block a zone belongs to.
-//   real block   → blockName (when blockId & blockName present)
-//   blockId null  → keyword in zoneName: Municipality / Corporation, else Unassigned
+//   zoneName contains 'Municipality' / 'Corporation' → that keyword, regardless of blockId
+//   otherwise: real block → blockName (when blockId & blockName present), else Unassigned
 function resolveBlockName(blockId, blockName, zoneName) {
-  if (blockId && blockName) return blockName;
   const lower = (zoneName || '').toLowerCase();
   if (lower.includes('municipality')) return 'Municipality';
   if (lower.includes('corporation')) return 'Corporation';
+  if (blockId && blockName) return blockName;
   return 'Unassigned';
 }
 
@@ -135,6 +137,11 @@ const ZoneForm3B = () => {
   const [apiData, setApiData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Pagination is by Block (not raw zone rows) so a block's zones and its
+  // subtotal row always stay together on the same page — splitting a block's
+  // rowSpan cell across pages isn't possible.
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const cropGroupId = CROP_GROUPS[activeTab]?.id;
   const cropGroupName = CROP_GROUPS[activeTab]?.name;
@@ -240,8 +247,23 @@ const ZoneForm3B = () => {
 
   /* ─────────────────────────── handlers ─────────────────────────── */
 
-  const handleTabChange = (event, newValue) => setActiveTab(newValue);
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+    setPage(0);
+  };
   const formatNumber = (num) => Number(num || 0).toFixed(2);
+
+  const handleChangePage = (event, newPage) => setPage(newPage);
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const groupedEntries = useMemo(() => Object.entries(grouped), [grouped]);
+  const paginatedEntries = useMemo(
+    () => groupedEntries.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [groupedEntries, page, rowsPerPage]
+  );
 
   const handleBack = () => {
     navigate('/schemes/earas/Report/Form3B/TalukForm3B', {
@@ -258,7 +280,7 @@ const ZoneForm3B = () => {
     ...extra
   });
 
-  const TABLE_W = BLOCK_W + ZONE_W + Math.max(cropColumns.length, 1) * 150;
+  const TABLE_MIN_W = BLOCK_W + ZONE_W + Math.max(cropColumns.length, 1) * 150;
 
   /* ─────────────────────────── render ─────────────────────────── */
 
@@ -267,6 +289,7 @@ const ZoneForm3B = () => {
       elevation={0}
       sx={{ borderRadius: 4, overflow: 'visible', background: theme.palette.background.paper, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}
     >
+      <Breadcrumb/>
       <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
         <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
           <IconButton onClick={handleBack} size="small" sx={{ color: themeColor }}>
@@ -275,9 +298,6 @@ const ZoneForm3B = () => {
           <LocationOn sx={{ fontSize: 32, color: themeColor }} />
           <Typography variant="h5" sx={{ fontWeight: 'bold', color: themeColor }}>
             {talukName} Taluk ({districtName} District) - Zone-wise Crop Area Report (Form 3B)
-          </Typography>
-          <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
-            Agricultural Year: {agriculturalYear} • Area in Cents
           </Typography>
         </Box>
 
@@ -310,7 +330,7 @@ const ZoneForm3B = () => {
               <Table
                 stickyHeader
                 size="small"
-                sx={{ width: TABLE_W, minWidth: TABLE_W, tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0 }}
+                sx={{ width: '100%', minWidth: TABLE_MIN_W, tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0 }}
               >
                 <colgroup>
                   <col style={{ width: BLOCK_W }} />
@@ -318,6 +338,11 @@ const ZoneForm3B = () => {
                   {cropColumns.map((c) => (
                     <col key={c.cropId} style={{ width: 150 }} />
                   ))}
+                  {/* Spacer column absorbs any leftover width so the real
+                      columns keep a consistent, readable size instead of
+                      one column stretching edge-to-edge when there are
+                      only one or two crop columns. */}
+                  <col style={{ width: 'auto' }} />
                 </colgroup>
 
                 <TableHead>
@@ -343,25 +368,29 @@ const ZoneForm3B = () => {
                         {crop.cropName}
                       </TableCell>
                     ))}
+                    <TableCell
+                      aria-hidden
+                      sx={{ backgroundColor: themeColor, position: 'sticky', top: 0, zIndex: 3, padding: 0 }}
+                    />
                   </TableRow>
                 </TableHead>
 
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={cropColumns.length + 2} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={cropColumns.length + 3} align="center" sx={{ py: 6 }}>
                         <CircularProgress size={36} />
                       </TableCell>
                     </TableRow>
                   ) : Object.keys(grouped).length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={cropColumns.length + 2} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={cropColumns.length + 3} align="center" sx={{ py: 6 }}>
                         <Typography color="text.secondary">No data available for {cropGroupName}</Typography>
                       </TableCell>
                     </TableRow>
                   ) : (
                     <>
-                      {Object.entries(grouped).map(([blockName, zones]) => {
+                      {paginatedEntries.map(([blockName, zones]) => {
                         const rows = [];
 
                         zones.forEach((zone, idx) => {
@@ -403,6 +432,7 @@ const ZoneForm3B = () => {
                                   </TableCell>
                                 );
                               })}
+                              <TableCell aria-hidden sx={{ borderBottom: isLastInGroup ? undefined : 'none' }} />
                             </TableRow>
                           );
                         });
@@ -419,13 +449,14 @@ const ZoneForm3B = () => {
                                 {bt[crop.cropId] ? formatNumber(bt[crop.cropId]) : '—'}
                               </TableCell>
                             ))}
+                            <TableCell aria-hidden sx={{ bgcolor: stickyTintSubtotal }} />
                           </TableRow>
                         );
 
                         return rows;
                       })}
 
-                      {/* Grand total */}
+                      {/* Grand total
                       <TableRow sx={{ bgcolor: stickyTintGrand }}>
                         <TableCell colSpan={2} sx={{ ...stickyCellSx(0, stickyTintGrand), fontWeight: 800, color: themeColor, fontSize: '1rem', py: 1.5, zIndex: 2 }}>
                           <strong>🏆 GRAND TOTAL</strong>
@@ -435,12 +466,23 @@ const ZoneForm3B = () => {
                             {grandTotals[crop.cropId] ? formatNumber(grandTotals[crop.cropId]) : '—'}
                           </TableCell>
                         ))}
-                      </TableRow>
+                      </TableRow> */}
                     </>
                   )}
                 </TableBody>
               </Table>
             </TableContainer>
+            <TablePagination
+              component="div"
+              count={groupedEntries.length}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={[5, 10, 25]}
+              labelRowsPerPage="Blocks per page"
+              sx={{ borderTop: `1px solid ${alpha(themeColor, 0.1)}` }}
+            />
           </Box>
         </Paper>
       </CardContent>

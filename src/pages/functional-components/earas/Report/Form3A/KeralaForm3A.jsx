@@ -16,23 +16,23 @@ import {
   Tabs,
   Tab,
   Chip,
-  CircularProgress
+  CircularProgress,
+  TablePagination
 } from '@mui/material';
 import { LocationOn } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
 import AuthService from 'pages/authentication/services/authservice';
+import Breadcrumb from 'routes/Breadcrumb';
 
-// Gateway root (e.g. http://localhost:8080). '/earas-form1-entry' added below.
-// NOTE: if mainapi.FORM_API already ends in '/earas-form1-entry', drop the
-// duplicate segment from the URL to avoid a doubled prefix (404).
 const BASE_URL = mainapi.FORM_API;
 
-// sessionStorage key used to remember which crop-group tab was active, so
-// that navigating back from TalukForm3A (via navigate(-1)) restores the
-// same tab instead of always resetting to tab 0.
 const SESSION_KEY = 'keralaForm3AState';
+
+// Sticky/column widths
+const DISTRICT_W = 180;
+const CROP_W = 150;
 
 // Static crop groups (tbl_master_crop_group). The tab index maps to a group,
 // whose id is sent to the API as cropGroupId.
@@ -65,9 +65,6 @@ const CROP_GROUPS = [
 // Collapse whitespace/newlines in crop labels (some come as "OTHER VEGETABLES\n(Please Specify)\n").
 const cleanName = (name) => (name || '').replace(/\s+/g, ' ').trim();
 
-// Read whatever tab state was last saved for this page (e.g. before
-// drilling down into a district). Falls back to an empty object so
-// `.activeTab` reads as undefined rather than throwing.
 function getSavedState() {
   try {
     return JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}');
@@ -81,15 +78,14 @@ const KeralaForm3A = () => {
   const themeColor = '#05307a';
   const navigate = useNavigate();
 
-  // Agricultural year from AuthService (e.g. '2025-2026')
   const agriculturalYear = AuthService.agriyear() || '2025-2026';
 
-  // Restore the previously selected crop-group tab (e.g. after navigating
-  // back from TalukForm3A) instead of always defaulting to tab 0.
   const [activeTab, setActiveTab] = useState(() => getSavedState().activeTab ?? 0);
   const [apiData, setApiData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const cropGroupId = CROP_GROUPS[activeTab]?.id;
   const cropGroupName = CROP_GROUPS[activeTab]?.name;
@@ -99,7 +95,6 @@ const KeralaForm3A = () => {
     whiteSpace: 'nowrap'
   };
 
-  /* ── persist active tab so it survives navigating away and back ── */
   useEffect(() => {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({ activeTab }));
   }, [activeTab]);
@@ -150,7 +145,6 @@ const KeralaForm3A = () => {
     );
     return Array.from(map.values()).sort((a, b) => a.cropName.localeCompare(b.cropName));
   }, [apiData]);
-  
 
   // District rows: { districtId, district, byId: { [cropId]: areaInCents } }
   const districtRows = useMemo(() => {
@@ -177,9 +171,23 @@ const KeralaForm3A = () => {
 
   /* ─────────────────────────── handlers ─────────────────────────── */
 
-  const handleTabChange = (event, newValue) => setActiveTab(newValue);
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+    setPage(0);
+  };
 
   const formatNumber = (num) => Number(num || 0).toFixed(2);
+
+  const handleChangePage = (event, newPage) => setPage(newPage);
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const paginatedRows = useMemo(
+    () => districtRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [districtRows, page, rowsPerPage]
+  );
 
   const handleDistrictClick = (districtName, districtId) => {
     if (districtId == null) return; // skip the Unassigned / state-level bucket
@@ -196,6 +204,8 @@ const KeralaForm3A = () => {
     });
   };
 
+  const TABLE_MIN_W = DISTRICT_W + Math.max(cropColumns.length, 1) * CROP_W;
+
   /* ─────────────────────────── render ─────────────────────────── */
 
   return (
@@ -208,6 +218,7 @@ const KeralaForm3A = () => {
         border: `1px solid ${alpha(theme.palette.divider, 0.1)}`
       }}
     >
+      <Breadcrumb/>
       <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
         {/* Header */}
         <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
@@ -268,7 +279,21 @@ const KeralaForm3A = () => {
           {/* Active group's table: District, <crop columns...> */}
           <Box role="tabpanel" sx={{ p: 0, position: 'relative' }}>
             <TableContainer sx={{ maxHeight: 600, overflowX: 'auto' }}>
-              <Table stickyHeader size="small" sx={{ minWidth: 200 + Math.max(cropColumns.length, 1) * 150 }}>
+              <Table
+                stickyHeader
+                size="small"
+                sx={{ width: '100%', minWidth: TABLE_MIN_W, tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0 }}
+              >
+                <colgroup>
+                  <col style={{ width: DISTRICT_W }} />
+                  {cropColumns.map((c) => (
+                    <col key={c.cropId} style={{ width: CROP_W }} />
+                  ))}
+                  {/* Spacer column absorbs any leftover width so the real
+                      columns keep a consistent, readable size instead of
+                      stretching when there are only one or two crop columns. */}
+                  <col style={{ width: 'auto' }} />
+                </colgroup>
                 <TableHead>
                   <TableRow>
                     <TableCell
@@ -278,7 +303,6 @@ const KeralaForm3A = () => {
                         color: 'white',
                         fontWeight: 700,
                         whiteSpace: 'nowrap',
-                        minWidth: 180,
                         py: 1.5,
                         position: 'sticky',
                         left: 0,
@@ -296,31 +320,31 @@ const KeralaForm3A = () => {
                           color: 'white',
                           fontWeight: 700,
                           whiteSpace: 'nowrap',
-                          minWidth: 150,
                           py: 1.5
                         }}
                       >
                         {crop.cropName}
                       </TableCell>
                     ))}
+                    <TableCell aria-hidden sx={{ backgroundColor: themeColor, padding: 0 }} />
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={cropColumns.length + 1} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={cropColumns.length + 2} align="center" sx={{ py: 6 }}>
                         <CircularProgress size={36} />
                       </TableCell>
                     </TableRow>
                   ) : districtRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={cropColumns.length + 1} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={cropColumns.length + 2} align="center" sx={{ py: 6 }}>
                         <Typography color="text.secondary">No data available for {cropGroupName}</Typography>
                       </TableCell>
                     </TableRow>
                   ) : (
                     <>
-                      {districtRows.map((row, index) => {
+                      {paginatedRows.map((row, index) => {
                         const clickable = row.districtId != null;
                         return (
                           <TableRow
@@ -356,6 +380,7 @@ const KeralaForm3A = () => {
                                 </TableCell>
                               );
                             })}
+                            <TableCell aria-hidden />
                           </TableRow>
                         );
                       })}
@@ -372,12 +397,23 @@ const KeralaForm3A = () => {
                             {cropTotals[crop.cropId] ? formatNumber(cropTotals[crop.cropId]) : '—'}
                           </TableCell>
                         ))}
+                        <TableCell aria-hidden sx={{ backgroundColor: alpha(themeColor, 0.08) }} />
                       </TableRow>
                     </>
                   )}
                 </TableBody>
               </Table>
             </TableContainer>
+            <TablePagination
+              component="div"
+              count={districtRows.length}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={[10, 25, 50]}
+              sx={{ borderTop: `1px solid ${alpha(themeColor, 0.1)}` }}
+            />
           </Box>
         </Paper>
       </CardContent>

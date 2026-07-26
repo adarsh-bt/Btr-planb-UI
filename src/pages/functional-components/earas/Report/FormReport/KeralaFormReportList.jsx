@@ -41,126 +41,182 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
-import FilterAltIcon from '@mui/icons-material/FilterAlt';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import ViewWeekIcon from '@mui/icons-material/ViewWeek';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import AuthService from 'pages/authentication/services/authservice';
 import mainapi from 'api/mainapi';
+import api from 'api/api';
+
+// Builds the "July <startYear> → June <startYear + 1>" agricultural-year
+// month list used by the Single Month / From Month / To Month dropdowns.
+function buildAgriMonthOptions() {
+  const agriYear = AuthService.agriyear() || '2025-2026';
+  const startYear = parseInt(agriYear.split('-')[0], 10) || new Date().getFullYear();
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const options = [];
+  for (let i = 0; i < 12; i++) {
+    const monthIndex = (6 + i) % 12;
+    const year = startYear + Math.floor((6 + i) / 12);
+    const mm = String(monthIndex + 1).padStart(2, '0');
+    options.push({ label: `${monthNames[monthIndex]} ${year}`, value: `${mm}-${year}` });
+  }
+  return options;
+}
+
+// Resolves a month string (e.g. 'July', 'July 2025', '07-2025') to a valid MM-YYYY value in MONTH_OPTIONS
+function resolveMonthValue(val, monthOptions) {
+  if (!monthOptions || monthOptions.length === 0) return '';
+  if (!val) return monthOptions[0]?.value || '';
+
+  // 1. Exact match with option value (e.g. '07-2025' or '02-2026')
+  const exactMatch = monthOptions.find((o) => o.value === val);
+  if (exactMatch) return exactMatch.value;
+
+  // 2. Exact match with label (e.g. 'July 2025')
+  const labelMatch = monthOptions.find((o) => o.label.toLowerCase() === val.toLowerCase());
+  if (labelMatch) return labelMatch.value;
+
+  // 3. Match month name prefix (e.g. val is 'July' or 'Feb')
+  const monthNameMatch = monthOptions.find((o) => o.label.toLowerCase().startsWith(val.toLowerCase()));
+  if (monthNameMatch) return monthNameMatch.value;
+
+  // 4. Fallback to first month in options
+  return monthOptions[0]?.value || '';
+}
+
+function pickMetric(district, metric, seasonTab) {
+  if (seasonTab === 'WET') return Number(district[`wet${metric}`]) || 0;
+  if (seasonTab === 'DRY') return Number(district[`dry${metric}`]) || 0;
+  return (Number(district[`wet${metric}`]) || 0) + (Number(district[`dry${metric}`]) || 0);
+}
+
+const formatArea = (num) =>
+  Number(num || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// Fallback districts list with correct field names
+function getFallbackDistricts() {
+  return [
+    { distId: 1, distNameEn: 'Thiruvananthapuram' },
+    { distId: 2, distNameEn: 'Kollam' },
+    { distId: 3, distNameEn: 'Pathanamthitta' },
+    { distId: 4, distNameEn: 'Alappuzha' },
+    { distId: 5, distNameEn: 'Kottayam' },
+    { distId: 6, distNameEn: 'Idukki' },
+    { distId: 7, distNameEn: 'Ernakulam' },
+    { distId: 8, distNameEn: 'Thrissur' },
+    { distId: 9, distNameEn: 'Palakkad' },
+    { distId: 10, distNameEn: 'Malappuram' },
+    { distId: 11, distNameEn: 'Kozhikode' },
+    { distId: 12, distNameEn: 'Wayanad' },
+    { distId: 13, distNameEn: 'Kannur' },
+    { distId: 14, distNameEn: 'Kasaragod' }
+  ];
+}
 
 function KeralaFormReportList() {
   const theme = useTheme();
   const navigate = useNavigate();
 
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
+  const BASE_URL = mainapi.FORM_API;
 
-  // Month to number mapping
-  const monthToNumber = useMemo(() => ({
-    'January': 1, 'February': 2, 'March': 3, 'April': 4,
-    'May': 5, 'June': 6, 'July': 7, 'August': 8,
-    'September': 9, 'October': 10, 'November': 11, 'December': 12
-  }), []);
+  const MONTH_OPTIONS = buildAgriMonthOptions();
+  const getMonthLabel = (value) => MONTH_OPTIONS.find((o) => o.value === value)?.label || value;
 
-  // Get current month name
-  const getCurrentMonth = () => {
-    const currentDate = new Date();
-    return months[currentDate.getMonth()];
-  };
-  const BASE_URL = mainapi.BASE_URL;
-  // State for filters - initialized to requirement specifications
-  const [seasonTab, setSeasonTab] = useState('ALL'); // Initially 'ALL'
+  const [seasonTab, setSeasonTab] = useState('ALL');
   const [filterType, setFilterType] = useState('single');
-  const [fromMonth, setFromMonth] = useState('');
+  const [fromMonth, setFromMonth] = useState(() => MONTH_OPTIONS[0]?.value || '');
   const [toMonth, setToMonth] = useState('');
-  const [singleMonth, setSingleMonth] = useState(getCurrentMonth()); // Initially current month
-  const [selectedSeason, setSelectedSeason] = useState('');
-  
-  // State for API data
+  const [singleMonth, setSingleMonth] = useState(() => MONTH_OPTIONS[0]?.value || '');
+
   const [apiData, setApiData] = useState(null);
+  const [districtsList, setDistrictsList] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [masterDistrictsLoading, setMasterDistrictsLoading] = useState(true);
   const [error, setError] = useState(null);
-  
-  // State for search and pagination
+
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
-  // Season to ID mapping
-  const seasonToId = {
-    'Winter': 1,
-    'Summer': 2,
-    'Autumn': 3
+  // Fetch master districts list
+  const fetchMasterDistricts = async () => {
+    setMasterDistrictsLoading(true);
+    try {
+      // Use the BTR API endpoint directly
+      const response = await api.get(`${mainapi.BTR_API}/btr-service/btr-api/districts`);
+      console.log('Master Districts Response:', response.data);
+
+      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        // Map the districts to use distId and distNameEn
+        const mappedDistricts = response.data.data.map(d => ({
+          distId: d.distId,
+          distNameEn: d.distNameEn || d.districtName || d.name || ''
+        }));
+        console.log('Mapped Districts:', mappedDistricts);
+        setDistrictsList(mappedDistricts);
+      } else {
+        console.warn('No districts found, using fallback');
+        setDistrictsList(getFallbackDistricts());
+      }
+    } catch (err) {
+      console.error('Error fetching master districts:', err);
+      setDistrictsList(getFallbackDistricts());
+    } finally {
+      setMasterDistrictsLoading(false);
+    }
   };
 
-  // Fetch data from API
   // Fetch data from API
   const fetchDistrictData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Determine correct start and end month indices based on selection rules
-      let startMonthVal = 1;
-      let endMonthVal = 12;
+      let startMonthVal = resolveMonthValue(MONTH_OPTIONS[0]?.value, MONTH_OPTIONS);
+      let endMonthVal = resolveMonthValue(MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.value, MONTH_OPTIONS);
 
       if (filterType === 'single') {
         if (singleMonth) {
-          startMonthVal = monthToNumber[singleMonth];
-          endMonthVal = monthToNumber[singleMonth];
+          const resolved = resolveMonthValue(singleMonth, MONTH_OPTIONS);
+          startMonthVal = resolved;
+          endMonthVal = resolved;
         }
       } else {
-        if (fromMonth) startMonthVal = monthToNumber[fromMonth];
-        if (toMonth) endMonthVal = monthToNumber[toMonth];
+        if (fromMonth) startMonthVal = resolveMonthValue(fromMonth, MONTH_OPTIONS);
+        if (toMonth) endMonthVal = resolveMonthValue(toMonth, MONTH_OPTIONS);
       }
 
-      // Build precise API request body context
-      const requestBody = {
-        agriYear: AuthService.agriyear() || "2025-2026",
-        seasonId: selectedSeason ? seasonToId[selectedSeason] : 3, // Defaults to 3 (Autumn) if none specified
-        startMonth: startMonthVal,
-        endMonth: endMonthVal,
-        landType: seasonTab // Maps directly to 'ALL', 'WET', or 'DRY'
-      };
-
-      console.log('Fetching data with payload:', requestBody);
-
-      // 1. Retrieve your authentication token safely
-      // Note: Modify this based on how your AuthService exposes the token (e.g., AuthService.getToken())
-      const token = AuthService.getToken ? AuthService.getToken() : localStorage.getItem('token'); 
-
+      const token = AuthService.getToken ? AuthService.getToken() : localStorage.getItem('token');
       if (!token) {
         throw new Error('Authentication session token missing. Please log in again.');
       }
 
-      // 2. Execute request passing the Authorization header
-      const response = await axios.post(
-        `http://localhost:8080/earas-form1-entry/form1/district-wise-status-summary`,
-        requestBody,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` // Dynamically appends your Postman bearer token configuration
-          }
-        }
-      );
+      const params = new URLSearchParams({ startMonth: startMonthVal });
+      if (endMonthVal) params.append('endMonth', endMonthVal);
+      if (seasonTab && seasonTab !== 'ALL') params.append('landType', seasonTab);
 
-      if (response.data && response.data.payload) {
-        setApiData(response.data.payload);
-      } else {
-        setError('Invalid response format received from server');
-      }
+      const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/state?${params.toString()}`;
+      console.log('Fetching Form1 status data from:', url);
+
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      console.log('API Response:', response.data);
+      setApiData(response.data || null);
     } catch (err) {
       console.error('Error fetching data:', err);
-      // Fallback fallback verification for detailed error capture
       const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch district data';
       setError(errorMessage);
     } finally {
@@ -168,41 +224,126 @@ function KeralaFormReportList() {
     }
   };
 
-  // Fetch data cleanly whenever operational filters transform
   useEffect(() => {
     fetchDistrictData();
-  }, [fromMonth, toMonth, singleMonth, seasonTab, filterType, selectedSeason]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromMonth, toMonth, singleMonth, seasonTab, filterType]);
 
-  // Map backend structure safely into UI schema
+  useEffect(() => {
+    fetchMasterDistricts();
+  }, []);
+
+  // Map allSubDetails into UI rows, merging with master districts list
   const districtData = useMemo(() => {
-    if (!apiData || !apiData.formStatusSummaryResponseList) {
-      return [];
+    const apiDistricts = apiData?.allSubDetails || {};
+
+    console.log('API Districts:', apiDistricts);
+    console.log('Master Districts List:', districtsList);
+
+    // Create a map for quick lookup of API data by ID
+    const apiDataMapById = {};
+    const apiDataMapByName = {};
+    Object.entries(apiDistricts).forEach(([name, details]) => {
+      // Store by ID if available
+      if (details.id) {
+        apiDataMapById[details.id] = { name, details };
+      }
+      // Also store by name for fallback
+      const key = name?.toLowerCase()?.trim() || '';
+      if (key) {
+        apiDataMapByName[key] = { name, details };
+      }
+    });
+
+    // If we have master districts list, merge with API data
+    if (districtsList && districtsList.length > 0) {
+      const merged = districtsList.map((district) => {
+        const districtId = district.distId;
+        const districtName = district.distNameEn || '';
+
+        // Try to find API data by ID first
+        let apiMatch = null;
+        if (districtId && apiDataMapById[districtId]) {
+          apiMatch = apiDataMapById[districtId];
+        }
+
+        // If not found by ID, try by name
+        if (!apiMatch) {
+          const key = districtName?.toLowerCase()?.trim() || '';
+          if (key && apiDataMapByName[key]) {
+            apiMatch = apiDataMapByName[key];
+          }
+        }
+
+        const apiDetails = apiMatch ? apiMatch.details : {};
+
+        const completed = pickMetric(apiDetails, 'Completed', seasonTab);
+        const ongoing = pickMetric(apiDetails, 'Ongoing', seasonTab);
+        const notStarted = pickMetric(apiDetails, 'NotStarted', seasonTab);
+        const underReview = pickMetric(apiDetails, 'UnderReview', seasonTab);
+        const area = pickMetric(apiDetails, 'ClusterArea', seasonTab);
+
+        const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0;
+
+        return {
+          id: districtId || apiDetails.id || `dist_${Math.random()}`,
+          district: districtName || apiMatch?.name || 'Unknown District',
+          total: completed + ongoing + notStarted + underReview,
+          completed,
+          ongoing,
+          notStarted,
+          underReview,
+          area,
+          hasData
+        };
+      });
+
+      console.log('Merged District Data:', merged);
+      return merged;
     }
 
-    return apiData.formStatusSummaryResponseList.map(district => ({
-      id: district.districtId,
-      district: district.districtName,
-      total: (district.completedCount || 0) + (district.ongoingCount || 0) + (district.underReviewCount || 0) + (district.notStartedCount || 0),
-      completed: district.completedCount || 0,
-      ongoing: district.ongoingCount || 0,
-      notStarted: district.notStartedCount || 0,
-      underReview: district.underReviewCount || 0
-    }));
-  }, [apiData]);
+    // Fallback: use only API data
+    return Object.entries(apiDistricts).map(([districtName, d]) => {
+      const completed = pickMetric(d, 'Completed', seasonTab);
+      const ongoing = pickMetric(d, 'Ongoing', seasonTab);
+      const notStarted = pickMetric(d, 'NotStarted', seasonTab);
+      const underReview = pickMetric(d, 'UnderReview', seasonTab);
+      const area = pickMetric(d, 'ClusterArea', seasonTab);
+      const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0;
 
-  // Aggregate stats payload
-  const stats = useMemo(() => ({
-    all: apiData?.totalClusterCount || 0,
-    completed: apiData?.totalCompletedCount || 0,
-    ongoing: apiData?.totalOngoingCount || 0,
-    notStarted: apiData?.totalNotStartedCount || 0,
-    underReview: apiData?.totalUnderReviewCount || 0
-  }), [apiData]);
+      return {
+        id: d.id || `dist_${Math.random()}`,
+        district: districtName || 'Unknown District',
+        total: completed + ongoing + notStarted + underReview,
+        completed,
+        ongoing,
+        notStarted,
+        underReview,
+        area,
+        hasData
+      };
+    });
+  }, [apiData, districtsList, seasonTab]);
 
-  // FIXED: Resolved search box reference crash (`searchToken` -> `searchTerm`)
+  const districtsWithNoData = useMemo(() => {
+    return districtData.filter(d => !d.hasData).length;
+  }, [districtData]);
+
+  const stats = useMemo(
+    () => ({
+      all: apiData?.totalCluster || 0,
+      completed: apiData?.completed || 0,
+      ongoing: apiData?.ongoing || 0,
+      notStarted: apiData?.notStarted || 0,
+      underReview: apiData?.underView || 0,
+      completedArea: districtData.reduce((sum, d) => sum + d.area, 0)
+    }),
+    [apiData, districtData]
+  );
+
   const filteredData = useMemo(() => {
     if (!searchTerm.trim()) return districtData;
-    return districtData.filter(row => 
+    return districtData.filter(row =>
       row.district.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [districtData, searchTerm]);
@@ -224,32 +365,32 @@ function KeralaFormReportList() {
   };
 
   const handleClearFilters = () => {
-    setFromMonth('');
+    setFromMonth(MONTH_OPTIONS[0]?.value || '');
     setToMonth('');
-    setSingleMonth(getCurrentMonth());
+    setSingleMonth(MONTH_OPTIONS[0]?.value || '');
     setSeasonTab('ALL');
     setFilterType('single');
-    setSelectedSeason('');
     setPage(0);
   };
 
-  const handleViewDetails = (districtId, districtName) => {
+  const handleViewDetails = (districtId, districtName, hasData) => {
+    if (!hasData) return;
+
     navigate(`/kerala_form_report/taluk_form_report/${districtName.toLowerCase()}`, {
-      state: { 
+      state: {
         districtId: districtId,
-        fromMonth, 
-        toMonth, 
-        seasonTab, 
-        filterType, 
-        singleMonth, 
-        selectedSeason 
+        fromMonth,
+        toMonth,
+        seasonTab,
+        filterType,
+        singleMonth
       }
     });
   };
 
-  const StatCard = ({ label, value, color, bgColor, icon, subtext }) => (
-    <Card sx={{ 
-      bgcolor: bgColor, 
+  const StatCard = ({ label, value, color, bgColor, icon, subtext, areaValue }) => (
+    <Card sx={{
+      bgcolor: bgColor,
       borderRadius: 3,
       transition: 'transform 0.2s, box-shadow 0.2s',
       '&:hover': {
@@ -260,9 +401,19 @@ function KeralaFormReportList() {
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Box>
-            <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
-              {loading ? <CircularProgress size={24} /> : value}
-            </Typography>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
+                {loading ? <CircularProgress size={24} /> : value}
+              </Typography>
+              {!loading && areaValue !== undefined && areaValue > 0 && (
+                <Chip
+                  label={`${formatArea(areaValue)} cents`}
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontSize: '0.7rem', height: 22, borderColor: alpha(color, 0.4), color }}
+                />
+              )}
+            </Stack>
             <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>
               {label}
               {subtext && (
@@ -291,11 +442,21 @@ function KeralaFormReportList() {
     );
   }
 
+  if ((loading || masterDistrictsLoading) && !apiData && districtsList.length === 0) {
+    return (
+      <Grid container spacing={3} justifyContent="center" alignItems="center" sx={{ minHeight: '400px' }}>
+        <Grid item>
+          <CircularProgress />
+          <Typography sx={{ mt: 2 }}>Loading district data...</Typography>
+        </Grid>
+      </Grid>
+    );
+  }
+
   return (
     <Grid container spacing={3}>
       <Breadcrumb />
-      
-      {/* Header View */}
+
       <Grid item xs={12}>
         <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
           <Stack direction="row" spacing={1} alignItems="center">
@@ -305,33 +466,56 @@ function KeralaFormReportList() {
                 Cluster Enumeration Progress Report
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {filterType === 'single' && singleMonth && ` • ${singleMonth}`}
-                {filterType === 'range' && fromMonth && toMonth && ` • ${fromMonth} - ${toMonth}`}
+                {filterType === 'single' && singleMonth && ` • ${getMonthLabel(singleMonth)}`}
+                {filterType === 'range' && fromMonth && ` • ${getMonthLabel(fromMonth)}${toMonth ? ` - ${getMonthLabel(toMonth)}` : ''}`}
                 {seasonTab !== 'ALL' && ` • ${seasonTab} Land`}
-                {selectedSeason && ` • ${selectedSeason} Season`}
                 {loading && ' • Refreshing...'}
+                {districtsWithNoData > 0 && ` • ${districtsWithNoData} districts with no data`}
               </Typography>
             </Box>
           </Stack>
-          <Button 
-            variant="outlined" 
-            onClick={handleClearFilters}
-            startIcon={<ClearIcon />}
-            size="small"
-            sx={{ borderRadius: 2 }}
-          >
-            Reset Filters
-          </Button>
+          {(fromMonth || toMonth || singleMonth || seasonTab !== 'ALL') && (
+            <Button
+              variant="outlined"
+              onClick={handleClearFilters}
+              startIcon={<ClearIcon />}
+              size="small"
+              sx={{ borderRadius: 2 }}
+            >
+              Clear All Filters
+            </Button>
+          )}
         </Stack>
       </Grid>
 
-      {/* Filter Control Section */}
+      {districtsWithNoData > 0 && !loading && (
+        <Grid item xs={12}>
+          <Paper
+            sx={{
+              p: 1.5,
+              bgcolor: alpha('#ff9800', 0.08),
+              borderRadius: 2,
+              border: `1px solid ${alpha('#ff9800', 0.3)}`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}
+          >
+            <InfoOutlinedIcon sx={{ color: '#ff9800', fontSize: 20 }} />
+            <Typography variant="body2" color="text.secondary">
+              <strong>{districtsWithNoData}</strong> district{districtsWithNoData > 1 ? 's' : ''} have no data available for the selected filters.
+              <strong> View details is disabled for districts without data.</strong>
+            </Typography>
+          </Paper>
+        </Grid>
+      )}
+
       <Grid item xs={12}>
         <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
           <Stack spacing={2}>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
-              <Tabs 
-                value={seasonTab} 
+              <Tabs
+                value={seasonTab}
                 onChange={(e, newValue) => { setSeasonTab(newValue); setPage(0); }}
                 sx={{ minHeight: 40 }}
               >
@@ -346,9 +530,9 @@ function KeralaFormReportList() {
                 onChange={(e, newValue) => {
                   if (newValue !== null) {
                     setFilterType(newValue);
-                    setFromMonth('');
+                    setFromMonth(MONTH_OPTIONS[0]?.value || '');
                     setToMonth('');
-                    setSingleMonth(getCurrentMonth());
+                    setSingleMonth(MONTH_OPTIONS[0]?.value || '');
                     setPage(0);
                   }
                 }}
@@ -366,60 +550,45 @@ function KeralaFormReportList() {
 
               {filterType === 'range' ? (
                 <>
-                  <FormControl size="small" sx={{ minWidth: 130 }}>
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
                     <InputLabel>From Month</InputLabel>
                     <Select value={fromMonth} label="From Month" onChange={(e) => { setFromMonth(e.target.value); setPage(0); }}>
-                      <MenuItem value="">None (Jan)</MenuItem>
-                      {months.map(month => <MenuItem key={month} value={month}>{month}</MenuItem>)}
+                      <MenuItem value="">{`None (${MONTH_OPTIONS[0]?.label})`}</MenuItem>
+                      {MONTH_OPTIONS.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
                     </Select>
                   </FormControl>
                   <Typography variant="body2" color="text.secondary">→</Typography>
-                  <FormControl size="small" sx={{ minWidth: 130 }}>
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
                     <InputLabel>To Month</InputLabel>
                     <Select value={toMonth} label="To Month" onChange={(e) => { setToMonth(e.target.value); setPage(0); }}>
-                      <MenuItem value="">None (Dec)</MenuItem>
-                      {months.map(month => <MenuItem key={month} value={month}>{month}</MenuItem>)}
+                      <MenuItem value="">{`None (${MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.label})`}</MenuItem>
+                      {MONTH_OPTIONS.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
                     </Select>
                   </FormControl>
                 </>
               ) : (
-                <FormControl size="small" sx={{ minWidth: 160 }}>
+                <FormControl size="small" sx={{ minWidth: 170 }}>
                   <InputLabel>Select Month</InputLabel>
-                  <Select 
-                    value={singleMonth} 
-                    label="Select Month" 
+                  <Select
+                    value={singleMonth}
+                    label="Select Month"
                     onChange={(e) => { setSingleMonth(e.target.value); setPage(0); }}
                   >
-                    {months.map(month => <MenuItem key={month} value={month}>{month}</MenuItem>)}
+                    {MONTH_OPTIONS.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
                   </Select>
                 </FormControl>
               )}
-              
-              <FormControl size="small" sx={{ minWidth: 150 }}>
-                <InputLabel>Season</InputLabel>
-                <Select
-                  value={selectedSeason}
-                  label="Season"
-                  onChange={(e) => { setSelectedSeason(e.target.value); setPage(0); }}
-                >
-                  <MenuItem value="">Default (Autumn)</MenuItem>
-                  <MenuItem value="Winter">Winter</MenuItem>
-                  <MenuItem value="Summer">Summer</MenuItem>
-                  <MenuItem value="Autumn">Autumn</MenuItem>
-                </Select>
-              </FormControl>
             </Stack>
           </Stack>
         </Paper>
       </Grid>
 
-      {/* Dashboard Matrix Cards */}
       <Grid item xs={12}>
         <Box sx={{ position: 'relative', border: `1px solid ${alpha('#04255e', 0.15)}`, borderRadius: 3, p: 2, pt: 3, bgcolor: '#fff' }}>
           <Chip label="State Summary" color="primary" size="small" sx={{ position: 'absolute', top: -12, left: 20, fontWeight: 600, bgcolor: '#04255e', px: 1 }} />
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6} md={2.4}><StatCard label="Total Clusters" value={stats.all} color="#1565c0" bgColor={alpha('#1565c0', 0.08)} icon={<AssessmentIcon sx={{ color: '#1565c0', opacity: 0.7 }} />} /></Grid>
-            <Grid item xs={12} sm={6} md={2.4}><StatCard label="Completed" value={stats.completed} color="#2e7d32" bgColor={alpha('#2e7d32', 0.08)} icon={<CheckCircleIcon sx={{ color: '#2e7d32', opacity: 0.7 }} />} /></Grid>
+            <Grid item xs={12} sm={6} md={2.4}><StatCard label="Completed" value={stats.completed} color="#2e7d32" bgColor={alpha('#2e7d32', 0.08)} icon={<CheckCircleIcon sx={{ color: '#2e7d32', opacity: 0.7 }} />} areaValue={stats.completedArea} /></Grid>
             <Grid item xs={12} sm={6} md={2.4}><StatCard label="Ongoing" value={stats.ongoing} color="#ed6c02" bgColor={alpha('#ed6c02', 0.08)} icon={<PendingIcon sx={{ color: '#ed6c02', opacity: 0.7 }} />} /></Grid>
             <Grid item xs={12} sm={6} md={2.4}><StatCard label="Not Started" value={stats.notStarted} color="#757575" bgColor={alpha('#757575', 0.08)} icon={<ScheduleIcon sx={{ color: '#757575', opacity: 0.7 }} />} /></Grid>
             <Grid item xs={12} sm={6} md={2.4}><StatCard label="Under Review" value={stats.underReview} color="#b76e00" bgColor={alpha('#b76e00', 0.08)} icon={<RateReviewIcon sx={{ color: '#b76e00', opacity: 0.7 }} />} /></Grid>
@@ -427,12 +596,11 @@ function KeralaFormReportList() {
         </Box>
       </Grid>
 
-      {/* Tabular Data View */}
       <Grid item xs={12}>
         <Box sx={{ position: 'relative', borderRadius: 3 }}>
           <Chip label="District Status Table" color="primary" size="small" sx={{ position: 'absolute', top: -12, left: 20, zIndex: 10, fontWeight: 600, bgcolor: '#04255e', px: 1 }} />
-          <MainCard 
-            title="District-wise Summary" 
+          <MainCard
+            title="District-wise Summary"
             secondary={
               <TextField
                 placeholder="Search district..."
@@ -458,8 +626,8 @@ function KeralaFormReportList() {
               <Table>
                 <TableHead>
                   <TableRow sx={{ bgcolor: '#04255e' }}>
-                    {['District', 'Total', 'Completed', 'Ongoing', 'Not Started', 'Under Review', 'Actions'].map((label, idx) => (
-                      <TableCell key={idx} align={idx === 0 ? 'left' : 'center'} sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>
+                    {['#', 'District', 'Total', 'Completed', 'Ongoing', 'Not Started', 'Under Review', 'Actions'].map((label, idx) => (
+                      <TableCell key={idx} align={idx === 0 ? 'center' : idx === 1 ? 'left' : 'center'} sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>
                         {label}
                       </TableCell>
                     ))}
@@ -468,51 +636,136 @@ function KeralaFormReportList() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
                         <CircularProgress size={32} sx={{ mb: 1 }} />
                         <Typography variant="body2" color="text.secondary">Fetching up-to-date data...</Typography>
                       </TableCell>
                     </TableRow>
                   ) : paginatedData.length > 0 ? (
-                    paginatedData.map((row) => (
-                      <TableRow key={row.id} hover sx={{ '&:hover': { bgcolor: alpha('#04255e', 0.04) }, transition: '0.2s' }}>
-                        <TableCell>
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            <LocationOnIcon sx={{ fontSize: 18, color: '#04255e', opacity: 0.7 }} />
-                            <Typography fontWeight={500}>{row.district}</Typography>
-                          </Stack>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Chip label={row.total} size="small" sx={{ fontWeight: 600, bgcolor: alpha('#04255e', 0.1) }} />
-                        </TableCell>
-                        <TableCell align="center">
-                          {row.completed > 0 ? <Chip label={row.completed} size="small" color="success" variant="outlined" /> : row.completed}
-                        </TableCell>
-                        <TableCell align="center">
-                          {row.ongoing > 0 ? <Chip label={row.ongoing} size="small" color="primary" variant="outlined" /> : row.ongoing}
-                        </TableCell>
-                        <TableCell align="center">
-                          {row.notStarted > 0 ? <Chip label={row.notStarted} size="small" variant="outlined" /> : row.notStarted}
-                        </TableCell>
-                        <TableCell align="center">
-                          {row.underReview > 0 ? <Chip label={row.underReview} size="small" color="warning" variant="outlined" /> : row.underReview}
-                        </TableCell>
-                        <TableCell align="center">
-                          <Tooltip title="View Details">
-                            <IconButton 
-                              size="small"
-                              onClick={() => handleViewDetails(row.id, row.district)}
-                              sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
-                            >
-                              <VisibilityIcon />
-                            </IconButton>
-                          </Tooltip>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    paginatedData.map((row, index) => {
+                      const serialNumber = page * rowsPerPage + index + 1;
+                      const hasNoData = !row.hasData;
+
+                      return (
+                        <TableRow
+                          key={row.id || index}
+                          hover
+                          sx={{
+                            '&:hover': { bgcolor: alpha('#04255e', 0.04) },
+                            transition: '0.2s',
+                            ...(hasNoData && {
+                              bgcolor: alpha('#ff9800', 0.03),
+                              '&:hover': { bgcolor: alpha('#ff9800', 0.08) }
+                            })
+                          }}
+                        >
+                          <TableCell align="center">
+                            <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                              {serialNumber}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <LocationOnIcon sx={{ fontSize: 18, color: hasNoData ? '#ff9800' : '#04255e', opacity: 0.7 }} />
+                              <Typography fontWeight={hasNoData ? 400 : 500} color={hasNoData ? 'text.secondary' : 'text.primary'}>
+                                {row.district}
+                                {hasNoData && (
+                                  <Chip
+                                    label="No Data"
+                                    size="small"
+                                    sx={{
+                                      ml: 1,
+                                      height: 18,
+                                      fontSize: '0.6rem',
+                                      bgcolor: alpha('#ff9800', 0.15),
+                                      color: '#e65100',
+                                      fontWeight: 600
+                                    }}
+                                  />
+                                )}
+                              </Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : (
+                              <Chip label={row.total} size="small" sx={{ fontWeight: 600, bgcolor: alpha('#04255e', 0.1) }} />
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : (
+                              <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
+                                {row.completed > 0 ? <Chip label={row.completed} size="small" color="success" variant="outlined" /> : row.completed}
+                                {row.area > 0 && (
+                                  <Chip
+                                    label={formatArea(row.area)}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{ fontSize: '0.65rem', height: 20, borderColor: alpha('#04255e', 0.3), color: '#04255e' }}
+                                  />
+                                )}
+                              </Stack>
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.ongoing > 0 ? (
+                              <Chip label={row.ongoing} size="small" color="primary" variant="outlined" />
+                            ) : (
+                              row.ongoing
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.notStarted > 0 ? (
+                              <Chip label={row.notStarted} size="small" variant="outlined" />
+                            ) : (
+                              row.notStarted
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.underReview > 0 ? (
+                              <Chip label={row.underReview} size="small" color="warning" variant="outlined" />
+                            ) : (
+                              row.underReview
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            {row.hasData ? (
+                              <Tooltip title="View Details">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleViewDetails(row.id, row.district, row.hasData)}
+                                  sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
+                                >
+                                  <VisibilityIcon />
+                                </IconButton>
+                              </Tooltip>
+                            ) : (
+                              <Tooltip title="No data available - View disabled">
+                                <IconButton
+                                  size="small"
+                                  disabled
+                                  sx={{ color: '#bdbdbd', cursor: 'not-allowed' }}
+                                >
+                                  <VisibilityOffIcon />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
                         <Typography color="text.secondary">No matching districts found</Typography>
                       </TableCell>
                     </TableRow>
