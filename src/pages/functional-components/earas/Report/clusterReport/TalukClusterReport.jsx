@@ -59,28 +59,19 @@ const BASE_URL = mainapi.BTR_API;
 
 const SESSION_KEY = 'talukReportState';
 
+// Month names for display
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
 /* ─────────────────────────── helpers ─────────────────────────── */
 
 function getCurrentMonthName() {
-  const names = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
-  return names[new Date().getMonth()];
+  return MONTH_NAMES[new Date().getMonth()];
 }
 
-const monthToNumber = {
-  January: '01', February: '02', March: '03', April: '04',
-  May: '05', June: '06', July: '07', August: '08',
-  September: '09', October: '10', November: '11', December: '12',
-};
-
-// Agricultural year months (July to June)
-const AGRI_YEAR_MONTHS = [
-  'July', 'August', 'September', 'October', 'November', 'December',
-  'January', 'February', 'March', 'April', 'May', 'June'
-];
-
+// Get agricultural year
 function getAgriculturalYear() {
   try {
     const agriYear = AuthService.agriyear();
@@ -108,29 +99,49 @@ function getAgriculturalYear() {
   }
 }
 
-function getMonthYearForApi(monthName, agriculturalYear) {
-  if (!monthName || !agriculturalYear) return null;
-
-  const monthIndex = AGRI_YEAR_MONTHS.indexOf(monthName);
-  if (monthIndex === -1) return null;
-
-  // Months July (0) to December (5) belong to startYear
-  // Months January (6) to June (11) belong to endYear
-  let year;
-  if (monthIndex <= 5) {
-    year = agriculturalYear.startYear;
-  } else {
-    year = agriculturalYear.endYear;
+// Build agricultural year months with years
+function buildAgriYearMonths(startYear, endYear) {
+  const months = [];
+  // July to December of start year
+  for (let m = 6; m < 12; m++) {
+    months.push({
+      label: `${MONTH_NAMES[m]} ${startYear}`,
+      value: `${startYear}-${String(m + 1).padStart(2, '0')}`
+    });
   }
-
-  const monthNumber = monthIndex + 1; // 1-indexed for API
-  const monthStr = String(monthNumber).padStart(2, '0');
-  return `${year}-${monthStr}`;
+  // January to June of end year
+  for (let m = 0; m < 6; m++) {
+    months.push({
+      label: `${MONTH_NAMES[m]} ${endYear}`,
+      value: `${endYear}-${String(m + 1).padStart(2, '0')}`
+    });
+  }
+  return months;
 }
 
-function formatMonthForApi(monthName, agriculturalYear) {
-  if (!monthName || !agriculturalYear) return null;
-  return getMonthYearForApi(monthName, agriculturalYear);
+// Get default month (current month if in agricultural year, else first month)
+function getDefaultMonth(months) {
+  const now = new Date();
+  const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const exists = months.some(m => m.value === current);
+  return exists ? current : (months[0]?.value || '');
+}
+
+// Get month label from value
+function getMonthLabel(value, agriYearMonths) {
+  if (!value) return '';
+  const found = agriYearMonths.find(m => m.value === value);
+  return found ? found.label : value;
+}
+
+// Format month for API - already in YYYY-MM format
+function formatMonthForApi(monthValue) {
+  if (!monthValue) return null;
+  // Already in YYYY-MM format
+  if (/^\d{4}-\d{2}$/.test(monthValue)) {
+    return monthValue;
+  }
+  return null;
 }
 
 function getSavedState() {
@@ -158,6 +169,7 @@ function TalukClusterReport() {
   /* ── resolved district ID stored in a ref so it is always current ── */
   const resolvedDistrictId = useRef(null);
   const agriculturalYear = useRef(null);
+  const agriYearMonths = useRef([]);
 
   const resolveDistrictId = () => {
     if (stateData.districtId) return stateData.districtId;
@@ -175,6 +187,12 @@ function TalukClusterReport() {
   // Initialize agricultural year
   if (agriculturalYear.current === null) {
     agriculturalYear.current = getAgriculturalYear();
+    if (agriculturalYear.current) {
+      agriYearMonths.current = buildAgriYearMonths(
+        agriculturalYear.current.startYear,
+        agriculturalYear.current.endYear
+      );
+    }
   }
 
   /* ── filter state ── */
@@ -184,7 +202,7 @@ function TalukClusterReport() {
   const [fromMonth, setFromMonth] = useState(stateData.fromMonth || '');
   const [toMonth, setToMonth] = useState(stateData.toMonth || '');
   const [singleMonth, setSingleMonth] = useState(
-    stateData.singleMonth || getCurrentMonthName()
+    stateData.singleMonth || getDefaultMonth(agriYearMonths.current)
   );
 
   /* ── ui state ── */
@@ -209,7 +227,7 @@ function TalukClusterReport() {
           filterType: stateData.filterType || 'single',
           fromMonth: stateData.fromMonth || '',
           toMonth: stateData.toMonth || '',
-          singleMonth: stateData.singleMonth || getCurrentMonthName(),
+          singleMonth: stateData.singleMonth || getDefaultMonth(agriYearMonths.current),
         })
       );
     }
@@ -222,17 +240,14 @@ function TalukClusterReport() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      // Updated API endpoint with distId parameter
       const response = await api.get(`${BASE_URL}/btr-service/btr-api/taluks?distId=${districtId}`);
       console.log('Master Taluks Response:', response.data);
 
-      // Handle response structure: { data: [ { talukNameEn, id }, ... ] }
       if (response.data && response.data.data) {
         setTaluksList(response.data.data);
       } else if (Array.isArray(response.data)) {
         setTaluksList(response.data);
       } else if (response.data && typeof response.data === 'object') {
-        // If response is an object with taluks array
         const possibleArrays = Object.values(response.data).filter(Array.isArray);
         if (possibleArrays.length > 0) {
           setTaluksList(possibleArrays[0]);
@@ -240,7 +255,6 @@ function TalukClusterReport() {
       }
     } catch (err) {
       console.error('Error fetching master taluks list:', err);
-      // Don't set error here - we can still show data from API even if master list fails
     }
   };
 
@@ -274,17 +288,24 @@ function TalukClusterReport() {
         url += `&landType=${effectiveLandType.toLowerCase()}`;
       }
 
-      if (effectiveFilterType === 'single' && effectiveSingleMonth) {
-        const fmt = formatMonthForApi(effectiveSingleMonth, agriculturalYear.current);
-        if (fmt) url += `&startMonth=${fmt}&endMonth=${fmt}`;
+      if (effectiveFilterType === 'single') {
+        if (effectiveSingleMonth) {
+          url += `&startMonth=${effectiveSingleMonth}&endMonth=${effectiveSingleMonth}`;
+        }
       } else if (effectiveFilterType === 'range') {
         if (effectiveFromMonth) {
-          const fmt = formatMonthForApi(effectiveFromMonth, agriculturalYear.current);
-          if (fmt) url += `&startMonth=${fmt}`;
+          url += `&startMonth=${effectiveFromMonth}`;
         }
         if (effectiveToMonth) {
-          const fmt = formatMonthForApi(effectiveToMonth, agriculturalYear.current);
-          if (fmt) url += `&endMonth=${fmt}`;
+          url += `&endMonth=${effectiveToMonth}`;
+        }
+      }
+
+      // Safety fallback: ensure startMonth is ALWAYS present
+      if (!url.includes('startMonth=')) {
+        const fallbackFmt = getDefaultMonth(agriYearMonths.current);
+        if (fallbackFmt) {
+          url += `&startMonth=${fallbackFmt}&endMonth=${fallbackFmt}`;
         }
       }
 
@@ -357,7 +378,6 @@ function TalukClusterReport() {
 
   const talukData = useMemo(() => {
     if (!apiData?.allSubDetails) {
-      // If no API data, still show all master taluks with zero values
       if (taluksList && taluksList.length > 0) {
         return taluksList.map(taluk => ({
           id: taluk.id || taluk.talukId,
@@ -376,13 +396,11 @@ function TalukClusterReport() {
     const subDetailsMap = apiData.allSubDetails || {};
     const normalizeName = (name) => (name ? String(name).toLowerCase().replace(/[^a-z0-9]/g, '') : '');
 
-    // If master taluks list is available, merge with API data
     if (taluksList && taluksList.length > 0) {
       return taluksList.map((taluk) => {
         const talukId = taluk.id || taluk.talukId;
         const talukName = taluk.talukNameEn || taluk.name || taluk.talukName || `Taluk ${talukId}`;
 
-        // Find matching entry in allSubDetails by id or normalized name
         const matchedKey = Object.keys(subDetailsMap).find((key) => {
           const details = subDetailsMap[key];
           return (
@@ -405,7 +423,6 @@ function TalukClusterReport() {
             hasData: stats.hasData
           };
         } else {
-          // Taluk exists in master but has no data
           return {
             id: talukId,
             taluk: talukName,
@@ -420,7 +437,6 @@ function TalukClusterReport() {
       });
     }
 
-    // Fallback: use only API data if master list is not available
     return Object.entries(subDetailsMap).map(([talukName, details]) => {
       const stats = getTalukStats(details);
       return {
@@ -470,24 +486,45 @@ function TalukClusterReport() {
     if (newValue === null) return;
     setFilterType(newValue);
     if (newValue === 'single') {
-      setSingleMonth(getCurrentMonthName());
+      setSingleMonth(getDefaultMonth(agriYearMonths.current));
       setFromMonth('');
       setToMonth('');
     } else {
-      setFromMonth('July');
+      setFromMonth(agriYearMonths.current[0]?.value || '');
       setSingleMonth('');
       setToMonth('');
     }
     setPage(0);
   };
 
+  const handleFromMonthChange = (event) => {
+    setFromMonth(event.target.value);
+    setPage(0);
+  };
+
+  const handleToMonthChange = (event) => {
+    setToMonth(event.target.value);
+    setPage(0);
+  };
+
+  const handleSingleMonthChange = (event) => {
+    setSingleMonth(event.target.value);
+    setPage(0);
+  };
+
   const handleClearFilters = () => {
-    setSingleMonth(getCurrentMonthName());
+    setSingleMonth(getDefaultMonth(agriYearMonths.current));
     setFromMonth('');
     setToMonth('');
     setSeasonTab('ALL');
     setLandType(null);
     setFilterType('single');
+    setPage(0);
+    setSearchTerm('');
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
     setPage(0);
   };
 
@@ -507,8 +544,8 @@ function TalukClusterReport() {
           districtName: stateData.districtName,
           landType,
           seasonTab,
-          startMonth: startMonthParam ? formatMonthForApi(startMonthParam, agriculturalYear.current) : null,
-          endMonth: endMonthParam ? formatMonthForApi(endMonthParam, agriculturalYear.current) : null,
+          startMonth: startMonthParam,
+          endMonth: endMonthParam,
           filterType,
           fromMonth,
           toMonth,
@@ -517,11 +554,6 @@ function TalukClusterReport() {
         },
       }
     );
-  };
-
-  const handleClearSearch = () => {
-    setSearchTerm('');
-    setPage(0);
   };
 
   /* ─────────────────────────── sub-components ─────────────────────────── */
@@ -580,10 +612,10 @@ function TalukClusterReport() {
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {agriculturalYear.current && `Agricultural Year: ${agriculturalYear.current.display}`}
-                {filterType === 'single' && singleMonth && ` • ${singleMonth}`}
-                {filterType === 'range' && fromMonth && toMonth && ` • ${fromMonth} – ${toMonth}`}
-                {filterType === 'range' && fromMonth && !toMonth && ` • From ${fromMonth}`}
-                {filterType === 'range' && !fromMonth && toMonth && ` • Until ${toMonth}`}
+                {filterType === 'single' && singleMonth && ` • ${getMonthLabel(singleMonth, agriYearMonths.current)}`}
+                {filterType === 'range' && fromMonth && toMonth && ` • ${getMonthLabel(fromMonth, agriYearMonths.current)} – ${getMonthLabel(toMonth, agriYearMonths.current)}`}
+                {filterType === 'range' && fromMonth && !toMonth && ` • From ${getMonthLabel(fromMonth, agriYearMonths.current)}`}
+                {filterType === 'range' && !fromMonth && toMonth && ` • Until ${getMonthLabel(toMonth, agriYearMonths.current)}`}
                 {seasonTab !== 'ALL' && ` • ${seasonTab} Season`}
                 {apiData && ` • Total Clusters: ${apiData.totalCluster || 0}`}
                 {stats.taluksWithoutData > 0 && ` • ${stats.taluksWithoutData} taluks with no data`}
@@ -648,28 +680,50 @@ function TalukClusterReport() {
 
             {filterType === 'range' ? (
               <>
-                <FormControl size="small" sx={{ minWidth: 130 }}>
+                <FormControl size="small" sx={{ minWidth: 170 }}>
                   <InputLabel>From Month</InputLabel>
-                  <Select value={fromMonth} label="From Month" onChange={e => { setFromMonth(e.target.value); setPage(0); }}>
-                    <MenuItem value="">None</MenuItem>
-                    {AGRI_YEAR_MONTHS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                  <Select
+                    value={fromMonth}
+                    label="From Month"
+                    onChange={handleFromMonthChange}
+                  >
+                    {agriYearMonths.current.map((m) => (
+                      <MenuItem key={m.value} value={m.value}>
+                        {m.label}
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
                 <Typography variant="body2" color="text.secondary">→</Typography>
-                <FormControl size="small" sx={{ minWidth: 130 }}>
+                <FormControl size="small" sx={{ minWidth: 170 }}>
                   <InputLabel>To Month</InputLabel>
-                  <Select value={toMonth} label="To Month" onChange={e => { setToMonth(e.target.value); setPage(0); }}>
+                  <Select
+                    value={toMonth}
+                    label="To Month"
+                    onChange={handleToMonthChange}
+                  >
                     <MenuItem value="">None</MenuItem>
-                    {AGRI_YEAR_MONTHS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                    {agriYearMonths.current.map((m) => (
+                      <MenuItem key={m.value} value={m.value}>
+                        {m.label}
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
               </>
             ) : (
               <FormControl size="small" sx={{ minWidth: 200 }}>
                 <InputLabel>Select Month</InputLabel>
-                <Select value={singleMonth} label="Select Month" onChange={e => { setSingleMonth(e.target.value); setPage(0); }}>
-                  <MenuItem value="">None</MenuItem>
-                  {AGRI_YEAR_MONTHS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                <Select
+                  value={singleMonth}
+                  label="Select Month"
+                  onChange={handleSingleMonthChange}
+                >
+                  {agriYearMonths.current.map((m) => (
+                    <MenuItem key={m.value} value={m.value}>
+                      {m.label}
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
             )}
