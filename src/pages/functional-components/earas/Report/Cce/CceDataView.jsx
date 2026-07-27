@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -15,7 +15,9 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow
+  TableRow,
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -29,6 +31,8 @@ import {
   NoteAlt as RemarksIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
+import Breadcrumb from 'routes/Breadcrumb';
+import mainapi from 'api/mainapi';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -120,6 +124,13 @@ const CceDataView = () => {
   const themeColor = "#05307a";
 
   const [tabValue, setTabValue] = useState(0);
+  const [frameDetails, setFrameDetails] = useState(null);
+  const [isFrameLoading, setIsFrameLoading] = useState(false);
+  const [frameError, setFrameError] = useState(null);
+
+  const [seedDetailsList, setSeedDetailsList] = useState([]);
+  const [isSeedLoading, setIsSeedLoading] = useState(false);
+  const [seedError, setSeedError] = useState(null);
 
   // Fallback data if page is accessed directly without row state
   const rowData = location.state?.rowData || {
@@ -139,8 +150,107 @@ const CceDataView = () => {
     setTabValue(newValue);
   };
 
+  // Fetch frame details from API
+  useEffect(() => {
+    const plotId = rowData.availableCcePlotId || rowData.cceAvailablePlotId;
+    const targetPlotId = plotId || '9de83462-0520-4815-b334-d078855987be';
+
+    const fetchFrameDetails = async () => {
+      setIsFrameLoading(true);
+      setFrameError(null);
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` })
+      };
+
+      try {
+        console.log("plotId", targetPlotId);
+        let response = await fetch(`${mainapi.FORM_API}/earas-form1-entry/cce-data-entry/frame-details/9de83462-0520-4815-b334-d078855987be`, { headers });
+        if (!response.ok) {
+          response = await fetch(`${mainapi.FORM_API}/cce-data-entry/frame-details/${targetPlotId}`, { headers });
+        }
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch frame details');
+        }
+
+        const data = await response.json();
+        const details = data?.payload || data;
+        setFrameDetails(details);
+      } catch (err) {
+        console.error('Error fetching frame details:', err);
+        setFrameError('Unable to load frame details for this plot.');
+      } finally {
+        setIsFrameLoading(false);
+      }
+    };
+
+    fetchFrameDetails();
+  }, [rowData.availableCcePlotId, rowData.cceAvailablePlotId]);
+
+  // Fetch seed details per tree (single or multiple)
+  useEffect(() => {
+    const treeItems = frameDetails?.ifTreeThenRandomNo || [];
+    if (treeItems.length === 0) {
+      setSeedDetailsList([]);
+      return;
+    }
+
+    const fetchSeedDetailsList = async () => {
+      setIsSeedLoading(true);
+      setSeedError(null);
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` })
+      };
+
+      try {
+        const results = await Promise.all(
+          treeItems.map(async (item) => {
+            const treeId = item.cceDataEntryPerTreeId;
+            if (!treeId) return null;
+            try {
+              let response = await fetch(`${mainapi.FORM_API}/earas-form1-entry/cce-data-entry/fetch-seed-details-per-tree/${treeId}`, { headers });
+              if (!response.ok) {
+                response = await fetch(`${mainapi.FORM_API}/cce-data-entry/fetch-seed-details-per-tree/${treeId}`, { headers });
+              }
+              if (!response.ok) return null;
+              const data = await response.json();
+              const payload = data?.payload || data;
+              return {
+                ...payload,
+                randomNo: item.randomNo,
+                cceDataEntryPerTreeId: treeId
+              };
+            } catch (e) {
+              console.error(`Error fetching seed details for tree ${treeId}:`, e);
+              return null;
+            }
+          })
+        );
+
+        const validResults = results.filter(Boolean);
+        setSeedDetailsList(validResults);
+      } catch (err) {
+        console.error('Error fetching seed details:', err);
+        setSeedError('Unable to load seed details.');
+      } finally {
+        setIsSeedLoading(false);
+      }
+    };
+
+    fetchSeedDetailsList();
+  }, [frameDetails]);
+
   return (
     <Box sx={{ pb: 4 }}>
+      {/* Breadcrumb at the very top */}
+      <Box sx={{ mb: 3 }}>
+        <Breadcrumb />
+      </Box>
+
       {/* App Bar Alternative */}
       <Box sx={{
         background: `linear-gradient(135deg, ${themeColor} 0%, ${theme.palette.primary.dark} 100%)`,
@@ -263,34 +373,202 @@ const CceDataView = () => {
 
         {/* TAB 2: FRAME SELECTION */}
         <TabPanel value={tabValue} index={1}>
-
           <Box>
             <SectionTitle icon={GridOnIcon} title="Frame Selection Summary" />
-            <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}>
-              <Table>
-                <TableHead sx={{ backgroundColor: alpha(theme.palette.divider, 0.05) }}>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 600 }}>Parameter</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Plot Dimention</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Random Number Selected</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {rowData.frameType === 'trees' ? (
-                    <>
-                      <TableRow><TableCell>Number of Trees in Frame</TableCell><TableCell>Count</TableCell><TableCell>{rowData.numberOfTrees || 50}</TableCell></TableRow>
-                      <TableRow sx={{ '&:last-child td, &:last-child th': { border: 0 } }}><TableCell>Randomly Selected Tree Number</TableCell><TableCell>Number</TableCell><TableCell>{rowData.randomTreeNumber || 12}</TableCell></TableRow>
-                    </>
-                  ) : (
-                    <>
-                      <TableRow><TableCell>X Direction</TableCell><TableCell>m</TableCell><TableCell>{rowData.plotLengthX || 10}</TableCell></TableRow>
-                      <TableRow><TableCell>Y Direction</TableCell><TableCell>m</TableCell><TableCell>{rowData.plotLengthY || 10}</TableCell></TableRow>
 
-                    </>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            {isFrameLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 6 }}>
+                <CircularProgress size={36} />
+              </Box>
+            ) : frameError ? (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                {frameError}
+              </Alert>
+            ) : frameDetails ? (
+              <>
+                {(frameDetails.totalNumberOfBearing !== undefined || frameDetails.totalNumberOfYoung !== undefined) ? (
+                  /* TYPE 2: TREE COUNT */
+                  <Box>
+                    <Grid container spacing={2} sx={{ mb: 3 }}>
+                      <Grid item xs={12} sm={4}>
+                        <Paper
+                          elevation={0}
+                          sx={{
+                            p: 2,
+                            borderRadius: 2,
+                            background: alpha(theme.palette.success.main, 0.08),
+                            border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
+                          }}
+                        >
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase' }}>
+                            Bearing Trees
+                          </Typography>
+                          <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.success.dark, mt: 0.5 }}>
+                            {frameDetails.totalNumberOfBearing ?? 0}
+                          </Typography>
+                        </Paper>
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Paper
+                          elevation={0}
+                          sx={{
+                            p: 2,
+                            borderRadius: 2,
+                            background: alpha(theme.palette.info.main, 0.08),
+                            border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+                          }}
+                        >
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase' }}>
+                            Young Trees
+                          </Typography>
+                          <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.info.dark, mt: 0.5 }}>
+                            {frameDetails.totalNumberOfYoung ?? 0}
+                          </Typography>
+                        </Paper>
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Paper
+                          elevation={0}
+                          sx={{
+                            p: 2,
+                            borderRadius: 2,
+                            background: alpha(theme.palette.primary.main, 0.08),
+                            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
+                          }}
+                        >
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase' }}>
+                            Total Trees
+                          </Typography>
+                          <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.primary.dark, mt: 0.5 }}>
+                            {(frameDetails.totalNumberOfBearing || 0) + (frameDetails.totalNumberOfYoung || 0)}
+                          </Typography>
+                        </Paper>
+                      </Grid>
+                    </Grid>
+
+                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, mt: 3, color: 'text.primary' }}>
+                      Randomly Selected Trees ({frameDetails.ifTreeThenRandomNo?.length || 0})
+                    </Typography>
+
+                    <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.2)}`, borderRadius: 2 }}>
+                      <Table>
+                        <TableHead sx={{ backgroundColor: alpha(theme.palette.divider, 0.05) }}>
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 600 }}>S.No</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>Random Tree Number</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>Per Tree Reference ID</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {frameDetails.ifTreeThenRandomNo && frameDetails.ifTreeThenRandomNo.length > 0 ? (
+                            frameDetails.ifTreeThenRandomNo.map((item, idx) => (
+                              <TableRow key={item.cceDataEntryPerTreeId || idx} hover>
+                                <TableCell sx={{ fontWeight: 500 }}>{idx + 1}</TableCell>
+                                <TableCell>
+                                  <Chip
+                                    label={`Tree #${item.randomNo}`}
+                                    size="small"
+                                    color="primary"
+                                    sx={{ fontWeight: 700 }}
+                                  />
+                                </TableCell>
+                                <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.85rem', color: 'text.secondary' }}>
+                                  {item.cceDataEntryPerTreeId || 'N/A'}
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={3} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                                No random trees available.
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Box>
+                ) : (
+                  /* TYPE 1: CENT / AREA */
+                  <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.2)}`, borderRadius: 2 }}>
+                    <Table>
+                      <TableHead sx={{ backgroundColor: alpha(theme.palette.divider, 0.05) }}>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 600 }}>Parameter / Direction</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>Plot Side Length (m)</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>Random Selected Distance (m)</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        <TableRow hover>
+                          <TableCell sx={{ fontWeight: 600 }}>X Direction</TableCell>
+                          <TableCell>{frameDetails.sideLengthX ?? 'N/A'}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={frameDetails.randomSideLengthX ?? 'N/A'}
+                              size="small"
+                              color="secondary"
+                              sx={{ fontWeight: 700 }}
+                            />
+                          </TableCell>
+                        </TableRow>
+                        <TableRow hover>
+                          <TableCell sx={{ fontWeight: 600 }}>Y Direction</TableCell>
+                          <TableCell>{frameDetails.sideLengthY ?? 'N/A'}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={frameDetails.randomSideLengthY ?? 'N/A'}
+                              size="small"
+                              color="secondary"
+                              sx={{ fontWeight: 700 }}
+                            />
+                          </TableCell>
+                        </TableRow>
+                        {frameDetails.ifTreeThenRandomNo && frameDetails.ifTreeThenRandomNo.length > 0 && (
+                          <TableRow hover>
+                            <TableCell sx={{ fontWeight: 600 }}>Selected Crop Random Number</TableCell>
+                            <TableCell colSpan={2}>
+                              <Chip
+                                label={`Random No: ${frameDetails.ifTreeThenRandomNo[0].randomNo}`}
+                                size="small"
+                                color="primary"
+                                sx={{ fontWeight: 700 }}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
+              </>
+            ) : (
+              /* FALLBACK: Render static/rowData values if no API response */
+              <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}>
+                <Table>
+                  <TableHead sx={{ backgroundColor: alpha(theme.palette.divider, 0.05) }}>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 600 }}>Parameter</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Plot Dimension</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Random Number Selected</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {rowData.frameType === 'trees' ? (
+                      <>
+                        <TableRow><TableCell>Number of Trees in Frame</TableCell><TableCell>Count</TableCell><TableCell>{rowData.numberOfTrees || 50}</TableCell></TableRow>
+                        <TableRow sx={{ '&:last-child td, &:last-child th': { border: 0 } }}><TableCell>Randomly Selected Tree Number</TableCell><TableCell>Number</TableCell><TableCell>{rowData.randomTreeNumber || 12}</TableCell></TableRow>
+                      </>
+                    ) : (
+                      <>
+                        <TableRow><TableCell>X Direction</TableCell><TableCell>m</TableCell><TableCell>{rowData.plotLengthX || 10}</TableCell></TableRow>
+                        <TableRow><TableCell>Y Direction</TableCell><TableCell>m</TableCell><TableCell>{rowData.plotLengthY || 10}</TableCell></TableRow>
+                      </>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
           </Box>
         </TabPanel>
 
@@ -298,11 +576,86 @@ const CceDataView = () => {
         <TabPanel value={tabValue} index={2}>
           <Box sx={{ mb: 4 }}>
             <SectionTitle icon={SpaIcon} title="Seed Information" />
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={4}><DataItem label="Seed Variety" value="Ponni" /></Grid>
-              <Grid item xs={12} sm={4}><DataItem label="Seed Type" value="HYV (High Yielding Variety)" /></Grid>
-              <Grid item xs={12} sm={6} md={3}><DataItem label="Sowing Method" value="Transplanting" /></Grid>
-            </Grid>
+
+            {isSeedLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 5 }}>
+                <CircularProgress size={32} />
+              </Box>
+            ) : seedError ? (
+              <Alert severity="warning" sx={{ mb: 2 }}>{seedError}</Alert>
+            ) : seedDetailsList && seedDetailsList.length > 0 ? (
+              seedDetailsList.length === 1 ? (
+                /* Single Seed Detail */
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <DataItem label="Seed Variety" value={seedDetailsList[0].seedVarietyName || 'N/A'} />
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <DataItem label="Seed Type" value={seedDetailsList[0].seedTypeName || 'N/A'} />
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <DataItem label="Added By" value={seedDetailsList[0].addedBy || 'N/A'} />
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <DataItem label="Tree Ref ID" value={seedDetailsList[0].cceDataEntryPerTreeId || 'N/A'} />
+                  </Grid>
+                </Grid>
+              ) : (
+                /* Multiple Per-Tree Seed Details List */
+                <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.2)}`, borderRadius: 2 }}>
+                  <Table>
+                    <TableHead sx={{ backgroundColor: alpha(theme.palette.divider, 0.05) }}>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600 }}>S.No</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Tree Number</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Seed Type</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Seed Variety</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Added By</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Per Tree Ref ID</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {seedDetailsList.map((item, idx) => (
+                        <TableRow key={item.cceDataEntryPerTreeId || idx} hover>
+                          <TableCell sx={{ fontWeight: 500 }}>{idx + 1}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={`Tree #${item.randomNo || (idx + 1)}`}
+                              size="small"
+                              color="primary"
+                              sx={{ fontWeight: 700 }}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ textTransform: 'capitalize', fontWeight: 600 }}>
+                            <Chip
+                              label={item.seedTypeName || 'N/A'}
+                              size="small"
+                              variant="outlined"
+                              color="info"
+                              sx={{ fontWeight: 600 }}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>{item.seedVarietyName || 'N/A'}</TableCell>
+                          <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'text.secondary' }}>
+                            {item.addedBy || 'N/A'}
+                          </TableCell>
+                          <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'text.secondary' }}>
+                            {item.cceDataEntryPerTreeId || 'N/A'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )
+            ) : (
+              /* Fallback view when no API seed details are present */
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={4}><DataItem label="Seed Variety" value="Ponni" /></Grid>
+                <Grid item xs={12} sm={4}><DataItem label="Seed Type" value="HYV (High Yielding Variety)" /></Grid>
+                <Grid item xs={12} sm={6} md={3}><DataItem label="Sowing Method" value="Transplanting" /></Grid>
+              </Grid>
+            )}
           </Box>
         </TabPanel>
 

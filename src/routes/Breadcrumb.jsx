@@ -7,6 +7,8 @@ import { emphasize, styled } from "@mui/material/styles";
 
 const TALUK_SESSION_KEY = 'talukReportState';
 const ZONE_SESSION_KEY = 'zoneReportState';
+const TALUK_FORM5_SESSION_KEY = 'talukForm5ReportState';
+const ZONE_FORM5_SESSION_KEY = 'zoneForm5ReportState';
 
 // Styled Chip for Breadcrumb
 const StyledBreadcrumb = styled(Chip)(({ theme, isLast }) => {
@@ -69,9 +71,12 @@ const Breadcrumb = () => {
   const pathnames = location.pathname.split("/").filter((x) => x);
 
   // Check if current page is part of Report module
-  const isReportModule = pathnames.some((p) =>
-    ['report', 'kerala_cluster_report', 'kerala_form_report', 'formreport', 'cce_report', 'cce'].includes(p.toLowerCase())
-  );
+  const isReportModule =
+    location.pathname.toLowerCase().includes('report') ||
+    location.pathname.toLowerCase().includes('form5') ||
+    location.pathname.toLowerCase().includes('form_5') ||
+    location.pathname.toLowerCase().includes('ccedataview') ||
+    location.state?.from === 'form5';
 
   let items = [];
 
@@ -94,7 +99,12 @@ const Breadcrumb = () => {
     });
 
     const isClusterReport = location.pathname.toLowerCase().includes('cluster_report') || location.pathname.toLowerCase().includes('kerala_cluster');
-    const isFormReport = location.pathname.toLowerCase().includes('form_report') || location.pathname.toLowerCase().includes('formreport');
+    const isForm5Report =
+      location.pathname.toLowerCase().includes('form5') ||
+      location.pathname.toLowerCase().includes('form_5') ||
+      location.pathname.toLowerCase().includes('ccedataview') ||
+      location.state?.from === 'form5';
+    const isFormReport = (location.pathname.toLowerCase().includes('form_report') || location.pathname.toLowerCase().includes('formreport')) && !isForm5Report;
 
     if (isClusterReport) {
       const isStateLevel = location.pathname === '/Report/kerala_cluster_report' || location.pathname === '/kerala_cluster_report';
@@ -148,8 +158,8 @@ const Breadcrumb = () => {
         const targetTalukPath = officeType === 'TALUK'
           ? `/Report/kerala_cluster_report/zone_cluster_report/direct/${talukId || officeInfo.talukOfficeId || officeInfo.talukId}`
           : (districtName && formattedTalukSlug
-              ? `/Report/kerala_cluster_report/taluk_cluster_report/zone_cluster_report/${districtName.toLowerCase()}/${formattedTalukSlug}`
-              : (talukId ? `/Report/kerala_cluster_report/zone_cluster_report/direct/${talukId}` : null));
+            ? `/Report/kerala_cluster_report/taluk_cluster_report/zone_cluster_report/${districtName.toLowerCase()}/${formattedTalukSlug}`
+            : (talukId ? `/Report/kerala_cluster_report/zone_cluster_report/direct/${talukId}` : null));
 
         const talukState = {
           officeType,
@@ -171,6 +181,126 @@ const Breadcrumb = () => {
       if (isClusterLevel) {
         items.push({
           label: 'Cluster',
+          path: null,
+        });
+      }
+
+    } else if (isForm5Report) {
+      const talukForm5SessionState = getSavedSessionState(TALUK_FORM5_SESSION_KEY);
+      const zoneForm5SessionState = getSavedSessionState(ZONE_FORM5_SESSION_KEY);
+      const form5SessionState = getSavedSessionState('form5ReportState');
+
+      const isStateLevel = location.pathname.toLowerCase().includes('keralaform5reportlist') || location.pathname === '/schemes/earas/cce/KeralaForm5ReportList';
+      const isTalukLevel = location.pathname.toLowerCase().includes('taluk_form5_report') && !location.pathname.toLowerCase().includes('zone_form5_report');
+      const isZoneLevel = location.pathname.toLowerCase().includes('zone_form5_report');
+      const isCceDataViewPage = location.pathname.toLowerCase().includes('ccedataview') || location.state?.from === 'form5';
+      const isForm5OverviewPage = location.pathname.toLowerCase().includes('/form5') && !isStateLevel && !isTalukLevel && !isZoneLevel && !isCceDataViewPage;
+
+      const f5DistrictId = location.state?.districtId || form5SessionState.districtId || zoneForm5SessionState.districtId || talukForm5SessionState.districtId || (params.districtId && !isNaN(params.districtId) ? params.districtId : null);
+      const f5DistrictName = location.state?.districtName || form5SessionState.districtName || zoneForm5SessionState.districtName || talukForm5SessionState.districtName || params.districtName || '';
+      const f5TalukId = location.state?.talukId || form5SessionState.talukId || zoneForm5SessionState.talukId || talukForm5SessionState.talukId || (params.talukId && !isNaN(params.talukId) ? params.talukId : null);
+      const f5TalukName = location.state?.talukName || form5SessionState.talukName || zoneForm5SessionState.talukName || talukForm5SessionState.talukName || params.talukName || '';
+      const f5ZoneId = location.state?.zoneId || form5SessionState.zoneId || null;
+      const f5ZoneName = location.state?.zoneName || form5SessionState.zoneName || '';
+
+      // STATE segment (only for DIRECTORATE role)
+      if (officeType === 'DIRECTORATE' && !isStateLevel) {
+        items.push({
+          label: 'State',
+          path: '/schemes/earas/cce/KeralaForm5ReportList',
+          state: { officeType: 'DIRECTORATE', viewLevel: 'state' },
+        });
+      } else if (officeType === 'DIRECTORATE' && isStateLevel) {
+        items.push({
+          label: 'State',
+          path: null,
+        });
+      }
+
+      // DISTRICT segment
+      if (isTalukLevel || isZoneLevel || isForm5OverviewPage || isCceDataViewPage) {
+        if (officeType === 'DIRECTORATE' || officeType === 'DISTRICT') {
+          const districtLabel = f5DistrictName ? `District: ${formatLabel(f5DistrictName)}` : 'District';
+          const targetDistrictId = f5DistrictId || officeInfo.districtOfficeId || officeInfo.districtId;
+          const targetDistrictPath = officeType === 'DISTRICT'
+            ? `/kerala_form5_report/taluk_form5_report/${targetDistrictId}`
+            : (targetDistrictId ? `/kerala_form5_report/taluk_form5_report/${targetDistrictId}` : '/schemes/earas/cce/KeralaForm5ReportList');
+
+          const districtState = {
+            officeType,
+            districtId: targetDistrictId,
+            districtOfficeId: targetDistrictId,
+            districtName: f5DistrictName,
+            isDirectAccess: officeType === 'DISTRICT',
+            ...(talukForm5SessionState || {}),
+          };
+
+          items.push({
+            label: districtLabel,
+            path: (isTalukLevel && !isZoneLevel && !isForm5OverviewPage && !isCceDataViewPage) ? null : targetDistrictPath,
+            state: districtState,
+          });
+        }
+      }
+
+      // TALUK segment
+      if (isZoneLevel || isForm5OverviewPage || isCceDataViewPage) {
+        const rawTalukLabel = f5TalukName ? f5TalukName.split('-')[0] : '';
+        const talukLabel = rawTalukLabel ? `Taluk: ${formatLabel(rawTalukLabel)}` : 'Taluk';
+        const formattedTalukSlug = f5TalukName ? f5TalukName : (rawTalukLabel && f5TalukId ? `${rawTalukLabel.toLowerCase()}-${f5TalukId}` : '');
+        const targetTalukId = f5TalukId || officeInfo.talukOfficeId || officeInfo.talukId;
+
+        const targetTalukPath = officeType === 'TALUK'
+          ? `/kerala_form5_report/zone_form5_report/direct/${targetTalukId}`
+          : (f5DistrictName && formattedTalukSlug
+            ? `/kerala_form5_report/taluk_form5_report/zone_form5_report/${f5DistrictName.toLowerCase()}/${formattedTalukSlug}`
+            : (targetTalukId ? `/kerala_form5_report/zone_form5_report/direct/${targetTalukId}` : null));
+
+        const talukState = {
+          officeType,
+          talukId: targetTalukId,
+          talukOfficeId: targetTalukId,
+          talukName: rawTalukLabel || f5TalukName,
+          districtName: f5DistrictName,
+          districtId: f5DistrictId,
+          isDirectAccess: officeType === 'TALUK',
+          ...(zoneForm5SessionState || {}),
+        };
+
+        items.push({
+          label: talukLabel,
+          path: (isZoneLevel && !isForm5OverviewPage && !isCceDataViewPage) ? null : targetTalukPath,
+          state: talukState,
+        });
+      }
+
+      // OVERVIEW segment (Form 5 page)
+      if (isForm5OverviewPage || isCceDataViewPage) {
+        const overviewLabel = f5ZoneName ? `${formatLabel(f5ZoneName)} CCE Overview` : 'CCE Progress Status Overview';
+        const form5Path = '/schemes/earas/cce/Form5';
+        const form5State = {
+          officeType,
+          zoneId: f5ZoneId,
+          zoneName: f5ZoneName,
+          talukId: f5TalukId,
+          talukName: f5TalukName,
+          districtId: f5DistrictId,
+          districtName: f5DistrictName,
+          ...(form5SessionState || {}),
+          ...(location.state || {})
+        };
+
+        items.push({
+          label: overviewLabel,
+          path: isCceDataViewPage ? form5Path : null,
+          state: form5State,
+        });
+      }
+
+      // CCE DATA VIEW segment (Last detail page of Form 5)
+      if (isCceDataViewPage) {
+        items.push({
+          label: 'CCE Data View',
           path: null,
         });
       }
@@ -262,7 +392,7 @@ const Breadcrumb = () => {
                   label={item.label}
                   isLast={true}
                   deleteIcon={<ExpandMoreIcon />}
-                  onDelete={() => {}}
+                  onDelete={() => { }}
                 />
               );
             }

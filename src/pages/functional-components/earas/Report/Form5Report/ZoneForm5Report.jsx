@@ -40,6 +40,7 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import StoreIcon from '@mui/icons-material/Store';
@@ -48,15 +49,14 @@ import HubIcon from '@mui/icons-material/Hub';
 import GrassIcon from '@mui/icons-material/Grass';
 import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
 import AuthService from 'pages/authentication/services/authservice';
+import api from 'api/api';
 
-// Gateway root (e.g. http://localhost:8080). The '/earas-form1-entry' service
-// prefix is added on the request path below.
-// NOTE: if mainapi.FORM_API already ends in '/earas-form1-entry',
-// drop the duplicate segment from the URL to avoid a doubled prefix (404).
+// Gateway root
 const BASE_URL = mainapi.FORM_API;
 
 /* ─────────────────────────── helpers ─────────────────────────── */
@@ -66,9 +66,6 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-// Builds the month list for the active agricultural year (July → June).
-// e.g. '2025-2026' → July 2025 ... December 2025, January 2026 ... June 2026
-// Each entry: { label: 'July 2025', value: '2025-07' } (value is API-ready YYYY-MM)
 function getAgriYearMonths(agriYear) {
   const [startYear, endYear] = (agriYear || '2025-2026').split('-').map(Number);
   const months = [];
@@ -81,17 +78,35 @@ function getAgriYearMonths(agriYear) {
   return months;
 }
 
-// Current month as 'YYYY-MM' if it falls inside the agri year, else July (first month)
 function getDefaultSingleMonth(agriYearMonths) {
   const now = new Date();
   const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   return agriYearMonths.some((m) => m.value === current) ? current : agriYearMonths[0]?.value || '';
 }
 
-// Extract the API-ready month number (1–12) from a 'YYYY-MM' value.
-// e.g. '2025-07' → 7
 function monthNum(value) {
   return value ? parseInt(value.split('-')[1], 10) : null;
+}
+
+const SESSION_KEY = 'zoneForm5ReportState';
+
+function getSavedState() {
+  try {
+    return JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+// Fallback zones for a taluk
+function getFallbackZones(talukId) {
+  return [
+    { zoneId: 1, zoneName: 'Zone 1', blockName: 'Block A' },
+    { zoneId: 2, zoneName: 'Zone 2', blockName: 'Block A' },
+    { zoneId: 3, zoneName: 'Zone 3', blockName: 'Block B' },
+    { zoneId: 4, zoneName: 'Zone 4', blockName: 'Block B' },
+    { zoneId: 5, zoneName: 'Zone 5', blockName: 'Block C' }
+  ];
 }
 
 /* ─────────────────────────── component ─────────────────────────── */
@@ -102,21 +117,17 @@ function ZoneForm5Report() {
   const location = useLocation();
   const { districtName, talukName, talukId: routeTalukId } = useParams();
 
-  const stateData = location.state || {};
+  const stateData = useMemo(() => {
+    const saved = getSavedState();
+    return { ...saved, ...(location.state || {}) };
+  }, [location.state]);
 
-  /* ── resolve taluk ID once and keep in a ref ── */
-  // Priority:
-  //  1. state.talukId / state.talukOfficeId  (set by TalukForm5Report)
-  //  2. :talukId route param  (direct route: zone_form5_report/direct/:talukId)
-  //  3. last segment of :talukName  (nested route: .../:districtName/:talukName-{id})
   const resolvedTalukId = useRef(null);
 
   const resolveTalukId = () => {
     if (stateData.talukId) return stateData.talukId;
     if (stateData.talukOfficeId) return stateData.talukOfficeId;
-    // direct route param
     if (routeTalukId && !isNaN(routeTalukId)) return parseInt(routeTalukId, 10);
-    // nested route: talukName ends with "-{id}"
     if (talukName && talukName.includes('-')) {
       const parts = talukName.split('-');
       const possible = parts[parts.length - 1];
@@ -129,19 +140,14 @@ function ZoneForm5Report() {
     resolvedTalukId.current = resolveTalukId();
   }
 
-  // Agricultural year from AuthService (e.g. '2025-2026'), and its month list.
   const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
   const agriYearMonths = useMemo(() => getAgriYearMonths(agriculturalYear), [agriculturalYear]);
   const defaultSingleMonth = useMemo(() => getDefaultSingleMonth(agriYearMonths), [agriYearMonths]);
   const monthLabel = (value) => agriYearMonths.find((m) => m.value === value)?.label || '';
 
-  /* ── filter state - Crop Name (UI only) + months ── */
-  // Backend does not accept cropName yet, so the param is not sent —
-  // see the TODO in fetchZoneWiseData to enable it later.
   const [cropName, setCropName] = useState(stateData.cropName || 'ALL');
   const [cropOptions, setCropOptions] = useState([]);
 
-  // Month filter states (values are API-ready 'YYYY-MM'), carried over from the taluk page
   const [filterType, setFilterType] = useState(stateData.filterType || 'single');
   const [singleMonth, setSingleMonth] = useState(
     stateData.singleMonth !== undefined && stateData.filterType ? stateData.singleMonth : defaultSingleMonth
@@ -149,14 +155,90 @@ function ZoneForm5Report() {
   const [fromMonth, setFromMonth] = useState(stateData.fromMonth || '');
   const [toMonth, setToMonth] = useState(stateData.toMonth || '');
 
-  /* ── ui state ── */
   const [apiData, setApiData] = useState(null);
+  const [zonesList, setZonesList] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [masterZonesLoading, setMasterZonesLoading] = useState(true);
   const [error, setError] = useState(null);
   const [totalElements, setTotalElements] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
+
+  useEffect(() => {
+    if (resolvedTalukId.current) {
+      sessionStorage.setItem(
+        SESSION_KEY,
+        JSON.stringify({
+          talukId: resolvedTalukId.current,
+          talukName: stateData.talukName || talukName || '',
+          districtId: stateData.districtId || null,
+          districtName: stateData.districtName || districtName || '',
+          cropName: stateData.cropName || 'ALL',
+          agriculturalYear: stateData.agriculturalYear || '2025-2026',
+          filterType: stateData.filterType || 'single',
+          singleMonth: stateData.singleMonth || '',
+          fromMonth: stateData.fromMonth || '',
+          toMonth: stateData.toMonth || ''
+        })
+      );
+    }
+  }, []);
+
+  /* ─────────────────────────── fetch master zones ─────────────────────────── */
+
+  const fetchMasterZones = async (talukId) => {
+    setMasterZonesLoading(true);
+    try {
+      let response = null;
+
+      try {
+        response = await api.get(`${mainapi.BTR_API}/btr-service/btr-api/zones?desTalukId=${talukId}`);
+        console.log('Master Zones Response (attempt 1):', response.data);
+      } catch (err) {
+        console.log('Attempt 1 failed, trying alternative endpoint...');
+      }
+
+      if (!response || !response.data) {
+        try {
+          response = await api.get(`${BASE_URL}/earas-form1-entry/api/zones?talukId=${talukId}`);
+          console.log('Master Zones Response (attempt 2):', response.data);
+        } catch (err) {
+          console.log('Attempt 2 failed, trying alternative endpoint...');
+        }
+      }
+
+      if (response && response.data) {
+        let zones = [];
+
+        if (response.data.data && Array.isArray(response.data.data)) {
+          zones = response.data.data;
+        } else if (Array.isArray(response.data)) {
+          zones = response.data;
+        } else if (response.data.zones && Array.isArray(response.data.zones)) {
+          zones = response.data.zones;
+        } else if (response.data.content && Array.isArray(response.data.content)) {
+          zones = response.data.content;
+        }
+
+        if (zones.length > 0) {
+          console.log('Setting zones list:', zones);
+          setZonesList(zones);
+        } else {
+          console.warn('No zones found in response, using fallback');
+          setZonesList(getFallbackZones(talukId));
+        }
+      } else {
+        console.warn('No response data received, using fallback');
+        setZonesList(getFallbackZones(talukId));
+      }
+    } catch (err) {
+      console.error('Error fetching master zones list:', err);
+      setZonesList(getFallbackZones(talukId));
+    } finally {
+      setMasterZonesLoading(false);
+    }
+  };
 
   /* ─────────────────────────── fetch ─────────────────────────── */
 
@@ -178,26 +260,18 @@ function ZoneForm5Report() {
       let url = `${BASE_URL}/earas-form1-entry/api/progress-report/cce-summary`;
       const params = new URLSearchParams();
 
-      // agriYear (mandatory) — e.g. '2025-2026'
       params.append('agriYear', agriculturalYear);
 
-      // Month filters — API expects a numeric month (1–12). startMonth is mandatory.
       if (filterType === 'single') {
-        // Single month: send only startMonth (backend defaults endMonth = startMonth).
         const start = monthNum(singleMonth) || monthNum(defaultSingleMonth);
         params.append('startMonth', start);
       } else {
-        // Month range: startMonth mandatory, endMonth optional.
         const start = monthNum(fromMonth) || monthNum(agriYearMonths[0]?.value);
         params.append('startMonth', start);
         if (toMonth) params.append('endMonth', monthNum(toMonth));
       }
 
-      // Zone drill-down → backend returns the zones for this taluk.
       params.append('talukId', talukIdValue);
-
-      // TODO: enable when the backend controller accepts a cropName param.
-      // if (cropName && cropName !== 'ALL') params.append('cropName', cropName);
 
       url += `?${params.toString()}`;
       console.log('Fetching zone Form 5 data from:', url);
@@ -211,8 +285,6 @@ function ZoneForm5Report() {
         setApiData(response.data);
         setTotalElements(Array.isArray(response.data.zones) ? response.data.zones.length : 0);
 
-        // Populate the crop dropdown if/when the endpoint returns a cropList.
-        // (Currently not returned, so the dropdown stays at ALL.)
         if (cropName === 'ALL' && Array.isArray(response.data.cropList)) {
           setCropOptions(response.data.cropList);
         }
@@ -230,8 +302,12 @@ function ZoneForm5Report() {
 
   /* ─────────────────────────── effects ─────────────────────────── */
 
-  // Fetch data when month filters change.
-  // (cropName is intentionally excluded — it is not sent to the API yet.)
+  useEffect(() => {
+    if (resolvedTalukId.current) {
+      fetchMasterZones(resolvedTalukId.current);
+    }
+  }, []);
+
   useEffect(() => {
     fetchZoneWiseData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -239,40 +315,88 @@ function ZoneForm5Report() {
 
   /* ─────────────────────────── derived data ─────────────────────────── */
 
-  // Live shape: apiData.zones = [
-  //   { zoneId, zoneName, blockId, blockName, allowedCCECrops, ongoing,
-  //     completed, notStarted, underReview, notAvailable, selectedCce },
-  //   ...
-  // ]
-  // Grouping rules:
-  //   • zones sharing the same blockName are grouped together
-  //   • blockId null → bucket by keyword in zoneName:
-  //       'municipality' → Municipality block, 'corporation' → Corporation block,
-  //       otherwise → Unassigned block
-  // Internal key stays `allowtedCce` so the table/stat config is unchanged.
   const processedData = useMemo(() => {
-    const zones = Array.isArray(apiData?.zones) ? apiData.zones : [];
-    if (!zones.length) return [];
+    const apiZones = Array.isArray(apiData?.zones) ? apiData.zones : [];
 
-    const blockMap = new Map();
-    const municipalityZones = [];
-    const corporationZones = [];
-    const unassignedZones = [];
+    const apiDataMap = {};
+    apiZones.forEach(z => {
+      const key = z.zoneName?.toLowerCase() || '';
+      apiDataMap[key] = z;
+    });
 
-    zones.forEach((z) => {
-      const zoneData = {
+    let mergedZones = [];
+    if (zonesList && zonesList.length > 0) {
+      mergedZones = zonesList.map((zone) => {
+        const zoneName = zone.zoneName || zone.zoneNameEn || zone.name || '';
+        const apiData = apiDataMap[zoneName.toLowerCase()] || {};
+
+        const hasData = (apiData.allowedCCECrops || 0) > 0 ||
+          (apiData.selectedCce || 0) > 0 ||
+          (apiData.completed || 0) > 0 ||
+          (apiData.ongoing || 0) > 0 ||
+          (apiData.notAvailable || 0) > 0 ||
+          (apiData.notStarted || 0) > 0 ||
+          (apiData.underReview || 0) > 0;
+
+        return {
+          zoneId: zone.zoneId || zone.id || apiData.zoneId || `zone_${Math.random()}`,
+          zoneName: zoneName || 'Unknown Zone',
+          blockId: zone.blockId || apiData.blockId || null,
+          blockName: zone.blockName || apiData.blockName || 'Unassigned',
+          allowtedCce: apiData.allowedCCECrops || 0,
+          selectedCce: apiData.selectedCce || 0,
+          completed: apiData.completed || 0,
+          ongoing: apiData.ongoing || 0,
+          notAvailable: apiData.notAvailable || 0,
+          notStarted: apiData.notStarted || 0,
+          underReview: apiData.underReview || 0,
+          hasData: hasData
+        };
+      });
+    } else {
+      mergedZones = apiZones.map((z) => ({
         zoneId: z.zoneId,
         zoneName: z.zoneName,
+        blockId: z.blockId,
+        blockName: z.blockName || 'Unassigned',
         allowtedCce: z.allowedCCECrops || 0,
         selectedCce: z.selectedCce || 0,
         completed: z.completed || 0,
         ongoing: z.ongoing || 0,
         notAvailable: z.notAvailable || 0,
         notStarted: z.notStarted || 0,
-        underReview: z.underReview || 0
+        underReview: z.underReview || 0,
+        hasData: (z.allowedCCECrops || 0) > 0 ||
+          (z.selectedCce || 0) > 0 ||
+          (z.completed || 0) > 0 ||
+          (z.ongoing || 0) > 0 ||
+          (z.notAvailable || 0) > 0 ||
+          (z.notStarted || 0) > 0 ||
+          (z.underReview || 0) > 0
+      }));
+    }
+
+    // Group by block - only zones, no subtotals
+    const blockMap = new Map();
+    const municipalityZones = [];
+    const corporationZones = [];
+    const unassignedZones = [];
+
+    mergedZones.forEach((z) => {
+      const zoneData = {
+        zoneId: z.zoneId,
+        zoneName: z.zoneName,
+        allowtedCce: z.allowtedCce,
+        selectedCce: z.selectedCce,
+        completed: z.completed,
+        ongoing: z.ongoing,
+        notAvailable: z.notAvailable,
+        notStarted: z.notStarted,
+        underReview: z.underReview,
+        hasData: z.hasData
       };
 
-      if (!z.blockId || !z.blockName) {
+      if (!z.blockId || !z.blockName || z.blockName === 'Unassigned') {
         const lower = (z.zoneName || '').toLowerCase();
         if (lower.includes('municipality')) municipalityZones.push(zoneData);
         else if (lower.includes('corporation')) corporationZones.push(zoneData);
@@ -312,10 +436,18 @@ function ZoneForm5Report() {
       });
 
     return blocks;
-  }, [apiData]);
+  }, [apiData, zonesList]);
 
-  // Taluk-level stats come straight from the top-level totals returned by the API
-  // (authoritative — do not re-sum the zone rows).
+  const zonesWithNoData = useMemo(() => {
+    let count = 0;
+    processedData.forEach(block => {
+      block.zones.forEach(zone => {
+        if (!zone.hasData) count++;
+      });
+    });
+    return count;
+  }, [processedData]);
+
   const stats = useMemo(
     () => ({
       allowtedCce: apiData?.allowedCCECrops || 0,
@@ -329,32 +461,16 @@ function ZoneForm5Report() {
     [apiData]
   );
 
+  // Flatten table data - only zones, no subtotals
   const flattenedTableData = useMemo(() => {
     const result = [];
     processedData.forEach((block) => {
-      let bAllowted = 0,
-        bSelected = 0,
-        bCompleted = 0,
-        bOngoing = 0,
-        bNotAvailable = 0,
-        bNotStarted = 0,
-        bUnderReview = 0;
-
-      block.zones.forEach((zone, idx) => {
-        bAllowted += zone.allowtedCce;
-        bSelected += zone.selectedCce;
-        bCompleted += zone.completed;
-        bOngoing += zone.ongoing;
-        bNotAvailable += zone.notAvailable;
-        bNotStarted += zone.notStarted;
-        bUnderReview += zone.underReview;
-
+      block.zones.forEach((zone) => {
         result.push({
           type: 'zone',
           id: `${block.blockId || 'nb'}_zone_${zone.zoneId}`,
           blockId: block.blockId,
           blockName: block.blockName,
-          isFirstZoneInBlock: idx === 0,
           zoneName: zone.zoneName,
           allowtedCce: zone.allowtedCce,
           selectedCce: zone.selectedCce,
@@ -364,29 +480,11 @@ function ZoneForm5Report() {
           notStarted: zone.notStarted,
           underReview: zone.underReview,
           zoneId: zone.zoneId,
+          hasData: zone.hasData,
           isUnassigned: block.isUnassigned || false,
           isMunicipality: block.isMunicipality || false,
           isCorporation: block.isCorporation || false
         });
-      });
-
-      result.push({
-        type: 'subtotal',
-        id: `block_${block.blockId || block.blockName}_sub`,
-        blockId: block.blockId,
-        blockName: block.blockName,
-        zoneName: `Total for ${block.blockName}`,
-        allowtedCce: bAllowted,
-        selectedCce: bSelected,
-        completed: bCompleted,
-        ongoing: bOngoing,
-        notAvailable: bNotAvailable,
-        notStarted: bNotStarted,
-        underReview: bUnderReview,
-        isSubtotal: true,
-        isMunicipality: block.isMunicipality || false,
-        isCorporation: block.isCorporation || false,
-        isUnassigned: block.isUnassigned || false
       });
     });
     return result;
@@ -421,7 +519,6 @@ function ZoneForm5Report() {
       setFromMonth('');
       setToMonth('');
     } else {
-      // range: default from July (first month of the agri year)
       setFromMonth(agriYearMonths[0]?.value || '');
       setSingleMonth('');
       setToMonth('');
@@ -439,10 +536,14 @@ function ZoneForm5Report() {
     setSearchTerm('');
   };
 
-  const handleViewZoneDetails = (zoneName, clickedZoneId) => {
-    // Navigate to the existing Form 5 CCE status page for the clicked zone.
-    // Form5.jsx can read zoneId & filters from location.state during integration
-    // (currently it uses a hardcoded zoneId in its API call).
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setPage(0);
+  };
+
+  const handleViewZoneDetails = (zoneName, clickedZoneId, hasData) => {
+    if (!hasData) return;
+
     navigate('/schemes/earas/cce/Form5', {
       state: {
         zoneId: clickedZoneId,
@@ -492,21 +593,17 @@ function ZoneForm5Report() {
     </Card>
   );
 
-  /* ─────────────────────────── display name ─────────────────────────── */
-
   const formattedTaluk =
     stateData.talukName ||
     (talukName
       ? talukName
-          .replace(/-\d+$/, '') // strip trailing -id
-          .split('-')
-          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(' ')
+        .replace(/-\d+$/, '')
+        .split('-')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ')
       : 'Taluk');
 
-  /* ─────────────────────────── render ─────────────────────────── */
-
-  if (loading && !apiData) {
+  if ((loading || masterZonesLoading) && !apiData && zonesList.length === 0) {
     return (
       <Grid container spacing={3} justifyContent="center" alignItems="center" sx={{ minHeight: '400px' }}>
         <Grid item>
@@ -521,7 +618,6 @@ function ZoneForm5Report() {
     <Grid container spacing={3}>
       <Breadcrumb />
 
-      {/* Header */}
       <Grid item xs={12}>
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
@@ -543,6 +639,7 @@ function ZoneForm5Report() {
                 {filterType === 'range' && !fromMonth && toMonth && ` • Until ${monthLabel(toMonth)}`}
                 {cropName !== 'ALL' && ` • Crop: ${cropName}`}
                 {apiData && ` • Total Zones: ${totalElements}`}
+                {zonesWithNoData > 0 && ` • ${zonesWithNoData} zones with no data`}
               </Typography>
             </Box>
           </Stack>
@@ -554,7 +651,6 @@ function ZoneForm5Report() {
         </Stack>
       </Grid>
 
-      {/* Error */}
       {error && (
         <Grid item xs={12}>
           <Paper sx={{ p: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
@@ -563,7 +659,28 @@ function ZoneForm5Report() {
         </Grid>
       )}
 
-      {/* Filters - Crop Name (UI only for now) + month single / range */}
+      {zonesWithNoData > 0 && !loading && (
+        <Grid item xs={12}>
+          <Paper
+            sx={{
+              p: 1.5,
+              bgcolor: alpha('#ff9800', 0.08),
+              borderRadius: 2,
+              border: `1px solid ${alpha('#ff9800', 0.3)}`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}
+          >
+            <InfoOutlinedIcon sx={{ color: '#ff9800', fontSize: 20 }} />
+            <Typography variant="body2" color="text.secondary">
+              <strong>{zonesWithNoData}</strong> zone{zonesWithNoData > 1 ? 's' : ''} have no data available for the selected filters.
+              <strong> View details is disabled for zones without data.</strong>
+            </Typography>
+          </Paper>
+        </Grid>
+      )}
+
       <Grid item xs={12}>
         <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
@@ -660,7 +777,6 @@ function ZoneForm5Report() {
         </Paper>
       </Grid>
 
-      {/* Stats Cards */}
       <Grid item xs={12}>
         <Box sx={{ position: 'relative', border: `1px solid ${alpha('#04255e', 0.15)}`, borderRadius: 3, p: 2, pt: 3, bgcolor: '#fff' }}>
           <Chip
@@ -696,7 +812,6 @@ function ZoneForm5Report() {
         </Box>
       </Grid>
 
-      {/* Zone Table */}
       <Grid item xs={12}>
         <Box sx={{ position: 'relative', borderRadius: 3 }}>
           <Chip
@@ -737,10 +852,7 @@ function ZoneForm5Report() {
                     <InputAdornment position="end">
                       <IconButton
                         size="small"
-                        onClick={() => {
-                          setSearchTerm('');
-                          setPage(0);
-                        }}
+                        onClick={handleClearSearch}
                         edge="end"
                       >
                         <ClearIcon fontSize="small" />
@@ -757,6 +869,7 @@ function ZoneForm5Report() {
                 <TableHead>
                   <TableRow sx={{ bgcolor: '#04255e' }}>
                     {[
+                      '#',
                       'Block',
                       'Zone',
                       'Allowted CCE',
@@ -770,15 +883,15 @@ function ZoneForm5Report() {
                     ].map((label, idx) => (
                       <TableCell
                         key={idx}
-                        align={idx === 0 ? 'center' : idx === 1 ? 'left' : 'center'}
+                        align={idx === 0 ? 'center' : idx === 1 ? 'center' : idx === 2 ? 'left' : 'center'}
                         sx={{
                           color: 'white',
                           fontWeight: 600,
                           py: 1.5,
                           border: 'none',
                           whiteSpace: 'nowrap',
-                          ...(idx === 0 && { minWidth: 160 }),
-                          ...(idx === 1 && { minWidth: 180 })
+                          ...(idx === 1 && { minWidth: 160 }),
+                          ...(idx === 2 && { minWidth: 180 })
                         }}
                       >
                         {label}
@@ -790,7 +903,7 @@ function ZoneForm5Report() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
                         <CircularProgress size={40} />
                       </TableCell>
                     </TableRow>
@@ -798,16 +911,17 @@ function ZoneForm5Report() {
                     (() => {
                       const rows = [];
                       let lastBlockName = '';
+                      let serialNumber = page * rowsPerPage;
 
                       for (let i = 0; i < paginatedData.length; i++) {
                         const row = paginatedData[i];
                         const isNewBlock = row.blockName !== lastBlockName;
-                        const isSubtotalRow = row.type === 'subtotal';
-                        if (isNewBlock) lastBlockName = row.blockName;
+                        const hasNoData = !row.hasData;
 
-                        const blockRowCount = isSubtotalRow
-                          ? 0
-                          : paginatedData.filter((r) => r.blockName === row.blockName).length;
+                        if (isNewBlock) lastBlockName = row.blockName;
+                        serialNumber++;
+
+                        const blockRowCount = paginatedData.filter((r) => r.blockName === row.blockName).length;
 
                         rows.push(
                           <TableRow
@@ -816,15 +930,19 @@ function ZoneForm5Report() {
                             sx={{
                               '&:hover': { bgcolor: alpha('#04255e', 0.04) },
                               transition: '0.2s',
-                              '& td': {
-                                borderBottom: isSubtotalRow ? `1px solid ${theme.palette.primary.main}` : 'none',
-                                borderTop: isSubtotalRow ? `0.01px solid ${theme.palette.primary.main}` : 'none',
-                                backgroundColor: isSubtotalRow ? alpha('#728ab4', 0.08) : 'transparent'
-                              }
+                              ...(hasNoData && {
+                                bgcolor: alpha('#ff9800', 0.03),
+                                '&:hover': { bgcolor: alpha('#ff9800', 0.08) }
+                              })
                             }}
                           >
-                            {/* Block cell – merged across all zone rows */}
-                            {isNewBlock && !isSubtotalRow && (
+                            <TableCell align="center" sx={{ border: 'none' }}>
+                              <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                                {serialNumber}
+                              </Typography>
+                            </TableCell>
+
+                            {isNewBlock ? (
                               <TableCell
                                 rowSpan={blockRowCount}
                                 align="center"
@@ -844,49 +962,53 @@ function ZoneForm5Report() {
                                   </Typography>
                                 </Stack>
                               </TableCell>
-                            )}
+                            ) : null}
 
-                            {/* Zone name */}
                             <TableCell sx={{ border: 'none' }}>
-                              {isSubtotalRow ? (
-                                <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#04255e', fontStyle: 'italic' }}>
+                              <Stack direction="row" spacing={1} alignItems="center">
+                                <StoreIcon sx={{ fontSize: 18, color: hasNoData ? '#ff9800' : '#04255e', opacity: 0.7 }} />
+                                <Typography fontWeight={hasNoData ? 400 : 500} color={hasNoData ? 'text.secondary' : 'text.primary'}>
                                   {row.zoneName}
+                                  {hasNoData && (
+                                    <Chip
+                                      label="No Data"
+                                      size="small"
+                                      sx={{
+                                        ml: 1,
+                                        height: 18,
+                                        fontSize: '0.6rem',
+                                        bgcolor: alpha('#ff9800', 0.15),
+                                        color: '#e65100',
+                                        fontWeight: 600
+                                      }}
+                                    />
+                                  )}
                                 </Typography>
+                              </Stack>
+                            </TableCell>
+
+                            <TableCell align="center" sx={{ border: 'none' }}>
+                              {hasNoData ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
                               ) : (
-                                <Stack direction="row" spacing={1} alignItems="center">
-                                  <StoreIcon sx={{ fontSize: 18, color: '#04255e', opacity: 0.7 }} />
-                                  <Typography fontWeight={500}>{row.zoneName}</Typography>
-                                </Stack>
+                                <Chip
+                                  label={row.allowtedCce}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{ fontWeight: 600 }}
+                                />
                               )}
                             </TableCell>
 
-                            {/* Allowted CCE */}
                             <TableCell align="center" sx={{ border: 'none' }}>
-                              <Chip
-                                label={row.allowtedCce}
-                                size="small"
-                                variant={isSubtotalRow ? 'filled' : 'outlined'}
-                                sx={{
-                                  fontWeight: isSubtotalRow ? 700 : 600,
-                                  bgcolor: isSubtotalRow ? alpha('#04255e', 0.15) : 'transparent',
-                                  color: isSubtotalRow ? '#04255e' : 'inherit'
-                                }}
-                              />
-                            </TableCell>
-
-                            {/* Selected CCE */}
-                            <TableCell align="center" sx={{ border: 'none' }}>
-                              {row.selectedCce > 0 ? (
+                              {hasNoData ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : row.selectedCce > 0 ? (
                                 <Chip
                                   label={row.selectedCce}
                                   size="small"
-                                  variant={isSubtotalRow ? 'filled' : 'outlined'}
-                                  sx={{
-                                    fontWeight: isSubtotalRow ? 700 : 600,
-                                    color: '#04255e',
-                                    borderColor: alpha('#04255e', 0.4),
-                                    bgcolor: isSubtotalRow ? alpha('#04255e', 0.1) : 'transparent'
-                                  }}
+                                  variant="outlined"
+                                  sx={{ color: '#04255e', borderColor: alpha('#04255e', 0.4), fontWeight: 600 }}
                                 />
                               ) : (
                                 <Typography variant="body2" color="text.secondary">
@@ -895,16 +1017,11 @@ function ZoneForm5Report() {
                               )}
                             </TableCell>
 
-                            {/* Completed */}
                             <TableCell align="center" sx={{ border: 'none' }}>
-                              {row.completed > 0 ? (
-                                <Chip
-                                  label={row.completed}
-                                  size="small"
-                                  color="success"
-                                  variant={isSubtotalRow ? 'filled' : 'outlined'}
-                                  sx={{ fontWeight: isSubtotalRow ? 700 : 500 }}
-                                />
+                              {hasNoData ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : row.completed > 0 ? (
+                                <Chip label={row.completed} size="small" color="success" variant="outlined" />
                               ) : (
                                 <Typography variant="body2" color="text.secondary">
                                   {row.completed}
@@ -912,16 +1029,11 @@ function ZoneForm5Report() {
                               )}
                             </TableCell>
 
-                            {/* Ongoing */}
                             <TableCell align="center" sx={{ border: 'none' }}>
-                              {row.ongoing > 0 ? (
-                                <Chip
-                                  label={row.ongoing}
-                                  size="small"
-                                  color="primary"
-                                  variant={isSubtotalRow ? 'filled' : 'outlined'}
-                                  sx={{ fontWeight: isSubtotalRow ? 700 : 500 }}
-                                />
+                              {hasNoData ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : row.ongoing > 0 ? (
+                                <Chip label={row.ongoing} size="small" color="primary" variant="outlined" />
                               ) : (
                                 <Typography variant="body2" color="text.secondary">
                                   {row.ongoing}
@@ -929,16 +1041,11 @@ function ZoneForm5Report() {
                               )}
                             </TableCell>
 
-                            {/* Not Available */}
                             <TableCell align="center" sx={{ border: 'none' }}>
-                              {row.notAvailable > 0 ? (
-                                <Chip
-                                  label={row.notAvailable}
-                                  size="small"
-                                  color="error"
-                                  variant={isSubtotalRow ? 'filled' : 'outlined'}
-                                  sx={{ fontWeight: isSubtotalRow ? 700 : 500 }}
-                                />
+                              {hasNoData ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : row.notAvailable > 0 ? (
+                                <Chip label={row.notAvailable} size="small" color="error" variant="outlined" />
                               ) : (
                                 <Typography variant="body2" color="text.secondary">
                                   {row.notAvailable}
@@ -946,18 +1053,11 @@ function ZoneForm5Report() {
                               )}
                             </TableCell>
 
-                            {/* Not Started */}
                             <TableCell align="center" sx={{ border: 'none' }}>
-                              {row.notStarted > 0 ? (
-                                <Chip
-                                  label={row.notStarted}
-                                  size="small"
-                                  variant={isSubtotalRow ? 'filled' : 'outlined'}
-                                  sx={{
-                                    fontWeight: isSubtotalRow ? 700 : 500,
-                                    bgcolor: isSubtotalRow ? alpha('#757575', 0.15) : 'transparent'
-                                  }}
-                                />
+                              {hasNoData ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : row.notStarted > 0 ? (
+                                <Chip label={row.notStarted} size="small" variant="outlined" />
                               ) : (
                                 <Typography variant="body2" color="text.secondary">
                                   {row.notStarted}
@@ -965,16 +1065,11 @@ function ZoneForm5Report() {
                               )}
                             </TableCell>
 
-                            {/* Under Review */}
                             <TableCell align="center" sx={{ border: 'none' }}>
-                              {row.underReview > 0 ? (
-                                <Chip
-                                  label={row.underReview}
-                                  size="small"
-                                  color="warning"
-                                  variant={isSubtotalRow ? 'filled' : 'outlined'}
-                                  sx={{ fontWeight: isSubtotalRow ? 700 : 500 }}
-                                />
+                              {hasNoData ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : row.underReview > 0 ? (
+                                <Chip label={row.underReview} size="small" color="warning" variant="outlined" />
                               ) : (
                                 <Typography variant="body2" color="text.secondary">
                                   {row.underReview}
@@ -982,16 +1077,25 @@ function ZoneForm5Report() {
                               )}
                             </TableCell>
 
-                            {/* Actions */}
                             <TableCell align="center" sx={{ border: 'none' }}>
-                              {!isSubtotalRow && (
+                              {row.hasData ? (
                                 <Tooltip title="View CCE Details">
                                   <IconButton
                                     size="small"
-                                    onClick={() => handleViewZoneDetails(row.zoneName, row.zoneId)}
+                                    onClick={() => handleViewZoneDetails(row.zoneName, row.zoneId, row.hasData)}
                                     sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
                                   >
                                     <VisibilityIcon />
+                                  </IconButton>
+                                </Tooltip>
+                              ) : (
+                                <Tooltip title="No data available - View disabled">
+                                  <IconButton
+                                    size="small"
+                                    disabled
+                                    sx={{ color: '#bdbdbd', cursor: 'not-allowed' }}
+                                  >
+                                    <VisibilityOffIcon />
                                   </IconButton>
                                 </Tooltip>
                               )}
@@ -1003,7 +1107,7 @@ function ZoneForm5Report() {
                     })()
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
                         <Typography color="text.secondary">
                           {searchTerm ? `No blocks/zones found matching "${searchTerm}"` : 'No data available for selected filters'}
                         </Typography>

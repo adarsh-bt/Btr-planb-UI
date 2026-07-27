@@ -39,6 +39,7 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import CancelIcon from '@mui/icons-material/Cancel';
@@ -46,10 +47,12 @@ import HubIcon from '@mui/icons-material/Hub';
 import GrassIcon from '@mui/icons-material/Grass';
 import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
 import AuthService from 'pages/authentication/services/authservice';
+import api from 'api/api';
 
 // Gateway root (e.g. http://localhost:8080). The '/earas-form1-entry' service
 // prefix is added on the request path below.
@@ -104,8 +107,10 @@ function KeralaForm5ReportList() {
 
   // State for API data
   const [apiData, setApiData] = useState(null);
+  const [districtsList, setDistrictsList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [masterDistrictsLoading, setMasterDistrictsLoading] = useState(true);
 
   // Crop Name filter (UI kept). Backend does not accept cropName yet, so the
   // param is not sent — see the TODO in fetchDashboardData to enable it later.
@@ -122,6 +127,97 @@ function KeralaForm5ReportList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
+
+  // Fetch master districts list
+  const fetchMasterDistricts = async () => {
+    setMasterDistrictsLoading(true);
+    try {
+      // Try multiple possible endpoints
+      let response = null;
+
+      // Try 1: Standard endpoint
+      try {
+        response = await api.get(`${BASE_URL}/earas-form1-entry/api/districts`);
+        console.log('Master Districts Response (attempt 1):', response.data);
+      } catch (err) {
+        console.log('Attempt 1 failed, trying alternative endpoint...');
+      }
+
+      // Try 2: Alternative endpoint without the service prefix
+      if (!response || !response.data) {
+        try {
+          response = await api.get(`${mainapi.BTR_API}/btr-service/btr-api/districts`);
+          console.log('Master Districts Response (attempt 2):', response.data);
+        } catch (err) {
+          console.log('Attempt 2 failed, trying alternative endpoint...');
+        }
+      }
+
+      // Try 3: Direct API call
+      if (!response || !response.data) {
+        try {
+          response = await api.get(`/api/districts`);
+          console.log('Master Districts Response (attempt 3):', response.data);
+        } catch (err) {
+          console.log('Attempt 3 failed');
+        }
+      }
+
+      // Process response
+      if (response && response.data) {
+        let districts = [];
+
+        if (response.data.data && Array.isArray(response.data.data)) {
+          districts = response.data.data;
+        } else if (Array.isArray(response.data)) {
+          districts = response.data;
+        } else if (response.data.districts && Array.isArray(response.data.districts)) {
+          districts = response.data.districts;
+        } else if (response.data.content && Array.isArray(response.data.content)) {
+          districts = response.data.content;
+        }
+
+        if (districts.length > 0) {
+          console.log('Setting districts list:', districts);
+          setDistrictsList(districts);
+        } else {
+          console.warn('No districts found in response');
+          // Use fallback districts list
+          setDistrictsList(getFallbackDistricts());
+        }
+      } else {
+        console.warn('No response data received');
+        // Use fallback districts list
+        setDistrictsList(getFallbackDistricts());
+      }
+    } catch (err) {
+      console.error('Error fetching master districts list:', err);
+      // Use fallback districts list
+      setDistrictsList(getFallbackDistricts());
+    } finally {
+      setMasterDistrictsLoading(false);
+    }
+  };
+
+  // Fallback districts list (common Kerala districts)
+  const getFallbackDistricts = () => {
+    return [
+      { id: 1, districtName: 'Thiruvananthapuram' },
+      { id: 2, districtName: 'Kollam' },
+      { id: 3, districtName: 'Pathanamthitta' },
+      { id: 4, districtName: 'Alappuzha' },
+      { id: 5, districtName: 'Kottayam' },
+      { id: 6, districtName: 'Idukki' },
+      { id: 7, districtName: 'Ernakulam' },
+      { id: 8, districtName: 'Thrissur' },
+      { id: 9, districtName: 'Palakkad' },
+      { id: 10, districtName: 'Malappuram' },
+      { id: 11, districtName: 'Kozhikode' },
+      { id: 12, districtName: 'Wayanad' },
+      { id: 13, districtName: 'Kannur' },
+      { id: 14, districtName: 'Kasaragod' }
+    ];
+  };
 
   // Fetch data from API
   const fetchDashboardData = async () => {
@@ -159,11 +255,7 @@ function KeralaForm5ReportList() {
       url += `?${params.toString()}`;
       console.log('Fetching data from:', url);
 
-      const response = await axios.get(url, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      const response = await api.get(url);
 
       if (response.data) {
         setApiData(response.data);
@@ -195,29 +287,76 @@ function KeralaForm5ReportList() {
   };
 
   // Transform API data to district rows.
-  // Live shape: apiData.districts = [
-  //   { districtId, districtName, allowedCCECrops, ongoing, completed,
-  //     notStarted, underReview, notAvailable, selectedCce },
-  //   ...
-  // ]
-  // Internal key stays `allowtedCce` so downstream table/stat config is unchanged.
+  // Merges master districts list with API data
   const transformApiDataToDistricts = useMemo(() => {
-    if (!apiData || !Array.isArray(apiData.districts)) {
-      return [];
+    // Get data from API or empty object
+    const apiDistricts = apiData?.districts || [];
+
+    // Create a map for quick lookup of API data by district name
+    const apiDataMap = {};
+    apiDistricts.forEach(d => {
+      const key = d.districtName?.toLowerCase() || '';
+      apiDataMap[key] = d;
+    });
+
+    // Log for debugging
+    console.log('Districts List:', districtsList);
+    console.log('API Districts:', apiDistricts);
+
+    // If we have master districts list, merge with API data
+    if (districtsList && districtsList.length > 0) {
+      const merged = districtsList.map((district) => {
+        const districtName = district.districtName || district.name || district.distNameEn || '';
+        const apiData = apiDataMap[districtName.toLowerCase()] || {};
+
+        // Check if this district has any data
+        const hasData = (apiData.allowedCCECrops || 0) > 0 ||
+          (apiData.selectedCce || 0) > 0 ||
+          (apiData.completed || 0) > 0 ||
+          (apiData.ongoing || 0) > 0 ||
+          (apiData.notAvailable || 0) > 0 ||
+          (apiData.notStarted || 0) > 0 ||
+          (apiData.underReview || 0) > 0;
+
+        return {
+          id: district.id || district.districtId || apiData.districtId || `dist_${Math.random()}`,
+          district: districtName || 'Unknown District',
+          allowtedCce: apiData.allowedCCECrops || 0,
+          selectedCce: apiData.selectedCce || 0,
+          completed: apiData.completed || 0,
+          ongoing: apiData.ongoing || 0,
+          notAvailable: apiData.notAvailable || 0,
+          notStarted: apiData.notStarted || 0,
+          underReview: apiData.underReview || 0,
+          hasData: hasData
+        };
+      });
+
+      console.log('Merged Districts:', merged);
+      return merged;
     }
 
-    return apiData.districts.map((d) => ({
-      id: d.districtId,
-      district: d.districtName,
+    // Fallback: use only API data if master list is not available
+    console.log('Using API districts only');
+    return apiDistricts.map((d) => ({
+      id: d.districtId || `dist_${Math.random()}`,
+      district: d.districtName || 'Unknown District',
       allowtedCce: d.allowedCCECrops || 0,
       selectedCce: d.selectedCce || 0,
       completed: d.completed || 0,
       ongoing: d.ongoing || 0,
       notAvailable: d.notAvailable || 0,
       notStarted: d.notStarted || 0,
-      underReview: d.underReview || 0
+      underReview: d.underReview || 0,
+      hasData: (d.allowedCCECrops || 0) > 0 ||
+        (d.selectedCce || 0) > 0 ||
+        (d.completed || 0) > 0 ||
+        (d.ongoing || 0) > 0 ||
+        (d.notAvailable || 0) > 0 ||
+        (d.notStarted || 0) > 0 ||
+        (d.underReview || 0) > 0
     }));
-  }, [apiData]);
+  }, [apiData, districtsList]);
 
   // State-level stats come straight from the top-level totals returned by the API
   // (authoritative — do not re-sum the district rows).
@@ -233,6 +372,11 @@ function KeralaForm5ReportList() {
     }),
     [apiData]
   );
+
+  // Count districts with no data
+  const districtsWithNoData = useMemo(() => {
+    return transformApiDataToDistricts.filter(d => !d.hasData).length;
+  }, [transformApiDataToDistricts]);
 
   // Filter data based on district search
   const filteredData = useMemo(() => {
@@ -283,7 +427,10 @@ function KeralaForm5ReportList() {
     setSearchTerm('');
   };
 
-  const handleViewDetails = (districtName) => {
+  const handleViewDetails = (districtName, hasData) => {
+    // Only navigate if district has data
+    if (!hasData) return;
+
     // Find district ID from data
     const district = transformApiDataToDistricts.find((d) => d.district === districtName);
     if (district) {
@@ -318,10 +465,18 @@ function KeralaForm5ReportList() {
     }
   };
 
-  // Fetch data when month filters change.
-  // (cropName is intentionally excluded — it is not sent to the API yet.)
+  // Fetch master districts and data when component mounts
   useEffect(() => {
+    fetchMasterDistricts();
     fetchDashboardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fetch data when month filters change
+  useEffect(() => {
+    if (agriculturalYear) {
+      fetchDashboardData();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterType, singleMonth, fromMonth, toMonth]);
 
@@ -407,7 +562,7 @@ function KeralaForm5ReportList() {
   ];
 
   // Loading state
-  if (loading && !apiData) {
+  if ((loading || masterDistrictsLoading) && !apiData && districtsList.length === 0) {
     return (
       <Grid container spacing={3} justifyContent="center" alignItems="center" sx={{ minHeight: '400px' }}>
         <Grid item>
@@ -444,6 +599,7 @@ function KeralaForm5ReportList() {
                 {filterType === 'range' && !fromMonth && toMonth && ` • Until ${monthLabel(toMonth)}`}
                 {cropName !== 'ALL' && ` • Crop: ${cropName}`}
                 {apiData?.allowedCCECrops != null && ` • Total Allowted CCE: ${apiData.allowedCCECrops}`}
+                {districtsWithNoData > 0 && ` • ${districtsWithNoData} districts with no data`}
               </Typography>
             </Box>
           </Stack>
@@ -459,7 +615,32 @@ function KeralaForm5ReportList() {
       {error && (
         <Grid item xs={12}>
           <Paper sx={{ p: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
-            <Typography color="error">Error: {error}</Typography>
+            <Typography color="error">
+              {error}
+            </Typography>
+          </Paper>
+        </Grid>
+      )}
+
+      {/* Info Banner for districts with no data */}
+      {districtsWithNoData > 0 && !loading && (
+        <Grid item xs={12}>
+          <Paper
+            sx={{
+              p: 1.5,
+              bgcolor: alpha('#ff9800', 0.08),
+              borderRadius: 2,
+              border: `1px solid ${alpha('#ff9800', 0.3)}`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}
+          >
+            <InfoOutlinedIcon sx={{ color: '#ff9800', fontSize: 20 }} />
+            <Typography variant="body2" color="text.secondary">
+              <strong>{districtsWithNoData}</strong> district{districtsWithNoData > 1 ? 's' : ''} have no data available for the selected filters.
+              <strong> View details is disabled for districts without data.</strong>
+            </Typography>
           </Paper>
         </Grid>
       )}
@@ -663,6 +844,7 @@ function KeralaForm5ReportList() {
                 <TableHead>
                   <TableRow sx={{ bgcolor: '#04255e' }}>
                     {[
+                      '#',
                       'District',
                       'Allowted CCE',
                       'Selected CCE',
@@ -675,7 +857,7 @@ function KeralaForm5ReportList() {
                     ].map((label, idx) => (
                       <TableCell
                         key={idx}
-                        align={idx === 0 ? 'left' : 'center'}
+                        align={idx === 0 ? 'center' : idx === 1 ? 'left' : 'center'}
                         sx={{ color: 'white', fontWeight: 600, py: 1.5, whiteSpace: 'nowrap' }}
                       >
                         {label}
@@ -686,73 +868,150 @@ function KeralaForm5ReportList() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
                         <CircularProgress size={40} />
                       </TableCell>
                     </TableRow>
                   ) : paginatedData.length > 0 ? (
-                    paginatedData.map((row) => (
-                      <TableRow key={row.id} hover sx={{ '&:hover': { bgcolor: alpha('#04255e', 0.04) }, transition: '0.2s' }}>
-                        <TableCell>
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            <LocationOnIcon sx={{ fontSize: 18, color: '#04255e', opacity: 0.7 }} />
-                            <Typography fontWeight={500}>{row.district}</Typography>
-                          </Stack>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Chip label={row.allowtedCce} size="small" variant="filled" sx={{ fontWeight: 600, bgcolor: alpha('#04255e', 0.1) }} />
-                        </TableCell>
-                        <TableCell align="center">
-                          {row.selectedCce > 0 ? (
-                            <Chip
-                              label={row.selectedCce}
-                              size="small"
-                              variant="outlined"
-                              sx={{ color: '#04255e', borderColor: alpha('#04255e', 0.4), fontWeight: 600 }}
-                            />
-                          ) : (
-                            row.selectedCce
-                          )}
-                        </TableCell>
-                        <TableCell align="center">
-                          {row.completed > 0 ? <Chip label={row.completed} size="small" color="success" variant="outlined" /> : row.completed}
-                        </TableCell>
-                        <TableCell align="center">
-                          {row.ongoing > 0 ? <Chip label={row.ongoing} size="small" color="primary" variant="outlined" /> : row.ongoing}
-                        </TableCell>
-                        <TableCell align="center">
-                          {row.notAvailable > 0 ? (
-                            <Chip label={row.notAvailable} size="small" color="error" variant="outlined" />
-                          ) : (
-                            row.notAvailable
-                          )}
-                        </TableCell>
-                        <TableCell align="center">
-                          {row.notStarted > 0 ? <Chip label={row.notStarted} size="small" variant="outlined" /> : row.notStarted}
-                        </TableCell>
-                        <TableCell align="center">
-                          {row.underReview > 0 ? (
-                            <Chip label={row.underReview} size="small" color="warning" variant="outlined" />
-                          ) : (
-                            row.underReview
-                          )}
-                        </TableCell>
-                        <TableCell align="center">
-                          <Tooltip title="View Details">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleViewDetails(row.district)}
-                              sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
-                            >
-                              <VisibilityIcon />
-                            </IconButton>
-                          </Tooltip>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    paginatedData.map((row, index) => {
+                      const serialNumber = page * rowsPerPage + index + 1;
+                      const hasNoData = !row.hasData;
+
+                      return (
+                        <TableRow
+                          key={row.id || index}
+                          hover
+                          sx={{
+                            '&:hover': { bgcolor: alpha('#04255e', 0.04) },
+                            transition: '0.2s',
+                            ...(hasNoData && {
+                              bgcolor: alpha('#ff9800', 0.03),
+                              '&:hover': { bgcolor: alpha('#ff9800', 0.08) }
+                            })
+                          }}
+                        >
+                          <TableCell align="center">
+                            <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                              {serialNumber}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <LocationOnIcon sx={{ fontSize: 18, color: hasNoData ? '#ff9800' : '#04255e', opacity: 0.7 }} />
+                              <Typography fontWeight={hasNoData ? 400 : 500} color={hasNoData ? 'text.secondary' : 'text.primary'}>
+                                {row.district}
+                                {hasNoData && (
+                                  <Chip
+                                    label="No Data"
+                                    size="small"
+                                    sx={{
+                                      ml: 1,
+                                      height: 18,
+                                      fontSize: '0.6rem',
+                                      bgcolor: alpha('#ff9800', 0.15),
+                                      color: '#e65100',
+                                      fontWeight: 600
+                                    }}
+                                  />
+                                )}
+                              </Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : (
+                              <Chip label={row.allowtedCce} size="small" variant="filled" sx={{ fontWeight: 600, bgcolor: alpha('#04255e', 0.1) }} />
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.selectedCce > 0 ? (
+                              <Chip
+                                label={row.selectedCce}
+                                size="small"
+                                variant="outlined"
+                                sx={{ color: '#04255e', borderColor: alpha('#04255e', 0.4), fontWeight: 600 }}
+                              />
+                            ) : (
+                              row.selectedCce
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.completed > 0 ? (
+                              <Chip label={row.completed} size="small" color="success" variant="outlined" />
+                            ) : (
+                              row.completed
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.ongoing > 0 ? (
+                              <Chip label={row.ongoing} size="small" color="primary" variant="outlined" />
+                            ) : (
+                              row.ongoing
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.notAvailable > 0 ? (
+                              <Chip label={row.notAvailable} size="small" color="error" variant="outlined" />
+                            ) : (
+                              row.notAvailable
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.notStarted > 0 ? (
+                              <Chip label={row.notStarted} size="small" variant="outlined" />
+                            ) : (
+                              row.notStarted
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.underReview > 0 ? (
+                              <Chip label={row.underReview} size="small" color="warning" variant="outlined" />
+                            ) : (
+                              row.underReview
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            {row.hasData ? (
+                              <Tooltip title="View Details">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleViewDetails(row.district, row.hasData)}
+                                  sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
+                                >
+                                  <VisibilityIcon />
+                                </IconButton>
+                              </Tooltip>
+                            ) : (
+                              <Tooltip title="No data available - View disabled">
+                                <IconButton
+                                  size="small"
+                                  disabled
+                                  sx={{ color: '#bdbdbd', cursor: 'not-allowed' }}
+                                >
+                                  <VisibilityOffIcon />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
                         <Typography color="text.secondary">No districts found</Typography>
                       </TableCell>
                     </TableRow>

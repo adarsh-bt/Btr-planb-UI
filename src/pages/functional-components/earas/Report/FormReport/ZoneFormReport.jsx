@@ -201,21 +201,23 @@ function ZoneFormReport() {
         if (toMonth) endMonthVal = toMonth;
       }
 
-      const token = AuthService.getToken ? AuthService.getToken() : localStorage.getItem('token');
-      if (!token) throw new Error('Authentication session token missing. Please log in again.');
+      console.log('Zone API Request Payload executed:', requestBody);
 
-      const params = new URLSearchParams({ talukId: targetQueryId, startMonth: startMonthVal });
-      if (endMonthVal) params.append('endMonth', endMonthVal);
-      if (seasonTab && seasonTab !== 'ALL') params.append('landType', seasonTab);
+      const response = await axios.post(
+        'http://localhost:8080/earas-form1-entry/form1/block-wise-status-summary',
+        requestBody,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
 
-      const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/taluk?${params.toString()}`;
-      console.log('Zone API Request:', url);
-
-      const response = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      setApiData(response.data || null);
+      if (response.data && response.data.payload) {
+        setApiData(response.data.payload);
+      } else {
+        setError('Invalid response format from server');
+      }
     } catch (err) {
       console.error('API Error:', err);
       setError(err.response?.data?.message || err.message || 'Failed to fetch data');

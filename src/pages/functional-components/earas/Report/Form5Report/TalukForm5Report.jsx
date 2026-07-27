@@ -39,6 +39,7 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import CancelIcon from '@mui/icons-material/Cancel';
@@ -46,10 +47,12 @@ import HubIcon from '@mui/icons-material/Hub';
 import GrassIcon from '@mui/icons-material/Grass';
 import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
 import AuthService from 'pages/authentication/services/authservice';
+import api from 'api/api';
 
 // Gateway root (e.g. http://localhost:8080). The '/earas-form1-entry' service
 // prefix is added on the request path below.
@@ -100,6 +103,33 @@ function getDefaultSingleMonth(agriYearMonths) {
 // e.g. '2025-07' → 7
 function monthNum(value) {
   return value ? parseInt(value.split('-')[1], 10) : null;
+}
+
+// Fallback taluks for a district
+function getFallbackTaluks(districtId) {
+  const taluksByDistrict = {
+    1: ['Thiruvananthapuran', 'Neyyattinkara', 'Nedumangad', 'Chirayinkeezhu'],
+    2: ['Kollam', 'Karunagappally', 'Kottarakkara', 'Pathanapuram', 'Punalur'],
+    3: ['Pathanamthitta', 'Kozhencherry', 'Ranni', 'Mallappally', 'Thiruvalla', 'Adoor'],
+    4: ['Alappuzha', 'Chengannur', 'Mavelikkara', 'Kuttanad', 'Ambalappuzha'],
+    5: ['Kottayam', 'Changanassery', 'Meenachil', 'Vaikom', 'Kanjirappally'],
+    6: ['Idukki', 'Udumbanchola', 'Thodupuzha', 'Peermade', 'Devikulam'],
+    7: ['Ernakulam', 'Aluva', 'Kothamangalam', 'Muvattupuzha', 'Kochi', 'Paravur', 'Kanayannur'],
+    8: ['Thrissur', 'Chalakudy', 'Kodungallur', 'Mukundapuram', 'Talappilly', 'Irungattukottai'],
+    9: ['Palakkad', 'Palakkad', 'Alathur', 'Chittur', 'Mannarkkad', 'Ottapalam'],
+    10: ['Malappuram', 'Eranad', 'Perinthalmanna', 'Tirur', 'Ponnani', 'Nilambur', 'Kondotty'],
+    11: ['Kozhikode', 'Vadakara', 'Quilandy', 'Thamarassery', 'Koyilandy'],
+    12: ['Wayanad', 'Mananthavady', 'Sulthan Bathery', 'Vythiri'],
+    13: ['Kannur', 'Kannur', 'Thalassery', 'Payyanur', 'Iritty', 'Taliparamba'],
+    14: ['Kasaragod', 'Kasaragod', 'Hosdurg', 'Vellarikundu']
+  };
+
+  const districtTaluks = taluksByDistrict[districtId] || [];
+  return districtTaluks.map((name, index) => ({
+    id: index + 1,
+    talukName: name,
+    talukNameEn: name
+  }));
 }
 
 /* ─────────────────────────── component ─────────────────────────── */
@@ -156,7 +186,9 @@ function TalukForm5Report() {
 
   /* ── ui state ── */
   const [apiData, setApiData] = useState(null);
+  const [taluksList, setTaluksList] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [masterTaluksLoading, setMasterTaluksLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
@@ -180,6 +212,65 @@ function TalukForm5Report() {
       );
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ─────────────────────────── fetch master taluks ─────────────────────────── */
+
+  const fetchMasterTaluks = async (districtId) => {
+    setMasterTaluksLoading(true);
+    try {
+      // Try multiple possible endpoints
+      let response = null;
+
+      // Try 1: BTR API endpoint
+      try {
+        response = await api.get(`${mainapi.BTR_API}/btr-service/btr-api/taluks?distId=${districtId}`);
+        console.log('Master Taluks Response (attempt 1):', response.data);
+      } catch (err) {
+        console.log('Attempt 1 failed, trying alternative endpoint...');
+      }
+
+      // Try 2: Form API endpoint
+      if (!response || !response.data) {
+        try {
+          response = await api.get(`${BASE_URL}/earas-form1-entry/api/taluks?districtId=${districtId}`);
+          console.log('Master Taluks Response (attempt 2):', response.data);
+        } catch (err) {
+          console.log('Attempt 2 failed, trying alternative endpoint...');
+        }
+      }
+
+      // Process response
+      if (response && response.data) {
+        let taluks = [];
+
+        if (response.data.data && Array.isArray(response.data.data)) {
+          taluks = response.data.data;
+        } else if (Array.isArray(response.data)) {
+          taluks = response.data;
+        } else if (response.data.taluks && Array.isArray(response.data.taluks)) {
+          taluks = response.data.taluks;
+        } else if (response.data.content && Array.isArray(response.data.content)) {
+          taluks = response.data.content;
+        }
+
+        if (taluks.length > 0) {
+          console.log('Setting taluks list:', taluks);
+          setTaluksList(taluks);
+        } else {
+          console.warn('No taluks found in response, using fallback');
+          setTaluksList(getFallbackTaluks(districtId));
+        }
+      } else {
+        console.warn('No response data received, using fallback');
+        setTaluksList(getFallbackTaluks(districtId));
+      }
+    } catch (err) {
+      console.error('Error fetching master taluks list:', err);
+      setTaluksList(getFallbackTaluks(districtId));
+    } finally {
+      setMasterTaluksLoading(false);
+    }
+  };
 
   /* ─────────────────────────── fetch ─────────────────────────── */
 
@@ -251,8 +342,14 @@ function TalukForm5Report() {
 
   /* ─────────────────────────── effects ─────────────────────────── */
 
+  // Fetch master taluks on mount
+  useEffect(() => {
+    if (resolvedDistrictId.current) {
+      fetchMasterTaluks(resolvedDistrictId.current);
+    }
+  }, []);
+
   // Fetch data when month filters change.
-  // (cropName is intentionally excluded — it is not sent to the API yet.)
   useEffect(() => {
     fetchTalukWiseData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -260,26 +357,80 @@ function TalukForm5Report() {
 
   /* ─────────────────────────── derived data ─────────────────────────── */
 
-  // Live shape: apiData.taluks = [
-  //   { talukId, talukName, allowedCCECrops, ongoing, completed,
-  //     notStarted, underReview, notAvailable, selectedCce },
-  //   ...
-  // ]
-  // Internal key stays `allowtedCce` so downstream table/stat config is unchanged.
   const talukData = useMemo(() => {
-    if (!apiData || !Array.isArray(apiData.taluks)) return [];
-    return apiData.taluks.map((t) => ({
-      id: t.talukId,
-      taluk: t.talukName,
+    // Get data from API or empty array
+    const apiTaluks = apiData?.taluks || [];
+
+    // Create a map for quick lookup of API data by taluk name
+    const apiDataMap = {};
+    apiTaluks.forEach(t => {
+      const key = t.talukName?.toLowerCase() || '';
+      apiDataMap[key] = t;
+    });
+
+    // Log for debugging
+    console.log('Taluks List:', taluksList);
+    console.log('API Taluks:', apiTaluks);
+
+    // If we have master taluks list, merge with API data
+    if (taluksList && taluksList.length > 0) {
+      const merged = taluksList.map((taluk) => {
+        const talukName = taluk.talukName || taluk.talukNameEn || taluk.name || '';
+        const apiData = apiDataMap[talukName.toLowerCase()] || {};
+
+        // Check if this taluk has any data
+        const hasData = (apiData.allowedCCECrops || 0) > 0 ||
+          (apiData.selectedCce || 0) > 0 ||
+          (apiData.completed || 0) > 0 ||
+          (apiData.ongoing || 0) > 0 ||
+          (apiData.notAvailable || 0) > 0 ||
+          (apiData.notStarted || 0) > 0 ||
+          (apiData.underReview || 0) > 0;
+
+        return {
+          id: taluk.id || taluk.talukId || apiData.talukId || `taluk_${Math.random()}`,
+          taluk: talukName || 'Unknown Taluk',
+          allowtedCce: apiData.allowedCCECrops || 0,
+          selectedCce: apiData.selectedCce || 0,
+          completed: apiData.completed || 0,
+          ongoing: apiData.ongoing || 0,
+          notAvailable: apiData.notAvailable || 0,
+          notStarted: apiData.notStarted || 0,
+          underReview: apiData.underReview || 0,
+          hasData: hasData
+        };
+      });
+
+      console.log('Merged Taluks:', merged);
+      return merged;
+    }
+
+    // Fallback: use only API data if master list is not available
+    console.log('Using API taluks only');
+    return apiTaluks.map((t) => ({
+      id: t.talukId || `taluk_${Math.random()}`,
+      taluk: t.talukName || 'Unknown Taluk',
       allowtedCce: t.allowedCCECrops || 0,
       selectedCce: t.selectedCce || 0,
       completed: t.completed || 0,
       ongoing: t.ongoing || 0,
       notAvailable: t.notAvailable || 0,
       notStarted: t.notStarted || 0,
-      underReview: t.underReview || 0
+      underReview: t.underReview || 0,
+      hasData: (t.allowedCCECrops || 0) > 0 ||
+        (t.selectedCce || 0) > 0 ||
+        (t.completed || 0) > 0 ||
+        (t.ongoing || 0) > 0 ||
+        (t.notAvailable || 0) > 0 ||
+        (t.notStarted || 0) > 0 ||
+        (t.underReview || 0) > 0
     }));
-  }, [apiData]);
+  }, [apiData, taluksList]);
+
+  // Count taluks with no data
+  const taluksWithNoData = useMemo(() => {
+    return talukData.filter(d => !d.hasData).length;
+  }, [talukData]);
 
   // District-level stats come straight from the top-level totals returned by the
   // API (authoritative — do not re-sum the taluk rows).
@@ -339,7 +490,15 @@ function TalukForm5Report() {
     setSearchTerm('');
   };
 
-  const handleViewTalukDetails = (talukName, talukId) => {
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setPage(0);
+  };
+
+  const handleViewTalukDetails = (talukName, talukId, hasData) => {
+    // Only navigate if taluk has data
+    if (!hasData) return;
+
     const formattedTalukName = talukName.toLowerCase().replace(/\s+/g, '-');
     const districtName = stateData.districtName || 'district';
 
@@ -398,7 +557,7 @@ function TalukForm5Report() {
 
   /* ─────────────────────────── render ─────────────────────────── */
 
-  if (loading && !apiData) {
+  if ((loading || masterTaluksLoading) && !apiData && taluksList.length === 0) {
     return (
       <Grid container spacing={3} justifyContent="center" alignItems="center" sx={{ minHeight: '400px' }}>
         <Grid item>
@@ -435,6 +594,7 @@ function TalukForm5Report() {
                 {filterType === 'range' && !fromMonth && toMonth && ` • Until ${monthLabel(toMonth)}`}
                 {cropName !== 'ALL' && ` • Crop: ${cropName}`}
                 {apiData?.allowedCCECrops != null && ` • Total Allowted CCE: ${apiData.allowedCCECrops}`}
+                {taluksWithNoData > 0 && ` • ${taluksWithNoData} taluks with no data`}
               </Typography>
             </Box>
           </Stack>
@@ -451,6 +611,29 @@ function TalukForm5Report() {
         <Grid item xs={12}>
           <Paper sx={{ p: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
             <Typography color="error">{error}</Typography>
+          </Paper>
+        </Grid>
+      )}
+
+      {/* Info Banner for taluks with no data */}
+      {taluksWithNoData > 0 && !loading && (
+        <Grid item xs={12}>
+          <Paper
+            sx={{
+              p: 1.5,
+              bgcolor: alpha('#ff9800', 0.08),
+              borderRadius: 2,
+              border: `1px solid ${alpha('#ff9800', 0.3)}`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}
+          >
+            <InfoOutlinedIcon sx={{ color: '#ff9800', fontSize: 20 }} />
+            <Typography variant="body2" color="text.secondary">
+              <strong>{taluksWithNoData}</strong> taluk{taluksWithNoData > 1 ? 's' : ''} have no data available for the selected filters.
+              <strong> View details is disabled for taluks without data.</strong>
+            </Typography>
           </Paper>
         </Grid>
       )}
@@ -637,10 +820,7 @@ function TalukForm5Report() {
                     <InputAdornment position="end">
                       <IconButton
                         size="small"
-                        onClick={() => {
-                          setSearchTerm('');
-                          setPage(0);
-                        }}
+                        onClick={handleClearSearch}
                         edge="end"
                       >
                         <ClearIcon fontSize="small" />
@@ -657,6 +837,7 @@ function TalukForm5Report() {
                 <TableHead>
                   <TableRow sx={{ bgcolor: '#04255e' }}>
                     {[
+                      '#',
                       'Taluk',
                       'Allowted CCE',
                       'Selected CCE',
@@ -669,7 +850,7 @@ function TalukForm5Report() {
                     ].map((label, idx) => (
                       <TableCell
                         key={idx}
-                        align={idx === 0 ? 'left' : 'center'}
+                        align={idx === 0 ? 'center' : idx === 1 ? 'left' : 'center'}
                         sx={{ color: 'white', fontWeight: 600, py: 1.5, whiteSpace: 'nowrap' }}
                       >
                         {label}
@@ -680,73 +861,150 @@ function TalukForm5Report() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
                         <CircularProgress size={40} />
                       </TableCell>
                     </TableRow>
                   ) : paginatedData.length > 0 ? (
-                    paginatedData.map((row) => (
-                      <TableRow key={row.id} hover sx={{ '&:hover': { bgcolor: alpha('#04255e', 0.04) }, transition: '0.2s' }}>
-                        <TableCell>
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            <LocationOnIcon sx={{ fontSize: 18, color: '#04255e', opacity: 0.7 }} />
-                            <Typography fontWeight={500}>{row.taluk}</Typography>
-                          </Stack>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Chip label={row.allowtedCce} size="small" variant="filled" sx={{ fontWeight: 600, bgcolor: alpha('#04255e', 0.1) }} />
-                        </TableCell>
-                        <TableCell align="center">
-                          {row.selectedCce > 0 ? (
-                            <Chip
-                              label={row.selectedCce}
-                              size="small"
-                              variant="outlined"
-                              sx={{ color: '#04255e', borderColor: alpha('#04255e', 0.4), fontWeight: 600 }}
-                            />
-                          ) : (
-                            row.selectedCce
-                          )}
-                        </TableCell>
-                        <TableCell align="center">
-                          {row.completed > 0 ? <Chip label={row.completed} size="small" color="success" variant="outlined" /> : row.completed}
-                        </TableCell>
-                        <TableCell align="center">
-                          {row.ongoing > 0 ? <Chip label={row.ongoing} size="small" color="primary" variant="outlined" /> : row.ongoing}
-                        </TableCell>
-                        <TableCell align="center">
-                          {row.notAvailable > 0 ? (
-                            <Chip label={row.notAvailable} size="small" color="error" variant="outlined" />
-                          ) : (
-                            row.notAvailable
-                          )}
-                        </TableCell>
-                        <TableCell align="center">
-                          {row.notStarted > 0 ? <Chip label={row.notStarted} size="small" variant="outlined" /> : row.notStarted}
-                        </TableCell>
-                        <TableCell align="center">
-                          {row.underReview > 0 ? (
-                            <Chip label={row.underReview} size="small" color="warning" variant="outlined" />
-                          ) : (
-                            row.underReview
-                          )}
-                        </TableCell>
-                        <TableCell align="center">
-                          <Tooltip title="View Zone Details">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleViewTalukDetails(row.taluk, row.id)}
-                              sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
-                            >
-                              <VisibilityIcon />
-                            </IconButton>
-                          </Tooltip>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    paginatedData.map((row, index) => {
+                      const serialNumber = page * rowsPerPage + index + 1;
+                      const hasNoData = !row.hasData;
+
+                      return (
+                        <TableRow
+                          key={row.id || index}
+                          hover
+                          sx={{
+                            '&:hover': { bgcolor: alpha('#04255e', 0.04) },
+                            transition: '0.2s',
+                            ...(hasNoData && {
+                              bgcolor: alpha('#ff9800', 0.03),
+                              '&:hover': { bgcolor: alpha('#ff9800', 0.08) }
+                            })
+                          }}
+                        >
+                          <TableCell align="center">
+                            <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                              {serialNumber}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <LocationOnIcon sx={{ fontSize: 18, color: hasNoData ? '#ff9800' : '#04255e', opacity: 0.7 }} />
+                              <Typography fontWeight={hasNoData ? 400 : 500} color={hasNoData ? 'text.secondary' : 'text.primary'}>
+                                {row.taluk}
+                                {hasNoData && (
+                                  <Chip
+                                    label="No Data"
+                                    size="small"
+                                    sx={{
+                                      ml: 1,
+                                      height: 18,
+                                      fontSize: '0.6rem',
+                                      bgcolor: alpha('#ff9800', 0.15),
+                                      color: '#e65100',
+                                      fontWeight: 600
+                                    }}
+                                  />
+                                )}
+                              </Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : (
+                              <Chip label={row.allowtedCce} size="small" variant="filled" sx={{ fontWeight: 600, bgcolor: alpha('#04255e', 0.1) }} />
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.selectedCce > 0 ? (
+                              <Chip
+                                label={row.selectedCce}
+                                size="small"
+                                variant="outlined"
+                                sx={{ color: '#04255e', borderColor: alpha('#04255e', 0.4), fontWeight: 600 }}
+                              />
+                            ) : (
+                              row.selectedCce
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.completed > 0 ? (
+                              <Chip label={row.completed} size="small" color="success" variant="outlined" />
+                            ) : (
+                              row.completed
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.ongoing > 0 ? (
+                              <Chip label={row.ongoing} size="small" color="primary" variant="outlined" />
+                            ) : (
+                              row.ongoing
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.notAvailable > 0 ? (
+                              <Chip label={row.notAvailable} size="small" color="error" variant="outlined" />
+                            ) : (
+                              row.notAvailable
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.notStarted > 0 ? (
+                              <Chip label={row.notStarted} size="small" variant="outlined" />
+                            ) : (
+                              row.notStarted
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            {hasNoData ? (
+                              <Typography variant="body2" color="text.secondary">NA</Typography>
+                            ) : row.underReview > 0 ? (
+                              <Chip label={row.underReview} size="small" color="warning" variant="outlined" />
+                            ) : (
+                              row.underReview
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
+                            {row.hasData ? (
+                              <Tooltip title="View Zone Details">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleViewTalukDetails(row.taluk, row.id, row.hasData)}
+                                  sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
+                                >
+                                  <VisibilityIcon />
+                                </IconButton>
+                              </Tooltip>
+                            ) : (
+                              <Tooltip title="No data available - View disabled">
+                                <IconButton
+                                  size="small"
+                                  disabled
+                                  sx={{ color: '#bdbdbd', cursor: 'not-allowed' }}
+                                >
+                                  <VisibilityOffIcon />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
                         <Typography color="text.secondary">
                           {searchTerm ? `No taluks found matching "${searchTerm}"` : 'No data available for selected filters'}
                         </Typography>
