@@ -41,6 +41,7 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -48,10 +49,12 @@ import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import AuthService from 'pages/authentication/services/authservice';
 import mainapi from 'api/mainapi';
+import api from 'api/api';
 
 /* ─────────────────────────── session persistence ─────────────────────────── */
 
@@ -86,6 +89,27 @@ function buildAgriMonthOptions() {
   return options;
 }
 
+// Resolves a month string (e.g. 'July', 'July 2025', '07-2025') to a valid MM-YYYY value in MONTH_OPTIONS
+function resolveMonthValue(val, monthOptions) {
+  if (!monthOptions || monthOptions.length === 0) return '';
+  if (!val) return monthOptions[0]?.value || '';
+
+  // 1. Exact match with option value (e.g. '07-2025' or '02-2026')
+  const exactMatch = monthOptions.find((o) => o.value === val);
+  if (exactMatch) return exactMatch.value;
+
+  // 2. Exact match with label (e.g. 'July 2025')
+  const labelMatch = monthOptions.find((o) => o.label.toLowerCase() === val.toLowerCase());
+  if (labelMatch) return labelMatch.value;
+
+  // 3. Match month name prefix (e.g. val is 'July' or 'Feb')
+  const monthNameMatch = monthOptions.find((o) => o.label.toLowerCase().startsWith(val.toLowerCase()));
+  if (monthNameMatch) return monthNameMatch.value;
+
+  // 4. Fallback to first month in options
+  return monthOptions[0]?.value || '';
+}
+
 // Per-taluk metrics come split into wet*/dry* fields (e.g. wetCompleted,
 // dryCompleted). This picks the right one — or sums both — based on the
 // active WET / DRY / ALL tab. `metric` is one of:
@@ -99,6 +123,32 @@ function pickMetric(taluk, metric, seasonTab) {
 const formatArea = (num) =>
   Number(num || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// Fallback taluks for a district
+function getFallbackTaluks(districtId) {
+  const taluksByDistrict = {
+    1: ['Thiruvananthapuran', 'Neyyattinkara', 'Nedumangad', 'Chirayinkeezhu'],
+    2: ['Kollam', 'Karunagappally', 'Kottarakkara', 'Pathanapuram', 'Punalur'],
+    3: ['Pathanamthitta', 'Kozhencherry', 'Ranni', 'Mallappally', 'Thiruvalla', 'Adoor'],
+    4: ['Alappuzha', 'Chengannur', 'Mavelikkara', 'Kuttanad', 'Ambalappuzha'],
+    5: ['Kottayam', 'Changanassery', 'Meenachil', 'Vaikom', 'Kanjirappally'],
+    6: ['Idukki', 'Udumbanchola', 'Thodupuzha', 'Peermade', 'Devikulam'],
+    7: ['Ernakulam', 'Aluva', 'Kothamangalam', 'Muvattupuzha', 'Kochi', 'Paravur', 'Kanayannur'],
+    8: ['Thrissur', 'Chalakudy', 'Kodungallur', 'Mukundapuram', 'Talappilly', 'Irungattukottai'],
+    9: ['Palakkad', 'Alathur', 'Chittur', 'Mannarkkad', 'Ottapalam'],
+    10: ['Malappuram', 'Eranad', 'Perinthalmanna', 'Tirur', 'Ponnani', 'Nilambur', 'Kondotty'],
+    11: ['Kozhikode', 'Vadakara', 'Quilandy', 'Thamarassery', 'Koyilandy'],
+    12: ['Wayanad', 'Mananthavady', 'Sulthan Bathery', 'Vythiri'],
+    13: ['Kannur', 'Thalassery', 'Payyanur', 'Iritty', 'Taliparamba'],
+    14: ['Kasaragod', 'Hosdurg', 'Vellarikundu']
+  };
+
+  const districtTaluks = taluksByDistrict[districtId] || [];
+  return districtTaluks.map((name, index) => ({
+    id: index + 1,
+    talukNameEn: name
+  }));
+}
+
 function TalukFormReport() {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -110,18 +160,13 @@ function TalukFormReport() {
   const MONTH_OPTIONS = buildAgriMonthOptions();
   const getMonthLabel = (value) => MONTH_OPTIONS.find((o) => o.value === value)?.label || value;
 
-  /* ── merge location.state with saved sessionStorage state.
-        location.state wins when present (fresh navigation); saved state
-        is the fallback on refresh / breadcrumb return with no state. ── */
+  /* ── merge location.state with saved sessionStorage state. ── */
   const stateData = useMemo(() => {
     const saved = getSavedState();
     return { ...saved, ...(location.state || {}) };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
-  /* ── resolve district ID once, keep in a ref ──
-        Priority:
-        1. stateData.districtId        (normal drill-down OR direct access)
-        2. stateData.districtOfficeId  (direct access from ReportMenuWrapper)  */
+  /* ── resolve district ID once, keep in a ref ── */
   const resolvedDistrictId = useRef(null);
 
   const resolveDistrictId = () => {
@@ -143,9 +188,9 @@ function TalukFormReport() {
     return {
       districtId: resolvedDistrictId.current,
       filterType: stateData.filterType || 'single',
-      fromMonth: stateData.fromMonth || MONTH_OPTIONS[0]?.value || '',
-      toMonth: stateData.toMonth || '',
-      singleMonth: stateData.singleMonth || MONTH_OPTIONS[0]?.value || '',
+      fromMonth: resolveMonthValue(stateData.fromMonth, MONTH_OPTIONS),
+      toMonth: stateData.toMonth ? resolveMonthValue(stateData.toMonth, MONTH_OPTIONS) : '',
+      singleMonth: resolveMonthValue(stateData.singleMonth, MONTH_OPTIONS),
       seasonTab: stateData.seasonTab || 'ALL'
     };
   };
@@ -153,6 +198,8 @@ function TalukFormReport() {
   const initialFilters = getInitialFilters();
 
   // Filter states with initial values
+  const [btrData, setBtrData] = useState(null);
+
   const [districtId, setDistrictId] = useState(initialFilters.districtId);
   const [seasonTab, setSeasonTab] = useState(initialFilters.seasonTab);
   const [filterType, setFilterType] = useState(initialFilters.filterType);
@@ -162,21 +209,23 @@ function TalukFormReport() {
 
   // State for API data
   const [apiData, setApiData] = useState(null);
+  const [taluksList, setTaluksList] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [masterTaluksLoading, setMasterTaluksLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
-  /* ── display name: URL param (normal navigation) → state (direct access) → fallback ── */
+  /* ── display name ── */
   const displayDistrictName =
-  (districtName && districtName !== 'direct' &&
-    districtName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')) ||
-  stateData.districtName ||
-  'District';
+    (districtName && districtName !== 'direct' &&
+      districtName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')) ||
+    stateData.districtName ||
+    'District';
 
-  /* ── persist district context so refresh / breadcrumb back still works ── */
+  /* ── persist district context ── */
   useEffect(() => {
     if (resolvedDistrictId.current) {
       sessionStorage.setItem(
@@ -194,57 +243,101 @@ function TalukFormReport() {
         })
       );
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Fetch data from API - Using resolved districtId
-  const fetchTalukData = async () => {
+  // Fetch master taluks list
+  const fetchMasterTaluks = async (districtIdValue) => {
+    setMasterTaluksLoading(true);
     try {
-      setLoading(true);
-      setError(null);
+      const response = await api.get(`${mainapi.BTR_API}/btr-service/btr-api/taluks?distId=${districtIdValue}`);
+      console.log('Master Taluks Response:', response.data);
 
-      const districtIdValue = resolvedDistrictId.current || districtId;
-
-      if (!districtIdValue) {
-        setError('District ID is required. Please navigate from the district report page.');
-        setLoading(false);
-        return;
-      }
-
-      let startMonthVal = MONTH_OPTIONS[0]?.value;
-      let endMonthVal = MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.value;
-
-      if (filterType === 'single') {
-        if (singleMonth) {
-          startMonthVal = singleMonth;
-          endMonthVal = singleMonth;
-        }
+      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        console.log('Setting taluks list:', response.data.data);
+        setTaluksList(response.data.data);
       } else {
-        if (fromMonth) startMonthVal = fromMonth;
-        if (toMonth) endMonthVal = toMonth;
+        console.warn('No taluks found, using fallback');
+        setTaluksList(getFallbackTaluks(districtIdValue));
       }
-
-      const token = AuthService.getToken ? AuthService.getToken() : localStorage.getItem('token');
-      if (!token) throw new Error('Authentication session token missing. Please log in again.');
-
-      const params = new URLSearchParams({ districtId: districtIdValue, startMonth: startMonthVal });
-      if (endMonthVal) params.append('endMonth', endMonthVal);
-      if (seasonTab && seasonTab !== 'ALL') params.append('landType', seasonTab);
-
-      const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/district?${params.toString()}`;
-      console.log('Taluk API Request:', url);
-
-      const response = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      setApiData(response.data || null);
     } catch (err) {
-      console.error('Error fetching taluk data:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to fetch taluk data');
+      console.error('Error fetching master taluks:', err);
+      setTaluksList(getFallbackTaluks(districtIdValue));
     } finally {
-      setLoading(false);
+      setMasterTaluksLoading(false);
     }
   };
+
+  // Fetch data from API
+  const fetchTalukData = async () => {
+  try {
+    setLoading(true);
+    setError(null);
+
+    const districtIdValue = resolvedDistrictId.current || districtId;
+
+    if (!districtIdValue) {
+      setError('District ID is required. Please navigate from the district report page.');
+      setLoading(false);
+      return;
+    }
+
+    let startMonthVal = resolveMonthValue(MONTH_OPTIONS[0]?.value, MONTH_OPTIONS);
+    let endMonthVal = resolveMonthValue(MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.value, MONTH_OPTIONS);
+
+    if (filterType === 'single') {
+      if (singleMonth) {
+        const resolved = resolveMonthValue(singleMonth, MONTH_OPTIONS);
+        startMonthVal = resolved;
+        endMonthVal = resolved;
+      }
+    } else {
+      if (fromMonth) startMonthVal = resolveMonthValue(fromMonth, MONTH_OPTIONS);
+      if (toMonth) endMonthVal = resolveMonthValue(toMonth, MONTH_OPTIONS);
+    }
+
+    const token = AuthService.getToken ? AuthService.getToken() : localStorage.getItem('token');
+    if (!token) throw new Error('Authentication session token missing. Please log in again.');
+
+    // Form-status API params (no districtId here — it's a path-style query param already used below)
+    const formParams = new URLSearchParams({ districtId: districtIdValue, startMonth: startMonthVal });
+    if (endMonthVal) formParams.append('endMonth', endMonthVal);
+    if (seasonTab && seasonTab !== 'ALL') formParams.append('landType', seasonTab);
+
+    // BTR completed-clusters (taluk) API params
+    const btrParams = new URLSearchParams({ districtId: districtIdValue, startMonth: startMonthVal });
+    if (endMonthVal) btrParams.append('endMonth', endMonthVal);
+    if (seasonTab && seasonTab !== 'ALL') btrParams.append('landType', seasonTab);
+
+    const formStatusUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/district?${formParams.toString()}`;
+    const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/dashboard/completed/taluk?${btrParams.toString()}`;
+
+    console.log('Taluk API Request:', formStatusUrl);
+    console.log('BTR Taluk Completed-Clusters Request:', completedClustersUrl);
+
+    const [formStatusRes, completedClustersRes] = await Promise.all([
+      axios.get(formStatusUrl, { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get(completedClustersUrl, { headers: { Authorization: `Bearer ${token}` } })
+    ]);
+
+    console.log('Taluk API Response:', formStatusRes.data);
+    console.log('BTR Taluk Completed-Clusters Response:', completedClustersRes.data);
+
+    setApiData(formStatusRes.data || null);
+    setBtrData(completedClustersRes.data || null);
+  } catch (err) {
+    console.error('Error fetching taluk data:', err);
+    setError(err.response?.data?.message || err.message || 'Failed to fetch taluk data');
+  } finally {
+    setLoading(false);
+  }
+};
+
+  // Fetch master taluks on mount
+  useEffect(() => {
+    if (resolvedDistrictId.current) {
+      fetchMasterTaluks(resolvedDistrictId.current);
+    }
+  }, []);
 
   // Fetch data when filters change
   useEffect(() => {
@@ -252,44 +345,120 @@ function TalukFormReport() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromMonth, toMonth, singleMonth, seasonTab, filterType, districtId]);
 
-  // Map allSubDetails (keyed by taluk name) into UI rows, applying the
-  // WET/DRY/ALL split via pickMetric. `area` is the cluster area behind the
-  // Completed count for that taluk, shown as a pinned label in the table.
+  // Map allSubDetails into UI rows, merging with master taluks list
   const talukData = useMemo(() => {
-    if (!apiData || !apiData.allSubDetails) return [];
-    return Object.entries(apiData.allSubDetails).map(([talukName, t]) => {
-      const completed = pickMetric(t, 'Completed', seasonTab);
-      const ongoing = pickMetric(t, 'Ongoing', seasonTab);
-      const notStarted = pickMetric(t, 'NotStarted', seasonTab);
-      const underReview = pickMetric(t, 'UnderReview', seasonTab);
-      const area = pickMetric(t, 'ClusterArea', seasonTab);
+  const apiTaluks = apiData?.allSubDetails || {};
+  const btrTaluks = btrData?.allSubDetails || {};
+
+  const apiDataMapById = {};
+  const apiDataMapByName = {};
+  Object.entries(apiTaluks).forEach(([name, details]) => {
+    if (details.id) apiDataMapById[details.id] = { name, details };
+    const key = name?.toLowerCase()?.trim() || '';
+    if (key) apiDataMapByName[key] = { name, details };
+  });
+
+  const btrMapById = {};
+  const btrMapByName = {};
+  Object.entries(btrTaluks).forEach(([name, details]) => {
+    if (details.id) btrMapById[details.id] = { name, details };
+    const key = name?.toLowerCase()?.trim() || '';
+    if (key) btrMapByName[key] = { name, details };
+  });
+
+  const resolveBtrDetails = (talukId, talukName) => {
+    if (talukId && btrMapById[talukId]) return btrMapById[talukId].details;
+    const key = talukName?.toLowerCase()?.trim() || '';
+    if (key && btrMapByName[key]) return btrMapByName[key].details;
+    return {};
+  };
+
+  if (taluksList && taluksList.length > 0) {
+    return taluksList.map((taluk) => {
+      const talukId = taluk.id;
+      const talukName = taluk.talukNameEn || '';
+
+      let apiMatch = null;
+      if (talukId && apiDataMapById[talukId]) apiMatch = apiDataMapById[talukId];
+      if (!apiMatch) {
+        const key = talukName?.toLowerCase()?.trim() || '';
+        if (key && apiDataMapByName[key]) apiMatch = apiDataMapByName[key];
+      }
+      const apiDetails = apiMatch ? apiMatch.details : {};
+
+      const completed = pickMetric(apiDetails, 'Completed', seasonTab); // unchanged source
+      const ongoing = pickMetric(apiDetails, 'Ongoing', seasonTab);
+      const underReview = pickMetric(apiDetails, 'UnderReview', seasonTab);
+      const area = pickMetric(apiDetails, 'ClusterArea', seasonTab);
+
+      // NEW: Total comes from the BTR taluk completed-clusters API
+      const btrDetails = resolveBtrDetails(talukId, talukName);
+      const total = pickMetric(btrDetails, 'Completed', seasonTab); // wetCompleted/dryCompleted
+
+      // NEW: Not Started = new total - existing completed
+      const notStarted = Math.max(total - completed, 0);
+
+      const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
+
       return {
-        id: t.id,
-        taluk: talukName,
-        total: completed + ongoing + notStarted + underReview,
+        id: talukId || apiDetails.id || `taluk_${Math.random()}`,
+        taluk: talukName || apiMatch?.name || 'Unknown Taluk',
+        total,
         completed,
         ongoing,
         notStarted,
         underReview,
-        area
+        area,
+        hasData
       };
     });
-  }, [apiData, seasonTab]);
+  }
 
-  // Stats from API. Counts come straight from the top-level totals (already
-  // filtered server-side by landType); completedArea is summed client-side
-  // since the API only returns area at the taluk level.
-  const stats = useMemo(
-    () => ({
-      total: apiData?.totalCluster || 0,
-      completed: apiData?.completed || 0,
-      ongoing: apiData?.ongoing || 0,
-      notStarted: apiData?.notStarted || 0,
-      underReview: apiData?.underView || 0,
-      completedArea: talukData.reduce((sum, t) => sum + t.area, 0)
-    }),
-    [apiData, talukData]
-  );
+  // Fallback (no master taluks list)
+  return Object.entries(apiTaluks).map(([talukName, t]) => {
+    const completed = pickMetric(t, 'Completed', seasonTab);
+    const ongoing = pickMetric(t, 'Ongoing', seasonTab);
+    const underReview = pickMetric(t, 'UnderReview', seasonTab);
+    const area = pickMetric(t, 'ClusterArea', seasonTab);
+
+    const btrDetails = resolveBtrDetails(t.id, talukName);
+    const total = pickMetric(btrDetails, 'Completed', seasonTab);
+    const notStarted = Math.max(total - completed, 0);
+    const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
+
+    return {
+      id: t.id || `taluk_${Math.random()}`,
+      taluk: talukName || 'Unknown Taluk',
+      total,
+      completed,
+      ongoing,
+      notStarted,
+      underReview,
+      area,
+      hasData
+    };
+  });
+}, [apiData, btrData, taluksList, seasonTab]);
+
+  // Count taluks with no data
+  const taluksWithNoData = useMemo(() => {
+    return talukData.filter(d => !d.hasData).length;
+  }, [talukData]);
+
+  // Stats from API
+  const stats = useMemo(() => {
+  const totalCompletedClusters = btrData?.totalClusterCompleted || 0; // NEW source for "Total Clusters"
+  const existingCompleted = apiData?.completed || 0; // unchanged
+
+  return {
+    total: totalCompletedClusters,
+    completed: existingCompleted,
+    ongoing: apiData?.ongoing || 0,
+    notStarted: Math.max(totalCompletedClusters - existingCompleted, 0), // NEW derivation
+    underReview: apiData?.underView || 0,
+    completedArea: talukData.reduce((sum, t) => sum + t.area, 0)
+  };
+}, [apiData, btrData, talukData]);
 
   const searchFilteredData = useMemo(() => {
     if (!searchTerm.trim()) return talukData;
@@ -324,7 +493,6 @@ function TalukFormReport() {
   };
 
   const handleGoBack = () => {
-    // Pass current filter state back to the state-level district page
     navigate('/FormReport/Kerala', {
       state: {
         fromMonth,
@@ -336,17 +504,19 @@ function TalukFormReport() {
     });
   };
 
-  const handleViewBlockDetails = (talukName, talukId) => {
+  const handleViewBlockDetails = (talukName, talukId, hasData) => {
+    // Only navigate if taluk has data
+    if (!hasData) return;
+
     const formattedTalukName = talukName.toLowerCase().replace(/\s+/g, '-');
-    // districtName param is undefined on the /direct route — fall back to the display name
     const safeDistrictName = districtName || displayDistrictName || 'district';
     const formattedDistrictName = safeDistrictName.toLowerCase().replace(/\s+/g, '-');
 
     navigate(`/kerala_form_report/zone_form_report/${formattedDistrictName}/${formattedTalukName}`, {
       state: {
-        districtId: resolvedDistrictId.current || districtId,  // Passed down as distId to your API call
+        districtId: resolvedDistrictId.current || districtId,
         districtName: displayDistrictName,
-        talukId: talukId,        // CRITICAL: Pinpoints the selected Taluk context
+        talukId: talukId,
         talukName: talukName,
         fromMonth,
         toMonth,
@@ -399,7 +569,7 @@ function TalukFormReport() {
   );
 
   // Show loading state
-  if (loading && !apiData) {
+  if ((loading || masterTaluksLoading) && !apiData && taluksList.length === 0) {
     return (
       <Grid container spacing={3} justifyContent="center" alignItems="center" sx={{ minHeight: '60vh' }}>
         <Grid item>
@@ -446,6 +616,7 @@ function TalukFormReport() {
                 {filterType === 'range' && fromMonth && ` • ${getMonthLabel(fromMonth)}${toMonth ? ` - ${getMonthLabel(toMonth)}` : ''}`}
                 {seasonTab !== 'ALL' && ` • ${seasonTab} Land`}
                 {loading && ' • Loading...'}
+                {taluksWithNoData > 0 && ` • ${taluksWithNoData} taluks with no data`}
               </Typography>
             </Box>
           </Stack>
@@ -462,6 +633,29 @@ function TalukFormReport() {
           )}
         </Stack>
       </Grid>
+
+      {/* Info Banner for taluks with no data */}
+      {taluksWithNoData > 0 && !loading && (
+        <Grid item xs={12}>
+          <Paper
+            sx={{
+              p: 1.5,
+              bgcolor: alpha('#ff9800', 0.08),
+              borderRadius: 2,
+              border: `1px solid ${alpha('#ff9800', 0.3)}`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}
+          >
+            <InfoOutlinedIcon sx={{ color: '#ff9800', fontSize: 20 }} />
+            <Typography variant="body2" color="text.secondary">
+              <strong>{taluksWithNoData}</strong> taluk{taluksWithNoData > 1 ? 's' : ''} have no data available for the selected filters.
+              <strong> View details is disabled for taluks without data.</strong>
+            </Typography>
+          </Paper>
+        </Grid>
+      )}
 
       {/* Filter Section */}
       <Grid item xs={12}>
@@ -678,8 +872,8 @@ function TalukFormReport() {
                   <Table>
                     <TableHead>
                       <TableRow sx={{ bgcolor: '#04255e' }}>
-                        {['Taluk', 'Total', 'Completed', 'Ongoing', 'Not Started', 'Under Review', 'Actions'].map((label, idx) => (
-                          <TableCell key={idx} align={idx === 0 ? 'left' : 'center'} sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>
+                        {['#', 'Taluk', 'Total', 'Completed', 'Ongoing', 'Not Started', 'Under Review', 'Actions'].map((label, idx) => (
+                          <TableCell key={idx} align={idx === 0 ? 'center' : idx === 1 ? 'left' : 'center'} sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>
                             {label}
                           </TableCell>
                         ))}
@@ -687,59 +881,130 @@ function TalukFormReport() {
                     </TableHead>
                     <TableBody>
                       {paginatedData.length > 0 ? (
-                        paginatedData.map((row) => (
-                          <TableRow
-                            key={row.id}
-                            hover
-                            sx={{ '&:hover': { bgcolor: alpha('#04255e', 0.04) }, transition: '0.2s' }}
-                          >
-                            <TableCell>
-                              <Stack direction="row" spacing={1} alignItems="center">
-                                <LocationOnIcon sx={{ fontSize: 18, color: '#04255e', opacity: 0.7 }} />
-                                <Typography fontWeight={500}>{row.taluk}</Typography>
-                              </Stack>
-                            </TableCell>
-                            <TableCell align="center">
-                              <Chip label={row.total} size="small" variant="filled" sx={{ fontWeight: 600, bgcolor: alpha('#04255e', 0.1) }} />
-                            </TableCell>
-                            <TableCell align="center">
-                              <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
-                                {row.completed > 0 ? <Chip label={row.completed} size="small" color="success" variant="outlined" /> : row.completed}
-                                {row.area > 0 && (
-                                  <Chip
-                                    label={formatArea(row.area)}
-                                    size="small"
-                                    variant="outlined"
-                                    sx={{ fontSize: '0.65rem', height: 20, borderColor: alpha('#04255e', 0.3), color: '#04255e' }}
-                                  />
+                        paginatedData.map((row, index) => {
+                          const serialNumber = page * rowsPerPage + index + 1;
+                          const hasNoData = !row.hasData;
+
+                          return (
+                            <TableRow
+                              key={row.id || index}
+                              hover
+                              sx={{
+                                '&:hover': { bgcolor: alpha('#04255e', 0.04) },
+                                transition: '0.2s',
+                                ...(hasNoData && {
+                                  bgcolor: alpha('#ff9800', 0.03),
+                                  '&:hover': { bgcolor: alpha('#ff9800', 0.08) }
+                                })
+                              }}
+                            >
+                              <TableCell align="center">
+                                <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                                  {serialNumber}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                  <LocationOnIcon sx={{ fontSize: 18, color: hasNoData ? '#ff9800' : '#04255e', opacity: 0.7 }} />
+                                  <Typography fontWeight={hasNoData ? 400 : 500} color={hasNoData ? 'text.secondary' : 'text.primary'}>
+                                    {row.taluk}
+                                    {hasNoData && (
+                                      <Chip
+                                        label="No Data"
+                                        size="small"
+                                        sx={{
+                                          ml: 1,
+                                          height: 18,
+                                          fontSize: '0.6rem',
+                                          bgcolor: alpha('#ff9800', 0.15),
+                                          color: '#e65100',
+                                          fontWeight: 600
+                                        }}
+                                      />
+                                    )}
+                                  </Typography>
+                                </Stack>
+                              </TableCell>
+                              <TableCell align="center">
+                                {hasNoData ? (
+                                  <Typography variant="body2" color="text.secondary">NA</Typography>
+                                ) : (
+                                  <Chip label={row.total} size="small" variant="filled" sx={{ fontWeight: 600, bgcolor: alpha('#04255e', 0.1) }} />
                                 )}
-                              </Stack>
-                            </TableCell>
-                            <TableCell align="center">
-                              {row.ongoing > 0 ? <Chip label={row.ongoing} size="small" color="primary" variant="outlined" /> : row.ongoing}
-                            </TableCell>
-                            <TableCell align="center">
-                              {row.notStarted > 0 ? <Chip label={row.notStarted} size="small" variant="outlined" /> : row.notStarted}
-                            </TableCell>
-                            <TableCell align="center">
-                              {row.underReview > 0 ? <Chip label={row.underReview} size="small" color="warning" variant="outlined" /> : row.underReview}
-                            </TableCell>
-                            <TableCell align="center">
-                              <Tooltip title="View Block Details">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleViewBlockDetails(row.taluk, row.id)}
-                                  sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
-                                >
-                                  <VisibilityIcon />
-                                </IconButton>
-                              </Tooltip>
-                            </TableCell>
-                          </TableRow>
-                        ))
+                              </TableCell>
+                              <TableCell align="center">
+                                {hasNoData ? (
+                                  <Typography variant="body2" color="text.secondary">NA</Typography>
+                                ) : (
+                                  <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
+                                    {row.completed > 0 ? <Chip label={row.completed} size="small" color="success" variant="outlined" /> : row.completed}
+                                    {row.area > 0 && (
+                                      <Chip
+                                        label={formatArea(row.area)}
+                                        size="small"
+                                        variant="outlined"
+                                        sx={{ fontSize: '0.65rem', height: 20, borderColor: alpha('#04255e', 0.3), color: '#04255e' }}
+                                      />
+                                    )}
+                                  </Stack>
+                                )}
+                              </TableCell>
+                              <TableCell align="center">
+                                {hasNoData ? (
+                                  <Typography variant="body2" color="text.secondary">NA</Typography>
+                                ) : row.ongoing > 0 ? (
+                                  <Chip label={row.ongoing} size="small" color="primary" variant="outlined" />
+                                ) : (
+                                  row.ongoing
+                                )}
+                              </TableCell>
+                              <TableCell align="center">
+                                {hasNoData ? (
+                                  <Typography variant="body2" color="text.secondary">NA</Typography>
+                                ) : row.notStarted > 0 ? (
+                                  <Chip label={row.notStarted} size="small" variant="outlined" />
+                                ) : (
+                                  row.notStarted
+                                )}
+                              </TableCell>
+                              <TableCell align="center">
+                                {hasNoData ? (
+                                  <Typography variant="body2" color="text.secondary">NA</Typography>
+                                ) : row.underReview > 0 ? (
+                                  <Chip label={row.underReview} size="small" color="warning" variant="outlined" />
+                                ) : (
+                                  row.underReview
+                                )}
+                              </TableCell>
+                              <TableCell align="center">
+                                {row.hasData ? (
+                                  <Tooltip title="View Block Details">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleViewBlockDetails(row.taluk, row.id, row.hasData)}
+                                      sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
+                                    >
+                                      <VisibilityIcon />
+                                    </IconButton>
+                                  </Tooltip>
+                                ) : (
+                                  <Tooltip title="No data available - View disabled">
+                                    <IconButton
+                                      size="small"
+                                      disabled
+                                      sx={{ color: '#bdbdbd', cursor: 'not-allowed' }}
+                                    >
+                                      <VisibilityOffIcon />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                          <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
                             <Typography color="text.secondary">
                               {searchTerm ? `No taluks found matching "${searchTerm}"` : 'No data available for selected filters'}
                             </Typography>
@@ -767,8 +1032,7 @@ function TalukFormReport() {
         </Box>
       </Grid>
 
-      {/* Back Button — hidden for direct-access (district approver) users,
-          who have no state-level page to go back to */}
+      {/* Back Button */}
       {!stateData.isDirectAccess && (
         <Grid item xs={12}>
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>

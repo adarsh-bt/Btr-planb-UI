@@ -125,7 +125,18 @@ function ReportMenuWrapper({ children }) {
 
       const { officeType, districtOfficeId, districtId, talukOfficeId, talukId, districtName, talukName } = officeInfo;
 
-      const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+      const getAgriMonthFormatted = () => {
+        const agriYear = AuthService.agriyear() || '2025-2026';
+        const startYear = parseInt(agriYear.split('-')[0], 10) || new Date().getFullYear();
+        const now = new Date();
+        const monthIndex = now.getMonth(); // 0-indexed (0 = Jan, 6 = July)
+        const monthNum = monthIndex + 1;
+        const mm = String(monthNum).padStart(2, '0');
+        const year = monthIndex >= 6 ? startYear : startYear + 1;
+        return `${mm}-${year}`;
+      };
+
+      const currentMonth = getAgriMonthFormatted();
 
       console.log('Form Report Navigation - Office Type:', officeType);
 

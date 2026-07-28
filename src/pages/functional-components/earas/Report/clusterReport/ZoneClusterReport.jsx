@@ -103,29 +103,57 @@ function getAgriculturalYear() {
   }
 }
 
-function getMonthYearForApi(monthName, agriculturalYear) {
-  if (!monthName || !agriculturalYear) return null;
-
-  const monthIndex = AGRI_YEAR_MONTHS.indexOf(monthName);
-  if (monthIndex === -1) return null;
-
-  // Months July (0) to December (5) belong to startYear
-  // Months January (6) to June (11) belong to endYear
-  let year;
-  if (monthIndex <= 5) {
-    year = agriculturalYear.startYear;
-  } else {
-    year = agriculturalYear.endYear;
+function formatMonthForApi(monthName, agriculturalYear) {
+  if (!agriculturalYear) {
+    agriculturalYear = getAgriculturalYear();
+  }
+  if (!monthName) {
+    monthName = getCurrentMonthName();
   }
 
-  const monthNumber = monthIndex + 1; // 1-indexed for API
+  // Case 1: Already in YYYY-MM format (e.g. "2025-07")
+  if (/^\d{4}-\d{2}$/.test(monthName)) {
+    return monthName;
+  }
+
+  // Case 2: In MM-YYYY format (e.g. "07-2025")
+  if (/^\d{2}-\d{4}$/.test(monthName)) {
+    const [mm, yyyy] = monthName.split('-');
+    return `${yyyy}-${mm}`;
+  }
+
+  // Case 3: Month name string (e.g. "July", "July 2025", "February", etc.)
+  let cleanName = monthName;
+  if (typeof monthName === 'string') {
+    cleanName = monthName.split(' ')[0].split('-')[0];
+  }
+
+  let monthIndex = AGRI_YEAR_MONTHS.indexOf(cleanName);
+  if (monthIndex === -1) {
+    monthIndex = AGRI_YEAR_MONTHS.findIndex((m) => m.toLowerCase().startsWith(cleanName.toLowerCase()));
+  }
+
+  if (monthIndex === -1) {
+    const currentName = getCurrentMonthName();
+    monthIndex = AGRI_YEAR_MONTHS.indexOf(currentName);
+  }
+
+  if (monthIndex === -1) {
+    monthIndex = 0; // July fallback
+  }
+
+  let year;
+  let monthNumber;
+  if (monthIndex <= 5) { // July (0) to Dec (5)
+    year = agriculturalYear.startYear;
+    monthNumber = monthIndex + 7;
+  } else { // Jan (6) to June (11)
+    year = agriculturalYear.endYear;
+    monthNumber = monthIndex - 5;
+  }
+
   const monthStr = String(monthNumber).padStart(2, '0');
   return `${year}-${monthStr}`;
-}
-
-function formatMonthForApi(monthName, agriculturalYear) {
-  if (!monthName || !agriculturalYear) return null;
-  return getMonthYearForApi(monthName, agriculturalYear);
 }
 
 /* ─────────────────────────── component ─────────────────────────── */
@@ -233,9 +261,12 @@ function ZoneClusterReport() {
         params.append('landType', effectiveLandType.toLowerCase());
       }
 
-      if (effectiveFilterType === 'single' && effectiveSingleMonth) {
-        const fmt = formatMonthForApi(effectiveSingleMonth, agriculturalYear.current);
-        if (fmt) params.append('startMonth', fmt);
+      if (effectiveFilterType === 'single') {
+        const fmt = formatMonthForApi(effectiveSingleMonth || getCurrentMonthName(), agriculturalYear.current);
+        if (fmt) {
+          params.append('startMonth', fmt);
+          params.append('endMonth', fmt);
+        }
       } else if (effectiveFilterType === 'range') {
         if (effectiveFromMonth) {
           const fmt = formatMonthForApi(effectiveFromMonth, agriculturalYear.current);
@@ -245,9 +276,15 @@ function ZoneClusterReport() {
           const fmt = formatMonthForApi(effectiveToMonth, agriculturalYear.current);
           if (fmt) params.append('endMonth', fmt);
         }
-      } else {
-        const fmt = formatMonthForApi(getCurrentMonthName(), agriculturalYear.current);
-        if (fmt) params.append('startMonth', fmt);
+      }
+
+      // Safety fallback: ensure startMonth is ALWAYS present
+      if (!params.has('startMonth')) {
+        const fallbackFmt = formatMonthForApi(getCurrentMonthName(), agriculturalYear.current);
+        if (fallbackFmt) {
+          params.append('startMonth', fallbackFmt);
+          params.append('endMonth', fallbackFmt);
+        }
       }
 
       const url = `${BASE_URL}/btr-service/api/report/clusters/taluk/${talukIdValue}/zones?${params.toString()}`;
