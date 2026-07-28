@@ -1114,20 +1114,23 @@ function ZoneFormReport() {
                                 )}
 
                                 {/* Zone Column */}
-                                <TableCell sx={{ borderRight: 'none', borderLeft: 'none' }}>
-                                  {row.type === 'subtotal' ? (
-                                    <Typography
-                                      variant="body2"
-                                      sx={{
-                                        fontWeight: 'bold',
-                                        color: '#04255e',
-                                        fontStyle: 'italic'
-                                      }}
-                                    >
-                                      {row.zoneName}
-                                    </Typography>
-                                  ) : (
-                                    <Stack direction="row" spacing={1} alignItems="center">
+                                <TableCell
+                                    colSpan={isCurrentRowSubtotal ? 2 : 1}
+                                    sx={{ borderRight: 'none', borderLeft: 'none' }}
+                                  >
+                                    {row.type === 'subtotal' ? (
+                                      <Typography
+                                        variant="body2"
+                                        sx={{
+                                          fontWeight: 'bold',
+                                          color: '#04255e',
+                                          fontStyle: 'italic'
+                                        }}
+                                      >
+                                        {row.zoneName}
+                                      </Typography>
+                                    ) : (
+                                      <Stack direction="row" spacing={1} alignItems="center">
                                       <StoreIcon sx={{ fontSize: 18, color: hasNoData ? '#ff9800' : '#04255e', opacity: 0.7 }} />
                                       <Typography fontWeight={hasNoData ? 400 : 500} color={hasNoData ? 'text.secondary' : 'text.primary'}>
                                         {row.zoneName}
