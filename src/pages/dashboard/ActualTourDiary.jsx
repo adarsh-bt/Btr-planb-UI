@@ -60,11 +60,11 @@ const UserTourDiaryDetail = () => {
   const navigate = useNavigate();
 
   const [resultDialog, setResultDialog] = useState({
-  open: false,
-  type: "success", // "success" | "error" | "warning"
-  title: "",
-  message: ""
-});
+    open: false,
+    type: "success", // "success" | "error" | "warning"
+    title: "",
+    message: ""
+  });
 
   // ---------- Validation Helpers ----------
   const validateDistance = (value, oldValue) => {
@@ -176,37 +176,37 @@ const UserTourDiaryDetail = () => {
   const [pendingZoneId, setPendingZoneId] = useState("");
 
   const [clusters, setClusters] = useState([]);
-const [selectedClusterId, setSelectedClusterId] = useState("");
-const [editSelectedClusterId, setEditSelectedClusterId] = useState("");
+  const [selectedClusterId, setSelectedClusterId] = useState("");
+  const [editSelectedClusterId, setEditSelectedClusterId] = useState("");
 
-// Entry Type (Working / Holiday / Week Off / Leave / Training / Others)
-const [entryType, setEntryType] = useState('WORKING');
-const [editEntryType, setEditEntryType] = useState('WORKING');
+  // Entry Type (Working / Holiday / Week Off / Leave / Training / Others)
+  const [entryType, setEntryType] = useState('WORKING');
+  const [editEntryType, setEditEntryType] = useState('WORKING');
 
-// Taluk / Zone role-based selection (mirrors TourDiary.jsx)
-const [taluks, setTaluks] = useState([]);
-const [selectedTalukId, setSelectedTalukId] = useState(null);
-const [editSelectedTalukId, setEditSelectedTalukId] = useState(null);
-const [roleBasedZones, setRoleBasedZones] = useState([]);
-const [taluksLoading, setTaluksLoading] = useState(false);
-const [isZoneDropdownLoading, setIsZoneDropdownLoading] = useState(false);
-const [zonesLoading, setZonesLoading] = useState(false);
-// Add this with other state declarations
-const [purposeLandType, setPurposeLandType] = useState("");
-const [editPurposeLandType, setEditPurposeLandType] = useState("");
+  // Taluk / Zone role-based selection (mirrors TourDiary.jsx)
+  const [taluks, setTaluks] = useState([]);
+  const [selectedTalukId, setSelectedTalukId] = useState(null);
+  const [editSelectedTalukId, setEditSelectedTalukId] = useState(null);
+  const [roleBasedZones, setRoleBasedZones] = useState([]);
+  const [taluksLoading, setTaluksLoading] = useState(false);
+  const [isZoneDropdownLoading, setIsZoneDropdownLoading] = useState(false);
+  const [zonesLoading, setZonesLoading] = useState(false);
+  // Add this with other state declarations
+  const [purposeLandType, setPurposeLandType] = useState("");
+  const [editPurposeLandType, setEditPurposeLandType] = useState("");
 
-const [isOfficeDuty, setIsOfficeDuty] = useState(false);
-const [editIsOfficeDuty, setEditIsOfficeDuty] = useState(false);
-// Add new states
-const [crops, setCrops] = useState([]);
-const [cropsLoading, setCropsLoading] = useState(false);
-const [agriYear, setAgriYear] = useState("2025-2026");
-const [filteredClusters, setFilteredClusters] = useState([]);
-const [selectedCropId, setSelectedCropId] = useState("");
-const [isOtherScheme, setIsOtherScheme] = useState(false);
+  const [isOfficeDuty, setIsOfficeDuty] = useState(false);
+  const [editIsOfficeDuty, setEditIsOfficeDuty] = useState(false);
+  // Add new states
+  const [crops, setCrops] = useState([]);
+  const [cropsLoading, setCropsLoading] = useState(false);
+  const [agriYear, setAgriYear] = useState("2025-2026");
+  const [filteredClusters, setFilteredClusters] = useState([]);
+  const [selectedCropId, setSelectedCropId] = useState("");
+  const [isOtherScheme, setIsOtherScheme] = useState(false);
 
 
-const [manualEntryOpen, setManualEntryOpen] = useState(false);
+  const [manualEntryOpen, setManualEntryOpen] = useState(false);
   const [manualEntryDate, setManualEntryDate] = useState(null);
   const [manualFormData, setManualFormData] = useState({
     entryType: "WORKING",
@@ -223,23 +223,23 @@ const [manualEntryOpen, setManualEntryOpen] = useState(false);
   });
 
 
-// Update editFormData
-const [editFormData, setEditFormData] = useState({
-  id: null,
-  distance: "",
-  hours: "",
-  remark: "",
-  reportEntryType: "",
-  entryType: "WORKING",
-  schemeId: "",
-  purposeId: "",
-  zoneId: "",
-  clusterId: "",
-  seasonId: "",
-  landType: "",
-  geoLocation: "",
-  cropId: "" // Add cropId
-});
+  // Update editFormData
+  const [editFormData, setEditFormData] = useState({
+    id: null,
+    distance: "",
+    hours: "",
+    remark: "",
+    reportEntryType: "",
+    entryType: "WORKING",
+    schemeId: "",
+    purposeId: "",
+    zoneId: "",
+    clusterId: "",
+    seasonId: "",
+    landType: "",
+    geoLocation: "",
+    cropId: "" // Add cropId
+  });
 
   const getActiveZone = () => {
     const zoneId = authservice.getzone();
@@ -281,197 +281,181 @@ const [editFormData, setEditFormData] = useState({
     return today > lastDayOfMonth;
   };
 
-const fetchClusters = async (zoneId) => {
-  if (!zoneId) {
-    setClusters([]);
-    setFilteredClusters([]);
-    return;
-  }
-  
-  try {
-    const year = authservice.agriyear() || "2025-2026";
-    const response = await tourDiaryService.getClusters(zoneId, year);
-    
-    if (response && Array.isArray(response)) {
-      setClusters(response);
-      // Filter by land type if a purpose is selected
-      filterClustersByLandType(response);
+  const fetchClusters = async (zoneId) => {
+    if (!zoneId) {
+      setClusters([]);
+      setFilteredClusters([]);
+      return;
+    }
+
+    try {
+      const year = authservice.agriyear() || "2025-2026";
+      const response = await tourDiaryService.getClusters(zoneId, year);
+
+      if (response && Array.isArray(response)) {
+        setClusters(response);
+        // Filter by land type if a purpose is selected
+        filterClustersByLandType(response);
+      } else {
+        setClusters([]);
+        setFilteredClusters([]);
+      }
+    } catch (error) {
+      console.error("Error fetching clusters:", error);
+      setClusters([]);
+      setFilteredClusters([]);
+    }
+  };
+
+  const filterClustersByLandType = (allClusters, landType = null) => {
+    // If office duty, don't filter clusters
+    if (isOfficeDuty) {
+      setFilteredClusters([]);
+      return;
+    }
+
+    if (!manualFormData.purposeId) {
+      setFilteredClusters(allClusters || []);
+      return;
+    }
+
+    // Find selected purpose
+    const selectedPurpose = purposes.find(p => p.id === Number(manualFormData.purposeId));
+
+    if (!selectedPurpose) {
+      setFilteredClusters(allClusters || []);
+      return;
+    }
+
+    const purposeLandType = landType !== null ? landType : selectedPurpose.landtype;
+
+    // If landtype is NULL, show all clusters
+    if (purposeLandType === null || purposeLandType === undefined) {
+      setFilteredClusters(allClusters || []);
+      return;
+    }
+
+    // Map landtype: 1 = WET, 2 = DRY, 3 = EXTRA (show all)
+    const landTypeMap = {
+      1: 'Wet',
+      2: 'Dry',
+      3: 'Extra' // Show all clusters
+    };
+
+    const landTypeToFilter = landTypeMap[purposeLandType];
+
+    if (landTypeToFilter === 'Extra' || landTypeToFilter === undefined) {
+      // For land type 3 or undefined, show all clusters
+      setFilteredClusters(allClusters || []);
+    } else {
+      // Filter clusters by land type
+      const filtered = (allClusters || []).filter(
+        cluster => cluster.landType && cluster.landType.toLowerCase() === landTypeToFilter.toLowerCase()
+      );
+      setFilteredClusters(filtered);
+    }
+  };
+  // In the handleSubmitMonth function
+  const handleSubmitMonth = async () => {
+    const zoneId = authservice.getzone();
+    if (!zoneId) {
+      setSnackbar({
+        open: true,
+        message: "No active zone found. Please select a zone first.",
+        severity: "error"
+      });
+      return;
+    }
+    setPendingZoneId(zoneId);
+    setConfirmDialogOpen(true);
+  };
+  // Fetch clusters when zone changes
+  useEffect(() => {
+    if (manualFormData.zoneId) {
+      fetchClusters(manualFormData.zoneId);
     } else {
       setClusters([]);
       setFilteredClusters([]);
     }
-  } catch (error) {
-    console.error("Error fetching clusters:", error);
-    setClusters([]);
-    setFilteredClusters([]);
-  }
-};
+  }, [manualFormData.zoneId]);
 
-const filterClustersByLandType = (allClusters, landType = null) => {
-  // If office duty, don't filter clusters
-  if (isOfficeDuty) {
-    setFilteredClusters([]);
-    return;
-  }
-  
-  if (!manualFormData.purposeId) {
-    setFilteredClusters(allClusters || []);
-    return;
-  }
-  
-  // Find selected purpose
-  const selectedPurpose = purposes.find(p => p.id === Number(manualFormData.purposeId));
-  
-  if (!selectedPurpose) {
-    setFilteredClusters(allClusters || []);
-    return;
-  }
-  
-  const purposeLandType = landType !== null ? landType : selectedPurpose.landtype;
-  
-  // If landtype is NULL, show all clusters
-  if (purposeLandType === null || purposeLandType === undefined) {
-    setFilteredClusters(allClusters || []);
-    return;
-  }
-  
-  // Map landtype: 1 = WET, 2 = DRY, 3 = EXTRA (show all)
-  const landTypeMap = {
-    1: 'Wet',
-    2: 'Dry',
-    3: 'Extra' // Show all clusters
-  };
-  
-  const landTypeToFilter = landTypeMap[purposeLandType];
-  
-  if (landTypeToFilter === 'Extra' || landTypeToFilter === undefined) {
-    // For land type 3 or undefined, show all clusters
-    setFilteredClusters(allClusters || []);
-  } else {
-    // Filter clusters by land type
-    const filtered = (allClusters || []).filter(
-      cluster => cluster.landType && cluster.landType.toLowerCase() === landTypeToFilter.toLowerCase()
-    );
-    setFilteredClusters(filtered);
-  }
-};
-// In the handleSubmitMonth function
-const handleSubmitMonth = async () => {
-  const zoneId = authservice.getzone();
-  if (!zoneId) {
-    setSnackbar({ 
-      open: true, 
-      message: "No active zone found. Please select a zone first.", 
-      severity: "error" 
-    });
-    return;
-  }
-  setPendingZoneId(zoneId);
-  setConfirmDialogOpen(true);
-};
-useEffect(() => {
-  if (manualFormData.zoneId) {
-    fetchClusters(manualFormData.zoneId);
-  } else {
-    setClusters([]);
-    setFilteredClusters([]);
-    setCrops([]);
-  }
-}, [manualFormData.zoneId]);
+  // Filter clusters when purpose changes
+  useEffect(() => {
+    if (clusters.length > 0) {
+      filterClustersByLandType(clusters);
+    }
+  }, [manualFormData.purposeId, purposes]);
 
-// Fetch clusters when zone changes
-useEffect(() => {
-  if (manualFormData.zoneId) {
-    fetchClusters(manualFormData.zoneId);
-  } else {
-    setClusters([]);
-    setFilteredClusters([]);
-    setCrops([]);
-  }
-}, [manualFormData.zoneId]);
+  // Fetch crops when purpose land type is 3 (EXTRA)
+  useEffect(() => {
+    if (purposeLandType === 3 || editPurposeLandType === 3) {
+      if (crops.length === 0) {
+        fetchCrops();
+      }
+    } else {
+      setCrops([]);
+    }
+  }, [purposeLandType, editPurposeLandType, crops.length]);
+  // In handleConfirmSubmit, update success message
+  const handleConfirmSubmit = async () => {
+    setConfirmDialogOpen(false);
+    setSubmittingMonth(true);
+    try {
+      const response = await tourDiaryService.submitFullMonth(
+        selectedUserId, selectedMonth, selectedYear, pendingZoneId
+      );
 
-// Filter clusters when purpose changes
-useEffect(() => {
-  if (clusters.length > 0) {
-    filterClustersByLandType(clusters);
-  }
-}, [manualFormData.purposeId, purposes]);
+      const message = response?.data || response?.message || response || "";
 
-// Fetch crops when zone changes and land type is 3
-// Fetch crops when zone changes and purpose land type is 3
-useEffect(() => {
-  if (manualFormData.zoneId && purposeLandType === 3) {
-    fetchCrops(manualFormData.zoneId);
-  } else {
-    setCrops([]);
-  }
-}, [manualFormData.zoneId, purposeLandType]);
+      const isError = typeof message === "string" && (
+        message.toLowerCase().includes("missing") ||
+        message.toLowerCase().includes("no entries") ||
+        message.toLowerCase().includes("already submitted") ||
+        message.toLowerCase().includes("allowed only after") ||
+        message.toLowerCase().includes("failed") ||
+        response?.error === true
+      );
 
-useEffect(() => {
-  if (clusters.length > 0) {
-    filterClustersByLandType(clusters);
-  }
-}, [manualFormData.purposeId, purposes]);
-// In handleConfirmSubmit, update success message
-const handleConfirmSubmit = async () => {
-  setConfirmDialogOpen(false);
-  setSubmittingMonth(true);
-  try {
-    const response = await tourDiaryService.submitFullMonth(
-      selectedUserId, selectedMonth, selectedYear, pendingZoneId
-    );
+      const isWarning = typeof message === "string" &&
+        message.toLowerCase().includes("late");
 
-    const message = response?.data || response?.message || response || "";
+      if (isError) {
+        setResultDialog({
+          open: true,
+          type: "error",
+          title: "Full Month Submission Failed",
+          message
+        });
+      } else if (isWarning) {
+        setResultDialog({
+          open: true,
+          type: "warning",
+          title: "Full Month Submitted Late",
+          message
+        });
+        await fetchUserTourEntries();
+      } else {
+        setResultDialog({
+          open: true,
+          type: "success",
+          title: "Full Month Submission Successful",
+          message: message || "Full month submitted successfully"
+        });
+        await fetchUserTourEntries();
+      }
 
-    const isError = typeof message === "string" && (
-      message.toLowerCase().includes("missing") ||
-      message.toLowerCase().includes("no entries") ||
-      message.toLowerCase().includes("already submitted") ||
-      message.toLowerCase().includes("allowed only after") ||
-      message.toLowerCase().includes("failed") ||
-      response?.error === true
-    );
-
-    const isWarning = typeof message === "string" &&
-      message.toLowerCase().includes("late");
-
-    if (isError) {
+    } catch (error) {
       setResultDialog({
         open: true,
         type: "error",
-        title: "Full Month Submission Failed",
-        message
+        title: "Submission Error",
+        message: error.message || "An error occurred during submission"
       });
-    } else if (isWarning) {
-      setResultDialog({
-        open: true,
-        type: "warning",
-        title: "Full Month Submitted Late",
-        message
-      });
-      await fetchUserTourEntries();
-    } else {
-      setResultDialog({
-        open: true,
-        type: "success",
-        title: "Full Month Submission Successful",
-        message: message || "Full month submitted successfully"
-      });
-      await fetchUserTourEntries();
+    } finally {
+      setSubmittingMonth(false);
+      setPendingZoneId("");
     }
-
-  } catch (error) {
-    setResultDialog({
-      open: true,
-      type: "error",
-      title: "Submission Error",
-      message: error.message || "An error occurred during submission"
-    });
-  } finally {
-    setSubmittingMonth(false);
-    setPendingZoneId("");
-  }
-};
+  };
 
   const fetchUserTourEntries = async () => {
     if (!selectedUserId) { setError("No user selected"); setLoading(false); return; }
@@ -504,54 +488,51 @@ const handleConfirmSubmit = async () => {
     }
   };
 
-const fetchPurposesAndZones = async () => {
-  try {
-    const schemesRes = await tourDiaryService.getAllSchemes();
-    if (schemesRes && !schemesRes.message) {
-      setSchemes(Array.isArray(schemesRes) ? schemesRes : []);
+  const fetchPurposesAndZones = async () => {
+    try {
+      const schemesRes = await tourDiaryService.getAllSchemes();
+      if (schemesRes && !schemesRes.message) {
+        setSchemes(Array.isArray(schemesRes) ? schemesRes : []);
+      }
+    } catch (error) {
+      console.error("Error fetching schemes:", error);
     }
-  } catch (error) {
-    console.error("Error fetching schemes:", error);
-  }
-};
+  };
 
-const fetchPurposesByScheme = async (schemeId) => {
-  if (!schemeId) { setPurposes([]); return; }
-  try {
-    const data = await tourDiaryService.getActivePurposes(schemeId);
-    if (data && !data.message && Array.isArray(data)) {
-      setPurposes(data);
-    } else {
+  const fetchPurposesByScheme = async (schemeId) => {
+    if (!schemeId) { setPurposes([]); return; }
+    try {
+      const data = await tourDiaryService.getActivePurposes(schemeId);
+      if (data && !data.message && Array.isArray(data)) {
+        setPurposes(data);
+      } else {
+        setPurposes([]);
+      }
+    } catch (error) {
+      console.error("Error fetching purposes:", error);
       setPurposes([]);
     }
-  } catch (error) {
-    console.error("Error fetching purposes:", error);
-    setPurposes([]);
-  }
-};
-const fetchCrops = async (zoneId) => {
-  if (!zoneId) {
-    setCrops([]);
-    return;
-  }
-  
-  setCropsLoading(true);
-  try {
-    const year = authservice.agriyear() || "2025-2026";
-    const response = await tourDiaryService.getCrops(zoneId, year);
-    
-    if (response && Array.isArray(response)) {
-      setCrops(response);
-    } else {
+  };
+  const fetchCrops = async () => {
+
+    setCropsLoading(true);
+    try {
+      const year = authservice.agriyear() || "2025-2026";
+      const response = await tourDiaryService.getCrops(year);
+      if (response && Array.isArray(response)) {
+        setCrops(response);
+      } else if (response && Array.isArray(response.payload)) {
+        setCrops(response.payload);
+      } else {
+        setCrops([]);
+      }
+    } catch (error) {
+      console.error("Error fetching crops:", error);
       setCrops([]);
+    } finally {
+      setCropsLoading(false);
     }
-  } catch (error) {
-    console.error("Error fetching crops:", error);
-    setCrops([]);
-  } finally {
-    setCropsLoading(false);
-  }
-};
+  };
   // Field Data Collector - assigned zones API (existing behaviour)
   const fetchZones = async () => {
     setZonesLoading(true);
@@ -671,12 +652,12 @@ const fetchCrops = async (zoneId) => {
   };
 
   useEffect(() => {
-  if (editFormData.zoneId) {
-    fetchClusters(editFormData.zoneId);
-  } else {
-    setClusters([]);
-  }
-}, [editFormData.zoneId]);
+    if (editFormData.zoneId) {
+      fetchClusters(editFormData.zoneId);
+    } else {
+      setClusters([]);
+    }
+  }, [editFormData.zoneId]);
   useEffect(() => {
     if (selectedUserId) { fetchUserTourEntries(); fetchZones(); }
     fetchPurposesAndZones();
@@ -716,52 +697,63 @@ const fetchCrops = async (zoneId) => {
         // reportEntryType: entry.reportEntryType,
         reportEntryType: "AUTO CAPTURED",
       });
-  } else {
-    const entryTypeValue = entry.entryType || 'WORKING';
-    setEditEntryType(entryTypeValue);
-    console.log("Editing entry:", entry);
-    setEditFormData({
-      id: entry.id,
-      distance: entry.distance || "",
-      hours: entry.hours || "",
-      remark: entry.remark || "",
-      reportEntryType: entry.reportEntryType,
-      entryType: entryTypeValue,
-      schemeId: entry.schemesId || "",
-      purposeId: entry.purposeId || "",
-      zoneId: entry.zoneId || "",
-      clusterId: entry.clusterId || "",
-      seasonId: entry.seasonNo || entry.seasonId || "",
-      landType: entry.landType || "",
-      geoLocation: entry.geoLocation || ""
-    });
-    setIsOtherScheme(entry.schemesId === 10);
-
-    // Fetch clusters for the selected zone (only relevant for WORKING entries)
-    if (entry.zoneId) {
-      fetchClusters(entry.zoneId);
-    }
-
-    if (entry.schemesId) { 
-      setEditSelectedScheme(entry.schemesId); 
-    } else { 
-      setEditSelectedScheme(""); 
-    }
-
-    // Ensure the role-appropriate zone list is available for editing
-    if (isDistrictLevelRole) {
-      fetchTaluks();
     } else {
-      fetchZones();
+      const entryTypeValue = entry.entryType || 'WORKING';
+      setEditEntryType(entryTypeValue);
+      console.log("Editing entry:", entry);
+      setEditFormData({
+        id: entry.id,
+        distance: entry.distance || "",
+        hours: entry.hours || "",
+        remark: entry.remark || "",
+        reportEntryType: entry.reportEntryType,
+        entryType: entryTypeValue,
+        schemeId: entry.schemesId || "",
+        purposeId: entry.purposeId || "",
+        zoneId: entry.zoneId || "",
+        clusterId: entry.clusterId || "",
+        seasonId: entry.seasonNo || entry.seasonId || "",
+        landType: entry.landType || "",
+        geoLocation: entry.geoLocation || ""
+      });
+      setIsOtherScheme(entry.schemesId === 10);
+
+      // Fetch clusters for the selected zone (only relevant for WORKING entries)
+      if (entry.zoneId) {
+        fetchClusters(entry.zoneId);
+      }
+
+      if (entry.schemesId) {
+        setEditSelectedScheme(entry.schemesId);
+        tourDiaryService.getActivePurposes(entry.schemesId).then((data) => {
+          if (data && Array.isArray(data) && !data.message) {
+            setPurposes(data);
+            const foundPurpose = data.find(p => p.id === Number(entry.purposeId));
+            if (foundPurpose) {
+              setEditPurposeLandType(foundPurpose.landtype || "");
+              setEditIsOfficeDuty(foundPurpose.duty === false);
+            }
+          }
+        });
+      } else {
+        setEditSelectedScheme("");
+        setEditIsOfficeDuty(false);
+      }
+
+      // Ensure the role-appropriate zone list is available for editing
+      if (isDistrictLevelRole) {
+        fetchTaluks();
+      } else {
+        fetchZones();
+      }
     }
-  }
-  setEditModalOpen(true);
-};
+    setEditModalOpen(true);
+  };
 
   const handleSaveAutoCapturedEdit = async () => {
     if (!editFormData.distance || editFormData.distance === "") {
-    setSnackbar({ open: true, message: "Distance is required for AUTO CAPTURED entries", severity: "error" });
-    return;
+      setSnackbar({ open: true, message: "Distance is required for AUTO CAPTURED entries", severity: "error" });
+      return;
     }
     if (!editFormData.hours || editFormData.hours === "") {
       setSnackbar({ open: true, message: "Hours is required for AUTO CAPTURED entries", severity: "error" });
@@ -789,190 +781,210 @@ const fetchCrops = async (zoneId) => {
       setSubmitting(false);
     }
   };
-const getLandTypeLabel = (landtype) => {
-  if (landtype === 1) return 'WET';
-  if (landtype === 2) return 'DRY';
-  if (landtype === 3) return 'EXTRA';
-  return 'Unknown';
-};
-const handleSaveManualEdit = async () => {
-  const isNonWorking = editEntryType !== 'WORKING';
+  const getLandTypeLabel = (landtype) => {
+    if (landtype === 1) return 'WET';
+    if (landtype === 2) return 'DRY';
+    if (landtype === 3) return 'EXTRA';
+    return 'Unknown';
+  };
+  const handleSaveManualEdit = async () => {
+    const isNonWorking = editEntryType !== 'WORKING';
 
-  // Non-WORKING entries (Holiday, Week Off, Leave, Training, Others) only need remarks
-  if (isNonWorking) {
-    if (!editFormData.remark || editFormData.remark.trim() === "") {
-      setSnackbar({ open: true, message: `Remarks is required for ${editEntryType} entries`, severity: "error" });
-      return;
-    }
-  } else if (isOtherScheme) {
-    // For "Others" scheme, only remarks is required
-    if (!editFormData.remark || editFormData.remark.trim() === "") {
-      setSnackbar({ open: true, message: "Remarks is required for Others scheme", severity: "error" });
-      return;
-    }
-  } else {
-    // Normal validation for other schemes
-    if (!editFormData.distance || editFormData.distance === "") {
-      setSnackbar({ open: true, message: "Distance is required for MANUAL entries", severity: "error" });
-      return;
-    }
-    if (!editFormData.hours || editFormData.hours === "") {
-      setSnackbar({ open: true, message: "Hours is required for MANUAL entries", severity: "error" });
-      return;
-    }
-  }
-  
-  setSubmitting(true);
-  try {
-    const skipDetails = isNonWorking || isOtherScheme;
-
-    const payload = {
-      id: editFormData.id,
-      userId: selectedUserId,
-      entryType: editEntryType,
-      schemeId: isNonWorking ? null : Number(editFormData.schemeId),
-      purposeId: skipDetails ? null : Number(editFormData.purposeId),
-      zoneId: skipDetails ? null : Number(editFormData.zoneId),
-      clusterId: skipDetails ? null : Number(editFormData.clusterId),
-      seasonId: skipDetails ? null : (editFormData.seasonId ? Number(editFormData.seasonId) : 1),
-      landType: skipDetails ? null : editFormData.landType,
-      geoLocation: skipDetails ? null : (editFormData.geoLocation || "N/A"),
-      remark: editFormData.remark,
-      distance: skipDetails ? null : (editFormData.distance ? parseFloat(editFormData.distance) : null),
-      hours: skipDetails ? null : (editFormData.hours ? parseFloat(editFormData.hours) : null),
-      cropId: skipDetails ? null : (editFormData.cropId ? Number(editFormData.cropId) : null),
-    };
-    
-    const response = await tourDiaryService.saveOrUpdateManualEntry(payload);
-    if (response && (response.id || response.message === "Tour updated successfully")) {
-      setSnackbar({ open: true, message: response.message || "Tour entry updated successfully", severity: "success" });
-      setEditModalOpen(false);
-      await fetchUserTourEntries();
+    // Non-WORKING entries (Holiday, Week Off, Leave, Training, Others) only need remarks
+    if (isNonWorking) {
+      if (!editFormData.remark || editFormData.remark.trim() === "") {
+        setSnackbar({ open: true, message: `Remarks is required for ${editEntryType} entries`, severity: "error" });
+        return;
+      }
+    } else if (isOtherScheme) {
+      // For "Others" scheme, only remarks is required
+      if (!editFormData.remark || editFormData.remark.trim() === "") {
+        setSnackbar({ open: true, message: "Remarks is required for Others scheme", severity: "error" });
+        return;
+      }
+    } else if (editIsOfficeDuty) {
+      // For duty === false (Office Duty / Conference), purpose and remarks are required
+      if (!editFormData.purposeId) {
+        setSnackbar({ open: true, message: "Purpose is required", severity: "error" });
+        return;
+      }
+      if (!editFormData.remark || editFormData.remark.trim() === "") {
+        setSnackbar({ open: true, message: "Remarks is required", severity: "error" });
+        return;
+      }
     } else {
-      setSnackbar({ open: true, message: response.message || "Failed to update entry", severity: "error" });
-    }
-  } catch (error) {
-    console.error("Error updating entry:", error);
-    setSnackbar({ open: true, message: error.message || "Failed to update entry", severity: "error" });
-  } finally {
-    setSubmitting(false);
-  }
-};
-
-const handleOpenManualEntry = async (dateKey) => {
-  setManualEntryDate(dateKey);
-  setEntryType('WORKING');
-  setManualFormData({
-    entryType: "WORKING",
-    purposeId: "", zoneId: "", clusterId: "", seasonId: "",
-    landType: "", remark: "", distance: "", hours: "",
-    geoLocation: ""
-  });
-  setPurposeLandType(""); // Reset purpose land type
-  setSelectedScheme("");
-  setIsOtherScheme(false);
-  setClusters([]);
-  setFilteredClusters([]);
-  if (isDistrictLevelRole) {
-    setSelectedTalukId(null);
-  }
-  await fetchZones();
-  setManualEntryOpen(true);
-};
-const handleSaveManualEntry = async () => {
-  const isNonWorking = entryType !== 'WORKING';
-
-  // Non-WORKING entries (Holiday, Week Off, Leave, Training, Others) only need remarks
-  if (isNonWorking) {
-    if (!manualFormData.remark || manualFormData.remark.trim() === "") {
-      setSnackbar({ open: true, message: `Remarks is required for ${entryType} entries`, severity: "error" });
-      return;
-    }
-  } else if (isOtherScheme) {
-    // For "Others" scheme, only remarks is required
-    if (!manualFormData.remark || manualFormData.remark.trim() === "") {
-      setSnackbar({ open: true, message: "Remarks is required for Others scheme", severity: "error" });
-      return;
-    }
-  } else {
-    // Normal validation for other schemes
-    if (!manualFormData.purposeId || !manualFormData.zoneId || !manualFormData.clusterId || !selectedScheme) {
-      setSnackbar({ open: true, message: "Please fill all required fields", severity: "error" });
-      return;
-    }
-    if (!manualFormData.distance || manualFormData.distance === "") {
-      setSnackbar({ open: true, message: "Distance is required for MANUAL entries", severity: "error" });
-      return;
-    }
-    if (!manualFormData.hours || manualFormData.hours === "") {
-      setSnackbar({ open: true, message: "Hours is required for MANUAL entries", severity: "error" });
-      return;
-    }
-  }
-  
-  setSubmitting(true);
-  try {
-    let formattedDate = null;
-    if (manualEntryDate) {
-      const dateToUse = new Date(manualEntryDate);
-      if (!isNaN(dateToUse.getTime())) {
-        dateToUse.setHours(12, 0, 0, 0);
-        formattedDate = dateToUse.toISOString();
+      // Normal validation for other schemes (duty === true)
+      if (!editFormData.distance || editFormData.distance === "") {
+        setSnackbar({ open: true, message: "Distance is required for MANUAL entries", severity: "error" });
+        return;
+      }
+      if (!editFormData.hours || editFormData.hours === "") {
+        setSnackbar({ open: true, message: "Hours is required for MANUAL entries", severity: "error" });
+        return;
       }
     }
-    if (!formattedDate) formattedDate = new Date().toISOString();
 
-    const skipDetails = isNonWorking || isOtherScheme;
+    setSubmitting(true);
+    try {
+      const skipDetails = isNonWorking || isOtherScheme || editIsOfficeDuty;
 
-    const payload = {
-      userId: selectedUserId,
-      entryType,
-      schemeId: isNonWorking ? null : Number(selectedScheme),
-      purposeId: skipDetails ? null : Number(manualFormData.purposeId),
-      zoneId: skipDetails ? null : Number(manualFormData.zoneId),
-      clusterId: skipDetails ? null : Number(manualFormData.clusterId),
-      seasonId: skipDetails ? null : Number(manualFormData.seasonId || 1),
-      landType: skipDetails ? null : manualFormData.landType,
-      geoLocation: skipDetails ? null : manualFormData.geoLocation || "",
-      remark: manualFormData.remark,
-      distance: skipDetails ? null : (manualFormData.distance ? parseFloat(manualFormData.distance) : null),
-      hours: skipDetails ? null : (manualFormData.hours ? parseFloat(manualFormData.hours) : null),
-      cropId: skipDetails ? null : (manualFormData.cropId ? Number(manualFormData.cropId) : null),
-      createdAt: formattedDate
-    };
-    
-    const response = await tourDiaryService.saveOrUpdateManualEntry(payload);
-    if (response && (response.id || response.message === "Tour saved successfully")) {
-      setSnackbar({ open: true, message: response.message || "Tour entry added successfully", severity: "success" });
-      setManualEntryOpen(false);
-      await fetchUserTourEntries();
-    } else {
-      setSnackbar({ open: true, message: response.message || "Failed to add tour entry", severity: "error" });
+      const payload = {
+        id: editFormData.id,
+        userId: selectedUserId,
+        entryType: editEntryType,
+        schemeId: isNonWorking ? null : Number(editFormData.schemeId),
+        purposeId: isNonWorking ? null : Number(editFormData.purposeId),
+        zoneId: skipDetails ? null : Number(editFormData.zoneId),
+        clusterId: skipDetails ? null : Number(editFormData.clusterId),
+        seasonId: skipDetails ? null : (editFormData.seasonId ? Number(editFormData.seasonId) : 1),
+        landType: skipDetails ? null : editFormData.landType,
+        geoLocation: skipDetails ? null : (editFormData.geoLocation || "N/A"),
+        remark: editFormData.remark,
+        distance: skipDetails ? null : (editFormData.distance ? parseFloat(editFormData.distance) : null),
+        hours: skipDetails ? null : (editFormData.hours ? parseFloat(editFormData.hours) : null),
+        cropId: skipDetails ? null : (editFormData.cropId ? Number(editFormData.cropId) : null),
+      };
+
+      const response = await tourDiaryService.saveOrUpdateManualEntry(payload);
+      if (response && (response.id || response.message === "Tour updated successfully")) {
+        setSnackbar({ open: true, message: response.message || "Tour entry updated successfully", severity: "success" });
+        setEditModalOpen(false);
+        await fetchUserTourEntries();
+      } else {
+        setSnackbar({ open: true, message: response.message || "Failed to update entry", severity: "error" });
+      }
+    } catch (error) {
+      console.error("Error updating entry:", error);
+      setSnackbar({ open: true, message: error.message || "Failed to update entry", severity: "error" });
+    } finally {
+      setSubmitting(false);
     }
-  } catch (error) {
-    console.error("Error creating entry:", error);
-    setSnackbar({ open: true, message: error.message || "Failed to add tour entry", severity: "error" });
-  } finally {
-    setSubmitting(false);
-  }
-};
+  };
+
+  const handleOpenManualEntry = async (dateKey) => {
+    setManualEntryDate(dateKey);
+    setEntryType('WORKING');
+    setManualFormData({
+      entryType: "WORKING",
+      purposeId: "", zoneId: "", clusterId: "", seasonId: "",
+      landType: "", remark: "", distance: "", hours: "",
+      geoLocation: ""
+    });
+    setPurposeLandType(""); // Reset purpose land type
+    setSelectedScheme("");
+    setIsOtherScheme(false);
+    setClusters([]);
+    setFilteredClusters([]);
+    if (isDistrictLevelRole) {
+      setSelectedTalukId(null);
+    }
+    await fetchZones();
+    setManualEntryOpen(true);
+  };
+  const handleSaveManualEntry = async () => {
+    const isNonWorking = entryType !== 'WORKING';
+
+    // Non-WORKING entries (Holiday, Week Off, Leave, Training, Others) only need remarks
+    if (isNonWorking) {
+      if (!manualFormData.remark || manualFormData.remark.trim() === "") {
+        setSnackbar({ open: true, message: `Remarks is required for ${entryType} entries`, severity: "error" });
+        return;
+      }
+    } else if (isOtherScheme) {
+      // For "Others" scheme, only remarks is required
+      if (!manualFormData.remark || manualFormData.remark.trim() === "") {
+        setSnackbar({ open: true, message: "Remarks is required for Others scheme", severity: "error" });
+        return;
+      }
+    } else if (isOfficeDuty) {
+      // For duty === false (Office Duty / Conference), purpose and remarks are required
+      if (!manualFormData.purposeId) {
+        setSnackbar({ open: true, message: "Purpose is required", severity: "error" });
+        return;
+      }
+      if (!manualFormData.remark || manualFormData.remark.trim() === "") {
+        setSnackbar({ open: true, message: "Remarks is required", severity: "error" });
+        return;
+      }
+    } else {
+      // Normal validation for other schemes (duty === true)
+      if (!manualFormData.purposeId || !manualFormData.zoneId || !manualFormData.clusterId || !selectedScheme) {
+        setSnackbar({ open: true, message: "Please fill all required fields", severity: "error" });
+        return;
+      }
+      if (!manualFormData.distance || manualFormData.distance === "") {
+        setSnackbar({ open: true, message: "Distance is required for MANUAL entries", severity: "error" });
+        return;
+      }
+      if (!manualFormData.hours || manualFormData.hours === "") {
+        setSnackbar({ open: true, message: "Hours is required for MANUAL entries", severity: "error" });
+        return;
+      }
+    }
+
+    setSubmitting(true);
+    try {
+      let formattedDate = null;
+      if (manualEntryDate) {
+        const dateToUse = new Date(manualEntryDate);
+        if (!isNaN(dateToUse.getTime())) {
+          dateToUse.setHours(12, 0, 0, 0);
+          formattedDate = dateToUse.toISOString();
+        }
+      }
+      if (!formattedDate) formattedDate = new Date().toISOString();
+
+      const skipDetails = isNonWorking || isOtherScheme || isOfficeDuty;
+
+      const payload = {
+        userId: selectedUserId,
+        entryType,
+        schemeId: isNonWorking ? null : Number(selectedScheme),
+        purposeId: isNonWorking ? null : Number(manualFormData.purposeId),
+        zoneId: skipDetails ? null : Number(manualFormData.zoneId),
+        clusterId: skipDetails ? null : Number(manualFormData.clusterId),
+        seasonId: skipDetails ? null : Number(manualFormData.seasonId || 1),
+        landType: skipDetails ? null : manualFormData.landType,
+        geoLocation: skipDetails ? null : manualFormData.geoLocation || "",
+        remark: manualFormData.remark,
+        distance: skipDetails ? null : (manualFormData.distance ? parseFloat(manualFormData.distance) : null),
+        hours: skipDetails ? null : (manualFormData.hours ? parseFloat(manualFormData.hours) : null),
+        cropId: skipDetails ? null : (manualFormData.cropId ? Number(manualFormData.cropId) : null),
+        createdAt: formattedDate
+      };
+
+      const response = await tourDiaryService.saveOrUpdateManualEntry(payload);
+      if (response && (response.id || response.message === "Tour saved successfully")) {
+        setSnackbar({ open: true, message: response.message || "Tour entry added successfully", severity: "success" });
+        setManualEntryOpen(false);
+        await fetchUserTourEntries();
+      } else {
+        setSnackbar({ open: true, message: response.message || "Failed to add tour entry", severity: "error" });
+      }
+    } catch (error) {
+      console.error("Error creating entry:", error);
+      setSnackbar({ open: true, message: error.message || "Failed to add tour entry", severity: "error" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const closeDetailModal = () => { setDetailModalOpen(false); setSelectedEntry(null); };
-// Add this helper function to check if the month is already submitted
-const isMonthSubmitted = () => {
-  // Check if any entries in the month have a submission status
-  // This depends on your backend implementation
-  return tourEntries.some(entry => entry.submitted === true);
-};
+  // Add this helper function to check if the month is already submitted
+  const isMonthSubmitted = () => {
+    // Check if any entries in the month have a submission status
+    // This depends on your backend implementation
+    return tourEntries.some(entry => entry.submitted === true);
+  };
 
-// Add this chip in the header to show submission status
-<Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 2 }}>
-  <Chip 
-    label={isMonthSubmitted() ? '✅ Full Month Submitted' : '⏳ Pending Submission'}
-    color={isMonthSubmitted() ? 'success' : 'warning'}
-    size="medium"
-  />
-</Box>
+  // Add this chip in the header to show submission status
+  <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 2 }}>
+    <Chip
+      label={isMonthSubmitted() ? '✅ Full Month Submitted' : '⏳ Pending Submission'}
+      color={isMonthSubmitted() ? 'success' : 'warning'}
+      size="medium"
+    />
+  </Box>
   const closeEditModal = () => {
     setEditModalOpen(false);
     setEditSelectedScheme("");
@@ -1100,7 +1112,7 @@ const isMonthSubmitted = () => {
 
           const entryTypeColor =
             event.reportEntryType === 'AUTO CAPTURED' ? '#2196f3' :
-            event.reportEntryType === 'MANUAL' ? '#ff9800' : '#95a5a6';
+              event.reportEntryType === 'MANUAL' ? '#ff9800' : '#95a5a6';
 
           rows.push(
             <TableRow
@@ -1273,13 +1285,13 @@ const isMonthSubmitted = () => {
               <Typography variant="h3" align="center" sx={{ marginBottom: 3, color: theme.palette.text.primary }}>
                 Actual Tour Diary
               </Typography>
-<Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 2 }}>
-  <Chip 
-    label={isMonthSubmitted() ? '✅ Full Month Submitted' : '⏳ Pending Submission'}
-    color={isMonthSubmitted() ? 'success' : 'warning'}
-    size="medium"
-  />
-</Box>
+              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 2 }}>
+                <Chip
+                  label={isMonthSubmitted() ? '✅ Full Month Submitted' : '⏳ Pending Submission'}
+                  color={isMonthSubmitted() ? 'success' : 'warning'}
+                  size="medium"
+                />
+              </Box>
               <Box
                 sx={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -1315,24 +1327,24 @@ const isMonthSubmitted = () => {
                 </Typography>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '250px', justifyContent: 'flex-end' }}>
-              {/* In the header section, replace the submit button */}
-<Button
-  variant="contained"
-  onClick={handleSubmitMonth}
+                  {/* In the header section, replace the submit button */}
+                  <Button
+                    variant="contained"
+                    onClick={handleSubmitMonth}
 
-  //for testing
-  // disabled={!canSubmitMonth() || submittingMonth}
-   disabled={submittingMonth}
-  sx={{ 
-    backgroundColor: '#27ae60', 
-    '&:hover': { backgroundColor: '#229954' }, 
-    whiteSpace: 'nowrap', 
-    minWidth: '140px' 
-  }}
-  startIcon={submittingMonth ? <CircularProgress size={20} color="inherit" /> : null}
->
-  {submittingMonth ? "Submitting..." : "Submit Full Month"}
-</Button>
+                    //for testing
+                    // disabled={!canSubmitMonth() || submittingMonth}
+                    disabled={submittingMonth}
+                    sx={{
+                      backgroundColor: '#27ae60',
+                      '&:hover': { backgroundColor: '#229954' },
+                      whiteSpace: 'nowrap',
+                      minWidth: '140px'
+                    }}
+                    startIcon={submittingMonth ? <CircularProgress size={20} color="inherit" /> : null}
+                  >
+                    {submittingMonth ? "Submitting..." : "Submit Full Month"}
+                  </Button>
                   <Button
                     variant="contained"
                     onClick={() => handleMonthChange(1)}
@@ -1478,12 +1490,16 @@ const isMonthSubmitted = () => {
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>{selectedEntry.clusterId}</Typography>
                 </Grid>
               )}
-              {/* {selectedEntry.cropName && (
+              {(selectedEntry.cropName || selectedEntry.cropNameEn || selectedEntry.cceId) && (
                 <Grid item xs={12} sm={6} md={4}>
                   <Typography variant="body2" color="text.secondary">Crop Name</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>{selectedEntry.cropName}</Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {selectedEntry.cropNameEn && selectedEntry.cropNameMal
+                      ? `${selectedEntry.cropNameEn} (${selectedEntry.cropNameMal})`
+                      : selectedEntry.cropNameEn || selectedEntry.cropName || selectedEntry.cceId}
+                  </Typography>
                 </Grid>
-              )} */}
+              )}
               {selectedEntry.distance && (
                 <Grid item xs={12} sm={6} md={4}>
                   <Typography variant="body2" color="text.secondary">Distance</Typography>
@@ -1568,672 +1584,675 @@ const isMonthSubmitted = () => {
         </Card>
       </Modal>
 
-     {/* ==================== EDIT MODAL - MANUAL ENTRY ==================== */}
-<Modal
-  open={editModalOpen && editFormData.reportEntryType === "MANUAL"}
-  onClose={closeEditModal}
-  sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
->
-  <Card
-    sx={{
-      width: '90%', maxWidth: '600px', padding: 3, borderRadius: 2,
-      backgroundColor: theme.palette.background.paper, boxShadow: theme.shadows[24],
-      maxHeight: '80vh', overflow: 'auto'
-    }}
-  >
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-      <Typography variant="h4" sx={{ color: theme.palette.text.primary }}>Edit Manual Tour Entry</Typography>
-      <IconButton onClick={closeEditModal} size="small"><CloseIcon /></IconButton>
-    </Box>
-    <Divider sx={{ mb: 2 }} />
-    <Grid container spacing={2}>
-
-      {/* Entry Type - Always visible */}
-      <Grid item xs={12}>
-        <FormControl fullWidth required>
-          <InputLabel>Entry Type</InputLabel>
-          <Select
-            value={editEntryType}
-            label="Entry Type"
-            onChange={(e) => {
-              const newEntryType = e.target.value;
-              setEditEntryType(newEntryType);
-              if (newEntryType !== 'WORKING') {
-                setEditSelectedScheme("");
-                setIsOtherScheme(false);
-                setEditFormData(prev => ({
-                  ...prev,
-                  entryType: newEntryType,
-                  schemeId: "",
-                  purposeId: "",
-                  zoneId: "",
-                  clusterId: "",
-                  cropId: "",
-                  distance: "",
-                  hours: "",
-                  geoLocation: ""
-                }));
-              } else {
-                setEditFormData(prev => ({ ...prev, entryType: newEntryType }));
-              }
-            }}
-          >
-            {ENTRY_TYPES.map((type) => (
-              <MenuItem key={type.value} value={type.value}>{type.label}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Grid>
-
-      {editEntryType === 'WORKING' && (
-      <>
-      {/* Scheme */}
-      <Grid item xs={12}>
-        <FormControl fullWidth required>
-          <InputLabel>Scheme</InputLabel>
-          <Select 
-            value={editFormData.schemeId}
-            onChange={(e) => {
-              const schemeId = e.target.value;
-              setEditFormData({ 
-                ...editFormData, 
-                schemeId: schemeId, 
-                purposeId: "" 
-              });
-              setEditSelectedScheme(schemeId);
-              setIsOtherScheme(schemeId === 10);
-              if (schemeId === 10) {
-                setEditFormData({
-                  ...editFormData,
-                  schemeId: schemeId,
-                  purposeId: "",
-                  zoneId: "",
-                  clusterId: "",
-                  cropId: "",
-                  distance: "",
-                  hours: "",
-                  geoLocation: ""
-                });
-              }
-            }}
-            label="Scheme"
-          >
-            {schemes.map((scheme) => (
-              <MenuItem key={scheme.id} value={scheme.id}>{scheme.schemeName}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Grid>
-
-      {/* Purpose - Hidden when "Others" is selected */}
-      {!isOtherScheme && (
-        <Grid item xs={12}>
-          <FormControl fullWidth required>
-            <InputLabel>Purpose</InputLabel>
-          <Select 
-  value={editFormData.purposeId}
-  onChange={(e) => {
-    const selectedPurpose = purposes.find(p => p.id === Number(e.target.value));
-    setEditFormData({ 
-      ...editFormData, 
-      purposeId: e.target.value
-    });
-    setEditPurposeLandType(selectedPurpose?.landtype || "");
-  }}
-  label="Purpose"
-  disabled={!editFormData.schemeId || isOtherScheme}
->
-              {purposes.length === 0 ? (
-                <MenuItem disabled>Select scheme first</MenuItem>
-              ) : (
-                purposes.map((p) => (
-                  <MenuItem key={p.id} value={p.id}>
-                    {p.purposeName} {p.landtype ? `(${p.landtype === 1 ? 'WET' : p.landtype === 2 ? 'DRY' : 'EXTRA'})` : ''}
-                  </MenuItem>
-                ))
-              )}
-            </Select>
-          </FormControl>
-        </Grid>
-      )}
-
-      {/* Taluk - Only for District Level roles */}
-      {!isOtherScheme && isDistrictLevelRole && (
-        <Grid item xs={12}>
-          <FormControl fullWidth required>
-            <InputLabel>Taluk</InputLabel>
-            <Select
-              value={editSelectedTalukId || ''}
-              label="Taluk"
-              onChange={(e) => {
-                const talukId = e.target.value;
-                setEditSelectedTalukId(talukId);
-                setEditFormData({ ...editFormData, zoneId: "", clusterId: "" });
-                setClusters([]);
-                setFilteredClusters([]);
-                setCrops([]);
-                fetchZonesByTaluk(talukId);
-              }}
-            >
-              {taluks.map((taluk) => (
-                <MenuItem key={taluk.talukId} value={taluk.talukId}>
-                  {taluk.talukName}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-      )}
-
-      {/* Zone - Hidden when "Others" is selected */}
-      {!isOtherScheme && (!isDistrictLevelRole || editSelectedTalukId) && (
-        <Grid item xs={12}>
-          <FormControl fullWidth required>
-            <InputLabel>Zone</InputLabel>
-            <Select 
-              value={editFormData.zoneId}
-              onChange={(e) => {
-                setEditFormData({ ...editFormData, zoneId: e.target.value });
-                setClusters([]);
-                setFilteredClusters([]);
-                setCrops([]);
-              }} 
-              label="Zone"
-              disabled={isOtherScheme || zonesLoading || isZoneDropdownLoading}
-            >
-              {zones.map((zone) => (
-                <MenuItem key={zone.zoneId} value={zone.zoneId}>
-                  {zone.zoneName || zone.name || `Zone ${zone.zoneId}`}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-      )}
-
-      {/* Cluster - Hidden when "Others" is selected */}
-      {!isOtherScheme && (
-        <Grid item xs={12}>
-          <FormControl fullWidth required>
-            <InputLabel>Cluster Number</InputLabel>
-           <Select 
-  value={editFormData.clusterId}
-  onChange={(e) => {
-    const selectedCluster = filteredClusters.find(c => c.clusterId === e.target.value);
-    setEditFormData({ 
-      ...editFormData, 
-      clusterId: e.target.value
-      // Don't update landType here
-    });
-  }}
-  label="Cluster Number"
-  disabled={!editFormData.zoneId || filteredClusters.length === 0 || !editFormData.purposeId || isOtherScheme}
->
-              {filteredClusters.length === 0 ? (
-                <MenuItem disabled>No clusters available</MenuItem>
-              ) : (
-                filteredClusters.map((cluster) => (
-                  <MenuItem key={cluster.clusterId} value={cluster.clusterId}>
-                    Cluster {cluster.clusterNumber} - {cluster.landType}
-                  </MenuItem>
-                ))
-              )}
-            </Select>
-          </FormControl>
-        </Grid>
-      )}
-
-    {/* Crop - Only when purpose land type is 3 and not "Others" */}
-{!isOtherScheme && editPurposeLandType === 3 && (
-  <Grid item xs={12}>
-    <FormControl fullWidth required>
-      <InputLabel>Crop</InputLabel>
-      <Select 
-        value={editFormData.cropId}
-        onChange={(e) => {
-          setEditFormData({ 
-            ...editFormData, 
-            cropId: e.target.value
-          });
-        }}
-        label="Crop"
-        disabled={crops.length === 0 || cropsLoading}
+      {/* ==================== EDIT MODAL - MANUAL ENTRY ==================== */}
+      <Modal
+        open={editModalOpen && editFormData.reportEntryType === "MANUAL"}
+        onClose={closeEditModal}
+        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       >
-        {crops.map((crop) => (
-          <MenuItem key={crop.cropId} value={crop.cropId}>
-            {crop.cropName} - {crop.frameName || 'N/A'}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
-  </Grid>
-)}
+        <Card
+          sx={{
+            width: '90%', maxWidth: '600px', padding: 3, borderRadius: 2,
+            backgroundColor: theme.palette.background.paper, boxShadow: theme.shadows[24],
+            maxHeight: '80vh', overflow: 'auto'
+          }}
+        >
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h4" sx={{ color: theme.palette.text.primary }}>Edit Manual Tour Entry</Typography>
+            <IconButton onClick={closeEditModal} size="small"><CloseIcon /></IconButton>
+          </Box>
+          <Divider sx={{ mb: 2 }} />
+          <Grid container spacing={2}>
 
-      {/* Distance - Hidden when "Others" is selected */}
-      {!isOtherScheme && (
-        <Grid item xs={12} sm={6}>
-          <TextField 
-            fullWidth 
-            label="Distance (km)" 
-            value={editFormData.distance}
-            onChange={(e) => { 
-              const v = validateDistance(e.target.value, editFormData.distance); 
-              if (v !== undefined) setEditFormData({ ...editFormData, distance: v }); 
-            }} 
-          />
-        </Grid>
-      )}
+            {/* Entry Type - Always visible */}
+            <Grid item xs={12}>
+              <FormControl fullWidth required>
+                <InputLabel>Entry Type</InputLabel>
+                <Select
+                  value={editEntryType}
+                  label="Entry Type"
+                  onChange={(e) => {
+                    const newEntryType = e.target.value;
+                    setEditEntryType(newEntryType);
+                    if (newEntryType !== 'WORKING') {
+                      setEditSelectedScheme("");
+                      setIsOtherScheme(false);
+                      setEditFormData(prev => ({
+                        ...prev,
+                        entryType: newEntryType,
+                        schemeId: "",
+                        purposeId: "",
+                        zoneId: "",
+                        clusterId: "",
+                        cropId: "",
+                        distance: "",
+                        hours: "",
+                        geoLocation: ""
+                      }));
+                    } else {
+                      setEditFormData(prev => ({ ...prev, entryType: newEntryType }));
+                    }
+                  }}
+                >
+                  {ENTRY_TYPES.map((type) => (
+                    <MenuItem key={type.value} value={type.value}>{type.label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
 
-      {/* Hours - Hidden when "Others" is selected */}
-      {!isOtherScheme && (
-        <Grid item xs={12} sm={6}>
-          <TextField 
-            fullWidth 
-            label="Hours" 
-            value={editFormData.hours}
-            onChange={(e) => { 
-              const v = validateHours(e.target.value, editFormData.hours); 
-              if (v !== undefined) setEditFormData({ ...editFormData, hours: v }); 
-            }} 
-          />
-        </Grid>
-      )}
+            {editEntryType === 'WORKING' && (
+              <>
+                {/* Scheme */}
+                <Grid item xs={12}>
+                  <FormControl fullWidth required>
+                    <InputLabel>Scheme</InputLabel>
+                    <Select
+                      value={editFormData.schemeId}
+                      onChange={(e) => {
+                        const schemeId = e.target.value;
+                        setEditFormData({
+                          ...editFormData,
+                          schemeId: schemeId,
+                          purposeId: ""
+                        });
+                        setEditSelectedScheme(schemeId);
+                        setIsOtherScheme(schemeId === 10);
+                        if (schemeId === 10) {
+                          setEditFormData({
+                            ...editFormData,
+                            schemeId: schemeId,
+                            purposeId: "",
+                            zoneId: "",
+                            clusterId: "",
+                            cropId: "",
+                            distance: "",
+                            hours: "",
+                            geoLocation: ""
+                          });
+                        }
+                      }}
+                      label="Scheme"
+                    >
+                      {schemes.map((scheme) => (
+                        <MenuItem key={scheme.id} value={scheme.id}>{scheme.schemeName}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
 
-      {/* Location - Hidden when "Others" is selected */}
-      {!isOtherScheme && (
-        <Grid item xs={12}>
-          <TextField 
-            fullWidth 
-            label="Location" 
-            placeholder="e.g., 10.8505,76.2711" 
-            value={editFormData.geoLocation}
-            onChange={(e) => setEditFormData({ ...editFormData, geoLocation: validateGeoLocation(e.target.value) })} 
-          />
-        </Grid>
-      )}
-      </>
-      )}
+                {/* Purpose - Hidden when "Others" is selected */}
+                {!isOtherScheme && (
+                  <Grid item xs={12}>
+                    <FormControl fullWidth required>
+                      <InputLabel>Purpose</InputLabel>
+                      <Select
+                        value={editFormData.purposeId}
+                        onChange={(e) => {
+                          const selectedPurpose = purposes.find(p => p.id === Number(e.target.value));
+                          setEditFormData({
+                            ...editFormData,
+                            purposeId: e.target.value
+                          });
+                          setEditPurposeLandType(selectedPurpose?.landtype || "");
+                        }}
+                        label="Purpose"
+                        disabled={!editFormData.schemeId || isOtherScheme}
+                      >
+                        {purposes.length === 0 ? (
+                          <MenuItem disabled>Select scheme first</MenuItem>
+                        ) : (
+                          purposes.map((p) => (
+                            <MenuItem key={p.id} value={p.id}>
+                              {p.purposeName} {p.landtype ? `(${p.landtype === 1 ? 'WET' : p.landtype === 2 ? 'DRY' : 'EXTRA'})` : ''}
+                            </MenuItem>
+                          ))
+                        )}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
 
-      {/* Remarks - Always visible */}
-      <Grid item xs={12}>
-        <TextField 
-          fullWidth 
-          label="Remarks *" 
-          multiline 
-          rows={(isOtherScheme || editEntryType !== 'WORKING') ? 6 : 3} 
-          value={editFormData.remark}
-          onChange={(e) => setEditFormData({ ...editFormData, remark: validateRemarks(e.target.value) })} 
-          required
-        />
-      </Grid>
-    </Grid>
-    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 3 }}>
-      <Button variant="outlined" onClick={closeEditModal}>Cancel</Button>
-      <Button variant="contained" onClick={handleSaveManualEdit} disabled={submitting} startIcon={<SaveIcon />}
-        sx={{ backgroundColor: '#27ae60', '&:hover': { backgroundColor: '#229954' } }}>
-        {submitting ? "Saving..." : "Save Changes"}
-      </Button>
-    </Box>
-  </Card>
-</Modal>
+                {/* Taluk - Only for District Level roles (when duty is true) */}
+                {!isOtherScheme && !editIsOfficeDuty && isDistrictLevelRole && (
+                  <Grid item xs={12}>
+                    <FormControl fullWidth required>
+                      <InputLabel>Taluk</InputLabel>
+                      <Select
+                        value={editSelectedTalukId || ''}
+                        label="Taluk"
+                        onChange={(e) => {
+                          const talukId = e.target.value;
+                          setEditSelectedTalukId(talukId);
+                          setEditFormData({ ...editFormData, zoneId: "", clusterId: "" });
+                          setClusters([]);
+                          setFilteredClusters([]);
+                          fetchZonesByTaluk(talukId);
+                        }}
+                      >
+                        {taluks.map((taluk) => (
+                          <MenuItem key={taluk.talukId} value={taluk.talukId}>
+                            {taluk.talukName}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
+
+                {/* Zone - Only shown when duty is true */}
+                {!isOtherScheme && !editIsOfficeDuty && (!isDistrictLevelRole || editSelectedTalukId) && (
+                  <Grid item xs={12}>
+                    <FormControl fullWidth required>
+                      <InputLabel>Zone</InputLabel>
+                      <Select
+                        value={editFormData.zoneId}
+                        onChange={(e) => {
+                          setEditFormData({ ...editFormData, zoneId: e.target.value });
+                          setClusters([]);
+                          setFilteredClusters([]);
+                        }}
+                        label="Zone"
+                        disabled={isOtherScheme || zonesLoading || isZoneDropdownLoading}
+                      >
+                        {zones.map((zone) => (
+                          <MenuItem key={zone.zoneId} value={zone.zoneId}>
+                            {zone.zoneName || zone.name || `Zone ${zone.zoneId}`}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
+
+                {/* Cluster - Only shown when duty is true */}
+                {!isOtherScheme && !editIsOfficeDuty && (
+                  <Grid item xs={12}>
+                    <FormControl fullWidth required>
+                      <InputLabel>Cluster Number</InputLabel>
+                      <Select
+                        value={editFormData.clusterId}
+                        onChange={(e) => {
+                          const selectedCluster = filteredClusters.find(c => c.clusterId === e.target.value);
+                          setEditFormData({
+                            ...editFormData,
+                            clusterId: e.target.value
+                          });
+                        }}
+                        label="Cluster Number"
+                        disabled={!editFormData.zoneId || filteredClusters.length === 0 || !editFormData.purposeId || isOtherScheme}
+                      >
+                        {filteredClusters.length === 0 ? (
+                          <MenuItem disabled>No clusters available</MenuItem>
+                        ) : (
+                          filteredClusters.map((cluster) => (
+                            <MenuItem key={cluster.clusterId} value={cluster.clusterId}>
+                              Cluster {cluster.clusterNumber} - {cluster.landType}
+                            </MenuItem>
+                          ))
+                        )}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
+
+                {/* Crop - Only when purpose land type is 3 and duty is true */}
+                {!isOtherScheme && !editIsOfficeDuty && editPurposeLandType === 3 && (
+                  <Grid item xs={12}>
+                    <FormControl fullWidth required>
+                      <InputLabel>Crop</InputLabel>
+                      <Select
+                        value={editFormData.cropId}
+                        onChange={(e) => {
+                          setEditFormData({
+                            ...editFormData,
+                            cropId: e.target.value
+                          });
+                        }}
+                        label="Crop"
+                        disabled={cropsLoading}
+                      >
+                        {cropsLoading ? (
+                          <MenuItem disabled>Loading crops...</MenuItem>
+                        ) : crops.length === 0 ? (
+                          <MenuItem disabled>No crops available</MenuItem>
+                        ) : (
+                          crops.map((crop) => (
+                            <MenuItem key={crop.cceId || crop.cropId} value={crop.cceId}>
+                              {crop.cropNameEn && crop.cropNameMal
+                                ? `${crop.cropNameEn} (${crop.cropNameMal})`
+                                : crop.cropNameEn || crop.cropNameMal || crop.cropName || `Crop ${crop.cceId}`}
+                            </MenuItem>
+                          ))
+                        )}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
+
+                {/* Distance - Only shown when duty is true */}
+                {!isOtherScheme && !editIsOfficeDuty && (
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Distance (km)"
+                      value={editFormData.distance}
+                      onChange={(e) => {
+                        const v = validateDistance(e.target.value, editFormData.distance);
+                        if (v !== undefined) setEditFormData({ ...editFormData, distance: v });
+                      }}
+                    />
+                  </Grid>
+                )}
+
+                {/* Hours - Only shown when duty is true */}
+                {!isOtherScheme && !editIsOfficeDuty && (
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Hours"
+                      value={editFormData.hours}
+                      onChange={(e) => {
+                        const v = validateHours(e.target.value, editFormData.hours);
+                        if (v !== undefined) setEditFormData({ ...editFormData, hours: v });
+                      }}
+                    />
+                  </Grid>
+                )}
+
+                {/* Location - Only shown when duty is true */}
+                {!isOtherScheme && !editIsOfficeDuty && (
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Location"
+                      placeholder="e.g., 10.8505,76.2711"
+                      value={editFormData.geoLocation}
+                      onChange={(e) => setEditFormData({ ...editFormData, geoLocation: validateGeoLocation(e.target.value) })}
+                    />
+                  </Grid>
+                )}
+              </>
+            )}
+
+            {/* Remarks - Always visible */}
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Remarks *"
+                multiline
+                rows={(isOtherScheme || editEntryType !== 'WORKING') ? 6 : 3}
+                value={editFormData.remark}
+                onChange={(e) => setEditFormData({ ...editFormData, remark: validateRemarks(e.target.value) })}
+                required
+              />
+            </Grid>
+          </Grid>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 3 }}>
+            <Button variant="outlined" onClick={closeEditModal}>Cancel</Button>
+            <Button variant="contained" onClick={handleSaveManualEdit} disabled={submitting} startIcon={<SaveIcon />}
+              sx={{ backgroundColor: '#27ae60', '&:hover': { backgroundColor: '#229954' } }}>
+              {submitting ? "Saving..." : "Save Changes"}
+            </Button>
+          </Box>
+        </Card>
+      </Modal>
 
       {/* ==================== ADD MANUAL ENTRY MODAL ==================== */}
 
-<Modal
-  open={manualEntryOpen}
-  onClose={() => setManualEntryOpen(false)}
-  sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
->
-  <Card
-    sx={{
-      width: '90%', maxWidth: '600px', padding: 3, borderRadius: 2,
-      backgroundColor: theme.palette.background.paper, boxShadow: theme.shadows[24],
-      maxHeight: '80vh', overflow: 'auto'
-    }}
-  >
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-      <Typography variant="h4" sx={{ color: theme.palette.text.primary }}>Add Manual Tour Entry</Typography>
-      <IconButton onClick={() => setManualEntryOpen(false)} size="small">
-        <CloseIcon />
-      </IconButton>
-    </Box>
-    <Divider sx={{ mb: 2 }} />
-    
-    <Grid container spacing={2}>
-      {/* Entry Type - Always visible */}
-      <Grid item xs={12}>
-        <FormControl fullWidth required>
-          <InputLabel>Entry Type</InputLabel>
-          <Select
-            value={entryType}
-            label="Entry Type"
-            onChange={(e) => {
-              const newEntryType = e.target.value;
-              setEntryType(newEntryType);
-              setManualFormData(prev => ({ ...prev, entryType: newEntryType }));
-              // Reset WORKING-only fields when switching away from WORKING
-              if (newEntryType !== 'WORKING') {
-                setSelectedScheme("");
-                setIsOtherScheme(false);
-                setManualFormData(prev => ({
-                  ...prev,
-                  entryType: newEntryType,
-                  purposeId: "",
-                  zoneId: "",
-                  clusterId: "",
-                  cropId: "",
-                  distance: "",
-                  hours: "",
-                  geoLocation: ""
-                }));
-              }
-            }}
-          >
-            {ENTRY_TYPES.map((type) => (
-              <MenuItem key={type.value} value={type.value}>{type.label}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Grid>
-
-      {entryType === 'WORKING' && (
-      <>
-      {/* Scheme - Always visible */}
-      <Grid item xs={12}>
-        <FormControl fullWidth required>
-          <InputLabel>Scheme</InputLabel>
-          <Select 
-            value={selectedScheme} 
-            onChange={(e) => {
-              const schemeId = e.target.value;
-              setSelectedScheme(schemeId);
-              setIsOtherScheme(schemeId === 10);
-              if (schemeId === 10) {
-                setManualFormData({
-                  ...manualFormData,
-                  purposeId: "",
-                  zoneId: "",
-                  clusterId: "",
-                  cropId: "",
-                  distance: "",
-                  hours: "",
-                  geoLocation: ""
-                });
-              }
-            }} 
-            label="Scheme"
-          >
-            {schemes.map((scheme) => (
-              <MenuItem key={scheme.id} value={scheme.id}>{scheme.schemeName}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Grid>
-
-      {/* Purpose - Hidden when "Others" is selected */}
-      {!isOtherScheme && (
-        <Grid item xs={12}>
-          <FormControl fullWidth required>
-            <InputLabel>Purpose</InputLabel>
-          <Select 
-  value={manualFormData.purposeId}
-  onChange={(e) => {
-    const selectedPurpose = purposes.find(p => p.id === Number(e.target.value));
-    const landtype = selectedPurpose?.landtype;
-    const duty = selectedPurpose?.duty;
-    
-    // Check if it's office duty/conference (duty = false)
-    const isOfficeDutyType = duty === false;
-    
-    setIsOfficeDuty(isOfficeDutyType);
-    setPurposeLandType(landtype || "");
-    
-    setManualFormData({ 
-      ...manualFormData, 
-      purposeId: e.target.value,
-      cropId: "",
-      clusterId: "",
-      zoneId: isOfficeDutyType ? "" : manualFormData.zoneId,
-      distance: isOfficeDutyType ? "" : manualFormData.distance,
-      hours: isOfficeDutyType ? "" : manualFormData.hours,
-      geoLocation: isOfficeDutyType ? "" : manualFormData.geoLocation
-    });
-    
-    // Reset clusters when purpose changes
-    setManualFormData(prev => ({ ...prev, clusterId: "" }));
-    
-    // If office duty, clear clusters and crops
-    if (isOfficeDutyType) {
-      setFilteredClusters([]);
-      setCrops([]);
-    } else {
-      // Filter clusters based on land type
-      if (clusters.length > 0) {
-        filterClustersByLandType(clusters, landtype);
-      }
-    }
-  }}
-  label="Purpose"
-  disabled={!selectedScheme || isOtherScheme}
->
-  {purposes.length === 0 ? (
-    <MenuItem disabled>Select scheme first</MenuItem>
-  ) : (
-    purposes.map((p) => (
-      <MenuItem key={p.id} value={p.id}>
-        {p.purposeName} 
-        {p.landtype ? ` (${p.landtype === 1 ? 'WET' : p.landtype === 2 ? 'DRY' : 'EXTRA'})` : ''}
-        {p.duty === false ? ' (Office/Conference)' : ''}
-      </MenuItem>
-    ))
-  )}
-</Select>
-          </FormControl>
-        </Grid>
-      )}
-
-      {/* Taluk - Only for District Level roles */}
-      {!isOtherScheme && isDistrictLevelRole && (
-        <Grid item xs={12}>
-          <FormControl fullWidth required>
-            <InputLabel>Taluk</InputLabel>
-            <Select
-              value={selectedTalukId || ''}
-              label="Taluk"
-              onChange={(e) => {
-                const talukId = e.target.value;
-                setSelectedTalukId(talukId);
-                setManualFormData({ ...manualFormData, zoneId: "", clusterId: "" });
-                setClusters([]);
-                setFilteredClusters([]);
-                setCrops([]);
-                fetchZonesByTaluk(talukId);
-              }}
-            >
-              {taluks.map((taluk) => (
-                <MenuItem key={taluk.talukId} value={taluk.talukId}>
-                  {taluk.talukName}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-      )}
-
-      {/* Zone - Hidden when "Others" is selected */}
-      {!isOtherScheme && (!isDistrictLevelRole || selectedTalukId) && (
-        <Grid item xs={12}>
-          <FormControl fullWidth required>
-            <InputLabel>Zone</InputLabel>
-            <Select 
-              value={manualFormData.zoneId}
-              onChange={(e) => {
-                setManualFormData({ ...manualFormData, zoneId: e.target.value, clusterId: "" });
-                setClusters([]);
-                setFilteredClusters([]);
-                setCrops([]);
-              }} 
-              label="Zone"
-              disabled={isOtherScheme || zonesLoading || isZoneDropdownLoading}
-            >
-              {zones.length === 0 ? (
-                <MenuItem disabled>Loading zones...</MenuItem>
-              ) : (
-                zones.map((zone) => (
-                  <MenuItem key={zone.id} value={zone.zoneId}>
-                    {zone.zoneName || zone.name || `Zone ${zone.zoneId}`}
-                  </MenuItem>
-                ))
-              )}
-            </Select>
-          </FormControl>
-        </Grid>
-      )}
-
-      {/* Cluster - Hidden when "Others" is selected */}
-      {!isOtherScheme && (
-        <Grid item xs={12}>
-          <FormControl fullWidth required>
-            <InputLabel>Cluster Number</InputLabel>
-          <Select 
-  value={manualFormData.clusterId}
-  onChange={(e) => {
-    const selectedCluster = filteredClusters.find(c => c.clusterId === e.target.value);
-    setManualFormData({ 
-      ...manualFormData, 
-      clusterId: e.target.value
-      // Don't update landType here - keep it from the purpose
-    });
-  }}
-  label="Cluster Number"
-  disabled={!manualFormData.zoneId || filteredClusters.length === 0 || !manualFormData.purposeId || isOtherScheme}
->
-              {!manualFormData.zoneId ? (
-                <MenuItem disabled>Please select a zone first</MenuItem>
-              ) : !manualFormData.purposeId ? (
-                <MenuItem disabled>Please select a purpose first</MenuItem>
-              ) : filteredClusters.length === 0 ? (
-                <MenuItem disabled>No clusters available for this purpose</MenuItem>
-              ) : (
-                filteredClusters.map((cluster) => (
-                  <MenuItem key={cluster.clusterId} value={cluster.clusterId}>
-                    Cluster {cluster.clusterNumber} - {cluster.landType}
-                  </MenuItem>
-                ))
-              )}
-            </Select>
-          </FormControl>
-        </Grid>
-      )}
-
-      {/* Crop - Only when land type is 3 (EXTRA) and not "Others" scheme */}
-  {/* Crop - Only when purpose land type is 3 (EXTRA) and not "Others" scheme */}
-{!isOtherScheme && purposeLandType === 3 && (
-  <Grid item xs={12}>
-    <FormControl fullWidth required>
-      <InputLabel>Crop</InputLabel>
-      <Select 
-        value={manualFormData.cropId}
-        onChange={(e) => {
-          setManualFormData({ 
-            ...manualFormData, 
-            cropId: e.target.value
-          });
-        }}
-        label="Crop"
-        disabled={crops.length === 0 || cropsLoading}
+      <Modal
+        open={manualEntryOpen}
+        onClose={() => setManualEntryOpen(false)}
+        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       >
-        {cropsLoading ? (
-          <MenuItem disabled>Loading crops...</MenuItem>
-        ) : crops.length === 0 ? (
-          <MenuItem disabled>No crops available</MenuItem>
-        ) : (
-          crops.map((crop) => (
-            <MenuItem key={crop.cropId} value={crop.cropId}>
-              {crop.cropName} - {crop.frameName || 'N/A'}
-            </MenuItem>
-          ))
-        )}
-      </Select>
-    </FormControl>
-  </Grid>
-)}
+        <Card
+          sx={{
+            width: '90%', maxWidth: '600px', padding: 3, borderRadius: 2,
+            backgroundColor: theme.palette.background.paper, boxShadow: theme.shadows[24],
+            maxHeight: '80vh', overflow: 'auto'
+          }}
+        >
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h4" sx={{ color: theme.palette.text.primary }}>Add Manual Tour Entry</Typography>
+            <IconButton onClick={() => setManualEntryOpen(false)} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+          <Divider sx={{ mb: 2 }} />
 
-      {/* Distance - Hidden when "Others" is selected */}
-      {!isOtherScheme && (
-        <Grid item xs={12} sm={6}>
-          <TextField 
-            fullWidth 
-            label="Distance (km) *" 
-            type="text" 
-            value={manualFormData.distance}
-            onChange={(e) => { 
-              const v = validateDistance(e.target.value, manualFormData.distance); 
-              if (v !== undefined) setManualFormData({ ...manualFormData, distance: v }); 
-            }} 
-          />
-        </Grid>
-      )}
+          <Grid container spacing={2}>
+            {/* Entry Type - Always visible */}
+            <Grid item xs={12}>
+              <FormControl fullWidth required>
+                <InputLabel>Entry Type</InputLabel>
+                <Select
+                  value={entryType}
+                  label="Entry Type"
+                  onChange={(e) => {
+                    const newEntryType = e.target.value;
+                    setEntryType(newEntryType);
+                    setManualFormData(prev => ({ ...prev, entryType: newEntryType }));
+                    // Reset WORKING-only fields when switching away from WORKING
+                    if (newEntryType !== 'WORKING') {
+                      setSelectedScheme("");
+                      setIsOtherScheme(false);
+                      setManualFormData(prev => ({
+                        ...prev,
+                        entryType: newEntryType,
+                        purposeId: "",
+                        zoneId: "",
+                        clusterId: "",
+                        cropId: "",
+                        distance: "",
+                        hours: "",
+                        geoLocation: ""
+                      }));
+                    }
+                  }}
+                >
+                  {ENTRY_TYPES.map((type) => (
+                    <MenuItem key={type.value} value={type.value}>{type.label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
 
-      {/* Hours - Hidden when "Others" is selected */}
-      {!isOtherScheme && (
-        <Grid item xs={12} sm={6}>
-          <TextField 
-            fullWidth 
-            label="Hours (hr) *" 
-            type="text" 
-            value={manualFormData.hours}
-            onChange={(e) => { 
-              const v = validateHours(e.target.value, manualFormData.hours); 
-              if (v !== undefined) setManualFormData({ ...manualFormData, hours: v }); 
-            }} 
-          />
-        </Grid>
-      )}
+            {entryType === 'WORKING' && (
+              <>
+                {/* Scheme - Always visible */}
+                <Grid item xs={12}>
+                  <FormControl fullWidth required>
+                    <InputLabel>Scheme</InputLabel>
+                    <Select
+                      value={selectedScheme}
+                      onChange={(e) => {
+                        const schemeId = e.target.value;
+                        setSelectedScheme(schemeId);
+                        setIsOtherScheme(schemeId === 10);
+                        if (schemeId === 10) {
+                          setManualFormData({
+                            ...manualFormData,
+                            purposeId: "",
+                            zoneId: "",
+                            clusterId: "",
+                            cropId: "",
+                            distance: "",
+                            hours: "",
+                            geoLocation: ""
+                          });
+                        }
+                      }}
+                      label="Scheme"
+                    >
+                      {schemes.map((scheme) => (
+                        <MenuItem key={scheme.id} value={scheme.id}>{scheme.schemeName}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
 
-      {/* Location - Hidden when "Others" is selected */}
-      {!isOtherScheme && (
-        <Grid item xs={12}>
-          <TextField 
-            fullWidth 
-            label="Location" 
-            placeholder="e.g., 10.8505,76.2711" 
-            value={manualFormData.geoLocation}
-            onChange={(e) => setManualFormData({ ...manualFormData, geoLocation: validateGeoLocation(e.target.value) })} 
-          />
-        </Grid>
-      )}
-      </>
-      )}
+                {/* Purpose - Hidden when "Others" is selected */}
+                {!isOtherScheme && (
+                  <Grid item xs={12}>
+                    <FormControl fullWidth required>
+                      <InputLabel>Purpose</InputLabel>
+                      <Select
+                        value={manualFormData.purposeId}
+                        onChange={(e) => {
+                          const selectedPurpose = purposes.find(p => p.id === Number(e.target.value));
+                          const landtype = selectedPurpose?.landtype;
+                          const duty = selectedPurpose?.duty;
 
-      {/* Remarks - Always visible, required for all */}
-      <Grid item xs={12}>
-        <TextField 
-          fullWidth 
-          label="Remarks *" 
-          multiline 
-          rows={(isOtherScheme || entryType !== 'WORKING') ? 6 : 3} 
-          value={manualFormData.remark}
-          onChange={(e) => setManualFormData({ ...manualFormData, remark: validateRemarks(e.target.value) })} 
-          required
-        />
-      </Grid>
-    </Grid>
-    
-    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 3 }}>
-      <Button variant="outlined" onClick={() => setManualEntryOpen(false)}>Cancel</Button>
-      <Button 
-        variant="contained" 
-        onClick={handleSaveManualEntry} 
-        disabled={submitting} 
-        startIcon={<SaveIcon />}
-        sx={{ backgroundColor: '#27ae60', '&:hover': { backgroundColor: '#229954' } }}
-      >
-        {submitting ? "Saving..." : "Save Entry"}
-      </Button>
-    </Box>
-  </Card>
-</Modal>
+                          // Check if it's office duty/conference (duty = false)
+                          const isOfficeDutyType = duty === false;
+
+                          setIsOfficeDuty(isOfficeDutyType);
+                          setPurposeLandType(landtype || "");
+
+                          setManualFormData({
+                            ...manualFormData,
+                            purposeId: e.target.value,
+                            cropId: "",
+                            clusterId: "",
+                            zoneId: isOfficeDutyType ? "" : manualFormData.zoneId,
+                            distance: isOfficeDutyType ? "" : manualFormData.distance,
+                            hours: isOfficeDutyType ? "" : manualFormData.hours,
+                            geoLocation: isOfficeDutyType ? "" : manualFormData.geoLocation
+                          });
+
+                          // Reset clusters when purpose changes
+                          setManualFormData(prev => ({ ...prev, clusterId: "" }));
+
+                          // If office duty, clear clusters and crops
+                          if (isOfficeDutyType) {
+                            setFilteredClusters([]);
+                            setCrops([]);
+                          } else {
+                            // Filter clusters based on land type
+                            if (clusters.length > 0) {
+                              filterClustersByLandType(clusters, landtype);
+                            }
+                          }
+                        }}
+                        label="Purpose"
+                        disabled={!selectedScheme || isOtherScheme}
+                      >
+                        {purposes.length === 0 ? (
+                          <MenuItem disabled>Select scheme first</MenuItem>
+                        ) : (
+                          purposes.map((p) => (
+                            <MenuItem key={p.id} value={p.id}>
+                              {p.purposeName}
+                              {p.landtype ? ` (${p.landtype === 1 ? 'WET' : p.landtype === 2 ? 'DRY' : 'EXTRA'})` : ''}
+                              {p.duty === false ? ' (Office/Conference)' : ''}
+                            </MenuItem>
+                          ))
+                        )}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
+
+                {/* Taluk - Only for District Level roles (when duty is true) */}
+                {!isOtherScheme && !isOfficeDuty && isDistrictLevelRole && (
+                  <Grid item xs={12}>
+                    <FormControl fullWidth required>
+                      <InputLabel>Taluk</InputLabel>
+                      <Select
+                        value={selectedTalukId || ''}
+                        label="Taluk"
+                        onChange={(e) => {
+                          const talukId = e.target.value;
+                          setSelectedTalukId(talukId);
+                          setManualFormData({ ...manualFormData, zoneId: "", clusterId: "" });
+                          setClusters([]);
+                          setFilteredClusters([]);
+                          fetchZonesByTaluk(talukId);
+                        }}
+                      >
+                        {taluks.map((taluk) => (
+                          <MenuItem key={taluk.talukId} value={taluk.talukId}>
+                            {taluk.talukName}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
+
+                {/* Zone - Only shown when duty is true */}
+                {!isOtherScheme && !isOfficeDuty && (!isDistrictLevelRole || selectedTalukId) && (
+                  <Grid item xs={12}>
+                    <FormControl fullWidth required>
+                      <InputLabel>Zone</InputLabel>
+                      <Select
+                        value={manualFormData.zoneId}
+                        onChange={(e) => {
+                          setManualFormData({ ...manualFormData, zoneId: e.target.value, clusterId: "" });
+                          setClusters([]);
+                          setFilteredClusters([]);
+                        }}
+                        label="Zone"
+                        disabled={isOtherScheme || zonesLoading || isZoneDropdownLoading}
+                      >
+                        {zones.length === 0 ? (
+                          <MenuItem disabled>Loading zones...</MenuItem>
+                        ) : (
+                          zones.map((zone) => (
+                            <MenuItem key={zone.id} value={zone.zoneId}>
+                              {zone.zoneName || zone.name || `Zone ${zone.zoneId}`}
+                            </MenuItem>
+                          ))
+                        )}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
+
+                {/* Cluster - Only shown when duty is true */}
+                {!isOtherScheme && !isOfficeDuty && (
+                  <Grid item xs={12}>
+                    <FormControl fullWidth required>
+                      <InputLabel>Cluster Number</InputLabel>
+                      <Select
+                        value={manualFormData.clusterId}
+                        onChange={(e) => {
+                          const selectedCluster = filteredClusters.find(c => c.clusterId === e.target.value);
+                          setManualFormData({
+                            ...manualFormData,
+                            clusterId: e.target.value
+                          });
+                        }}
+                        label="Cluster Number"
+                        disabled={!manualFormData.zoneId || filteredClusters.length === 0 || !manualFormData.purposeId || isOtherScheme}
+                      >
+                        {!manualFormData.zoneId ? (
+                          <MenuItem disabled>Please select a zone first</MenuItem>
+                        ) : !manualFormData.purposeId ? (
+                          <MenuItem disabled>Please select a purpose first</MenuItem>
+                        ) : filteredClusters.length === 0 ? (
+                          <MenuItem disabled>No clusters available for this purpose</MenuItem>
+                        ) : (
+                          filteredClusters.map((cluster) => (
+                            <MenuItem key={cluster.clusterId} value={cluster.clusterId}>
+                              Cluster {cluster.clusterNumber} - {cluster.landType}
+                            </MenuItem>
+                          ))
+                        )}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
+
+                {/* Crop - Only when purpose land type is 3 (EXTRA) and duty is true */}
+                {!isOtherScheme && !isOfficeDuty && purposeLandType === 3 && (
+                  <Grid item xs={12}>
+                    <FormControl fullWidth required>
+                      <InputLabel>Crop</InputLabel>
+                      <Select
+                        value={manualFormData.cropId}
+                        onChange={(e) => {
+                          setManualFormData({
+                            ...manualFormData,
+                            cropId: e.target.value
+                          });
+                        }}
+                        label="Crop"
+                        disabled={cropsLoading}
+                      >
+                        {cropsLoading ? (
+                          <MenuItem disabled>Loading crops...</MenuItem>
+                        ) : crops.length === 0 ? (
+                          <MenuItem disabled>No crops available</MenuItem>
+                        ) : (
+                          crops.map((crop) => (
+                            <MenuItem key={crop.cceId || crop.cropId} value={crop.cceId}>
+                              {crop.cropNameEn && crop.cropNameMal
+                                ? `${crop.cropNameEn} (${crop.cropNameMal})`
+                                : crop.cropNameEn || crop.cropNameMal || crop.cropName || `Crop ${crop.cceId}`}
+                            </MenuItem>
+                          ))
+                        )}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
+
+                {/* Distance - Only shown when duty is true */}
+                {!isOtherScheme && !isOfficeDuty && (
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Distance (km) *"
+                      type="text"
+                      value={manualFormData.distance}
+                      onChange={(e) => {
+                        const v = validateDistance(e.target.value, manualFormData.distance);
+                        if (v !== undefined) setManualFormData({ ...manualFormData, distance: v });
+                      }}
+                    />
+                  </Grid>
+                )}
+
+                {/* Hours - Only shown when duty is true */}
+                {!isOtherScheme && !isOfficeDuty && (
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Hours (hr) *"
+                      type="text"
+                      value={manualFormData.hours}
+                      onChange={(e) => {
+                        const v = validateHours(e.target.value, manualFormData.hours);
+                        if (v !== undefined) setManualFormData({ ...manualFormData, hours: v });
+                      }}
+                    />
+                  </Grid>
+                )}
+
+                {/* Location - Only shown when duty is true */}
+                {!isOtherScheme && !isOfficeDuty && (
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Location"
+                      placeholder="e.g., 10.8505,76.2711"
+                      value={manualFormData.geoLocation}
+                      onChange={(e) => setManualFormData({ ...manualFormData, geoLocation: validateGeoLocation(e.target.value) })}
+                    />
+                  </Grid>
+                )}
+              </>
+            )}
+
+            {/* Remarks - Always visible, required for all */}
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Remarks *"
+                multiline
+                rows={(isOtherScheme || entryType !== 'WORKING') ? 6 : 3}
+                value={manualFormData.remark}
+                onChange={(e) => setManualFormData({ ...manualFormData, remark: validateRemarks(e.target.value) })}
+                required
+              />
+            </Grid>
+          </Grid>
+
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 3 }}>
+            <Button variant="outlined" onClick={() => setManualEntryOpen(false)}>Cancel</Button>
+            <Button
+              variant="contained"
+              onClick={handleSaveManualEntry}
+              disabled={submitting}
+              startIcon={<SaveIcon />}
+              sx={{ backgroundColor: '#27ae60', '&:hover': { backgroundColor: '#229954' } }}
+            >
+              {submitting ? "Saving..." : "Save Entry"}
+            </Button>
+          </Box>
+        </Card>
+      </Modal>
 
       <Snackbar
         open={snackbar.open} autoHideDuration={6000} onClose={closeSnackbar}
@@ -2267,7 +2286,7 @@ const isMonthSubmitted = () => {
           <List>
             {availableZones.map((zone) => (
               <React.Fragment key={zone.zoneId}>
-                <ListItem button onClick={() => {}} sx={{ borderRadius: 1, mb: 1, '&:hover': { backgroundColor: theme.palette.action.hover } }}>
+                <ListItem button onClick={() => { }} sx={{ borderRadius: 1, mb: 1, '&:hover': { backgroundColor: theme.palette.action.hover } }}>
                   <ListItemText primary={zone.zoneName || `Zone ${zone.zoneId}`} secondary={`Zone ID: ${zone.zoneId}`} />
                 </ListItem>
                 <Divider />
@@ -2280,113 +2299,112 @@ const isMonthSubmitted = () => {
         </Card>
       </Modal>
       {/* ==================== SUBMIT CONFIRMATION DIALOG ==================== */}
-<Dialog
-  open={confirmDialogOpen}
-  onClose={() => setConfirmDialogOpen(false)}
-  PaperProps={{ sx: { borderRadius: 2, minWidth: 400 } }}
->
-  <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1 }}>
-    <EventIcon sx={{ color: '#27ae60', fontSize: 28 }} />
-    <Typography variant="h4">Confirm Full Month Submission</Typography>
-  </DialogTitle>
-  <Divider />
-  <DialogContent sx={{ pt: 2.5 }}>
-    <DialogContentText sx={{ color: 'text.primary', mb: 2 }}>
-      Are you sure you want to submit the <strong>entire month</strong> of{' '}
-      <strong>{monthNames[selectedMonth - 1]} {selectedYear}</strong>?
-    </DialogContentText>
-    <Box sx={{
-      backgroundColor: theme.palette.mode === 'dark' ? '#1e2e1e' : '#f0faf0',
-      border: `1px solid ${theme.palette.mode === 'dark' ? '#2e7d32' : '#c8e6c9'}`,
-      borderRadius: 1.5, px: 2, py: 1.5, mb: 2
-    }}>
-      <Typography variant="body2" color="text.secondary">
-        This will submit all entries for the full month (both First Half and Second Half)
-      </Typography>
-    </Box>
-    <Alert severity="warning" sx={{ py: 0.5 }}>
-      This action cannot be undone.
-    </Alert>
-  </DialogContent>
-  <DialogActions sx={{ px: 3, pb: 2.5, pt: 1, gap: 1 }}>
-    <Button variant="outlined" onClick={() => setConfirmDialogOpen(false)} sx={{ minWidth: 90 }}>
-      Cancel
-    </Button>
-    <Button
-      variant="contained"
-      onClick={handleConfirmSubmit}
-      disabled={submittingMonth}
-      startIcon={submittingMonth ? <CircularProgress size={16} color="inherit" /> : null}
-      sx={{ 
-        minWidth: 110, 
-        backgroundColor: '#27ae60', 
-        '&:hover': { backgroundColor: '#229954' } 
-      }}
-    >
-      {submittingMonth ? "Submitting..." : "Submit Full Month"}
-    </Button>
-  </DialogActions>
-</Dialog>
+      <Dialog
+        open={confirmDialogOpen}
+        onClose={() => setConfirmDialogOpen(false)}
+        PaperProps={{ sx: { borderRadius: 2, minWidth: 400 } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1 }}>
+          <EventIcon sx={{ color: '#27ae60', fontSize: 28 }} />
+          <Typography variant="h4">Confirm Full Month Submission</Typography>
+        </DialogTitle>
+        <Divider />
+        <DialogContent sx={{ pt: 2.5 }}>
+          <DialogContentText sx={{ color: 'text.primary', mb: 2 }}>
+            Are you sure you want to submit the <strong>entire month</strong> of{' '}
+            <strong>{monthNames[selectedMonth - 1]} {selectedYear}</strong>?
+          </DialogContentText>
+          <Box sx={{
+            backgroundColor: theme.palette.mode === 'dark' ? '#1e2e1e' : '#f0faf0',
+            border: `1px solid ${theme.palette.mode === 'dark' ? '#2e7d32' : '#c8e6c9'}`,
+            borderRadius: 1.5, px: 2, py: 1.5, mb: 2
+          }}>
+            <Typography variant="body2" color="text.secondary">
+              This will submit all entries for the full month (both First Half and Second Half)
+            </Typography>
+          </Box>
+          <Alert severity="warning" sx={{ py: 0.5 }}>
+            This action cannot be undone.
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, pt: 1, gap: 1 }}>
+          <Button variant="outlined" onClick={() => setConfirmDialogOpen(false)} sx={{ minWidth: 90 }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleConfirmSubmit}
+            disabled={submittingMonth}
+            startIcon={submittingMonth ? <CircularProgress size={16} color="inherit" /> : null}
+            sx={{
+              minWidth: 110,
+              backgroundColor: '#27ae60',
+              '&:hover': { backgroundColor: '#229954' }
+            }}
+          >
+            {submittingMonth ? "Submitting..." : "Submit Full Month"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-{/* ========== RESULT DIALOG (Success / Error / Warning) ========== */}
-<Dialog
-  open={resultDialog.open}
-  onClose={() => setResultDialog(prev => ({ ...prev, open: false }))}
-  PaperProps={{ sx: { borderRadius: 2, minWidth: 380 } }}
->
-  <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1 }}>
-    {resultDialog.type === 'success' && <CheckCircleOutlineIcon sx={{ color: '#27ae60', fontSize: 28 }} />}
-    {resultDialog.type === 'error'   && <ErrorOutlineIcon sx={{ color: '#d32f2f', fontSize: 28 }} />}
-    {resultDialog.type === 'warning' && <WarningAmberIcon sx={{ color: '#f57c00', fontSize: 28 }} />}
-    <Typography variant="h4" sx={{
-      color: resultDialog.type === 'success' ? '#27ae60'
-           : resultDialog.type === 'error'   ? '#d32f2f'
-           : '#f57c00'
-    }}>
-      {resultDialog.title}
-    </Typography>
-  </DialogTitle>
-  <Divider />
-  <DialogContent sx={{ pt: 2.5 }}>
-    <Box sx={{
-      display: 'flex', alignItems: 'flex-start', gap: 1.5,
-      backgroundColor:
-        resultDialog.type === 'success' ? (theme.palette.mode === 'dark' ? '#1e2e1e' : '#f0faf0') :
-        resultDialog.type === 'error'   ? (theme.palette.mode === 'dark' ? '#2e1e1e' : '#fff0f0') :
-                                          (theme.palette.mode === 'dark' ? '#2e2a1e' : '#fff8f0'),
-      border: `1px solid ${
-        resultDialog.type === 'success' ? '#c8e6c9' :
-        resultDialog.type === 'error'   ? '#ffcdd2' : '#ffe0b2'
-      }`,
-      borderRadius: 1.5, px: 2, py: 2
-    }}>
-      <DialogContentText sx={{
-        color: theme.palette.text.primary, fontWeight: 500, whiteSpace: 'pre-wrap'
-      }}>
-        {resultDialog.message}
-      </DialogContentText>
-    </Box>
-  </DialogContent>
-  <DialogActions sx={{ px: 3, pb: 2.5, pt: 1 }}>
-    <Button
-      variant="contained"
-      onClick={() => setResultDialog(prev => ({ ...prev, open: false }))}
-      sx={{
-        minWidth: 90,
-        backgroundColor:
-          resultDialog.type === 'success' ? '#27ae60' :
-          resultDialog.type === 'error'   ? '#d32f2f' : '#f57c00',
-        '&:hover': {
-          backgroundColor:
-            resultDialog.type === 'success' ? '#229954' :
-            resultDialog.type === 'error'   ? '#b71c1c' : '#e65100'
-        }
-      }}
-    >
-      OK
-    </Button>
-  </DialogActions>
-</Dialog>
+      {/* ========== RESULT DIALOG (Success / Error / Warning) ========== */}
+      <Dialog
+        open={resultDialog.open}
+        onClose={() => setResultDialog(prev => ({ ...prev, open: false }))}
+        PaperProps={{ sx: { borderRadius: 2, minWidth: 380 } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1 }}>
+          {resultDialog.type === 'success' && <CheckCircleOutlineIcon sx={{ color: '#27ae60', fontSize: 28 }} />}
+          {resultDialog.type === 'error' && <ErrorOutlineIcon sx={{ color: '#d32f2f', fontSize: 28 }} />}
+          {resultDialog.type === 'warning' && <WarningAmberIcon sx={{ color: '#f57c00', fontSize: 28 }} />}
+          <Typography variant="h4" sx={{
+            color: resultDialog.type === 'success' ? '#27ae60'
+              : resultDialog.type === 'error' ? '#d32f2f'
+                : '#f57c00'
+          }}>
+            {resultDialog.title}
+          </Typography>
+        </DialogTitle>
+        <Divider />
+        <DialogContent sx={{ pt: 2.5 }}>
+          <Box sx={{
+            display: 'flex', alignItems: 'flex-start', gap: 1.5,
+            backgroundColor:
+              resultDialog.type === 'success' ? (theme.palette.mode === 'dark' ? '#1e2e1e' : '#f0faf0') :
+                resultDialog.type === 'error' ? (theme.palette.mode === 'dark' ? '#2e1e1e' : '#fff0f0') :
+                  (theme.palette.mode === 'dark' ? '#2e2a1e' : '#fff8f0'),
+            border: `1px solid ${resultDialog.type === 'success' ? '#c8e6c9' :
+              resultDialog.type === 'error' ? '#ffcdd2' : '#ffe0b2'
+              }`,
+            borderRadius: 1.5, px: 2, py: 2
+          }}>
+            <DialogContentText sx={{
+              color: theme.palette.text.primary, fontWeight: 500, whiteSpace: 'pre-wrap'
+            }}>
+              {resultDialog.message}
+            </DialogContentText>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, pt: 1 }}>
+          <Button
+            variant="contained"
+            onClick={() => setResultDialog(prev => ({ ...prev, open: false }))}
+            sx={{
+              minWidth: 90,
+              backgroundColor:
+                resultDialog.type === 'success' ? '#27ae60' :
+                  resultDialog.type === 'error' ? '#d32f2f' : '#f57c00',
+              '&:hover': {
+                backgroundColor:
+                  resultDialog.type === 'success' ? '#229954' :
+                    resultDialog.type === 'error' ? '#b71c1c' : '#e65100'
+              }
+            }}
+          >
+            OK
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Grid>
   );
 };

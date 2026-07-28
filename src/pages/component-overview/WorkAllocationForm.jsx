@@ -65,7 +65,6 @@ import api from 'api/api';
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="down" ref={ref} {...props} />;
 });
-// Check if user is Field Inspector
 
 // Custom styles for text fields and tabs
 const FormInput = styled(TextField)(({ theme, disabled }) => ({
@@ -153,19 +152,18 @@ const StatusCard = styled(Paper)(({ theme, status }) => ({
   padding: theme.spacing(2),
   marginBottom: theme.spacing(3),
   borderRadius: theme.shape.borderRadius,
-  backgroundColor: 
+  backgroundColor:
     status === 'APPROVED' ? theme.palette.success.lighter :
-    status === 'SUBMITTED' || status === 'PENDING' ? theme.palette.warning.lighter :
-    status === 'RETURNED' ? theme.palette.error.lighter :
-    status === 'UNDER REVIEW' ? theme.palette.info.lighter :
-    theme.palette.info.lighter,
-  borderLeft: `4px solid ${
-    status === 'APPROVED' ? theme.palette.success.main :
+      status === 'SUBMITTED' || status === 'PENDING' ? theme.palette.warning.lighter :
+        status === 'RETURNED' ? theme.palette.error.lighter :
+          status === 'UNDER REVIEW' ? theme.palette.info.lighter :
+            theme.palette.info.lighter,
+  borderLeft: `4px solid ${status === 'APPROVED' ? theme.palette.success.main :
     status === 'SUBMITTED' || status === 'PENDING' ? theme.palette.warning.main :
-    status === 'RETURNED' ? theme.palette.error.main :
-    status === 'UNDER REVIEW' ? theme.palette.info.main :
-    theme.palette.info.main
-  }`,
+      status === 'RETURNED' ? theme.palette.error.main :
+        status === 'UNDER REVIEW' ? theme.palette.info.main :
+          theme.palette.info.main
+    }`,
 }));
 
 const ActionButton = styled(Button)(({ theme, variant, color }) => ({
@@ -221,7 +219,7 @@ function WorkAllocationForm() {
   const [formStatus, setFormStatus] = useState('NEW');
   const [verifyStatus, setverifyStatus] = useState('');
   const [verifyDate, setverifyDate] = useState('');
-    const [verifyInspectorRemark, setverifyInspectorRemarks] = useState('');
+  const [verifyInspectorRemark, setverifyInspectorRemarks] = useState('');
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -234,26 +232,31 @@ function WorkAllocationForm() {
   const [remarksDialogOpen, setRemarksDialogOpen] = useState(false);
 
   // Verification States
-const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
-const [verifyStatusValue, setVerifyStatusValue] = useState('');
-const [verifyRemarks, setVerifyRemarks] = useState('');
-// const [isFieldInspector, setIsFieldInspector] = useState(false);
+  const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
+  const [verifyStatusValue, setVerifyStatusValue] = useState('');
+  const [verifyRemarks, setVerifyRemarks] = useState('');
 
-// Revoke States
-const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
-const [revokeRemarks, setRevokeRemarks] = useState('');
+  // Revoke States
+  const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
+  const [revokeRemarks, setRevokeRemarks] = useState('');
 
   const BASE_URL = mainapi.BASE_URL;
 
   // Determine if the current role context is an administrator
-// Determine if the current role context is an administrator
-const isAdmin = useMemo(() => {
-  return ['Super Admin', 'IT Admin', 'District Level Approver', 'Taluk Level Approver'].includes(role);
-}, [role]);
-// Check if user is Field Inspector
-const isFieldInspector = useMemo(() => {
-  return role === 'Field Inspector';
-}, [role]);
+  const isAdmin = useMemo(() => {
+    return ['Super Admin', 'IT Admin', 'District Level Approver', 'Taluk Level Approver'].includes(role);
+  }, [role]);
+
+  // Check if user is Field Inspector - VERIFIER ONLY
+  const isFieldInspector = useMemo(() => {
+    return role === 'Field Inspector';
+  }, [role]);
+
+  // Check if user is Field Data Collector - CAN EDIT AND SUBMIT
+  const isFieldDataCollector = useMemo(() => {
+    return role === 'Field Data Collector';
+  }, [role]);
+
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
   };
@@ -316,48 +319,49 @@ const isFieldInspector = useMemo(() => {
   }, [resolvedZoneId]);
 
   // Fetch saved allocations and read their approval status
-// Fetch saved allocations and read their approval status
-// Fetch saved allocations and read their approval status
-const fetchWorkAllocation = React.useCallback(async () => {
-  if (!resolvedZoneId) return;
-  const agriYear = authservice.agriyear();
-  
-  try {
-    const res = await api.get(`${BASE_URL}/btr-service/btr-api/work-allocation-view/${resolvedZoneId}/${agriYear}`);
-    const apiData = res.data;
-    console.log("data ", apiData)
-    if (apiData) {
-      const allocations = apiData.payload || (Array.isArray(apiData) ? apiData : []);
-      setWorkAllocationData(allocations);
+  const fetchWorkAllocation = React.useCallback(async () => {
+    if (!resolvedZoneId) return;
+    const agriYear = authservice.agriyear();
 
-      if (allocations.length > 0) {
-        setApprovalLogId(allocations[0].approveId);
-        const backendStatus = allocations[0].status || (allocations[0].isEdit ? 'DRAFT' : 'SUBMITTED');
-        const verifyStatus = allocations[0].verifiedStatus || '';
-        const verifyDate = allocations[0].verifiedDate || '';
-        const verifyInspectorRemark = allocations[0].verifiedRemarks || '';
-        setFormStatus(backendStatus);
-        setverifyStatus(verifyStatus);
-        setverifyDate(verifyDate);
-        setverifyInspectorRemarks(verifyInspectorRemark);        
-        setAdminRemarks(allocations[0].adminRemarks || '');
-        
-        if (isAdmin) {
-          setIsDisabled(true);
-        } else {
-          // Allow editing if status is RETURNED or DRAFT
-          if (backendStatus === 'RETURNED' || backendStatus === 'DRAFT') {
-            setIsDisabled(false);
-          } else {
+    try {
+      const res = await api.get(`${BASE_URL}/btr-service/btr-api/work-allocation-view/${resolvedZoneId}/${agriYear}`);
+      const apiData = res.data;
+      console.log("data ", apiData)
+      if (apiData) {
+        const allocations = apiData.payload || (Array.isArray(apiData) ? apiData : []);
+        setWorkAllocationData(allocations);
+
+        if (allocations.length > 0) {
+          setApprovalLogId(allocations[0].approveId);
+          const backendStatus = allocations[0].status || (allocations[0].isEdit ? 'DRAFT' : 'SUBMITTED');
+          const verifyStatus = allocations[0].verifiedStatus || '';
+          const verifyDate = allocations[0].verifiedDate || '';
+          const verifyInspectorRemark = allocations[0].verifiedRemarks || '';
+          setFormStatus(backendStatus);
+          setverifyStatus(verifyStatus);
+          setverifyDate(verifyDate);
+          setverifyInspectorRemarks(verifyInspectorRemark);
+          setAdminRemarks(allocations[0].adminRemarks || '');
+
+          // DISABLE EDITING FOR FIELD INSPECTOR - ALWAYS VIEW ONLY
+          if (isFieldInspector) {
             setIsDisabled(true);
+          } else if (isAdmin) {
+            setIsDisabled(true);
+          } else {
+            // Field Data Collector can edit if status is RETURNED or DRAFT
+            if (backendStatus === 'RETURNED' || backendStatus === 'DRAFT') {
+              setIsDisabled(false);
+            } else {
+              setIsDisabled(true);
+            }
           }
         }
       }
+    } catch (err) {
+      console.error('Error fetching work allocation data:', err);
     }
-  } catch (err) {
-    console.error('Error fetching work allocation data:', err);
-  }
-}, [resolvedZoneId, isAdmin, BASE_URL]);
+  }, [resolvedZoneId, isAdmin, isFieldInspector, BASE_URL]);
 
   // Clean, separate trigger hook on mount
   useEffect(() => {
@@ -422,142 +426,140 @@ const fetchWorkAllocation = React.useCallback(async () => {
     return '';
   };
 
-  // Check if user is Field Inspector
-// ===== ADMIN REVOKE ACTION =====
-const handleRevoke = async () => {
-  if (!revokeRemarks.trim()) {
-    showTemporaryMessage('⚠️ Please provide remarks for revoking.', true);
-    return;
-  }
+  // ===== ADMIN REVOKE ACTION =====
+  const handleRevoke = async () => {
+    if (!revokeRemarks.trim()) {
+      showTemporaryMessage('⚠️ Please provide remarks for revoking.', true);
+      return;
+    }
 
-  setIsSubmitting(true);
-  try {
-    const token = localStorage.getItem('token');
-    const user_id = authservice.userid();
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const user_id = authservice.userid();
 
-    const requestBody = {
-      approvalId: approvalLogId,
-      remarks: revokeRemarks,
-      revokedBy: user_id
-    };
+      const requestBody = {
+        approvalId: approvalLogId,
+        remarks: revokeRemarks,
+        revokedBy: user_id
+      };
 
-    const response = await fetch(`${BASE_URL}/btr-service/btr-api/work-allocation-revoke`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(requestBody)
-    });
+      const response = await fetch(`${BASE_URL}/btr-service/btr-api/work-allocation-revoke`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      });
 
-    if (!response.ok) throw new Error('Failed to revoke form.');
+      if (!response.ok) throw new Error('Failed to revoke form.');
 
-    setRevokeRemarks('');
-    setRevokeDialogOpen(false);
-    showTemporaryMessage('✅ Form revoked successfully! User can now edit and resubmit.');
-    
-    // Refresh data
-    await fetchWorkAllocation();
-    // Enable edit mode
-    setIsDisabled(false);
+      setRevokeRemarks('');
+      setRevokeDialogOpen(false);
+      showTemporaryMessage('✅ Form revoked successfully! User can now edit and resubmit.');
 
-  } catch (error) {
-    console.error('❌ Error:', error);
-    showTemporaryMessage('Error revoking form: ' + error.message, true);
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+      // Refresh data
+      await fetchWorkAllocation();
+      // Enable edit mode
+      setIsDisabled(false);
+
+    } catch (error) {
+      console.error('❌ Error:', error);
+      showTemporaryMessage('Error revoking form: ' + error.message, true);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // ===== FIELD INSPECTOR VERIFICATION =====
-const handleVerification = async () => {
-  if (!verifyStatusValue) {
-    showTemporaryMessage('⚠️ Please select a verification status.', true);
-    return;
-  }
+  const handleVerification = async () => {
+    if (!verifyStatusValue) {
+      showTemporaryMessage('⚠️ Please select a verification status.', true);
+      return;
+    }
 
-  setIsSubmitting(true);
-  try {
-    const token = localStorage.getItem('token');
-    const user_id = authservice.userid();
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const user_id = authservice.userid();
 
-    const requestBody = {
-      approvalId: approvalLogId,
-      status: verifyStatusValue,
-      remarks: verifyRemarks || '',
-      verifiedBy: user_id
-    };
+      const requestBody = {
+        approvalId: approvalLogId,
+        status: verifyStatusValue,
+        remarks: verifyRemarks || '',
+        verifiedBy: user_id
+      };
 
-    const response = await fetch(`${BASE_URL}/btr-service/btr-api/verification`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(requestBody)
-    });
+      const response = await fetch(`${BASE_URL}/btr-service/btr-api/verification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      });
 
-    if (!response.ok) throw new Error('Failed to submit verification.');
+      if (!response.ok) throw new Error('Failed to submit verification.');
 
-    // Update local state
-   // Update local state
-setverifyStatus(verifyStatusValue);  // ✅ Changed: lowercase 'v'
-setverifyDate(new Date().toLocaleString());  // ✅ Changed: lowercase 'v'
-    setVerifyStatusValue('');
-    setVerifyRemarks('');
-    setVerifyDialogOpen(false);
-    
-    showTemporaryMessage('✅ Verification submitted successfully!');
-    await fetchWorkAllocation(); // Refresh data
+      // Update local state
+      setverifyStatus(verifyStatusValue);
+      setverifyDate(new Date().toLocaleString());
+      setVerifyStatusValue('');
+      setVerifyRemarks('');
+      setVerifyDialogOpen(false);
 
-  } catch (error) {
-    console.error('❌ Error:', error);
-    showTemporaryMessage('Error submitting verification: ' + error.message, true);
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+      showTemporaryMessage('✅ Verification submitted successfully!');
+      await fetchWorkAllocation(); // Refresh data
 
+    } catch (error) {
+      console.error('❌ Error:', error);
+      showTemporaryMessage('Error submitting verification: ' + error.message, true);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // ============================================================
   // MAIN AUTO-CALCULATION LOGIC
   // ============================================================
-const handleInputChange = (index, field, value) => {
-    if (isDisabled) return;
-    
+  const handleInputChange = (index, field, value) => {
+    // Field Inspector cannot edit
+    if (isDisabled || isFieldInspector) return;
+
     const updatedData = [...data];
     updatedData[index] = { ...updatedData[index], [field]: value };
-    
+
     const row = updatedData[index];
-    
+
     // ===== 1. TAB 1: Calculate Total Area = Wet + Dry =====
-    // Add || 0 to fallback to zero if the field is empty
     const wetArea = parseFloat(row.Wet_area) || 0;
     const dryArea = parseFloat(row.Dry_area) || 0;
     row.Total_area = (wetArea + dryArea).toString();
-    
+
     // ===== 2. TAB 2: Get Excluded Areas =====
     const forestArea = parseFloat(row.forest_a) || 0;
     const plantationArea = parseFloat(row.area_under) || 0;
     const waterBodies = parseFloat(row.kayal_excluded) || 0;
     const otherAreas = parseFloat(row.plantation_under) || 0;
-    
+
     // ===== 3. Calculate Total Excluded =====
     const totalExcluded = forestArea + plantationArea + waterBodies + otherAreas;
-    
+
     // ===== 4. TAB 3: Area Available for Estimation =====
     row.total_area_wet_19 = wetArea.toString();
-    
+
     const estimationDry = Math.max(0, dryArea - totalExcluded);
     row.total_area_dry_21 = estimationDry.toString();
-    
+
     const estimationTotal = wetArea + estimationDry;
     row.total_area_total_20 = estimationTotal.toString();
-    
+
     // ===== 5. TAB 3: Number of Plots Total = Wet + Dry =====
     const plotsWet = parseFloat(row.plots_wet_17) || 0;
     const plotsDry = parseFloat(row.plots_dry_16) || 0;
     row.plots_total = (plotsWet + plotsDry).toString();
-    
+
     setData(updatedData);
     // ===== 6. Validation for numeric fields =====
     const numericFields = [
@@ -615,15 +617,15 @@ const handleInputChange = (index, field, value) => {
       const token = localStorage.getItem('token');
       const user_id = authservice.userid();
 
-     const rowsToSave = data.map((row) => ({
+      const rowsToSave = data.map((row) => ({
         zoneId: resolvedZoneId,
         lbcode: row.lbcode || "LB-2025-001",
-        
+
         // ===== AREA DETAILS (Tab 1) =====
         villageWetArea: parseFloat(row.Wet_area) || 0,
         villageDryArea: parseFloat(row.Dry_area) || 0,
         villageTotalArea: parseFloat(row.Total_area) || 0,
-        
+
         // ===== EXCLUDED AREAS (Tab 2) =====
         forestAreaA: parseFloat(row.forest_a) || 0,
         forestAreaB: 0,
@@ -632,7 +634,7 @@ const handleInputChange = (index, field, value) => {
         forestExcludeUnclutivate: parseFloat(row.plantation_under) || 0,
         forestExcludeNotUnclutivate: 0,
         kayalExcludeArea: parseFloat(row.kayal_excluded) || 0,
-        
+
         // ===== AREA AVAILABLE FOR ESTIMATION (Tab 3) =====
         otherExcludeFWet: 0,
         otherExcludedFDry: 0,
@@ -640,12 +642,12 @@ const handleInputChange = (index, field, value) => {
         totalAreaWet: parseFloat(row.total_area_wet_19) || 0,
         totalAreaDry: parseFloat(row.total_area_dry_21) || 0,
         totalAreaForEstimation: parseFloat(row.total_area_total_20) || 0,
-        
+
         // ===== NUMBER OF PLOTS (Tab 3) =====
         noOfPlotsWet: parseFloat(row.plots_wet_17) || 0,
         noOfPlotsDry: parseFloat(row.plots_dry_16) || 0,
         noOfPlotsTotal: parseFloat(row.plots_total) || 0,
-        
+
         remarks: row.remarks || "",
         userId: user_id,
         agriYear: authservice.agriyear(),
@@ -661,7 +663,7 @@ const handleInputChange = (index, field, value) => {
       });
 
       if (!response.ok) throw new Error('Failed to submit work allocation statement form data.');
-      
+
       await fetchWorkAllocation();
       setInfoDialogOpen(true);
 
@@ -674,23 +676,24 @@ const handleInputChange = (index, field, value) => {
   };
 
   const handleSaveDraft = async () => {
-    if (isDisabled) return;
-    
+    // Field Inspector cannot save draft
+    if (isDisabled || isFieldInspector) return;
+
     setIsSubmitting(true);
 
     try {
       const token = localStorage.getItem('token');
       const user_id = authservice.userid();
 
-    const rowsToSave = data.map((row) => ({
+      const rowsToSave = data.map((row) => ({
         zoneId: resolvedZoneId,
         lbcode: row.lbcode || "LB-2025-001",
-        
+
         // ===== AREA DETAILS (Tab 1) =====
         villageWetArea: parseFloat(row.Wet_area) || 0,
         villageDryArea: parseFloat(row.Dry_area) || 0,
         villageTotalArea: parseFloat(row.Total_area) || 0,
-        
+
         // ===== EXCLUDED AREAS (Tab 2) =====
         forestAreaA: parseFloat(row.forest_a) || 0,
         forestAreaB: 0,
@@ -699,7 +702,7 @@ const handleInputChange = (index, field, value) => {
         forestExcludeUnclutivate: parseFloat(row.plantation_under) || 0,
         forestExcludeNotUnclutivate: 0,
         kayalExcludeArea: parseFloat(row.kayal_excluded) || 0,
-        
+
         // ===== AREA AVAILABLE FOR ESTIMATION (Tab 3) =====
         otherExcludeFWet: 0,
         otherExcludedFDry: 0,
@@ -707,12 +710,12 @@ const handleInputChange = (index, field, value) => {
         totalAreaWet: parseFloat(row.total_area_wet_19) || 0,
         totalAreaDry: parseFloat(row.total_area_dry_21) || 0,
         totalAreaForEstimation: parseFloat(row.total_area_total_20) || 0,
-        
+
         // ===== NUMBER OF PLOTS (Tab 3) =====
         noOfPlotsWet: parseFloat(row.plots_wet_17) || 0,
         noOfPlotsDry: parseFloat(row.plots_dry_16) || 0,
         noOfPlotsTotal: parseFloat(row.plots_total) || 0,
-        
+
         remarks: row.remarks || "",
         userId: user_id,
         agriYear: authservice.agriyear(),
@@ -728,7 +731,7 @@ const handleInputChange = (index, field, value) => {
       });
 
       if (!response.ok) throw new Error('Failed to save');
-      
+
       setFormStatus('DRAFT');
       showTemporaryMessage('✅ Draft saved successfully!');
 
@@ -755,7 +758,7 @@ const handleInputChange = (index, field, value) => {
     setIsSubmitting(true);
     try {
       const token = localStorage.getItem('token');
-      
+
       const requestBody = {
         approvalLogId: approvalLogId,
         approve: isApprove,
@@ -806,98 +809,98 @@ const handleInputChange = (index, field, value) => {
     }
   };
 
- const renderStatusBanner = () => {
-  const adminNotes = workAllocationData[0]?.adminRemarks || workAllocationData[0]?.remarks;
+  const renderStatusBanner = () => {
+    const adminNotes = workAllocationData[0]?.adminRemarks || workAllocationData[0]?.remarks;
 
-  const statusConfig = {
-    'SUBMITTED': {
-      severity: 'warning',
-      title: 'Waiting for Approval',
-      message: 'This form has been submitted and is currently under review by the administrator. Editing is locked until a decision is made.',
-      action: null
-    },
-    'PENDING': {
-      severity: 'warning',
-      title: 'Pending Approval',
-      message: 'Your submission is in the approval queue. You will be notified once reviewed.',
-      action: null
-    },
-    'APPROVED': {
-      severity: 'success',
-      title: 'Form Approved',
-      message: 'This statement has been successfully approved by the admin. The data is now finalized and view-only.',
-      action: null
-    },
-    'UNDER REVIEW': {
-      severity: 'info',
-      title: isAdmin ? '🔍 Under Review - Admin Action Required' : '📋 Under Review',
-      message: isAdmin 
-        ? 'This form is currently under review. You can approve it, return it for corrections, or keep it under review for further examination.'
-        : 'Your form is currently under review by the administrator. The admin may request changes or approve it soon. Please check back later.',
-      action: isAdmin ? null : null
-    },
-    'RETURNED': {
-      severity: 'error',
-      title: 'Form Returned',
-      message: 'The administrator has requested changes. Please review the remarks, make corrections, and resubmit.',
-      action: (
-        <Stack direction="row" spacing={2} alignItems="center">
-          {adminNotes && (
-            <GlowingActionButton 
-              variant="outlined" 
-              onClick={() => setRemarksDialogOpen(true)}
-              startIcon={<VisibilityIcon />}
-            >
-              View Remarks
-            </GlowingActionButton>
-          )}
-        </Stack>
-      )
-    },
-    'DRAFT': {
-      severity: 'info',
-      title: 'Draft Mode',
-      message: 'This is a work in progress. Fill in all required fields to enable submission.',
-      action: null
-    }
-  };
+    const statusConfig = {
+      'SUBMITTED': {
+        severity: 'warning',
+        title: 'Waiting for Approval',
+        message: 'This form has been submitted and is currently under review by the administrator. Editing is locked until a decision is made.',
+        action: null
+      },
+      'PENDING': {
+        severity: 'warning',
+        title: 'Pending Approval',
+        message: 'Your submission is in the approval queue. You will be notified once reviewed.',
+        action: null
+      },
+      'APPROVED': {
+        severity: 'success',
+        title: 'Form Approved',
+        message: 'This statement has been successfully approved by the admin. The data is now finalized and view-only.',
+        action: null
+      },
+      'UNDER REVIEW': {
+        severity: 'info',
+        title: isAdmin ? '🔍 Under Review - Admin Action Required' : '📋 Under Review',
+        message: isAdmin
+          ? 'This form is currently under review. You can approve it, return it for corrections, or keep it under review for further examination.'
+          : 'Your form is currently under review by the administrator. The admin may request changes or approve it soon. Please check back later.',
+        action: isAdmin ? null : null
+      },
+      'RETURNED': {
+        severity: 'error',
+        title: 'Form Returned',
+        message: 'The administrator has requested changes. Please review the remarks, make corrections, and resubmit.',
+        action: (
+          <Stack direction="row" spacing={2} alignItems="center">
+            {adminNotes && (
+              <GlowingActionButton
+                variant="outlined"
+                onClick={() => setRemarksDialogOpen(true)}
+                startIcon={<VisibilityIcon />}
+              >
+                View Remarks
+              </GlowingActionButton>
+            )}
+          </Stack>
+        )
+      },
+      'DRAFT': {
+        severity: 'info',
+        title: 'Draft Mode',
+        message: 'This is a work in progress. Fill in all required fields to enable submission.',
+        action: null
+      }
+    };
 
-  const config = statusConfig[formStatus] || statusConfig['DRAFT'];
+    const config = statusConfig[formStatus] || statusConfig['DRAFT'];
 
-  return (
-    <Zoom in>
-      <StatusCard status={formStatus} elevation={0}>
-        <Grid container alignItems="center" spacing={2}>
-          <Grid item>
-            {getStatusIcon()}
-          </Grid>
-          <Grid item xs>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-              {config.title}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {config.message}
-            </Typography>
-            {/* Show verification status if available */}
-            {approvalLogId && verifyStatus && (
-              <Chip 
-                size="small"
-                label={`Verification: ${verifyStatus}`}
-                color={verifyStatus === 'VERIFIED' ? 'success' : 'warning'}
-                sx={{ mt: 1 }}
-              />
+    return (
+      <Zoom in>
+        <StatusCard status={formStatus} elevation={0}>
+          <Grid container alignItems="center" spacing={2}>
+            <Grid item>
+              {getStatusIcon()}
+            </Grid>
+            <Grid item xs>
+              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                {config.title}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {config.message}
+              </Typography>
+              {/* Show verification status if available */}
+              {approvalLogId && verifyStatus && (
+                <Chip
+                  size="small"
+                  label={`Verification: ${verifyStatus}`}
+                  color={verifyStatus === 'VERIFIED' ? 'success' : 'warning'}
+                  sx={{ mt: 1 }}
+                />
+              )}
+            </Grid>
+            {config.action && (
+              <Grid item>
+                {config.action}
+              </Grid>
             )}
           </Grid>
-          {config.action && (
-            <Grid item>
-              {config.action}
-            </Grid>
-          )}
-        </Grid>
-      </StatusCard>
-    </Zoom>
-  );
-};
+        </StatusCard>
+      </Zoom>
+    );
+  };
 
   // ============================================================
   // TAB 1: AREA AS PER VILLAGE RECORDS
@@ -907,7 +910,6 @@ const handleInputChange = (index, field, value) => {
       <TableHead>
         <TableRow>
           <StyledTableCell rowSpan={2}>Panchayat / Municipality / Corporation Zone</StyledTableCell>
-          {/* <StyledTableCell rowSpan={2}>Name Of Villages</StyledTableCell> */}
           <StyledTableCell align="center" colSpan={3}>Area as per village records (in cents)</StyledTableCell>
         </TableRow>
         <TableRow>
@@ -918,59 +920,56 @@ const handleInputChange = (index, field, value) => {
       </TableHead>
       <TableBody>
         {data.map((row, index) => {
-          const wet = parseFloat(row.Wet_area) || 0 ;
-          const dry = parseFloat(row.Dry_area) || 0 ;
+          const wet = parseFloat(row.Wet_area) || 0;
+          const dry = parseFloat(row.Dry_area) || 0;
           const total = wet + dry;
-          
+
           return (
             <TableRow key={index}>
               <StyledTableCell>
                 <FormInput size="small" value={row.p_name} disabled={true} variant="outlined" />
               </StyledTableCell>
-              {/* <StyledTableCell>
-                <FormInput size="small" value={row.villages ? row.villages.join(', ') : 'N/A'} disabled={true} variant="outlined" />
-              </StyledTableCell> */}
-              
-              {/* Wet Area - User Editable */}
+
+              {/* Wet Area - Only Field Data Collector can edit */}
               <StyledTableCell>
-                <FormInput 
-                  size="small" 
-                  value={row.Wet_area || ''} 
-                  onChange={(e) => handleInputChange(index, 'Wet_area', e.target.value)} 
-                  error={!!validationErrors[`Wet_area_${index}`]} 
-                  helperText={validationErrors[`Wet_area_${index}`]} 
-                  disabled={isDisabled}
-                  variant="outlined" 
+                <FormInput
+                  size="small"
+                  value={row.Wet_area || ''}
+                  onChange={(e) => handleInputChange(index, 'Wet_area', e.target.value)}
+                  error={!!validationErrors[`Wet_area_${index}`]}
+                  helperText={validationErrors[`Wet_area_${index}`]}
+                  disabled={isDisabled || isFieldInspector}
+                  variant="outlined"
                 />
               </StyledTableCell>
-              
-              {/* Dry Area - User Editable */}
+
+              {/* Dry Area - Only Field Data Collector can edit */}
               <StyledTableCell>
-                <FormInput 
-                  size="small" 
-                  value={row.Dry_area || ''} 
-                  onChange={(e) => handleInputChange(index, 'Dry_area', e.target.value)} 
-                  error={!!validationErrors[`Dry_area_${index}`]} 
-                  helperText={validationErrors[`Dry_area_${index}`]} 
-                  disabled={isDisabled}
-                  variant="outlined" 
+                <FormInput
+                  size="small"
+                  value={row.Dry_area || ''}
+                  onChange={(e) => handleInputChange(index, 'Dry_area', e.target.value)}
+                  error={!!validationErrors[`Dry_area_${index}`]}
+                  helperText={validationErrors[`Dry_area_${index}`]}
+                  disabled={isDisabled || isFieldInspector}
+                  variant="outlined"
                 />
               </StyledTableCell>
-              
+
               {/* Total Area - Auto-calculated, Read-Only */}
               <StyledTableCell>
                 <Tooltip title={`${wet} + ${dry} = ${total}`}>
-                  <FormInput 
-                    size="small" 
-                    value={total.toFixed(2)} 
+                  <FormInput
+                    size="small"
+                    value={total.toFixed(2)}
                     disabled={true}
                     variant="outlined"
-                    sx={{ 
-                      '& .MuiInputBase-input': { 
-                        backgroundColor: '#e8f5e9', 
+                    sx={{
+                      '& .MuiInputBase-input': {
+                        backgroundColor: '#e8f5e9',
                         fontWeight: 'bold',
                         color: '#2e7d32'
-                      } 
+                      }
                     }}
                   />
                 </Tooltip>
@@ -990,102 +989,76 @@ const handleInputChange = (index, field, value) => {
       <TableHead>
         <TableRow>
           <StyledTableCell align="center">NAME OF PANCHAYATH</StyledTableCell>
-          {/* <StyledTableCell align="center">NAME OF VILLAGE</StyledTableCell> */}
           <StyledTableCell align="center">FOREST AREAS</StyledTableCell>
           <StyledTableCell align="center">PLANTATION AREA</StyledTableCell>
           <StyledTableCell align="center">AREA OF WATER BODIES</StyledTableCell>
           <StyledTableCell align="center">OTHER AREAS</StyledTableCell>
-          {/* <StyledTableCell align="center">TOTAL EXCLUDED</StyledTableCell> */}
         </TableRow>
       </TableHead>
       <TableBody>
         {data.map((row, index) => {
-          // Replace the top lines inside data.map with:
-const forest = parseFloat(row.forest_a) || 0;
-const plantation = parseFloat(row.area_under) || 0;
-const water = parseFloat(row.kayal_excluded) || 0;
-const other = parseFloat(row.plantation_under) || 0;
-const totalExcluded = forest + plantation + water + other;
-          
+          const forest = parseFloat(row.forest_a) || 0;
+          const plantation = parseFloat(row.area_under) || 0;
+          const water = parseFloat(row.kayal_excluded) || 0;
+          const other = parseFloat(row.plantation_under) || 0;
+
           return (
             <TableRow key={index}>
               <StyledTableCell>
                 <Typography variant="body2" fontWeight={500}>{row.p_name}</Typography>
               </StyledTableCell>
-              {/* <StyledTableCell>
-                <FormInput size="small" value={row.villages ? row.villages.join(', ') : 'N/A'} disabled={true} variant="outlined" />
-              </StyledTableCell> */}
-              
-              {/* Forest Areas - User Editable */}
+
+              {/* Forest Areas - Only Field Data Collector can edit */}
               <StyledTableCell>
-                <FormInput 
-                  size="small" 
-                  value={row.forest_a || ''} 
-                  onChange={(e) => handleInputChange(index, 'forest_a', e.target.value)} 
-                  error={!!validationErrors[`forest_a_${index}`]} 
-                  helperText={validationErrors[`forest_a_${index}`]} 
-                  disabled={isDisabled}
-                  variant="outlined" 
+                <FormInput
+                  size="small"
+                  value={row.forest_a || ''}
+                  onChange={(e) => handleInputChange(index, 'forest_a', e.target.value)}
+                  error={!!validationErrors[`forest_a_${index}`]}
+                  helperText={validationErrors[`forest_a_${index}`]}
+                  disabled={isDisabled || isFieldInspector}
+                  variant="outlined"
                 />
               </StyledTableCell>
-              
-              {/* Plantation Area - User Editable */}
+
+              {/* Plantation Area - Only Field Data Collector can edit */}
               <StyledTableCell>
-                <FormInput 
-                  size="small" 
-                  value={row.area_under || ''} 
-                  onChange={(e) => handleInputChange(index, 'area_under', e.target.value)} 
-                  error={!!validationErrors[`area_under_${index}`]} 
-                  helperText={validationErrors[`area_under_${index}`]} 
-                  disabled={isDisabled}
-                  variant="outlined" 
+                <FormInput
+                  size="small"
+                  value={row.area_under || ''}
+                  onChange={(e) => handleInputChange(index, 'area_under', e.target.value)}
+                  error={!!validationErrors[`area_under_${index}`]}
+                  helperText={validationErrors[`area_under_${index}`]}
+                  disabled={isDisabled || isFieldInspector}
+                  variant="outlined"
                 />
               </StyledTableCell>
-              
-              {/* Water Bodies - User Editable */}
+
+              {/* Water Bodies - Only Field Data Collector can edit */}
               <StyledTableCell>
-                <FormInput 
-                  size="small" 
-                  value={row.kayal_excluded || ''} 
-                  onChange={(e) => handleInputChange(index, 'kayal_excluded', e.target.value)} 
-                  error={!!validationErrors[`kayal_excluded_${index}`]} 
-                  helperText={validationErrors[`kayal_excluded_${index}`]} 
-                  disabled={isDisabled}
-                  variant="outlined" 
+                <FormInput
+                  size="small"
+                  value={row.kayal_excluded || ''}
+                  onChange={(e) => handleInputChange(index, 'kayal_excluded', e.target.value)}
+                  error={!!validationErrors[`kayal_excluded_${index}`]}
+                  helperText={validationErrors[`kayal_excluded_${index}`]}
+                  disabled={isDisabled || isFieldInspector}
+                  variant="outlined"
                 />
               </StyledTableCell>
-              
-              {/* Other Areas - User Editable */}
+
+              {/* Other Areas - Only Field Data Collector can edit */}
               <StyledTableCell>
-                <FormInput 
-                  size="small" 
-                  value={row.plantation_under || ''} 
-                  onChange={(e) => handleInputChange(index, 'plantation_under', e.target.value)} 
-                  error={!!validationErrors[`plantation_under_${index}`]} 
-                  helperText={validationErrors[`plantation_under_${index}`]} 
-                  disabled={isDisabled}
-                  variant="outlined" 
+                <FormInput
+                  size="small"
+                  value={row.plantation_under || ''}
+                  onChange={(e) => handleInputChange(index, 'plantation_under', e.target.value)}
+                  error={!!validationErrors[`plantation_under_${index}`]}
+                  helperText={validationErrors[`plantation_under_${index}`]}
+                  disabled={isDisabled || isFieldInspector}
+                  variant="outlined"
                 />
               </StyledTableCell>
-              
-              {/* Total Excluded - Auto-calculated, Read-Only */}
-              {/* <StyledTableCell>
-                <Tooltip title={`${forest} + ${plantation} + ${water} + ${other} = ${totalExcluded}`}>
-                  <FormInput 
-                    size="small" 
-                    value={totalExcluded.toFixed(2)} 
-                    disabled={true}
-                    variant="outlined"
-                    sx={{ 
-                      '& .MuiInputBase-input': { 
-                        backgroundColor: '#fff3e0', 
-                        fontWeight: 'bold',
-                        color: '#e65100'
-                      } 
-                    }}
-                  />
-                </Tooltip>
-              </StyledTableCell> */}
             </TableRow>
           );
         })}
@@ -1117,146 +1090,145 @@ const totalExcluded = forest + plantation + water + other;
       <TableBody>
         {data.map((row, index) => {
           // Get values for calculations
-          // Replace the top lines inside data.map with:
-const wetArea = parseFloat(row.Wet_area) || 0;
-const dryArea = parseFloat(row.Dry_area) || 0;
-const forest = parseFloat(row.forest_a) || 0;
-const plantation = parseFloat(row.area_under) || 0;
-const water = parseFloat(row.kayal_excluded) || 0;
-const other = parseFloat(row.plantation_under) || 0;
-const totalExcluded = forest + plantation + water + other;
-const estimationDry = Math.max(0, dryArea - totalExcluded);
-const estimationTotal = wetArea + estimationDry;
+          const wetArea = parseFloat(row.Wet_area) || 0;
+          const dryArea = parseFloat(row.Dry_area) || 0;
+          const forest = parseFloat(row.forest_a) || 0;
+          const plantation = parseFloat(row.area_under) || 0;
+          const water = parseFloat(row.kayal_excluded) || 0;
+          const other = parseFloat(row.plantation_under) || 0;
+          const totalExcluded = forest + plantation + water + other;
+          const estimationDry = Math.max(0, dryArea - totalExcluded);
+          const estimationTotal = wetArea + estimationDry;
 
-// Plots calculations
-const plotsWet = parseFloat(row.plots_wet_17) || 0;
-const plotsDry = parseFloat(row.plots_dry_16) || 0;
-const plotsTotal = plotsWet + plotsDry;
-          
+          // Plots calculations
+          const plotsWet = parseFloat(row.plots_wet_17) || 0;
+          const plotsDry = parseFloat(row.plots_dry_16) || 0;
+          const plotsTotal = plotsWet + plotsDry;
+
           return (
             <TableRow key={index}>
               <StyledTableCell>
                 <Typography variant="body2" fontWeight={500}>{row.p_name}</Typography>
               </StyledTableCell>
-              
+
               {/* ===== NUMBER OF PLOTS ===== */}
-              
-              {/* Plots Wet - User Editable */}
+
+              {/* Plots Wet - Only Field Data Collector can edit */}
               <StyledTableCell>
-                <FormInput 
-                  size="small" 
-                  value={row.plots_wet_17 || ''} 
-                  onChange={(e) => handleInputChange(index, 'plots_wet_17', e.target.value)} 
-                  error={!!validationErrors[`plots_wet_17_${index}`]} 
-                  helperText={validationErrors[`plots_wet_17_${index}`]} 
-                  disabled={isDisabled}
-                  variant="outlined" 
+                <FormInput
+                  size="small"
+                  value={row.plots_wet_17 || ''}
+                  onChange={(e) => handleInputChange(index, 'plots_wet_17', e.target.value)}
+                  error={!!validationErrors[`plots_wet_17_${index}`]}
+                  helperText={validationErrors[`plots_wet_17_${index}`]}
+                  disabled={isDisabled || isFieldInspector}
+                  variant="outlined"
                   placeholder="Enter Wet Plots"
                 />
               </StyledTableCell>
-              
-              {/* Plots Dry - User Editable */}
+
+              {/* Plots Dry - Only Field Data Collector can edit */}
               <StyledTableCell>
-                <FormInput 
-                  size="small" 
-                  value={row.plots_dry_16 || ''} 
-                  onChange={(e) => handleInputChange(index, 'plots_dry_16', e.target.value)} 
-                  error={!!validationErrors[`plots_dry_16_${index}`]} 
-                  helperText={validationErrors[`plots_dry_16_${index}`]} 
-                  disabled={isDisabled}
-                  variant="outlined" 
+                <FormInput
+                  size="small"
+                  value={row.plots_dry_16 || ''}
+                  onChange={(e) => handleInputChange(index, 'plots_dry_16', e.target.value)}
+                  error={!!validationErrors[`plots_dry_16_${index}`]}
+                  helperText={validationErrors[`plots_dry_16_${index}`]}
+                  disabled={isDisabled || isFieldInspector}
+                  variant="outlined"
                   placeholder="Enter Dry Plots"
                 />
               </StyledTableCell>
-              
+
               {/* Plots Total - Auto-calculated, Read-Only */}
               <StyledTableCell>
                 <Tooltip title={`${plotsWet} + ${plotsDry} = ${plotsTotal}`}>
-                  <FormInput 
-                    size="small" 
-                    value={plotsTotal} 
+                  <FormInput
+                    size="small"
+                    value={plotsTotal}
                     disabled={true}
                     variant="outlined"
-                    sx={{ 
-                      '& .MuiInputBase-input': { 
-                        backgroundColor: '#f5f5f5', 
+                    sx={{
+                      '& .MuiInputBase-input': {
+                        backgroundColor: '#f5f5f5',
                         fontWeight: 'bold',
                         color: '#1976d2'
-                      } 
+                      }
                     }}
                   />
                 </Tooltip>
               </StyledTableCell>
-              
+
               {/* ===== AREA (in cents) ===== */}
-              
+
               {/* Area Wet - Auto-filled from Tab 1, Read-Only */}
               <StyledTableCell>
                 <Tooltip title={`Village Wet Area: ${wetArea}`}>
-                  <FormInput 
-                    size="small" 
-                    value={wetArea.toFixed(2)} 
+                  <FormInput
+                    size="small"
+                    value={wetArea.toFixed(2)}
                     disabled={true}
                     variant="outlined"
-                    sx={{ 
-                      '& .MuiInputBase-input': { 
-                        backgroundColor: '#e3f2fd', 
+                    sx={{
+                      '& .MuiInputBase-input': {
+                        backgroundColor: '#e3f2fd',
                         fontWeight: 'bold',
                         color: '#0d47a1'
-                      } 
+                      }
                     }}
                   />
                 </Tooltip>
               </StyledTableCell>
-              
+
               {/* Area Dry - Auto-calculated (Dry - Total Excluded), Read-Only */}
               <StyledTableCell>
                 <Tooltip title={`${dryArea} - ${totalExcluded} = ${estimationDry}`}>
-                  <FormInput 
-                    size="small" 
-                    value={estimationDry.toFixed(2)} 
+                  <FormInput
+                    size="small"
+                    value={estimationDry.toFixed(2)}
                     disabled={true}
                     variant="outlined"
-                    sx={{ 
-                      '& .MuiInputBase-input': { 
-                        backgroundColor: '#e3f2fd', 
+                    sx={{
+                      '& .MuiInputBase-input': {
+                        backgroundColor: '#e3f2fd',
                         fontWeight: 'bold',
                         color: '#0d47a1'
-                      } 
+                      }
                     }}
                   />
                 </Tooltip>
               </StyledTableCell>
-              
+
               {/* Area Total - Auto-calculated (Wet + Dry), Read-Only */}
               <StyledTableCell>
                 <Tooltip title={`${wetArea} + ${estimationDry} = ${estimationTotal}`}>
-                  <FormInput 
-                    size="small" 
-                    value={estimationTotal.toFixed(2)} 
+                  <FormInput
+                    size="small"
+                    value={estimationTotal.toFixed(2)}
                     disabled={true}
                     variant="outlined"
-                    sx={{ 
-                      '& .MuiInputBase-input': { 
-                        backgroundColor: '#e3f2fd', 
+                    sx={{
+                      '& .MuiInputBase-input': {
+                        backgroundColor: '#e3f2fd',
                         fontWeight: 'bold',
                         color: '#0d47a1'
-                      } 
+                      }
                     }}
                   />
                 </Tooltip>
               </StyledTableCell>
-              
-              {/* Remarks */}
+
+              {/* Remarks - Only Field Data Collector can edit */}
               <StyledTableCell>
-                <FormInput 
-                  size="small" 
-                  value={row.remarks || ''} 
-                  onChange={(e) => handleInputChange(index, 'remarks', e.target.value)} 
-                  disabled={isDisabled}
-                  variant="outlined" 
-                  multiline 
-                  rows={2} 
+                <FormInput
+                  size="small"
+                  value={row.remarks || ''}
+                  onChange={(e) => handleInputChange(index, 'remarks', e.target.value)}
+                  disabled={isDisabled || isFieldInspector}
+                  variant="outlined"
+                  multiline
+                  rows={2}
                 />
               </StyledTableCell>
             </TableRow>
@@ -1289,138 +1261,145 @@ const plotsTotal = plotsWet + plotsDry;
       <Container maxWidth="xl">
         <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
           <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#00796b' }}>
-            WORK ALLOCATION STATEMENT 
+            WORK ALLOCATION STATEMENT
           </Typography>
-         {!isAdmin && isDisabled && formStatus !== 'RETURNED' && (
-  <Chip 
-    icon={<LockIcon />} 
-    label={formStatus === 'APPROVED' ? 'Approved & Locked' : formStatus === 'UNDER REVIEW' ? 'Under Review' : 'Under Review'} 
-    color={formStatus === 'APPROVED' ? 'success' : formStatus === 'UNDER REVIEW' ? 'info' : 'warning'} 
-    sx={{ fontWeight: 500 }} 
-  />
-)}
-{!isAdmin && formStatus === 'RETURNED' && !isDisabled && (
-  <Chip 
-    icon={<EditIcon />} 
-    label="Returned for Edit" 
-    color="error" 
-    sx={{ fontWeight: 500 }} 
-  />
-)}
+          {isFieldInspector && (
+            <Chip
+              icon={<VisibilityIcon />}
+              label="Verifier Mode - View Only"
+              color="info"
+              sx={{ fontWeight: 500 }}
+            />
+          )}
+          {!isAdmin && !isFieldInspector && isDisabled && formStatus !== 'RETURNED' && (
+            <Chip
+              icon={<LockIcon />}
+              label={formStatus === 'APPROVED' ? 'Approved & Locked' : formStatus === 'UNDER REVIEW' ? 'Under Review' : 'Under Review'}
+              color={formStatus === 'APPROVED' ? 'success' : formStatus === 'UNDER REVIEW' ? 'info' : 'warning'}
+              sx={{ fontWeight: 500 }}
+            />
+          )}
+          {!isAdmin && !isFieldInspector && formStatus === 'RETURNED' && !isDisabled && (
+            <Chip
+              icon={<EditIcon />}
+              label="Returned for Edit"
+              color="error"
+              sx={{ fontWeight: 500 }}
+            />
+          )}
         </Box>
-      
+
         {/* Alerts Center Notification Toast */}
         <Fade in={showSuccessMessage}>
           <Alert severity={successMessage.includes('✅') ? 'success' : 'error'} sx={{ position: 'fixed', top: '10%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 9999, minWidth: 300, boxShadow: 3 }} onClose={() => setShowSuccessMessage(false)}>
             {successMessage}
           </Alert>
         </Fade>
-{/* Verification Status Display - Only when approval exists */}
-{approvalLogId && verifyStatus && (
-  <Box sx={{ mb: 3 }}>
-    <Paper
-      elevation={0}
-      sx={{
-        p: 2,
-        bgcolor: verifyStatus === "VERIFIED" ? "#e8f5e9" : "#fff3e0",
-        border: `1px solid ${
-          verifyStatus === "VERIFIED" ? "#4caf50" : "#ff9800"
-        }`,
-        borderRadius: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        flexWrap: "wrap",
-        gap: 2,
-      }}
-    >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-        {verifyStatus === "VERIFIED" ? (
-          <CheckCircleIcon sx={{ color: "#4caf50" }} />
-        ) : (
-          <PendingIcon sx={{ color: "#ff9800" }} />
-        )}
-
-        <Box>
-          <Typography variant="subtitle2" fontWeight={600}>
-            Field Inspector Verification:
-            <Chip
-              label={verifyStatus}
-              size="small"
-              color={
-                verifyStatus === "VERIFIED" ? "success" : "warning"
-              }
-              sx={{ ml: 1, fontWeight: 600 }}
-            />
-          </Typography>
-
-          {verifyDate && (
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              display="block"
-            >
-              Verified on: {verifyDate}
-            </Typography>
-          )}
-
-          {verifyDate && verifyInspectorRemark && (
-            <Box
+        {/* Verification Status Display - Only when approval exists */}
+        {approvalLogId && verifyStatus && (
+          <Box sx={{ mb: 3 }}>
+            <Paper
+              elevation={0}
               sx={{
-                mt: 1,
-                p: 1,
-                bgcolor: "grey.50",
+                p: 2,
+                bgcolor: verifyStatus === "VERIFIED" ? "#e8f5e9" : "#fff3e0",
+                border: `1px solid ${verifyStatus === "VERIFIED" ? "#4caf50" : "#ff9800"
+                  }`,
                 borderRadius: 1,
-                border: "1px solid",
-                borderColor: "divider",
-                overflow: "auto",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: 2,
               }}
             >
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                fontWeight="medium"
-              >
-                Verification Remark:
-              </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                {verifyStatus === "VERIFIED" ? (
+                  <CheckCircleIcon sx={{ color: "#4caf50" }} />
+                ) : (
+                  <PendingIcon sx={{ color: "#ff9800" }} />
+                )}
 
-              <Typography
-                variant="body2"
-                sx={{ mt: 0.5, whiteSpace: "pre-wrap" }}
-              >
-                {verifyInspectorRemark}
-              </Typography>
-            </Box>
-          )}
-        </Box>
-      </Box>
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={600}>
+                    Field Inspector Verification:
+                    <Chip
+                      label={verifyStatus}
+                      size="small"
+                      color={
+                        verifyStatus === "VERIFIED" ? "success" : "warning"
+                      }
+                      sx={{ ml: 1, fontWeight: 600 }}
+                    />
+                  </Typography>
 
-      {/* Verification Button for Field Inspector */}
-      {isFieldInspector &&
-        formStatus === "SUBMITTED" &&
-        verifyStatus !== "VERIFIED" && (
-          <Button
-            variant="contained"
-            color="warning"
-            size="small"
-            onClick={() => setVerifyDialogOpen(true)}
-            startIcon={<PendingIcon />}
-          >
-            Verify Field Data
-          </Button>
+                  {verifyDate && (
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      display="block"
+                    >
+                      Verified on: {verifyDate}
+                    </Typography>
+                  )}
+
+                  {verifyDate && verifyInspectorRemark && (
+                    <Box
+                      sx={{
+                        mt: 1,
+                        p: 1,
+                        bgcolor: "grey.50",
+                        borderRadius: 1,
+                        border: "1px solid",
+                        borderColor: "divider",
+                        overflow: "auto",
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        fontWeight="medium"
+                      >
+                        Verification Remark:
+                      </Typography>
+
+                      <Typography
+                        variant="body2"
+                        sx={{ mt: 0.5, whiteSpace: "pre-wrap" }}
+                      >
+                        {verifyInspectorRemark}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+
+              {/* Verification Button for Field Inspector */}
+              {isFieldInspector &&
+                formStatus === "SUBMITTED" &&
+                verifyStatus !== "VERIFIED" && (
+                  <Button
+                    variant="contained"
+                    color="warning"
+                    size="small"
+                    onClick={() => setVerifyDialogOpen(true)}
+                    startIcon={<PendingIcon />}
+                  >
+                    Verify Field Data
+                  </Button>
+                )}
+
+              {verifyStatus === "VERIFIED" && (
+                <Chip
+                  icon={<CheckCircleIcon />}
+                  label="Verified"
+                  color="success"
+                  variant="outlined"
+                />
+              )}
+            </Paper>
+          </Box>
         )}
-
-      {verifyStatus === "VERIFIED" && (
-        <Chip
-          icon={<CheckCircleIcon />}
-          label="Verified"
-          color="success"
-          variant="outlined"
-        />
-      )}
-    </Paper>
-  </Box>
-)}
         {/* Dynamic Status Display Banner */}
         {renderStatusBanner()}
 
@@ -1463,13 +1442,13 @@ const plotsTotal = plotsWet + plotsDry;
           <Divider sx={{ my: 3 }} />
 
           {/* DYNAMIC ACTION RENDERING BLOCK */}
-        {isAdmin ? (
-  ['SUBMITTED', 'PENDING', 'UNDER REVIEW', 'APPROVED'].includes(formStatus) && (
-    <Box sx={{ p: 3, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
-      <Typography variant="h5" sx={{ fontWeight: 600, color: '#05307a', mb: 2 }}>
+          {isAdmin ? (
+            ['SUBMITTED', 'PENDING', 'UNDER REVIEW', 'APPROVED'].includes(formStatus) && (
+              <Box sx={{ p: 3, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+                <Typography variant="h5" sx={{ fontWeight: 600, color: '#05307a', mb: 2 }}>
                   Administrative Approval Panel
                 </Typography>
-                
+
                 {formStatus === 'UNDER REVIEW' && (
                   <Alert severity="info" sx={{ mb: 2 }}>
                     <AlertTitle>📌 Currently Under Review</AlertTitle>
@@ -1481,7 +1460,7 @@ const plotsTotal = plotsWet + plotsDry;
                     </ul>
                   </Alert>
                 )}
-                
+
                 <Grid container spacing={3}>
                   <Grid item xs={12} md={7}>
                     <TextField
@@ -1489,84 +1468,94 @@ const plotsTotal = plotsWet + plotsDry;
                       multiline
                       rows={3}
                       onChange={(e) => {
-      if (e.target.value.length <= 350) {
-        setAdminRemarks(e.target.value);
-      }
-    }}
-     inputProps={{ maxLength: 350 }}
+                        if (e.target.value.length <= 350) {
+                          setAdminRemarks(e.target.value);
+                        }
+                      }}
+                      inputProps={{ maxLength: 350 }}
                       label="Approver Decision Notes / Remarks"
-                       helperText={`${adminRemarks.length}/350 characters`}
+                      helperText={`${adminRemarks.length}/350 characters`}
                       value={adminRemarks}
-                      
                       placeholder={formStatus === 'UNDER REVIEW' ? 'Add additional notes or final decision remarks...' : 'Add observations, notes, or required amendments context...'}
                     />
                   </Grid>
-
-                  {/* <Grid item xs={12} md={5}>
-                    <Card variant="outlined" sx={{ p: 2, bgcolor: isAdminEditEnabled ? '#fff8e1' : '#f0fdf4', border: 1, borderColor: isAdminEditEnabled ? '#ffb74d' : '#bbf7d0' }}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={isAdminEditEnabled}
-                            onChange={(e) => setIsAdminEditEnabled(e.target.checked)}
-                            color="warning"
-                          />
-                        }
-                        label={<Typography variant="subtitle2" fontWeight={600}>Set Form Status to "Under Review"</Typography>}
-                      />
-                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                        {isAdminEditEnabled 
-                          ? '⚠️ ON: The statement will pass validation checks but remain editable for modifications.' 
-                          : '✓ OFF: Form metrics will lock down completely into view-only records upon approval.'}
-                      </Typography>
-                    </Card>
-                  </Grid> */}
-                  
                 </Grid>
 
-               <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3 }}>
-        {/* Show Revoke button when form is APPROVED */}
-        {formStatus === 'APPROVED' && (
-          <Button
-            variant="outlined"
-            color="warning"
-            startIcon={<CancelIcon />}
-            onClick={() => setRevokeDialogOpen(true)}
-            disabled={isSubmitting}
-          >
-            Revoke & Return for Edit
-          </Button>
-        )}
-        
-        {/* Show Return button for non-approved submissions */}
-        {formStatus !== 'APPROVED' && (
-          <Button
-            variant="outlined"
-            color="error"
-            startIcon={<CancelIcon />}
-            onClick={() => handleAdminAction(false)}
-            disabled={isSubmitting || !adminRemarks.trim()}
-          >
-            Return for Correction
-          </Button>
-        )}
-        
-        {/* Approve button for SUBMITTED and UNDER REVIEW */}
-        {['SUBMITTED', 'PENDING', 'UNDER REVIEW'].includes(formStatus) && (
-          <Button
-            variant="contained"
-            color={isAdminEditEnabled ? "warning" : "success"}
-            startIcon={<CheckCircleIcon />}
-            onClick={() => handleAdminAction(true)}
-            disabled={isSubmitting}
-          >
-            {isAdminEditEnabled ? 'Save Under Review' : 'Approve Statement'}
-          </Button>
-        )}
-      </Box>
-    </Box>
-  )
-) : (
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3 }}>
+                  {/* Show Revoke button when form is APPROVED */}
+                  {formStatus === 'APPROVED' && (
+                    <Button
+                      variant="outlined"
+                      color="warning"
+                      startIcon={<CancelIcon />}
+                      onClick={() => setRevokeDialogOpen(true)}
+                      disabled={isSubmitting}
+                    >
+                      Revoke & Return for Edit
+                    </Button>
+                  )}
+
+                  {/* Show Return button for non-approved submissions */}
+                  {formStatus !== 'APPROVED' && (
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      startIcon={<CancelIcon />}
+                      onClick={() => handleAdminAction(false)}
+                      disabled={isSubmitting || !adminRemarks.trim()}
+                    >
+                      Return for Correction
+                    </Button>
+                  )}
+
+                  {/* Approve button for SUBMITTED and UNDER REVIEW */}
+                  {['SUBMITTED', 'PENDING', 'UNDER REVIEW'].includes(formStatus) && (
+                    <Button
+                      variant="contained"
+                      color={isAdminEditEnabled ? "warning" : "success"}
+                      startIcon={<CheckCircleIcon />}
+                      onClick={() => handleAdminAction(true)}
+                      disabled={isSubmitting}
+                    >
+                      {isAdminEditEnabled ? 'Save Under Review' : 'Approve Statement'}
+                    </Button>
+                  )}
+                </Box>
+              </Box>
+            )
+          ) : isFieldInspector ? (
+            // FIELD INSPECTOR - Only Verification, No Save/Submit
+            <Box sx={{ p: 2, bgcolor: '#f0f7ff', borderRadius: 2, border: '1px solid #bbdefb' }}>
+              <Grid container alignItems="center" justifyContent="space-between">
+                <Grid item>
+                  <Typography variant="body2" color="text.secondary">
+                    <VisibilityIcon sx={{ fontSize: 18, verticalAlign: 'middle', mr: 1 }} />
+                    You are in <strong>Verifier Mode</strong>. You can only verify the submitted data.
+                  </Typography>
+                </Grid>
+                <Grid item>
+                  {/* {formStatus === "SUBMITTED" && verifyStatus !== "VERIFIED" && (
+                    <Button
+                      variant="contained"
+                      color="warning"
+                      onClick={() => setVerifyDialogOpen(true)}
+                      startIcon={<PendingIcon />}
+                    >
+                      Verify Field Data
+                    </Button>
+                  )} */}
+                  {verifyStatus === "VERIFIED" && (
+                    <Chip
+                      icon={<CheckCircleIcon />}
+                      label="Verified"
+                      color="success"
+                    />
+                  )}
+                </Grid>
+              </Grid>
+            </Box>
+          ) : (
+            // FIELD DATA COLLECTOR - Save and Submit buttons
             <Grid container spacing={2} justifyContent="flex-end">
               <Grid item>
                 <Tooltip title={isDisabled ? 'Form parameters are currently locked' : 'Save entries as draft'}>
@@ -1589,14 +1578,14 @@ const plotsTotal = plotsWet + plotsDry;
             </Grid>
           )}
 
-          {/* Form Completion Indicator */}
-          {!isDisabled && !isAdmin && formStatus !== 'APPROVED' && (
+          {/* Form Completion Indicator - Only for Field Data Collector */}
+          {!isDisabled && !isAdmin && !isFieldInspector && formStatus !== 'APPROVED' && (
             <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-              <Chip 
-                label={canSubmit ? "✓ Data complete - Ready to send" : "⚠️ Incomplete fields remaining"} 
-                color={canSubmit ? "success" : "warning"} 
-                size="small" 
-                variant="outlined" 
+              <Chip
+                label={canSubmit ? "✓ Data complete - Ready to send" : "⚠️ Incomplete fields remaining"}
+                color={canSubmit ? "success" : "warning"}
+                size="small"
+                variant="outlined"
               />
             </Box>
           )}
@@ -1628,89 +1617,88 @@ const plotsTotal = plotsWet + plotsDry;
           </Button>
         </DialogActions>
       </StyledDialog>
-{/* Verification Dialog for Field Inspector */}
-<StyledDialog 
-  open={verifyDialogOpen} 
-  onClose={() => setVerifyDialogOpen(false)} 
-  TransitionComponent={Transition}
->
-  <DialogTitle sx={{ 
-    display: 'flex', 
-    alignItems: 'center', 
-    justifyContent: 'space-between',
-    bgcolor: 'warning.lighter',
-    borderBottom: '1px solid',
-    borderColor: 'divider'
-  }}>
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <PendingIcon color="warning" />
-      <Typography variant="h6" fontWeight={600}>Field Verification</Typography>
-    </Box>
-    <IconButton onClick={() => setVerifyDialogOpen(false)} size="small">
-      <CloseIcon />
-    </IconButton>
-  </DialogTitle>
-  <DialogContent sx={{ mt: 2 }}>
-    <Alert severity="info" sx={{ mb: 2 }}>
-      <AlertTitle>📋 Field Verification Required</AlertTitle>
-      Please verify that the field data has been collected and validated correctly.
-    </Alert>
-    
-    <Grid container spacing={2} sx={{ mt: 1 }}>
-      <Grid item xs={12}>
-        <FormControl fullWidth>
-          <InputLabel>Verification Status</InputLabel>
-          <Select
-            value={verifyStatusValue}
-            onChange={(e) => setVerifyStatusValue(e.target.value)}
-            label="Verification Status"
+      {/* Verification Dialog for Field Inspector */}
+      <StyledDialog
+        open={verifyDialogOpen}
+        onClose={() => setVerifyDialogOpen(false)}
+        TransitionComponent={Transition}
+      >
+        <DialogTitle sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          bgcolor: 'warning.lighter',
+          borderBottom: '1px solid',
+          borderColor: 'divider'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <PendingIcon color="warning" />
+            <Typography variant="h6" fontWeight={600}>Field Verification</Typography>
+          </Box>
+          <IconButton onClick={() => setVerifyDialogOpen(false)} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <AlertTitle>📋 Field Verification Required</AlertTitle>
+            Please verify that the field data has been collected and validated correctly.
+          </Alert>
+
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Verification Status</InputLabel>
+                <Select
+                  value={verifyStatusValue}
+                  onChange={(e) => setVerifyStatusValue(e.target.value)}
+                  label="Verification Status"
+                >
+                  <MenuItem value="VERIFIED">✅ Verified</MenuItem>
+                  <MenuItem value="REJECTED">❌ Rejected</MenuItem>
+                  <MenuItem value="PENDING">⏳ Pending</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Remarks / Comments"
+                value={verifyRemarks}
+                onChange={(e) => setVerifyRemarks(e.target.value.slice(0, 350))}
+                inputProps={{ maxLength: 350 }}
+                helperText={`${verifyRemarks.length}/350 characters`}
+                placeholder="Add any observations or comments about the field verification..."
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+          <Button
+            onClick={() => setVerifyDialogOpen(false)}
+            variant="outlined"
+            color="inherit"
           >
-            <MenuItem value="VERIFIED">✅ Verified</MenuItem>
-            <MenuItem value="REJECTED">❌ Rejected</MenuItem>
-            <MenuItem value="PENDING">⏳ Pending</MenuItem>
-          </Select>
-        </FormControl>
-      </Grid>
-      <Grid item xs={12}>
-        <TextField
-          fullWidth
-          multiline
-          rows={3}
-          label="Remarks / Comments"
-          value={verifyRemarks}
-          
-           onChange={(e) => setVerifyRemarks(e.target.value.slice(0, 350))}
-    inputProps={{ maxLength: 350 }}
-    helperText={`${verifyRemarks.length}/350 characters`}
-          placeholder="Add any observations or comments about the field verification..."
-        />
-      </Grid>
-    </Grid>
-  </DialogContent>
-  <DialogActions sx={{ p: 2, gap: 1, borderTop: '1px solid', borderColor: 'divider' }}>
-    <Button 
-      onClick={() => setVerifyDialogOpen(false)} 
-      variant="outlined" 
-      color="inherit"
-    >
-      Cancel
-    </Button>
-    <Button 
-      onClick={handleVerification} 
-      variant="contained" 
-      color="warning"
-      disabled={isSubmitting || !verifyStatusValue}
-      startIcon={<SendIcon />}
-    >
-      {isSubmitting ? 'Submitting...' : 'Submit Verification'}
-    </Button>
-  </DialogActions>
-</StyledDialog>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleVerification}
+            variant="contained"
+            color="warning"
+            disabled={isSubmitting || !verifyStatusValue}
+            startIcon={<SendIcon />}
+          >
+            {isSubmitting ? 'Submitting...' : 'Submit Verification'}
+          </Button>
+        </DialogActions>
+      </StyledDialog>
       {/* Admin Remarks Dialog */}
       <StyledDialog open={remarksDialogOpen} onClose={() => setRemarksDialogOpen(false)} TransitionComponent={Transition}>
-        <DialogTitle sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+        <DialogTitle sx={{
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'space-between',
           bgcolor: 'error.lighter',
           borderBottom: '1px solid',
@@ -1731,13 +1719,13 @@ const plotsTotal = plotsWet + plotsDry;
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
               The following feedback was provided by the reviewer:
             </Typography>
-            <Paper 
-              elevation={0} 
-              sx={{ 
-                p: 2.5, 
-                mt: 1, 
-                bgcolor: 'grey.50', 
-                border: '1px solid', 
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2.5,
+                mt: 1,
+                bgcolor: 'grey.50',
+                border: '1px solid',
                 borderColor: 'divider',
                 borderRadius: 1,
                 fontStyle: 'italic',
@@ -1751,9 +1739,9 @@ const plotsTotal = plotsWet + plotsDry;
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-          <Button 
-            onClick={() => setRemarksDialogOpen(false)} 
-            variant="contained" 
+          <Button
+            onClick={() => setRemarksDialogOpen(false)}
+            variant="contained"
             color="error"
             fullWidth
             sx={{ textTransform: 'none', fontWeight: 600 }}
@@ -1787,73 +1775,73 @@ const plotsTotal = plotsWet + plotsDry;
       </StyledDialog>
 
       {/* Revoke Dialog for Admin */}
-<StyledDialog 
-  open={revokeDialogOpen} 
-  onClose={() => setRevokeDialogOpen(false)} 
-  TransitionComponent={Transition}
->
-  <DialogTitle sx={{ 
-    display: 'flex', 
-    alignItems: 'center', 
-    justifyContent: 'space-between',
-    bgcolor: 'warning.lighter',
-    borderBottom: '1px solid',
-    borderColor: 'divider'
-  }}>
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <WarningIcon color="warning" />
-      <Typography variant="h6" fontWeight={600}>Revoke & Return for Edit</Typography>
-    </Box>
-    <IconButton onClick={() => setRevokeDialogOpen(false)} size="small">
-      <CloseIcon />
-    </IconButton>
-  </DialogTitle>
-  <DialogContent sx={{ mt: 2 }}>
-    <Alert severity="error" sx={{ mb: 2 }}>
-      <AlertTitle>⚠️ This action will:</AlertTitle>
-      <ul style={{ marginTop: 4, marginBottom: 0 }}>
-        <li>Unlock the form for editing</li>
-        <li>Allow the user to make changes and resubmit</li>
-        <li>Reset verification status to PENDING</li>
-      </ul>
-    </Alert>
-    
-    <Grid container spacing={2} sx={{ mt: 1 }}>
-      <Grid item xs={12}>
-        <TextField
-          fullWidth
-          multiline
-          rows={3}
-          label="Reason for Revoke / Remarks"
-          value={revokeRemarks}
-          onChange={(e) => setRevokeRemarks(e.target.value.slice(0, 350))}
-          placeholder="Please provide a reason for revoking the approved form..."
-          required
-          inputProps={{ maxLength: 350 }}
-          helperText={`${revokeRemarks.length}/350 characters`}
-        />
-      </Grid>
-    </Grid>
-  </DialogContent>
-  <DialogActions sx={{ p: 2, gap: 1, borderTop: '1px solid', borderColor: 'divider' }}>
-    <Button 
-      onClick={() => setRevokeDialogOpen(false)} 
-      variant="outlined" 
-      color="inherit"
-    >
-      Cancel
-    </Button>
-    <Button 
-      onClick={handleRevoke} 
-      variant="contained" 
-      color="warning"
-      disabled={isSubmitting || !revokeRemarks.trim()}
-      startIcon={<CancelIcon />}
-    >
-      {isSubmitting ? 'Revoking...' : 'Revoke & Return for Edit'}
-    </Button>
-  </DialogActions>
-</StyledDialog>
+      <StyledDialog
+        open={revokeDialogOpen}
+        onClose={() => setRevokeDialogOpen(false)}
+        TransitionComponent={Transition}
+      >
+        <DialogTitle sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          bgcolor: 'warning.lighter',
+          borderBottom: '1px solid',
+          borderColor: 'divider'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <WarningIcon color="warning" />
+            <Typography variant="h6" fontWeight={600}>Revoke & Return for Edit</Typography>
+          </Box>
+          <IconButton onClick={() => setRevokeDialogOpen(false)} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <Alert severity="error" sx={{ mb: 2 }}>
+            <AlertTitle>⚠️ This action will:</AlertTitle>
+            <ul style={{ marginTop: 4, marginBottom: 0 }}>
+              <li>Unlock the form for editing</li>
+              <li>Allow the user to make changes and resubmit</li>
+              <li>Reset verification status to PENDING</li>
+            </ul>
+          </Alert>
+
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Reason for Revoke / Remarks"
+                value={revokeRemarks}
+                onChange={(e) => setRevokeRemarks(e.target.value.slice(0, 350))}
+                placeholder="Please provide a reason for revoking the approved form..."
+                required
+                inputProps={{ maxLength: 350 }}
+                helperText={`${revokeRemarks.length}/350 characters`}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+          <Button
+            onClick={() => setRevokeDialogOpen(false)}
+            variant="outlined"
+            color="inherit"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleRevoke}
+            variant="contained"
+            color="warning"
+            disabled={isSubmitting || !revokeRemarks.trim()}
+            startIcon={<CancelIcon />}
+          >
+            {isSubmitting ? 'Revoking...' : 'Revoke & Return for Edit'}
+          </Button>
+        </DialogActions>
+      </StyledDialog>
     </Grid>
   );
 }

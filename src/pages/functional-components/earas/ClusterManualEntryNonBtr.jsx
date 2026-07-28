@@ -1675,12 +1675,30 @@ const ClusterManualEntryNonBtr = () => {
   };
   const checkPlotUsageInCurrentForm = (plotIdentifier, currentRowUniqueId) => {
     const allRows = keyplotsData.flatMap(kp => kp.rows);
-    const duplicateRows = allRows.filter(row => {
 
+    // Filter out the current row and also filter out rows that don't have valid data
+    const duplicateRows = allRows.filter(row => {
+      // Skip the current row
+      if (row.uniqueId === currentRowUniqueId) return false;
+
+      // Skip rows that don't have the required fields for their BTR type
+      let hasValidData = false;
+      if (BtrTypeId == 2) {
+        hasValidData = row.villageId && row.block && row.ward_number && row.houseno;
+      } else if (BtrTypeId == 3) {
+        hasValidData = row.villageId && row.block && row.ownername && row.address && row.area;
+      } else if (BtrTypeId == 4) {
+        hasValidData = row.villageId && row.block && row.tpno;
+      } else if (BtrTypeId == 5) {
+        hasValidData = row.villageId && row.block && row.oldsvno && row.oldsubno;
+      }
+
+      if (!hasValidData) return false;
+
+      // Create plot identifier for this row
       let rowPlotIdentifier = '';
       if (BtrTypeId == 2 && row.ward_number && row.houseno) {
         rowPlotIdentifier = `${row.villageId}-${row.block}-${row.ward_number}-${row.houseno || ''}`;
-
       } else if (BtrTypeId == 3 && row.ownername && row.address && row.area) {
         rowPlotIdentifier = `${row.villageId}-${row.block}-${row.ownername}-${row.address}-${row.area}`;
       } else if (BtrTypeId == 4 && row.tpno) {
@@ -1688,9 +1706,10 @@ const ClusterManualEntryNonBtr = () => {
       } else if (BtrTypeId == 5 && row.oldsvno && row.oldsubno) {
         rowPlotIdentifier = `${row.villageId}-${row.block}-${row.oldsvno}-${row.oldsubno}`;
       } else {
-        // default case
+        // Default case
         rowPlotIdentifier = `${row.villageId}-${row.block}-${row.svNo}-${row.sub || ''}`;
       }
+
       return rowPlotIdentifier === plotIdentifier && row.uniqueId !== currentRowUniqueId;
     });
 
@@ -1717,28 +1736,25 @@ const ClusterManualEntryNonBtr = () => {
     };
   };
   const handlePlotValidation = async (keyplotId, rowUniqueId) => {
-
     const keyplot = keyplotsData.find(k => k.id === keyplotId);
     if (!keyplot) return;
 
     const row = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
 
+    // Check if row has valid data based on BTR type
+    let hasValidData = false;
     if (BtrTypeId == 2) {
-      if (!row || !row.villageId || !row.block || !row.ward_number || !row.houseno) {
-        return;
-      }
+      hasValidData = row.villageId && row.block && row.ward_number && row.houseno;
+      if (!hasValidData) return;
     } else if (BtrTypeId == 3) {
-      if (!row || !row.villageId || !row.block || !row.ownername || !row.address || !row.area) {
-        return;
-      }
+      hasValidData = row.villageId && row.block && row.ownername && row.address && row.area;
+      if (!hasValidData) return;
     } else if (BtrTypeId == 4) {
-      if (!row || !row.villageId || !row.block || !row.tpno) {
-        return;
-      }
+      hasValidData = row.villageId && row.block && row.tpno;
+      if (!hasValidData) return;
     } else if (BtrTypeId == 5) {
-      if (!row || !row.villageId || !row.block || !row.oldsvno || !row.oldsubno) {
-        return;
-      }
+      hasValidData = row.villageId && row.block && row.oldsvno && row.oldsubno;
+      if (!hasValidData) return;
     }
 
     // First check if this plot is already used in the current form
