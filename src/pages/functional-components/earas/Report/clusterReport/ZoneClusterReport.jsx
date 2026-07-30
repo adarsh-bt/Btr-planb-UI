@@ -62,12 +62,13 @@ const BASE_URL = mainapi.BTR_API;
 
 /* ─────────────────────────── helpers ─────────────────────────── */
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
 function getCurrentMonthName() {
-  const names = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
-  return names[new Date().getMonth()];
+  return MONTH_NAMES[new Date().getMonth()];
 }
 
 // Agricultural year months (July to June)
@@ -103,12 +104,56 @@ function getAgriculturalYear() {
   }
 }
 
+// Build agricultural year months with years
+function buildAgriYearMonths(startYear, endYear) {
+  const months = [];
+  // July to December of start year
+  for (let m = 6; m < 12; m++) {
+    months.push({
+      label: `${MONTH_NAMES[m]} ${startYear}`,
+      value: `${startYear}-${String(m + 1).padStart(2, '0')}`
+    });
+  }
+  // January to June of end year
+  for (let m = 0; m < 6; m++) {
+    months.push({
+      label: `${MONTH_NAMES[m]} ${endYear}`,
+      value: `${endYear}-${String(m + 1).padStart(2, '0')}`
+    });
+  }
+  return months;
+}
+
+// Get default month (current month if in agricultural year, else first month)
+function getDefaultMonth(months) {
+  const now = new Date();
+  const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const exists = (months || []).some(m => m.value === current);
+  return exists ? current : (months && months[0]?.value ? months[0].value : '');
+}
+
+// Get month label from value (e.g. "2025-07" -> "July 2025")
+function getMonthLabel(value, agriYearMonths) {
+  if (!value) return '';
+  const found = (agriYearMonths || []).find(m => m.value === value);
+  if (found) return found.label;
+
+  if (/^\d{4}-\d{2}$/.test(value)) {
+    const [yyyy, mm] = value.split('-');
+    const mIdx = parseInt(mm, 10) - 1;
+    if (mIdx >= 0 && mIdx < 12) {
+      return `${MONTH_NAMES[mIdx]} ${yyyy}`;
+    }
+  }
+  return value;
+}
+
 function formatMonthForApi(monthName, agriculturalYear) {
   if (!agriculturalYear) {
     agriculturalYear = getAgriculturalYear();
   }
   if (!monthName) {
-    monthName = getCurrentMonthName();
+    return null;
   }
 
   // Case 1: Already in YYYY-MM format (e.g. "2025-07")
@@ -166,6 +211,7 @@ function ZoneClusterReport() {
 
   const stateData = location.state || {};
   const agriculturalYear = useRef(null);
+  const agriYearMonths = useRef([]);
 
   /* ── resolve taluk ID once and keep in a ref ── */
   const resolvedTalukId = useRef(null);
@@ -186,18 +232,26 @@ function ZoneClusterReport() {
     resolvedTalukId.current = resolveTalukId();
   }
 
-  // Initialize agricultural year
+  // Initialize agricultural year & months
   if (agriculturalYear.current === null) {
-    agriculturalYear.current = getAgriculturalYear();
+    agriculturalYear.current = stateData.agriculturalYear || getAgriculturalYear();
+    if (agriculturalYear.current) {
+      agriYearMonths.current = buildAgriYearMonths(
+        agriculturalYear.current.startYear,
+        agriculturalYear.current.endYear
+      );
+    }
   }
 
   /* ── filter state ── */
   const [seasonTab, setSeasonTab] = useState(stateData.seasonTab || 'ALL');
   const [landType, setLandType] = useState(stateData.landType || null);
   const [filterType, setFilterType] = useState(stateData.filterType || 'single');
-  const [fromMonth, setFromMonth] = useState(stateData.fromMonth || '');
-  const [toMonth, setToMonth] = useState(stateData.toMonth || '');
-  const [singleMonth, setSingleMonth] = useState(stateData.singleMonth || getCurrentMonthName());
+  const [fromMonth, setFromMonth] = useState(stateData.fromMonth || stateData.startMonth || '');
+  const [toMonth, setToMonth] = useState(stateData.toMonth || stateData.endMonth || '');
+  const [singleMonth, setSingleMonth] = useState(
+    stateData.singleMonth || stateData.startMonth || getDefaultMonth(agriYearMonths.current)
+  );
 
   /* ── ui state ── */
   const [apiData, setApiData] = useState(null);
@@ -570,11 +624,11 @@ function ZoneClusterReport() {
     if (newValue === null) return;
     setFilterType(newValue);
     if (newValue === 'single') {
-      setSingleMonth(getCurrentMonthName());
+      setSingleMonth(getDefaultMonth(agriYearMonths.current));
       setFromMonth('');
       setToMonth('');
     } else {
-      setFromMonth('July');
+      setFromMonth(agriYearMonths.current[0]?.value || '');
       setSingleMonth('');
       setToMonth('');
     }
@@ -582,7 +636,7 @@ function ZoneClusterReport() {
   };
 
   const handleClearFilters = () => {
-    setSingleMonth(getCurrentMonthName());
+    setSingleMonth(getDefaultMonth(agriYearMonths.current));
     setFromMonth('');
     setToMonth('');
     setSeasonTab('ALL');
@@ -666,10 +720,10 @@ function ZoneClusterReport() {
               <Typography variant="body2" color="text.secondary">
                 {agriculturalYear.current && `Agricultural Year: ${agriculturalYear.current.display}`}
                 {landType && landType !== 'ALL' && ` • ${landType} Season`}
-                {filterType === 'single' && singleMonth && ` • ${singleMonth}`}
-                {filterType === 'range' && fromMonth && toMonth && ` • ${fromMonth} – ${toMonth}`}
-                {filterType === 'range' && fromMonth && !toMonth && ` • From ${fromMonth}`}
-                {filterType === 'range' && !fromMonth && toMonth && ` • Until ${toMonth}`}
+                {filterType === 'single' && singleMonth && ` • ${getMonthLabel(singleMonth, agriYearMonths.current)}`}
+                {filterType === 'range' && fromMonth && toMonth && ` • ${getMonthLabel(fromMonth, agriYearMonths.current)} – ${getMonthLabel(toMonth, agriYearMonths.current)}`}
+                {filterType === 'range' && fromMonth && !toMonth && ` • From ${getMonthLabel(fromMonth, agriYearMonths.current)}`}
+                {filterType === 'range' && !fromMonth && toMonth && ` • Until ${getMonthLabel(toMonth, agriYearMonths.current)}`}
                 {apiData && ` • Total Clusters: ${apiData.totalCluster || 0}`}
                 {stats.zonesWithoutData > 0 && ` • ${stats.zonesWithoutData} zones with no data`}
               </Typography>
@@ -734,19 +788,27 @@ function ZoneClusterReport() {
 
             {filterType === 'range' ? (
               <>
-                <FormControl size="small" sx={{ minWidth: 130 }}>
+                <FormControl size="small" sx={{ minWidth: 170 }}>
                   <InputLabel>From Month</InputLabel>
                   <Select value={fromMonth} label="From Month" onChange={e => { setFromMonth(e.target.value); setPage(0); }}>
                     <MenuItem value="">None</MenuItem>
-                    {AGRI_YEAR_MONTHS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                    {agriYearMonths.current.map((m) => (
+                      <MenuItem key={m.value} value={m.value}>
+                        {m.label}
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
                 <Typography variant="body2" color="text.secondary">→</Typography>
-                <FormControl size="small" sx={{ minWidth: 130 }}>
+                <FormControl size="small" sx={{ minWidth: 170 }}>
                   <InputLabel>To Month</InputLabel>
                   <Select value={toMonth} label="To Month" onChange={e => { setToMonth(e.target.value); setPage(0); }}>
                     <MenuItem value="">None</MenuItem>
-                    {AGRI_YEAR_MONTHS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                    {agriYearMonths.current.map((m) => (
+                      <MenuItem key={m.value} value={m.value}>
+                        {m.label}
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
               </>
@@ -755,7 +817,11 @@ function ZoneClusterReport() {
                 <InputLabel>Select Month</InputLabel>
                 <Select value={singleMonth} label="Select Month" onChange={e => { setSingleMonth(e.target.value); setPage(0); }}>
                   <MenuItem value="">None</MenuItem>
-                  {AGRI_YEAR_MONTHS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                  {agriYearMonths.current.map((m) => (
+                    <MenuItem key={m.value} value={m.value}>
+                      {m.label}
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
             )}

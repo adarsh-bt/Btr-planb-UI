@@ -166,92 +166,70 @@ const sortCropsAlphabetically = (crops) => {
 };
 
 // Define the desired cluster order
+// Define the desired cluster order - REPLACE the entire getActiveClusters function
 const getActiveClusters = (data) => {
-  if (!data) return [];
+  if (!data) return ['K']; // Default to K if no data
 
   // 1. If backend provides clusterLabels, use that order
   if (data.clusterLabels && Array.isArray(data.clusterLabels) && data.clusterLabels.length > 0) {
-    // Only return clusters that actually have data
-    const clustersWithData = data.clusterLabels.filter(cluster => {
-      let hasData = false;
-
-      // Check landUtilization
-      if (data.landUtilization) {
-        const landArray = toArray(data.landUtilization);
-        for (const item of landArray) {
-          if (item[cluster.toLowerCase()] && item[cluster.toLowerCase()] !== 0) {
-            hasData = true;
-            break;
-          }
-        }
-      }
-
-      // Check crop sections
-      if (!hasData) {
-        const cropSections = [data.virippu, data.mundakan, data.puncha, data.annualCrops, data.perennialCrops];
-        for (const section of cropSections) {
-          if (!section) continue;
-          const crops = section.crops || (Array.isArray(section) ? section : []);
-          for (const crop of toArray(crops)) {
-            const iKey = `${cluster.toLowerCase()}I`;
-            const uiKey = `${cluster.toLowerCase()}UI`;
-            if ((crop[iKey] && crop[iKey] !== 0) || (crop[uiKey] && crop[uiKey] !== 0)) {
-              hasData = true;
-              break;
-            }
-          }
-          if (hasData) break;
-        }
-      }
-
-      return hasData;
+    // Extract labels from clusterLabels (could be strings or objects)
+    const labels = data.clusterLabels.map(label => {
+      if (typeof label === 'string') return label;
+      if (typeof label === 'object' && label.label) return label.label;
+      return label;
     });
 
-    if (clustersWithData.length > 0) {
-      return clustersWithData;
-    }
+    // Return all labels from clusterLabels (don't filter by data)
+    // This ensures K, S1, E1, N1, W1 all show even if no data
+    return labels;
   }
 
-  // 2. Fallback: detect from ALL_CLUSTER_LABELS
+  // 2. Fallback: try to detect from ALL_CLUSTER_LABELS
   const clusters = new Set();
 
+  // Check landUtilization for any cluster with data
   if (data.landUtilization) {
     const landArray = toArray(data.landUtilization);
     landArray.forEach(item => {
       ALL_CLUSTER_LABELS.forEach(cluster => {
-        const val = item[cluster.toLowerCase()];
-        if (val && val !== 0) {
+        const key = cluster.toLowerCase();
+        // Check if the property exists on the item (even if value is 0 or null)
+        if (item.hasOwnProperty(key)) {
           clusters.add(cluster);
         }
       });
     });
   }
 
+  // Check crop sections for any cluster with data
   const cropSections = [data.virippu, data.mundakan, data.puncha, data.annualCrops, data.perennialCrops];
   cropSections.forEach(section => {
     if (!section) return;
     const crops = section.crops || (Array.isArray(section) ? section : []);
     toArray(crops).forEach(crop => {
       ALL_CLUSTER_LABELS.forEach(cluster => {
-        const iKey = `${cluster.toLowerCase()}I`;
-        const uiKey = `${cluster.toLowerCase()}UI`;
-        if ((crop[iKey] && crop[iKey] !== 0) || (crop[uiKey] && crop[uiKey] !== 0)) {
+        const key = cluster.toLowerCase();
+        const iKey = `${key}I`;
+        const uiKey = `${key}UI`;
+        // Check if the crop has these properties
+        if (crop.hasOwnProperty(iKey) || crop.hasOwnProperty(uiKey)) {
           clusters.add(cluster);
         }
       });
     });
   });
 
-  if (!clusters.has('K') && data.landUtilization) {
-    const landArray = toArray(data.landUtilization);
-    landArray.forEach(item => {
-      if (item.k !== undefined) {
-        clusters.add('K');
-      }
-    });
+  // If no clusters found from data, default to K
+  if (clusters.size === 0) {
+    clusters.add('K');
   }
 
-  return ALL_CLUSTER_LABELS.filter(cluster => clusters.has(cluster));
+  // Sort clusters: K first, then alphabetically
+  return Array.from(clusters).sort((a, b) => {
+    if (a === 'K') return -1;
+    if (b === 'K') return 1;
+    return a.localeCompare(b);
+  });
 };
 
 // Print styles with fixed page-break configurations
@@ -403,14 +381,25 @@ const ExcelView = ({ open, onClose, clusterId }) => {
   const renderCropRow = (crop) => {
     const displayName = crop.growthStage && crop.growthStage !== 'no classification'
       ? `${crop.malayalamName || crop.cropName} (${crop.growthStage})`
-      : crop.cropName || crop.cropName;
+      : crop.malayalamName || crop.cropName;
 
     const clusterData = activeClusters.map(cluster => {
       const key = cluster.toLowerCase();
+      let iVal = 0;
+      let uiVal = 0;
+
       if (key === "k") {
-        return { i: crop.ki ?? 0, ui: crop.kui ?? 0 };
+        // Handle K cluster - check both ki/kui and kI/kUI
+        iVal = crop.ki !== undefined && crop.ki !== null ? crop.ki : (crop.kI !== undefined && crop.kI !== null ? crop.kI : 0);
+        uiVal = crop.kui !== undefined && crop.kui !== null ? crop.kui : (crop.kUI !== undefined && crop.kUI !== null ? crop.kUI : 0);
+      } else {
+        const iKey = `${key}I`;
+        const uiKey = `${key}UI`;
+        iVal = crop[iKey] !== undefined && crop[iKey] !== null ? crop[iKey] : 0;
+        uiVal = crop[uiKey] !== undefined && crop[uiKey] !== null ? crop[uiKey] : 0;
       }
-      return { i: crop[`${key}I`] ?? 0, ui: crop[`${key}UI`] ?? 0 };
+
+      return { i: iVal, ui: uiVal };
     });
 
     return (
@@ -479,7 +468,9 @@ const ExcelView = ({ open, onClose, clusterId }) => {
             const area = areaMap[label] || 0;
             return (
               <HeaderCell key={label} colSpan={2} sx={{ minWidth: '50px' }}>
-                <span style={{ fontSize: '10px', fontWeight: 'normal' }}>{area.toFixed(2)}</span>
+                {label}
+                <br />
+                <span style={{ fontSize: '8px', fontWeight: 'normal' }}>({area.toFixed(2)})</span>
               </HeaderCell>
             );
           })}
@@ -489,7 +480,11 @@ const ExcelView = ({ open, onClose, clusterId }) => {
         </TableRow>
 
         {landArray.map((item, index) => {
-          const clusterValues = activeClusters.map(cluster => item[cluster.toLowerCase()] ?? 0);
+          const clusterValues = activeClusters.map(cluster => {
+            const val = item[cluster.toLowerCase()];
+            // Convert null/undefined to 0 for display
+            return (val !== null && val !== undefined) ? val : 0;
+          });
           return (
             <TableRow key={index}>
               <DataCell sx={{ minWidth: '50px' }}>{index + 1}</DataCell>
@@ -507,7 +502,6 @@ const ExcelView = ({ open, onClose, clusterId }) => {
       </>
     );
   };
-
   const renderSeasonalSection = (title, data, headerColor = '#FFE699') => {
     if (!data) return null;
     const { crops = [], nucRows = [] } = data;

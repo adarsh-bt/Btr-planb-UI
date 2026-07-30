@@ -198,6 +198,8 @@ function TalukFormReport() {
   const initialFilters = getInitialFilters();
 
   // Filter states with initial values
+  const [btrData, setBtrData] = useState(null);
+
   const [districtId, setDistrictId] = useState(initialFilters.districtId);
   const [seasonTab, setSeasonTab] = useState(initialFilters.seasonTab);
   const [filterType, setFilterType] = useState(initialFilters.filterType);
@@ -267,55 +269,68 @@ function TalukFormReport() {
 
   // Fetch data from API
   const fetchTalukData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  try {
+    setLoading(true);
+    setError(null);
 
-      const districtIdValue = resolvedDistrictId.current || districtId;
+    const districtIdValue = resolvedDistrictId.current || districtId;
 
-      if (!districtIdValue) {
-        setError('District ID is required. Please navigate from the district report page.');
-        setLoading(false);
-        return;
-      }
-
-      let startMonthVal = resolveMonthValue(MONTH_OPTIONS[0]?.value, MONTH_OPTIONS);
-      let endMonthVal = resolveMonthValue(MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.value, MONTH_OPTIONS);
-
-      if (filterType === 'single') {
-        if (singleMonth) {
-          const resolved = resolveMonthValue(singleMonth, MONTH_OPTIONS);
-          startMonthVal = resolved;
-          endMonthVal = resolved;
-        }
-      } else {
-        if (fromMonth) startMonthVal = resolveMonthValue(fromMonth, MONTH_OPTIONS);
-        if (toMonth) endMonthVal = resolveMonthValue(toMonth, MONTH_OPTIONS);
-      }
-
-      const token = AuthService.getToken ? AuthService.getToken() : localStorage.getItem('token');
-      if (!token) throw new Error('Authentication session token missing. Please log in again.');
-
-      const params = new URLSearchParams({ districtId: districtIdValue, startMonth: startMonthVal });
-      if (endMonthVal) params.append('endMonth', endMonthVal);
-      if (seasonTab && seasonTab !== 'ALL') params.append('landType', seasonTab);
-
-      const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/district?${params.toString()}`;
-      console.log('Taluk API Request:', url);
-
-      const response = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      console.log('Taluk API Response:', response.data);
-      setApiData(response.data || null);
-    } catch (err) {
-      console.error('Error fetching taluk data:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to fetch taluk data');
-    } finally {
+    if (!districtIdValue) {
+      setError('District ID is required. Please navigate from the district report page.');
       setLoading(false);
+      return;
     }
-  };
+
+    let startMonthVal = resolveMonthValue(MONTH_OPTIONS[0]?.value, MONTH_OPTIONS);
+    let endMonthVal = resolveMonthValue(MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.value, MONTH_OPTIONS);
+
+    if (filterType === 'single') {
+      if (singleMonth) {
+        const resolved = resolveMonthValue(singleMonth, MONTH_OPTIONS);
+        startMonthVal = resolved;
+        endMonthVal = resolved;
+      }
+    } else {
+      if (fromMonth) startMonthVal = resolveMonthValue(fromMonth, MONTH_OPTIONS);
+      if (toMonth) endMonthVal = resolveMonthValue(toMonth, MONTH_OPTIONS);
+    }
+
+    const token = AuthService.getToken ? AuthService.getToken() : localStorage.getItem('token');
+    if (!token) throw new Error('Authentication session token missing. Please log in again.');
+
+    // Form-status API params (no districtId here — it's a path-style query param already used below)
+    const formParams = new URLSearchParams({ districtId: districtIdValue, startMonth: startMonthVal });
+    if (endMonthVal) formParams.append('endMonth', endMonthVal);
+    if (seasonTab && seasonTab !== 'ALL') formParams.append('landType', seasonTab);
+
+    // BTR completed-clusters (taluk) API params
+    const btrParams = new URLSearchParams({ districtId: districtIdValue, startMonth: startMonthVal });
+    if (endMonthVal) btrParams.append('endMonth', endMonthVal);
+    if (seasonTab && seasonTab !== 'ALL') btrParams.append('landType', seasonTab);
+
+    const formStatusUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/district?${formParams.toString()}`;
+    const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/dashboard/completed/taluk?${btrParams.toString()}`;
+
+    console.log('Taluk API Request:', formStatusUrl);
+    console.log('BTR Taluk Completed-Clusters Request:', completedClustersUrl);
+
+    const [formStatusRes, completedClustersRes] = await Promise.all([
+      axios.get(formStatusUrl, { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get(completedClustersUrl, { headers: { Authorization: `Bearer ${token}` } })
+    ]);
+
+    console.log('Taluk API Response:', formStatusRes.data);
+    console.log('BTR Taluk Completed-Clusters Response:', completedClustersRes.data);
+
+    setApiData(formStatusRes.data || null);
+    setBtrData(completedClustersRes.data || null);
+  } catch (err) {
+    console.error('Error fetching taluk data:', err);
+    setError(err.response?.data?.message || err.message || 'Failed to fetch taluk data');
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Fetch master taluks on mount
   useEffect(() => {
@@ -332,86 +347,63 @@ function TalukFormReport() {
 
   // Map allSubDetails into UI rows, merging with master taluks list
   const talukData = useMemo(() => {
-    const apiTaluks = apiData?.allSubDetails || {};
+  const apiTaluks = apiData?.allSubDetails || {};
+  const btrTaluks = btrData?.allSubDetails || {};
 
-    console.log('API Taluks:', apiTaluks);
-    console.log('Master Taluks List:', taluksList);
+  const apiDataMapById = {};
+  const apiDataMapByName = {};
+  Object.entries(apiTaluks).forEach(([name, details]) => {
+    if (details.id) apiDataMapById[details.id] = { name, details };
+    const key = name?.toLowerCase()?.trim() || '';
+    if (key) apiDataMapByName[key] = { name, details };
+  });
 
-    // Create a map for quick lookup of API data by ID
-    const apiDataMapById = {};
-    const apiDataMapByName = {};
-    Object.entries(apiTaluks).forEach(([name, details]) => {
-      // Store by ID if available
-      if (details.id) {
-        apiDataMapById[details.id] = { name, details };
+  const btrMapById = {};
+  const btrMapByName = {};
+  Object.entries(btrTaluks).forEach(([name, details]) => {
+    if (details.id) btrMapById[details.id] = { name, details };
+    const key = name?.toLowerCase()?.trim() || '';
+    if (key) btrMapByName[key] = { name, details };
+  });
+
+  const resolveBtrDetails = (talukId, talukName) => {
+    if (talukId && btrMapById[talukId]) return btrMapById[talukId].details;
+    const key = talukName?.toLowerCase()?.trim() || '';
+    if (key && btrMapByName[key]) return btrMapByName[key].details;
+    return {};
+  };
+
+  if (taluksList && taluksList.length > 0) {
+    return taluksList.map((taluk) => {
+      const talukId = taluk.id;
+      const talukName = taluk.talukNameEn || '';
+
+      let apiMatch = null;
+      if (talukId && apiDataMapById[talukId]) apiMatch = apiDataMapById[talukId];
+      if (!apiMatch) {
+        const key = talukName?.toLowerCase()?.trim() || '';
+        if (key && apiDataMapByName[key]) apiMatch = apiDataMapByName[key];
       }
-      // Also store by name for fallback
-      const key = name?.toLowerCase()?.trim() || '';
-      if (key) {
-        apiDataMapByName[key] = { name, details };
-      }
-    });
+      const apiDetails = apiMatch ? apiMatch.details : {};
 
-    // If we have master taluks list, merge with API data
-    if (taluksList && taluksList.length > 0) {
-      const merged = taluksList.map((taluk) => {
-        const talukId = taluk.id;
-        const talukName = taluk.talukNameEn || '';
+      const completed = pickMetric(apiDetails, 'Completed', seasonTab); // unchanged source
+      const ongoing = pickMetric(apiDetails, 'Ongoing', seasonTab);
+      const underReview = pickMetric(apiDetails, 'UnderReview', seasonTab);
+      const area = pickMetric(apiDetails, 'ClusterArea', seasonTab);
 
-        // Try to find API data by ID first
-        let apiMatch = null;
-        if (talukId && apiDataMapById[talukId]) {
-          apiMatch = apiDataMapById[talukId];
-        }
+      // NEW: Total comes from the BTR taluk completed-clusters API
+      const btrDetails = resolveBtrDetails(talukId, talukName);
+      const total = pickMetric(btrDetails, 'Completed', seasonTab); // wetCompleted/dryCompleted
 
-        // If not found by ID, try by name
-        if (!apiMatch) {
-          const key = talukName?.toLowerCase()?.trim() || '';
-          if (key && apiDataMapByName[key]) {
-            apiMatch = apiDataMapByName[key];
-          }
-        }
+      // NEW: Not Started = new total - existing completed
+      const notStarted = Math.max(total - completed, 0);
 
-        const apiDetails = apiMatch ? apiMatch.details : {};
-
-        const completed = pickMetric(apiDetails, 'Completed', seasonTab);
-        const ongoing = pickMetric(apiDetails, 'Ongoing', seasonTab);
-        const notStarted = pickMetric(apiDetails, 'NotStarted', seasonTab);
-        const underReview = pickMetric(apiDetails, 'UnderReview', seasonTab);
-        const area = pickMetric(apiDetails, 'ClusterArea', seasonTab);
-
-        const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0;
-
-        return {
-          id: talukId || apiDetails.id || `taluk_${Math.random()}`,
-          taluk: talukName || apiMatch?.name || 'Unknown Taluk',
-          total: completed + ongoing + notStarted + underReview,
-          completed,
-          ongoing,
-          notStarted,
-          underReview,
-          area,
-          hasData
-        };
-      });
-
-      console.log('Merged Taluk Data:', merged);
-      return merged;
-    }
-
-    // Fallback: use only API data
-    return Object.entries(apiTaluks).map(([talukName, t]) => {
-      const completed = pickMetric(t, 'Completed', seasonTab);
-      const ongoing = pickMetric(t, 'Ongoing', seasonTab);
-      const notStarted = pickMetric(t, 'NotStarted', seasonTab);
-      const underReview = pickMetric(t, 'UnderReview', seasonTab);
-      const area = pickMetric(t, 'ClusterArea', seasonTab);
-      const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0;
+      const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
 
       return {
-        id: t.id || `taluk_${Math.random()}`,
-        taluk: talukName || 'Unknown Taluk',
-        total: completed + ongoing + notStarted + underReview,
+        id: talukId || apiDetails.id || `taluk_${Math.random()}`,
+        taluk: talukName || apiMatch?.name || 'Unknown Taluk',
+        total,
         completed,
         ongoing,
         notStarted,
@@ -420,7 +412,33 @@ function TalukFormReport() {
         hasData
       };
     });
-  }, [apiData, taluksList, seasonTab]);
+  }
+
+  // Fallback (no master taluks list)
+  return Object.entries(apiTaluks).map(([talukName, t]) => {
+    const completed = pickMetric(t, 'Completed', seasonTab);
+    const ongoing = pickMetric(t, 'Ongoing', seasonTab);
+    const underReview = pickMetric(t, 'UnderReview', seasonTab);
+    const area = pickMetric(t, 'ClusterArea', seasonTab);
+
+    const btrDetails = resolveBtrDetails(t.id, talukName);
+    const total = pickMetric(btrDetails, 'Completed', seasonTab);
+    const notStarted = Math.max(total - completed, 0);
+    const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
+
+    return {
+      id: t.id || `taluk_${Math.random()}`,
+      taluk: talukName || 'Unknown Taluk',
+      total,
+      completed,
+      ongoing,
+      notStarted,
+      underReview,
+      area,
+      hasData
+    };
+  });
+}, [apiData, btrData, taluksList, seasonTab]);
 
   // Count taluks with no data
   const taluksWithNoData = useMemo(() => {
@@ -428,17 +446,19 @@ function TalukFormReport() {
   }, [talukData]);
 
   // Stats from API
-  const stats = useMemo(
-    () => ({
-      total: apiData?.totalCluster || 0,
-      completed: apiData?.completed || 0,
-      ongoing: apiData?.ongoing || 0,
-      notStarted: apiData?.notStarted || 0,
-      underReview: apiData?.underView || 0,
-      completedArea: talukData.reduce((sum, t) => sum + t.area, 0)
-    }),
-    [apiData, talukData]
-  );
+  const stats = useMemo(() => {
+  const totalCompletedClusters = btrData?.totalClusterCompleted || 0; // NEW source for "Total Clusters"
+  const existingCompleted = apiData?.completed || 0; // unchanged
+
+  return {
+    total: totalCompletedClusters,
+    completed: existingCompleted,
+    ongoing: apiData?.ongoing || 0,
+    notStarted: Math.max(totalCompletedClusters - existingCompleted, 0), // NEW derivation
+    underReview: apiData?.underView || 0,
+    completedArea: talukData.reduce((sum, t) => sum + t.area, 0)
+  };
+}, [apiData, btrData, talukData]);
 
   const searchFilteredData = useMemo(() => {
     if (!searchTerm.trim()) return talukData;

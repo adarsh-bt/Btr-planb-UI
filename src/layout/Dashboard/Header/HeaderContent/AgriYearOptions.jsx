@@ -51,27 +51,16 @@ const generateAgriYears = () => {
 
   const today = new Date();
   const year = today.getFullYear();
-  const month = today.getMonth() + 1;
+  const month = today.getMonth() + 1; // July is month 7 (1-indexed)
 
-  let firstYear;
+  const currentAgriStartYear = month >= 7 ? year : year - 1;
+  const endYear = Math.max(APP_START_YEAR, currentAgriStartYear);
 
-  if (month >= 6) {
-    // From June onwards, show previous + current
-    firstYear = year - 1;
-  } else {
-    // Before June, still show previous + current
-    firstYear = year - 2;
+  const yearsList = [];
+  for (let y = APP_START_YEAR; y <= endYear; y++) {
+    yearsList.push(`${y}-${y + 1}`);
   }
-
-  // Don't go before app start year
-  if (firstYear < APP_START_YEAR) {
-    firstYear = APP_START_YEAR;
-  }
-
-  return [
-    `${firstYear}-${firstYear + 1}`,
-    `${firstYear + 1}-${firstYear + 2}`,
-  ];
+  return yearsList;
 };
 
   const handleChange = (event) => {

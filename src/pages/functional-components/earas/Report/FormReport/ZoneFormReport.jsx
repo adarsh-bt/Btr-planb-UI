@@ -177,6 +177,8 @@ function ZoneFormReport() {
   const initialFilters = getInitialFilters();
 
   // Filter states
+  const [btrData, setBtrData] = useState(null);
+
   const [districtId, setDistrictId] = useState(initialFilters.districtId);
   const [talukId, setTalukId] = useState(initialFilters.talukId);
   const [seasonTab, setSeasonTab] = useState(initialFilters.seasonTab);
@@ -220,55 +222,66 @@ function ZoneFormReport() {
 
   // Fetch data from API
   const fetchZoneData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  try {
+    setLoading(true);
+    setError(null);
 
-      const targetQueryId = resolvedTalukId.current;
+    const targetQueryId = resolvedTalukId.current;
 
-      if (!targetQueryId) {
-        setError('Taluk ID is required. Please navigate from the taluk report page.');
-        setLoading(false);
-        return;
-      }
-
-      let startMonthVal = resolveMonthValue(MONTH_OPTIONS[0]?.value, MONTH_OPTIONS);
-      let endMonthVal = resolveMonthValue(MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.value, MONTH_OPTIONS);
-
-      if (filterType === 'single') {
-        if (singleMonth) {
-          const resolved = resolveMonthValue(singleMonth, MONTH_OPTIONS);
-          startMonthVal = resolved;
-          endMonthVal = resolved;
-        }
-      } else {
-        if (fromMonth) startMonthVal = resolveMonthValue(fromMonth, MONTH_OPTIONS);
-        if (toMonth) endMonthVal = resolveMonthValue(toMonth, MONTH_OPTIONS);
-      }
-
-      const token = AuthService.getToken ? AuthService.getToken() : localStorage.getItem('token');
-      if (!token) throw new Error('Authentication session token missing. Please log in again.');
-
-      const params = new URLSearchParams({ talukId: targetQueryId, startMonth: startMonthVal });
-      if (endMonthVal) params.append('endMonth', endMonthVal);
-      if (seasonTab && seasonTab !== 'ALL') params.append('landType', seasonTab);
-
-      const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/taluk?${params.toString()}`;
-      console.log('Zone API Request:', url);
-
-      const response = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      console.log('Zone API Response:', response.data);
-      setApiData(response.data || null);
-    } catch (err) {
-      console.error('API Error:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to fetch data');
-    } finally {
+    if (!targetQueryId) {
+      setError('Taluk ID is required. Please navigate from the taluk report page.');
       setLoading(false);
+      return;
     }
-  };
+
+    let startMonthVal = resolveMonthValue(MONTH_OPTIONS[0]?.value, MONTH_OPTIONS);
+    let endMonthVal = resolveMonthValue(MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.value, MONTH_OPTIONS);
+
+    if (filterType === 'single') {
+      if (singleMonth) {
+        const resolved = resolveMonthValue(singleMonth, MONTH_OPTIONS);
+        startMonthVal = resolved;
+        endMonthVal = resolved;
+      }
+    } else {
+      if (fromMonth) startMonthVal = resolveMonthValue(fromMonth, MONTH_OPTIONS);
+      if (toMonth) endMonthVal = resolveMonthValue(toMonth, MONTH_OPTIONS);
+    }
+
+    const token = AuthService.getToken ? AuthService.getToken() : localStorage.getItem('token');
+    if (!token) throw new Error('Authentication session token missing. Please log in again.');
+
+    const params = new URLSearchParams({ talukId: targetQueryId, startMonth: startMonthVal });
+    if (endMonthVal) params.append('endMonth', endMonthVal);
+    if (seasonTab && seasonTab !== 'ALL') params.append('landType', seasonTab);
+
+    const btrParams = new URLSearchParams({ talukId: targetQueryId, startMonth: startMonthVal });
+    if (endMonthVal) btrParams.append('endMonth', endMonthVal);
+    if (seasonTab && seasonTab !== 'ALL') btrParams.append('landType', seasonTab);
+
+    const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/taluk?${params.toString()}`;
+    const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/dashboard/completed/zone?${btrParams.toString()}`;
+
+    console.log('Zone API Request:', url);
+    console.log('BTR Zone Completed-Clusters Request:', completedClustersUrl);
+
+    const [formStatusRes, completedClustersRes] = await Promise.all([
+      axios.get(url, { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get(completedClustersUrl, { headers: { Authorization: `Bearer ${token}` } })
+    ]);
+
+    console.log('Zone API Response:', formStatusRes.data);
+    console.log('BTR Zone Completed-Clusters Response:', completedClustersRes.data);
+
+    setApiData(formStatusRes.data || null);
+    setBtrData(completedClustersRes.data || null);
+  } catch (err) {
+    console.error('API Error:', err);
+    setError(err.response?.data?.message || err.message || 'Failed to fetch data');
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Fetch master zones on mount
   useEffect(() => {
@@ -285,180 +298,196 @@ function ZoneFormReport() {
 
   // Merge API data with master zones list
   const processedData = useMemo(() => {
-    const apiZones = apiData?.allSubDetails || {};
+  const apiZones = apiData?.allSubDetails || {};
+  const btrZones = btrData?.allSubDetails || {};
 
-    console.log('API Zones:', apiZones);
-    console.log('Master Zones List:', zonesList);
+  console.log('API Zones:', apiZones);
+  console.log('Master Zones List:', zonesList);
+  console.log('BTR Zones:', btrZones);
 
-    // Create a map for quick lookup of API data by zone ID
-    const apiDataMapById = {};
-    const apiDataMapByName = {};
-    Object.entries(apiZones).forEach(([key, details]) => {
-      // Store by zoneId if available
-      if (details.zoneId) {
-        apiDataMapById[details.zoneId] = details;
+  const apiDataMapById = {};
+  const apiDataMapByName = {};
+  Object.entries(apiZones).forEach(([key, details]) => {
+    if (details.zoneId) apiDataMapById[details.zoneId] = details;
+    const name = details.zoneName || key;
+    const nameKey = name?.toLowerCase()?.trim() || '';
+    if (nameKey) apiDataMapByName[nameKey] = details;
+  });
+
+  // NEW: BTR completed-clusters lookup, by id and by name
+  const btrMapById = {};
+  const btrMapByName = {};
+  Object.entries(btrZones).forEach(([name, details]) => {
+    if (details.id) btrMapById[details.id] = details;
+    const key = name?.toLowerCase()?.trim() || '';
+    if (key) btrMapByName[key] = details;
+  });
+
+  const resolveBtrDetails = (zoneId, zoneName) => {
+    if (zoneId && btrMapById[zoneId]) return btrMapById[zoneId];
+    const key = zoneName?.toLowerCase()?.trim() || '';
+    if (key && btrMapByName[key]) return btrMapByName[key];
+    // partial match fallback, same spirit as the existing apiDataMapByName partial match below
+    const searchKey = zoneName?.toLowerCase()?.trim() || '';
+    const matchKey = Object.keys(btrMapByName).find(k => k.includes(searchKey) || searchKey.includes(k));
+    return matchKey ? btrMapByName[matchKey] : {};
+  };
+
+  let mergedZones = [];
+
+  if (zonesList && zonesList.length > 0) {
+    mergedZones = zonesList.map((zone) => {
+      const zoneId = zone.zoneId;
+      const zoneName = zone.zoneNameEn || '';
+
+      let apiDetails = null;
+      if (zoneId && apiDataMapById[zoneId]) {
+        apiDetails = apiDataMapById[zoneId];
       }
-      // Also store by zone name for fallback
-      const name = details.zoneName || key;
-      const nameKey = name?.toLowerCase()?.trim() || '';
-      if (nameKey) {
-        apiDataMapByName[nameKey] = details;
+      if (!apiDetails) {
+        const key = zoneName?.toLowerCase()?.trim() || '';
+        if (key && apiDataMapByName[key]) apiDetails = apiDataMapByName[key];
       }
-    });
+      if (!apiDetails) {
+        const searchKey = zoneName?.toLowerCase()?.trim() || '';
+        const matchKey = Object.keys(apiDataMapByName).find(key =>
+          key.includes(searchKey) || searchKey.includes(key)
+        );
+        if (matchKey) apiDetails = apiDataMapByName[matchKey];
+      }
 
-    let mergedZones = [];
+      const completed = apiDetails ? pickMetric(apiDetails, 'Completed', seasonTab) : 0;
+      const ongoing = apiDetails ? pickMetric(apiDetails, 'Ongoing', seasonTab) : 0;
+      const underReview = apiDetails ? pickMetric(apiDetails, 'UnderReview', seasonTab) : 0;
+      const area = apiDetails ? pickMetric(apiDetails, 'ClusterArea', seasonTab) : 0;
 
-    // If we have master zones list, merge with API data
-    if (zonesList && zonesList.length > 0) {
-      mergedZones = zonesList.map((zone) => {
-        const zoneId = zone.zoneId;
-        const zoneName = zone.zoneNameEn || '';
+      // NEW: total from BTR completed-clusters API, Not Started derived from it
+      const btrDetails = resolveBtrDetails(zoneId, zoneName);
+      const total = pickMetric(btrDetails, 'Completed', seasonTab);
+      const notStarted = Math.max(total - completed, 0);
 
-        // Try to find API data by zoneId first
-        let apiDetails = null;
-        if (zoneId && apiDataMapById[zoneId]) {
-          apiDetails = apiDataMapById[zoneId];
-        }
+      const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
 
-        // If not found by ID, try by name
-        if (!apiDetails) {
-          const key = zoneName?.toLowerCase()?.trim() || '';
-          if (key && apiDataMapByName[key]) {
-            apiDetails = apiDataMapByName[key];
-          }
-        }
+      const blockId = apiDetails?.blockId || null;
+      const blockName = apiDetails?.blockName || 'Unassigned';
+      const resolvedBlock = resolveBlockName(blockId, blockName, zoneName);
 
-        // If still not found, try partial match
-        if (!apiDetails) {
-          const searchKey = zoneName?.toLowerCase()?.trim() || '';
-          const matchKey = Object.keys(apiDataMapByName).find(key =>
-            key.includes(searchKey) || searchKey.includes(key)
-          );
-          if (matchKey) {
-            apiDetails = apiDataMapByName[matchKey];
-          }
-        }
-
-        const completed = apiDetails ? pickMetric(apiDetails, 'Completed', seasonTab) : 0;
-        const ongoing = apiDetails ? pickMetric(apiDetails, 'Ongoing', seasonTab) : 0;
-        const notStarted = apiDetails ? pickMetric(apiDetails, 'NotStarted', seasonTab) : 0;
-        const underReview = apiDetails ? pickMetric(apiDetails, 'UnderReview', seasonTab) : 0;
-        const area = apiDetails ? pickMetric(apiDetails, 'ClusterArea', seasonTab) : 0;
-
-        const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0;
-
-        const blockId = apiDetails?.blockId || null;
-        const blockName = apiDetails?.blockName || 'Unassigned';
-        const resolvedBlock = resolveBlockName(blockId, blockName, zoneName);
-
-        return {
-          zoneId: zoneId,
-          zoneName: zoneName || 'Unknown Zone',
-          blockId: blockId,
-          blockName: resolvedBlock,
-          completed: completed,
-          ongoing: ongoing,
-          notStarted: notStarted,
-          underReview: underReview,
-          area: area,
-          hasData: hasData,
-          // Store original details for reference
-          originalBlockName: apiDetails?.blockName,
-          isMunicipality: resolvedBlock === 'Municipality',
-          isCorporation: resolvedBlock === 'Corporation'
-        };
-      });
-    } else {
-      // Fallback: use only API data
-      mergedZones = Object.entries(apiZones).map(([key, details]) => {
-        const completed = pickMetric(details, 'Completed', seasonTab);
-        const ongoing = pickMetric(details, 'Ongoing', seasonTab);
-        const notStarted = pickMetric(details, 'NotStarted', seasonTab);
-        const underReview = pickMetric(details, 'UnderReview', seasonTab);
-        const area = pickMetric(details, 'ClusterArea', seasonTab);
-        const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0;
-
-        const zoneName = details.zoneName || key;
-        const blockId = details.blockId || null;
-        const blockName = details.blockName || 'Unassigned';
-        const resolvedBlock = resolveBlockName(blockId, blockName, zoneName);
-
-        return {
-          zoneId: details.zoneId || `zone_${Math.random()}`,
-          zoneName: zoneName,
-          blockId: blockId,
-          blockName: resolvedBlock,
-          completed: completed,
-          ongoing: ongoing,
-          notStarted: notStarted,
-          underReview: underReview,
-          area: area,
-          hasData: hasData,
-          isMunicipality: resolvedBlock === 'Municipality',
-          isCorporation: resolvedBlock === 'Corporation'
-        };
-      });
-    }
-
-    // Group by block
-    const blockMap = new Map();
-    const municipalityZones = [];
-    const corporationZones = [];
-
-    mergedZones.forEach((zone) => {
-      const zoneData = {
-        zoneId: zone.zoneId,
-        zoneName: zone.zoneName,
-        completed: zone.completed,
-        ongoing: zone.ongoing,
-        notStarted: zone.notStarted,
-        underReview: zone.underReview,
-        area: zone.area,
-        hasData: zone.hasData
+      return {
+        zoneId: zoneId,
+        zoneName: zoneName || 'Unknown Zone',
+        blockId: blockId,
+        blockName: resolvedBlock,
+        total,
+        completed,
+        ongoing,
+        notStarted,
+        underReview,
+        area,
+        hasData,
+        originalBlockName: apiDetails?.blockName,
+        isMunicipality: resolvedBlock === 'Municipality',
+        isCorporation: resolvedBlock === 'Corporation'
       };
-
-      if (zone.isMunicipality) {
-        municipalityZones.push(zoneData);
-        return;
-      }
-      if (zone.isCorporation) {
-        corporationZones.push(zoneData);
-        return;
-      }
-
-      const key = zone.blockId || zone.blockName;
-      if (!blockMap.has(key)) {
-        blockMap.set(key, {
-          blockId: zone.blockId,
-          blockName: zone.blockName,
-          zones: []
-        });
-      }
-      blockMap.get(key).zones.push(zoneData);
     });
+  } else {
+    // Fallback: use only API data
+    mergedZones = Object.entries(apiZones).map(([key, details]) => {
+      const completed = pickMetric(details, 'Completed', seasonTab);
+      const ongoing = pickMetric(details, 'Ongoing', seasonTab);
+      const underReview = pickMetric(details, 'UnderReview', seasonTab);
+      const area = pickMetric(details, 'ClusterArea', seasonTab);
 
-    const blocks = Array.from(blockMap.values()).sort((a, b) => a.blockName.localeCompare(b.blockName));
-    blocks.forEach((block) => block.zones.sort((a, b) => a.zoneName.localeCompare(b.zoneName)));
+      const zoneName = details.zoneName || key;
+      const zoneIdVal = details.zoneId;
 
-    if (municipalityZones.length > 0) {
-      blocks.push({
-        blockId: 'municipality',
-        blockName: 'Municipality',
-        isMunicipality: true,
-        zones: municipalityZones.sort((a, b) => a.zoneName.localeCompare(b.zoneName))
+      const btrDetails = resolveBtrDetails(zoneIdVal, zoneName);
+      const total = pickMetric(btrDetails, 'Completed', seasonTab);
+      const notStarted = Math.max(total - completed, 0);
+
+      const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
+
+      const blockId = details.blockId || null;
+      const blockName = details.blockName || 'Unassigned';
+      const resolvedBlock = resolveBlockName(blockId, blockName, zoneName);
+
+      return {
+        zoneId: zoneIdVal || `zone_${Math.random()}`,
+        zoneName: zoneName,
+        blockId: blockId,
+        blockName: resolvedBlock,
+        total,
+        completed,
+        ongoing,
+        notStarted,
+        underReview,
+        area,
+        hasData,
+        isMunicipality: resolvedBlock === 'Municipality',
+        isCorporation: resolvedBlock === 'Corporation'
+      };
+    });
+  }
+
+  // Group by block — unchanged, just carry `total` through zoneData now
+  const blockMap = new Map();
+  const municipalityZones = [];
+  const corporationZones = [];
+
+  mergedZones.forEach((zone) => {
+    const zoneData = {
+      zoneId: zone.zoneId,
+      zoneName: zone.zoneName,
+      total: zone.total,
+      completed: zone.completed,
+      ongoing: zone.ongoing,
+      notStarted: zone.notStarted,
+      underReview: zone.underReview,
+      area: zone.area,
+      hasData: zone.hasData
+    };
+
+    if (zone.isMunicipality) {
+      municipalityZones.push(zoneData);
+      return;
+    }
+    if (zone.isCorporation) {
+      corporationZones.push(zoneData);
+      return;
+    }
+
+    const key = zone.blockId || zone.blockName;
+    if (!blockMap.has(key)) {
+      blockMap.set(key, {
+        blockId: zone.blockId,
+        blockName: zone.blockName,
+        zones: []
       });
     }
-    if (corporationZones.length > 0) {
-      blocks.push({
-        blockId: 'corporation',
-        blockName: 'Corporation',
-        isCorporation: true,
-        zones: corporationZones.sort((a, b) => a.zoneName.localeCompare(b.zoneName))
-      });
-    }
+    blockMap.get(key).zones.push(zoneData);
+  });
 
-    return blocks;
-  }, [apiData, zonesList, seasonTab]);
+  const blocks = Array.from(blockMap.values()).sort((a, b) => a.blockName.localeCompare(b.blockName));
+  blocks.forEach((block) => block.zones.sort((a, b) => a.zoneName.localeCompare(b.zoneName)));
+
+  if (municipalityZones.length > 0) {
+    blocks.push({
+      blockId: 'municipality',
+      blockName: 'Municipality',
+      isMunicipality: true,
+      zones: municipalityZones.sort((a, b) => a.zoneName.localeCompare(b.zoneName))
+    });
+  }
+  if (corporationZones.length > 0) {
+    blocks.push({
+      blockId: 'corporation',
+      blockName: 'Corporation',
+      isCorporation: true,
+      zones: corporationZones.sort((a, b) => a.zoneName.localeCompare(b.zoneName))
+    });
+  }
+
+  return blocks;
+}, [apiData, btrData, zonesList, seasonTab]);
 
   // Count zones with no data
   const zonesWithNoData = useMemo(() => {
@@ -473,92 +502,90 @@ function ZoneFormReport() {
 
   // Overall statistics
   const stats = useMemo(() => {
-    if (!apiData) {
-      return { total: 0, completed: 0, ongoing: 0, notStarted: 0, underReview: 0, completedArea: 0 };
-    }
-    const completedArea = processedData.reduce(
-      (sum, block) => sum + block.zones.reduce((s, z) => s + z.area, 0),
-      0
-    );
-    return {
-      total: apiData.totalCluster || 0,
-      completed: apiData.completed || 0,
-      ongoing: apiData.ongoing || 0,
-      notStarted: apiData.notStarted || 0,
-      underReview: apiData.underView || 0,
-      completedArea
-    };
-  }, [apiData, processedData]);
+  if (!apiData) {
+    return { total: 0, completed: 0, ongoing: 0, notStarted: 0, underReview: 0, completedArea: 0 };
+  }
+  const completedArea = processedData.reduce(
+    (sum, block) => sum + block.zones.reduce((s, z) => s + z.area, 0),
+    0
+  );
+
+  const totalCompletedClusters = btrData?.totalClusterCompleted || 0; // NEW source for "Total Clusters"
+  const existingCompleted = apiData.completed || 0; // unchanged
+
+  return {
+    total: totalCompletedClusters,
+    completed: existingCompleted,
+    ongoing: apiData.ongoing || 0,
+    notStarted: Math.max(totalCompletedClusters - existingCompleted, 0), // NEW derivation
+    underReview: apiData.underView || 0,
+    completedArea
+  };
+}, [apiData, btrData, processedData]);
 
   // Flatten data for table display with subtotals
   const flattenedTableData = useMemo(() => {
-    const result = [];
+  const result = [];
 
-    processedData.forEach((block) => {
-      let blockTotal = 0;
-      let blockCompleted = 0;
-      let blockOngoing = 0;
-      let blockNotStarted = 0;
-      let blockUnderReview = 0;
-      let blockArea = 0;
+  processedData.forEach((block) => {
+    let blockTotal = 0;
+    let blockCompleted = 0;
+    let blockOngoing = 0;
+    let blockNotStarted = 0;
+    let blockUnderReview = 0;
+    let blockArea = 0;
 
-      // Add each zone in the block
-      block.zones.forEach((zone, zoneIndex) => {
-        const zoneTotal =
-          zone.completed +
-          zone.ongoing +
-          zone.notStarted +
-          zone.underReview;
+    block.zones.forEach((zone, zoneIndex) => {
+      const zoneTotal = zone.total; // CHANGED: use BTR-derived total directly, not a re-sum
 
-        blockTotal += zoneTotal;
-        blockCompleted += zone.completed;
-        blockOngoing += zone.ongoing;
-        blockNotStarted += zone.notStarted;
-        blockUnderReview += zone.underReview;
-        blockArea += zone.area;
+      blockTotal += zoneTotal;
+      blockCompleted += zone.completed;
+      blockOngoing += zone.ongoing;
+      blockNotStarted += zone.notStarted;
+      blockUnderReview += zone.underReview;
+      blockArea += zone.area;
 
-        result.push({
-          type: 'zone',
-          id: `${block.blockId}_zone_${zone.zoneId}`,
-          blockId: block.blockId,
-          blockName: block.blockName,
-          isFirstZoneInBlock: zoneIndex === 0,
-          zoneName: zone.zoneName,
-          total: zoneTotal,
-          completed: zone.completed,
-          ongoing: zone.ongoing,
-          notStarted: zone.notStarted,
-          underReview: zone.underReview,
-          area: zone.area,
-          zoneId: zone.zoneId,
-          hasData: zone.hasData,
-          isCorporation: block.isCorporation || false,
-          isMunicipality: block.isMunicipality || false
-        });
-      });
-
-      // Add subtotal for all blocks
       result.push({
-        type: 'subtotal',
-        id: `block_${block.blockId}_subtotal`,
+        type: 'zone',
+        id: `${block.blockId}_zone_${zone.zoneId}`,
         blockId: block.blockId,
         blockName: block.blockName,
-        zoneName: `Total for ${block.blockName}`,
-        total: blockTotal,
-        completed: blockCompleted,
-        ongoing: blockOngoing,
-        notStarted: blockNotStarted,
-        underReview: blockUnderReview,
-        area: blockArea,
-        isSubtotal: true,
-        hasData: blockTotal > 0,
+        isFirstZoneInBlock: zoneIndex === 0,
+        zoneName: zone.zoneName,
+        total: zoneTotal,
+        completed: zone.completed,
+        ongoing: zone.ongoing,
+        notStarted: zone.notStarted,
+        underReview: zone.underReview,
+        area: zone.area,
+        zoneId: zone.zoneId,
+        hasData: zone.hasData,
         isCorporation: block.isCorporation || false,
         isMunicipality: block.isMunicipality || false
       });
     });
 
-    return result;
-  }, [processedData]);
+    result.push({
+      type: 'subtotal',
+      id: `block_${block.blockId}_subtotal`,
+      blockId: block.blockId,
+      blockName: block.blockName,
+      zoneName: `Total for ${block.blockName}`,
+      total: blockTotal,
+      completed: blockCompleted,
+      ongoing: blockOngoing,
+      notStarted: blockNotStarted,
+      underReview: blockUnderReview,
+      area: blockArea,
+      isSubtotal: true,
+      hasData: blockTotal > 0,
+      isCorporation: block.isCorporation || false,
+      isMunicipality: block.isMunicipality || false
+    });
+  });
+
+  return result;
+}, [processedData]);
 
   // Filter data based on search term
   const searchFilteredData = useMemo(() => {
@@ -1087,20 +1114,23 @@ function ZoneFormReport() {
                                 )}
 
                                 {/* Zone Column */}
-                                <TableCell sx={{ borderRight: 'none', borderLeft: 'none' }}>
-                                  {row.type === 'subtotal' ? (
-                                    <Typography
-                                      variant="body2"
-                                      sx={{
-                                        fontWeight: 'bold',
-                                        color: '#04255e',
-                                        fontStyle: 'italic'
-                                      }}
-                                    >
-                                      {row.zoneName}
-                                    </Typography>
-                                  ) : (
-                                    <Stack direction="row" spacing={1} alignItems="center">
+                                <TableCell
+                                    colSpan={isCurrentRowSubtotal ? 2 : 1}
+                                    sx={{ borderRight: 'none', borderLeft: 'none' }}
+                                  >
+                                    {row.type === 'subtotal' ? (
+                                      <Typography
+                                        variant="body2"
+                                        sx={{
+                                          fontWeight: 'bold',
+                                          color: '#04255e',
+                                          fontStyle: 'italic'
+                                        }}
+                                      >
+                                        {row.zoneName}
+                                      </Typography>
+                                    ) : (
+                                      <Stack direction="row" spacing={1} alignItems="center">
                                       <StoreIcon sx={{ fontSize: 18, color: hasNoData ? '#ff9800' : '#04255e', opacity: 0.7 }} />
                                       <Typography fontWeight={hasNoData ? 400 : 500} color={hasNoData ? 'text.secondary' : 'text.primary'}>
                                         {row.zoneName}

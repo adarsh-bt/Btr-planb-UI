@@ -40,7 +40,14 @@ function ReportMenuWrapper({ children }) {
 
       const { officeType, districtOfficeId, districtId, talukOfficeId, talukId } = officeInfo;
 
-      const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+      const getCurrentMonthFormatted = () => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        return `${year}-${month}`;
+      };
+
+      const currentMonth = getCurrentMonthFormatted();
 
       console.log('Navigation - Office Type:', officeType);
 
@@ -133,7 +140,7 @@ function ReportMenuWrapper({ children }) {
         const monthNum = monthIndex + 1;
         const mm = String(monthNum).padStart(2, '0');
         const year = monthIndex >= 6 ? startYear : startYear + 1;
-        return `${mm}-${year}`;
+        return `${year}-${mm}`;
       };
 
       const currentMonth = getAgriMonthFormatted();

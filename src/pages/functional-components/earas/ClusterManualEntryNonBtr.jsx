@@ -820,7 +820,7 @@ const ClusterManualEntryNonBtr = () => {
       } else if (BtrTypeId == 4) {
         return row.villageName && row.block && row.tpno && row.area && row.enumeratedArea;
       } else if (BtrTypeId == 5) {
-        return row.villageName && row.block && row.oldsvno && row.oldsubno && row.area && row.enumeratedArea;
+        return row.villageName && row.block && row.oldsvno && row.area && row.enumeratedArea;
       }
       return false;
     });
@@ -842,7 +842,7 @@ const ClusterManualEntryNonBtr = () => {
         } else if (BtrTypeId == 4) {
           return row.villageName && row.block && row.tpno && row.area && row.enumeratedArea;
         } else if (BtrTypeId == 5) {
-          return row.villageName && row.block && row.oldsvno && row.oldsubno && row.area && row.enumeratedArea;
+          return row.villageName && row.block && row.oldsvno && row.area && row.enumeratedArea;
         }
         return false;
       }))
@@ -1227,8 +1227,8 @@ const ClusterManualEntryNonBtr = () => {
             plotUsage.get(plotId).rows.push(r);
           }
         } else if (BtrTypeId == 5) {
-          if (r.villageName && r.block && r.oldsvno && r.oldsubno) {
-            const plotId = `${r.villageName}-${r.block}-${r.oldsvno}-${r.oldsubno}`;
+          if (r.villageName && r.block && r.oldsvno) {
+            const plotId = `${r.villageName}-${r.block}-${r.oldsvno}`;
             if (!plotUsage.has(plotId)) {
               plotUsage.set(plotId, { rows: [], totalArea: 0 });
             }
@@ -1394,7 +1394,7 @@ const ClusterManualEntryNonBtr = () => {
     } else if (BtrTypeId == 4) {
       rowtitle = ['villageName', 'block', 'tpno', 'tbsubdivisionno']
     } else if (BtrTypeId == 5) {
-      rowtitle = ['villageName', 'block', 'oldsvno', 'oldsubno']
+      rowtitle = ['villageName', 'block', 'oldsvno']
     }
 
     if (rowtitle.includes(field)) {
@@ -1549,7 +1549,7 @@ const ClusterManualEntryNonBtr = () => {
           baseNewRow.ownername = '';
           baseNewRow.address = '';
           baseNewRow.oldsvno = '';
-          baseNewRow.oldsubno = '';
+          baseNewRow.oldsubno = '';  // Keep this but don't require it
           break;
 
         default:
@@ -1753,7 +1753,7 @@ const ClusterManualEntryNonBtr = () => {
       hasValidData = row.villageId && row.block && row.tpno;
       if (!hasValidData) return;
     } else if (BtrTypeId == 5) {
-      hasValidData = row.villageId && row.block && row.oldsvno && row.oldsubno;
+      hasValidData = row.villageId && row.block && row.oldsvno;
       if (!hasValidData) return;
     }
 
@@ -2005,7 +2005,7 @@ const ClusterManualEntryNonBtr = () => {
             return true;
           }
         } else if (BtrTypeId == 5) {
-          if (!row.villageName || !row.block || !row.oldsvno || !row.oldsubno || !row.area || !row.enumeratedArea) {
+          if (!row.villageName || !row.block || !row.oldsvno || !row.area || !row.enumeratedArea) {
             return true;
           }
         }
@@ -2029,7 +2029,7 @@ const ClusterManualEntryNonBtr = () => {
         } else if (BtrTypeId == 4) {
           return row.villageName && row.block && row.tpno && row.area && row.enumeratedArea;
         } else if (BtrTypeId == 5) {
-          return row.villageName && row.block && row.oldsvno && row.oldsubno && row.area && row.enumeratedArea;
+          return row.villageName && row.block && row.oldsvno && row.area && row.enumeratedArea;
         }
         return false;
       });
@@ -2760,7 +2760,7 @@ const ClusterManualEntryNonBtr = () => {
           } else if (BtrTypeId === 5) {
             isNewRowIncomplete = keyplot.rows
               .filter(r => r.isNew)
-              .some(r => !r.villageName || !r.block || !r.oldsvno || !r.oldsubno || !r.area || !r.enumeratedArea);
+              .some(r => !r.villageName || !r.block || !r.oldsvno || !r.area || !r.enumeratedArea);
           }
 
           const hasErrorInKeyplot = keyplot.rows.some(r => !!errors[`${keyplot.id}-${r.uniqueId}`]);

@@ -133,6 +133,8 @@ function KeralaFormReportList() {
   const MONTH_OPTIONS = buildAgriMonthOptions();
   const getMonthLabel = (value) => MONTH_OPTIONS.find((o) => o.value === value)?.label || value;
 
+  const [btrData, setBtrData] = useState(null);
+
   const [seasonTab, setSeasonTab] = useState('ALL');
   const [filterType, setFilterType] = useState('single');
   const [fromMonth, setFromMonth] = useState(() => MONTH_OPTIONS[0]?.value || '');
@@ -206,23 +208,28 @@ function KeralaFormReportList() {
       if (endMonthVal) params.append('endMonth', endMonthVal);
       if (seasonTab && seasonTab !== 'ALL') params.append('landType', seasonTab);
 
-      const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/state?${params.toString()}`;
-      console.log('Fetching Form1 status data from:', url);
+      const formStatusUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/state?${params.toString()}`;
+      const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/completed-clusters?${params.toString()}`;
 
-      const response = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      console.log('Fetching Form1 status data from:', formStatusUrl);
+      console.log('Fetching BTR completed-clusters data from:', completedClustersUrl);
 
-      console.log('API Response:', response.data);
-      setApiData(response.data || null);
-    } catch (err) {
-      console.error('Error fetching data:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch district data';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
+      const [formStatusRes, completedClustersRes] = await Promise.all([
+      axios.get(formStatusUrl, { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get(completedClustersUrl, { headers: { Authorization: `Bearer ${token}` } })
+    ]);
+
+
+      setApiData(formStatusRes.data || null);
+    setBtrData(completedClustersRes.data || null);
+  } catch (err) {
+    console.error('Error fetching data:', err);
+    const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch district data';
+    setError(errorMessage);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchDistrictData();
@@ -235,86 +242,63 @@ function KeralaFormReportList() {
 
   // Map allSubDetails into UI rows, merging with master districts list
   const districtData = useMemo(() => {
-    const apiDistricts = apiData?.allSubDetails || {};
+  const apiDistricts = apiData?.allSubDetails || {};
+  const btrDistricts = btrData?.allSubDetails || {};
 
-    console.log('API Districts:', apiDistricts);
-    console.log('Master Districts List:', districtsList);
+  const apiDataMapById = {};
+  const apiDataMapByName = {};
+  Object.entries(apiDistricts).forEach(([name, details]) => {
+    if (details.id) apiDataMapById[details.id] = { name, details };
+    const key = name?.toLowerCase()?.trim() || '';
+    if (key) apiDataMapByName[key] = { name, details };
+  });
 
-    // Create a map for quick lookup of API data by ID
-    const apiDataMapById = {};
-    const apiDataMapByName = {};
-    Object.entries(apiDistricts).forEach(([name, details]) => {
-      // Store by ID if available
-      if (details.id) {
-        apiDataMapById[details.id] = { name, details };
+  const btrMapById = {};
+  const btrMapByName = {};
+  Object.entries(btrDistricts).forEach(([name, details]) => {
+    if (details.id) btrMapById[details.id] = { name, details };
+    const key = name?.toLowerCase()?.trim() || '';
+    if (key) btrMapByName[key] = { name, details };
+  });
+
+  const resolveBtrDetails = (districtId, districtName) => {
+    if (districtId && btrMapById[districtId]) return btrMapById[districtId].details;
+    const key = districtName?.toLowerCase()?.trim() || '';
+    if (key && btrMapByName[key]) return btrMapByName[key].details;
+    return {};
+  };
+
+  if (districtsList && districtsList.length > 0) {
+    return districtsList.map((district) => {
+      const districtId = district.distId;
+      const districtName = district.distNameEn || '';
+
+      let apiMatch = null;
+      if (districtId && apiDataMapById[districtId]) apiMatch = apiDataMapById[districtId];
+      if (!apiMatch) {
+        const key = districtName?.toLowerCase()?.trim() || '';
+        if (key && apiDataMapByName[key]) apiMatch = apiDataMapByName[key];
       }
-      // Also store by name for fallback
-      const key = name?.toLowerCase()?.trim() || '';
-      if (key) {
-        apiDataMapByName[key] = { name, details };
-      }
-    });
+      const apiDetails = apiMatch ? apiMatch.details : {};
 
-    // If we have master districts list, merge with API data
-    if (districtsList && districtsList.length > 0) {
-      const merged = districtsList.map((district) => {
-        const districtId = district.distId;
-        const districtName = district.distNameEn || '';
+      const completed = pickMetric(apiDetails, 'Completed', seasonTab); // unchanged source
+      const ongoing = pickMetric(apiDetails, 'Ongoing', seasonTab);
+      const underReview = pickMetric(apiDetails, 'UnderReview', seasonTab);
+      const area = pickMetric(apiDetails, 'ClusterArea', seasonTab);
 
-        // Try to find API data by ID first
-        let apiMatch = null;
-        if (districtId && apiDataMapById[districtId]) {
-          apiMatch = apiDataMapById[districtId];
-        }
+      // NEW: Total now comes from the BTR completed-clusters API
+      const btrDetails = resolveBtrDetails(districtId, districtName);
+      const total = pickMetric(btrDetails, 'Completed', seasonTab); // wetCompleted/dryCompleted
 
-        // If not found by ID, try by name
-        if (!apiMatch) {
-          const key = districtName?.toLowerCase()?.trim() || '';
-          if (key && apiDataMapByName[key]) {
-            apiMatch = apiDataMapByName[key];
-          }
-        }
+      // NEW: Not Started = new total - existing completed
+      const notStarted = Math.max(total - completed, 0);
 
-        const apiDetails = apiMatch ? apiMatch.details : {};
-
-        const completed = pickMetric(apiDetails, 'Completed', seasonTab);
-        const ongoing = pickMetric(apiDetails, 'Ongoing', seasonTab);
-        const notStarted = pickMetric(apiDetails, 'NotStarted', seasonTab);
-        const underReview = pickMetric(apiDetails, 'UnderReview', seasonTab);
-        const area = pickMetric(apiDetails, 'ClusterArea', seasonTab);
-
-        const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0;
-
-        return {
-          id: districtId || apiDetails.id || `dist_${Math.random()}`,
-          district: districtName || apiMatch?.name || 'Unknown District',
-          total: completed + ongoing + notStarted + underReview,
-          completed,
-          ongoing,
-          notStarted,
-          underReview,
-          area,
-          hasData
-        };
-      });
-
-      console.log('Merged District Data:', merged);
-      return merged;
-    }
-
-    // Fallback: use only API data
-    return Object.entries(apiDistricts).map(([districtName, d]) => {
-      const completed = pickMetric(d, 'Completed', seasonTab);
-      const ongoing = pickMetric(d, 'Ongoing', seasonTab);
-      const notStarted = pickMetric(d, 'NotStarted', seasonTab);
-      const underReview = pickMetric(d, 'UnderReview', seasonTab);
-      const area = pickMetric(d, 'ClusterArea', seasonTab);
-      const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0;
+      const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
 
       return {
-        id: d.id || `dist_${Math.random()}`,
-        district: districtName || 'Unknown District',
-        total: completed + ongoing + notStarted + underReview,
+        id: districtId || apiDetails.id || `dist_${Math.random()}`,
+        district: districtName || apiMatch?.name || 'Unknown District',
+        total,
         completed,
         ongoing,
         notStarted,
@@ -323,23 +307,51 @@ function KeralaFormReportList() {
         hasData
       };
     });
-  }, [apiData, districtsList, seasonTab]);
+  }
+
+  // Fallback (no master districts list) — same idea, keyed off apiDistricts
+  return Object.entries(apiDistricts).map(([districtName, d]) => {
+    const completed = pickMetric(d, 'Completed', seasonTab);
+    const ongoing = pickMetric(d, 'Ongoing', seasonTab);
+    const underReview = pickMetric(d, 'UnderReview', seasonTab);
+    const area = pickMetric(d, 'ClusterArea', seasonTab);
+
+    const btrDetails = resolveBtrDetails(d.id, districtName);
+    const total = pickMetric(btrDetails, 'Completed', seasonTab);
+    const notStarted = Math.max(total - completed, 0);
+    const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
+
+    return {
+      id: d.id || `dist_${Math.random()}`,
+      district: districtName || 'Unknown District',
+      total,
+      completed,
+      ongoing,
+      notStarted,
+      underReview,
+      area,
+      hasData
+    };
+  });
+}, [apiData, btrData, districtsList, seasonTab]);
 
   const districtsWithNoData = useMemo(() => {
     return districtData.filter(d => !d.hasData).length;
   }, [districtData]);
 
-  const stats = useMemo(
-    () => ({
-      all: apiData?.totalCluster || 0,
-      completed: apiData?.completed || 0,
-      ongoing: apiData?.ongoing || 0,
-      notStarted: apiData?.notStarted || 0,
-      underReview: apiData?.underView || 0,
-      completedArea: districtData.reduce((sum, d) => sum + d.area, 0)
-    }),
-    [apiData, districtData]
-  );
+  const stats = useMemo(() => {
+  const totalCompletedClusters = btrData?.totalClusterCompleted || 0; // NEW source for "Total Clusters"
+  const existingCompleted = apiData?.completed || 0; // unchanged
+
+  return {
+    all: totalCompletedClusters,
+    completed: existingCompleted,
+    ongoing: apiData?.ongoing || 0,
+    notStarted: Math.max(totalCompletedClusters - existingCompleted, 0), // NEW derivation
+    underReview: apiData?.underView || 0,
+    completedArea: districtData.reduce((sum, d) => sum + d.area, 0)
+  };
+}, [apiData, btrData, districtData]);
 
   const filteredData = useMemo(() => {
     if (!searchTerm.trim()) return districtData;

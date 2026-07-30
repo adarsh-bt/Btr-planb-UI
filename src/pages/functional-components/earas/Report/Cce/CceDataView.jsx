@@ -845,7 +845,6 @@ const CceDataView = () => {
         </TabPanel>
 
         {/* TAB 4: IRRIGATION */}
-        {/* TAB 4: IRRIGATION */}
         <TabPanel value={tabValue} index={3}>
           <Box sx={{ mb: 4 }}>
             <SectionTitle icon={WaterDropIcon} title="Irrigation Method & Schedule" />

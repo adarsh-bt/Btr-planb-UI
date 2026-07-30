@@ -134,12 +134,58 @@ function getMonthLabel(value, agriYearMonths) {
   return found ? found.label : value;
 }
 
-// Format month for API - already in YYYY-MM format
-function formatMonthForApi(monthValue) {
+function resolveMonthValue(val, months, agriculturalYear) {
+  if (!val) return '';
+  const valStr = String(val).trim();
+  if (Array.isArray(months) && months.length > 0) {
+    // 1. Exact match with value (e.g. '2025-07')
+    const exactMatch = months.find((o) => o.value === valStr);
+    if (exactMatch) return exactMatch.value;
+
+    // 2. In MM-YYYY format (e.g. '07-2025')
+    if (/^\d{2}-\d{4}$/.test(valStr)) {
+      const [mm, yyyy] = valStr.split('-');
+      const formatted = `${yyyy}-${mm}`;
+      const match = months.find((o) => o.value === formatted);
+      if (match) return match.value;
+      return formatted;
+    }
+
+    // 3. Match month name prefix or label (e.g. val is 'July' or 'July 2025')
+    const valLower = valStr.toLowerCase();
+    const labelMatch = months.find((o) => o.label.toLowerCase() === valLower);
+    if (labelMatch) return labelMatch.value;
+
+    const monthNameMatch = months.find((o) => o.label.toLowerCase().startsWith(valLower));
+    if (monthNameMatch) return monthNameMatch.value;
+  }
+
+  // Fallback: parse month name string directly
+  if (!agriculturalYear) {
+    agriculturalYear = getAgriculturalYear();
+  }
+  let cleanName = valStr.split(' ')[0].split('-')[0];
+  const monthIndex = MONTH_NAMES.findIndex((m) => m.toLowerCase().startsWith(cleanName.toLowerCase()));
+  if (monthIndex !== -1) {
+    const yr = monthIndex >= 6 ? agriculturalYear.startYear : agriculturalYear.endYear;
+    const mm = String(monthIndex + 1).padStart(2, '0');
+    return `${yr}-${mm}`;
+  }
+
+  return '';
+}
+
+// Format month for API - convert monthName/value to YYYY-MM format
+function formatMonthForApi(monthValue, agriculturalYear, agriYearMonths = []) {
   if (!monthValue) return null;
+  const valStr = String(monthValue).trim();
   // Already in YYYY-MM format
-  if (/^\d{4}-\d{2}$/.test(monthValue)) {
-    return monthValue;
+  if (/^\d{4}-\d{2}$/.test(valStr)) {
+    return valStr;
+  }
+  const resolved = resolveMonthValue(valStr, agriYearMonths, agriculturalYear);
+  if (resolved && /^\d{4}-\d{2}$/.test(resolved)) {
+    return resolved;
   }
   return null;
 }
@@ -199,11 +245,19 @@ function TalukClusterReport() {
   const [seasonTab, setSeasonTab] = useState(stateData.seasonTab || 'ALL');
   const [landType, setLandType] = useState(stateData.landType || null);
   const [filterType, setFilterType] = useState(stateData.filterType || 'single');
-  const [fromMonth, setFromMonth] = useState(stateData.fromMonth || '');
-  const [toMonth, setToMonth] = useState(stateData.toMonth || '');
-  const [singleMonth, setSingleMonth] = useState(
-    stateData.singleMonth || getDefaultMonth(agriYearMonths.current)
-  );
+  const [fromMonth, setFromMonth] = useState(() => {
+    const raw = stateData.fromMonth || stateData.startMonth;
+    return formatMonthForApi(raw, agriculturalYear.current, agriYearMonths.current) || '';
+  });
+  const [toMonth, setToMonth] = useState(() => {
+    const raw = stateData.toMonth || stateData.endMonth;
+    return formatMonthForApi(raw, agriculturalYear.current, agriYearMonths.current) || '';
+  });
+  const [singleMonth, setSingleMonth] = useState(() => {
+    const raw = stateData.singleMonth;
+    const formatted = formatMonthForApi(raw, agriculturalYear.current, agriYearMonths.current);
+    return formatted || getDefaultMonth(agriYearMonths.current);
+  });
 
   /* ── ui state ── */
   const [apiData, setApiData] = useState(null);
@@ -225,9 +279,9 @@ function TalukClusterReport() {
           landType: stateData.landType || null,
           seasonTab: stateData.seasonTab || 'ALL',
           filterType: stateData.filterType || 'single',
-          fromMonth: stateData.fromMonth || '',
-          toMonth: stateData.toMonth || '',
-          singleMonth: stateData.singleMonth || getDefaultMonth(agriYearMonths.current),
+          fromMonth: fromMonth || '',
+          toMonth: toMonth || '',
+          singleMonth: singleMonth || getDefaultMonth(agriYearMonths.current),
         })
       );
     }
@@ -288,25 +342,34 @@ function TalukClusterReport() {
         url += `&landType=${effectiveLandType.toLowerCase()}`;
       }
 
+      let startM = null;
+      let endM = null;
+
       if (effectiveFilterType === 'single') {
-        if (effectiveSingleMonth) {
-          url += `&startMonth=${effectiveSingleMonth}&endMonth=${effectiveSingleMonth}`;
-        }
+        const fmt = formatMonthForApi(effectiveSingleMonth, agriculturalYear.current, agriYearMonths.current) || getDefaultMonth(agriYearMonths.current);
+        startM = fmt;
+        endM = fmt;
       } else if (effectiveFilterType === 'range') {
         if (effectiveFromMonth) {
-          url += `&startMonth=${effectiveFromMonth}`;
+          startM = formatMonthForApi(effectiveFromMonth, agriculturalYear.current, agriYearMonths.current);
         }
         if (effectiveToMonth) {
-          url += `&endMonth=${effectiveToMonth}`;
+          endM = formatMonthForApi(effectiveToMonth, agriculturalYear.current, agriYearMonths.current);
         }
       }
 
-      // Safety fallback: ensure startMonth is ALWAYS present
-      if (!url.includes('startMonth=')) {
-        const fallbackFmt = getDefaultMonth(agriYearMonths.current);
-        if (fallbackFmt) {
-          url += `&startMonth=${fallbackFmt}&endMonth=${fallbackFmt}`;
-        }
+      if (!startM) {
+        startM = getDefaultMonth(agriYearMonths.current);
+      }
+      if (!endM && effectiveFilterType === 'single') {
+        endM = startM;
+      }
+
+      if (startM) {
+        url += `&startMonth=${startM}`;
+      }
+      if (endM) {
+        url += `&endMonth=${endM}`;
       }
 
       console.log('Fetching taluk data from:', url);
