@@ -33,8 +33,7 @@ const tourDiaryService = {
     try {
       const response = await api.get(
         `${BASE_URL}/tour-diary/api/purposes/active/${schemeId}`);
-      console.log("getActivePurposes response: ", response.data);
-      console.log("getActivePurposes response: " + JSON.stringify(response.data));
+
       return response.data;
 
     } catch (err) {
@@ -159,6 +158,31 @@ const tourDiaryService = {
         message:
           err.response?.data?.message ||
           "An error occurred while deleting tour."
+      };
+    }
+  },
+
+  // ✅ Delete Actual Tour
+  async deleteActualTour(id) {
+    const token = localStorage.getItem('token');
+
+    try {
+      const response = await axios.delete(
+        `${BASE_URL}/tour-diary/api/advanced-tour/delete/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      return response.data;
+
+    } catch (err) {
+      return {
+        message:
+          err.response?.data?.message ||
+          "An error occurred while deleting tour entry."
       };
     }
   },
@@ -535,15 +559,12 @@ const tourDiaryService = {
   // Get full year view with month statuses
   async getFullYearView(userId, year) {
     const token = localStorage.getItem('token');
-
+    console.log(year, "fullYearView", userId)
     try {
-      const response = await axios.get(
+      const response = await api.get(
         `${BASE_URL}/tour-diary/api/purposes/admin/full-year-view`,
         {
           params: { userId, year },
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
         }
       );
       return response.data;

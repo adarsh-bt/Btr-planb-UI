@@ -483,7 +483,7 @@ const AdminTourDiary = () => {
               </Button>
               <Button
                 variant="contained"
-                disabled
+                // disabled
                 onClick={() => handleMenuSelect('regular')}
                 sx={{ backgroundColor: '#2e7d32' }}
               >

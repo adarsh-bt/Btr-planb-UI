@@ -46,9 +46,11 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EventIcon from "@mui/icons-material/Event";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import SaveIcon from "@mui/icons-material/Save";
+import InfoIcon from "@mui/icons-material/Info";
 import tourDiaryService from "pages/authentication/services/tourdiaryservice";
 import Breadcrumb from "routes/Breadcrumb";
 import MainCard from "components/MainCard";
@@ -166,6 +168,63 @@ const UserTourDiaryDetail = () => {
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, eventId: null });
+  const [fullMonthStatus, setFullMonthStatus] = useState(null);
+  const [fullMonthModalOpen, setFullMonthModalOpen] = useState(false);
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "N/A";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true
+      });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  const openDeleteDialog = (id) => setDeleteDialog({ open: true, eventId: id });
+  const closeDeleteDialog = () => setDeleteDialog({ open: false, eventId: null });
+
+  const handleDeleteEvent = async (eventId) => {
+    if (!eventId) return;
+    setDeleteLoading(true);
+    try {
+      const response = await tourDiaryService.deleteActualTour(eventId);
+      const isSuccess = response && (
+        !response.message ||
+        response.message === "Tour deleted successfully" ||
+        (typeof response === "string" && response.toLowerCase().includes("success")) ||
+        response.status === 200 || response.status === "SUCCESS"
+      );
+
+      if (isSuccess && !response.error) {
+        setSnackbar({ open: true, message: response.message || "Tour deleted successfully", severity: "success" });
+        setTourEntries(prev => prev.filter(entry => entry.id !== eventId));
+        closeDeleteDialog();
+        if (detailModalOpen && selectedEntry?.id === eventId) {
+          closeDetailModal();
+        }
+      } else {
+        setSnackbar({ open: true, message: response.message || "Failed to delete tour entry", severity: "error" });
+      }
+    } catch (err) {
+      console.error("Error deleting tour entry:", err);
+      setSnackbar({ open: true, message: err.message || "Failed to delete tour entry", severity: "error" });
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
   const [submittingMonth, setSubmittingMonth] = useState(false);
@@ -434,6 +493,7 @@ const UserTourDiaryDetail = () => {
           message
         });
         await fetchUserTourEntries();
+        await fetchFullMonthStatus();
       } else {
         setResultDialog({
           open: true,
@@ -442,6 +502,7 @@ const UserTourDiaryDetail = () => {
           message: message || "Full month submitted successfully"
         });
         await fetchUserTourEntries();
+        await fetchFullMonthStatus();
       }
 
     } catch (error) {
@@ -658,8 +719,30 @@ const UserTourDiaryDetail = () => {
       setClusters([]);
     }
   }, [editFormData.zoneId]);
+  const fetchFullMonthStatus = async () => {
+    if (!selectedUserId) return;
+    try {
+      const response = await tourDiaryService.getFullYearView(selectedUserId, selectedYear);
+      if (response && !response.error && Array.isArray(response)) {
+        const currentMonthData = response.find(
+          item => item.month === selectedMonth && item.year === selectedYear
+        );
+        setFullMonthStatus(currentMonthData || null);
+      } else {
+        setFullMonthStatus(null);
+      }
+    } catch (error) {
+      console.error("Error fetching month status:", error);
+      setFullMonthStatus(null);
+    }
+  };
+
   useEffect(() => {
-    if (selectedUserId) { fetchUserTourEntries(); fetchZones(); }
+    if (selectedUserId) {
+      fetchUserTourEntries();
+      fetchZones();
+      fetchFullMonthStatus();
+    }
     fetchPurposesAndZones();
   }, [selectedUserId, selectedMonth, selectedYear]);
 
@@ -688,6 +771,10 @@ const UserTourDiaryDetail = () => {
   };
 
   const handleEditEntry = (entry) => {
+    if (isMonthSubmitted()) {
+      setSnackbar({ open: true, message: "Full Month has already been submitted. You cannot edit entries for this period.", severity: "info" });
+      return;
+    }
     if (entry.reportEntryType === "AUTO CAPTURED") {
       setEditFormData({
         id: entry.id,
@@ -714,7 +801,8 @@ const UserTourDiaryDetail = () => {
         clusterId: entry.clusterId || "",
         seasonId: entry.seasonNo || entry.seasonId || "",
         landType: entry.landType || "",
-        geoLocation: entry.geoLocation || ""
+        geoLocation: entry.geoLocation || "",
+        cropId: entry.cropId || "",
       });
       setIsOtherScheme(entry.schemesId === 10);
 
@@ -862,6 +950,10 @@ const UserTourDiaryDetail = () => {
   };
 
   const handleOpenManualEntry = async (dateKey) => {
+    if (isMonthSubmitted()) {
+      setSnackbar({ open: true, message: "Full Month has already been submitted. You cannot add new entries for this period.", severity: "info" });
+      return;
+    }
     setManualEntryDate(dateKey);
     setEntryType('WORKING');
     setManualFormData({
@@ -970,21 +1062,14 @@ const UserTourDiaryDetail = () => {
   };
 
   const closeDetailModal = () => { setDetailModalOpen(false); setSelectedEntry(null); };
+  console.log("fullMonthStatus", fullMonthStatus)
   // Add this helper function to check if the month is already submitted
   const isMonthSubmitted = () => {
-    // Check if any entries in the month have a submission status
-    // This depends on your backend implementation
+    if (fullMonthStatus && (fullMonthStatus.status === "SUBMIT" || fullMonthStatus.status === "SUBMITTED" || fullMonthStatus.fullMonthId || fullMonthStatus.id)) {
+      return true;
+    }
     return tourEntries.some(entry => entry.submitted === true);
   };
-
-  // Add this chip in the header to show submission status
-  <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 2 }}>
-    <Chip
-      label={isMonthSubmitted() ? '✅ Full Month Submitted' : '⏳ Pending Submission'}
-      color={isMonthSubmitted() ? 'success' : 'warning'}
-      size="medium"
-    />
-  </Box>
   const closeEditModal = () => {
     setEditModalOpen(false);
     setEditSelectedScheme("");
@@ -1089,17 +1174,26 @@ const UserTourDiaryDetail = () => {
               {/* empty actions */}
             </TableCell>
             <TableCell sx={{ py: 1, px: 1, textAlign: 'center', borderBottom: `1px solid ${theme.palette.divider}` }}>
-              <Tooltip title="Add manual entry">
-                <IconButton
-                  size="small"
-                  onClick={() => handleOpenManualEntry(dateKey)}
-                  sx={{
-                    backgroundColor: '#1976d2', color: '#fff', width: 26, height: 26,
-                    '&:hover': { backgroundColor: '#1565c0' }
-                  }}
-                >
-                  <AddIcon sx={{ fontSize: 16 }} />
-                </IconButton>
+              <Tooltip title={isMonthSubmitted() ? "Locked — Full month submitted" : "Add manual entry"}>
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      if (isMonthSubmitted()) {
+                        setSnackbar({ open: true, message: "Full Month has already been submitted. You cannot add new entries for this period.", severity: "info" });
+                        return;
+                      }
+                      handleOpenManualEntry(dateKey);
+                    }}
+                    disabled={isMonthSubmitted()}
+                    sx={{
+                      backgroundColor: isMonthSubmitted() ? '#ccc' : '#1976d2', color: '#fff', width: 26, height: 26,
+                      '&:hover': { backgroundColor: isMonthSubmitted() ? '#ccc' : '#1565c0' }
+                    }}
+                  >
+                    <AddIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </span>
               </Tooltip>
             </TableCell>
           </TableRow>
@@ -1203,27 +1297,69 @@ const UserTourDiaryDetail = () => {
                     <VisibilityIcon sx={{ fontSize: 16 }} />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title="Edit">
-                  <IconButton
-                    size="small"
-                    onClick={(e) => { e.stopPropagation(); handleEditEntry(event); }}
-                    sx={{ color: theme.palette.warning.main }}
-                  >
-                    <EditIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
+                <Tooltip title={isMonthSubmitted() ? "Locked — Full month submitted" : "Edit"}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isMonthSubmitted()) {
+                          setSnackbar({ open: true, message: "Full Month has already been submitted. You cannot edit entries for this period.", severity: "info" });
+                          return;
+                        }
+                        handleEditEntry(event);
+                      }}
+                      disabled={isMonthSubmitted()}
+                      sx={{ mr: 0.5, color: isMonthSubmitted() ? 'text.disabled' : theme.palette.warning.main }}
+                    >
+                      <EditIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                <Tooltip title={isMonthSubmitted() ? "Locked — Full month submitted" : "Delete"}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isMonthSubmitted()) {
+                          setSnackbar({ open: true, message: "Full Month has already been submitted. You cannot delete entries for this period.", severity: "info" });
+                          return;
+                        }
+                        openDeleteDialog(event.id);
+                      }}
+                      disabled={deleteLoading || isMonthSubmitted()}
+                      sx={{ color: isMonthSubmitted() ? 'text.disabled' : theme.palette.error.main }}
+                    >
+                      <DeleteIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </span>
                 </Tooltip>
               </TableCell>
               {/* + button — only on last row */}
               {isLast && (
                 <TableCell sx={{ py: 1, px: 1, textAlign: 'center', verticalAlign: 'middle', borderBottom: cellBorderBottom }}>
-                  <Tooltip title="Add manual entry">
-                    <IconButton
-                      size="small"
-                      onClick={(e) => { e.stopPropagation(); handleOpenManualEntry(dateKey); }}
-                      sx={{ backgroundColor: '#1976d2', color: '#fff', width: 26, height: 26, '&:hover': { backgroundColor: '#1565c0' } }}
-                    >
-                      <AddIcon sx={{ fontSize: 16 }} />
-                    </IconButton>
+                  <Tooltip title={isMonthSubmitted() ? "Locked — Full month submitted" : "Add manual entry"}>
+                    <span>
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isMonthSubmitted()) {
+                            setSnackbar({ open: true, message: "Full Month has already been submitted. You cannot add new entries for this period.", severity: "info" });
+                            return;
+                          }
+                          handleOpenManualEntry(dateKey);
+                        }}
+                        disabled={isMonthSubmitted()}
+                        sx={{
+                          backgroundColor: isMonthSubmitted() ? '#ccc' : '#1976d2', color: '#fff', width: 26, height: 26,
+                          '&:hover': { backgroundColor: isMonthSubmitted() ? '#ccc' : '#1565c0' }
+                        }}
+                      >
+                        <AddIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </span>
                   </Tooltip>
                 </TableCell>
               )}
@@ -1285,13 +1421,52 @@ const UserTourDiaryDetail = () => {
               <Typography variant="h3" align="center" sx={{ marginBottom: 3, color: theme.palette.text.primary }}>
                 Actual Tour Diary
               </Typography>
-              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 2 }}>
-                <Chip
-                  label={isMonthSubmitted() ? '✅ Full Month Submitted' : '⏳ Pending Submission'}
-                  color={isMonthSubmitted() ? 'success' : 'warning'}
-                  size="medium"
-                />
-              </Box>
+              <Paper variant="outlined" sx={{ p: 1.5, mb: 2.5, borderRadius: 2, bgcolor: theme.palette.action.hover, borderColor: theme.palette.divider }}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    Full Month Status:
+                  </Typography>
+                  <Chip
+                    label={isMonthSubmitted() ? '✅ Full Month Submitted' : '⏳ Pending Submission'}
+                    color={isMonthSubmitted() ? 'success' : 'warning'}
+                    size="small"
+                    sx={{ fontWeight: 'bold' }}
+                  />
+                  {fullMonthStatus && (
+                    <>
+                      <Chip
+                        label={`Verification: ${fullMonthStatus.verified_status || fullMonthStatus.verifiedStatus || 'PENDING'}`}
+                        size="small"
+                        color={
+                          (fullMonthStatus.verified_status || fullMonthStatus.verifiedStatus) === 'APPROVED' ? 'success' :
+                            (fullMonthStatus.verified_status || fullMonthStatus.verifiedStatus) === 'REJECTED' ? 'error' : 'warning'
+                        }
+                        sx={{ fontWeight: 'bold' }}
+                      />
+                      <Chip
+                        label={`Admin Approval: ${fullMonthStatus.approved_status || fullMonthStatus.approvedStatus || fullMonthStatus.admin_status || fullMonthStatus.adminStatus || 'PENDING'}`}
+                        size="small"
+                        color={
+                          (fullMonthStatus.approved_status || fullMonthStatus.approvedStatus || fullMonthStatus.admin_status || fullMonthStatus.adminStatus) === 'APPROVED' ? 'success' :
+                            (fullMonthStatus.approved_status || fullMonthStatus.approvedStatus || fullMonthStatus.admin_status || fullMonthStatus.adminStatus) === 'REJECTED' ? 'error' : 'warning'
+                        }
+                        sx={{ fontWeight: 'bold' }}
+                      />
+                    </>
+                  )}
+                  {fullMonthStatus && (
+                    <Tooltip title="View Remarks & Submission Details">
+                      <IconButton
+                        size="small"
+                        onClick={() => setFullMonthModalOpen(true)}
+                        sx={{ color: theme.palette.info.main, ml: 0.5 }}
+                      >
+                        <VisibilityIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Box>
+              </Paper>
               <Box
                 sx={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -1327,24 +1502,24 @@ const UserTourDiaryDetail = () => {
                 </Typography>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '250px', justifyContent: 'flex-end' }}>
-                  {/* In the header section, replace the submit button */}
-                  <Button
-                    variant="contained"
-                    onClick={handleSubmitMonth}
-
-                    //for testing
-                    // disabled={!canSubmitMonth() || submittingMonth}
-                    disabled={submittingMonth}
-                    sx={{
-                      backgroundColor: '#27ae60',
-                      '&:hover': { backgroundColor: '#229954' },
-                      whiteSpace: 'nowrap',
-                      minWidth: '140px'
-                    }}
-                    startIcon={submittingMonth ? <CircularProgress size={20} color="inherit" /> : null}
-                  >
-                    {submittingMonth ? "Submitting..." : "Submit Full Month"}
-                  </Button>
+                  <Tooltip title={isMonthSubmitted() ? "Full Month has already been submitted" : "Submit Full Month"}>
+                    <span>
+                      <Button
+                        variant="contained"
+                        onClick={handleSubmitMonth}
+                        disabled={submittingMonth || isMonthSubmitted()}
+                        sx={{
+                          backgroundColor: isMonthSubmitted() ? '#888' : '#27ae60',
+                          '&:hover': { backgroundColor: isMonthSubmitted() ? '#888' : '#229954' },
+                          whiteSpace: 'nowrap',
+                          minWidth: '140px'
+                        }}
+                        startIcon={submittingMonth ? <CircularProgress size={20} color="inherit" /> : null}
+                      >
+                        {submittingMonth ? "Submitting..." : isMonthSubmitted() ? "Month Submitted" : "Submit Full Month"}
+                      </Button>
+                    </span>
+                  </Tooltip>
                   <Button
                     variant="contained"
                     onClick={() => handleMonthChange(1)}
@@ -1528,7 +1703,21 @@ const UserTourDiaryDetail = () => {
               )}
             </Grid>
           )}
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 3 }}>
+            {selectedEntry && (
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={() => {
+                  const idToDelete = selectedEntry.id;
+                  closeDetailModal();
+                  openDeleteDialog(idToDelete);
+                }}
+              >
+                Delete
+              </Button>
+            )}
             <Button variant="contained" onClick={closeDetailModal} sx={{ backgroundColor: '#2980b9', '&:hover': { backgroundColor: '#1f6391' } }}>
               Close
             </Button>
@@ -2402,6 +2591,184 @@ const UserTourDiaryDetail = () => {
             }}
           >
             OK
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ==================== DELETE CONFIRMATION DIALOG ==================== */}
+      <Dialog
+        open={deleteDialog.open}
+        onClose={closeDeleteDialog}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 2 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 600 }}>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this tour entry?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button onClick={closeDeleteDialog} variant="outlined" disabled={deleteLoading}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => handleDeleteEvent(deleteDialog.eventId)}
+            variant="contained"
+            color="error"
+            disabled={deleteLoading}
+            startIcon={deleteLoading ? <CircularProgress size={16} color="inherit" /> : null}
+          >
+            {deleteLoading ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ==================== FULL MONTH REMARKS & STATUS MODAL ==================== */}
+      <Dialog
+        open={fullMonthModalOpen}
+        onClose={() => setFullMonthModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 2 } }}
+      >
+        <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <InfoIcon color="primary" />
+            <Typography variant="h5" sx={{ fontWeight: 600 }}>
+              Full Month Remarks & Details
+            </Typography>
+          </Box>
+          <IconButton onClick={() => setFullMonthModalOpen(false)} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <Divider />
+        <DialogContent sx={{ p: 2.5 }}>
+          {fullMonthStatus ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {/* Submission Information */}
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: theme.palette.action.hover }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, color: theme.palette.primary.main }}>
+                  Submission Details
+                </Typography>
+                <Grid container spacing={1.5}>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" display="block">Status</Typography>
+                    <Chip
+                      label={fullMonthStatus.status || (isMonthSubmitted() ? 'SUBMITTED' : 'PENDING')}
+                      color={isMonthSubmitted() ? 'success' : 'warning'}
+                      size="small"
+                      sx={{ fontWeight: 'bold', mt: 0.5 }}
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" display="block">Submitted At</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {formatDate(fullMonthStatus.submitted_at || fullMonthStatus.submittedAt)}
+                    </Typography>
+                  </Grid>
+                  {fullMonthStatus.late !== undefined && (
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="text.secondary" display="block">Submission Timing</Typography>
+                      <Chip
+                        label={fullMonthStatus.late ? 'Late Submission' : 'On Time'}
+                        color={fullMonthStatus.late ? 'error' : 'success'}
+                        size="small"
+                        variant="outlined"
+                        sx={{ mt: 0.5 }}
+                      />
+                    </Grid>
+                  )}
+                </Grid>
+              </Paper>
+
+              {/* Verification Details */}
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: theme.palette.info.main }}>
+                    Verification Status
+                  </Typography>
+                  <Chip
+                    label={fullMonthStatus.verified_status || fullMonthStatus.verifiedStatus || 'PENDING'}
+                    size="small"
+                    color={
+                      (fullMonthStatus.verified_status || fullMonthStatus.verifiedStatus) === 'APPROVED' ? 'success' :
+                      (fullMonthStatus.verified_status || fullMonthStatus.verifiedStatus) === 'REJECTED' ? 'error' : 'warning'
+                    }
+                    sx={{ fontWeight: 'bold' }}
+                  />
+                </Box>
+                <Grid container spacing={1.5} sx={{ mb: 1.5 }}>
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="text.secondary" display="block">Verified At</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {formatDate(fullMonthStatus.verified_at || fullMonthStatus.verifiedAt)}
+                    </Typography>
+                  </Grid>
+                </Grid>
+                <Typography variant="caption" color="text.secondary" display="block">Verified Remark</Typography>
+                <Paper variant="outlined" sx={{ p: 1.5, mt: 0.5, bgcolor: theme.palette.action.hover, borderRadius: 1 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontStyle: (fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark || fullMonthStatus.verificationRemark) ? 'normal' : 'italic',
+                      color: (fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark || fullMonthStatus.verificationRemark) ? 'text.primary' : 'text.disabled'
+                    }}
+                  >
+                    {(fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark || fullMonthStatus.verificationRemark) || 'No verified remark provided.'}
+                  </Typography>
+                </Paper>
+              </Paper>
+
+              {/* Admin / Approved Details */}
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: theme.palette.secondary.main }}>
+                    Admin Approval Status
+                  </Typography>
+                  <Chip
+                    label={fullMonthStatus.approved_status || fullMonthStatus.approvedStatus || fullMonthStatus.admin_status || fullMonthStatus.adminStatus || 'PENDING'}
+                    size="small"
+                    color={
+                      (fullMonthStatus.approved_status || fullMonthStatus.approvedStatus || fullMonthStatus.admin_status || fullMonthStatus.adminStatus) === 'APPROVED' ? 'success' :
+                      (fullMonthStatus.approved_status || fullMonthStatus.approvedStatus || fullMonthStatus.admin_status || fullMonthStatus.adminStatus) === 'REJECTED' ? 'error' : 'warning'
+                    }
+                    sx={{ fontWeight: 'bold' }}
+                  />
+                </Box>
+                <Grid container spacing={1.5} sx={{ mb: 1.5 }}>
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="text.secondary" display="block">Approved At</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {formatDate(fullMonthStatus.approved_at || fullMonthStatus.approvedAt || fullMonthStatus.admin_at)}
+                    </Typography>
+                  </Grid>
+                </Grid>
+                <Typography variant="caption" color="text.secondary" display="block">Admin Remark</Typography>
+                <Paper variant="outlined" sx={{ p: 1.5, mt: 0.5, bgcolor: theme.palette.action.hover, borderRadius: 1 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontStyle: (fullMonthStatus.approved_remark || fullMonthStatus.approvedRemark || fullMonthStatus.admin_remark || fullMonthStatus.adminRemark) ? 'normal' : 'italic',
+                      color: (fullMonthStatus.approved_remark || fullMonthStatus.approvedRemark || fullMonthStatus.admin_remark || fullMonthStatus.adminRemark) ? 'text.primary' : 'text.disabled'
+                    }}
+                  >
+                    {(fullMonthStatus.approved_remark || fullMonthStatus.approvedRemark || fullMonthStatus.admin_remark || fullMonthStatus.adminRemark) || 'No admin remark provided.'}
+                  </Typography>
+                </Paper>
+              </Paper>
+            </Box>
+          ) : (
+            <Typography variant="body2" color="text.secondary" align="center">
+              No full month status information available.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button variant="contained" onClick={() => setFullMonthModalOpen(false)}>
+            Close
           </Button>
         </DialogActions>
       </Dialog>

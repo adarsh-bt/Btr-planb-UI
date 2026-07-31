@@ -820,7 +820,7 @@ const ClusterManualEntryNonBtr = () => {
       } else if (BtrTypeId == 4) {
         return row.villageName && row.block && row.tpno && row.area && row.enumeratedArea;
       } else if (BtrTypeId == 5) {
-        return row.villageName && row.block && row.oldsvno && row.area && row.enumeratedArea;
+        return row.villageName && row.block && row.oldsvno && row.oldsubno && row.area && row.enumeratedArea;
       }
       return false;
     });
@@ -1227,8 +1227,8 @@ const ClusterManualEntryNonBtr = () => {
             plotUsage.get(plotId).rows.push(r);
           }
         } else if (BtrTypeId == 5) {
-          if (r.villageName && r.block && r.oldsvno) {
-            const plotId = `${r.villageName}-${r.block}-${r.oldsvno}`;
+          if (r.villageName && r.block && r.oldsvno && r.oldsubno) {
+            const plotId = `${r.villageName}-${r.block}-${r.oldsvno}-${r.oldsubno}`;
             if (!plotUsage.has(plotId)) {
               plotUsage.set(plotId, { rows: [], totalArea: 0 });
             }
@@ -1394,7 +1394,7 @@ const ClusterManualEntryNonBtr = () => {
     } else if (BtrTypeId == 4) {
       rowtitle = ['villageName', 'block', 'tpno', 'tbsubdivisionno']
     } else if (BtrTypeId == 5) {
-      rowtitle = ['villageName', 'block', 'oldsvno']
+      rowtitle = ['villageName', 'block', 'oldsvno', 'oldsubno']
     }
 
     if (rowtitle.includes(field)) {
@@ -1549,7 +1549,7 @@ const ClusterManualEntryNonBtr = () => {
           baseNewRow.ownername = '';
           baseNewRow.address = '';
           baseNewRow.oldsvno = '';
-          baseNewRow.oldsubno = '';  // Keep this but don't require it
+          baseNewRow.oldsubno = '';
           break;
 
         default:
@@ -1673,44 +1673,52 @@ const ClusterManualEntryNonBtr = () => {
 
     return hasValidRow ? 'complete' : 'incomplete';
   };
-  const checkPlotUsageInCurrentForm = (plotIdentifier, currentRowUniqueId) => {
+  const checkPlotUsageInCurrentForm = (row, currentRowUniqueId) => {
     const allRows = keyplotsData.flatMap(kp => kp.rows);
 
-    // Filter out the current row and also filter out rows that don't have valid data
-    const duplicateRows = allRows.filter(row => {
-      // Skip the current row
-      if (row.uniqueId === currentRowUniqueId) return false;
+    // Build the plot identifier based on BTR type
+    let plotIdentifier = '';
+    let hasValidFields = false;
 
-      // Skip rows that don't have the required fields for their BTR type
-      let hasValidData = false;
+    if (BtrTypeId == 2) { // House List
+      if (row.villageId && row.block && row.ward_number && row.houseno) {
+        plotIdentifier = `${row.villageId}-${row.block}-${row.ward_number}-${row.houseno}`;
+        hasValidFields = true;
+      }
+    } else if (BtrTypeId == 3) { // Cultivators List
+      if (row.villageId && row.block && row.ownername && row.address) {
+        plotIdentifier = `${row.villageId}-${row.block}-${row.ownername}-${row.address}`;
+        hasValidFields = true;
+      }
+    } else if (BtrTypeId == 4) { // Thandaper Number
+      if (row.villageId && row.block && row.tpno) {
+        plotIdentifier = `${row.villageId}-${row.block}-${row.tpno}`;
+        hasValidFields = true;
+      }
+    } else if (BtrTypeId == 5) { // Old Survey Number
+      if (row.villageId && row.block && row.oldsvno && row.oldsubno) {
+        plotIdentifier = `${row.villageId}-${row.block}-${row.oldsvno}-${row.oldsubno}`;
+        hasValidFields = true;
+      }
+    }
+
+    if (!hasValidFields) return { isUsed: false };
+
+    // Find duplicate rows
+    const duplicateRows = allRows.filter(r => {
+      let rPlotIdentifier = '';
+
       if (BtrTypeId == 2) {
-        hasValidData = row.villageId && row.block && row.ward_number && row.houseno;
+        rPlotIdentifier = `${r.villageId}-${r.block}-${r.ward_number}-${r.houseno}`;
       } else if (BtrTypeId == 3) {
-        hasValidData = row.villageId && row.block && row.ownername && row.address && row.area;
+        rPlotIdentifier = `${r.villageId}-${r.block}-${r.ownername}-${r.address}`;
       } else if (BtrTypeId == 4) {
-        hasValidData = row.villageId && row.block && row.tpno;
+        rPlotIdentifier = `${r.villageId}-${r.block}-${r.tpno}`;
       } else if (BtrTypeId == 5) {
-        hasValidData = row.villageId && row.block && row.oldsvno && row.oldsubno;
+        rPlotIdentifier = `${r.villageId}-${r.block}-${r.oldsvno}-${r.oldsubno}`;
       }
 
-      if (!hasValidData) return false;
-
-      // Create plot identifier for this row
-      let rowPlotIdentifier = '';
-      if (BtrTypeId == 2 && row.ward_number && row.houseno) {
-        rowPlotIdentifier = `${row.villageId}-${row.block}-${row.ward_number}-${row.houseno || ''}`;
-      } else if (BtrTypeId == 3 && row.ownername && row.address && row.area) {
-        rowPlotIdentifier = `${row.villageId}-${row.block}-${row.ownername}-${row.address}-${row.area}`;
-      } else if (BtrTypeId == 4 && row.tpno) {
-        rowPlotIdentifier = `${row.villageId}-${row.block}-${row.tpno}`;
-      } else if (BtrTypeId == 5 && row.oldsvno && row.oldsubno) {
-        rowPlotIdentifier = `${row.villageId}-${row.block}-${row.oldsvno}-${row.oldsubno}`;
-      } else {
-        // Default case
-        rowPlotIdentifier = `${row.villageId}-${row.block}-${row.svNo}-${row.sub || ''}`;
-      }
-
-      return rowPlotIdentifier === plotIdentifier && row.uniqueId !== currentRowUniqueId;
+      return rPlotIdentifier === plotIdentifier && r.uniqueId !== currentRowUniqueId;
     });
 
     if (duplicateRows.length === 0) {
@@ -1719,11 +1727,11 @@ const ClusterManualEntryNonBtr = () => {
 
     // Calculate total area and used area
     const totalArea = parseFloat(duplicateRows[0].area) || 0;
-    const usedArea = duplicateRows.reduce((sum, row) => sum + (parseFloat(row.enumeratedArea) || 0), 0);
+    const usedArea = duplicateRows.reduce((sum, r) => sum + (parseFloat(r.enumeratedArea) || 0), 0);
     const remainingArea = totalArea - usedArea;
 
-    const locations = duplicateRows.map(row => {
-      const keyplot = keyplotsData.find(kp => kp.rows.some(r => r.uniqueId === row.uniqueId));
+    const locations = duplicateRows.map(r => {
+      const keyplot = keyplotsData.find(kp => kp.rows.some(row => row.uniqueId === r.uniqueId));
       return keyplot ? keyplot.label : 'Unknown';
     });
 
@@ -1741,28 +1749,24 @@ const ClusterManualEntryNonBtr = () => {
 
     const row = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
 
-    // Check if row has valid data based on BTR type
-    let hasValidData = false;
+    // Check if required fields are filled based on BTR type
+    let hasRequiredFields = false;
     if (BtrTypeId == 2) {
-      hasValidData = row.villageId && row.block && row.ward_number && row.houseno;
-      if (!hasValidData) return;
+      hasRequiredFields = !!(row.villageId && row.block && row.ward_number && row.houseno);
     } else if (BtrTypeId == 3) {
-      hasValidData = row.villageId && row.block && row.ownername && row.address && row.area;
-      if (!hasValidData) return;
+      hasRequiredFields = !!(row.villageId && row.block && row.ownername && row.address);
     } else if (BtrTypeId == 4) {
-      hasValidData = row.villageId && row.block && row.tpno;
-      if (!hasValidData) return;
+      hasRequiredFields = !!(row.villageId && row.block && row.tpno);
     } else if (BtrTypeId == 5) {
-      hasValidData = row.villageId && row.block && row.oldsvno;
-      if (!hasValidData) return;
+      hasRequiredFields = !!(row.villageId && row.block && row.oldsvno && row.oldsubno);
     }
 
+    if (!hasRequiredFields) return;
+
     // First check if this plot is already used in the current form
-    const plotIdentifier = `${row.villageId}-${row.block}-${row.svNo}-${row.sub || ''}`;
-    const existingUsageInForm = checkPlotUsageInCurrentForm(plotIdentifier, rowUniqueId);
+    const existingUsageInForm = checkPlotUsageInCurrentForm(row, rowUniqueId);
 
     if (existingUsageInForm.isUsed) {
-      // Plot is already used in current form - show UI validation
       setValidationInfo({
         message: `This plot is already used in ${existingUsageInForm.location}.`,
         totalcent: existingUsageInForm.totalArea,
@@ -2029,7 +2033,7 @@ const ClusterManualEntryNonBtr = () => {
         } else if (BtrTypeId == 4) {
           return row.villageName && row.block && row.tpno && row.area && row.enumeratedArea;
         } else if (BtrTypeId == 5) {
-          return row.villageName && row.block && row.oldsvno && row.area && row.enumeratedArea;
+          return row.villageName && row.block && row.oldsvno && row.oldsubno && row.area && row.enumeratedArea;
         }
         return false;
       });
@@ -2486,10 +2490,11 @@ const ClusterManualEntryNonBtr = () => {
               fullWidth
               type="number"
               value={row.area}
-
               InputProps={{
-                // readOnly: !isKeyPlotFirstRow && isAreaReadOnly && !isNewRow
-                readOnly: row.isExisting
+                // For Thandaper Number (BtrTypeId == 4), area should be editable for new rows
+                readOnly: BtrTypeId == 4
+                  ? (row.isExisting && !row.isNew)  // Only read-only if existing AND not new
+                  : row.isExisting
               }}
               {...(BtrTypeId === 3 && {
                 onBlur: () => handlePlotValidation(keyplot.id, row.uniqueId),
@@ -2506,23 +2511,12 @@ const ClusterManualEntryNonBtr = () => {
               size="small"
               fullWidth
               type="number"
-
               value={row.enumeratedArea}
               onChange={(e) =>
                 handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')
               }
-              // This onBlur will now trigger the API call
-              // onBlur={(e) =>
-              //   handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')
-              // }
               error={hasError}
               helperText={hasError ? errors[errorKey] : ''}
-              // Add InputProps to show a loading spinner during update
-              // InputProps={{
-              //   endAdornment: updatingRow === row.uniqueId ? (
-              //     <CircularProgress color="inherit" size={20} />
-              //   ) : null,
-              // }}
               InputProps={{ readOnly: row.isExisting }}
             />
           </Grid>
