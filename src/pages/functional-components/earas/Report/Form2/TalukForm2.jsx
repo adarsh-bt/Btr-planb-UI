@@ -16,13 +16,15 @@ import {
   Tabs,
   Tab,
   Chip,
+  IconButton,
   CircularProgress
 } from '@mui/material';
 import {
   LocationOn,
   WaterDrop,
   Agriculture,
-  WbSunny
+  WbSunny,
+  ArrowBack
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
@@ -97,9 +99,17 @@ const TalukForm2 = () => {
     return { ...saved, ...(location.state || {}) };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // District scope (passed by KeralaForm2.handleDistrictClick)
-  const districtId = stateData.districtId ?? null;
-  const districtName = stateData.districtName || stateData.selectedDistrict || 'District';
+  const officeInfo = useMemo(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('userOfficeInfo') || '{}');
+    } catch {
+      return {};
+    }
+  }, []);
+
+  // District scope (passed by KeralaForm2.handleDistrictClick or officeInfo fallback)
+  const districtId = stateData.districtId || officeInfo.districtOfficeId || officeInfo.districtId || null;
+  const districtName = stateData.districtName || stateData.selectedDistrict || officeInfo.districtName || 'District';
 
   // Agricultural year from AuthService (e.g. '2025-2026')
   const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
@@ -119,6 +129,31 @@ const TalukForm2 = () => {
     whiteSpace: 'nowrap'
   };
 
+  // Role auto-redirection if TALUK user visits TalukForm2 directly
+  useEffect(() => {
+    const currentOfficeType = stateData.officeType || officeInfo.officeType;
+    if (currentOfficeType === 'TALUK') {
+      const tId = stateData.talukId || officeInfo.talukOfficeId || officeInfo.talukId;
+      const tName = stateData.talukName || officeInfo.talukName || '';
+      if (tId) {
+        navigate('/schemes/earas/cce/ZoneForm2', {
+          replace: true,
+          state: {
+            officeType: 'TALUK',
+            viewLevel: 'taluk',
+            talukId: tId,
+            talukName: tName,
+            selectedTaluk: tName,
+            districtId,
+            districtName,
+            isDirectAccess: true,
+            activeTab: stateData.activeTab || 0
+          }
+        });
+      }
+    }
+  }, [officeInfo, stateData, districtId, districtName, navigate]);
+
   /* ── persist district context so breadcrumb/refresh keeps working ── */
   useEffect(() => {
     if (districtId != null) {
@@ -133,7 +168,7 @@ const TalukForm2 = () => {
         })
       );
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [districtId, districtName, agriculturalYear, stateData.activeTab]);
 
   /* ─────────────────────────── fetch ─────────────────────────── */
 
@@ -175,8 +210,9 @@ const TalukForm2 = () => {
   /* ─────────────────────── land utilization data ─────────────────────── */
 
   // Transform API rows → the internal shape keyed by column id.
+  // Sort alphabetically by taluk name, with Unassigned at the end.
   const talukData = useMemo(() => {
-    return landData.map((t) => {
+    const list = landData.map((t) => {
       const row = {
         talukId: t.talukId ?? null,
         taluk: t.talukName || 'Unassigned'
@@ -185,6 +221,12 @@ const TalukForm2 = () => {
         row[colId] = Number(t[apiKey]) || 0;
       });
       return row;
+    });
+
+    return list.sort((a, b) => {
+      if (a.taluk === 'Unassigned') return 1;
+      if (b.taluk === 'Unassigned') return -1;
+      return a.taluk.localeCompare(b.taluk);
     });
   }, [landData]);
 
@@ -229,13 +271,20 @@ const TalukForm2 = () => {
     return Array.from(map.values()).sort((a, b) => a.sourceId - b.sourceId);
   }, [irrigationApiData]);
 
+  // Sorted alphabetically by taluk name, with Unassigned at the end.
   const irrigationRows = useMemo(() => {
-    return irrigationApiData.map((t) => {
+    const list = irrigationApiData.map((t) => {
       const byId = {};
       (t.sources || []).forEach((s) => {
         byId[s.sourceId] = { count: s.count || 0, area: s.area || 0 };
       });
       return { talukId: t.talukId ?? null, taluk: t.talukName || 'Unassigned', byId };
+    });
+
+    return list.sort((a, b) => {
+      if (a.taluk === 'Unassigned') return 1;
+      if (b.taluk === 'Unassigned') return -1;
+      return a.taluk.localeCompare(b.taluk);
     });
   }, [irrigationApiData]);
 
@@ -266,16 +315,30 @@ const TalukForm2 = () => {
 
   const formatNumber = (num) => Number(num || 0).toFixed(2);
 
-  // Placeholder for a future taluk drill-down (zone/detail level).
-  // No endpoint/route was provided, so taluk rows are currently non-clickable.
-  // Wire navigation here once the next level exists, e.g.:
-// in TalukForm2 — replace the commented stub with:
-const handleTalukClick = (talukName, talukId) => {
-  if (talukId == null) return;
-  navigate('/schemes/earas/cce/ZoneForm2', {
-    state: { districtId, districtName, talukId, talukName, agriculturalYear, activeTab }
-  });
-};
+  const handleBack = () => {
+    if (stateData.officeType === 'DISTRICT' || stateData.isDirectAccess) {
+      navigate('/Report');
+    } else {
+      navigate('/schemes/earas/cce/KeralaForm2', { state: { activeTab } });
+    }
+  };
+
+  const handleTalukClick = (talukName, talukId) => {
+    if (talukId == null) return;
+    navigate('/schemes/earas/cce/ZoneForm2', {
+      state: {
+        officeType: stateData.officeType || 'DIRECTORATE',
+        districtId,
+        districtName,
+        selectedDistrict: districtName,
+        talukId,
+        talukName,
+        selectedTaluk: talukName,
+        agriculturalYear,
+        activeTab
+      }
+    });
+  };
 
   const landTypeOptions = [
     { value: 'all', label: 'All', icon: null },
@@ -299,8 +362,8 @@ const handleTalukClick = (talukName, talukId) => {
   return (
     <Box>
       <Box sx={{ mb: 2 }}>
-      <Breadcrumb />
-    </Box>
+        <Breadcrumb />
+      </Box>
       <Card
         elevation={0}
         sx={{
@@ -313,6 +376,9 @@ const handleTalukClick = (talukName, talukId) => {
         <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
           {/* Header */}
           <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <IconButton onClick={handleBack} size="small" sx={{ color: themeColor, mr: 0.5 }}>
+              <ArrowBack />
+            </IconButton>
             <LocationOn sx={{ fontSize: 32, color: themeColor }} />
             <Typography variant="h5" sx={{ fontWeight: 'bold', color: themeColor }}>
               {districtName} District - Taluk-wise Land Utilization &amp; Irrigation Report

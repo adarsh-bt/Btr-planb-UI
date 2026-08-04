@@ -158,9 +158,17 @@ const ZoneForm2 = () => {
     return { ...saved, ...(location.state || {}) };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const talukId = stateData.talukId ?? null;
-  const selectedDistrict = stateData.districtName || stateData.selectedDistrict || 'District';
-  const selectedTaluk = stateData.talukName || stateData.selectedTaluk || 'Taluk';
+  const officeInfo = useMemo(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('userOfficeInfo') || '{}');
+    } catch {
+      return {};
+    }
+  }, []);
+
+  const talukId = stateData.talukId || officeInfo.talukOfficeId || officeInfo.talukId || null;
+  const selectedDistrict = stateData.districtName || stateData.selectedDistrict || officeInfo.districtName || 'District';
+  const selectedTaluk = stateData.talukName || stateData.selectedTaluk || officeInfo.talukName || 'Taluk';
   const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
 
   const [activeTab, setActiveTab] = useState(stateData.activeTab || 0);
@@ -180,14 +188,14 @@ const ZoneForm2 = () => {
         JSON.stringify({
           talukId,
           talukName: selectedTaluk,
-          districtId: stateData.districtId ?? null,
+          districtId: stateData.districtId || officeInfo.districtOfficeId || officeInfo.districtId || null,
           districtName: selectedDistrict,
           agriculturalYear,
           activeTab: stateData.activeTab || 0
         })
       );
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [talukId, selectedTaluk, stateData.districtId, officeInfo, selectedDistrict, agriculturalYear, stateData.activeTab]);
 
   /* ─────────────────────────── fetch ─────────────────────────── */
 
@@ -347,14 +355,32 @@ const ZoneForm2 = () => {
 
   const handleTabChange = (event, newValue) => setActiveTab(newValue);
   const formatNumber = (num) => Number(num || 0).toFixed(2);
-  const handleBack = () => navigate(-1);
+  const handleBack = () => {
+    if (stateData.officeType === 'TALUK' || stateData.isDirectAccess) {
+      navigate('/Report');
+    } else {
+      navigate('/schemes/earas/cce/TalukForm2', {
+        state: {
+          officeType: stateData.officeType || 'DIRECTORATE',
+          districtId: stateData.districtId || officeInfo.districtOfficeId || officeInfo.districtId,
+          districtName: selectedDistrict,
+          selectedDistrict,
+          activeTab
+        }
+      });
+    }
+  };
+
   const handleZoneClick = (zoneName, zoneId) => {
     navigate(`/schemes/earas/cce/Form2`, {
       state: {
-        districtId: stateData.districtId ?? null,
+        officeType: stateData.officeType || 'DIRECTORATE',
+        districtId: stateData.districtId || officeInfo.districtOfficeId || officeInfo.districtId || null,
         districtName: selectedDistrict,
+        selectedDistrict,
         talukId,
         talukName: selectedTaluk,
+        selectedTaluk,
         zoneId,
         zoneName,
         agriculturalYear,

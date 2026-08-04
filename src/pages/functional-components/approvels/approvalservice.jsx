@@ -7,7 +7,7 @@ import api from 'api/api';
 class approvalservice {
   static USER_URL = mainapi.USER_API;
   static BTR_URL = mainapi.BTR_API;
-  
+
 
   static async superadmin_approval() {
     try {
@@ -34,7 +34,7 @@ class approvalservice {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `${approvalservice.USER_URL}/user-access/it-admin/fetch-all`,
+        `${approvalservice.USER_URL}/user-access/api/it-admin/fetch-all`,
 
         {
           headers: {
@@ -62,7 +62,7 @@ class approvalservice {
           }
         }
       );
-     
+
       return response.data; // Return a consistent object on success
     } catch (err) {
       return {
@@ -135,7 +135,7 @@ class approvalservice {
   static async saveDisApproval(payload) {
     try {
       const token = localStorage.getItem('token');
-     
+
       const response = await axios.post(
         `${approvalservice.USER_URL}/user-access/district-admin/save-approvals`,
         payload, // Send payload as the body
@@ -197,7 +197,7 @@ class approvalservice {
   static async allschmes() {
     try {
       const token = localStorage.getItem('token');
-    
+
       const response = await axios.get(`${approvalservice.USER_URL}/user-access/api/user-approval/fetch/schemes`, {
         headers: {
           Authorization: `Bearer ${token}` // Ensure token is included
@@ -219,7 +219,7 @@ class approvalservice {
           Authorization: `Bearer ${token}` // Ensure token is included
         }
       });
-     
+
       return response.data; // Return response data on success
     } catch (err) {
       return {
@@ -231,13 +231,13 @@ class approvalservice {
   static async selectedrolesBySchems(schemeId) {
     try {
       const token = localStorage.getItem('token');
-      console.log("sssss  >>   "+schemeId)
+      console.log("sssss  >>   " + schemeId)
       const response = await api.get(`${approvalservice.USER_URL}/user-access/api/user-approval/fetch/schemes/${schemeId}/roles`, {
         headers: {
           Authorization: `Bearer ${token}` // Ensure token is included
         }
       });
-      console.log(">>>  "+response)
+      console.log(">>>  " + response)
       return response.data; // Return response data on success
     } catch (err) {
       return {
@@ -253,16 +253,16 @@ class approvalservice {
     // console.log("okk")
     try {
       const token = localStorage.getItem('token');
-      
+
       const response = await axios.get(
         `${approvalservice.BTR_URL}/btr-service/btr-api/zones/${officeType}/${officeId}`
-          , {
+        , {
           headers: {
             Authorization: `Bearer ${token}` // Ensure token is included
           }
         }
       );
-     
+
       return response.data; // Return response data on success
     } catch (err) {
       return {
@@ -279,8 +279,9 @@ class approvalservice {
         { user_id, zoneId, assigner_id },
         {
           headers: {
-              'Authorization': `Bearer ${token}` // Ensure token is included
-          }}
+            'Authorization': `Bearer ${token}` // Ensure token is included
+          }
+        }
       );
       return response.data; // Return response data on success
     } catch (err) {

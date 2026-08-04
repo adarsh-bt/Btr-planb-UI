@@ -36,12 +36,14 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  Switch,
+  FormControlLabel
 } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useTheme } from "@mui/material/styles";
+import { useTheme, alpha } from "@mui/material/styles";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EventIcon from "@mui/icons-material/Event";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -300,6 +302,43 @@ const UserTourDiaryDetail = () => {
     cropId: "" // Add cropId
   });
 
+  const [advanceTourForDate, setAdvanceTourForDate] = useState([]);
+  const [advanceTourLoading, setAdvanceTourLoading] = useState(false);
+  const [isAdvanceChanged, setIsAdvanceChanged] = useState(false);
+  const [changeReason, setChangeReason] = useState("");
+
+  const fetchAdvanceTourProgram = async (userId, dateInput) => {
+    if (isFieldDataCollector || !userId || !dateInput) {
+      setAdvanceTourForDate([]);
+      return;
+    }
+    setAdvanceTourLoading(true);
+    try {
+      let dateStr = "";
+      const d = new Date(dateInput);
+      if (!isNaN(d.getTime())) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        dateStr = `${year}-${month}-${day}`;
+      } else if (typeof dateInput === 'string') {
+        dateStr = dateInput.split('T')[0];
+      }
+
+      if (dateStr) {
+        const data = await tourDiaryService.getAdvanceTourByDate(userId, dateStr);
+        setAdvanceTourForDate(Array.isArray(data) ? data : []);
+      } else {
+        setAdvanceTourForDate([]);
+      }
+    } catch (err) {
+      console.error("Error fetching advance tour for date:", err);
+      setAdvanceTourForDate([]);
+    } finally {
+      setAdvanceTourLoading(false);
+    }
+  };
+
   const getActiveZone = () => {
     const zoneId = authservice.getzone();
     return zoneId;
@@ -416,16 +455,17 @@ const UserTourDiaryDetail = () => {
   };
   // In the handleSubmitMonth function
   const handleSubmitMonth = async () => {
-    const zoneId = authservice.getzone();
-    if (!zoneId) {
-      setSnackbar({
-        open: true,
-        message: "No active zone found. Please select a zone first.",
-        severity: "error"
-      });
-      return;
-    }
-    setPendingZoneId(zoneId);
+
+    // const zoneId = authservice.getzone();
+    // if (!zoneId) {
+    //   setSnackbar({
+    //     open: true,
+    //     message: "No active zone found. Please select a zone first.",
+    //     severity: "error"
+    //   });
+    //   return;
+    // }
+    // setPendingZoneId(zoneId);
     setConfirmDialogOpen(true);
   };
   // Fetch clusters when zone changes
@@ -805,6 +845,13 @@ const UserTourDiaryDetail = () => {
         cropId: entry.cropId || "",
       });
       setIsOtherScheme(entry.schemesId === 10);
+      setIsAdvanceChanged(entry.isAdvanceChanged === true || entry.isAdvanceChanged === "true");
+      setChangeReason(entry.changeReason || "");
+
+      const entryDate = entry.createdAt || entry.actionDate || manualEntryDate;
+      if (entryDate) {
+        fetchAdvanceTourProgram(selectedUserId, entryDate);
+      }
 
       // Fetch clusters for the selected zone (only relevant for WORKING entries)
       if (entry.zoneId) {
@@ -916,6 +963,14 @@ const UserTourDiaryDetail = () => {
     try {
       const skipDetails = isNonWorking || isOtherScheme || editIsOfficeDuty;
 
+      const hasAdvanceTour = advanceTourForDate && advanceTourForDate.length > 0;
+      const sendChange = !isFieldDataCollector && hasAdvanceTour && isAdvanceChanged;
+
+      if (sendChange && (!changeReason || changeReason.trim() === "")) {
+        setSnackbar({ open: true, message: "Reason for changing Advance Tour Program is required", severity: "error" });
+        return;
+      }
+
       const payload = {
         id: editFormData.id,
         userId: selectedUserId,
@@ -931,6 +986,8 @@ const UserTourDiaryDetail = () => {
         distance: skipDetails ? null : (editFormData.distance ? parseFloat(editFormData.distance) : null),
         hours: skipDetails ? null : (editFormData.hours ? parseFloat(editFormData.hours) : null),
         cropId: skipDetails ? null : (editFormData.cropId ? Number(editFormData.cropId) : null),
+        isAdvanceChanged: sendChange ? true : (hasAdvanceTour ? false : undefined),
+        changeReason: sendChange ? changeReason : undefined
       };
 
       const response = await tourDiaryService.saveOrUpdateManualEntry(payload);
@@ -965,12 +1022,15 @@ const UserTourDiaryDetail = () => {
     setPurposeLandType(""); // Reset purpose land type
     setSelectedScheme("");
     setIsOtherScheme(false);
+    setIsAdvanceChanged(false);
+    setChangeReason("");
     setClusters([]);
     setFilteredClusters([]);
     if (isDistrictLevelRole) {
       setSelectedTalukId(null);
     }
     await fetchZones();
+    fetchAdvanceTourProgram(selectedUserId, dateKey);
     setManualEntryOpen(true);
   };
   const handleSaveManualEntry = async () => {
@@ -1028,6 +1088,14 @@ const UserTourDiaryDetail = () => {
 
       const skipDetails = isNonWorking || isOtherScheme || isOfficeDuty;
 
+      const hasAdvanceTour = advanceTourForDate && advanceTourForDate.length > 0;
+      const sendChange = !isFieldDataCollector && hasAdvanceTour && isAdvanceChanged;
+
+      if (sendChange && (!changeReason || changeReason.trim() === "")) {
+        setSnackbar({ open: true, message: "Reason for changing Advance Tour Program is required", severity: "error" });
+        return;
+      }
+
       const payload = {
         userId: selectedUserId,
         entryType,
@@ -1042,7 +1110,9 @@ const UserTourDiaryDetail = () => {
         distance: skipDetails ? null : (manualFormData.distance ? parseFloat(manualFormData.distance) : null),
         hours: skipDetails ? null : (manualFormData.hours ? parseFloat(manualFormData.hours) : null),
         cropId: skipDetails ? null : (manualFormData.cropId ? Number(manualFormData.cropId) : null),
-        createdAt: formattedDate
+        createdAt: formattedDate,
+        isAdvanceChanged: sendChange ? true : (hasAdvanceTour ? false : undefined),
+        changeReason: sendChange ? changeReason : undefined
       };
 
       const response = await tourDiaryService.saveOrUpdateManualEntry(payload);
@@ -1256,6 +1326,16 @@ const UserTourDiaryDetail = () => {
                         '& .MuiChip-label': { px: 0.75 }
                       }}
                     />
+                  )}
+                  {(event.isAdvanceChanged === true || event.isAdvanceChanged === "true") && (
+                    <Tooltip title={event.changeReason ? `Change Reason: ${event.changeReason}` : "Advance Tour Program Changed"}>
+                      <Chip
+                        label="Changed from Advance"
+                        size="small"
+                        color="warning"
+                        sx={{ fontSize: '0.6rem', height: '18px', fontWeight: 'bold' }}
+                      />
+                    </Tooltip>
                   )}
                 </Box>
               </TableCell>
@@ -1701,6 +1781,20 @@ const UserTourDiaryDetail = () => {
                   </Paper>
                 </Grid>
               )}
+              {(selectedEntry.isAdvanceChanged === true || selectedEntry.isAdvanceChanged === "true") && (
+                <Grid item xs={12}>
+                  <Alert severity="warning" sx={{ borderRadius: 1.5, py: 1 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                      Advance Tour Program Changed
+                    </Typography>
+                    {selectedEntry.changeReason && (
+                      <Typography variant="body2" sx={{ mt: 0.5 }}>
+                        <strong>Reason for Change:</strong> {selectedEntry.changeReason}
+                      </Typography>
+                    )}
+                  </Alert>
+                </Grid>
+              )}
             </Grid>
           )}
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 3 }}>
@@ -1791,6 +1885,96 @@ const UserTourDiaryDetail = () => {
             <IconButton onClick={closeEditModal} size="small"><CloseIcon /></IconButton>
           </Box>
           <Divider sx={{ mb: 2 }} />
+
+          {/* Advance Tour Program Details & Change Toggle */}
+          {!isFieldDataCollector && (
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2,
+                mb: 2,
+                borderRadius: 2,
+                backgroundColor: alpha(theme.palette.primary.main, 0.04),
+                borderColor: alpha(theme.palette.primary.main, 0.2)
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: theme.palette.primary.main, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <EventIcon fontSize="small" /> Advance Tour Program Details
+                </Typography>
+                {advanceTourLoading && <CircularProgress size={18} />}
+              </Box>
+
+              {advanceTourLoading ? (
+                <Typography variant="body2" color="text.secondary">Loading Advance Tour Program...</Typography>
+              ) : advanceTourForDate && advanceTourForDate.length > 0 ? (
+                <>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, my: 1 }}>
+                    {advanceTourForDate.map((item, idx) => (
+                      <Paper key={item.id || idx} elevation={0} sx={{ p: 1.5, bgcolor: theme.palette.background.paper, border: `1px solid ${alpha(theme.palette.divider, 0.5)}`, borderRadius: 1.5 }}>
+                        <Grid container spacing={1} alignItems="center">
+                          <Grid item xs={12} sm={4}>
+                            <Typography variant="caption" color="text.secondary" display="block">Entry Type</Typography>
+                            <Chip label={item.entryType || 'WORKING'} size="small" color="primary" variant="outlined" sx={{ fontWeight: 600 }} />
+                          </Grid>
+                          {item.location && (
+                            <Grid item xs={12} sm={4}>
+                              <Typography variant="caption" color="text.secondary" display="block">Location</Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.location}</Typography>
+                            </Grid>
+                          )}
+                          {item.remark && (
+                            <Grid item xs={12} sm={8}>
+                              <Typography variant="caption" color="text.secondary" display="block">Planned Remarks</Typography>
+                              <Typography variant="body2">{item.remark}</Typography>
+                            </Grid>
+                          )}
+                        </Grid>
+                      </Paper>
+                    ))}
+                  </Box>
+
+                  <Divider sx={{ my: 1.5 }} />
+
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={isAdvanceChanged}
+                        onChange={(e) => setIsAdvanceChanged(e.target.checked)}
+                        color="warning"
+                      />
+                    }
+                    label={
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: isAdvanceChanged ? theme.palette.warning.dark : 'text.primary' }}>
+                        Change Tour Program (Any difference from Advance Program?)
+                      </Typography>
+                    }
+                  />
+
+                  {isAdvanceChanged && (
+                    <Box sx={{ mt: 1.5 }}>
+                      <TextField
+                        fullWidth
+                        required
+                        multiline
+                        rows={2}
+                        label="Reason for Changing Advance Tour Program"
+                        placeholder="Enter reason why actual tour differs from advance program..."
+                        value={changeReason}
+                        onChange={(e) => setChangeReason(validateRemarks(e.target.value))}
+                        error={isAdvanceChanged && !changeReason.trim()}
+                        helperText={isAdvanceChanged && !changeReason.trim() ? "Reason is required when Change Tour Program is enabled" : ""}
+                      />
+                    </Box>
+                  )}
+                </>
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', my: 0.5 }}>
+                  No Advance Tour Program planned for this date.
+                </Typography>
+              )}
+            </Paper>
+          )}
           <Grid container spacing={2}>
 
             {/* Entry Type - Always visible */}
@@ -2108,6 +2292,96 @@ const UserTourDiaryDetail = () => {
             </IconButton>
           </Box>
           <Divider sx={{ mb: 2 }} />
+
+          {/* Advance Tour Program Details & Change Toggle */}
+          {!isFieldDataCollector && (
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2,
+                mb: 2,
+                borderRadius: 2,
+                backgroundColor: alpha(theme.palette.primary.main, 0.04),
+                borderColor: alpha(theme.palette.primary.main, 0.2)
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: theme.palette.primary.main, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <EventIcon fontSize="small" /> Advance Tour Program Details
+                </Typography>
+                {advanceTourLoading && <CircularProgress size={18} />}
+              </Box>
+
+              {advanceTourLoading ? (
+                <Typography variant="body2" color="text.secondary">Loading Advance Tour Program...</Typography>
+              ) : advanceTourForDate && advanceTourForDate.length > 0 ? (
+                <>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, my: 1 }}>
+                    {advanceTourForDate.map((item, idx) => (
+                      <Paper key={item.id || idx} elevation={0} sx={{ p: 1.5, bgcolor: theme.palette.background.paper, border: `1px solid ${alpha(theme.palette.divider, 0.5)}`, borderRadius: 1.5 }}>
+                        <Grid container spacing={1} alignItems="center">
+                          <Grid item xs={12} sm={4}>
+                            <Typography variant="caption" color="text.secondary" display="block">Entry Type</Typography>
+                            <Chip label={item.entryType || 'WORKING'} size="small" color="primary" variant="outlined" sx={{ fontWeight: 600 }} />
+                          </Grid>
+                          {item.location && (
+                            <Grid item xs={12} sm={4}>
+                              <Typography variant="caption" color="text.secondary" display="block">Location</Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.location}</Typography>
+                            </Grid>
+                          )}
+                          {item.remark && (
+                            <Grid item xs={12} sm={8}>
+                              <Typography variant="caption" color="text.secondary" display="block">Planned Remarks</Typography>
+                              <Typography variant="body2">{item.remark}</Typography>
+                            </Grid>
+                          )}
+                        </Grid>
+                      </Paper>
+                    ))}
+                  </Box>
+
+                  <Divider sx={{ my: 1.5 }} />
+
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={isAdvanceChanged}
+                        onChange={(e) => setIsAdvanceChanged(e.target.checked)}
+                        color="warning"
+                      />
+                    }
+                    label={
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: isAdvanceChanged ? theme.palette.warning.dark : 'text.primary' }}>
+                        Change Tour Program (Any difference from Advance Program?)
+                      </Typography>
+                    }
+                  />
+
+                  {isAdvanceChanged && (
+                    <Box sx={{ mt: 1.5 }}>
+                      <TextField
+                        fullWidth
+                        required
+                        multiline
+                        rows={2}
+                        label="Reason for Changing Advance Tour Program"
+                        placeholder="Enter reason why actual tour differs from advance program..."
+                        value={changeReason}
+                        onChange={(e) => setChangeReason(validateRemarks(e.target.value))}
+                        error={isAdvanceChanged && !changeReason.trim()}
+                        helperText={isAdvanceChanged && !changeReason.trim() ? "Reason is required when Change Tour Program is enabled" : ""}
+                      />
+                    </Box>
+                  )}
+                </>
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', my: 0.5 }}>
+                  No Advance Tour Program planned for this date.
+                </Typography>
+              )}
+            </Paper>
+          )}
 
           <Grid container spacing={2}>
             {/* Entry Type - Always visible */}
@@ -2445,7 +2719,7 @@ const UserTourDiaryDetail = () => {
 
       <Snackbar
         open={snackbar.open} autoHideDuration={6000} onClose={closeSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Alert onClose={closeSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
           {snackbar.message}
@@ -2695,7 +2969,7 @@ const UserTourDiaryDetail = () => {
                     size="small"
                     color={
                       (fullMonthStatus.verified_status || fullMonthStatus.verifiedStatus) === 'APPROVED' ? 'success' :
-                      (fullMonthStatus.verified_status || fullMonthStatus.verifiedStatus) === 'REJECTED' ? 'error' : 'warning'
+                        (fullMonthStatus.verified_status || fullMonthStatus.verifiedStatus) === 'REJECTED' ? 'error' : 'warning'
                     }
                     sx={{ fontWeight: 'bold' }}
                   />
@@ -2733,7 +3007,7 @@ const UserTourDiaryDetail = () => {
                     size="small"
                     color={
                       (fullMonthStatus.approved_status || fullMonthStatus.approvedStatus || fullMonthStatus.admin_status || fullMonthStatus.adminStatus) === 'APPROVED' ? 'success' :
-                      (fullMonthStatus.approved_status || fullMonthStatus.approvedStatus || fullMonthStatus.admin_status || fullMonthStatus.adminStatus) === 'REJECTED' ? 'error' : 'warning'
+                        (fullMonthStatus.approved_status || fullMonthStatus.approvedStatus || fullMonthStatus.admin_status || fullMonthStatus.adminStatus) === 'REJECTED' ? 'error' : 'warning'
                     }
                     sx={{ fontWeight: 'bold' }}
                   />

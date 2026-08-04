@@ -242,6 +242,23 @@ const UserTourDiaryDetail = () => {
     }
   };
 
+  const [advanceEntries, setAdvanceEntries] = useState([]);
+
+  const fetchAdvanceEntries = async () => {
+    if (!userId) return;
+    try {
+      const response = await tourDiaryService.getAdvancedTourByFilter(userId, selectedMonth, selectedYear);
+      if (response && Array.isArray(response)) {
+        setAdvanceEntries(response);
+      } else {
+        setAdvanceEntries([]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch advance tour entries", err);
+      setAdvanceEntries([]);
+    }
+  };
+
   useEffect(() => {
     fetchUserRole();
     fetchSchemesAndPurposes();
@@ -250,6 +267,7 @@ const UserTourDiaryDetail = () => {
   useEffect(() => {
     if (userId) {
       fetchUserTourEntries();
+      fetchAdvanceEntries();
       fetchFullMonthStatus();
     }
   }, [userId, selectedMonth, selectedYear]);
@@ -557,6 +575,7 @@ const UserTourDiaryDetail = () => {
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Date</TableCell>
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Zone</TableCell>
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Entry Type</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Program Change</TableCell>
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Purpose</TableCell>
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Cluster No</TableCell>
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Distance / Hours</TableCell>
@@ -606,6 +625,20 @@ const UserTourDiaryDetail = () => {
                               height: '22px'
                             }}
                           />
+                        </TableCell>
+                        <TableCell>
+                          {(entry.isAdvanceChanged === true || entry.isAdvanceChanged === "true") ? (
+                            <Tooltip title={entry.changeReason ? `Reason: ${entry.changeReason}` : "Program Changed from Advance Tour"}>
+                              <Chip
+                                label="Changed"
+                                color="warning"
+                                size="small"
+                                sx={{ fontWeight: 'bold', fontSize: '0.7rem', height: '22px' }}
+                              />
+                            </Tooltip>
+                          ) : (
+                            <Typography variant="caption" color="text.secondary">—</Typography>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2">{entry.purposeName}</Typography>
@@ -916,6 +949,14 @@ const UserTourDiaryDetail = () => {
                       {getStatusChip(fullMonthStatus?.status || 'PENDING', 'Submission')}
                       {getStatusChip(fullMonthStatus?.verifiedStatus || 'PENDING', 'Verification')}
                       {getStatusChip(fullMonthStatus?.adminStatus || 'PENDING', 'Approval')}
+                      {tourEntries.some(e => e.isAdvanceChanged === true || e.isAdvanceChanged === "true") && (
+                        <Chip
+                          label={`${tourEntries.filter(e => e.isAdvanceChanged === true || e.isAdvanceChanged === "true").length} Program Changes`}
+                          color="warning"
+                          size="small"
+                          sx={{ fontWeight: 'bold' }}
+                        />
+                      )}
                     </Box>
                   </Box>
                 </Grid>
@@ -1123,6 +1164,50 @@ const UserTourDiaryDetail = () => {
                   </Paper>
                 </Grid>
               )}
+              {(selectedEntry.isAdvanceChanged === true || selectedEntry.isAdvanceChanged === "true") && (
+                <Grid item xs={12}>
+                  <Alert severity="warning" sx={{ borderRadius: 1.5, py: 1 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                      Advance Tour Program Changed
+                    </Typography>
+                    {selectedEntry.changeReason && (
+                      <Typography variant="body2" sx={{ mt: 0.5 }}>
+                        <strong>Reason for Change:</strong> {selectedEntry.changeReason}
+                      </Typography>
+                    )}
+                  </Alert>
+                </Grid>
+              )}
+              {/* Advance Tour Comparison for this Date */}
+              {(() => {
+                const entryDate = new Date(selectedEntry.createdAt).getDate();
+                const matchedAdvance = advanceEntries.filter(adv => {
+                  const d = new Date(adv.createdAt || adv.actionDate);
+                  return d.getDate() === entryDate;
+                });
+                if (matchedAdvance.length === 0) return null;
+                return (
+                  <Grid item xs={12}>
+                    <Paper variant="outlined" sx={{ p: 1.5, bgcolor: theme.palette.mode === 'dark' ? '#1a2a3a' : '#f0f4f8', borderRadius: 1.5, border: `1px solid ${theme.palette.primary.light}` }}>
+                      <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold', mb: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <EventIcon fontSize="small" /> Planned Advance Tour Details (For Verification Comparison)
+                      </Typography>
+                      {matchedAdvance.map((adv, idx) => (
+                        <Box key={adv.id || idx} sx={{ mt: 0.5, p: 1, bgcolor: theme.palette.background.paper, borderRadius: 1 }}>
+                          <Typography variant="body2">
+                            <strong>Type:</strong> {adv.entryType || 'WORKING'} {adv.location ? ` | Location: ${adv.location}` : ''}
+                          </Typography>
+                          {adv.remark && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              <strong>Planned Remarks:</strong> {adv.remark}
+                            </Typography>
+                          )}
+                        </Box>
+                      ))}
+                    </Paper>
+                  </Grid>
+                );
+              })()}
             </Grid>
           )}
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>

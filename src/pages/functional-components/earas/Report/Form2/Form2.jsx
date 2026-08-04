@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -26,6 +26,9 @@ import {
   WbSunny
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
+import Breadcrumb from 'routes/Breadcrumb';
+
+const SESSION_KEY = 'form2State';
 
 const Form2 = () => {
   const theme = useTheme();
@@ -33,11 +36,35 @@ const Form2 = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Get navigation state from ZoneForm2
-  const selectedDistrict = location.state?.districtName || location.state?.selectedDistrict || "Kannur";
-  const selectedTaluk = location.state?.talukName || location.state?.selectedTaluk || "Taliparamba";
-  const selectedZone = location.state?.zoneName || "North Zone";
-  const initialTab = location.state?.activeTab || 0;
+  // Get navigation state from ZoneForm2 or sessionStorage
+  const savedState = (() => {
+    try {
+      return JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}');
+    } catch {
+      return {};
+    }
+  })();
+
+  const selectedDistrict = location.state?.districtName || location.state?.selectedDistrict || savedState.districtName || "Kannur";
+  const selectedTaluk = location.state?.talukName || location.state?.selectedTaluk || savedState.talukName || "Taliparamba";
+  const selectedZone = location.state?.zoneName || savedState.zoneName || "North Zone";
+  const initialTab = location.state?.activeTab ?? savedState.activeTab ?? 0;
+
+  /* ── persist form2 context so breadcrumb/refresh keeps working ── */
+  useEffect(() => {
+    sessionStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({
+        districtId: location.state?.districtId || savedState.districtId,
+        districtName: selectedDistrict,
+        talukId: location.state?.talukId || savedState.talukId,
+        talukName: selectedTaluk,
+        zoneId: location.state?.zoneId || savedState.zoneId,
+        zoneName: selectedZone,
+        activeTab: initialTab
+      })
+    );
+  }, [location.state, savedState, selectedDistrict, selectedTaluk, selectedZone, initialTab]);
 
   // Tab state
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -196,7 +223,18 @@ const Form2 = () => {
   };
 
   const handleBack = () => {
-    navigate(-1);
+    navigate('/schemes/earas/cce/ZoneForm2', {
+      state: {
+        officeType: location.state?.officeType || 'DIRECTORATE',
+        districtId: location.state?.districtId || savedState.districtId,
+        districtName: selectedDistrict,
+        selectedDistrict,
+        talukId: location.state?.talukId || savedState.talukId,
+        talukName: selectedTaluk,
+        selectedTaluk,
+        activeTab
+      }
+    });
   };
 
   const formatNumber = (num) => {
@@ -220,15 +258,19 @@ const Form2 = () => {
   ];
 
   return (
-    <Card
-      elevation={0}
-      sx={{
-        borderRadius: 4,
-        overflow: 'visible',
-        background: theme.palette.background.paper,
-        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-      }}
-    >
+    <Box>
+      <Box sx={{ mb: 2 }}>
+        <Breadcrumb />
+      </Box>
+      <Card
+        elevation={0}
+        sx={{
+          borderRadius: 4,
+          overflow: 'visible',
+          background: theme.palette.background.paper,
+          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+        }}
+      >
       <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
 
         {/* Header with Back Button */}
@@ -694,6 +736,7 @@ const Form2 = () => {
         </Paper>
       </CardContent>
     </Card>
+    </Box>
   );
 };
 

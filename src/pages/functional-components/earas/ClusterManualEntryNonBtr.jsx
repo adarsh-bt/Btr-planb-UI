@@ -49,8 +49,36 @@ const SIDE_PLOT_OPTIONS = ['S1', 'S2', 'S3', 'S4', 'E1', 'E2', 'E3', 'E4', 'N1',
 
 const role = authservice.getrole();
 // --- Helper Function ---
-const isSamePlot = (rowA, rowB) => {
+const isSamePlot = (rowA, rowB, btrTypeId) => {
   if (!rowA || !rowB) return false;
+  const currentType = btrTypeId || rowA.btrTypeId || rowB.btrTypeId;
+
+  if (currentType == 2) {
+    return rowA.villageName === rowB.villageName &&
+      rowA.block === rowB.block &&
+      rowA.ward_number === rowB.ward_number &&
+      rowA.houseno === rowB.houseno;
+  } else if (currentType == 3) {
+    return rowA.villageName === rowB.villageName &&
+      rowA.block === rowB.block &&
+      rowA.ownername === rowB.ownername &&
+      rowA.address === rowB.address;
+  } else if (currentType == 4) {
+    const subA = rowA.tbsubdivisionno ? String(rowA.tbsubdivisionno).trim() : '';
+    const subB = rowB.tbsubdivisionno ? String(rowB.tbsubdivisionno).trim() : '';
+    return rowA.villageName === rowB.villageName &&
+      rowA.block === rowB.block &&
+      rowA.tpno === rowB.tpno &&
+      subA === subB;
+  } else if (currentType == 5) {
+    const subA = rowA.oldsubno ? String(rowA.oldsubno).trim() : '';
+    const subB = rowB.oldsubno ? String(rowB.oldsubno).trim() : '';
+    return rowA.villageName === rowB.villageName &&
+      rowA.block === rowB.block &&
+      rowA.oldsvno === rowB.oldsvno &&
+      subA === subB;
+  }
+
   const hasIdentifiers = rowA.villageName && rowA.block && rowA.svNo && rowA.sub;
   if (!hasIdentifiers) return false;
   return (
@@ -1220,7 +1248,8 @@ const ClusterManualEntryNonBtr = () => {
           }
         } else if (BtrTypeId == 4) {
           if (r.villageName && r.block && r.tpno) {
-            const plotId = `${r.villageName}-${r.block}-${r.tpno}`;
+            const subNo = r.tbsubdivisionno ? String(r.tbsubdivisionno).trim() : '';
+            const plotId = `${r.villageName}-${r.block}-${r.tpno}-${subNo}`;
             if (!plotUsage.has(plotId)) {
               plotUsage.set(plotId, { rows: [], totalArea: 0 });
             }
@@ -1399,7 +1428,7 @@ const ClusterManualEntryNonBtr = () => {
 
     if (rowtitle.includes(field)) {
       const allRows = newData.flatMap(kp => kp.rows);
-      const masterRow = allRows.find(r => isSamePlot(r, row) && r.uniqueId !== row.uniqueId);
+      const masterRow = allRows.find(r => isSamePlot(r, row, BtrTypeId) && r.uniqueId !== row.uniqueId);
 
       if (masterRow) {
         row.area = masterRow.area;
@@ -1408,7 +1437,7 @@ const ClusterManualEntryNonBtr = () => {
       if (field === 'area') {
         const allRows2 = newData.flatMap(kp => kp.rows);
         allRows2.forEach(otherRow => {
-          if (isSamePlot(otherRow, row)) {
+          if (isSamePlot(otherRow, row, BtrTypeId)) {
             otherRow.area = processedValue;
           }
         });
@@ -1692,7 +1721,8 @@ const ClusterManualEntryNonBtr = () => {
       }
     } else if (BtrTypeId == 4) { // Thandaper Number
       if (row.villageId && row.block && row.tpno) {
-        plotIdentifier = `${row.villageId}-${row.block}-${row.tpno}`;
+        const subNo = row.tbsubdivisionno ? String(row.tbsubdivisionno).trim() : '';
+        plotIdentifier = `${row.villageId}-${row.block}-${row.tpno}-${subNo}`;
         hasValidFields = true;
       }
     } else if (BtrTypeId == 5) { // Old Survey Number
@@ -1713,7 +1743,8 @@ const ClusterManualEntryNonBtr = () => {
       } else if (BtrTypeId == 3) {
         rPlotIdentifier = `${r.villageId}-${r.block}-${r.ownername}-${r.address}`;
       } else if (BtrTypeId == 4) {
-        rPlotIdentifier = `${r.villageId}-${r.block}-${r.tpno}`;
+        const subNo = r.tbsubdivisionno ? String(r.tbsubdivisionno).trim() : '';
+        rPlotIdentifier = `${r.villageId}-${r.block}-${r.tpno}-${subNo}`;
       } else if (BtrTypeId == 5) {
         rPlotIdentifier = `${r.villageId}-${r.block}-${r.oldsvno}-${r.oldsubno}`;
       }
@@ -2112,14 +2143,28 @@ const ClusterManualEntryNonBtr = () => {
   };
 
 
+  const getRowPlotId = (r) => {
+    if (!r.villageName || !r.block) return null;
+    if (BtrTypeId == 2) {
+      if (r.ward_number && r.houseno) return `${r.villageName}-${r.block}-${r.ward_number}-${r.houseno}`;
+    } else if (BtrTypeId == 3) {
+      if (r.ownername && r.address) return `${r.villageName}-${r.block}-${r.ownername}-${r.address}`;
+    } else if (BtrTypeId == 4) {
+      if (r.tpno) return `${r.villageName}-${r.block}-${r.tpno}-${r.tbsubdivisionno ? String(r.tbsubdivisionno).trim() : ''}`;
+    } else if (BtrTypeId == 5) {
+      if (r.oldsvno) return `${r.villageName}-${r.block}-${r.oldsvno}-${r.oldsubno ? String(r.oldsubno).trim() : ''}`;
+    } else if (r.svNo && r.sub) {
+      return `${r.villageName}-${r.block}-${r.svNo}-${r.sub}`;
+    }
+    return null;
+  };
+
   const firstInstanceMap = new Map();
   keyplotsData.forEach(kp => {
     kp.rows.forEach(r => {
-      if (r.villageName && r.block && r.svNo && r.sub) {
-        const plotId = `${r.villageName}-${r.block}-${r.svNo}-${r.sub}`;
-        if (!firstInstanceMap.has(plotId)) {
-          firstInstanceMap.set(plotId, r.uniqueId);
-        }
+      const plotId = getRowPlotId(r);
+      if (plotId && !firstInstanceMap.has(plotId)) {
+        firstInstanceMap.set(plotId, r.uniqueId);
       }
     });
   });
@@ -2914,7 +2959,7 @@ const ClusterManualEntryNonBtr = () => {
                   const errorKey = `${keyplot.id}-${row.uniqueId}`;
                   const hasError = !!errors[errorKey];
 
-                  const plotId = (row.villageName && row.block && row.svNo && row.sub) ? `${row.villageName}-${row.block}-${row.svNo}-${row.sub}` : null;
+                  const plotId = getRowPlotId(row);
                   const isFirstInstance = plotId ? firstInstanceMap.get(plotId) === row.uniqueId : true;
                   const isAreaReadOnly = !isFirstInstance;
                   const isKeyPlotFirstRow = keyplot.label === 'K' && isFirstInstance;

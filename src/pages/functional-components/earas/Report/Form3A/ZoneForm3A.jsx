@@ -96,10 +96,18 @@ const ZoneForm3A = () => {
     return { ...saved, ...(location.state || {}) };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const districtId = stateData.districtId ?? null;
-  const districtName = stateData.districtName || stateData.selectedDistrict || 'District';
-  const talukId = stateData.talukId ?? null;
-  const talukName = stateData.talukName || stateData.selectedTaluk || 'Taluk';
+  const officeInfo = useMemo(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('userOfficeInfo') || '{}');
+    } catch {
+      return {};
+    }
+  }, []);
+
+  const districtId = stateData.districtId || officeInfo.districtOfficeId || officeInfo.districtId || null;
+  const districtName = stateData.districtName || stateData.selectedDistrict || officeInfo.districtName || 'District';
+  const talukId = stateData.talukId || officeInfo.talukOfficeId || officeInfo.talukId || null;
+  const talukName = stateData.talukName || stateData.selectedTaluk || officeInfo.talukName || 'Taluk';
   const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
 
   const [activeTab, setActiveTab] = useState(stateData.activeTab ?? 0);
@@ -131,8 +139,7 @@ const ZoneForm3A = () => {
         })
       );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [talukId, talukName, districtId, districtName, agriculturalYear, stateData.activeTab]);
 
   /* ── keep the active crop-group tab in sync in sessionStorage too ── */
   useEffect(() => {
@@ -198,42 +205,53 @@ const ZoneForm3A = () => {
     const map = new Map();
     apiData.forEach((z) => {
       const blockName = resolveBlockName(z.blockId, z.blockName, z.zoneName);
-      const key = blockName;
-      if (!map.has(key)) {
-        map.set(key, { blockId: z.blockId ?? null, blockName, zones: [] });
-        order.push(key);
+      if (!map.has(blockName)) {
+        order.push(blockName);
+        map.set(blockName, []);
       }
       const byId = {};
       (z.crops || []).forEach((c) => {
         byId[c.cropId] = Number(c.areaInCents) || 0;
       });
-      map.get(key).zones.push({ zoneId: z.zoneId ?? null, zoneName: z.zoneName || 'Unassigned', byId });
+
+      map.get(blockName).push({
+        blockId: z.blockId ?? null,
+        blockName,
+        zoneId: z.zoneId ?? null,
+        zoneName: z.zoneName || 'Unassigned',
+        byId,
+        crops: z.crops || []
+      });
     });
-    return order.map((key) => map.get(key));
+
+    return order.map((bName) => ({
+      blockName: bName,
+      zones: map.get(bName)
+    }));
   }, [apiData]);
 
-  // Block subtotals for the active group, keyed by blockId ?? blockName.
+  // Per-block crop totals
   const blockTotals = useMemo(() => {
-    const totals = {};
-    blocksData.forEach((block) => {
-      const t = {};
-      cropColumns.forEach((c) => (t[c.cropId] = 0));
-      block.zones.forEach((zone) => {
+    const map = new Map();
+    blocksData.forEach((b) => {
+      const totals = {};
+      cropColumns.forEach((c) => (totals[c.cropId] = 0));
+      b.zones.forEach((z) => {
         cropColumns.forEach((c) => {
-          if (zone.byId[c.cropId] !== undefined) t[c.cropId] += zone.byId[c.cropId];
+          if (z.byId && z.byId[c.cropId] !== undefined) totals[c.cropId] += z.byId[c.cropId];
         });
       });
-      totals[block.blockId ?? block.blockName] = t;
+      map.set(b.blockName, totals);
     });
-    return totals;
+    return map;
   }, [blocksData, cropColumns]);
 
-  // Grand totals across all blocks for the active group.
+  // Grand total across all blocks/zones
   const grandTotals = useMemo(() => {
     const totals = {};
     cropColumns.forEach((c) => (totals[c.cropId] = 0));
-    blocksData.forEach((block) => {
-      const bt = blockTotals[block.blockId ?? block.blockName] || {};
+    blocksData.forEach((b) => {
+      const bt = blockTotals.get(b.blockName) || {};
       cropColumns.forEach((c) => {
         totals[c.cropId] += bt[c.cropId] || 0;
       });
@@ -249,7 +267,21 @@ const ZoneForm3A = () => {
     setPage(0);
   };
   const formatNumber = (num) => Number(num || 0).toFixed(2);
-  const handleBack = () => navigate(-1);
+  const handleBack = () => {
+    if (stateData.officeType === 'TALUK' || stateData.isDirectAccess) {
+      navigate('/Report');
+    } else {
+      navigate('/schemes/earas/Report/Form3A/TalukForm3A', {
+        state: {
+          officeType: stateData.officeType || 'DIRECTORATE',
+          districtId,
+          districtName,
+          selectedDistrict: districtName,
+          activeTab
+        }
+      });
+    }
+  };
 
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
@@ -267,6 +299,7 @@ const ZoneForm3A = () => {
     if (zoneId == null) return; // skip the Unassigned / taluk-level bucket
     navigate('/schemes/earas/Report/Form3A/Form3A', {
       state: {
+        officeType: stateData.officeType || 'DIRECTORATE',
         districtId,
         districtName,
         selectedDistrict: districtName,
@@ -311,9 +344,12 @@ const ZoneForm3A = () => {
   const colSpanAll = cropColumns.length + 3;
 
   return (
-    <Card sx={{ borderRadius: 3, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
-      <Breadcrumb/> 
-      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+    <Box>
+      <Box sx={{ mb: 2 }}>
+        <Breadcrumb />
+      </Box>
+      <Card sx={{ borderRadius: 3, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
 
         <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
           <Box
@@ -525,7 +561,7 @@ const ZoneForm3A = () => {
                               />
                             </TableCell>
                             {cropColumns.map((crop) => {
-                              const val = zone.byId[crop.cropId];
+                              const val = zone.byId?.[crop.cropId];
                               return (
                                 <TableCell
                                   key={crop.cropId}
@@ -561,7 +597,7 @@ const ZoneForm3A = () => {
                             <strong>📊 Total for {block.blockName}</strong>
                           </TableCell>
                           {cropColumns.map((crop) => {
-                            const val = blockTotals[blockKey]?.[crop.cropId];
+                            const val = blockTotals.get(block.blockName)?.[crop.cropId];
                             return (
                               <TableCell
                                 key={crop.cropId}
@@ -603,6 +639,7 @@ const ZoneForm3A = () => {
         </Paper>
       </CardContent>
     </Card>
+    </Box>
   );
 };
 

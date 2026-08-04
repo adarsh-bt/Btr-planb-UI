@@ -358,10 +358,9 @@ const tourDiaryService = {
 
   // Add this method to your tourDiaryService object
   async getTourEntries(userId, month, year) {
-    const token = localStorage.getItem('token');
 
     try {
-      const response = await axios.get(
+      const response = await api.get(
         `${BASE_URL}/tour-diary/api/tour/tours`,
         {
           params: {
@@ -369,9 +368,7 @@ const tourDiaryService = {
             month: month,
             year: year
           },
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+
         }
       );
 
@@ -500,6 +497,24 @@ const tourDiaryService = {
       return {
         message: err.response?.data?.message || "An error occurred while saving manual entry."
       };
+    }
+  },
+
+  async getAdvanceTourByDate(userId, date) {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await axios.get(
+        `${BASE_URL}/tour-diary/api/advanced-tour/advance-tour-by-date?userId=${userId}&date=${date}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (err) {
+      console.error("Error fetching advance tour by date:", err);
+      return [];
     }
   },
 
