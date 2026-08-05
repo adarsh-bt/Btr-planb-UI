@@ -503,9 +503,9 @@ const UserTourDiaryDetail = () => {
       const response = await tourDiaryService.submitFullMonth(
         selectedUserId, selectedMonth, selectedYear, pendingZoneId
       );
-
+      console.log(response, "response")
       const message = response?.data || response?.message || response || "";
-
+      console.log("message", message)
       const isError = typeof message === "string" && (
         message.toLowerCase().includes("missing") ||
         message.toLowerCase().includes("no entries") ||
@@ -762,10 +762,18 @@ const UserTourDiaryDetail = () => {
   const fetchFullMonthStatus = async () => {
     if (!selectedUserId) return;
     try {
+      console.log("selectedUserId:" + selectedUserId)
+      console.log("selectedYear:" + selectedYear,)
+      console.log("selectedMonth:" + selectedMonth)
       const response = await tourDiaryService.getFullYearView(selectedUserId, selectedYear);
       if (response && !response.error && Array.isArray(response)) {
         const currentMonthData = response.find(
           item => item.month === selectedMonth && item.year === selectedYear
+        );
+        console.log("currentMonthData:", currentMonthData);
+        console.log(
+          "currentMonthData full details:",
+          JSON.stringify(currentMonthData, null, 2)
         );
         setFullMonthStatus(currentMonthData || null);
       } else {
@@ -1133,10 +1141,25 @@ const UserTourDiaryDetail = () => {
 
   const closeDetailModal = () => { setDetailModalOpen(false); setSelectedEntry(null); };
   console.log("fullMonthStatus", fullMonthStatus)
-  // Add this helper function to check if the month is already submitted
+  // Add this helper function to check if the month is already submitted and locked
   const isMonthSubmitted = () => {
-    if (fullMonthStatus && (fullMonthStatus.status === "SUBMIT" || fullMonthStatus.status === "SUBMITTED" || fullMonthStatus.fullMonthId || fullMonthStatus.id)) {
-      return true;
+    if (fullMonthStatus) {
+      const isRejected =
+        fullMonthStatus.status === 'REJECTED' ||
+        fullMonthStatus.verified_status === 'REJECTED' ||
+        fullMonthStatus.verifiedStatus === 'REJECTED' ||
+        fullMonthStatus.approved_status === 'REJECTED' ||
+        fullMonthStatus.approvedStatus === 'REJECTED' ||
+        fullMonthStatus.admin_status === 'REJECTED' ||
+        fullMonthStatus.adminStatus === 'REJECTED';
+
+      if (isRejected) {
+        return false; // Re-open for entry editing and re-submission
+      }
+
+      if (fullMonthStatus.status === "SUBMIT" || fullMonthStatus.status === "SUBMITTED" || fullMonthStatus.fullMonthId || fullMonthStatus.id) {
+        return true;
+      }
     }
     return tourEntries.some(entry => entry.submitted === true);
   };
@@ -1507,8 +1530,32 @@ const UserTourDiaryDetail = () => {
                     Full Month Status:
                   </Typography>
                   <Chip
-                    label={isMonthSubmitted() ? '✅ Full Month Submitted' : '⏳ Pending Submission'}
-                    color={isMonthSubmitted() ? 'success' : 'warning'}
+                    label={
+                      isMonthSubmitted()
+                        ? '✅ Full Month Submitted'
+                        : (fullMonthStatus && (
+                          fullMonthStatus.verified_status === 'REJECTED' ||
+                          fullMonthStatus.verifiedStatus === 'REJECTED' ||
+                          fullMonthStatus.approved_status === 'REJECTED' ||
+                          fullMonthStatus.approvedStatus === 'REJECTED' ||
+                          fullMonthStatus.status === 'REJECTED'
+                        ))
+                          ? '❌ Submission Rejected — Re-entry Allowed'
+                          : '⏳ Pending Submission'
+                    }
+                    color={
+                      isMonthSubmitted()
+                        ? 'success'
+                        : (fullMonthStatus && (
+                          fullMonthStatus.verified_status === 'REJECTED' ||
+                          fullMonthStatus.verifiedStatus === 'REJECTED' ||
+                          fullMonthStatus.approved_status === 'REJECTED' ||
+                          fullMonthStatus.approvedStatus === 'REJECTED' ||
+                          fullMonthStatus.status === 'REJECTED'
+                        ))
+                          ? 'error'
+                          : 'warning'
+                    }
                     size="small"
                     sx={{ fontWeight: 'bold' }}
                   />
@@ -1596,7 +1643,19 @@ const UserTourDiaryDetail = () => {
                         }}
                         startIcon={submittingMonth ? <CircularProgress size={20} color="inherit" /> : null}
                       >
-                        {submittingMonth ? "Submitting..." : isMonthSubmitted() ? "Month Submitted" : "Submit Full Month"}
+                        {submittingMonth
+                          ? "Submitting..."
+                          : isMonthSubmitted()
+                            ? "Month Submitted"
+                            : (fullMonthStatus && (
+                              fullMonthStatus.verified_status === 'REJECTED' ||
+                              fullMonthStatus.verifiedStatus === 'REJECTED' ||
+                              fullMonthStatus.approved_status === 'REJECTED' ||
+                              fullMonthStatus.approvedStatus === 'REJECTED' ||
+                              fullMonthStatus.status === 'REJECTED'
+                            ))
+                              ? "Re-submit Full Month"
+                              : "Submit Full Month"}
                       </Button>
                     </span>
                   </Tooltip>

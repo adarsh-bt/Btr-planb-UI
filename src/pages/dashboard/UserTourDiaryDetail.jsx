@@ -39,7 +39,7 @@ import {
 } from "@mui/material";
 import MainCard from "components/MainCard";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useTheme } from "@mui/material/styles";
+import { useTheme, alpha } from "@mui/material/styles";
 import CheckIcon from "@mui/icons-material/Check";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EventIcon from "@mui/icons-material/Event";
@@ -51,6 +51,8 @@ import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import tourDiaryService from "pages/authentication/services/tourdiaryservice";
+import profileService from "pages/profile/profileservice";
+import ApprovedUserService from "pages/functional-components/approvels/ApprovedUserService";
 import authservice from "pages/authentication/services/authservice";
 import Breadcrumb from "routes/Breadcrumb";
 
@@ -197,6 +199,7 @@ const UserTourDiaryDetail = () => {
         const currentMonthData = response.find(
           item => item.month === selectedMonth && item.year === selectedYear
         );
+        console.log("currentMonthData", currentMonthData);
         setFullMonthStatus(currentMonthData || null);
       } else {
         setFullMonthStatus(null);
@@ -221,13 +224,19 @@ const UserTourDiaryDetail = () => {
       const response = await tourDiaryService.getTourEntries(userId, selectedMonth, selectedYear);
       if (response && Array.isArray(response) && !response.message) {
         setTourEntries(response);
-        if (response.length > 0 && !userDetails) {
+        if (response.length > 0) {
           const firstEntry = response[0];
-          setUserDetails({
-            name: firstEntry.userName || firstEntry.name || 'N/A',
-            empNumber: firstEntry.empNumber || firstEntry.employeeId || 'N/A',
-            designation: firstEntry.designation || 'N/A',
-            officelocation: firstEntry.officeLocation || firstEntry.location || 'N/A'
+          setUserDetails(prev => {
+            if (prev?.name && prev?.name !== 'N/A' && prev?.empNumber && prev?.empNumber !== 'N/A') {
+              return prev;
+            }
+            return {
+              ...prev,
+              name: (prev?.name && prev?.name !== 'N/A') ? prev.name : (firstEntry.userName || firstEntry.name || 'N/A'),
+              empNumber: (prev?.empNumber && prev?.empNumber !== 'N/A') ? prev.empNumber : (firstEntry.empNumber || firstEntry.employeeId || 'N/A'),
+              designation: (prev?.designation && prev?.designation !== 'N/A') ? prev.designation : (firstEntry.designation || 'N/A'),
+              officelocation: (prev?.officelocation && prev?.officelocation !== 'N/A') ? prev.officelocation : (firstEntry.officeLocation || firstEntry.location || 'N/A')
+            };
           });
         }
       } else {
@@ -243,6 +252,56 @@ const UserTourDiaryDetail = () => {
   };
 
   const [advanceEntries, setAdvanceEntries] = useState([]);
+  const [dayAdvanceEntries, setDayAdvanceEntries] = useState([]);
+  const [advanceTourLoading, setAdvanceTourLoading] = useState(false);
+
+  const getAdvanceEntriesForDate = (dateOrDay) => {
+    if (!dateOrDay || !advanceEntries || advanceEntries.length === 0) return [];
+
+    let targetDay, targetMonth, targetYear;
+    if (typeof dateOrDay === 'number') {
+      targetDay = dateOrDay;
+      targetMonth = selectedMonth;
+      targetYear = selectedYear;
+    } else {
+      const d = new Date(dateOrDay);
+      if (isNaN(d.getTime())) return [];
+      targetDay = d.getDate();
+      targetMonth = d.getMonth() + 1;
+      targetYear = d.getFullYear();
+    }
+
+    return advanceEntries.filter(adv => {
+      const advDateStr = adv.tourDate || adv.actionDate || adv.createdAt || adv.date;
+      if (!advDateStr) return false;
+      const advD = new Date(advDateStr);
+      if (isNaN(advD.getTime())) return false;
+      return (
+        advD.getDate() === targetDay &&
+        advD.getMonth() + 1 === targetMonth &&
+        advD.getFullYear() === targetYear
+      );
+    });
+  };
+
+  const fetchAdvanceTourForSelectedDate = async (dateKey, dayNum) => {
+    const localMatched = getAdvanceEntriesForDate(dayNum);
+    setDayAdvanceEntries(localMatched);
+
+    if (userId && dateKey) {
+      setAdvanceTourLoading(true);
+      try {
+        const apiData = await tourDiaryService.getAdvanceTourByDate(userId, dateKey);
+        if (Array.isArray(apiData) && apiData.length > 0) {
+          setDayAdvanceEntries(apiData);
+        }
+      } catch (err) {
+        console.error("Error fetching advance tour for date:", err);
+      } finally {
+        setAdvanceTourLoading(false);
+      }
+    }
+  };
 
   const fetchAdvanceEntries = async () => {
     if (!userId) return;
@@ -259,6 +318,41 @@ const UserTourDiaryDetail = () => {
     }
   };
 
+  const fetchUserProfile = async () => {
+    if (!userId) return;
+    try {
+      let res = await profileService.fetchUserById(userId);
+      let data = res?.payload || res?.data || (res && res.name ? res : null);
+
+      if (!data || !data.name) {
+        const appRes = await ApprovedUserService.fetchUserById(userId);
+        data = appRes?.payload || appRes?.data || (appRes && appRes.name ? appRes : null);
+      }
+
+      if (data) {
+        setUserDetails(prev => {
+          const fetchedName = data.name || data.userName;
+          const fetchedEmpNo = data.penNumber || data.empNumber || data.employeeId || data.penNo;
+          const fetchedDesig = data.designation;
+          const fetchedLoc = data.officelocation || data.officeLocation || data.location;
+
+          return {
+            ...prev,
+            name: (fetchedName && fetchedName !== 'N/A') ? fetchedName : (prev?.name || 'N/A'),
+            empNumber: (fetchedEmpNo && fetchedEmpNo !== 'N/A') ? fetchedEmpNo : (prev?.empNumber || 'N/A'),
+            penNumber: data.penNumber || fetchedEmpNo || prev?.penNumber || '',
+            designation: (fetchedDesig && fetchedDesig !== 'N/A') ? fetchedDesig : (prev?.designation || 'N/A'),
+            officelocation: (fetchedLoc && fetchedLoc !== 'N/A') ? fetchedLoc : (prev?.officelocation || 'N/A'),
+            email: data.email || prev?.email || '',
+            mobileNumber: data.mobileNumber || prev?.mobileNumber || ''
+          };
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching user profile by ID:", err);
+    }
+  };
+
   useEffect(() => {
     fetchUserRole();
     fetchSchemesAndPurposes();
@@ -267,6 +361,7 @@ const UserTourDiaryDetail = () => {
   useEffect(() => {
     if (userId) {
       fetchUserTourEntries();
+      fetchUserProfile();
       fetchAdvanceEntries();
       fetchFullMonthStatus();
     }
@@ -280,6 +375,7 @@ const UserTourDiaryDetail = () => {
   const handleMonthChange = (offset) => {
     let newMonth = selectedMonth + offset;
     let newYear = selectedYear;
+
     if (newMonth > 12) {
       newMonth = 1;
       newYear += 1;
@@ -287,6 +383,7 @@ const UserTourDiaryDetail = () => {
       newMonth = 12;
       newYear -= 1;
     }
+
     setSelectedMonth(newMonth);
     setSelectedYear(newYear);
     setTablePage(0);
@@ -309,17 +406,24 @@ const UserTourDiaryDetail = () => {
     setSelectedDate(dateKey);
     setSelectedDayEvents(dayEvents);
     setDayModalOpen(true);
+    fetchAdvanceTourForSelectedDate(dateKey, day);
   };
 
   const handleViewEntryDetails = (entry) => {
     setSelectedEntry(entry);
     setDetailModalOpen(true);
+    if (entry && (entry.createdAt || entry.date)) {
+      const entryD = new Date(entry.createdAt || entry.date);
+      const dateKey = `${entryD.getFullYear()}-${String(entryD.getMonth() + 1).padStart(2, '0')}-${String(entryD.getDate()).padStart(2, '0')}`;
+      fetchAdvanceTourForSelectedDate(dateKey, entryD.getDate());
+    }
   };
 
   const closeDayModal = () => {
     setDayModalOpen(false);
     setSelectedDate(null);
     setSelectedDayEvents([]);
+    setDayAdvanceEntries([]);
   };
 
   const closeDetailModal = () => {
@@ -577,7 +681,6 @@ const UserTourDiaryDetail = () => {
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Entry Type</TableCell>
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Program Change</TableCell>
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Purpose</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Cluster No</TableCell>
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Distance / Hours</TableCell>
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Remarks</TableCell>
                   <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Actions</TableCell>
@@ -644,9 +747,6 @@ const UserTourDiaryDetail = () => {
                           <Typography variant="body2">{entry.purposeName}</Typography>
                         </TableCell>
                         <TableCell>
-                          <Typography variant="body2">{entry.clusterId || entry.clusterNo || '—'}</Typography>
-                        </TableCell>
-                        <TableCell>
                           <Typography variant="body2">
                             {entry.distance ? `${entry.distance} km` : '—'}
                             {entry.distance && entry.hours ? ' / ' : ''}
@@ -677,7 +777,7 @@ const UserTourDiaryDetail = () => {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                       <Typography variant="body1" color="text.secondary">
                         {searchTerm
                           ? `No tour entries found matching "${searchTerm}"`
@@ -730,6 +830,7 @@ const UserTourDiaryDetail = () => {
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dayEntries = getEntriesForDate(day);
+      const dayAdv = getAdvanceEntriesForDate(day);
       const entryCount = dayEntries.length;
       const isSun = isSunday(selectedYear, selectedMonth, day);
       const is2ndSat = isSecondSaturday(selectedYear, selectedMonth, day);
@@ -775,6 +876,22 @@ const UserTourDiaryDetail = () => {
               >
                 {day}
               </Typography>
+              {dayAdv.length > 0 && (
+                <Tooltip title={`Planned Advance Tour: ${dayAdv[0].entryType || 'WORKING'} ${dayAdv[0].location ? `(${dayAdv[0].location})` : ''}`}>
+                  <Chip
+                    label={dayAdv[0].entryType === 'WORKING' ? (dayAdv[0].location || 'Planned') : dayAdv[0].entryType}
+                    size="small"
+                    variant="outlined"
+                    color="primary"
+                    sx={{
+                      fontSize: '0.62rem',
+                      height: '18px',
+                      maxWidth: '75px',
+                      fontWeight: 600
+                    }}
+                  />
+                </Tooltip>
+              )}
             </Box>
 
             {entryCount > 0 && (
@@ -923,7 +1040,7 @@ const UserTourDiaryDetail = () => {
                   </Grid>
                   <Grid item xs={12} sm={6} md={3}>
                     <Typography variant="caption" color="text.secondary">Employee No / ID</Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 600 }}>{userDetails.empNumber || 'N/A'}</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>{userDetails.penNumber || userDetails.empNumber || userDetails.employeeId || 'N/A'}</Typography>
                   </Grid>
                   <Grid item xs={12} sm={6} md={3}>
                     <Typography variant="caption" color="text.secondary">Designation</Typography>
@@ -931,7 +1048,7 @@ const UserTourDiaryDetail = () => {
                   </Grid>
                   <Grid item xs={12} sm={6} md={3}>
                     <Typography variant="caption" color="text.secondary">Office Location</Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 600 }}>{userDetails.officelocation || 'N/A'}</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>{userDetails.officelocation || userDetails.officeLocation || 'N/A'}</Typography>
                   </Grid>
                 </Grid>
               </Paper>
@@ -941,23 +1058,50 @@ const UserTourDiaryDetail = () => {
             <Paper variant="outlined" sx={{ p: 2, mb: 3, borderRadius: 2, borderColor: theme.palette.primary.light }}>
               <Grid container spacing={2} alignItems="center" justifyContent="space-between">
                 <Grid item xs={12} md={7}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                      Full Month Status:
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                      {getStatusChip(fullMonthStatus?.status || 'PENDING', 'Submission')}
-                      {getStatusChip(fullMonthStatus?.verifiedStatus || 'PENDING', 'Verification')}
-                      {getStatusChip(fullMonthStatus?.adminStatus || 'PENDING', 'Approval')}
-                      {tourEntries.some(e => e.isAdvanceChanged === true || e.isAdvanceChanged === "true") && (
-                        <Chip
-                          label={`${tourEntries.filter(e => e.isAdvanceChanged === true || e.isAdvanceChanged === "true").length} Program Changes`}
-                          color="warning"
-                          size="small"
-                          sx={{ fontWeight: 'bold' }}
-                        />
-                      )}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                        Full Month Status:
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                        {getStatusChip(fullMonthStatus?.status || 'PENDING', 'Submission')}
+                        {getStatusChip(fullMonthStatus?.verified_status || fullMonthStatus?.verifiedStatus || 'PENDING', 'Verification')}
+                        {getStatusChip(fullMonthStatus?.approved_status || fullMonthStatus?.approvedStatus || fullMonthStatus?.adminStatus || 'PENDING', 'Approval')}
+                        {tourEntries.some(e => e.isAdvanceChanged === true || e.isAdvanceChanged === "true") && (
+                          <Chip
+                            label={`${tourEntries.filter(e => e.isAdvanceChanged === true || e.isAdvanceChanged === "true").length} Program Changes`}
+                            color="warning"
+                            size="small"
+                            sx={{ fontWeight: 'bold' }}
+                          />
+                        )}
+                      </Box>
                     </Box>
+
+                    {/* Timestamps & Remarks */}
+                    {fullMonthStatus && (
+                      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 0.5 }}>
+                        {(fullMonthStatus.submitted_at || fullMonthStatus.submittedAt) && (
+                          <Typography variant="caption" color="text.secondary">
+                            <strong>Submitted:</strong> {new Date(fullMonthStatus.submitted_at || fullMonthStatus.submittedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, {new Date(fullMonthStatus.submitted_at || fullMonthStatus.submittedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                          </Typography>
+                        )}
+
+                        {(fullMonthStatus.verified_at || fullMonthStatus.verifiedAt) && (
+                          <Typography variant="caption" color="text.secondary">
+                            <strong>Verified:</strong> {new Date(fullMonthStatus.verified_at || fullMonthStatus.verifiedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, {new Date(fullMonthStatus.verified_at || fullMonthStatus.verifiedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                            {(fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark) && ` (${fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark})`}
+                          </Typography>
+                        )}
+
+                        {(fullMonthStatus.approved_at || fullMonthStatus.approvedAt) && (
+                          <Typography variant="caption" color="text.secondary">
+                            <strong>Approved:</strong> {new Date(fullMonthStatus.approved_at || fullMonthStatus.approvedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, {new Date(fullMonthStatus.approved_at || fullMonthStatus.approvedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                            {(fullMonthStatus.approved_remark || fullMonthStatus.approvedRemark) && ` (${fullMonthStatus.approved_remark || fullMonthStatus.approvedRemark})`}
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
                   </Box>
                 </Grid>
                 <Grid item xs={12} md={5}>
@@ -1068,7 +1212,7 @@ const UserTourDiaryDetail = () => {
 
       {/* ==================== DAY VIEW MODAL ==================== */}
       <Modal open={dayModalOpen} onClose={closeDayModal} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Card sx={{ width: '90%', maxWidth: '600px', padding: 3, borderRadius: 2, backgroundColor: theme.palette.background.paper, boxShadow: theme.shadows[24], maxHeight: '80vh', overflow: 'auto' }}>
+        <Card sx={{ width: '90%', maxWidth: '650px', padding: 3, borderRadius: 2, backgroundColor: theme.palette.background.paper, boxShadow: theme.shadows[24], maxHeight: '85vh', overflow: 'auto' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h4" sx={{ color: theme.palette.text.primary }}>
               Tour Entries – {selectedDate && new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
@@ -1076,19 +1220,79 @@ const UserTourDiaryDetail = () => {
             <IconButton onClick={closeDayModal} size="small"><CloseIcon /></IconButton>
           </Box>
           <Divider sx={{ mb: 2 }} />
+
+          {/* Planned Advance Tour Program Details Section */}
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 2,
+              mb: 2.5,
+              borderRadius: 2,
+              backgroundColor: alpha(theme.palette.primary.main, 0.04),
+              borderColor: alpha(theme.palette.primary.main, 0.2)
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: theme.palette.primary.main, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <EventIcon fontSize="small" /> Advance Tour Program Details (Planned)
+              </Typography>
+              {advanceTourLoading && <CircularProgress size={18} />}
+            </Box>
+
+            {advanceTourLoading ? (
+              <Typography variant="body2" color="text.secondary">Loading Advance Tour Program...</Typography>
+            ) : dayAdvanceEntries && dayAdvanceEntries.length > 0 ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, my: 1 }}>
+                {dayAdvanceEntries.map((item, idx) => (
+                  <Paper key={item.id || idx} elevation={0} sx={{ p: 1.5, bgcolor: theme.palette.background.paper, border: `1px solid ${alpha(theme.palette.divider, 0.5)}`, borderRadius: 1.5 }}>
+                    <Grid container spacing={1} alignItems="center">
+                      <Grid item xs={12} sm={4}>
+                        <Typography variant="caption" color="text.secondary" display="block">Planned Entry Type</Typography>
+                        <Chip label={item.entryType || 'WORKING'} size="small" color="primary" variant="outlined" sx={{ fontWeight: 600 }} />
+                      </Grid>
+                      {item.location && (
+                        <Grid item xs={12} sm={4}>
+                          <Typography variant="caption" color="text.secondary" display="block">Planned Location</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.location}</Typography>
+                        </Grid>
+                      )}
+                      {item.remark && (
+                        <Grid item xs={12} sm={8}>
+                          <Typography variant="caption" color="text.secondary" display="block">Planned Remarks</Typography>
+                          <Typography variant="body2">{item.remark}</Typography>
+                        </Grid>
+                      )}
+                    </Grid>
+                  </Paper>
+                ))}
+              </Box>
+            ) : (
+              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                No advance tour program planned for this date.
+              </Typography>
+            )}
+          </Paper>
+
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1, color: theme.palette.text.primary }}>
+            Actual Tour Diary Entries (Submitted)
+          </Typography>
+
           {selectedDayEvents.length === 0 ? (
-            <Alert severity="info">No tour entries recorded for this day.</Alert>
+            <Alert severity="info" sx={{ borderRadius: 1.5 }}>No actual tour entries recorded for this day.</Alert>
           ) : (
-            <List>
+            <List sx={{ width: '100%' }}>
               {selectedDayEvents.map((event, idx) => (
                 <React.Fragment key={event.id || idx}>
                   {idx > 0 && <Divider sx={{ my: 1 }} />}
-                  <ListItem button onClick={() => handleViewEntryDetails(event)} sx={{ borderRadius: 1 }}>
+                  <ListItem button onClick={() => handleViewEntryDetails(event)} sx={{ borderRadius: 1.5, border: `1px solid ${theme.palette.divider}`, mb: 1 }}>
                     <ListItemText
                       primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                           <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{event.purposeName || getPurposeName(event.purposeId)}</Typography>
                           <Chip label={event.entryType || 'WORKING'} size="small" color={event.entryType === 'WORKING' ? 'success' : 'error'} />
+                          {(event.isAdvanceChanged === true || event.isAdvanceChanged === "true") && (
+                            <Chip label="Program Changed" size="small" color="warning" sx={{ fontWeight: 'bold' }} />
+                          )}
                         </Box>
                       }
                       secondary={
@@ -1110,7 +1314,7 @@ const UserTourDiaryDetail = () => {
 
       {/* ==================== ENTRY DETAILS MODAL ==================== */}
       <Modal open={detailModalOpen} onClose={closeDetailModal} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Card sx={{ width: '90%', maxWidth: '500px', padding: 3, borderRadius: 2, backgroundColor: theme.palette.background.paper, boxShadow: theme.shadows[24] }}>
+        <Card sx={{ width: '90%', maxWidth: '550px', padding: 3, borderRadius: 2, backgroundColor: theme.palette.background.paper, boxShadow: theme.shadows[24], maxHeight: '85vh', overflow: 'auto' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h4" sx={{ color: theme.palette.text.primary }}>Tour Entry Details</Typography>
             <IconButton onClick={closeDetailModal} size="small"><CloseIcon /></IconButton>
@@ -1180,28 +1384,37 @@ const UserTourDiaryDetail = () => {
               )}
               {/* Advance Tour Comparison for this Date */}
               {(() => {
-                const entryDate = new Date(selectedEntry.createdAt).getDate();
-                const matchedAdvance = advanceEntries.filter(adv => {
-                  const d = new Date(adv.createdAt || adv.actionDate);
-                  return d.getDate() === entryDate;
-                });
+                const entryDateObj = selectedEntry ? new Date(selectedEntry.createdAt || selectedEntry.date) : null;
+                const matchedAdvance = dayAdvanceEntries.length > 0
+                  ? dayAdvanceEntries
+                  : (entryDateObj ? getAdvanceEntriesForDate(entryDateObj) : []);
                 if (matchedAdvance.length === 0) return null;
                 return (
                   <Grid item xs={12}>
-                    <Paper variant="outlined" sx={{ p: 1.5, bgcolor: theme.palette.mode === 'dark' ? '#1a2a3a' : '#f0f4f8', borderRadius: 1.5, border: `1px solid ${theme.palette.primary.light}` }}>
-                      <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold', mb: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Paper variant="outlined" sx={{ p: 2, bgcolor: theme.palette.mode === 'dark' ? '#1a2a3a' : '#f0f4f8', borderRadius: 2, border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}` }}>
+                      <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold', mb: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         <EventIcon fontSize="small" /> Planned Advance Tour Details (For Verification Comparison)
                       </Typography>
                       {matchedAdvance.map((adv, idx) => (
-                        <Box key={adv.id || idx} sx={{ mt: 0.5, p: 1, bgcolor: theme.palette.background.paper, borderRadius: 1 }}>
-                          <Typography variant="body2">
-                            <strong>Type:</strong> {adv.entryType || 'WORKING'} {adv.location ? ` | Location: ${adv.location}` : ''}
-                          </Typography>
-                          {adv.remark && (
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              <strong>Planned Remarks:</strong> {adv.remark}
-                            </Typography>
-                          )}
+                        <Box key={adv.id || idx} sx={{ mt: 1, p: 1.5, bgcolor: theme.palette.background.paper, borderRadius: 1.5, border: `1px solid ${theme.palette.divider}` }}>
+                          <Grid container spacing={1}>
+                            <Grid item xs={12} sm={6}>
+                              <Typography variant="caption" color="text.secondary" display="block">Planned Entry Type</Typography>
+                              <Chip label={adv.entryType || 'WORKING'} size="small" color="primary" variant="outlined" sx={{ fontWeight: 600 }} />
+                            </Grid>
+                            {adv.location && (
+                              <Grid item xs={12} sm={6}>
+                                <Typography variant="caption" color="text.secondary" display="block">Planned Location</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>{adv.location}</Typography>
+                              </Grid>
+                            )}
+                            {adv.remark && (
+                              <Grid item xs={12}>
+                                <Typography variant="caption" color="text.secondary" display="block">Planned Remarks</Typography>
+                                <Typography variant="body2">{adv.remark}</Typography>
+                              </Grid>
+                            )}
+                          </Grid>
                         </Box>
                       ))}
                     </Paper>
