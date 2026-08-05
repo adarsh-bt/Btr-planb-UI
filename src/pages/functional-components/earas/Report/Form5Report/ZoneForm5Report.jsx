@@ -50,6 +50,8 @@ import GrassIcon from '@mui/icons-material/Grass';
 import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import DownloadIcon from '@mui/icons-material/Download';
+import * as XLSX from 'xlsx';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
@@ -273,6 +275,12 @@ function ZoneForm5Report() {
 
       params.append('talukId', talukIdValue);
 
+      // Crop filter — backend now accepts cropId
+      if (cropName !== 'ALL') {
+        const selectedCrop = cropOptions.find((c) => c.cropName === cropName);
+        if (selectedCrop) params.append('cropId', selectedCrop.cropId);
+      }
+
       url += `?${params.toString()}`;
       console.log('Fetching zone Form 5 data from:', url);
 
@@ -300,18 +308,33 @@ function ZoneForm5Report() {
     }
   };
 
+  // Fetch crop list for the dropdown filter
+const fetchCropsList = async () => {
+  try {
+    const response = await api.get(
+      `${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-logs?agriYear=${agriculturalYear}`
+    );
+    if (response.data && Array.isArray(response.data)) {
+      setCropOptions(response.data); // { cropId, cropName, ... } objects
+    }
+  } catch (err) {
+    console.error('Error fetching crops list:', err);
+  }
+};
+
   /* ─────────────────────────── effects ─────────────────────────── */
 
   useEffect(() => {
     if (resolvedTalukId.current) {
       fetchMasterZones(resolvedTalukId.current);
     }
+    fetchCropsList();
   }, []);
 
   useEffect(() => {
     fetchZoneWiseData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterType, singleMonth, fromMonth, toMonth]);
+  }, [filterType, singleMonth, fromMonth, toMonth, cropName]);
 
   /* ─────────────────────────── derived data ─────────────────────────── */
 
@@ -463,32 +486,61 @@ function ZoneForm5Report() {
 
   // Flatten table data - only zones, no subtotals
   const flattenedTableData = useMemo(() => {
-    const result = [];
-    processedData.forEach((block) => {
-      block.zones.forEach((zone) => {
-        result.push({
-          type: 'zone',
-          id: `${block.blockId || 'nb'}_zone_${zone.zoneId}`,
-          blockId: block.blockId,
-          blockName: block.blockName,
-          zoneName: zone.zoneName,
-          allowtedCce: zone.allowtedCce,
-          selectedCce: zone.selectedCce,
-          completed: zone.completed,
-          ongoing: zone.ongoing,
-          notAvailable: zone.notAvailable,
-          notStarted: zone.notStarted,
-          underReview: zone.underReview,
-          zoneId: zone.zoneId,
-          hasData: zone.hasData,
-          isUnassigned: block.isUnassigned || false,
-          isMunicipality: block.isMunicipality || false,
-          isCorporation: block.isCorporation || false
-        });
+  const result = [];
+  processedData.forEach((block) => {
+    let bAllowtedCce = 0, bSelectedCce = 0, bCompleted = 0, bOngoing = 0, bNotAvailable = 0, bNotStarted = 0, bUnderReview = 0;
+
+    block.zones.forEach((zone) => {
+      bAllowtedCce += zone.allowtedCce;
+      bSelectedCce += zone.selectedCce;
+      bCompleted += zone.completed;
+      bOngoing += zone.ongoing;
+      bNotAvailable += zone.notAvailable;
+      bNotStarted += zone.notStarted;
+      bUnderReview += zone.underReview;
+
+      result.push({
+        type: 'zone',
+        id: `${block.blockId || 'nb'}_zone_${zone.zoneId}`,
+        blockId: block.blockId,
+        blockName: block.blockName,
+        zoneName: zone.zoneName,
+        allowtedCce: zone.allowtedCce,
+        selectedCce: zone.selectedCce,
+        completed: zone.completed,
+        ongoing: zone.ongoing,
+        notAvailable: zone.notAvailable,
+        notStarted: zone.notStarted,
+        underReview: zone.underReview,
+        zoneId: zone.zoneId,
+        hasData: zone.hasData,
+        isUnassigned: block.isUnassigned || false,
+        isMunicipality: block.isMunicipality || false,
+        isCorporation: block.isCorporation || false
       });
     });
-    return result;
-  }, [processedData]);
+
+    result.push({
+      type: 'subtotal',
+      id: `block_${block.blockId || 'nb'}_sub`,
+      blockId: block.blockId,
+      blockName: block.blockName,
+      zoneName: `Total for ${block.blockName}`,
+      allowtedCce: bAllowtedCce,
+      selectedCce: bSelectedCce,
+      completed: bCompleted,
+      ongoing: bOngoing,
+      notAvailable: bNotAvailable,
+      notStarted: bNotStarted,
+      underReview: bUnderReview,
+      isSubtotal: true,
+      hasData:
+        bAllowtedCce > 0 || bSelectedCce > 0 || bCompleted > 0 ||
+        bOngoing > 0 || bNotAvailable > 0 || bNotStarted > 0 || bUnderReview > 0
+    });
+  });
+  return result;
+}, [processedData]);
 
   const searchFilteredData = useMemo(() => {
     if (!searchTerm.trim()) return flattenedTableData;
@@ -539,6 +591,58 @@ function ZoneForm5Report() {
   const handleClearSearch = () => {
     setSearchTerm('');
     setPage(0);
+  };
+
+  // Build a meaningful filename from the active filters
+  const generateExcelFileName = () => {
+    const parts = ['CCE_Zone_Report', formattedTaluk.replace(/\s+/g, '_')];
+
+    if (cropName !== 'ALL') parts.push(cropName.replace(/\s+/g, '_'));
+
+    if (filterType === 'single' && singleMonth) {
+      parts.push(monthLabel(singleMonth).replace(/\s+/g, '_'));
+    } else if (filterType === 'range') {
+      if (fromMonth) parts.push(monthLabel(fromMonth).replace(/\s+/g, '_'));
+      if (toMonth) parts.push('to', monthLabel(toMonth).replace(/\s+/g, '_'));
+    }
+
+    if (searchTerm.trim()) {
+      parts.push(`Search-${searchTerm.trim().replace(/\s+/g, '_')}`);
+    }
+
+    parts.push(new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
+    return `${parts.join('_')}.xlsx`;
+  };
+
+  // Export the FULL search-filtered dataset (blocks and zones) to Excel
+  const handleExportExcel = () => {
+    if (!searchFilteredData || searchFilteredData.length === 0) return;
+
+    const exportRows = searchFilteredData.map((row, index) => ({
+      '#': index + 1,
+      Block: row.blockName,
+      Zone: row.zoneName,
+      'Allowted CCE': row.hasData ? row.allowtedCce : 'NA',
+      'Selected CCE': row.hasData ? row.selectedCce : 'NA',
+      Completed: row.hasData ? row.completed : 'NA',
+      Ongoing: row.hasData ? row.ongoing : 'NA',
+      'Not Available': row.hasData ? row.notAvailable : 'NA',
+      'Not Started': row.hasData ? row.notStarted : 'NA',
+      'Under Review': row.hasData ? row.underReview : 'NA'
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+
+    // Reasonable column widths so it doesn't open looking cramped
+    worksheet['!cols'] = [
+      { wch: 5 },  { wch: 20 }, { wch: 22 }, { wch: 12 },
+      { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'District Report');
+
+    XLSX.writeFile(workbook, generateExcelFileName());
   };
 
   const handleViewZoneDetails = (zoneName, clickedZoneId, hasData) => {
@@ -692,11 +796,11 @@ function ZoneForm5Report() {
             </Stack>
             <FormControl size="small" sx={{ minWidth: 220 }}>
               <InputLabel>Crop Name</InputLabel>
-              <Select value={cropName} label="Crop Name" onChange={handleCropNameChange}>
+                            <Select value={cropName} label="Crop Name" onChange={handleCropNameChange}>
                 <MenuItem value="ALL">ALL</MenuItem>
                 {cropOptions.map((crop) => (
-                  <MenuItem key={crop} value={crop}>
-                    {crop}
+                  <MenuItem key={crop.cropId} value={crop.cropName}>
+                    {crop.cropName}
                   </MenuItem>
                 ))}
               </Select>
@@ -813,7 +917,15 @@ function ZoneForm5Report() {
       </Grid>
 
       <Grid item xs={12}>
-        <Box sx={{ position: 'relative', borderRadius: 3 }}>
+        <Box
+          sx={{
+            position: 'relative',
+            border: `1px solid ${alpha('#04255e', 0.15)}`,
+            borderRadius: 3,
+            pt: 3,
+            bgcolor: '#fff'
+          }}
+        >
           <Chip
             label="Zone Report Summary"
             size="small"
@@ -830,38 +942,66 @@ function ZoneForm5Report() {
             }}
           />
 
+          {/* Search + Export row */}
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            justifyContent="flex-end"
+            alignItems="center"
+            spacing={1.5}
+            sx={{ px: 2, pb: 2 }}
+          >
+            <TextField
+              placeholder="Search block/zone..."
+              size="small"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(0);
+              }}
+              sx={{ width: 250 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+                endAdornment: searchTerm && (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={handleClearSearch}
+                      edge="end"
+                    >
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }}
+            />
+            <Tooltip
+              title={
+                searchFilteredData.length === 0
+                  ? 'No data available to export'
+                  : `Export ${searchFilteredData.length} row${searchFilteredData.length > 1 ? 's' : ''} to Excel`
+              }
+            >
+              <span>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<DownloadIcon />}
+                  onClick={handleExportExcel}
+                  disabled={searchFilteredData.length === 0 || loading}
+                  sx={{ borderRadius: 2, whiteSpace: 'nowrap' }}
+                >
+                  Download Excel
+                </Button>
+              </span>
+            </Tooltip>
+          </Stack>
+
           <MainCard
             title={`Blocks and Zones in ${formattedTaluk}`}
-            secondary={
-              <TextField
-                placeholder="Search block/zone..."
-                size="small"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setPage(0);
-                }}
-                sx={{ width: 250 }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" />
-                    </InputAdornment>
-                  ),
-                  endAdornment: searchTerm && (
-                    <InputAdornment position="end">
-                      <IconButton
-                        size="small"
-                        onClick={handleClearSearch}
-                        edge="end"
-                      >
-                        <ClearIcon fontSize="small" />
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                }}
-              />
-            }
             sx={{ borderRadius: 3 }}
           >
             <TableContainer>
@@ -909,202 +1049,213 @@ function ZoneForm5Report() {
                     </TableRow>
                   ) : paginatedData.length > 0 ? (
                     (() => {
-                      const rows = [];
-                      let lastBlockName = '';
-                      let serialNumber = page * rowsPerPage;
+  const rows = [];
+  let lastBlockName = '';
+  let serialNumber = page * rowsPerPage;
 
-                      for (let i = 0; i < paginatedData.length; i++) {
-                        const row = paginatedData[i];
-                        const isNewBlock = row.blockName !== lastBlockName;
-                        const hasNoData = !row.hasData;
+  for (let i = 0; i < paginatedData.length; i++) {
+    const row = paginatedData[i];
+    const isSubtotalRow = row.type === 'subtotal';
+    const isNewBlock = row.blockName !== lastBlockName;
+    const hasNoData = !row.hasData;
 
-                        if (isNewBlock) lastBlockName = row.blockName;
-                        serialNumber++;
+    if (isNewBlock) lastBlockName = row.blockName;
+    if (!isSubtotalRow) serialNumber++;
 
-                        const blockRowCount = paginatedData.filter((r) => r.blockName === row.blockName).length;
+    const blockRowCount = isSubtotalRow
+      ? 0
+      : paginatedData.filter((r) => r.blockName === row.blockName && r.type !== 'subtotal').length;
 
-                        rows.push(
-                          <TableRow
-                            key={row.id}
-                            hover
-                            sx={{
-                              '&:hover': { bgcolor: alpha('#04255e', 0.04) },
-                              transition: '0.2s',
-                              ...(hasNoData && {
-                                bgcolor: alpha('#ff9800', 0.03),
-                                '&:hover': { bgcolor: alpha('#ff9800', 0.08) }
-                              })
-                            }}
-                          >
-                            <TableCell align="center" sx={{ border: 'none' }}>
-                              <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                                {serialNumber}
-                              </Typography>
-                            </TableCell>
+    rows.push(
+      <TableRow
+        key={row.id}
+        hover
+        sx={{
+          '&:hover': { bgcolor: alpha('#04255e', 0.04) },
+          transition: '0.2s',
+          '& td': {
+            borderBottom: isSubtotalRow ? `1px solid ${theme.palette.primary.main}` : 'none',
+            borderTop: isSubtotalRow ? `0.01px solid ${theme.palette.primary.main}` : 'none',
+            backgroundColor: isSubtotalRow ? alpha('#728ab4', 0.08) : 'transparent'
+          },
+          ...(hasNoData && !isSubtotalRow && {
+            bgcolor: alpha('#ff9800', 0.03),
+            '&:hover': { bgcolor: alpha('#ff9800', 0.08) }
+          })
+        }}
+      >
+        {/* Serial number — subtotal rows have no Block cell, so this cell
+            absorbs that column, keeping the row's border running full width */}
+        <TableCell align="center" colSpan={isSubtotalRow ? 2 : 1} sx={{ border: 'none' }}>
+          {!isSubtotalRow && (
+            <Typography variant="body2" color="text.secondary" fontWeight={500}>
+              {serialNumber}
+            </Typography>
+          )}
+        </TableCell>
 
-                            {isNewBlock ? (
-                              <TableCell
-                                rowSpan={blockRowCount}
-                                align="center"
-                                sx={{
-                                  verticalAlign: 'middle',
-                                  backgroundColor: alpha('#04255e', 0.04),
-                                  fontWeight: 'bold',
-                                  color: '#04255e',
-                                  fontSize: '1rem',
-                                  border: 'none'
-                                }}
-                              >
-                                <Stack direction="column" spacing={1} alignItems="center">
-                                  <LocationOnIcon sx={{ fontSize: 24, color: '#04255e', opacity: 0.7 }} />
-                                  <Typography fontWeight={700} sx={{ color: '#04255e' }}>
-                                    {row.blockName}
-                                  </Typography>
-                                </Stack>
-                              </TableCell>
-                            ) : null}
+        {isNewBlock && !isSubtotalRow ? (
+          <TableCell
+            rowSpan={blockRowCount}
+            align="center"
+            sx={{
+              verticalAlign: 'middle',
+              backgroundColor: alpha('#04255e', 0.04),
+              fontWeight: 'bold',
+              color: '#04255e',
+              fontSize: '1rem',
+              border: 'none'
+            }}
+          >
+            <Stack direction="column" spacing={1} alignItems="center">
+              <LocationOnIcon sx={{ fontSize: 24, color: '#04255e', opacity: 0.7 }} />
+              <Typography fontWeight={700} sx={{ color: '#04255e' }}>
+                {row.blockName}
+              </Typography>
+            </Stack>
+          </TableCell>
+        ) : null}
 
-                            <TableCell sx={{ border: 'none' }}>
-                              <Stack direction="row" spacing={1} alignItems="center">
-                                <StoreIcon sx={{ fontSize: 18, color: hasNoData ? '#ff9800' : '#04255e', opacity: 0.7 }} />
-                                <Typography fontWeight={hasNoData ? 400 : 500} color={hasNoData ? 'text.secondary' : 'text.primary'}>
-                                  {row.zoneName}
-                                  {hasNoData && (
-                                    <Chip
-                                      label="No Data"
-                                      size="small"
-                                      sx={{
-                                        ml: 1,
-                                        height: 18,
-                                        fontSize: '0.6rem',
-                                        bgcolor: alpha('#ff9800', 0.15),
-                                        color: '#e65100',
-                                        fontWeight: 600
-                                      }}
-                                    />
-                                  )}
-                                </Typography>
-                              </Stack>
-                            </TableCell>
+        <TableCell sx={{ border: 'none' }}>
+          {isSubtotalRow ? (
+            <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#04255e', fontStyle: 'italic' }}>
+              {row.zoneName}
+            </Typography>
+          ) : (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <StoreIcon sx={{ fontSize: 18, color: hasNoData ? '#ff9800' : '#04255e', opacity: 0.7 }} />
+              <Typography fontWeight={hasNoData ? 400 : 500} color={hasNoData ? 'text.secondary' : 'text.primary'}>
+                {row.zoneName}
+                {hasNoData && (
+                  <Chip
+                    label="No Data"
+                    size="small"
+                    sx={{ ml: 1, height: 18, fontSize: '0.6rem', bgcolor: alpha('#ff9800', 0.15), color: '#e65100', fontWeight: 600 }}
+                  />
+                )}
+              </Typography>
+            </Stack>
+          )}
+        </TableCell>
 
-                            <TableCell align="center" sx={{ border: 'none' }}>
-                              {hasNoData ? (
-                                <Typography variant="body2" color="text.secondary">NA</Typography>
-                              ) : (
-                                <Chip
-                                  label={row.allowtedCce}
-                                  size="small"
-                                  variant="outlined"
-                                  sx={{ fontWeight: 600 }}
-                                />
-                              )}
-                            </TableCell>
+        <TableCell align="center" sx={{ border: 'none' }}>
+          {hasNoData && !isSubtotalRow ? (
+            <Typography variant="body2" color="text.secondary">NA</Typography>
+          ) : (
+            <Chip
+              label={row.allowtedCce}
+              size="small"
+              variant={isSubtotalRow ? 'filled' : 'outlined'}
+              sx={{
+                fontWeight: isSubtotalRow ? 700 : 600,
+                bgcolor: isSubtotalRow ? alpha('#04255e', 0.15) : undefined,
+                color: isSubtotalRow ? '#04255e' : undefined
+              }}
+            />
+          )}
+        </TableCell>
 
-                            <TableCell align="center" sx={{ border: 'none' }}>
-                              {hasNoData ? (
-                                <Typography variant="body2" color="text.secondary">NA</Typography>
-                              ) : row.selectedCce > 0 ? (
-                                <Chip
-                                  label={row.selectedCce}
-                                  size="small"
-                                  variant="outlined"
-                                  sx={{ color: '#04255e', borderColor: alpha('#04255e', 0.4), fontWeight: 600 }}
-                                />
-                              ) : (
-                                <Typography variant="body2" color="text.secondary">
-                                  {row.selectedCce}
-                                </Typography>
-                              )}
-                            </TableCell>
+        <TableCell align="center" sx={{ border: 'none' }}>
+          {hasNoData && !isSubtotalRow ? (
+            <Typography variant="body2" color="text.secondary">NA</Typography>
+          ) : row.selectedCce > 0 ? (
+            <Chip
+              label={row.selectedCce}
+              size="small"
+              variant={isSubtotalRow ? 'filled' : 'outlined'}
+              sx={{
+                color: '#04255e',
+                borderColor: alpha('#04255e', 0.4),
+                fontWeight: isSubtotalRow ? 700 : 600,
+                bgcolor: isSubtotalRow ? alpha('#04255e', 0.15) : undefined
+              }}
+            />
+          ) : (
+            <Typography variant="body2" color="text.secondary">{row.selectedCce}</Typography>
+          )}
+        </TableCell>
 
-                            <TableCell align="center" sx={{ border: 'none' }}>
-                              {hasNoData ? (
-                                <Typography variant="body2" color="text.secondary">NA</Typography>
-                              ) : row.completed > 0 ? (
-                                <Chip label={row.completed} size="small" color="success" variant="outlined" />
-                              ) : (
-                                <Typography variant="body2" color="text.secondary">
-                                  {row.completed}
-                                </Typography>
-                              )}
-                            </TableCell>
+        <TableCell align="center" sx={{ border: 'none' }}>
+          {hasNoData && !isSubtotalRow ? (
+            <Typography variant="body2" color="text.secondary">NA</Typography>
+          ) : row.completed > 0 ? (
+            <Chip label={row.completed} size="small" color="success" variant={isSubtotalRow ? 'filled' : 'outlined'} sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
+          ) : (
+            <Typography variant="body2" color="text.secondary">{row.completed}</Typography>
+          )}
+        </TableCell>
 
-                            <TableCell align="center" sx={{ border: 'none' }}>
-                              {hasNoData ? (
-                                <Typography variant="body2" color="text.secondary">NA</Typography>
-                              ) : row.ongoing > 0 ? (
-                                <Chip label={row.ongoing} size="small" color="primary" variant="outlined" />
-                              ) : (
-                                <Typography variant="body2" color="text.secondary">
-                                  {row.ongoing}
-                                </Typography>
-                              )}
-                            </TableCell>
+        <TableCell align="center" sx={{ border: 'none' }}>
+          {hasNoData && !isSubtotalRow ? (
+            <Typography variant="body2" color="text.secondary">NA</Typography>
+          ) : row.ongoing > 0 ? (
+            <Chip label={row.ongoing} size="small" color="primary" variant={isSubtotalRow ? 'filled' : 'outlined'} sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
+          ) : (
+            <Typography variant="body2" color="text.secondary">{row.ongoing}</Typography>
+          )}
+        </TableCell>
 
-                            <TableCell align="center" sx={{ border: 'none' }}>
-                              {hasNoData ? (
-                                <Typography variant="body2" color="text.secondary">NA</Typography>
-                              ) : row.notAvailable > 0 ? (
-                                <Chip label={row.notAvailable} size="small" color="error" variant="outlined" />
-                              ) : (
-                                <Typography variant="body2" color="text.secondary">
-                                  {row.notAvailable}
-                                </Typography>
-                              )}
-                            </TableCell>
+        <TableCell align="center" sx={{ border: 'none' }}>
+          {hasNoData && !isSubtotalRow ? (
+            <Typography variant="body2" color="text.secondary">NA</Typography>
+          ) : row.notAvailable > 0 ? (
+            <Chip label={row.notAvailable} size="small" color="error" variant={isSubtotalRow ? 'filled' : 'outlined'} sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
+          ) : (
+            <Typography variant="body2" color="text.secondary">{row.notAvailable}</Typography>
+          )}
+        </TableCell>
 
-                            <TableCell align="center" sx={{ border: 'none' }}>
-                              {hasNoData ? (
-                                <Typography variant="body2" color="text.secondary">NA</Typography>
-                              ) : row.notStarted > 0 ? (
-                                <Chip label={row.notStarted} size="small" variant="outlined" />
-                              ) : (
-                                <Typography variant="body2" color="text.secondary">
-                                  {row.notStarted}
-                                </Typography>
-                              )}
-                            </TableCell>
+        <TableCell align="center" sx={{ border: 'none' }}>
+          {hasNoData && !isSubtotalRow ? (
+            <Typography variant="body2" color="text.secondary">NA</Typography>
+          ) : row.notStarted > 0 ? (
+            <Chip
+              label={row.notStarted}
+              size="small"
+              variant={isSubtotalRow ? 'filled' : 'outlined'}
+              sx={{ fontWeight: isSubtotalRow ? 700 : 500, bgcolor: isSubtotalRow ? alpha('#757575', 0.15) : undefined }}
+            />
+          ) : (
+            <Typography variant="body2" color="text.secondary">{row.notStarted}</Typography>
+          )}
+        </TableCell>
 
-                            <TableCell align="center" sx={{ border: 'none' }}>
-                              {hasNoData ? (
-                                <Typography variant="body2" color="text.secondary">NA</Typography>
-                              ) : row.underReview > 0 ? (
-                                <Chip label={row.underReview} size="small" color="warning" variant="outlined" />
-                              ) : (
-                                <Typography variant="body2" color="text.secondary">
-                                  {row.underReview}
-                                </Typography>
-                              )}
-                            </TableCell>
+        <TableCell align="center" sx={{ border: 'none' }}>
+          {hasNoData && !isSubtotalRow ? (
+            <Typography variant="body2" color="text.secondary">NA</Typography>
+          ) : row.underReview > 0 ? (
+            <Chip label={row.underReview} size="small" color="warning" variant={isSubtotalRow ? 'filled' : 'outlined'} sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
+          ) : (
+            <Typography variant="body2" color="text.secondary">{row.underReview}</Typography>
+          )}
+        </TableCell>
 
-                            <TableCell align="center" sx={{ border: 'none' }}>
-                              {row.hasData ? (
-                                <Tooltip title="View CCE Details">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleViewZoneDetails(row.zoneName, row.zoneId, row.hasData)}
-                                    sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
-                                  >
-                                    <VisibilityIcon />
-                                  </IconButton>
-                                </Tooltip>
-                              ) : (
-                                <Tooltip title="No data available - View disabled">
-                                  <IconButton
-                                    size="small"
-                                    disabled
-                                    sx={{ color: '#bdbdbd', cursor: 'not-allowed' }}
-                                  >
-                                    <VisibilityOffIcon />
-                                  </IconButton>
-                                </Tooltip>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      }
-                      return rows;
-                    })()
+        <TableCell align="center" sx={{ border: 'none' }}>
+          {!isSubtotalRow && (
+            row.hasData ? (
+              <Tooltip title="View CCE Details">
+                <IconButton
+                  size="small"
+                  onClick={() => handleViewZoneDetails(row.zoneName, row.zoneId, row.hasData)}
+                  sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
+                >
+                  <VisibilityIcon />
+                </IconButton>
+              </Tooltip>
+            ) : (
+              <Tooltip title="No data available - View disabled">
+                <IconButton size="small" disabled sx={{ color: '#bdbdbd', cursor: 'not-allowed' }}>
+                  <VisibilityOffIcon />
+                </IconButton>
+              </Tooltip>
+            )
+          )}
+        </TableCell>
+      </TableRow>
+    );
+  }
+  return rows;
+})()
                   ) : (
                     <TableRow>
                       <TableCell colSpan={11} align="center" sx={{ py: 6 }}>

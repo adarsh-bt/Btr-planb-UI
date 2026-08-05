@@ -48,6 +48,8 @@ import GrassIcon from '@mui/icons-material/Grass';
 import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import DownloadIcon from '@mui/icons-material/Download';
+import * as XLSX from 'xlsx';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
@@ -219,6 +221,20 @@ function KeralaForm5ReportList() {
     ];
   };
 
+  // Fetch crop list for the dropdown filter
+const fetchCropsList = async () => {
+  try {
+    const response = await api.get(
+      `${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-logs?agriYear=${agriculturalYear}`
+    );
+    if (response.data && Array.isArray(response.data)) {
+      setCropOptions(response.data); // now holds { cropId, cropName, ... } objects
+    }
+  } catch (err) {
+    console.error('Error fetching crops list:', err);
+  }
+};
+
   // Fetch data from API
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -251,6 +267,12 @@ function KeralaForm5ReportList() {
 
       // TODO: enable when the backend controller accepts a cropName param.
       // if (cropName && cropName !== 'ALL') params.append('cropName', cropName);
+
+      // Crop filter — backend now accepts cropId
+      if (cropName !== 'ALL') {
+        const selectedCrop = cropOptions.find((c) => c.cropName === cropName);
+        if (selectedCrop) params.append('cropId', selectedCrop.cropId);
+      }
 
       url += `?${params.toString()}`;
       console.log('Fetching data from:', url);
@@ -427,6 +449,57 @@ function KeralaForm5ReportList() {
     setSearchTerm('');
   };
 
+  // Build a meaningful filename from the active filters
+  const generateExcelFileName = () => {
+    const parts = ['CCE_District_Report'];
+
+    if (cropName !== 'ALL') parts.push(cropName.replace(/\s+/g, '_'));
+
+    if (filterType === 'single' && singleMonth) {
+      parts.push(monthLabel(singleMonth).replace(/\s+/g, '_'));
+    } else if (filterType === 'range') {
+      if (fromMonth) parts.push(monthLabel(fromMonth).replace(/\s+/g, '_'));
+      if (toMonth) parts.push('to', monthLabel(toMonth).replace(/\s+/g, '_'));
+    }
+
+    if (searchTerm.trim()) {
+      parts.push(`Search-${searchTerm.trim().replace(/\s+/g, '_')}`);
+    }
+
+    parts.push(new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
+    return `${parts.join('_')}.xlsx`;
+  };
+
+  // Export the FULL filtered dataset (not just the current page) to Excel
+  const handleExportExcel = () => {
+    if (!filteredData || filteredData.length === 0) return;
+
+    const exportRows = filteredData.map((row, index) => ({
+      '#': index + 1,
+      District: row.district,
+      'Allowted CCE': row.hasData ? row.allowtedCce : 'NA',
+      'Selected CCE': row.hasData ? row.selectedCce : 'NA',
+      Completed: row.hasData ? row.completed : 'NA',
+      Ongoing: row.hasData ? row.ongoing : 'NA',
+      'Not Available': row.hasData ? row.notAvailable : 'NA',
+      'Not Started': row.hasData ? row.notStarted : 'NA',
+      'Under Review': row.hasData ? row.underReview : 'NA'
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+
+    // Reasonable column widths so it doesn't open looking cramped
+    worksheet['!cols'] = [
+      { wch: 5 },  { wch: 25 }, { wch: 12 },
+      { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'District Report');
+
+    XLSX.writeFile(workbook, generateExcelFileName());
+  };
+
   const handleViewDetails = (districtName, hasData) => {
     // Only navigate if district has data
     if (!hasData) return;
@@ -468,6 +541,7 @@ function KeralaForm5ReportList() {
   // Fetch master districts and data when component mounts
   useEffect(() => {
     fetchMasterDistricts();
+    fetchCropsList();
     fetchDashboardData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -478,7 +552,7 @@ function KeralaForm5ReportList() {
       fetchDashboardData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterType, singleMonth, fromMonth, toMonth]);
+  }, [filterType, singleMonth, fromMonth, toMonth, cropName]);
 
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
@@ -660,8 +734,8 @@ function KeralaForm5ReportList() {
               <Select value={cropName} label="Crop Name" onChange={handleCropNameChange}>
                 <MenuItem value="ALL">ALL</MenuItem>
                 {cropOptions.map((crop) => (
-                  <MenuItem key={crop} value={crop}>
-                    {crop}
+                  <MenuItem key={crop.cropId} value={crop.cropName}>
+                    {crop.cropName}
                   </MenuItem>
                 ))}
               </Select>
@@ -790,7 +864,10 @@ function KeralaForm5ReportList() {
         <Box
           sx={{
             position: 'relative',
-            borderRadius: 3
+            border: `1px solid ${alpha('#04255e', 0.15)}`,
+            borderRadius: 3,
+            pt: 3,
+            bgcolor: '#fff'
           }}
         >
           <Chip
@@ -809,34 +886,62 @@ function KeralaForm5ReportList() {
             }}
           />
 
+          {/* Search + Export row */}
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            justifyContent="flex-end"
+            alignItems="center"
+            spacing={1.5}
+            sx={{ px: 2, pb: 2 }}
+          >
+            <TextField
+              placeholder="Search district..."
+              size="small"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(0);
+              }}
+              sx={{ width: 250 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+                endAdornment: searchTerm && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch} edge="end">
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }}
+            />
+            <Tooltip
+              title={
+                filteredData.length === 0
+                  ? 'No data available to export'
+                  : `Export ${filteredData.length} district${filteredData.length > 1 ? 's' : ''} to Excel`
+              }
+            >
+              <span>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<DownloadIcon />}
+                  onClick={handleExportExcel}
+                  disabled={filteredData.length === 0 || loading}
+                  sx={{ borderRadius: 2, whiteSpace: 'nowrap' }}
+                >
+                  Download Excel
+                </Button>
+              </span>
+            </Tooltip>
+          </Stack>
+
           <MainCard
             title="District-wise CCE Status"
-            secondary={
-              <TextField
-                placeholder="Search district..."
-                size="small"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setPage(0);
-                }}
-                sx={{ width: 250 }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" />
-                    </InputAdornment>
-                  ),
-                  endAdornment: searchTerm && (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={handleClearSearch} edge="end">
-                        <ClearIcon fontSize="small" />
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                }}
-              />
-            }
             sx={{ borderRadius: 3 }}
           >
             <TableContainer>

@@ -51,6 +51,8 @@ import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import DownloadIcon from '@mui/icons-material/Download';
+import * as XLSX from 'xlsx';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
@@ -156,6 +158,63 @@ function formatMonthForApi(monthName, agriculturalYear) {
   return `${year}-${monthStr}`;
 }
 
+/**
+ * Dropdown options for the agricultural year, labelled with the calendar year:
+ * July 2025 … December 2025, then January 2026 … June 2026.
+ */
+function buildMonthOptions(agriculturalYear) {
+  const agriYear = agriculturalYear || getAgriculturalYear();
+
+  return AGRI_YEAR_MONTHS.map((monthName, idx) => {
+    const year = idx <= 5 ? agriYear.startYear : agriYear.endYear;
+    return {
+      monthName,
+      year,
+      value: `${monthName} ${year}`,
+      label: `${monthName} ${year}`
+    };
+  });
+}
+
+/**
+ * MUI renders an EMPTY Select when its value matches no MenuItem value. Month
+ * state can arrive from anywhere (route state from the taluk page, defaults,
+ * older stored filters) as "July", "July 2025", "2025-07" or "07-2025", so
+ * normalise it to the exact option value before it reaches the Select.
+ */
+function toMonthOptionValue(raw, agriculturalYear) {
+  if (raw === undefined || raw === null || String(raw).trim() === '') return '';
+
+  const agriYear = agriculturalYear || getAgriculturalYear();
+  const options = buildMonthOptions(agriYear);
+  const target = formatMonthForApi(raw, agriYear);
+
+  const hit = options.find((option) => formatMonthForApi(option.monthName, agriYear) === target);
+  return hit ? hit.value : '';
+}
+
+/**
+ * Grouping key for a block.
+ * The API returns the same block with inconsistent whitespace/casing
+ * (e.g. "Chalakudy" and "Chalakudy "), so normalise the name before grouping.
+ *
+ * If block panchayats and municipalities that share a name must appear as
+ * SEPARATE blocks, key this on blockId instead — the table's row-merge logic
+ * reads `blockKey`, so nothing else needs to change.
+ */
+function normalizeBlockKey(blockName) {
+  const normalized = (blockName ? String(blockName) : '').trim().replace(/\s+/g, ' ').toLowerCase();
+  return normalized || 'unassigned';
+}
+
+function cleanBlockName(blockName) {
+  return (blockName ? String(blockName) : '').trim().replace(/\s+/g, ' ') || 'Unassigned';
+}
+
+function normalizeZoneName(name) {
+  return name ? String(name).toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+}
+
 /* ─────────────────────────── component ─────────────────────────── */
 
 function ZoneClusterReport() {
@@ -191,13 +250,18 @@ function ZoneClusterReport() {
     agriculturalYear.current = getAgriculturalYear();
   }
 
+  /* ── month dropdown options (July 2025 … June 2026) ── */
+  const monthOptions = useMemo(() => buildMonthOptions(agriculturalYear.current), []);
+
   /* ── filter state ── */
   const [seasonTab, setSeasonTab] = useState(stateData.seasonTab || 'ALL');
   const [landType, setLandType] = useState(stateData.landType || null);
   const [filterType, setFilterType] = useState(stateData.filterType || 'single');
-  const [fromMonth, setFromMonth] = useState(stateData.fromMonth || '');
-  const [toMonth, setToMonth] = useState(stateData.toMonth || '');
-  const [singleMonth, setSingleMonth] = useState(stateData.singleMonth || getCurrentMonthName());
+  const [fromMonth, setFromMonth] = useState(() => toMonthOptionValue(stateData.fromMonth, agriculturalYear.current));
+  const [toMonth, setToMonth] = useState(() => toMonthOptionValue(stateData.toMonth, agriculturalYear.current));
+  const [singleMonth, setSingleMonth] = useState(() =>
+    toMonthOptionValue(stateData.singleMonth || getCurrentMonthName(), agriculturalYear.current)
+  );
 
   /* ── ui state ── */
   const [apiData, setApiData] = useState(null);
@@ -211,6 +275,11 @@ function ZoneClusterReport() {
 
   /* ─────────────────────────── fetch master zones ─────────────────────────── */
 
+  /**
+   * The master list is the SKELETON of the table: every zone in the taluk,
+   * whether or not it reported clusters. Without it, zones with no data simply
+   * disappear from the report instead of showing as "No Data".
+   */
   const fetchMasterZones = async (talukId) => {
     try {
       const token = localStorage.getItem('token');
@@ -359,79 +428,67 @@ function ZoneClusterReport() {
     };
   };
 
+  /**
+   * Zones are grouped under `blockName` coming from the report API.
+   *
+   * Master zone list = the skeleton (every zone in the taluk, so zones that
+   * reported nothing still render as "No Data").
+   * allSubDetails    = the stats, overlaid onto the skeleton by zoneId.
+   *
+   * If the master list is unavailable, the API response alone drives the table.
+   */
   const processedData = useMemo(() => {
-    const subDetailsMap = apiData?.allSubDetails || null;
+    const subDetailsMap = apiData?.allSubDetails || {};
+    const apiEntries = Object.entries(subDetailsMap).filter(([, details]) => !!details);
 
-    if (!subDetailsMap) {
-      if (zonesList && zonesList.length > 0) {
-        const blockMap = new Map();
-
-        zonesList.forEach(zone => {
-          const zoneId = zone.zoneId || zone.id;
-          const zoneName = zone.zoneNameEn || zone.name || zone.zoneName || `Zone ${zoneId}`;
-          const blockName = zone.blockName || 'Unassigned';
-
-          if (!blockMap.has(blockName)) {
-            blockMap.set(blockName, {
-              blockId: zone.blockId || null,
-              blockName: blockName,
-              zones: []
-            });
-          }
-
-          blockMap.get(blockName).zones.push({
-            zoneId: zoneId,
-            zoneName: zoneName,
-            completed: 0,
-            ongoing: 0,
-            notStarted: 0,
-            underReview: 0,
-            hasData: false
-          });
-        });
-
-        return Array.from(blockMap.values()).sort((a, b) => a.blockName.localeCompare(b.blockName));
+    // Stat lookups: zoneId is authoritative, name is only a fallback
+    const byZoneId = new Map();
+    const byZoneName = new Map();
+    apiEntries.forEach(([zoneName, details]) => {
+      if (details.zoneId !== undefined && details.zoneId !== null) {
+        byZoneId.set(String(details.zoneId), { zoneName, details });
       }
-      return [];
-    }
+      byZoneName.set(normalizeZoneName(zoneName), { zoneName, details });
+    });
 
-    const normalizeName = (name) => (name ? String(name).toLowerCase().replace(/[^a-z0-9]/g, '') : '');
+    const blockMap = new Map();
+
+    const addZone = (blockNameRaw, blockId, zone) => {
+      const blockKey = normalizeBlockKey(blockNameRaw);
+      if (!blockMap.has(blockKey)) {
+        blockMap.set(blockKey, {
+          blockKey,
+          blockId: blockId ?? null,
+          blockName: cleanBlockName(blockNameRaw),
+          zones: []
+        });
+      }
+      blockMap.get(blockKey).zones.push(zone);
+    };
 
     if (zonesList && zonesList.length > 0) {
-      const blockMap = new Map();
+      const matchedApiKeys = new Set();
 
       zonesList.forEach((zone) => {
         const zoneId = zone.zoneId || zone.id;
         const zoneName = zone.zoneNameEn || zone.name || zone.zoneName || `Zone ${zoneId}`;
-        const blockName = zone.blockName || 'Unassigned';
-        const blockId = zone.blockId || null;
 
-        const matchedKey = Object.keys(subDetailsMap).find((key) => {
-          const details = subDetailsMap[key];
-          return (
-            (details && (details.zoneId === zoneId)) ||
-            normalizeName(key) === normalizeName(zoneName)
-          );
-        });
+        const match =
+          (zoneId !== undefined && zoneId !== null ? byZoneId.get(String(zoneId)) : null) ||
+          byZoneName.get(normalizeZoneName(zoneName)) ||
+          null;
 
-        let stats;
-        if (matchedKey && subDetailsMap[matchedKey]) {
-          stats = getZoneStats(subDetailsMap[matchedKey]);
-        } else {
-          stats = { completed: 0, ongoing: 0, notStarted: 0, underReview: 0, hasData: false };
-        }
+        if (match) matchedApiKeys.add(match.zoneName);
 
-        if (!blockMap.has(blockName)) {
-          blockMap.set(blockName, {
-            blockId: blockId,
-            blockName: blockName,
-            zones: []
-          });
-        }
+        const stats = getZoneStats(match ? match.details : null);
 
-        blockMap.get(blockName).zones.push({
-          zoneId: zoneId,
-          zoneName: zoneName,
+        // Block comes from the API when this zone reported; master list otherwise
+        const blockNameRaw = (match && match.details.blockName) || zone.blockName || 'Unassigned';
+        const blockId = (match && match.details.blockId) ?? zone.blockId ?? null;
+
+        addZone(blockNameRaw, blockId, {
+          zoneId,
+          zoneName,
           completed: stats.completed,
           ongoing: stats.ongoing,
           notStarted: stats.notStarted,
@@ -440,32 +497,47 @@ function ZoneClusterReport() {
         });
       });
 
-      return Array.from(blockMap.values()).sort((a, b) => a.blockName.localeCompare(b.blockName));
+      // Anything the API reported that the master list doesn't know about still
+      // gets shown — dropping real clusters is worse than an unexpected row
+      apiEntries.forEach(([zoneName, details]) => {
+        if (matchedApiKeys.has(zoneName)) return;
+        const stats = getZoneStats(details);
+        addZone(details.blockName || 'Unassigned', details.blockId ?? null, {
+          zoneId: details.zoneId,
+          zoneName,
+          completed: stats.completed,
+          ongoing: stats.ongoing,
+          notStarted: stats.notStarted,
+          underReview: stats.underReview,
+          hasData: stats.hasData
+        });
+      });
+    } else {
+      // No skeleton available — group straight from the API response
+      apiEntries.forEach(([zoneName, details]) => {
+        const stats = getZoneStats(details);
+        addZone(details.blockName || 'Unassigned', details.blockId ?? null, {
+          zoneId: details.zoneId,
+          zoneName,
+          completed: stats.completed,
+          ongoing: stats.ongoing,
+          notStarted: stats.notStarted,
+          underReview: stats.underReview,
+          hasData: stats.hasData
+        });
+      });
     }
 
-    const blockMap = new Map();
+    const blocks = Array.from(blockMap.values());
 
-    Object.entries(subDetailsMap).forEach(([zoneName, details]) => {
-      const stats = getZoneStats(details);
-      const blockName = details.blockName || 'Unassigned';
-      const blockId = details.blockId || null;
-
-      if (!blockMap.has(blockName)) {
-        blockMap.set(blockName, { blockId, blockName, zones: [] });
-      }
-
-      blockMap.get(blockName).zones.push({
-        zoneId: details.zoneId,
-        zoneName: zoneName,
-        completed: stats.completed,
-        ongoing: stats.ongoing,
-        notStarted: stats.notStarted,
-        underReview: stats.underReview,
-        hasData: stats.hasData
-      });
+    // Natural sort inside a block so Chalakkudy1 … Chalakkudy5 stay in order
+    blocks.forEach((block) => {
+      block.zones.sort((a, b) =>
+        String(a.zoneName).localeCompare(String(b.zoneName), undefined, { numeric: true, sensitivity: 'base' })
+      );
     });
 
-    return Array.from(blockMap.values()).sort((a, b) => a.blockName.localeCompare(b.blockName));
+    return blocks.sort((a, b) => a.blockName.localeCompare(b.blockName));
   }, [apiData, zonesList, landType]);
 
   const stats = useMemo(() => {
@@ -510,7 +582,8 @@ function ZoneClusterReport() {
 
         result.push({
           type: 'zone',
-          id: `${block.blockId || 'nb'}_zone_${zone.zoneId}`,
+          id: `${block.blockKey}_zone_${zone.zoneId}`,
+          blockKey: block.blockKey,
           blockId: block.blockId,
           blockName: block.blockName,
           isFirstZoneInBlock: idx === 0,
@@ -527,7 +600,8 @@ function ZoneClusterReport() {
 
       result.push({
         type: 'subtotal',
-        id: `block_${block.blockId || block.blockName}_sub`,
+        id: `block_${block.blockKey}_sub`,
+        blockKey: block.blockKey,
         blockId: block.blockId,
         blockName: block.blockName,
         zoneName: `Total for ${block.blockName}`,
@@ -570,11 +644,11 @@ function ZoneClusterReport() {
     if (newValue === null) return;
     setFilterType(newValue);
     if (newValue === 'single') {
-      setSingleMonth(getCurrentMonthName());
+      setSingleMonth(toMonthOptionValue(getCurrentMonthName(), agriculturalYear.current));
       setFromMonth('');
       setToMonth('');
     } else {
-      setFromMonth('July');
+      setFromMonth(toMonthOptionValue('July', agriculturalYear.current));
       setSingleMonth('');
       setToMonth('');
     }
@@ -582,7 +656,7 @@ function ZoneClusterReport() {
   };
 
   const handleClearFilters = () => {
-    setSingleMonth(getCurrentMonthName());
+    setSingleMonth(toMonthOptionValue(getCurrentMonthName(), agriculturalYear.current));
     setFromMonth('');
     setToMonth('');
     setSeasonTab('ALL');
@@ -602,6 +676,66 @@ function ZoneClusterReport() {
   const handleClearSearch = () => {
     setSearchTerm('');
     setPage(0);
+  };
+
+  /* ─────────────────────────── excel export ─────────────────────────── */
+
+  // Build a meaningful filename from the active filters
+  const generateExcelFileName = () => {
+    const parts = ['Zone_Report', formattedTaluk.replace(/\s+/g, '_')];
+
+    if (seasonTab !== 'ALL') parts.push(seasonTab);
+
+    if (filterType === 'single' && singleMonth) {
+      parts.push(String(singleMonth).replace(/\s+/g, '_'));
+    } else if (filterType === 'range') {
+      if (fromMonth) parts.push(String(fromMonth).replace(/\s+/g, '_'));
+      if (toMonth) parts.push('to', String(toMonth).replace(/\s+/g, '_'));
+    }
+
+    if (searchTerm.trim()) {
+      parts.push(`Search-${searchTerm.trim().replace(/\s+/g, '_')}`);
+    }
+
+    parts.push(new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
+    return `${parts.join('_')}.xlsx`;
+  };
+
+  // Export the FULL search-filtered dataset (blocks, zones, and subtotal rows) to Excel
+  const handleExportExcel = () => {
+    if (!searchFilteredData || searchFilteredData.length === 0) return;
+
+    let serial = 0;
+    const exportRows = searchFilteredData.map((row) => {
+      const isSubtotalRow = row.type === 'subtotal';
+      if (!isSubtotalRow) serial++;
+
+      const hasNoData = !row.hasData && row.total === 0;
+
+      return {
+        '#': isSubtotalRow ? '' : serial,
+        Block: row.blockName,
+        Zone: row.zoneName,
+        Total: hasNoData && !isSubtotalRow ? 'NA' : row.total,
+        Completed: hasNoData && !isSubtotalRow ? 'NA' : row.completed,
+        Ongoing: hasNoData && !isSubtotalRow ? 'NA' : row.ongoing,
+        'Not Started': hasNoData && !isSubtotalRow ? 'NA' : row.notStarted,
+        'Under Review': hasNoData && !isSubtotalRow ? 'NA' : row.underReview
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+
+    // Reasonable column widths so it doesn't open looking cramped
+    worksheet['!cols'] = [
+      { wch: 5 },  { wch: 20 }, { wch: 22 }, { wch: 10 },
+      { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'District Report');
+
+    XLSX.writeFile(workbook, generateExcelFileName());
   };
 
   /* ─────────────────────────── sub-components ─────────────────────────── */
@@ -734,19 +868,23 @@ function ZoneClusterReport() {
 
             {filterType === 'range' ? (
               <>
-                <FormControl size="small" sx={{ minWidth: 130 }}>
+                <FormControl size="small" sx={{ minWidth: 160 }}>
                   <InputLabel>From Month</InputLabel>
                   <Select value={fromMonth} label="From Month" onChange={e => { setFromMonth(e.target.value); setPage(0); }}>
                     <MenuItem value="">None</MenuItem>
-                    {AGRI_YEAR_MONTHS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                    {monthOptions.map(option => (
+                      <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
                 <Typography variant="body2" color="text.secondary">→</Typography>
-                <FormControl size="small" sx={{ minWidth: 130 }}>
+                <FormControl size="small" sx={{ minWidth: 160 }}>
                   <InputLabel>To Month</InputLabel>
                   <Select value={toMonth} label="To Month" onChange={e => { setToMonth(e.target.value); setPage(0); }}>
                     <MenuItem value="">None</MenuItem>
-                    {AGRI_YEAR_MONTHS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                    {monthOptions.map(option => (
+                      <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
               </>
@@ -755,7 +893,9 @@ function ZoneClusterReport() {
                 <InputLabel>Select Month</InputLabel>
                 <Select value={singleMonth} label="Select Month" onChange={e => { setSingleMonth(e.target.value); setPage(0); }}>
                   <MenuItem value="">None</MenuItem>
-                  {AGRI_YEAR_MONTHS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                  {monthOptions.map(option => (
+                    <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                  ))}
                 </Select>
               </FormControl>
             )}
@@ -787,27 +927,63 @@ function ZoneClusterReport() {
 
       {/* Zone Table */}
       <Grid item xs={12}>
-        <Box sx={{ position: 'relative', borderRadius: 3 }}>
+        <Box
+          sx={{
+            position: 'relative',
+            border: `1px solid ${alpha('#04255e', 0.15)}`,
+            borderRadius: 3,
+            pt: 3,
+            bgcolor: '#fff'
+          }}
+        >
           <Chip label="Zone Report Summary" size="small"
             sx={{ position: 'absolute', top: -12, left: 20, zIndex: 10, fontWeight: 600, bgcolor: '#04255e', color: '#fff', px: 1, boxShadow: 2 }} />
 
+          {/* Search + Export row — sits inside the same bordered box, above MainCard */}
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            justifyContent="flex-end"
+            alignItems="center"
+            spacing={1.5}
+            sx={{ px: 2, pb: 2 }}
+          >
+            <TextField placeholder="Search block/zone..." size="small" value={searchTerm}
+              onChange={e => { setSearchTerm(e.target.value); setPage(0); }} sx={{ width: 250 }}
+              InputProps={{
+                startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+                endAdornment: searchTerm && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch} edge="end">
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <Tooltip
+              title={
+                searchFilteredData.length === 0
+                  ? 'No data available to export'
+                  : `Export ${searchFilteredData.length} row${searchFilteredData.length > 1 ? 's' : ''} to Excel`
+              }
+            >
+              <span>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<DownloadIcon />}
+                  onClick={handleExportExcel}
+                  disabled={searchFilteredData.length === 0 || loading}
+                  sx={{ borderRadius: 2, whiteSpace: 'nowrap' }}
+                >
+                  Download Excel
+                </Button>
+              </span>
+            </Tooltip>
+          </Stack>
+
           <MainCard
             title={`Blocks and Zones in ${formattedTaluk}`}
-            secondary={
-              <TextField placeholder="Search block/zone..." size="small" value={searchTerm}
-                onChange={e => { setSearchTerm(e.target.value); setPage(0); }} sx={{ width: 250 }}
-                InputProps={{
-                  startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
-                  endAdornment: searchTerm && (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={handleClearSearch} edge="end">
-                        <ClearIcon fontSize="small" />
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            }
             sx={{ borderRadius: 3 }}
           >
             <TableContainer>
@@ -835,17 +1011,17 @@ function ZoneClusterReport() {
                     </TableRow>
                   ) : paginatedData.length > 0 ? (() => {
                     const rows = [];
-                    let lastBlockName = '';
+                    let lastBlockKey = null;
                     let serialNumber = page * rowsPerPage;
 
                     for (let i = 0; i < paginatedData.length; i++) {
                       const row = paginatedData[i];
-                      const isNewBlock = row.blockName !== lastBlockName;
+                      const isNewBlock = row.blockKey !== lastBlockKey;
                       const isSubtotalRow = row.type === 'subtotal';
                       const hasNoData = !row.hasData && row.total === 0;
 
                       if (isNewBlock) {
-                        lastBlockName = row.blockName;
+                        lastBlockKey = row.blockKey;
                       }
 
                       if (!isSubtotalRow) {
@@ -854,7 +1030,7 @@ function ZoneClusterReport() {
 
                       const blockRowCount = isSubtotalRow
                         ? 0
-                        : paginatedData.filter(r => r.blockName === row.blockName && r.type !== 'subtotal').length;
+                        : paginatedData.filter(r => r.blockKey === row.blockKey && r.type !== 'subtotal').length;
 
                       rows.push(
                         <TableRow key={row.id} hover sx={{
@@ -870,8 +1046,15 @@ function ZoneClusterReport() {
                             '&:hover': { bgcolor: alpha('#ff9800', 0.08) }
                           })
                         }}>
-                          {/* Serial Number */}
-                          <TableCell align="center" sx={{ border: 'none' }}>
+                          {/* Serial Number
+                              Subtotal rows have no Block cell, so this cell absorbs
+                              that column — keeps all 9 columns filled and the
+                              subtotal border running the full table width. */}
+                          <TableCell
+                            align="center"
+                            colSpan={isSubtotalRow ? 2 : 1}
+                            sx={{ border: 'none' }}
+                          >
                             {!isSubtotalRow && (
                               <Typography variant="body2" color="text.secondary" fontWeight={500}>
                                 {serialNumber}

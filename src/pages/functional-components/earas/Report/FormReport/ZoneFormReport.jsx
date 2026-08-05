@@ -52,6 +52,8 @@ import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import DownloadIcon from '@mui/icons-material/Download';
+import * as XLSX from 'xlsx';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import AuthService from 'pages/authentication/services/authservice';
@@ -660,6 +662,65 @@ function ZoneFormReport() {
     });
   };
 
+  // Build a meaningful filename from the active filters
+  const generateExcelFileName = () => {
+    const parts = ['Zone_Report', formattedTaluk.replace(/\s+/g, '_')];
+
+    if (seasonTab !== 'ALL') parts.push(seasonTab);
+
+    if (filterType === 'single' && singleMonth) {
+      parts.push(getMonthLabel(singleMonth).replace(/\s+/g, '_'));
+    } else if (filterType === 'range') {
+      if (fromMonth) parts.push(getMonthLabel(fromMonth).replace(/\s+/g, '_'));
+      if (toMonth) parts.push('to', getMonthLabel(toMonth).replace(/\s+/g, '_'));
+    }
+
+    if (searchTerm.trim()) {
+      parts.push(`Search-${searchTerm.trim().replace(/\s+/g, '_')}`);
+    }
+
+    parts.push(new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
+    return `${parts.join('_')}.xlsx`;
+  };
+
+  // Export the FULL search-filtered dataset (blocks, zones, and subtotal rows) to Excel
+  const handleExportExcel = () => {
+    if (!searchFilteredData || searchFilteredData.length === 0) return;
+
+    let serial = 0;
+    const exportRows = searchFilteredData.map((row) => {
+      const isSubtotalRow = row.type === 'subtotal';
+      if (!isSubtotalRow) serial++;
+
+      const hasNoData = !row.hasData && !isSubtotalRow;
+
+      return {
+        '#': isSubtotalRow ? '' : serial,
+        Block: row.blockName,
+        Zone: row.zoneName,
+        Total: hasNoData ? 'NA' : row.total,
+        Completed: hasNoData ? 'NA' : row.completed,
+        'Area Completed': hasNoData ? 'NA' : row.area,
+        Ongoing: hasNoData ? 'NA' : row.ongoing,
+        'Not Started': hasNoData ? 'NA' : row.notStarted,
+        'Under Review': hasNoData ? 'NA' : row.underReview
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+
+    // Reasonable column widths so it doesn't open looking cramped
+    worksheet['!cols'] = [
+      { wch: 5 },  { wch: 20 }, { wch: 22 }, { wch: 10 },
+      { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'District Report');
+
+    XLSX.writeFile(workbook, generateExcelFileName());
+  };
+
   const handleGoBack = () => {
     const safeDistrictName = districtName || stateData.districtName || '';
     const formattedDistrictName = safeDistrictName.toLowerCase().replace(/\s+/g, '-');
@@ -966,7 +1027,15 @@ function ZoneFormReport() {
 
       {/* Zone Table with Block Grouping */}
       <Grid item xs={12}>
-        <Box sx={{ position: 'relative', borderRadius: 3 }}>
+        <Box
+          sx={{
+            position: 'relative',
+            border: `1px solid ${alpha('#04255e', 0.15)}`,
+            borderRadius: 3,
+            pt: 3,
+            bgcolor: '#fff'
+          }}
+        >
           <Chip
             label="Zone Report Summary"
             size="small"
@@ -983,34 +1052,62 @@ function ZoneFormReport() {
             }}
           />
 
+          {/* Search + Export row */}
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            justifyContent="flex-end"
+            alignItems="center"
+            spacing={1.5}
+            sx={{ px: 2, pb: 2 }}
+          >
+            <TextField
+              placeholder="Search block/zone..."
+              size="small"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(0);
+              }}
+              sx={{ width: 250 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+                endAdornment: searchTerm && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch} edge="end">
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }}
+            />
+            <Tooltip
+              title={
+                searchFilteredData.length === 0
+                  ? 'No data available to export'
+                  : `Export ${searchFilteredData.length} row${searchFilteredData.length > 1 ? 's' : ''} to Excel`
+              }
+            >
+              <span>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<DownloadIcon />}
+                  onClick={handleExportExcel}
+                  disabled={searchFilteredData.length === 0 || loading}
+                  sx={{ borderRadius: 2, whiteSpace: 'nowrap' }}
+                >
+                  Download Excel
+                </Button>
+              </span>
+            </Tooltip>
+          </Stack>
+
           <MainCard
             title={`Blocks and Zones in ${formattedTaluk}`}
-            secondary={
-              <TextField
-                placeholder="Search block/zone..."
-                size="small"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setPage(0);
-                }}
-                sx={{ width: 250 }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" />
-                    </InputAdornment>
-                  ),
-                  endAdornment: searchTerm && (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={handleClearSearch} edge="end">
-                        <ClearIcon fontSize="small" />
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                }}
-              />
-            }
             sx={{ borderRadius: 3 }}
           >
             {loading ? (
