@@ -54,6 +54,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 import tourDiaryService from "pages/authentication/services/tourdiaryservice";
+import profileService from "pages/profile/profileservice";
+import ApprovedUserService from "pages/functional-components/approvels/ApprovedUserService";
 import authservice from "pages/authentication/services/authservice";
 import Breadcrumb from "routes/Breadcrumb";
 
@@ -64,21 +66,21 @@ const UserAdvancedTourDiaryDetail = () => {
 
   const getLocalStorageYear = (currentMonth) => {
     const agriYear = localStorage.getItem("activeAgriYear");
-    
+
     if (agriYear && agriYear.includes('-')) {
       const [startYear, endYear] = agriYear.split('-').map(Number);
       if (!isNaN(startYear) && !isNaN(endYear)) {
         return currentMonth >= 7 ? startYear : endYear;
       }
     }
-    return new Date().getFullYear(); 
+    return new Date().getFullYear();
   };
-  
+
   const { userId, month: monthParam, year: yearParam, userDetails: userInfo } = location.state || {};
   const [roleName, setRoleName] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(monthParam || new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(yearParam || getLocalStorageYear());
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tourEntries, setTourEntries] = useState([]);
@@ -87,7 +89,7 @@ const UserAdvancedTourDiaryDetail = () => {
   const [allPurposes, setAllPurposes] = useState([]);
   const [submissionDetails, setSubmissionDetails] = useState(null);
   const [loadingSubmissionDetails, setLoadingSubmissionDetails] = useState(false);
-  
+
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedDayEvents, setSelectedDayEvents] = useState([]);
   const [selectedEntry, setSelectedEntry] = useState(null);
@@ -98,10 +100,10 @@ const UserAdvancedTourDiaryDetail = () => {
   const [tablePage, setTablePage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [viewMode, setViewMode] = useState('table');
-  
+
   // Individual approval dialog
   const [approvalDialog, setApprovalDialog] = useState({ open: false, entry: null, status: '' });
-  
+
   // Bulk approval states
   const [approvalAnchorEl, setApprovalAnchorEl] = useState(null);
   const [bulkApprovalDialogOpen, setBulkApprovalDialogOpen] = useState(false);
@@ -109,7 +111,7 @@ const UserAdvancedTourDiaryDetail = () => {
   const [approvalLoading, setApprovalLoading] = useState(false);
   const [remarks, setRemarks] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('APPROVED');
-  
+
   // Verification states
   const [verificationDialogOpen, setVerificationDialogOpen] = useState(false);
   const [verificationHalf, setVerificationHalf] = useState('');
@@ -119,7 +121,7 @@ const UserAdvancedTourDiaryDetail = () => {
   const [verificationSubmissionId, setVerificationSubmissionId] = useState(null);
   const [verificationAnchorEl, setVerificationAnchorEl] = useState(null);
   const [userZones, setUserZones] = useState([]);
-const [selectedZoneId, setSelectedZoneId] = useState(null);
+  const [selectedZoneId, setSelectedZoneId] = useState(null);
   // Notification state
   const [notification, setNotification] = useState({
     open: false,
@@ -138,7 +140,7 @@ const [selectedZoneId, setSelectedZoneId] = useState(null);
   // ============================================================
   // ROLE-BASED PERMISSION LOGIC
   // ============================================================
-  
+
   /**
    * Determine who can verify based on roleName and loggedInRole
    */
@@ -185,95 +187,95 @@ const [selectedZoneId, setSelectedZoneId] = useState(null);
    */
 
   // Fetch zones for the user
-// Fetch zones for the user - Updated with better error handling
-const fetchUserZones = async () => {
-  if (!userId) {
-    console.log("No userId provided for zone fetch");
-    return;
-  }
-  
-  try {
-    // Determine which API to use based on the user's role (not logged-in role)
-    const userRole = roleName || await tourDiaryService.getUserRole(userId);
-    const loggedInRole = authservice.getrole();
-    
-    console.log("Fetching zones for userId:", userId);
-    console.log("User role:", userRole);
-    console.log("Logged-in role:", loggedInRole);
-    
-    let response = [];
-    
-    // For Field Data Collector - use assigned zones
-    if (userRole === "Field Data Collector" || loggedInRole === "Field Data Collector") {
-      response = await tourDiaryService.getAssignedZones(userId);
-      console.log("Assigned zones response:", response);
-    } 
-    // For Field Inspector & Taluk Level Approver - use zone dropdown
-    else if (userRole === "Field Inspector" || userRole === "Taluk Level Approver" || 
-             loggedInRole === "Field Inspector" || loggedInRole === "Taluk Level Approver") {
-      response = await tourDiaryService.getZoneDropdown();
-      console.log("Zone dropdown response:", response);
-    } 
-    // For District Level roles - fetch taluks first, then zones
-    else if (userRole === "District Level Approver" || userRole === "District Level Data Viewer" ||
-             loggedInRole === "District Level Approver" || loggedInRole === "District Level Data Viewer") {
-      // For now, fetch all zones directly - you may need to implement taluk selection
-      response = await tourDiaryService.getZoneDropdown();
-      console.log("District zone dropdown response:", response);
+  // Fetch zones for the user - Updated with better error handling
+  const fetchUserZones = async () => {
+    if (!userId) {
+      console.log("No userId provided for zone fetch");
+      return;
     }
-    
-    // Process the response
-    if (response && Array.isArray(response) && response.length > 0) {
-      // Map the response to ensure consistent format
-      const mappedZones = response.map(zone => ({
-        zoneId: zone.zoneId,
-        zoneName: zone.zoneNameEn || zone.zoneName || `Zone ${zone.zoneId}`,
-        zoneType: zone.zoneType || 'N/A'
-      }));
-      setUserZones(mappedZones);
-      console.log("Zones set successfully:", mappedZones);
-    } else {
-      console.log("No zones found or empty response");
+
+    try {
+      // Determine which API to use based on the user's role (not logged-in role)
+      const userRole = roleName || await tourDiaryService.getUserRole(userId);
+      const loggedInRole = authservice.getrole();
+
+      console.log("Fetching zones for userId:", userId);
+      console.log("User role:", userRole);
+      console.log("Logged-in role:", loggedInRole);
+
+      let response = [];
+
+      // For Field Data Collector - use assigned zones
+      if (userRole === "Field Data Collector" || loggedInRole === "Field Data Collector") {
+        response = await tourDiaryService.getAssignedZones(userId);
+        console.log("Assigned zones response:", response);
+      }
+      // For Field Inspector & Taluk Level Approver - use zone dropdown
+      else if (userRole === "Field Inspector" || userRole === "Taluk Level Approver" ||
+        loggedInRole === "Field Inspector" || loggedInRole === "Taluk Level Approver") {
+        response = await tourDiaryService.getZoneDropdown();
+        console.log("Zone dropdown response:", response);
+      }
+      // For District Level roles - fetch taluks first, then zones
+      else if (userRole === "District Level Approver" || userRole === "District Level Data Viewer" ||
+        loggedInRole === "District Level Approver" || loggedInRole === "District Level Data Viewer") {
+        // For now, fetch all zones directly - you may need to implement taluk selection
+        response = await tourDiaryService.getZoneDropdown();
+        console.log("District zone dropdown response:", response);
+      }
+
+      // Process the response
+      if (response && Array.isArray(response) && response.length > 0) {
+        // Map the response to ensure consistent format
+        const mappedZones = response.map(zone => ({
+          zoneId: zone.zoneId,
+          zoneName: zone.zoneNameEn || zone.zoneName || `Zone ${zone.zoneId}`,
+          zoneType: zone.zoneType || 'N/A'
+        }));
+        setUserZones(mappedZones);
+        console.log("Zones set successfully:", mappedZones);
+      } else {
+        console.log("No zones found or empty response");
+        setUserZones([]);
+      }
+    } catch (error) {
+      console.error("Error fetching zones:", error);
       setUserZones([]);
     }
-  } catch (error) {
-    console.error("Error fetching zones:", error);
-    setUserZones([]);
-  }
-};
+  };
 
-// Get zone name by zone ID
-// Get zone name by zone ID - with debugging
-const getZoneName = (zoneId) => {
-  if (!zoneId) return '—';
-  
-  console.log("Getting zone name for zoneId:", zoneId);
-  console.log("Available userZones:", userZones);
-  
-  if (userZones.length === 0) {
-    // Try to find zone in tourEntries data
+  // Get zone name by zone ID
+  // Get zone name by zone ID - with debugging
+  const getZoneName = (zoneId) => {
+    if (!zoneId) return '—';
+
+    console.log("Getting zone name for zoneId:", zoneId);
+    console.log("Available userZones:", userZones);
+
+    if (userZones.length === 0) {
+      // Try to find zone in tourEntries data
+      const entryWithZone = tourEntries.find(e => e.zoneId === zoneId);
+      if (entryWithZone && entryWithZone.zoneName) {
+        return entryWithZone.zoneName;
+      }
+      return `Zone ${zoneId}`;
+    }
+
+    // Try to find by zoneId (number)
+    const zone = userZones.find(z => Number(z.zoneId) === Number(zoneId));
+
+    if (zone) {
+      return zone.zoneName || `Zone ${zoneId}`;
+    }
+
+    // Fallback: search in tourEntries for zone name
     const entryWithZone = tourEntries.find(e => e.zoneId === zoneId);
     if (entryWithZone && entryWithZone.zoneName) {
       return entryWithZone.zoneName;
     }
+
     return `Zone ${zoneId}`;
-  }
-  
-  // Try to find by zoneId (number)
-  const zone = userZones.find(z => Number(z.zoneId) === Number(zoneId));
-  
-  if (zone) {
-    return zone.zoneName || `Zone ${zoneId}`;
-  }
-  
-  // Fallback: search in tourEntries for zone name
-  const entryWithZone = tourEntries.find(e => e.zoneId === zoneId);
-  if (entryWithZone && entryWithZone.zoneName) {
-    return entryWithZone.zoneName;
-  }
-  
-  return `Zone ${zoneId}`;
-};
+  };
   const getVerificationOptions = () => {
     if (roleName === "Field Data Collector") {
       // Field Inspector verifies First & Second Half
@@ -314,11 +316,11 @@ const getZoneName = (zoneId) => {
    */
   const canVerifyHalf = (half) => {
     if (!submissionDetails) return false;
-    
+
     // Check if submitted
     let isSubmitted = false;
     let verifiedStatus = '';
-    
+
     if (half === "First Half") {
       isSubmitted = submissionDetails.firstHalfSubmitted;
       verifiedStatus = submissionDetails.firstHalfVerifiedStatus;
@@ -329,7 +331,7 @@ const getZoneName = (zoneId) => {
       isSubmitted = submissionDetails.fullMonthSubmitId;
       verifiedStatus = submissionDetails.fullMonthVerifiedStatus;
     }
-    
+
     // Must be submitted and not already approved
     return isSubmitted && verifiedStatus !== 'APPROVED';
   };
@@ -339,11 +341,11 @@ const getZoneName = (zoneId) => {
    */
   const canApproveHalf = (half) => {
     if (!submissionDetails) return false;
-    
+
     let isSubmitted = false;
     let adminStatus = '';
     let verifiedStatus = '';
-    
+
     if (half === "First Half") {
       isSubmitted = submissionDetails.firstHalfSubmitted;
       adminStatus = submissionDetails.firstHalfAdminStatus;
@@ -357,10 +359,10 @@ const getZoneName = (zoneId) => {
       adminStatus = submissionDetails.fullMonthAdminStatus;
       verifiedStatus = submissionDetails.fullMonthVerifiedStatus;
     }
-    
+
     // Must be submitted, not already approved, and verification must be approved (if verification is required)
     if (!isSubmitted || adminStatus === 'APPROVED') return false;
-    
+
     // Check verification requirement based on role
     if (roleName === "Field Data Collector") {
       // First & Second Half need verification before approval
@@ -372,14 +374,14 @@ const getZoneName = (zoneId) => {
       // No verification required for these roles
       return true;
     }
-    
+
     return false;
   };
 
   // ============================================================
   // HANDLER FUNCTIONS
   // ============================================================
-  
+
   const handleClearSearch = () => {
     setSearchTerm('');
     setTablePage(0);
@@ -438,121 +440,133 @@ const getZoneName = (zoneId) => {
     }
   };
 
-const fetchUserTourEntries = async () => {
-  if (!userId) {
-    setError("No user selected");
-    setLoading(false);
-    return;
-  }
-
-  setLoading(true);
-  setError("");
-  
-  try {
-    const data = await tourDiaryService.getAdvancedTourByFilter(
-      userId, selectedMonth, selectedYear
-    );
-    
-    if (data && data.payload && Array.isArray(data.payload)) {
-      const enhancedData = data.payload.map(entry => {
-        if (!entry.purposeName && entry.purposeId && allPurposes.length > 0) {
-          const purpose = allPurposes.find(p => p.id === entry.purposeId);
-          if (purpose) {
-            entry.purposeName = purpose.purposeName;
-          }
-        }
-        // Ensure zoneId is a number for consistency
-        if (entry.zoneId) {
-          entry.zoneId = Number(entry.zoneId);
-        }
-        return entry;
-      });
-      setTourEntries(enhancedData);
-      
-      // Also extract zone names from entries and add to userZones
-      const zonesFromEntries = enhancedData
-        .filter(entry => entry.zoneId)
-        .map(entry => ({
-          zoneId: Number(entry.zoneId),
-          zoneName: entry.zoneName || `Zone ${entry.zoneId}`
-        }));
-      
-      // Remove duplicates
-      const uniqueZones = Array.from(
-        new Map(zonesFromEntries.map(z => [z.zoneId, z])).values()
-      );
-      
-      if (uniqueZones.length > 0 && userZones.length === 0) {
-        setUserZones(uniqueZones);
-        console.log("Zones extracted from entries:", uniqueZones);
-      }
-      
-      if (enhancedData.length > 0 && !userDetails) {
-        const firstEntry = enhancedData[0];
-        setUserDetails({
-          name: firstEntry.userName || firstEntry.name || 'N/A',
-          empNumber: firstEntry.empNumber || firstEntry.employeeId || 'N/A',
-          designation: firstEntry.designation || 'N/A',
-          officelocation: firstEntry.officeLocation || firstEntry.location || 'N/A'
-        });
-      }
-    } else if (Array.isArray(data)) {
-      const enhancedData = data.map(entry => {
-        if (!entry.purposeName && entry.purposeId && allPurposes.length > 0) {
-          const purpose = allPurposes.find(p => p.id === entry.purposeId);
-          if (purpose) {
-            entry.purposeName = purpose.purposeName;
-          }
-        }
-        if (entry.zoneId) {
-          entry.zoneId = Number(entry.zoneId);
-        }
-        return entry;
-      });
-      setTourEntries(enhancedData);
-      
-      // Extract zones from entries
-      const zonesFromEntries = enhancedData
-        .filter(entry => entry.zoneId)
-        .map(entry => ({
-          zoneId: Number(entry.zoneId),
-          zoneName: entry.zoneName || `Zone ${entry.zoneId}`
-        }));
-      
-      const uniqueZones = Array.from(
-        new Map(zonesFromEntries.map(z => [z.zoneId, z])).values()
-      );
-      
-      if (uniqueZones.length > 0 && userZones.length === 0) {
-        setUserZones(uniqueZones);
-      }
-      
-      if (enhancedData.length > 0 && !userDetails) {
-        const firstEntry = enhancedData[0];
-        setUserDetails({
-          name: firstEntry.userName || firstEntry.name || 'N/A',
-          empNumber: firstEntry.empNumber || firstEntry.employeeId || 'N/A',
-          designation: firstEntry.designation || 'N/A',
-          officelocation: firstEntry.officeLocation || firstEntry.location || 'N/A'
-        });
-      }
-    } else if (data && data.message) {
-      setError("Currently no tour diary entries found for the selected month and year.");
-      setTourEntries([]);
-    } else {
-      setTourEntries([]);
+  const fetchUserTourEntries = async () => {
+    if (!userId) {
+      setError("No user selected");
+      setLoading(false);
+      return;
     }
-  } catch (error) {
-    setError(error.message || "An error occurred while fetching data");
-    setTourEntries([]);
-  } finally {
-    setLoading(false);
-  }
-};
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const data = await tourDiaryService.getAdvancedTourByFilter(
+        userId, selectedMonth, selectedYear
+      );
+
+      if (data && data.payload && Array.isArray(data.payload)) {
+        const enhancedData = data.payload.map(entry => {
+          if (!entry.purposeName && entry.purposeId && allPurposes.length > 0) {
+            const purpose = allPurposes.find(p => p.id === entry.purposeId);
+            if (purpose) {
+              entry.purposeName = purpose.purposeName;
+            }
+          }
+          // Ensure zoneId is a number for consistency
+          if (entry.zoneId) {
+            entry.zoneId = Number(entry.zoneId);
+          }
+          return entry;
+        });
+        setTourEntries(enhancedData);
+
+        // Also extract zone names from entries and add to userZones
+        const zonesFromEntries = enhancedData
+          .filter(entry => entry.zoneId)
+          .map(entry => ({
+            zoneId: Number(entry.zoneId),
+            zoneName: entry.zoneName || `Zone ${entry.zoneId}`
+          }));
+
+        // Remove duplicates
+        const uniqueZones = Array.from(
+          new Map(zonesFromEntries.map(z => [z.zoneId, z])).values()
+        );
+
+        if (uniqueZones.length > 0 && userZones.length === 0) {
+          setUserZones(uniqueZones);
+          console.log("Zones extracted from entries:", uniqueZones);
+        }
+
+        if (enhancedData.length > 0) {
+          const firstEntry = enhancedData[0];
+          setUserDetails(prev => {
+            if (prev?.name && prev?.name !== 'N/A' && prev?.empNumber && prev?.empNumber !== 'N/A') {
+              return prev;
+            }
+            return {
+              ...prev,
+              name: (prev?.name && prev?.name !== 'N/A') ? prev.name : (firstEntry.userName || firstEntry.name || 'N/A'),
+              empNumber: (prev?.empNumber && prev?.empNumber !== 'N/A') ? prev.empNumber : (firstEntry.empNumber || firstEntry.employeeId || 'N/A'),
+              designation: (prev?.designation && prev?.designation !== 'N/A') ? prev.designation : (firstEntry.designation || 'N/A'),
+              officelocation: (prev?.officelocation && prev?.officelocation !== 'N/A') ? prev.officelocation : (firstEntry.officeLocation || firstEntry.location || 'N/A')
+            };
+          });
+        }
+      } else if (Array.isArray(data)) {
+        const enhancedData = data.map(entry => {
+          if (!entry.purposeName && entry.purposeId && allPurposes.length > 0) {
+            const purpose = allPurposes.find(p => p.id === entry.purposeId);
+            if (purpose) {
+              entry.purposeName = purpose.purposeName;
+            }
+          }
+          if (entry.zoneId) {
+            entry.zoneId = Number(entry.zoneId);
+          }
+          return entry;
+        });
+        setTourEntries(enhancedData);
+
+        // Extract zones from entries
+        const zonesFromEntries = enhancedData
+          .filter(entry => entry.zoneId)
+          .map(entry => ({
+            zoneId: Number(entry.zoneId),
+            zoneName: entry.zoneName || `Zone ${entry.zoneId}`
+          }));
+
+        const uniqueZones = Array.from(
+          new Map(zonesFromEntries.map(z => [z.zoneId, z])).values()
+        );
+
+        if (uniqueZones.length > 0 && userZones.length === 0) {
+          setUserZones(uniqueZones);
+        }
+
+        if (enhancedData.length > 0) {
+          const firstEntry = enhancedData[0];
+          setUserDetails(prev => {
+            if (prev?.name && prev?.name !== 'N/A' && prev?.empNumber && prev?.empNumber !== 'N/A') {
+              return prev;
+            }
+            return {
+              ...prev,
+              name: (prev?.name && prev?.name !== 'N/A') ? prev.name : (firstEntry.userName || firstEntry.name || 'N/A'),
+              empNumber: (prev?.empNumber && prev?.empNumber !== 'N/A') ? prev.empNumber : (firstEntry.empNumber || firstEntry.employeeId || 'N/A'),
+              designation: (prev?.designation && prev?.designation !== 'N/A') ? prev.designation : (firstEntry.designation || 'N/A'),
+              officelocation: (prev?.officelocation && prev?.officelocation !== 'N/A') ? prev.officelocation : (firstEntry.officeLocation || firstEntry.location || 'N/A')
+            };
+          });
+        }
+      } else if (data && data.message) {
+        setError("Currently no tour diary entries found for the selected month and year.");
+        setTourEntries([]);
+      } else {
+        setTourEntries([]);
+      }
+    } catch (error) {
+      setError(error.message || "An error occurred while fetching data");
+      setTourEntries([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchSubmissionDetails = async () => {
     if (!userId) return;
-    
+
     setLoadingSubmissionDetails(true);
     try {
       const viewResponse = await tourDiaryService.getAdminSubmissionView(userId, selectedYear);
@@ -588,7 +602,7 @@ const fetchUserTourEntries = async () => {
   };
 
   // ============================ EFFECTS ============================
-  
+
   useEffect(() => {
     fetchSchemes();
   }, []);
@@ -599,28 +613,64 @@ const fetchUserTourEntries = async () => {
     }
   }, [schemes]);
 
-  // Fetch zones when roleName changes
-useEffect(() => {
-  if (userId && roleName) {
-    fetchUserZones();
-  }
-}, [roleName]);
+  const fetchUserProfile = async () => {
+    if (!userId) return;
+    try {
+      let res = await profileService.fetchUserById(userId);
+      let data = res?.payload || res?.data || (res && res.name ? res : null);
 
-useEffect(() => {
-  if (userId) {
-    const loadData = async () => {
-      await fetchUserRole();
-      await fetchUserTourEntries();
-      // Fetch zones after tour entries (or in parallel)
-      await fetchUserZones();
-      await fetchSubmissionDetails();
-    };
-    loadData();
-  }
-}, [userId, selectedMonth, selectedYear]);
+      if (!data || !data.name) {
+        const appRes = await ApprovedUserService.fetchUserById(userId);
+        data = appRes?.payload || appRes?.data || (appRes && appRes.name ? appRes : null);
+      }
+
+      if (data) {
+        setUserDetails(prev => {
+          const fetchedName = data.name || data.userName;
+          const fetchedEmpNo = data.penNumber || data.empNumber || data.employeeId || data.penNo;
+          const fetchedDesig = data.designation;
+          const fetchedLoc = data.officelocation || data.officeLocation || data.location;
+
+          return {
+            ...prev,
+            name: (fetchedName && fetchedName !== 'N/A') ? fetchedName : (prev?.name || 'N/A'),
+            empNumber: (fetchedEmpNo && fetchedEmpNo !== 'N/A') ? fetchedEmpNo : (prev?.empNumber || 'N/A'),
+            penNumber: data.penNumber || fetchedEmpNo || prev?.penNumber || '',
+            designation: (fetchedDesig && fetchedDesig !== 'N/A') ? fetchedDesig : (prev?.designation || 'N/A'),
+            officelocation: (fetchedLoc && fetchedLoc !== 'N/A') ? fetchedLoc : (prev?.officelocation || 'N/A'),
+            email: data.email || prev?.email || '',
+            mobileNumber: data.mobileNumber || prev?.mobileNumber || ''
+          };
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching user profile by ID:", err);
+    }
+  };
+
+  // Fetch zones when roleName changes
+  useEffect(() => {
+    if (userId && roleName) {
+      fetchUserZones();
+    }
+  }, [roleName]);
+
+  useEffect(() => {
+    if (userId) {
+      const loadData = async () => {
+        await fetchUserRole();
+        await fetchUserProfile();
+        await fetchUserTourEntries();
+        // Fetch zones after tour entries (or in parallel)
+        await fetchUserZones();
+        await fetchSubmissionDetails();
+      };
+      loadData();
+    }
+  }, [userId, selectedMonth, selectedYear]);
 
   // ============================ HANDLERS ============================
-  
+
   const handleBack = () => {
     navigate(-1);
   };
@@ -631,7 +681,7 @@ useEffect(() => {
 
     let newMonth = selectedMonth + offset;
     let newYear = selectedYear;
-    
+
     if (newMonth > 12) {
       newMonth = 1;
       newYear += 1;
@@ -639,7 +689,7 @@ useEffect(() => {
       newMonth = 12;
       newYear -= 1;
     }
-    
+
     if (startYear && endYear) {
       if (newYear < startYear || (newYear === startYear && newMonth < 7)) {
         showNotification('info', `Cannot navigate prior to the start of Agri Year ${agriYear}`);
@@ -650,7 +700,7 @@ useEffect(() => {
         return;
       }
     }
-    
+
     setSelectedMonth(newMonth);
     setSelectedYear(newYear);
   };
@@ -670,7 +720,7 @@ useEffect(() => {
   };
 
   // ============================ INDIVIDUAL APPROVAL ============================
-  
+
   const handleIndividualApproval = (entry, status) => {
     setApprovalDialog({
       open: true,
@@ -681,368 +731,368 @@ useEffect(() => {
 
   // ============================ HELPER FUNCTIONS ============================
 
-// ... (keep your existing helper functions)
+  // ... (keep your existing helper functions)
 
-/**
- * Get verification status chip for a half
- */
-const getVerificationStatusChip = (half) => {
-  if (!submissionDetails) return null;
-  
-  let isSubmitted = false;
-  let status = '';
-  
-  if (half === "First Half") {
-    isSubmitted = submissionDetails.firstHalfSubmitted;
-    status = submissionDetails.firstHalfVerifiedStatus;
-  } else if (half === "Second Half") {
-    isSubmitted = submissionDetails.secondHalfSubmitted;
-    status = submissionDetails.secondHalfVerifiedStatus;
-  } else if (half === "Full Month") {
-    isSubmitted = submissionDetails.fullMonthSubmitId;
-    status = submissionDetails.fullMonthVerifiedStatus;
-  }
-  
-  if (!isSubmitted) {
-    return <Typography variant="caption" color="text.disabled">(Not submitted)</Typography>;
-  }
-  
-  const statusMap = {
-    'APPROVED': { label: 'Verified ✓', color: 'success' },
-    'REJECTED': { label: 'Rejected ✗', color: 'error' },
-    'PENDING': { label: 'Pending', color: 'warning' }
-  };
-  
-  const config = statusMap[status] || statusMap['PENDING'];
-  
-  return (
-    <Chip
-      label={config.label}
-      size="small"
-      color={config.color}
-      sx={{ height: '20px', fontSize: '0.6rem', fontWeight: 'bold' }}
-    />
-  );
-};
+  /**
+   * Get verification status chip for a half
+   */
+  const getVerificationStatusChip = (half) => {
+    if (!submissionDetails) return null;
 
-/**
- * Get approval status chip for a half
- */
-const getApprovalStatusChip = (half) => {
-  if (!submissionDetails) return null;
-  
-  let isSubmitted = false;
-  let status = '';
-  
-  if (half === "First Half") {
-    isSubmitted = submissionDetails.firstHalfSubmitted;
-    status = submissionDetails.firstHalfAdminStatus;
-  } else if (half === "Second Half") {
-    isSubmitted = submissionDetails.secondHalfSubmitted;
-    status = submissionDetails.secondHalfAdminStatus;
-  } else if (half === "Full Month") {
-    isSubmitted = submissionDetails.fullMonthAdminStatus;
-    status = submissionDetails.fullMonthAdminStatus;
-  }
-  
-  if (!isSubmitted) {
-    return <Typography variant="caption" color="text.disabled">(Not submitted)</Typography>;
-  }
-  
-  const statusMap = {
-    'APPROVED': { label: 'Approved ✓', color: 'success' },
-    'REJECTED': { label: 'Rejected ✗', color: 'error' },
-    'PENDING': { label: 'Pending', color: 'warning' },
-    'SUBMITTED': { label: 'Submitted', color: 'info' }
-  };
-  
-  const config = statusMap[status] || statusMap['PENDING'];
-  
-  return (
-    <Chip
-      label={config.label}
-      size="small"
-      color={config.color}
-      sx={{ height: '20px', fontSize: '0.6rem', fontWeight: 'bold' }}
-    />
-  );
-};
+    let isSubmitted = false;
+    let status = '';
 
-/**
- * Render submission status for the header
- */
-const renderSubmissionStatus = () => {
-  if (!submissionDetails) return null;
+    if (half === "First Half") {
+      isSubmitted = submissionDetails.firstHalfSubmitted;
+      status = submissionDetails.firstHalfVerifiedStatus;
+    } else if (half === "Second Half") {
+      isSubmitted = submissionDetails.secondHalfSubmitted;
+      status = submissionDetails.secondHalfVerifiedStatus;
+    } else if (half === "Full Month") {
+      isSubmitted = submissionDetails.fullMonthSubmitId;
+      status = submissionDetails.fullMonthVerifiedStatus;
+    }
 
-  // For Field Data Collector - show First & Second Half
-  if (roleName === "Field Data Collector") {
+    if (!isSubmitted) {
+      return <Typography variant="caption" color="text.disabled">(Not submitted)</Typography>;
+    }
+
+    const statusMap = {
+      'APPROVED': { label: 'Verified ✓', color: 'success' },
+      'REJECTED': { label: 'Rejected ✗', color: 'error' },
+      'PENDING': { label: 'Pending', color: 'warning' }
+    };
+
+    const config = statusMap[status] || statusMap['PENDING'];
+
     return (
-      <>
-        {/* First Half */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-            FH:
-          </Typography>
-          {submissionDetails.firstHalfSubmitted && submissionDetails.firstHalfSubmittedDate ? (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexWrap: 'wrap' }}>
-              <Typography variant="caption" color="text.secondary">
-                {`Submitted on ${new Date(submissionDetails.firstHalfSubmittedDate).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric"
-                })}, ${new Date(submissionDetails.firstHalfSubmittedDate).toLocaleTimeString("en-US", {
-                  hour: "numeric",
-                  minute: "2-digit",
-                  hour12: true
-                })}`}
-              </Typography>
-              {/* Admin Status */}
-              {submissionDetails.firstHalfAdminStatus && (
-                <Chip
-                  label={`Admin: ${submissionDetails.firstHalfAdminStatus}`}
-                  size="small"
-                  color={
-                    submissionDetails.firstHalfAdminStatus === "APPROVED" ? "success" :
-                    submissionDetails.firstHalfAdminStatus === "REJECTED" ? "error" : "warning"
-                  }
-                  sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
-                />
-              )}
-              {/* Verification Status */}
-              {submissionDetails.firstHalfVerifiedStatus && (
-                <Chip
-                  label={`Ver: ${submissionDetails.firstHalfVerifiedStatus}`}
-                  size="small"
-                  color={
-                    submissionDetails.firstHalfVerifiedStatus === "APPROVED" ? "success" :
-                    submissionDetails.firstHalfVerifiedStatus === "REJECTED" ? "error" : "warning"
-                  }
-                  sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
-                />
-              )}
-              {/* Remarks Indicator */}
-              {(submissionDetails.firstHalfAdminRemark || submissionDetails.firstHalfVerificationRemark) && (
-                <Tooltip
-                  title={
-                    <Box sx={{ p: 1 }}>
-                      {submissionDetails.firstHalfAdminRemark && (
-                        <Typography variant="body2">
-                          <strong>Admin Remark:</strong> {submissionDetails.firstHalfAdminRemark}
-                        </Typography>
-                      )}
-                      {submissionDetails.firstHalfVerificationRemark && (
-                        <Typography variant="body2" sx={{ mt: 1 }}>
-                          <strong>Verification Remark:</strong> {submissionDetails.firstHalfVerificationRemark}
-                        </Typography>
-                      )}
-                    </Box>
-                  }
-                  arrow
-                >
-                  <IconButton size="small" sx={{ p: 0.5 }}>
-                    <InfoIcon fontSize="small" color="info" />
-                  </IconButton>
-                </Tooltip>
-              )}
-            </Box>
-          ) : (
-            <Typography variant="caption" color="text.disabled" sx={{ fontStyle: "italic" }}>
-              Not submitted
-            </Typography>
-          )}
-        </Box>
-
-        {/* Second Half */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-            SH:
-          </Typography>
-          {submissionDetails.secondHalfSubmitted && submissionDetails.secondHalfSubmittedDate ? (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexWrap: 'wrap' }}>
-              <Typography variant="caption" color="text.secondary">
-                {`Submitted on ${new Date(submissionDetails.secondHalfSubmittedDate).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric"
-                })}, ${new Date(submissionDetails.secondHalfSubmittedDate).toLocaleTimeString("en-US", {
-                  hour: "numeric",
-                  minute: "2-digit",
-                  hour12: true
-                })}`}
-              </Typography>
-              {/* Admin Status */}
-              {submissionDetails.secondHalfAdminStatus && (
-                <Chip
-                  label={`Admin: ${submissionDetails.secondHalfAdminStatus}`}
-                  size="small"
-                  color={
-                    submissionDetails.secondHalfAdminStatus === "APPROVED" ? "success" :
-                    submissionDetails.secondHalfAdminStatus === "REJECTED" ? "error" : "warning"
-                  }
-                  sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
-                />
-              )}
-              {/* Verification Status */}
-              {submissionDetails.secondHalfVerifiedStatus && (
-                <Chip
-                  label={`Ver: ${submissionDetails.secondHalfVerifiedStatus}`}
-                  size="small"
-                  color={
-                    submissionDetails.secondHalfVerifiedStatus === "APPROVED" ? "success" :
-                    submissionDetails.secondHalfVerifiedStatus === "REJECTED" ? "error" : "warning"
-                  }
-                  sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
-                />
-              )}
-              {/* Remarks Indicator */}
-              {(submissionDetails.secondHalfAdminRemark || submissionDetails.secondHalfVerificationRemark) && (
-                <Tooltip
-                  title={
-                    <Box sx={{ p: 1 }}>
-                      {submissionDetails.secondHalfAdminRemark && (
-                        <Typography variant="body2">
-                          <strong>Admin Remark:</strong> {submissionDetails.secondHalfAdminRemark}
-                        </Typography>
-                      )}
-                      {submissionDetails.secondHalfVerificationRemark && (
-                        <Typography variant="body2" sx={{ mt: 1 }}>
-                          <strong>Verification Remark:</strong> {submissionDetails.secondHalfVerificationRemark}
-                        </Typography>
-                      )}
-                    </Box>
-                  }
-                  arrow
-                >
-                  <IconButton size="small" sx={{ p: 0.5 }}>
-                    <InfoIcon fontSize="small" color="info" />
-                  </IconButton>
-                </Tooltip>
-              )}
-            </Box>
-          ) : (
-            <Typography variant="caption" color="text.disabled" sx={{ fontStyle: "italic" }}>
-              Not submitted
-            </Typography>
-          )}
-        </Box>
-      </>
+      <Chip
+        label={config.label}
+        size="small"
+        color={config.color}
+        sx={{ height: '20px', fontSize: '0.6rem', fontWeight: 'bold' }}
+      />
     );
-  }
+  };
 
-  // For all other roles - show Full Month
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-        Month:
-      </Typography>
-      {submissionDetails.fullMonthSubmitId && submissionDetails.fullMonthSubmittedDate ? (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexWrap: 'wrap' }}>
-          <Typography variant="caption" color="text.secondary">
-            {`Submitted on ${new Date(submissionDetails.fullMonthSubmittedDate).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric"
-            })}, ${new Date(submissionDetails.fullMonthSubmittedDate).toLocaleTimeString("en-US", {
-              hour: "numeric",
-              minute: "2-digit",
-              hour12: true
-            })}`}
-          </Typography>
-          {/* Admin Status */}
-          {submissionDetails.fullMonthAdminStatus && (
-            <Chip
-              label={`Admin: ${submissionDetails.fullMonthAdminStatus}`}
-              size="small"
-              color={
-                submissionDetails.fullMonthAdminStatus === "APPROVED" ? "success" :
-                submissionDetails.fullMonthAdminStatus === "REJECTED" ? "error" : "warning"
-              }
-              sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
-            />
-          )}
-          {/* Verification Status */}
-          {submissionDetails.fullMonthVerifiedStatus && (
-            <Chip
-              label={`Ver: ${submissionDetails.fullMonthVerifiedStatus}`}
-              size="small"
-              color={
-                submissionDetails.fullMonthVerifiedStatus === "APPROVED" ? "success" :
-                submissionDetails.fullMonthVerifiedStatus === "REJECTED" ? "error" : "warning"
-              }
-              sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
-            />
-          )}
-          {/* Remarks Indicator */}
-          {(submissionDetails.fullMonthAdminRemark || submissionDetails.fullMonthVerificationRemark) && (
-            <Tooltip
-              title={
-                <Box sx={{ p: 1 }}>
-                  {submissionDetails.fullMonthAdminRemark && (
-                    <Typography variant="body2">
-                      <strong>Admin Remark:</strong> {submissionDetails.fullMonthAdminRemark}
-                    </Typography>
-                  )}
-                  {submissionDetails.fullMonthVerificationRemark && (
-                    <Typography variant="body2" sx={{ mt: 1 }}>
-                      <strong>Verification Remark:</strong> {submissionDetails.fullMonthVerificationRemark}
-                    </Typography>
-                  )}
-                </Box>
-              }
-              arrow
-            >
-              <IconButton size="small" sx={{ p: 0.5 }}>
-                <InfoIcon fontSize="small" color="info" />
-              </IconButton>
-            </Tooltip>
-          )}
-        </Box>
-      ) : (
-        <Typography variant="caption" color="text.disabled" sx={{ fontStyle: "italic" }}>
-          Not submitted
+  /**
+   * Get approval status chip for a half
+   */
+  const getApprovalStatusChip = (half) => {
+    if (!submissionDetails) return null;
+
+    let isSubmitted = false;
+    let status = '';
+
+    if (half === "First Half") {
+      isSubmitted = submissionDetails.firstHalfSubmitted;
+      status = submissionDetails.firstHalfAdminStatus;
+    } else if (half === "Second Half") {
+      isSubmitted = submissionDetails.secondHalfSubmitted;
+      status = submissionDetails.secondHalfAdminStatus;
+    } else if (half === "Full Month") {
+      isSubmitted = submissionDetails.fullMonthAdminStatus;
+      status = submissionDetails.fullMonthAdminStatus;
+    }
+
+    if (!isSubmitted) {
+      return <Typography variant="caption" color="text.disabled">(Not submitted)</Typography>;
+    }
+
+    const statusMap = {
+      'APPROVED': { label: 'Approved ✓', color: 'success' },
+      'REJECTED': { label: 'Rejected ✗', color: 'error' },
+      'PENDING': { label: 'Pending', color: 'warning' },
+      'SUBMITTED': { label: 'Submitted', color: 'info' }
+    };
+
+    const config = statusMap[status] || statusMap['PENDING'];
+
+    return (
+      <Chip
+        label={config.label}
+        size="small"
+        color={config.color}
+        sx={{ height: '20px', fontSize: '0.6rem', fontWeight: 'bold' }}
+      />
+    );
+  };
+
+  /**
+   * Render submission status for the header
+   */
+  const renderSubmissionStatus = () => {
+    if (!submissionDetails) return null;
+
+    // For Field Data Collector - show First & Second Half
+    if (roleName === "Field Data Collector") {
+      return (
+        <>
+          {/* First Half */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+              FH:
+            </Typography>
+            {submissionDetails.firstHalfSubmitted && submissionDetails.firstHalfSubmittedDate ? (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexWrap: 'wrap' }}>
+                <Typography variant="caption" color="text.secondary">
+                  {`Submitted on ${new Date(submissionDetails.firstHalfSubmittedDate).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric"
+                  })}, ${new Date(submissionDetails.firstHalfSubmittedDate).toLocaleTimeString("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true
+                  })}`}
+                </Typography>
+                {/* Admin Status */}
+                {submissionDetails.firstHalfAdminStatus && (
+                  <Chip
+                    label={`Admin: ${submissionDetails.firstHalfAdminStatus}`}
+                    size="small"
+                    color={
+                      submissionDetails.firstHalfAdminStatus === "APPROVED" ? "success" :
+                        submissionDetails.firstHalfAdminStatus === "REJECTED" ? "error" : "warning"
+                    }
+                    sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
+                  />
+                )}
+                {/* Verification Status */}
+                {submissionDetails.firstHalfVerifiedStatus && (
+                  <Chip
+                    label={`Ver: ${submissionDetails.firstHalfVerifiedStatus}`}
+                    size="small"
+                    color={
+                      submissionDetails.firstHalfVerifiedStatus === "APPROVED" ? "success" :
+                        submissionDetails.firstHalfVerifiedStatus === "REJECTED" ? "error" : "warning"
+                    }
+                    sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
+                  />
+                )}
+                {/* Remarks Indicator */}
+                {(submissionDetails.firstHalfAdminRemark || submissionDetails.firstHalfVerificationRemark) && (
+                  <Tooltip
+                    title={
+                      <Box sx={{ p: 1 }}>
+                        {submissionDetails.firstHalfAdminRemark && (
+                          <Typography variant="body2">
+                            <strong>Admin Remark:</strong> {submissionDetails.firstHalfAdminRemark}
+                          </Typography>
+                        )}
+                        {submissionDetails.firstHalfVerificationRemark && (
+                          <Typography variant="body2" sx={{ mt: 1 }}>
+                            <strong>Verification Remark:</strong> {submissionDetails.firstHalfVerificationRemark}
+                          </Typography>
+                        )}
+                      </Box>
+                    }
+                    arrow
+                  >
+                    <IconButton size="small" sx={{ p: 0.5 }}>
+                      <InfoIcon fontSize="small" color="info" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Box>
+            ) : (
+              <Typography variant="caption" color="text.disabled" sx={{ fontStyle: "italic" }}>
+                Not submitted
+              </Typography>
+            )}
+          </Box>
+
+          {/* Second Half */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+              SH:
+            </Typography>
+            {submissionDetails.secondHalfSubmitted && submissionDetails.secondHalfSubmittedDate ? (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexWrap: 'wrap' }}>
+                <Typography variant="caption" color="text.secondary">
+                  {`Submitted on ${new Date(submissionDetails.secondHalfSubmittedDate).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric"
+                  })}, ${new Date(submissionDetails.secondHalfSubmittedDate).toLocaleTimeString("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true
+                  })}`}
+                </Typography>
+                {/* Admin Status */}
+                {submissionDetails.secondHalfAdminStatus && (
+                  <Chip
+                    label={`Admin: ${submissionDetails.secondHalfAdminStatus}`}
+                    size="small"
+                    color={
+                      submissionDetails.secondHalfAdminStatus === "APPROVED" ? "success" :
+                        submissionDetails.secondHalfAdminStatus === "REJECTED" ? "error" : "warning"
+                    }
+                    sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
+                  />
+                )}
+                {/* Verification Status */}
+                {submissionDetails.secondHalfVerifiedStatus && (
+                  <Chip
+                    label={`Ver: ${submissionDetails.secondHalfVerifiedStatus}`}
+                    size="small"
+                    color={
+                      submissionDetails.secondHalfVerifiedStatus === "APPROVED" ? "success" :
+                        submissionDetails.secondHalfVerifiedStatus === "REJECTED" ? "error" : "warning"
+                    }
+                    sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
+                  />
+                )}
+                {/* Remarks Indicator */}
+                {(submissionDetails.secondHalfAdminRemark || submissionDetails.secondHalfVerificationRemark) && (
+                  <Tooltip
+                    title={
+                      <Box sx={{ p: 1 }}>
+                        {submissionDetails.secondHalfAdminRemark && (
+                          <Typography variant="body2">
+                            <strong>Admin Remark:</strong> {submissionDetails.secondHalfAdminRemark}
+                          </Typography>
+                        )}
+                        {submissionDetails.secondHalfVerificationRemark && (
+                          <Typography variant="body2" sx={{ mt: 1 }}>
+                            <strong>Verification Remark:</strong> {submissionDetails.secondHalfVerificationRemark}
+                          </Typography>
+                        )}
+                      </Box>
+                    }
+                    arrow
+                  >
+                    <IconButton size="small" sx={{ p: 0.5 }}>
+                      <InfoIcon fontSize="small" color="info" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Box>
+            ) : (
+              <Typography variant="caption" color="text.disabled" sx={{ fontStyle: "italic" }}>
+                Not submitted
+              </Typography>
+            )}
+          </Box>
+        </>
+      );
+    }
+
+    // For all other roles - show Full Month
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+          Month:
         </Typography>
-      )}
-    </Box>
-  );
-};
+        {submissionDetails.fullMonthSubmitId && submissionDetails.fullMonthSubmittedDate ? (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexWrap: 'wrap' }}>
+            <Typography variant="caption" color="text.secondary">
+              {`Submitted on ${new Date(submissionDetails.fullMonthSubmittedDate).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric"
+              })}, ${new Date(submissionDetails.fullMonthSubmittedDate).toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true
+              })}`}
+            </Typography>
+            {/* Admin Status */}
+            {submissionDetails.fullMonthAdminStatus && (
+              <Chip
+                label={`Admin: ${submissionDetails.fullMonthAdminStatus}`}
+                size="small"
+                color={
+                  submissionDetails.fullMonthAdminStatus === "APPROVED" ? "success" :
+                    submissionDetails.fullMonthAdminStatus === "REJECTED" ? "error" : "warning"
+                }
+                sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
+              />
+            )}
+            {/* Verification Status */}
+            {submissionDetails.fullMonthVerifiedStatus && (
+              <Chip
+                label={`Ver: ${submissionDetails.fullMonthVerifiedStatus}`}
+                size="small"
+                color={
+                  submissionDetails.fullMonthVerifiedStatus === "APPROVED" ? "success" :
+                    submissionDetails.fullMonthVerifiedStatus === "REJECTED" ? "error" : "warning"
+                }
+                sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
+              />
+            )}
+            {/* Remarks Indicator */}
+            {(submissionDetails.fullMonthAdminRemark || submissionDetails.fullMonthVerificationRemark) && (
+              <Tooltip
+                title={
+                  <Box sx={{ p: 1 }}>
+                    {submissionDetails.fullMonthAdminRemark && (
+                      <Typography variant="body2">
+                        <strong>Admin Remark:</strong> {submissionDetails.fullMonthAdminRemark}
+                      </Typography>
+                    )}
+                    {submissionDetails.fullMonthVerificationRemark && (
+                      <Typography variant="body2" sx={{ mt: 1 }}>
+                        <strong>Verification Remark:</strong> {submissionDetails.fullMonthVerificationRemark}
+                      </Typography>
+                    )}
+                  </Box>
+                }
+                arrow
+              >
+                <IconButton size="small" sx={{ p: 0.5 }}>
+                  <InfoIcon fontSize="small" color="info" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
+        ) : (
+          <Typography variant="caption" color="text.disabled" sx={{ fontStyle: "italic" }}>
+            Not submitted
+          </Typography>
+        )}
+      </Box>
+    );
+  };
   const confirmIndividualApproval = async () => {
     const { entry, status } = approvalDialog;
-    
+
     try {
       setLoading(true);
       const adminId = authservice.userid();
-      
+
       if (!adminId) {
         showNotification('error', 'Admin session expired. Please login again.');
         setApprovalDialog({ open: false, entry: null, status: '' });
         return;
       }
-      
+
       const payload = {
         id: entry.id,
         adminId: adminId,
         adminRemark: `Entry ${status} by admin`,
         adminStatus: status
       };
-      
+
       const response = await tourDiaryService.submitAdminApproval(payload);
-      
+
       if (!response.error) {
-        setTourEntries(prev => 
-          prev.map(item => 
+        setTourEntries(prev =>
+          prev.map(item =>
             item.id === entry.id ? { ...item, status: status } : item
           )
         );
-        
+
         if (selectedDate) {
           const updatedDayEvents = selectedDayEvents.map(item =>
             item.id === entry.id ? { ...item, status: status } : item
           );
           setSelectedDayEvents(updatedDayEvents);
         }
-        
+
         showNotification('success', `Entry ${status} successfully`);
       } else {
         showNotification('error', response.message || "Failed to update status");
       }
-      
+
       setApprovalDialog({ open: false, entry: null, status: '' });
     } catch (error) {
       console.error("Approval error:", error);
@@ -1060,7 +1110,7 @@ const renderSubmissionStatus = () => {
   };
 
   // ============================ BULK APPROVAL HANDLERS ============================
-  
+
   const openApprovalMenu = (event) => {
     setApprovalAnchorEl(event.currentTarget);
   };
@@ -1130,7 +1180,7 @@ const renderSubmissionStatus = () => {
   };
 
   // ============================ VERIFICATION HANDLERS ============================
-  
+
   const openVerificationMenu = (event) => {
     setVerificationAnchorEl(event.currentTarget);
   };
@@ -1159,7 +1209,7 @@ const renderSubmissionStatus = () => {
 
     let alreadyApproved = false;
     let currentStatus = '';
-    
+
     if (half === "First Half") {
       alreadyApproved = submissionDetails?.firstHalfVerifiedStatus === 'APPROVED';
       currentStatus = submissionDetails?.firstHalfVerifiedStatus;
@@ -1198,7 +1248,7 @@ const renderSubmissionStatus = () => {
     try {
       setVerificationLoading(true);
       const verifiedBy = authservice.userid();
-      
+
       if (!verifiedBy) {
         showNotification('error', 'User session expired. Please login again.');
         return;
@@ -1243,7 +1293,7 @@ const renderSubmissionStatus = () => {
   };
 
   // ============================ NOTIFICATION HANDLERS ============================
-  
+
   const showNotification = (type, message) => {
     setNotification({ open: true, type, message });
   };
@@ -1253,14 +1303,14 @@ const renderSubmissionStatus = () => {
   };
 
   // ============================ HELPER FUNCTIONS ============================
-  
+
   const getEntriesForDate = (day) => {
     return tourEntries.filter(entry => {
       try {
         const entryDate = new Date(entry.createdAt);
         return entryDate.getDate() === day &&
-               entryDate.getMonth() + 1 === selectedMonth &&
-               entryDate.getFullYear() === selectedYear;
+          entryDate.getMonth() + 1 === selectedMonth &&
+          entryDate.getFullYear() === selectedYear;
       } catch (e) {
         return false;
       }
@@ -1307,18 +1357,18 @@ const renderSubmissionStatus = () => {
       'SUBMITTED': { color: 'info', label: 'Submitted' },
       'DRAFT': { color: 'default', label: 'Draft' }
     };
-    
+
     const config = statusMap[status] || statusMap['PENDING'];
     const label = type === 'admin' ? `Admin: ${config.label}` : `Ver: ${config.label}`;
-    
+
     return (
       <Chip
         label={label}
         size="small"
         color={config.color}
-        sx={{ 
-          height: '20px', 
-          fontSize: '0.6rem', 
+        sx={{
+          height: '20px',
+          fontSize: '0.6rem',
           fontWeight: 'bold',
           '& .MuiChip-label': { px: 0.5 }
         }}
@@ -1327,7 +1377,7 @@ const renderSubmissionStatus = () => {
   };
 
   // ============================ RENDER FUNCTIONS ============================
-  
+
   const renderCalendar = () => {
     const firstDay = new Date(selectedYear, selectedMonth - 1, 1).getDay();
     const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
@@ -1336,7 +1386,7 @@ const renderSubmissionStatus = () => {
 
     for (let i = 0; i < firstDay; i++) {
       calendarDays.push(
-        <Grid item xs={12/7} key={`empty-${i}`}>
+        <Grid item xs={12 / 7} key={`empty-${i}`}>
           <Box sx={{ minHeight: '90px' }} />
         </Grid>
       );
@@ -1349,7 +1399,7 @@ const renderSubmissionStatus = () => {
       const is2ndSat = isSecondSaturday(selectedYear, selectedMonth, day);
       const isFirstHalf = day <= fifteenthDay;
       const isSecondHalf = day > fifteenthDay;
-      
+
       let backgroundColor = theme.palette.background.paper;
       let hoverColor = theme.palette.mode === 'dark' ? theme.palette.grey[800] : '#f5f9ff';
 
@@ -1368,7 +1418,7 @@ const renderSubmissionStatus = () => {
       }
 
       calendarDays.push(
-        <Grid item xs={12/7} key={day}>
+        <Grid item xs={12 / 7} key={day}>
           <Paper
             onClick={() => handleDateClick(day)}
             sx={{
@@ -1387,9 +1437,9 @@ const renderSubmissionStatus = () => {
             }}
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <Typography 
-                variant="body1" 
-                sx={{ 
+              <Typography
+                variant="body1"
+                sx={{
                   fontWeight: 600,
                   color: (isSun || is2ndSat) ? '#d32f2f' : theme.palette.text.primary,
                   mb: 1
@@ -1404,10 +1454,10 @@ const renderSubmissionStatus = () => {
                   height: '20px',
                   fontSize: '0.65rem',
                   fontWeight: 'bold',
-                  backgroundColor: isFirstHalf 
+                  backgroundColor: isFirstHalf
                     ? (theme.palette.mode === 'dark' ? '#1976d2' : '#bbdefb')
                     : (theme.palette.mode === 'dark' ? '#2e7d32' : '#c8e6c9'),
-                  color: isFirstHalf 
+                  color: isFirstHalf
                     ? (theme.palette.mode === 'dark' ? '#fff' : '#0d47a1')
                     : (theme.palette.mode === 'dark' ? '#fff' : '#1b5e20'),
                   '& .MuiChip-label': { px: 0.5 }
@@ -1475,7 +1525,7 @@ const renderSubmissionStatus = () => {
 
   const renderTableView = () => {
     const allEntriesWithDetails = [];
-    
+
     tourEntries.forEach(entry => {
       try {
         const date = new Date(entry.createdAt);
@@ -1488,24 +1538,24 @@ const renderSubmissionStatus = () => {
         const isSun = isSunday(selectedYear, selectedMonth, day);
         const is2ndSat = isSecondSaturday(selectedYear, selectedMonth, day);
         const formattedDateWithDay = `${String(day).padStart(2, '0')} ${monthNames[month].substring(0, 3)}, ${dayName}`;
-        
-      allEntriesWithDetails.push({
-  ...entry,
-  day,
-  dayName,
-  isFirstHalf,
-  isSecondHalf,
-  isSun,
-  is2ndSat,
-  formattedDateWithDay,
-  formattedDate: `${day} ${monthNames[selectedMonth - 1]} ${selectedYear}`,
-  purposeName: entry.purposeName || getPurposeName(entry.purposeId),
-  zoneName: getZoneName(entry.zoneId), // Add this
-  location: entry.location || 'N/A',
-  remark: entry.remark || '-',
-  entryType: entry.entryType || 'WORKING',
-  status: entry.status || 'PENDING'
-});
+
+        allEntriesWithDetails.push({
+          ...entry,
+          day,
+          dayName,
+          isFirstHalf,
+          isSecondHalf,
+          isSun,
+          is2ndSat,
+          formattedDateWithDay,
+          formattedDate: `${day} ${monthNames[selectedMonth - 1]} ${selectedYear}`,
+          purposeName: entry.purposeName || getPurposeName(entry.purposeId),
+          zoneName: getZoneName(entry.zoneId), // Add this
+          location: entry.location || 'N/A',
+          remark: entry.remark || '-',
+          entryType: entry.entryType || 'WORKING',
+          status: entry.status || 'PENDING'
+        });
       } catch (e) {
         console.error("Error parsing date:", e);
       }
@@ -1514,13 +1564,13 @@ const renderSubmissionStatus = () => {
     allEntriesWithDetails.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
     const filteredEntries = searchTerm
-      ? allEntriesWithDetails.filter(entry => 
-          entry.formattedDateWithDay.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          entry.entryType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (entry.location && entry.location.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (entry.purposeName && entry.purposeName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (entry.remark && entry.remark.toLowerCase().includes(searchTerm.toLowerCase()))
-        )
+      ? allEntriesWithDetails.filter(entry =>
+        entry.formattedDateWithDay.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        entry.entryType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (entry.location && entry.location.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (entry.purposeName && entry.purposeName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (entry.remark && entry.remark.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
       : allEntriesWithDetails;
 
     const paginatedEntries = filteredEntries.slice(
@@ -1538,7 +1588,7 @@ const renderSubmissionStatus = () => {
 
     return (
       <Box sx={{ mt: 2 }}>
-        <MainCard 
+        <MainCard
           title={`Tour Entries - ${monthNames[selectedMonth - 1]} ${selectedYear}`}
           secondary={<EventIcon />}
           sx={{ '& .MuiCardContent-root': { p: 0 } }}
@@ -1586,146 +1636,146 @@ const renderSubmissionStatus = () => {
                   <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
-            <TableBody>
-  {paginatedEntries.length > 0 ? (
-    paginatedEntries.map((entry, index) => {
-      let rowBgColor = 'inherit';
-      if (entry.isSun) {
-        rowBgColor = theme.palette.mode === 'dark' ? '#4a2a2a' : '#ffe6e6';
-      } else if (entry.is2ndSat) {
-        rowBgColor = theme.palette.mode === 'dark' ? '#4a3a2a' : '#fff4e6';
-      } else if (entry.isFirstHalf) {
-        rowBgColor = theme.palette.mode === 'dark' ? '#1a2a3a' : '#e3f2fd';
-      } else if (entry.isSecondHalf) {
-        rowBgColor = theme.palette.mode === 'dark' ? '#1a3a2a' : '#e8f5e9';
-      }
+              <TableBody>
+                {paginatedEntries.length > 0 ? (
+                  paginatedEntries.map((entry, index) => {
+                    let rowBgColor = 'inherit';
+                    if (entry.isSun) {
+                      rowBgColor = theme.palette.mode === 'dark' ? '#4a2a2a' : '#ffe6e6';
+                    } else if (entry.is2ndSat) {
+                      rowBgColor = theme.palette.mode === 'dark' ? '#4a3a2a' : '#fff4e6';
+                    } else if (entry.isFirstHalf) {
+                      rowBgColor = theme.palette.mode === 'dark' ? '#1a2a3a' : '#e3f2fd';
+                    } else if (entry.isSecondHalf) {
+                      rowBgColor = theme.palette.mode === 'dark' ? '#1a3a2a' : '#e8f5e9';
+                    }
 
-      return (
-        <TableRow 
-          key={entry.id || index}
-          sx={{ 
-            bgcolor: rowBgColor,
-            '&:hover': { 
-              bgcolor: theme.palette.action.hover,
-              cursor: 'pointer'
-            },
-            transition: '0.2s'
-          }}
-          onClick={() => handleViewEntryDetails(entry)}
-        >
-          <TableCell>
-            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-              {entry.formattedDateWithDay}
-            </Typography>
-          </TableCell>
-          <TableCell>
-            <Chip
-              label={entry.isFirstHalf ? 'FH' : 'SH'}
-              size="small"
-              sx={{
-                height: '24px',
-                fontSize: '0.7rem',
-                fontWeight: 'bold',
-                backgroundColor: entry.isFirstHalf 
-                  ? (theme.palette.mode === 'dark' ? '#1976d2' : '#bbdefb')
-                  : (theme.palette.mode === 'dark' ? '#2e7d32' : '#c8e6c9'),
-                color: entry.isFirstHalf 
-                  ? (theme.palette.mode === 'dark' ? '#fff' : '#0d47a1')
-                  : (theme.palette.mode === 'dark' ? '#fff' : '#1b5e20'),
-              }}
-            />
-          </TableCell>
-          <TableCell>
-            <Typography variant="body2">
-              {getZoneName(entry.zoneId)}
-            </Typography>
-          </TableCell>
-          <TableCell>
-            <Chip
-              label={entry.entryType}
-              size="small"
-              sx={{ 
-                bgcolor: getEntryTypeColor(entry.entryType),
-                color: 'white',
-                fontWeight: 500,
-                height: '24px'
-              }}
-            />
-          </TableCell>
-          <TableCell>
-            <Typography variant="body2">
-              {entry.entryType === 'WORKING' ? entry.location : '-'}
-            </Typography>
-          </TableCell>
-          <TableCell>
-            <Typography variant="body2">
-              {entry.entryType === 'WORKING' ? entry.purposeName : '-'}
-            </Typography>
-          </TableCell>
-          <TableCell>
-            <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {entry.remark !== '-' ? entry.remark : '-'}
-            </Typography>
-          </TableCell>
-          <TableCell align="center">
-            <Stack direction="row" spacing={1} justifyContent="center">
-              <Tooltip title="View Details">
-                <IconButton
-                  size="small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleViewEntryDetails(entry);
-                  }}
-                  sx={{ color: '#04255e', '&:hover': { bgcolor: '#e3f2fd' } }}
-                >
-                  <VisibilityIcon />
-                </IconButton>
-              </Tooltip>
-              {entry.status === 'PENDING' && canApprove() && (
-                <>
-                  <Tooltip title="Approve">
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleIndividualApproval(entry, 'APPROVED');
-                      }}
-                      sx={{ color: '#27ae60', '&:hover': { bgcolor: '#27ae6020' } }}
-                    >
-                      <CheckCircleIcon />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Reject">
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleIndividualApproval(entry, 'REJECTED');
-                      }}
-                      sx={{ color: '#e74c3c', '&:hover': { bgcolor: '#e74c3c20' } }}
-                    >
-                      <CancelIcon />
-                    </IconButton>
-                  </Tooltip>
-                </>
-              )}
-            </Stack>
-          </TableCell>
-        </TableRow>
-      );
-    })
-  ) : (
-    <TableRow>
-      <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
-        <Typography variant="body1" color="text.secondary">
-          {searchTerm 
-            ? `No tour entries found matching "${searchTerm}"` 
-            : `No tour entries found for ${monthNames[selectedMonth - 1]} ${selectedYear}`}
-        </Typography>
-      </TableCell>
-    </TableRow>
-  )}
-</TableBody>
+                    return (
+                      <TableRow
+                        key={entry.id || index}
+                        sx={{
+                          bgcolor: rowBgColor,
+                          '&:hover': {
+                            bgcolor: theme.palette.action.hover,
+                            cursor: 'pointer'
+                          },
+                          transition: '0.2s'
+                        }}
+                        onClick={() => handleViewEntryDetails(entry)}
+                      >
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {entry.formattedDateWithDay}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={entry.isFirstHalf ? 'FH' : 'SH'}
+                            size="small"
+                            sx={{
+                              height: '24px',
+                              fontSize: '0.7rem',
+                              fontWeight: 'bold',
+                              backgroundColor: entry.isFirstHalf
+                                ? (theme.palette.mode === 'dark' ? '#1976d2' : '#bbdefb')
+                                : (theme.palette.mode === 'dark' ? '#2e7d32' : '#c8e6c9'),
+                              color: entry.isFirstHalf
+                                ? (theme.palette.mode === 'dark' ? '#fff' : '#0d47a1')
+                                : (theme.palette.mode === 'dark' ? '#fff' : '#1b5e20'),
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {getZoneName(entry.zoneId)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={entry.entryType}
+                            size="small"
+                            sx={{
+                              bgcolor: getEntryTypeColor(entry.entryType),
+                              color: 'white',
+                              fontWeight: 500,
+                              height: '24px'
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {entry.entryType === 'WORKING' ? entry.location : '-'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {entry.entryType === 'WORKING' ? entry.purposeName : '-'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {entry.remark !== '-' ? entry.remark : '-'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Stack direction="row" spacing={1} justifyContent="center">
+                            <Tooltip title="View Details">
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewEntryDetails(entry);
+                                }}
+                                sx={{ color: '#04255e', '&:hover': { bgcolor: '#e3f2fd' } }}
+                              >
+                                <VisibilityIcon />
+                              </IconButton>
+                            </Tooltip>
+                            {entry.status === 'PENDING' && canApprove() && (
+                              <>
+                                <Tooltip title="Approve">
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleIndividualApproval(entry, 'APPROVED');
+                                    }}
+                                    sx={{ color: '#27ae60', '&:hover': { bgcolor: '#27ae6020' } }}
+                                  >
+                                    <CheckCircleIcon />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Reject">
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleIndividualApproval(entry, 'REJECTED');
+                                    }}
+                                    sx={{ color: '#e74c3c', '&:hover': { bgcolor: '#e74c3c20' } }}
+                                  >
+                                    <CancelIcon />
+                                  </IconButton>
+                                </Tooltip>
+                              </>
+                            )}
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                      <Typography variant="body1" color="text.secondary">
+                        {searchTerm
+                          ? `No tour entries found matching "${searchTerm}"`
+                          : `No tour entries found for ${monthNames[selectedMonth - 1]} ${selectedYear}`}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
             </Table>
           </TableContainer>
 
@@ -1751,127 +1801,127 @@ const renderSubmissionStatus = () => {
     );
   };
 
-const renderEventList = () => {
-  if (selectedDayEvents.length === 0) {
-    return (
-      <Alert severity="info" sx={{ mt: 2 }}>
-        No tours planned for this day.
-      </Alert>
-    );
-  }
+  const renderEventList = () => {
+    if (selectedDayEvents.length === 0) {
+      return (
+        <Alert severity="info" sx={{ mt: 2 }}>
+          No tours planned for this day.
+        </Alert>
+      );
+    }
 
-  return (
-    <List sx={{ mt: 2 }}>
-      {selectedDayEvents.map((event, index) => (
-        <React.Fragment key={event.id}>
-          {index > 0 && <Divider />}
-          <ListItem>
-            <ListItemText
-              primary={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                  <EventIcon fontSize="small" color="action" />
-                  <Chip
-                    label={event.entryType || 'WORKING'}
-                    size="small"
-                    sx={{ 
-                      bgcolor: getEntryTypeColor(event.entryType),
-                      color: 'white',
-                      fontSize: '0.7rem'
-                    }}
-                  />
-                  {/* Zone Chip */}
-                  {event.zoneId && (
+    return (
+      <List sx={{ mt: 2 }}>
+        {selectedDayEvents.map((event, index) => (
+          <React.Fragment key={event.id}>
+            {index > 0 && <Divider />}
+            <ListItem>
+              <ListItemText
+                primary={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                    <EventIcon fontSize="small" color="action" />
                     <Chip
-                      label={`Zone: ${getZoneName(event.zoneId)}`}
+                      label={event.entryType || 'WORKING'}
                       size="small"
-                      variant="outlined"
-                      sx={{ fontSize: '0.65rem', height: '22px' }}
+                      sx={{
+                        bgcolor: getEntryTypeColor(event.entryType),
+                        color: 'white',
+                        fontSize: '0.7rem'
+                      }}
                     />
-                  )}
-                </Box>
-              }
-              secondary={
-                <Box sx={{ mt: 0.5 }}>
-                  {event.entryType === 'WORKING' && (
+                    {/* Zone Chip */}
+                    {event.zoneId && (
+                      <Chip
+                        label={`Zone: ${getZoneName(event.zoneId)}`}
+                        size="small"
+                        variant="outlined"
+                        sx={{ fontSize: '0.65rem', height: '22px' }}
+                      />
+                    )}
+                  </Box>
+                }
+                secondary={
+                  <Box sx={{ mt: 0.5 }}>
+                    {event.entryType === 'WORKING' && (
+                      <>
+                        <Typography variant="body2" color="text.secondary">
+                          <strong>Zone:</strong> {getZoneName(event.zoneId)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          <strong>Purpose:</strong> {event.purposeName || getPurposeName(event.purposeId)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          <strong>Location:</strong> {event.location}
+                        </Typography>
+                      </>
+                    )}
+                    {event.remark && (
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Remark:</strong> {event.remark}
+                      </Typography>
+                    )}
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                      {new Date(event.createdAt).toLocaleDateString('en-GB')}
+                    </Typography>
+                  </Box>
+                }
+              />
+              <ListItemSecondaryAction>
+                <Stack direction="row" spacing={1}>
+                  <Tooltip title="View Details">
+                    <IconButton
+                      edge="end"
+                      onClick={() => handleViewEntryDetails(event)}
+                      sx={{
+                        color: theme.palette.primary.main,
+                        '&:hover': { backgroundColor: theme.palette.primary.light + '20' }
+                      }}
+                    >
+                      <VisibilityIcon />
+                    </IconButton>
+                  </Tooltip>
+                  {event.status === 'PENDING' && canApprove() && (
                     <>
-                      <Typography variant="body2" color="text.secondary">
-                        <strong>Zone:</strong> {getZoneName(event.zoneId)}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        <strong>Purpose:</strong> {event.purposeName || getPurposeName(event.purposeId)}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        <strong>Location:</strong> {event.location}
-                      </Typography>
+                      <Tooltip title="Approve">
+                        <IconButton
+                          edge="end"
+                          onClick={() => handleIndividualApproval(event, 'APPROVED')}
+                          sx={{ color: '#27ae60', '&:hover': { backgroundColor: '#27ae6020' } }}
+                        >
+                          <CheckCircleIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Reject">
+                        <IconButton
+                          edge="end"
+                          onClick={() => handleIndividualApproval(event, 'REJECTED')}
+                          sx={{ color: '#e74c3c', '&:hover': { backgroundColor: '#e74c3c20' } }}
+                        >
+                          <CancelIcon />
+                        </IconButton>
+                      </Tooltip>
                     </>
                   )}
-                  {event.remark && (
-                    <Typography variant="body2" color="text.secondary">
-                      <strong>Remark:</strong> {event.remark}
-                    </Typography>
-                  )}
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                    {new Date(event.createdAt).toLocaleDateString('en-GB')}
-                  </Typography>
-                </Box>
-              }
-            />
-            <ListItemSecondaryAction>
-              <Stack direction="row" spacing={1}>
-                <Tooltip title="View Details">
-                  <IconButton
-                    edge="end"
-                    onClick={() => handleViewEntryDetails(event)}
-                    sx={{
-                      color: theme.palette.primary.main,
-                      '&:hover': { backgroundColor: theme.palette.primary.light + '20' }
-                    }}
-                  >
-                    <VisibilityIcon />
-                  </IconButton>
-                </Tooltip>
-                {event.status === 'PENDING' && canApprove() && (
-                  <>
-                    <Tooltip title="Approve">
-                      <IconButton
-                        edge="end"
-                        onClick={() => handleIndividualApproval(event, 'APPROVED')}
-                        sx={{ color: '#27ae60', '&:hover': { backgroundColor: '#27ae6020' } }}
-                      >
-                        <CheckCircleIcon />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Reject">
-                      <IconButton
-                        edge="end"
-                        onClick={() => handleIndividualApproval(event, 'REJECTED')}
-                        sx={{ color: '#e74c3c', '&:hover': { backgroundColor: '#e74c3c20' } }}
-                      >
-                        <CancelIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </>
-                )}
-              </Stack>
-            </ListItemSecondaryAction>
-          </ListItem>
-        </React.Fragment>
-      ))}
-    </List>
-  );
-};
+                </Stack>
+              </ListItemSecondaryAction>
+            </ListItem>
+          </React.Fragment>
+        ))}
+      </List>
+    );
+  };
   // ============================ MAIN RENDER ============================
-  
+
   if (!userId) {
     return (
       <Grid container spacing={3}>
         <Grid item xs={12}>
           <MainCard>
             <Alert severity="error">No user selected</Alert>
-            <Button 
-              startIcon={<ArrowBackIcon />} 
-              onClick={handleBack} 
-              variant="contained" 
+            <Button
+              startIcon={<ArrowBackIcon />}
+              onClick={handleBack}
+              variant="contained"
               sx={{ mt: 2 }}
             >
               Go Back
@@ -1885,10 +1935,10 @@ const renderEventList = () => {
   return (
     <Grid container spacing={2}>
       <Breadcrumb />
-      
+
       <Grid item xs={12}>
         <Typography variant="h3" align="center" sx={{ color: theme.palette.text.primary }}>
-          Advanced Tour Program Management  
+          Advanced Tour Program Management
         </Typography>
       </Grid>
 
@@ -1907,9 +1957,9 @@ const renderEventList = () => {
               }}
             >
               {/* Left section */}
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
                 gap: 2,
                 flexWrap: 'wrap',
                 minWidth: '200px'
@@ -1927,32 +1977,32 @@ const renderEventList = () => {
                 >
                   Back
                 </Button>
-                
-               
+
+
               </Box>
 
               {/* Center - Month/Year */}
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
                 gap: 2,
                 position: 'absolute',
                 left: '50%',
                 transform: 'translateX(-50%)'
               }}>
-                <IconButton 
-                  onClick={() => handleMonthChange(-1)} 
+                <IconButton
+                  onClick={() => handleMonthChange(-1)}
                   size="small"
-                  sx={{ 
+                  sx={{
                     backgroundColor: theme.palette.grey[200],
                     '&:hover': { backgroundColor: theme.palette.grey[300] }
                   }}
                 >
                   <ArrowBackIosNewIcon fontSize="small" />
                 </IconButton>
-                <Typography 
-                  variant="h4" 
-                  sx={{ 
+                <Typography
+                  variant="h4"
+                  sx={{
                     color: theme.palette.text.primary,
                     textAlign: 'center',
                     fontWeight: 500,
@@ -1961,10 +2011,10 @@ const renderEventList = () => {
                 >
                   {monthNames[selectedMonth - 1]} {selectedYear}
                 </Typography>
-                <IconButton 
-                  onClick={() => handleMonthChange(1)} 
+                <IconButton
+                  onClick={() => handleMonthChange(1)}
                   size="small"
-                  sx={{ 
+                  sx={{
                     backgroundColor: theme.palette.grey[200],
                     '&:hover': { backgroundColor: theme.palette.grey[300] }
                   }}
@@ -1974,9 +2024,9 @@ const renderEventList = () => {
               </Box>
 
               {/* Right section - Action Buttons */}
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
                 gap: 2,
                 minWidth: '200px',
                 justifyContent: 'flex-end'
@@ -2063,98 +2113,121 @@ const renderEventList = () => {
                 </Box>
               </Box>
             </Box>
+            {/* User Info Header Card */}
+            {userDetails && (
+              <Paper variant="outlined" sx={{ p: 2, mb: 3, borderRadius: 2, bgcolor: theme.palette.action.hover }}>
+                <Grid container spacing={2} alignItems="center">
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Typography variant="caption" color="text.secondary">Employee Name</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>{userDetails.name || 'N/A'}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Typography variant="caption" color="text.secondary">Employee No / ID</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>{userDetails.penNumber || userDetails.empNumber || userDetails.employeeId || 'N/A'}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Typography variant="caption" color="text.secondary">Designation</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>{userDetails.designation || 'N/A'}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Typography variant="caption" color="text.secondary">Office Location</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>{userDetails.officelocation || userDetails.officeLocation || 'N/A'}</Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+            )}
 
             {/* View Mode Toggle */}
-       <Box
-  sx={{
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    mb: 3,
-    mt: 1,
-    width: '100%',
-  }}
->
-  {submissionDetails && (
-    <Paper
-      elevation={1}
-      sx={{
-        position: 'absolute',
-        left: 0,
-        p: 1.5,
-        backgroundColor:
-          theme.palette.mode === 'dark'
-            ? theme.palette.grey[800]
-            : '#f0f7ff',
-        border: `1px solid ${theme.palette.divider}`,
-        borderRadius: 2,
-        minWidth: 280,
-      }}
-    >
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start',
-          gap: 1.5,
-        }}
-      >
-        {renderSubmissionStatus()}
-      </Box>
-    </Paper>
-  )}
+            <Box
+              sx={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mb: 3,
+                mt: 1,
+                width: '100%',
+              }}
+            >
+              {submissionDetails && (
+                <Paper
+                  elevation={1}
+                  sx={{
+                    position: 'absolute',
+                    left: 0,
+                    p: 1.5,
+                    backgroundColor:
+                      theme.palette.mode === 'dark'
+                        ? theme.palette.grey[800]
+                        : '#f0f7ff',
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    minWidth: 280,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      gap: 1.5,
+                    }}
+                  >
+                    {renderSubmissionStatus()}
+                  </Box>
+                </Paper>
+              )}
 
-  <FormControl component="fieldset">
-    <Box sx={{ display: 'flex', gap: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-        <input
-          type="radio"
-          id="table-view"
-          name="viewMode"
-          value="table"
-          checked={viewMode === 'table'}
-          onChange={() => setViewMode('table')}
-          style={{ marginRight: '8px', cursor: 'pointer' }}
-        />
-        <Typography
-          variant="body1"
-          component="label"
-          htmlFor="table-view"
-          sx={{
-            cursor: 'pointer',
-            fontWeight: viewMode === 'table' ? 600 : 400,
-          }}
-        >
-          Table View
-        </Typography>
-      </Box>
+              <FormControl component="fieldset">
+                <Box sx={{ display: 'flex', gap: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type="radio"
+                      id="table-view"
+                      name="viewMode"
+                      value="table"
+                      checked={viewMode === 'table'}
+                      onChange={() => setViewMode('table')}
+                      style={{ marginRight: '8px', cursor: 'pointer' }}
+                    />
+                    <Typography
+                      variant="body1"
+                      component="label"
+                      htmlFor="table-view"
+                      sx={{
+                        cursor: 'pointer',
+                        fontWeight: viewMode === 'table' ? 600 : 400,
+                      }}
+                    >
+                      Table View
+                    </Typography>
+                  </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-        <input
-          type="radio"
-          id="calendar-view"
-          name="viewMode"
-          value="calendar"
-          checked={viewMode === 'calendar'}
-          onChange={() => setViewMode('calendar')}
-          style={{ marginRight: '8px', cursor: 'pointer' }}
-        />
-        <Typography
-          variant="body1"
-          component="label"
-          htmlFor="calendar-view"
-          sx={{
-            cursor: 'pointer',
-            fontWeight: viewMode === 'calendar' ? 600 : 400,
-          }}
-        >
-          Calendar View
-        </Typography>
-      </Box>
-    </Box>
-  </FormControl>
-</Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type="radio"
+                      id="calendar-view"
+                      name="viewMode"
+                      value="calendar"
+                      checked={viewMode === 'calendar'}
+                      onChange={() => setViewMode('calendar')}
+                      style={{ marginRight: '8px', cursor: 'pointer' }}
+                    />
+                    <Typography
+                      variant="body1"
+                      component="label"
+                      htmlFor="calendar-view"
+                      sx={{
+                        cursor: 'pointer',
+                        fontWeight: viewMode === 'calendar' ? 600 : 400,
+                      }}
+                    >
+                      Calendar View
+                    </Typography>
+                  </Box>
+                </Box>
+              </FormControl>
+            </Box>
 
             {/* Loading State */}
             {loading && (
@@ -2181,7 +2254,7 @@ const renderEventList = () => {
                 {viewMode === 'calendar' ? (
                   <Grid container spacing={0.125}>
                     {dayNames.map(day => (
-                      <Grid item xs={12/7} key={day}>
+                      <Grid item xs={12 / 7} key={day}>
                         <Box
                           sx={{
                             backgroundColor: theme.palette.mode === 'dark'
@@ -2211,7 +2284,7 @@ const renderEventList = () => {
       </Grid>
 
       {/* ==================== MODALS ==================== */}
-      
+
       {/* Day View Modal */}
       <Modal
         open={dayModalOpen}
@@ -2232,10 +2305,10 @@ const renderEventList = () => {
         >
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h4" sx={{ color: theme.palette.text.primary }}>
-              Tour Plan – {selectedDate && new Date(selectedDate).toLocaleDateString('en-US', { 
-                month: 'long', 
-                day: 'numeric', 
-                year: 'numeric' 
+              Tour Plan – {selectedDate && new Date(selectedDate).toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric'
               })}
             </Typography>
             <IconButton onClick={closeDayModal} size="small">
@@ -2300,77 +2373,77 @@ const renderEventList = () => {
 
           <Divider sx={{ mb: 2 }} />
 
-      {selectedEntry && (
-  <Grid container spacing={2}>
-    <Grid item xs={6}>
-      <Typography variant="body2" color="text.secondary">Date</Typography>
-      <Typography variant="body1" sx={{ fontWeight: 500 }}>
-        {new Date(selectedEntry.createdAt).toLocaleDateString('en-GB')}
-      </Typography>
-    </Grid>
+          {selectedEntry && (
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <Typography variant="body2" color="text.secondary">Date</Typography>
+                <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                  {new Date(selectedEntry.createdAt).toLocaleDateString('en-GB')}
+                </Typography>
+              </Grid>
 
-    <Grid item xs={6}>
-      <Typography variant="body2" color="text.secondary">Entry Type</Typography>
-      <Chip 
-        label={selectedEntry.entryType || 'WORKING'}
-        size="small"
-        sx={{ 
-          bgcolor: getEntryTypeColor(selectedEntry.entryType),
-          color: 'white',
-          mt: 0.5,
-          fontWeight: 500
-        }}
-      />
-    </Grid>
-    
-    {/* Zone */}
-    <Grid item xs={6}>
-      <Typography variant="body2" color="text.secondary">Zone</Typography>
-      <Typography variant="body1" sx={{ fontWeight: 500 }}>
-        {getZoneName(selectedEntry.zoneId)}
-      </Typography>
-    </Grid>
-    
-    <Grid item xs={12}>
-      <Divider />
-    </Grid>
-    
-    {selectedEntry.entryType === 'WORKING' && (
-      <>
-        <Grid item xs={6}>
-          <Typography variant="body2" color="text.secondary">Location</Typography>
-          <Typography variant="body1" sx={{ fontWeight: 500 }}>
-            {selectedEntry.location}
-          </Typography>
-        </Grid>
-        
-        <Grid item xs={6}>
-          <Typography variant="body2" color="text.secondary">Purpose</Typography>
-          <Typography variant="body1" sx={{ fontWeight: 500 }}>
-            {selectedEntry.purposeName || getPurposeName(selectedEntry.purposeId)}
-          </Typography>
-        </Grid>
-      </>
-    )}
-    
-    {selectedEntry.remark && (
-      <Grid item xs={12}>
-        <Typography variant="body2" color="text.secondary">Remarks</Typography>
-        <Paper 
-          variant="outlined" 
-          sx={{ 
-            p: 1.5, 
-            mt: 0.5,
-            backgroundColor: theme.palette.action.hover,
-            borderRadius: 1
-          }}
-        >
-          <Typography variant="body1">{selectedEntry.remark}</Typography>
-        </Paper>
-      </Grid>
-    )}
-  </Grid>
-)}
+              <Grid item xs={6}>
+                <Typography variant="body2" color="text.secondary">Entry Type</Typography>
+                <Chip
+                  label={selectedEntry.entryType || 'WORKING'}
+                  size="small"
+                  sx={{
+                    bgcolor: getEntryTypeColor(selectedEntry.entryType),
+                    color: 'white',
+                    mt: 0.5,
+                    fontWeight: 500
+                  }}
+                />
+              </Grid>
+
+              {/* Zone */}
+              <Grid item xs={6}>
+                <Typography variant="body2" color="text.secondary">Zone</Typography>
+                <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                  {getZoneName(selectedEntry.zoneId)}
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Divider />
+              </Grid>
+
+              {selectedEntry.entryType === 'WORKING' && (
+                <>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">Location</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                      {selectedEntry.location}
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">Purpose</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                      {selectedEntry.purposeName || getPurposeName(selectedEntry.purposeId)}
+                    </Typography>
+                  </Grid>
+                </>
+              )}
+
+              {selectedEntry.remark && (
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary">Remarks</Typography>
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 1.5,
+                      mt: 0.5,
+                      backgroundColor: theme.palette.action.hover,
+                      borderRadius: 1
+                    }}
+                  >
+                    <Typography variant="body1">{selectedEntry.remark}</Typography>
+                  </Paper>
+                </Grid>
+              )}
+            </Grid>
+          )}
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
             <Button
               variant="contained"
@@ -2401,14 +2474,14 @@ const renderEventList = () => {
           <Typography sx={{ mb: 2 }}>
             Are you sure you want to {approvalDialog.status === 'APPROVED' ? 'approve' : 'reject'} this tour entry?
           </Typography>
-          
+
           {approvalDialog.entry && (
-            <Paper 
-              variant="outlined" 
-              sx={{ 
-                p: 2, 
-                backgroundColor: theme.palette.action.hover, 
-                borderRadius: 1 
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2,
+                backgroundColor: theme.palette.action.hover,
+                borderRadius: 1
               }}
             >
               <Typography variant="body2" sx={{ mb: 1 }}>
@@ -2425,13 +2498,13 @@ const renderEventList = () => {
         </DialogContent>
 
         <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button 
-            onClick={() => setApprovalDialog({ open: false, entry: null, status: '' })} 
+          <Button
+            onClick={() => setApprovalDialog({ open: false, entry: null, status: '' })}
             variant="outlined"
           >
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={confirmIndividualApproval}
             variant="contained"
             sx={{
@@ -2493,8 +2566,8 @@ const renderEventList = () => {
         </DialogContent>
 
         <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button 
-            onClick={() => setBulkApprovalDialogOpen(false)} 
+          <Button
+            onClick={() => setBulkApprovalDialogOpen(false)}
             variant="outlined"
             disabled={approvalLoading}
           >
@@ -2562,17 +2635,17 @@ const renderEventList = () => {
             placeholder={verificationStatus === 'REJECTED' ? "Remarks are mandatory for rejection" : "Add remarks (optional)"}
             error={verificationStatus === 'REJECTED' && verificationDialogOpen && !verificationRemarks.trim()}
             helperText={
-              verificationStatus === 'REJECTED' && 
-              verificationDialogOpen && 
-              !verificationRemarks.trim() ? 
-              "Remarks are mandatory when rejecting a submission" : 
-              ""
+              verificationStatus === 'REJECTED' &&
+                verificationDialogOpen &&
+                !verificationRemarks.trim() ?
+                "Remarks are mandatory when rejecting a submission" :
+                ""
             }
             sx={{ mb: 2 }}
           />
 
-          <Alert 
-            severity={verificationStatus === 'APPROVED' ? 'success' : 'error'} 
+          <Alert
+            severity={verificationStatus === 'APPROVED' ? 'success' : 'error'}
             sx={{ mt: 1 }}
           >
             <Typography variant="body2">
@@ -2583,8 +2656,8 @@ const renderEventList = () => {
         </DialogContent>
 
         <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button 
-            onClick={closeVerificationDialog} 
+          <Button
+            onClick={closeVerificationDialog}
             variant="outlined"
             disabled={verificationLoading}
           >

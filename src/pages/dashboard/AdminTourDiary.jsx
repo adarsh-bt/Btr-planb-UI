@@ -31,7 +31,7 @@ const AdminTourDiary = () => {
   const [district, setDistrict] = useState("");
   const [taluk, setTaluk] = useState("");
   const [search, setSearch] = useState("");
-  
+
   // New state for month and year
   const [month, setMonth] = useState(new Date().getMonth() + 1); // Current month (1-12)
   const [year, setYear] = useState(new Date().getFullYear()); // Current year
@@ -49,13 +49,13 @@ const AdminTourDiary = () => {
 
   const role = authservice.getrole();
   const userId = authservice.userid();
-const isTalukRole =
-  role === "Taluk Level Approver" ||
-  role === "Field Inspector";
+  const isTalukRole =
+    role === "Taluk Level Approver" ||
+    role === "Field Inspector";
 
-const isDistrictRole =
-  role === "District Level Approver" ||
-  role === "District Level Data Viewer";
+  const isDistrictRole =
+    role === "District Level Approver" ||
+    role === "District Level Data Viewer";
   // Handle modal close
   const handleCloseModal = () => {
     setOpenModal(false);
@@ -65,29 +65,29 @@ const isDistrictRole =
   // Handle menu selection for tour diary type
   const handleMenuSelect = (type) => {
     if (!selectedRow) return;
-    
+
     // Get userId from the row - check all possible field names
     const selectedUserId = selectedRow.userId || selectedRow.id || selectedRow.user_id || selectedRow.empId;
-    
+
     console.log("Navigating with userId:", selectedUserId, "from row:", selectedRow);
-    
+
     if (!selectedUserId) {
       console.error("No valid user ID found in row:", selectedRow);
       alert("Cannot view tour diary: User ID not found");
       handleCloseModal();
       return;
     }
-    
+
     if (type === 'advanced') {
-      navigate("/approval_manage/advancedtourdiary/user-submissions", { 
-        state: { userId: selectedUserId } 
+      navigate("/approval_manage/advancedtourdiary/user-submissions", {
+        state: { userId: selectedUserId }
       });
     } else if (type === 'regular') {
-      navigate("/approval_manage/tourdiary/user-submissions", { 
-        state: { userId: selectedUserId } 
+      navigate("/approval_manage/tourdiary/user-submissions", {
+        state: { userId: selectedUserId }
       });
     }
-    
+
     handleCloseModal();
   };
 
@@ -99,39 +99,39 @@ const isDistrictRole =
     { name: "PEN No", selector: row => row.empNumber ?? "NA" },
     { name: "Designation", selector: row => row.designation ?? "NA" },
     { name: "Office Location", selector: row => row.officelocation ?? "NA" },
-    { 
-      name: "District", 
+    {
+      name: "District",
       selector: row => row.distict ?? "NA",
       omit: role !== "DIRECTORATE" // Only show for directorate level
     },
-    { 
-      name: "Taluk", 
-      selector: row => row.taluk ?? "NA" 
-    },
     {
-      name: "1st Half Status",
-      selector: row => row.firstHalfStatus ?? "NOT_SUBMITTED",
-      cell: row => (
-        <span style={{
-          color: row.firstHalfStatus === "SUBMITTED" ? "green" : 
-                 row.firstHalfStatus === "PENDING" ? "orange" : "red"
-        }}>
-          {row.firstHalfStatus ?? "NOT_SUBMITTED"}
-        </span>
-      )
+      name: "Taluk",
+      selector: row => row.taluk ?? "NA"
     },
-    {
-      name: "2nd Half Status",
-      selector: row => row.secondHalfStatus ?? "NOT_SUBMITTED",
-      cell: row => (
-        <span style={{
-          color: row.secondHalfStatus === "SUBMITTED" ? "green" : 
-                 row.secondHalfStatus === "PENDING" ? "orange" : "red"
-        }}>
-          {row.secondHalfStatus ?? "NOT_SUBMITTED"}
-        </span>
-      )
-    },
+    // {
+    //   name: "1st Half Status",
+    //   selector: row => row.firstHalfStatus ?? "NOT_SUBMITTED",
+    //   cell: row => (
+    //     <span style={{
+    //       color: row.firstHalfStatus === "SUBMITTED" ? "green" : 
+    //              row.firstHalfStatus === "PENDING" ? "orange" : "red"
+    //     }}>
+    //       {row.firstHalfStatus ?? "NOT_SUBMITTED"}
+    //     </span>
+    //   )
+    // },
+    // {
+    //   name: "2nd Half Status",
+    //   selector: row => row.secondHalfStatus ?? "NOT_SUBMITTED",
+    //   cell: row => (
+    //     <span style={{
+    //       color: row.secondHalfStatus === "SUBMITTED" ? "green" : 
+    //              row.secondHalfStatus === "PENDING" ? "orange" : "red"
+    //     }}>
+    //       {row.secondHalfStatus ?? "NOT_SUBMITTED"}
+    //     </span>
+    //   )
+    // },
     {
       name: "Action",
       cell: (row) => (
@@ -218,7 +218,7 @@ const isDistrictRole =
 
   // Reset district/taluk when level changes
   useEffect(() => {
-   if (!isDistrictRole) {
+    if (!isDistrictRole) {
       if (level === "ALL" || level === "DIRECTORATE") {
         setDistrict("");
         setTaluk("");
@@ -232,10 +232,10 @@ const isDistrictRole =
 
   useEffect(() => {
     if (
-  isDistrictRole &&
-  loggedDistrictId &&
-  !district
-) {
+      isDistrictRole &&
+      loggedDistrictId &&
+      !district
+    ) {
       setDistrict(loggedDistrictId);
       setLevel("DISTRICT");
     }
@@ -369,7 +369,7 @@ const isDistrictRole =
               </TextField>}
 
             {/* DISTRICT - Hide for taluk level */}
-           {!isTalukRole && (
+            {!isTalukRole && (
               <TextField
                 label="District"
                 select
@@ -378,9 +378,9 @@ const isDistrictRole =
                 onChange={(e) => setDistrict(e.target.value)}
                 style={{ width: "180px" }}
                 disabled={
-  level === "DIRECTORATE" ||
-  isDistrictRole
-}
+                  level === "DIRECTORATE" ||
+                  isDistrictRole
+                }
               >
                 {!isDistrictRole && (
                   <MenuItem value="">All</MenuItem>
@@ -398,7 +398,7 @@ const isDistrictRole =
             )}
 
             {/* TALUK */}
-       {!isTalukRole &&
+            {!isTalukRole &&
               <TextField
                 label="Taluk"
                 select
@@ -408,7 +408,7 @@ const isDistrictRole =
                 style={{ width: "180px" }}
                 disabled={!district || level === "DIRECTORATE"}
               >
-              {!isDistrictRole && (
+                {!isDistrictRole && (
                   <MenuItem value="">All</MenuItem>
                 )}
 
@@ -479,10 +479,11 @@ const isDistrictRole =
                 onClick={() => handleMenuSelect('advanced')}
                 sx={{ backgroundColor: '#1976d2' }}
               >
-                Advanced Tour Program  
+                Advance Tour Program
               </Button>
               <Button
                 variant="contained"
+                // disabled
                 onClick={() => handleMenuSelect('regular')}
                 sx={{ backgroundColor: '#2e7d32' }}
               >

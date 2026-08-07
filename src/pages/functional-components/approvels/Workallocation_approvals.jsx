@@ -30,7 +30,7 @@ import {
   TableSortLabel,
   TablePagination,
   Stack,
-  TextareaAutosize,Snackbar,FormControlLabel,Switch,
+  TextareaAutosize, Snackbar, FormControlLabel, Switch,
 } from '@mui/material';
 import {
   Search,
@@ -41,10 +41,10 @@ import {
   Visibility,
   Download,
   FilterList,
-  Refresh,Person,
+  Refresh, Person,
   Cancel,
-  CalendarToday,Info,Warning,PlayCircleOutline,PlayCircleFilled
-  
+  CalendarToday, Info, Warning, PlayCircleOutline, PlayCircleFilled
+
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import MainCard from 'components/MainCard';
@@ -59,7 +59,7 @@ function WorkallocationsApprovals() {
   const navigate = useNavigate();
   const role = authservice.getrole()?.trim();
   const BASE_URL = mainapi.BASE_URL;
-  
+
   const [approvals, setApprovals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -74,73 +74,73 @@ function WorkallocationsApprovals() {
   const [remarks, setRemarks] = useState('');
   const [isEditEnabled, setIsEditEnabled] = useState(false);
 
-  
-  
-const [page, setPage] = useState(0);
-const [rowsPerPage, setRowsPerPage] = useState(25);
 
-const [totalElements, setTotalElements] = useState(0);
-const [totalPages, setTotalPages] = useState(0);
+
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [order, setOrder] = useState('asc');
   const [orderBy, setOrderBy] = useState('clusterNo');
   // Add these with your other useState declarations
-const [snackbar, setSnackbar] = useState({
-  open: false,
-  message: '',
-  severity: 'success' // 'success', 'error', 'info', 'warning'
-});
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' // 'success', 'error', 'info', 'warning'
+  });
 
   // Fetch cluster approvals data
-useEffect(() => {
-  const fetchClusterApprovals = async () => {
-    try {
-      setLoading(true);
-      const agriYear = authservice.agriyear();
-      const response = await api.get(
-        `${BASE_URL}/user-access/zones/zone_work_allocation_approvals`,
-        {
-          params: {
-            page,
-            size: rowsPerPage,
-            agriYear:agriYear
+  useEffect(() => {
+    const fetchClusterApprovals = async () => {
+      try {
+        setLoading(true);
+        const agriYear = authservice.agriyear();
+        const response = await api.get(
+          `${BASE_URL}/user-access/zones/zone_work_allocation_approvals`,
+          {
+            params: {
+              page,
+              size: rowsPerPage,
+              agriYear: agriYear
+            }
           }
-        }
-      );
+        );
 
-      const result = response.data;
+        const result = response.data;
 
-      console.log('API Response:', result);
+        console.log('API Response:', result);
 
-      setApprovals(result.content || []);
-      setTotalElements(result.totalElements || 0);
-      setTotalPages(result.totalPages || 0);
+        setApprovals(result.content || []);
+        setTotalElements(result.totalElements || 0);
+        setTotalPages(result.totalPages || 0);
 
-      setError(null);
+        setError(null);
 
-    } catch (err) {
-      console.error('API Error:', err);
+      } catch (err) {
+        console.error('API Error:', err);
 
-      setError(
-        err.response?.data?.message ||
-        err.message ||
-        'Unexpected error occurred.'
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+        setError(
+          err.response?.data?.message ||
+          err.message ||
+          'Unexpected error occurred.'
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  fetchClusterApprovals();
-}, [page, rowsPerPage]);
+    fetchClusterApprovals();
+  }, [page, rowsPerPage]);
   // Extract unique values for filters
   const taluks = [...new Set(approvals.map(a => a.talukName))];
   const zones = [...new Set(approvals.map(a => a.zoneName))];
 
   // Get filtered zones based on selected taluk
-  const filteredZones = selectedTaluk 
+  const filteredZones = selectedTaluk
     ? [...new Set(approvals
-        .filter(a => a.talukName === selectedTaluk)
-        .map(a => a.zoneName))]
+      .filter(a => a.talukName === selectedTaluk)
+      .map(a => a.zoneName))]
     : zones;
 
   // Sorting logic
@@ -176,7 +176,7 @@ useEffect(() => {
 
   // Filter logic
   const filteredApprovals = approvals.filter(approval => {
-    const matchesSearch = !searchQuery || 
+    const matchesSearch = !searchQuery ||
       approval.zoneName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       approval.talukName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       approval.clusterNo?.toString().includes(searchQuery) ||
@@ -184,31 +184,31 @@ useEffect(() => {
 
     const matchesTaluk = !selectedTaluk || approval.talukName === selectedTaluk;
     const matchesZone = !selectedZone || approval.zoneName === selectedZone;
-    const matchesStatus = 
+    const matchesStatus =
       statusFilter === 'all' ? true :
-      statusFilter === 'pending' ? !approval.approved :
-      statusFilter === 'approved' ? approval.approved : true;
+        statusFilter === 'pending' ? !approval.approved :
+          statusFilter === 'approved' ? approval.approved : true;
 
     return matchesSearch && matchesTaluk && matchesZone && matchesStatus;
   });
 
   // Sort and paginate data
   const sortedAndPaginatedData = [...filteredApprovals]
-  .sort(getComparator(order, orderBy));
+    .sort(getComparator(order, orderBy));
 
   // Handle view details
   const handleViewDetails = (row) => {
 
     navigate(
-  `/approval_manage/work_allocation_approvals/workallocation/${row.zoneId}/${row.approvalId}`
-);
+      `/approval_manage/work_allocation_approvals/workallocation/${row.zoneId}/${row.approvalId}`
+    );
   };
 
   // Handle approve action
   const handleApprove = (approval) => {
     setSelectedApproval(approval);
     setRemarks('');
-     setIsEditEnabled(false);
+    setIsEditEnabled(false);
     setApproveDialog(true);
   };
 
@@ -221,77 +221,77 @@ useEffect(() => {
   };
 
   // Submit approval or rejection
-const handleSubmitAction = async (isApprove) => {
-  try {
-    if (!selectedApproval) return;
+  const handleSubmitAction = async (isApprove) => {
+    try {
+      if (!selectedApproval) return;
 
-    const token = localStorage.getItem('token');
-    const userId = authservice.userid();
-    
-    const requestBody = {
-      approvalLogId: selectedApproval.approvalId,
-      approve: isApprove,
-      // is_Reject: !isApprove,
-      approver_id: userId,
-      remarks: remarks || null,
-      is_edit: isEditEnabled // Add this parameter
-    };
+      const token = localStorage.getItem('token');
+      const userId = authservice.userid();
 
-   
+      const requestBody = {
+        approvalLogId: selectedApproval.approvalId,
+        approve: isApprove,
+        // is_Reject: !isApprove,
+        approver_id: userId,
+        remarks: remarks || null,
+        is_edit: isEditEnabled // Add this parameter
+      };
 
-    const response = await fetch(
-      `${BASE_URL}/btr-service/admin-manage/approve-reject`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      }
-    );
 
-    if (response.ok) {
-      // Update local state
-      setApprovals(prev => prev.map(approval => 
-        approval.approvalId === selectedApproval.approvalId 
-          ? { 
-              ...approval, 
+
+      const response = await fetch(
+        `${BASE_URL}/btr-service/admin-manage/approve-reject`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestBody)
+        }
+      );
+
+      if (response.ok) {
+        // Update local state
+        setApprovals(prev => prev.map(approval =>
+          approval.approvalId === selectedApproval.approvalId
+            ? {
+              ...approval,
               approved: isApprove,
               approvedBy: userId,
               approvedAt: new Date().toISOString(),
               remarks: remarks || approval.remarks,
               isEdit: isEditEnabled // Track edit status
             }
-          : approval
-      ));
-      
-      // Close dialogs and reset states
-      setApproveDialog(false);
-      setRejectDialog(false);
-      setSelectedApproval(null);
-      setRemarks('');
-      setIsEditEnabled(false); // Reset edit toggle
-      
-      // Show success message
+            : approval
+        ));
+
+        // Close dialogs and reset states
+        setApproveDialog(false);
+        setRejectDialog(false);
+        setSelectedApproval(null);
+        setRemarks('');
+        setIsEditEnabled(false); // Reset edit toggle
+
+        // Show success message
+        setSnackbar({
+          open: true,
+          message: `Cluster ${isApprove ? 'approved' : 'rejected'} successfully! ${isEditEnabled ? ' (Edit Enabled)' : ''}`,
+          severity: 'success'
+        });
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to ${isApprove ? 'approve' : 'reject'} cluster`);
+      }
+    } catch (err) {
+      console.error('Action error:', err);
       setSnackbar({
         open: true,
-        message: `Cluster ${isApprove ? 'approved' : 'rejected'} successfully! ${isEditEnabled ? ' (Edit Enabled)' : ''}`,
-        severity: 'success'
+        message: `Failed to ${isApprove ? 'approve' : 'reject'} cluster: ${err.message}`,
+        severity: 'error'
       });
-    } else {
-      const errorData = await response.json();
-      throw new Error(errorData.message || `Failed to ${isApprove ? 'approve' : 'reject'} cluster`);
     }
-  } catch (err) {
-    console.error('Action error:', err);
-    setSnackbar({
-      open: true,
-      message: `Failed to ${isApprove ? 'approve' : 'reject'} cluster: ${err.message}`,
-      severity: 'error'
-    });
-  }
-};
+  };
 
   // Format date
   const formatDate = (dateString) => {
@@ -343,7 +343,7 @@ const handleSubmitAction = async (isApprove) => {
   };
 
   // Get status color and label
-// Get status color and label dynamically based on backend status
+  // Get status color and label dynamically based on backend status
   const getStatusInfo = (status) => {
     switch (status) {
       case 'APPROVED':
@@ -369,10 +369,10 @@ const handleSubmitAction = async (isApprove) => {
         <Breadcrumb />
         <Grid item xs={12}>
           <Card sx={{ p: 4 }}>
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
               minHeight: 400,
               flexDirection: 'column',
               gap: 2
@@ -393,14 +393,14 @@ const handleSubmitAction = async (isApprove) => {
       <Breadcrumb />
       <Grid item xs={12}>
         <Typography variant="h3" sx={{ mb: 2, fontWeight: 700 }}>
-          Work Allocations Approval Requests 
+          Work Allocations Approval Requests
         </Typography>
-        
+
         <Card sx={{ p: 1, borderRadius: 3, boxShadow: '0 8px 32px rgba(0,0,0,0.08)' }}>
           {/* Header Section */}
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
+          <Box sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'flex-start',
             mb: 3,
             flexWrap: 'wrap',
@@ -416,11 +416,11 @@ const handleSubmitAction = async (isApprove) => {
               }}>
                 Cluster Approval Requests
               </Typography> */}
-              {/* <Typography variant="body1" color="text.secondary">
+            {/* <Typography variant="body1" color="text.secondary">
                 Total {filteredApprovals.length} cluster approvals • Total area: {totalArea} hectares
               </Typography> */}
             {/* </Box> */}
-            
+
             {/* Summary Chips */}
             {/* <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
               <Chip
@@ -458,8 +458,8 @@ const handleSubmitAction = async (isApprove) => {
           )} */}
 
           {/* Filters Section */}
-          <Box sx={{ 
-            p: 3, 
+          <Box sx={{
+            p: 3,
             mb: 3,
             bgcolor: '#f8f9fa',
             borderRadius: 2,
@@ -485,7 +485,7 @@ const handleSubmitAction = async (isApprove) => {
               </Grid>
 
               {/* Taluk Filter */}
-              <Grid item xs={12} md={2}>
+              {/* <Grid item xs={12} md={2}>
                 <FormControl fullWidth size="small">
                   <InputLabel>Taluk</InputLabel>
                   <Select
@@ -501,10 +501,10 @@ const handleSubmitAction = async (isApprove) => {
                     ))}
                   </Select>
                 </FormControl>
-              </Grid>
+              </Grid> */}
 
               {/* Zone Filter */}
-              <Grid item xs={12} md={2}>
+              {/* <Grid item xs={12} md={2}>
                 <FormControl fullWidth size="small">
                   <InputLabel>Zone</InputLabel>
                   <Select
@@ -521,10 +521,10 @@ const handleSubmitAction = async (isApprove) => {
                     ))}
                   </Select>
                 </FormControl>
-              </Grid>
+              </Grid> */}
 
               {/* Status Filter */}
-              <Grid item xs={12} md={2}>
+              {/* <Grid item xs={12} md={2}>
                 <FormControl fullWidth size="small">
                   <InputLabel>Status</InputLabel>
                   <Select
@@ -537,10 +537,10 @@ const handleSubmitAction = async (isApprove) => {
                     <MenuItem value="approved">Approved</MenuItem>
                   </Select>
                 </FormControl>
-              </Grid>
+              </Grid> */}
 
               {/* Action Buttons */}
-              <Grid item xs={12} md={3} sx={{ display: 'flex', gap: 1 }}>
+              {/* <Grid item xs={12} md={3} sx={{ display: 'flex', gap: 1 }}>
                 <Button
                   variant="outlined"
                   startIcon={<FilterList />}
@@ -553,19 +553,19 @@ const handleSubmitAction = async (isApprove) => {
                   variant="contained"
                   startIcon={<Refresh />}
                   onClick={() => {
-  setPage(0);
-}}
+                    setPage(0);
+                  }}
                   size="small"
                 >
                   Refresh
                 </Button>
-              </Grid>
+              </Grid> */}
             </Grid>
 
             {/* Results Summary */}
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
               alignItems: 'center',
               mt: 2,
               pt: 2,
@@ -586,8 +586,8 @@ const handleSubmitAction = async (isApprove) => {
 
           {/* Table Section */}
           {filteredApprovals.length === 0 ? (
-            <Box sx={{ 
-              textAlign: 'center', 
+            <Box sx={{
+              textAlign: 'center',
               py: 8,
               color: 'text.secondary'
             }}>
@@ -615,7 +615,7 @@ const handleSubmitAction = async (isApprove) => {
                     <TableRow>
                       {[
                         { key: 'slNo', label: 'Sl No' },
-                      
+
                         { key: 'zoneName', label: 'Zone' },
                         { key: 'talukName', label: 'Taluk' },
                         { key: 'districtName', label: 'District' },
@@ -626,7 +626,7 @@ const handleSubmitAction = async (isApprove) => {
                       ].map((column) => (
                         <TableCell
                           key={column.key}
-                          sx={{ 
+                          sx={{
                             color: 'white',
                             fontWeight: 'bold',
                             py: 2,
@@ -651,14 +651,14 @@ const handleSubmitAction = async (isApprove) => {
                       ))}
                     </TableRow>
                   </TableHead>
-                 <TableBody>
+                  <TableBody>
                     {sortedAndPaginatedData.map((approval, index) => {
-                    const statusInfo = getStatusInfo(approval.status); // ✅ Pass the text status string
+                      const statusInfo = getStatusInfo(approval.status); // ✅ Pass the text status string
                       return (
-                        <TableRow 
+                        <TableRow
                           key={approval.approvalId}
                           hover
-                          sx={{ 
+                          sx={{
                             '&:nth-of-type(even)': { bgcolor: '#f8f9fa' },
                             '&:hover': { bgcolor: '#e3f2fd' }
                           }}
@@ -669,7 +669,7 @@ const handleSubmitAction = async (isApprove) => {
                               {page * rowsPerPage + index + 1}
                             </Typography>
                           </TableCell>
-                          
+
                           {/* <TableCell>
                             <Typography variant="body2" fontWeight="medium">
                               {approval.clusterNo} ({approval.clusterType})
@@ -725,9 +725,9 @@ const handleSubmitAction = async (isApprove) => {
                                   <Visibility fontSize="small" />
                                 </IconButton>
                               </Tooltip>
-                              
+
                               {/* {!approval.approved && role?.includes('Approver') && ( */}
-                                {/* <>
+                              {/* <>
                                   <Tooltip title="Approve Cluster">
                                     <IconButton
                                     disabled={statusInfo.label === 'Approved'}
@@ -759,9 +759,9 @@ const handleSubmitAction = async (isApprove) => {
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
                 rowsPerPageOptions={[25, 50, 100]}
-                sx={{ 
+                sx={{
                   mt: 2,
-                  '.MuiTablePagination-toolbar': { 
+                  '.MuiTablePagination-toolbar': {
                     justifyContent: 'center',
                     flexWrap: 'wrap'
                   }
@@ -809,21 +809,21 @@ const handleSubmitAction = async (isApprove) => {
       </Grid>
 
 
-<Snackbar
-  open={snackbar.open}
-  autoHideDuration={6000}
-  onClose={() => setSnackbar({ ...snackbar, open: false })}
-  anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
->
-  <Alert
-    onClose={() => setSnackbar({ ...snackbar, open: false })}
-    severity={snackbar.severity}
-    variant="filled"
-    sx={{ width: '100%' }}
-  >
-    {snackbar.message}
-  </Alert>
-</Snackbar>
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Grid>
   );
 }

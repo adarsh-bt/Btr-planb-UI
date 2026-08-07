@@ -16,38 +16,48 @@ import Typography from '@mui/material/Typography';
 const AgriYearSelectDialog = ({ open, onConfirm }) => {
     const [years, setYears] = useState([]);
     const [selectedYear, setSelectedYear] = useState('');
-const [agriModalOpen, setAgriModalOpen] = useState(false);
+
+    const getCurrentAgriYear = () => {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = today.getMonth() + 1; // July is month 7 (1-indexed)
+        const agriStartYear = month >= 7 ? year : year - 1;
+        return `${agriStartYear}-${agriStartYear + 1}`;
+    };
+
+    const generateAgriYears = () => {
+        const startYear = 2025;
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = today.getMonth() + 1;
+
+        const currentAgriStartYear = month >= 7 ? year : year - 1;
+        const endYear = Math.max(startYear, currentAgriStartYear);
+
+        const yearsList = [];
+        for (let y = startYear; y <= endYear; y++) {
+            yearsList.push(`${y}-${y + 1}`);
+        }
+        return yearsList;
+    };
+
     useEffect(() => {
         const generatedYears = generateAgriYears();
         setYears(generatedYears);
 
+        const currentAgriYear = getCurrentAgriYear();
         const savedYear = localStorage.getItem('activeAgriYear');
+
         if (savedYear && generatedYears.includes(savedYear)) {
             setSelectedYear(savedYear);
         } else {
-            const latestYear = generatedYears[generatedYears.length - 1];
-            setSelectedYear(latestYear);
-            localStorage.setItem('activeAgriYear', latestYear);
+            const defaultYear = generatedYears.includes(currentAgriYear)
+                ? currentAgriYear
+                : generatedYears[generatedYears.length - 1];
+            setSelectedYear(defaultYear);
+            localStorage.setItem('activeAgriYear', defaultYear);
         }
     }, [open]);
-    
-
-    const generateAgriYears = () => {
-        const startYear = 2025;
-        const TEST_MODE = true; // Kept your original setup
-        const MOCK_CURRENT_YEAR = 2026;
-
-        let currentYear = TEST_MODE ? MOCK_CURRENT_YEAR : new Date().getFullYear();
-        if (!TEST_MODE && (new Date().getMonth() + 1) < 7) {
-            currentYear = currentYear - 1;
-        }
-
-        const yearsList = [];
-        for (let year = startYear; year <= currentYear; year++) {
-            yearsList.push(`${year}-${year + 1}`);
-        }
-        return yearsList;
-    };
 
     const handleChange = (event) => {
         const value = event.target.value;
@@ -60,9 +70,9 @@ const [agriModalOpen, setAgriModalOpen] = useState(false);
     };
 
     return (
-        <Dialog 
-            open={open} 
-            maxWidth="xs" 
+        <Dialog
+            open={open}
+            maxWidth="xs"
             fullWidth
             sx={{ '& .MuiDialog-paper': { borderRadius: '15px', p: 1 } }}
         >
@@ -94,10 +104,10 @@ const [agriModalOpen, setAgriModalOpen] = useState(false);
                 </FormControl>
             </DialogContent>
             <DialogActions sx={{ px: 3, pb: 2 }}>
-                <Button 
-                    onClick={handleProceed} 
-                    variant="contained" 
-                    color="primary" 
+                <Button
+                    onClick={handleProceed}
+                    variant="contained"
+                    color="primary"
                     fullWidth
                     sx={{ borderRadius: '20px', p: 1 }}
                 >

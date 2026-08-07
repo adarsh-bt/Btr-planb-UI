@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -25,6 +25,9 @@ import {
 } from '@mui/material';
 import { LocationOn, WaterDrop, WbSunny, ArrowBack } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
+import Breadcrumb from 'routes/Breadcrumb';
+
+const SESSION_KEY = 'form3AState';
 
 // Sticky/column widths
 const PANCHAYATH_W = 180;
@@ -36,14 +39,40 @@ const Form3A = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const savedState = (() => {
+    try {
+      return JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}');
+    } catch {
+      return {};
+    }
+  })();
+
   // District / Taluk / Block / Zone context handed off from ZoneForm3A
-  const selectedDistrict = location.state?.districtName || location.state?.selectedDistrict || "Thiruvananthapuram";
-  const selectedTaluk = location.state?.talukName || location.state?.selectedTaluk || "Thiruvananthapuram";
-  const selectedBlock = location.state?.blockName || location.state?.selectedBlock || "North Block";
-  const selectedZone = location.state?.zoneName || location.state?.selectedZone || "Zone 1";
+  const selectedDistrict = location.state?.districtName || location.state?.selectedDistrict || savedState.districtName || "Thiruvananthapuram";
+  const selectedTaluk = location.state?.talukName || location.state?.selectedTaluk || savedState.talukName || "Thiruvananthapuram";
+  const selectedBlock = location.state?.blockName || location.state?.selectedBlock || savedState.blockName || "North Block";
+  const selectedZone = location.state?.zoneName || location.state?.selectedZone || savedState.zoneName || "Zone 1";
 
   // Active seasonal-crop tab (defaults to whichever tab was active on the zone view)
-  const [activeTab, setActiveTab] = useState(location.state?.activeTab || 0);
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab ?? savedState.activeTab ?? 0);
+
+  /* ── persist form3A context so breadcrumb/refresh keeps working ── */
+  useEffect(() => {
+    sessionStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({
+        districtId: location.state?.districtId || savedState.districtId,
+        districtName: selectedDistrict,
+        talukId: location.state?.talukId || savedState.talukId,
+        talukName: selectedTaluk,
+        blockId: location.state?.blockId || savedState.blockId,
+        blockName: selectedBlock,
+        zoneId: location.state?.zoneId || savedState.zoneId,
+        zoneName: selectedZone,
+        activeTab
+      })
+    );
+  }, [location.state, savedState, selectedDistrict, selectedTaluk, selectedBlock, selectedZone, activeTab]);
 
   // Land Type filter: 'all' | 'wet' | 'dry' — applies to the crop columns
   const [landTypeFilter, setLandTypeFilter] = useState('all');
@@ -208,7 +237,18 @@ const Form3A = () => {
   const formatNumber = (num) => num.toFixed(2);
 
   const handleBack = () => {
-    navigate(-1);
+    navigate('/schemes/earas/Report/Form3A/ZoneForm3A', {
+      state: {
+        officeType: location.state?.officeType || 'DIRECTORATE',
+        districtId: location.state?.districtId || savedState.districtId,
+        districtName: selectedDistrict,
+        selectedDistrict,
+        talukId: location.state?.talukId || savedState.talukId,
+        talukName: selectedTaluk,
+        selectedTaluk,
+        activeTab
+      }
+    });
   };
 
   const handleChangePage = (event, newPage) => setPage(newPage);
@@ -231,15 +271,19 @@ const Form3A = () => {
   const TABLE_MIN_W = PANCHAYATH_W + Math.max(activeCategory.crops.length, 1) * CROP_W;
 
   return (
-    <Card
-      elevation={0}
-      sx={{
-        borderRadius: 4,
-        overflow: 'visible',
-        background: theme.palette.background.paper,
-        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-      }}
-    >
+    <Box>
+      <Box sx={{ mb: 2 }}>
+        <Breadcrumb />
+      </Box>
+      <Card
+        elevation={0}
+        sx={{
+          borderRadius: 4,
+          overflow: 'visible',
+          background: theme.palette.background.paper,
+          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+        }}
+      >
       <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
 
         {/* Header */}
@@ -513,6 +557,7 @@ const Form3A = () => {
         </Paper>
       </CardContent>
     </Card>
+    </Box>
   );
 };
 

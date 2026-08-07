@@ -82,8 +82,16 @@ const TalukForm3A = () => {
     return { ...saved, ...(location.state || {}) };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const districtId = stateData.districtId ?? null;
-  const districtName = stateData.districtName || stateData.selectedDistrict || 'District';
+  const officeInfo = useMemo(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('userOfficeInfo') || '{}');
+    } catch {
+      return {};
+    }
+  }, []);
+
+  const districtId = stateData.districtId || officeInfo.districtOfficeId || officeInfo.districtId || null;
+  const districtName = stateData.districtName || stateData.selectedDistrict || officeInfo.districtName || 'District';
   const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
 
   const [activeTab, setActiveTab] = useState(stateData.activeTab ?? 0);
@@ -101,6 +109,31 @@ const TalukForm3A = () => {
     whiteSpace: 'nowrap'
   };
 
+  // Role auto-redirection if TALUK user visits TalukForm3A directly
+  useEffect(() => {
+    const currentOfficeType = stateData.officeType || officeInfo.officeType;
+    if (currentOfficeType === 'TALUK') {
+      const tId = stateData.talukId || officeInfo.talukOfficeId || officeInfo.talukId;
+      const tName = stateData.talukName || officeInfo.talukName || '';
+      if (tId) {
+        navigate('/schemes/earas/Report/Form3A/ZoneForm3A', {
+          replace: true,
+          state: {
+            officeType: 'TALUK',
+            viewLevel: 'taluk',
+            talukId: tId,
+            talukName: tName,
+            selectedTaluk: tName,
+            districtId,
+            districtName,
+            isDirectAccess: true,
+            activeTab: stateData.activeTab || 0
+          }
+        });
+      }
+    }
+  }, [officeInfo, stateData, districtId, districtName, navigate]);
+
   /* ── persist district context so breadcrumb/refresh keeps working ── */
   useEffect(() => {
     if (districtId != null) {
@@ -115,7 +148,7 @@ const TalukForm3A = () => {
         })
       );
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [districtId, districtName, agriculturalYear, stateData.activeTab]);
 
   /* ─────────────────────────── fetch (per crop group) ─────────────────────────── */
 
@@ -168,13 +201,20 @@ const TalukForm3A = () => {
     return Array.from(map.values()).sort((a, b) => a.cropName.localeCompare(b.cropName));
   }, [apiData]);
 
+  // Sorted alphabetically by taluk name, with Unassigned at the end.
   const talukRows = useMemo(() => {
-    return apiData.map((t) => {
+    const list = apiData.map((t) => {
       const byId = {};
       (t.crops || []).forEach((c) => {
         byId[c.cropId] = Number(c.areaInCents) || 0;
       });
       return { talukId: t.talukId ?? null, taluk: t.talukName || 'Unassigned', byId };
+    });
+
+    return list.sort((a, b) => {
+      if (a.taluk === 'Unassigned') return 1;
+      if (b.taluk === 'Unassigned') return -1;
+      return a.taluk.localeCompare(b.taluk);
     });
   }, [apiData]);
 
@@ -209,12 +249,19 @@ const TalukForm3A = () => {
     [talukRows, page, rowsPerPage]
   );
 
-  const handleBack = () => navigate(-1);
+  const handleBack = () => {
+    if (stateData.officeType === 'DISTRICT' || stateData.isDirectAccess) {
+      navigate('/Report');
+    } else {
+      navigate('/schemes/earas/Report/Form3A/KeralaForm3A', { state: { activeTab } });
+    }
+  };
 
   const handleTalukClick = (talukName, talukId) => {
     if (talukId == null) return;
     navigate('/schemes/earas/Report/Form3A/ZoneForm3A', {
       state: {
+        officeType: stateData.officeType || 'DIRECTORATE',
         districtId,
         districtName,
         selectedDistrict: districtName,
@@ -234,17 +281,20 @@ const TalukForm3A = () => {
   /* ─────────────────────────── render ─────────────────────────── */
 
   return (
-    <Card
-      elevation={0}
-      sx={{
-        borderRadius: 4,
-        overflow: 'visible',
-        background: theme.palette.background.paper,
-        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`
-      }}
-    >
-      <Breadcrumb/>
-      <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
+    <Box>
+      <Box sx={{ mb: 2 }}>
+        <Breadcrumb />
+      </Box>
+      <Card
+        elevation={0}
+        sx={{
+          borderRadius: 4,
+          overflow: 'visible',
+          background: theme.palette.background.paper,
+          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+        }}
+      >
+        <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
         {/* Header */}
         <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
           <IconButton onClick={handleBack} size="small" sx={{ color: themeColor }}>
@@ -446,6 +496,7 @@ const TalukForm3A = () => {
         </Paper>
       </CardContent>
     </Card>
+    </Box>
   );
 };
 

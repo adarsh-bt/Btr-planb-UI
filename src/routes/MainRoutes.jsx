@@ -69,6 +69,9 @@ const ApprovelMenu = Loadable(lazy(() => import('pages/functional-components/app
 const ClusterApprovals = Loadable(lazy(() => import('pages/functional-components/approvels/Cluster_approvals')));
 const WorkallocationsApprovals = Loadable(lazy(() => import('pages/functional-components/approvels/Workallocation_approvals')));
 
+const Form1Status = Loadable(lazy(() => import('pages/functional-components/approvels/Form1Status')));
+
+
 const CCE_menus = Loadable(lazy(() => import('pages/functional-components/earas/cce_menus')));
 
 const CCE_plotlist = Loadable(lazy(() => import('pages/functional-components/earas/cce_plotlist')));
@@ -728,6 +731,14 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <WorkallocationsApprovals />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'approval_manage/form1_status_approvals',
+      element: (
+        <PrivateRoute>
+          <Form1Status />
         </PrivateRoute>
       )
     },

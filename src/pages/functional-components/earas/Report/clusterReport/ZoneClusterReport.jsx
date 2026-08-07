@@ -64,12 +64,13 @@ const BASE_URL = mainapi.BTR_API;
 
 /* ─────────────────────────── helpers ─────────────────────────── */
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
 function getCurrentMonthName() {
-  const names = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
-  return names[new Date().getMonth()];
+  return MONTH_NAMES[new Date().getMonth()];
 }
 
 // Agricultural year months (July to June)
@@ -105,12 +106,56 @@ function getAgriculturalYear() {
   }
 }
 
+// Build agricultural year months with years
+function buildAgriYearMonths(startYear, endYear) {
+  const months = [];
+  // July to December of start year
+  for (let m = 6; m < 12; m++) {
+    months.push({
+      label: `${MONTH_NAMES[m]} ${startYear}`,
+      value: `${startYear}-${String(m + 1).padStart(2, '0')}`
+    });
+  }
+  // January to June of end year
+  for (let m = 0; m < 6; m++) {
+    months.push({
+      label: `${MONTH_NAMES[m]} ${endYear}`,
+      value: `${endYear}-${String(m + 1).padStart(2, '0')}`
+    });
+  }
+  return months;
+}
+
+// Get default month (current month if in agricultural year, else first month)
+function getDefaultMonth(months) {
+  const now = new Date();
+  const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const exists = (months || []).some(m => m.value === current);
+  return exists ? current : (months && months[0]?.value ? months[0].value : '');
+}
+
+// Get month label from value (e.g. "2025-07" -> "July 2025")
+function getMonthLabel(value, agriYearMonths) {
+  if (!value) return '';
+  const found = (agriYearMonths || []).find(m => m.value === value);
+  if (found) return found.label;
+
+  if (/^\d{4}-\d{2}$/.test(value)) {
+    const [yyyy, mm] = value.split('-');
+    const mIdx = parseInt(mm, 10) - 1;
+    if (mIdx >= 0 && mIdx < 12) {
+      return `${MONTH_NAMES[mIdx]} ${yyyy}`;
+    }
+  }
+  return value;
+}
+
 function formatMonthForApi(monthName, agriculturalYear) {
   if (!agriculturalYear) {
     agriculturalYear = getAgriculturalYear();
   }
   if (!monthName) {
-    monthName = getCurrentMonthName();
+    return null;
   }
 
   // Case 1: Already in YYYY-MM format (e.g. "2025-07")
@@ -225,6 +270,7 @@ function ZoneClusterReport() {
 
   const stateData = location.state || {};
   const agriculturalYear = useRef(null);
+  const agriYearMonths = useRef([]);
 
   /* ── resolve taluk ID once and keep in a ref ── */
   const resolvedTalukId = useRef(null);
@@ -245,7 +291,7 @@ function ZoneClusterReport() {
     resolvedTalukId.current = resolveTalukId();
   }
 
-  // Initialize agricultural year
+  // Initialize agricultural year & months
   if (agriculturalYear.current === null) {
     agriculturalYear.current = getAgriculturalYear();
   }
@@ -800,10 +846,10 @@ function ZoneClusterReport() {
               <Typography variant="body2" color="text.secondary">
                 {agriculturalYear.current && `Agricultural Year: ${agriculturalYear.current.display}`}
                 {landType && landType !== 'ALL' && ` • ${landType} Season`}
-                {filterType === 'single' && singleMonth && ` • ${singleMonth}`}
-                {filterType === 'range' && fromMonth && toMonth && ` • ${fromMonth} – ${toMonth}`}
-                {filterType === 'range' && fromMonth && !toMonth && ` • From ${fromMonth}`}
-                {filterType === 'range' && !fromMonth && toMonth && ` • Until ${toMonth}`}
+                {filterType === 'single' && singleMonth && ` • ${getMonthLabel(singleMonth, agriYearMonths.current)}`}
+                {filterType === 'range' && fromMonth && toMonth && ` • ${getMonthLabel(fromMonth, agriYearMonths.current)} – ${getMonthLabel(toMonth, agriYearMonths.current)}`}
+                {filterType === 'range' && fromMonth && !toMonth && ` • From ${getMonthLabel(fromMonth, agriYearMonths.current)}`}
+                {filterType === 'range' && !fromMonth && toMonth && ` • Until ${getMonthLabel(toMonth, agriYearMonths.current)}`}
                 {apiData && ` • Total Clusters: ${apiData.totalCluster || 0}`}
                 {stats.zonesWithoutData > 0 && ` • ${stats.zonesWithoutData} zones with no data`}
               </Typography>
