@@ -138,7 +138,9 @@ const TalukSettings = Loadable(lazy(() => import('pages/functional-components/ea
 const VillageSettings = Loadable(lazy(() => import('pages/functional-components/earas/settings/VillageSettings')));
 const MasterZoneSettings = Loadable(lazy(() => import('pages/functional-components/earas/settings/MasterZoneSettings')));
 
-
+const KeralaWorkAllocationReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/workAllocationReport/KeralaWorkAllocationReport')));
+const TalukWorkAllocationReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/workAllocationReport/TalukWorkAllocationReport')));
+const ZoneWorkAllocationReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/workAllocationReport/ZoneWorkAllocationReport')));
 
 // ==============================|| MAIN ROUTING ||============================== //
 
@@ -1002,7 +1004,31 @@ const MainRoutes = {
           <OutOfClusterList />
         </PrivateRoute>
       )
-    }
+    },
+    {
+      path: '/report/kerala_work_allocation_report',
+      element: (
+        <PrivateRoute>
+          <KeralaWorkAllocationReport />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/report/kerala_work_allocation_report/taluk/:districtName',
+      element: (
+        <PrivateRoute>
+          <TalukWorkAllocationReport />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/report/kerala_work_allocation_report/zone/:districtName/:talukName',
+      element: (
+        <PrivateRoute>
+          <ZoneWorkAllocationReport />
+        </PrivateRoute>
+      )
+    },
   ]
 };
 

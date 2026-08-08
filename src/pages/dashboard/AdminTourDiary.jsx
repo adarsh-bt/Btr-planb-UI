@@ -321,7 +321,7 @@ const AdminTourDiary = () => {
             style={{ flexWrap: "wrap", gap: "10px" }}
           >
             {/* MONTH */}
-            <TextField
+            {/* <TextField
               label="Month"
               select
               size="small"
@@ -334,10 +334,10 @@ const AdminTourDiary = () => {
                   {m.label}
                 </MenuItem>
               ))}
-            </TextField>
+            </TextField> */}
 
             {/* YEAR */}
-            <TextField
+            {/* <TextField
               label="Year"
               select
               size="small"
@@ -350,7 +350,7 @@ const AdminTourDiary = () => {
                   {y.label}
                 </MenuItem>
               ))}
-            </TextField>
+            </TextField> */}
 
             {/* LEVEL - Only show for non-district/taluk approvers */}
             {(!isTalukRole && !isDistrictRole) &&

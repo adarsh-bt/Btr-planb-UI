@@ -858,7 +858,9 @@ const UserAdvancedTourDiaryDetail = () => {
                   />
                 )}
                 {/* Verification Status */}
-                {submissionDetails.firstHalfVerifiedStatus && (
+                {submissionDetails.firstHalfVerifiedStatus &&
+                  !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(roleName) &&
+                  !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(loggedInRole) && (
                   <Chip
                     label={`Ver: ${submissionDetails.firstHalfVerifiedStatus}`}
                     size="small"
@@ -931,7 +933,9 @@ const UserAdvancedTourDiaryDetail = () => {
                   />
                 )}
                 {/* Verification Status */}
-                {submissionDetails.secondHalfVerifiedStatus && (
+                {submissionDetails.secondHalfVerifiedStatus &&
+                  !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(roleName) &&
+                  !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(loggedInRole) && (
                   <Chip
                     label={`Ver: ${submissionDetails.secondHalfVerifiedStatus}`}
                     size="small"
@@ -1008,7 +1012,9 @@ const UserAdvancedTourDiaryDetail = () => {
               />
             )}
             {/* Verification Status */}
-            {submissionDetails.fullMonthVerifiedStatus && (
+            {submissionDetails.fullMonthVerifiedStatus &&
+              !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(roleName) &&
+              !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(loggedInRole) && (
               <Chip
                 label={`Ver: ${submissionDetails.fullMonthVerifiedStatus}`}
                 size="small"

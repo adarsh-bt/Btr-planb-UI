@@ -23,6 +23,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  FormHelperText,
   Snackbar,
   Table,
   TableBody,
@@ -195,6 +196,22 @@ const UserTourDiaryDetail = () => {
     }
   };
 
+  const formatHeaderDate = (dateKey) => {
+    if (!dateKey) return "";
+    try {
+      const parts = String(dateKey).split('-').map(Number);
+      if (parts.length === 3 && !parts.some(isNaN)) {
+        const d = new Date(parts[0], parts[1] - 1, parts[2]);
+        return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", weekday: "short" });
+      }
+      const d = new Date(dateKey);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", weekday: "short" });
+      }
+    } catch (e) { }
+    return String(dateKey);
+  };
+
   const openDeleteDialog = (id) => setDeleteDialog({ open: true, eventId: id });
   const closeDeleteDialog = () => setDeleteDialog({ open: false, eventId: null });
 
@@ -217,6 +234,7 @@ const UserTourDiaryDetail = () => {
         if (detailModalOpen && selectedEntry?.id === eventId) {
           closeDetailModal();
         }
+        fetchUserTourEntries(false);
       } else {
         setSnackbar({ open: true, message: response.message || "Failed to delete tour entry", severity: "error" });
       }
@@ -308,21 +326,23 @@ const UserTourDiaryDetail = () => {
   const [changeReason, setChangeReason] = useState("");
 
   const fetchAdvanceTourProgram = async (userId, dateInput) => {
-    if (isFieldDataCollector || !userId || !dateInput) {
+    if (!userId || !dateInput) {
       setAdvanceTourForDate([]);
       return;
     }
     setAdvanceTourLoading(true);
     try {
       let dateStr = "";
-      const d = new Date(dateInput);
-      if (!isNaN(d.getTime())) {
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        dateStr = `${year}-${month}-${day}`;
-      } else if (typeof dateInput === 'string') {
+      if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateInput)) {
         dateStr = dateInput.split('T')[0];
+      } else {
+        const d = new Date(dateInput);
+        if (!isNaN(d.getTime())) {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          dateStr = `${year}-${month}-${day}`;
+        }
       }
 
       if (dateStr) {
@@ -500,20 +520,25 @@ const UserTourDiaryDetail = () => {
     setConfirmDialogOpen(false);
     setSubmittingMonth(true);
     try {
+      const submitId = fullMonthStatus?.id || fullMonthStatus?.fullMonthId || fullMonthStatus?.submitId || fullMonthStatus?.fullMonthSubmitId || null;
       const response = await tourDiaryService.submitFullMonth(
-        selectedUserId, selectedMonth, selectedYear, pendingZoneId
+        selectedUserId, selectedMonth, selectedYear, pendingZoneId, submitId
       );
-      console.log(response, "response")
-      const message = response?.data || response?.message || response || "";
-      console.log("message", message)
-      const isError = typeof message === "string" && (
+      console.log(response, "response");
+      let rawMsg = typeof response === 'string'
+        ? response
+        : (typeof response?.data === 'string' ? response.data : (response?.message || response?.data?.message || ""));
+      const message = typeof rawMsg === 'string'
+        ? rawMsg.replace(/\s*using same submission id:\s*\d+/gi, '').replace(/\s*using same submission id.*$/gi, '').trim()
+        : rawMsg;
+      console.log("message", message);
+      const isError = response?.error === true || (typeof message === "string" && (
         message.toLowerCase().includes("missing") ||
         message.toLowerCase().includes("no entries") ||
         message.toLowerCase().includes("already submitted") ||
         message.toLowerCase().includes("allowed only after") ||
-        message.toLowerCase().includes("failed") ||
-        response?.error === true
-      );
+        message.toLowerCase().includes("failed")
+      ));
 
       const isWarning = typeof message === "string" &&
         message.toLowerCase().includes("late");
@@ -558,9 +583,9 @@ const UserTourDiaryDetail = () => {
     }
   };
 
-  const fetchUserTourEntries = async () => {
+  const fetchUserTourEntries = async (showLoader = false) => {
     if (!selectedUserId) { setError("No user selected"); setLoading(false); return; }
-    setLoading(true);
+    if (showLoader) setLoading(true);
     setError("");
     try {
       const response = await tourDiaryService.getTourEntries(selectedUserId, selectedMonth, selectedYear);
@@ -585,7 +610,7 @@ const UserTourDiaryDetail = () => {
       setError(error.message || "An error occurred while fetching data");
       setTourEntries([]);
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
     }
   };
 
@@ -787,7 +812,7 @@ const UserTourDiaryDetail = () => {
 
   useEffect(() => {
     if (selectedUserId) {
-      fetchUserTourEntries();
+      fetchUserTourEntries(true);
       fetchZones();
       fetchFullMonthStatus();
     }
@@ -836,6 +861,12 @@ const UserTourDiaryDetail = () => {
       const entryTypeValue = entry.entryType || 'WORKING';
       setEditEntryType(entryTypeValue);
       console.log("Editing entry:", entry);
+
+      const fetchedTalukId = entry.talukId || entry.taluk_id || entry.talukNo || null;
+      if (fetchedTalukId) {
+        setEditSelectedTalukId(fetchedTalukId);
+      }
+
       setEditFormData({
         id: entry.id,
         distance: entry.distance || "",
@@ -845,6 +876,7 @@ const UserTourDiaryDetail = () => {
         entryType: entryTypeValue,
         schemeId: entry.schemesId || "",
         purposeId: entry.purposeId || "",
+        talukId: fetchedTalukId || "",
         zoneId: entry.zoneId || "",
         clusterId: entry.clusterId || "",
         seasonId: entry.seasonNo || entry.seasonId || "",
@@ -886,6 +918,9 @@ const UserTourDiaryDetail = () => {
       // Ensure the role-appropriate zone list is available for editing
       if (isDistrictLevelRole) {
         fetchTaluks();
+        if (fetchedTalukId) {
+          fetchZonesByTaluk(fetchedTalukId);
+        }
       } else {
         fetchZones();
       }
@@ -935,7 +970,8 @@ const UserTourDiaryDetail = () => {
 
     // Non-WORKING entries (Holiday, Week Off, Leave, Training, Others) only need remarks
     if (isNonWorking) {
-      if (!editFormData.remark || editFormData.remark.trim() === "") {
+      const isRemarksOptional = editEntryType === 'HOLIDAY' || editEntryType === 'LEAVE';
+      if (!isRemarksOptional && (!editFormData.remark || editFormData.remark.trim() === "")) {
         setSnackbar({ open: true, message: `Remarks is required for ${editEntryType} entries`, severity: "error" });
         return;
       }
@@ -985,8 +1021,9 @@ const UserTourDiaryDetail = () => {
         entryType: editEntryType,
         schemeId: isNonWorking ? null : Number(editFormData.schemeId),
         purposeId: isNonWorking ? null : Number(editFormData.purposeId),
+        talukId: skipDetails ? null : (editSelectedTalukId ? Number(editSelectedTalukId) : (editFormData.talukId ? Number(editFormData.talukId) : null)),
         zoneId: skipDetails ? null : Number(editFormData.zoneId),
-        clusterId: skipDetails ? null : Number(editFormData.clusterId),
+        clusterId: skipDetails ? null : (editFormData.clusterId ? Number(editFormData.clusterId) : null),
         seasonId: skipDetails ? null : (editFormData.seasonId ? Number(editFormData.seasonId) : 1),
         landType: skipDetails ? null : editFormData.landType,
         geoLocation: skipDetails ? null : (editFormData.geoLocation || "N/A"),
@@ -1002,7 +1039,7 @@ const UserTourDiaryDetail = () => {
       if (response && (response.id || response.message === "Tour updated successfully")) {
         setSnackbar({ open: true, message: response.message || "Tour entry updated successfully", severity: "success" });
         setEditModalOpen(false);
-        await fetchUserTourEntries();
+        await fetchUserTourEntries(false);
       } else {
         setSnackbar({ open: true, message: response.message || "Failed to update entry", severity: "error" });
       }
@@ -1020,9 +1057,26 @@ const UserTourDiaryDetail = () => {
       return;
     }
     setManualEntryDate(dateKey);
-    setEntryType('WORKING');
+
+    let defaultEntryType = 'WORKING';
+    if (dateKey) {
+      const parts = String(dateKey).split('-').map(Number);
+      if (parts.length === 3 && !parts.some(isNaN)) {
+        const d = new Date(parts[0], parts[1] - 1, parts[2]);
+        if (d.getDay() === 0) {
+          defaultEntryType = 'HOLIDAY';
+        }
+      } else {
+        const d = new Date(dateKey);
+        if (!isNaN(d.getTime()) && d.getDay() === 0) {
+          defaultEntryType = 'HOLIDAY';
+        }
+      }
+    }
+
+    setEntryType(defaultEntryType);
     setManualFormData({
-      entryType: "WORKING",
+      entryType: defaultEntryType,
       purposeId: "", zoneId: "", clusterId: "", seasonId: "",
       landType: "", remark: "", distance: "", hours: "",
       geoLocation: ""
@@ -1046,7 +1100,8 @@ const UserTourDiaryDetail = () => {
 
     // Non-WORKING entries (Holiday, Week Off, Leave, Training, Others) only need remarks
     if (isNonWorking) {
-      if (!manualFormData.remark || manualFormData.remark.trim() === "") {
+      const isRemarksOptional = entryType === 'HOLIDAY' || entryType === 'LEAVE';
+      if (!isRemarksOptional && (!manualFormData.remark || manualFormData.remark.trim() === "")) {
         setSnackbar({ open: true, message: `Remarks is required for ${entryType} entries`, severity: "error" });
         return;
       }
@@ -1068,7 +1123,7 @@ const UserTourDiaryDetail = () => {
       }
     } else {
       // Normal validation for other schemes (duty === true)
-      if (!manualFormData.purposeId || !manualFormData.zoneId || !manualFormData.clusterId || !selectedScheme) {
+      if (!manualFormData.purposeId || !manualFormData.zoneId || !selectedScheme) {
         setSnackbar({ open: true, message: "Please fill all required fields", severity: "error" });
         return;
       }
@@ -1109,8 +1164,9 @@ const UserTourDiaryDetail = () => {
         entryType,
         schemeId: isNonWorking ? null : Number(selectedScheme),
         purposeId: isNonWorking ? null : Number(manualFormData.purposeId),
+        talukId: skipDetails ? null : (selectedTalukId ? Number(selectedTalukId) : (manualFormData.talukId ? Number(manualFormData.talukId) : null)),
         zoneId: skipDetails ? null : Number(manualFormData.zoneId),
-        clusterId: skipDetails ? null : Number(manualFormData.clusterId),
+        clusterId: skipDetails ? null : (manualFormData.clusterId ? Number(manualFormData.clusterId) : null),
         seasonId: skipDetails ? null : Number(manualFormData.seasonId || 1),
         landType: skipDetails ? null : manualFormData.landType,
         geoLocation: skipDetails ? null : manualFormData.geoLocation || "",
@@ -1124,10 +1180,10 @@ const UserTourDiaryDetail = () => {
       };
 
       const response = await tourDiaryService.saveOrUpdateManualEntry(payload);
-      if (response && (response.id || response.message === "Tour saved successfully")) {
+      if (response && (response.id || response.message === "Tour added successfully")) {
         setSnackbar({ open: true, message: response.message || "Tour entry added successfully", severity: "success" });
         setManualEntryOpen(false);
-        await fetchUserTourEntries();
+        await fetchUserTourEntries(false);
       } else {
         setSnackbar({ open: true, message: response.message || "Failed to add tour entry", severity: "error" });
       }
@@ -1144,16 +1200,24 @@ const UserTourDiaryDetail = () => {
   // Add this helper function to check if the month is already submitted and locked
   const isMonthSubmitted = () => {
     if (fullMonthStatus) {
-      const isRejected =
-        fullMonthStatus.status === 'REJECTED' ||
+      // If verification is REJECTED, re-submission is NOT allowed. Keep locked.
+      const isVerificationRejected =
         fullMonthStatus.verified_status === 'REJECTED' ||
-        fullMonthStatus.verifiedStatus === 'REJECTED' ||
+        fullMonthStatus.verifiedStatus === 'REJECTED';
+
+      if (isVerificationRejected) {
+        return true; // Locked, re-submission never allowed if verified status is REJECTED
+      }
+
+      // Re-submission / editing is ONLY allowed if the approver rejected it
+      const isApproverRejected =
         fullMonthStatus.approved_status === 'REJECTED' ||
         fullMonthStatus.approvedStatus === 'REJECTED' ||
         fullMonthStatus.admin_status === 'REJECTED' ||
-        fullMonthStatus.adminStatus === 'REJECTED';
+        fullMonthStatus.adminStatus === 'REJECTED' ||
+        fullMonthStatus.status === 'REJECTED';
 
-      if (isRejected) {
+      if (isApproverRejected) {
         return false; // Re-open for entry editing and re-submission
       }
 
@@ -1171,7 +1235,7 @@ const UserTourDiaryDetail = () => {
     setEditFormData({
       id: null, distance: "", hours: "", remark: "", reportEntryType: "",
       entryType: "WORKING",
-      schemeId: "", purposeId: "", zoneId: "", clusterId: "", seasonId: "",
+      schemeId: "", purposeId: "", talukId: "", zoneId: "", clusterId: "", seasonId: "",
       landType: "", cropName: "", geoLocation: ""
     });
   };
@@ -1295,7 +1359,9 @@ const UserTourDiaryDetail = () => {
         dayEvents.forEach((event, idx) => {
           const isLast = idx === dayEvents.length - 1;
           const isFirst = idx === 0;
-          const cellBorderBottom = isLast ? `2px solid ${theme.palette.divider}` : `1px dashed ${theme.palette.divider}`;
+          const cellBorderBottom = isLast
+            ? `2px solid ${theme.palette.divider}`
+            : `1.5px solid ${theme.palette.mode === 'dark' ? '#1976d2' : '#2196f3'}`;
 
           const entryTypeColor =
             event.reportEntryType === 'AUTO CAPTURED' ? '#2196f3' :
@@ -1372,7 +1438,7 @@ const UserTourDiaryDetail = () => {
               </TableCell>
               {/* Cluster */}
               <TableCell sx={{ py: 0.75, px: 1, borderBottom: cellBorderBottom }}>
-                <Typography variant="caption">{event.clusterId || event.clusterNo || '—'}</Typography>
+                <Typography variant="caption">{event.clusterNo || event.clusterNumber || event.clusterName || event.clusterId || '—'}</Typography>
               </TableCell>
               {/* Distance / Hours */}
               <TableCell sx={{ py: 0.75, px: 1, borderBottom: cellBorderBottom }}>
@@ -1531,45 +1597,57 @@ const UserTourDiaryDetail = () => {
                   </Typography>
                   <Chip
                     label={
-                      isMonthSubmitted()
-                        ? '✅ Full Month Submitted'
-                        : (fullMonthStatus && (
-                          fullMonthStatus.verified_status === 'REJECTED' ||
-                          fullMonthStatus.verifiedStatus === 'REJECTED' ||
-                          fullMonthStatus.approved_status === 'REJECTED' ||
-                          fullMonthStatus.approvedStatus === 'REJECTED' ||
-                          fullMonthStatus.status === 'REJECTED'
-                        ))
-                          ? '❌ Submission Rejected — Re-entry Allowed'
-                          : '⏳ Pending Submission'
+                      (fullMonthStatus && (
+                        fullMonthStatus.verified_status === 'REJECTED' ||
+                        fullMonthStatus.verifiedStatus === 'REJECTED'
+                      ))
+                        ? '❌ Verification Rejected — Locked'
+                        : isMonthSubmitted()
+                          ? '✅ Full Month Submitted'
+                          : (fullMonthStatus && (
+                            fullMonthStatus.approved_status === 'REJECTED' ||
+                            fullMonthStatus.approvedStatus === 'REJECTED' ||
+                            fullMonthStatus.admin_status === 'REJECTED' ||
+                            fullMonthStatus.adminStatus === 'REJECTED' ||
+                            fullMonthStatus.status === 'REJECTED'
+                          ))
+                            ? '❌ Submission Rejected — Re-entry Allowed'
+                            : '⏳ Pending Submission'
                     }
                     color={
-                      isMonthSubmitted()
-                        ? 'success'
-                        : (fullMonthStatus && (
-                          fullMonthStatus.verified_status === 'REJECTED' ||
-                          fullMonthStatus.verifiedStatus === 'REJECTED' ||
-                          fullMonthStatus.approved_status === 'REJECTED' ||
-                          fullMonthStatus.approvedStatus === 'REJECTED' ||
-                          fullMonthStatus.status === 'REJECTED'
-                        ))
-                          ? 'error'
-                          : 'warning'
+                      (fullMonthStatus && (
+                        fullMonthStatus.verified_status === 'REJECTED' ||
+                        fullMonthStatus.verifiedStatus === 'REJECTED'
+                      ))
+                        ? 'error'
+                        : isMonthSubmitted()
+                          ? 'success'
+                          : (fullMonthStatus && (
+                            fullMonthStatus.approved_status === 'REJECTED' ||
+                            fullMonthStatus.approvedStatus === 'REJECTED' ||
+                            fullMonthStatus.admin_status === 'REJECTED' ||
+                            fullMonthStatus.adminStatus === 'REJECTED' ||
+                            fullMonthStatus.status === 'REJECTED'
+                          ))
+                            ? 'error'
+                            : 'warning'
                     }
                     size="small"
                     sx={{ fontWeight: 'bold' }}
                   />
                   {fullMonthStatus && (
                     <>
-                      <Chip
-                        label={`Verification: ${fullMonthStatus.verified_status || fullMonthStatus.verifiedStatus || 'PENDING'}`}
-                        size="small"
-                        color={
-                          (fullMonthStatus.verified_status || fullMonthStatus.verifiedStatus) === 'APPROVED' ? 'success' :
-                            (fullMonthStatus.verified_status || fullMonthStatus.verifiedStatus) === 'REJECTED' ? 'error' : 'warning'
-                        }
-                        sx={{ fontWeight: 'bold' }}
-                      />
+                      {!["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(role) && (
+                        <Chip
+                          label={`Verification: ${fullMonthStatus.verified_status || fullMonthStatus.verifiedStatus || 'PENDING'}`}
+                          size="small"
+                          color={
+                            (fullMonthStatus.verified_status || fullMonthStatus.verifiedStatus) === 'APPROVED' ? 'success' :
+                              (fullMonthStatus.verified_status || fullMonthStatus.verifiedStatus) === 'REJECTED' ? 'error' : 'warning'
+                          }
+                          sx={{ fontWeight: 'bold' }}
+                        />
+                      )}
                       <Chip
                         label={`Admin Approval: ${fullMonthStatus.approved_status || fullMonthStatus.approvedStatus || fullMonthStatus.admin_status || fullMonthStatus.adminStatus || 'PENDING'}`}
                         size="small"
@@ -1648,11 +1726,11 @@ const UserTourDiaryDetail = () => {
                           : isMonthSubmitted()
                             ? "Month Submitted"
                             : (fullMonthStatus && (
-                              fullMonthStatus.verified_status === 'REJECTED' ||
-                              fullMonthStatus.verifiedStatus === 'REJECTED' ||
                               fullMonthStatus.approved_status === 'REJECTED' ||
                               fullMonthStatus.approvedStatus === 'REJECTED' ||
-                              fullMonthStatus.status === 'REJECTED'
+                              fullMonthStatus.admin_status === 'REJECTED' ||
+                              fullMonthStatus.adminStatus === 'REJECTED' ||
+                              (fullMonthStatus.status === 'REJECTED' && fullMonthStatus.verified_status !== 'REJECTED' && fullMonthStatus.verifiedStatus !== 'REJECTED')
                             ))
                               ? "Re-submit Full Month"
                               : "Submit Full Month"}
@@ -1730,7 +1808,7 @@ const UserTourDiaryDetail = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {!loading && renderTableRows()}
+                  {renderTableRows()}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -1786,22 +1864,24 @@ const UserTourDiaryDetail = () => {
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>{selectedEntry.purposeName}</Typography>
                 </Grid>
               )}
-              {selectedEntry.zoneId && (
+              {/* {selectedEntry.zoneId && (
                 <Grid item xs={12} sm={6} md={4}>
                   <Typography variant="body2" color="text.secondary">Zone ID</Typography>
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>{selectedEntry.zoneId}</Typography>
                 </Grid>
-              )}
+              )} */}
               {selectedEntry.zoneName && (
                 <Grid item xs={12} sm={6} md={4}>
                   <Typography variant="body2" color="text.secondary">Zone Name</Typography>
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>{selectedEntry.zoneName}</Typography>
                 </Grid>
               )}
-              {selectedEntry.clusterId && (
+              {(selectedEntry.clusterNo || selectedEntry.clusterNumber || selectedEntry.clusterName || selectedEntry.clusterId) && (
                 <Grid item xs={12} sm={6} md={4}>
                   <Typography variant="body2" color="text.secondary">Cluster No</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>{selectedEntry.clusterId}</Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {selectedEntry.clusterNo || selectedEntry.clusterNumber || selectedEntry.clusterName || selectedEntry.clusterId}
+                  </Typography>
                 </Grid>
               )}
               {(selectedEntry.cropName || selectedEntry.cropNameEn || selectedEntry.cceId) && (
@@ -1940,100 +2020,131 @@ const UserTourDiaryDetail = () => {
           }}
         >
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h4" sx={{ color: theme.palette.text.primary }}>Edit Manual Tour Entry</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+              <Typography variant="h4" sx={{ color: theme.palette.text.primary }}>Edit Manual Tour Entry</Typography>
+              {manualEntryDate && (
+                <Chip
+                  label={formatHeaderDate(manualEntryDate)}
+                  color="primary"
+                  size="small"
+                  icon={<EventIcon />}
+                  sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}
+                />
+              )}
+            </Box>
             <IconButton onClick={closeEditModal} size="small"><CloseIcon /></IconButton>
           </Box>
           <Divider sx={{ mb: 2 }} />
 
           {/* Advance Tour Program Details & Change Toggle */}
-          {!isFieldDataCollector && (
-            <Paper
-              variant="outlined"
-              sx={{
-                p: 2,
-                mb: 2,
-                borderRadius: 2,
-                backgroundColor: alpha(theme.palette.primary.main, 0.04),
-                borderColor: alpha(theme.palette.primary.main, 0.2)
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: theme.palette.primary.main, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <EventIcon fontSize="small" /> Advance Tour Program Details
-                </Typography>
-                {advanceTourLoading && <CircularProgress size={18} />}
-              </Box>
 
-              {advanceTourLoading ? (
-                <Typography variant="body2" color="text.secondary">Loading Advance Tour Program...</Typography>
-              ) : advanceTourForDate && advanceTourForDate.length > 0 ? (
-                <>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, my: 1 }}>
-                    {advanceTourForDate.map((item, idx) => (
-                      <Paper key={item.id || idx} elevation={0} sx={{ p: 1.5, bgcolor: theme.palette.background.paper, border: `1px solid ${alpha(theme.palette.divider, 0.5)}`, borderRadius: 1.5 }}>
-                        <Grid container spacing={1} alignItems="center">
-                          <Grid item xs={12} sm={4}>
-                            <Typography variant="caption" color="text.secondary" display="block">Entry Type</Typography>
-                            <Chip label={item.entryType || 'WORKING'} size="small" color="primary" variant="outlined" sx={{ fontWeight: 600 }} />
-                          </Grid>
-                          {item.location && (
-                            <Grid item xs={12} sm={4}>
-                              <Typography variant="caption" color="text.secondary" display="block">Location</Typography>
-                              <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.location}</Typography>
-                            </Grid>
-                          )}
-                          {item.remark && (
-                            <Grid item xs={12} sm={8}>
-                              <Typography variant="caption" color="text.secondary" display="block">Planned Remarks</Typography>
-                              <Typography variant="body2">{item.remark}</Typography>
-                            </Grid>
-                          )}
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 2,
+              mb: 2,
+              borderRadius: 2,
+              backgroundColor: alpha(theme.palette.primary.main, 0.04),
+              borderColor: alpha(theme.palette.primary.main, 0.2)
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: theme.palette.primary.main, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <EventIcon fontSize="small" /> Advance Tour Program Details
+              </Typography>
+              {advanceTourLoading && <CircularProgress size={18} />}
+            </Box>
+
+            {advanceTourLoading ? (
+              <Typography variant="body2" color="text.secondary">Loading Advance Tour Program...</Typography>
+            ) : advanceTourForDate && advanceTourForDate.length > 0 ? (
+              <>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, my: 1 }}>
+                  {advanceTourForDate.map((item, idx) => (
+                    <Paper key={item.id || idx} elevation={0} sx={{ p: 1.5, bgcolor: theme.palette.background.paper, border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, borderRadius: 1.5 }}>
+                      <Grid container spacing={1.5} alignItems="center">
+                        <Grid item xs={12} sm={4}>
+                          <Typography variant="caption" color="text.secondary" display="block">Entry Type</Typography>
+                          <Chip label={item.entryType || 'WORKING'} size="small" color={item.entryType === 'WORKING' ? "success" : "error"} variant="outlined" sx={{ fontWeight: 600 }} />
                         </Grid>
-                      </Paper>
-                    ))}
-                  </Box>
+                        <Grid item xs={12} sm={4}>
+                          <Typography variant="caption" color="text.secondary" display="block">Scheme</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {item.schemeName || item.schemesName || (item.schemeId === 10 || item.schemesId === 10 || !item.purposeName ? 'Others' : '—')}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <Typography variant="caption" color="text.secondary" display="block">Purpose</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.purposeName || item.purpose || '—'}</Typography>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <Typography variant="caption" color="text.secondary" display="block">Location / Place</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.location || item.place || '—'}</Typography>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <Typography variant="caption" color="text.secondary" display="block">Zone</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.zoneName || (item.zoneId ? `Zone ${item.zoneId}` : '—')}</Typography>
+                        </Grid>
+                        {item.status && (
+                          <Grid item xs={12} sm={4}>
+                            <Typography variant="caption" color="text.secondary" display="block">Status</Typography>
+                            <Chip label={item.status} size="small" color="info" variant="outlined" sx={{ height: '20px', fontSize: '0.65rem' }} />
+                          </Grid>
+                        )}
+                        <Grid item xs={12}>
+                          <Typography variant="caption" color="text.secondary" display="block">Planned Remarks</Typography>
+                          <Typography variant="body2">{item.remark || item.remarks || '—'}</Typography>
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                  ))}
+                </Box>
 
-                  <Divider sx={{ my: 1.5 }} />
+                {!isFieldDataCollector && (
+                  <>
+                    <Divider sx={{ my: 1.5 }} />
 
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={isAdvanceChanged}
-                        onChange={(e) => setIsAdvanceChanged(e.target.checked)}
-                        color="warning"
-                      />
-                    }
-                    label={
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: isAdvanceChanged ? theme.palette.warning.dark : 'text.primary' }}>
-                        Change Tour Program (Any difference from Advance Program?)
-                      </Typography>
-                    }
-                  />
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={isAdvanceChanged}
+                          onChange={(e) => setIsAdvanceChanged(e.target.checked)}
+                          color="warning"
+                        />
+                      }
+                      label={
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: isAdvanceChanged ? theme.palette.warning.dark : 'text.primary' }}>
+                          Change Tour Program (Any difference from Advance Program?)
+                        </Typography>
+                      }
+                    />
 
-                  {isAdvanceChanged && (
-                    <Box sx={{ mt: 1.5 }}>
-                      <TextField
-                        fullWidth
-                        required
-                        multiline
-                        rows={2}
-                        label="Reason for Changing Advance Tour Program"
-                        placeholder="Enter reason why actual tour differs from advance program..."
-                        value={changeReason}
-                        onChange={(e) => setChangeReason(validateRemarks(e.target.value))}
-                        error={isAdvanceChanged && !changeReason.trim()}
-                        helperText={isAdvanceChanged && !changeReason.trim() ? "Reason is required when Change Tour Program is enabled" : ""}
-                      />
-                    </Box>
-                  )}
-                </>
-              ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', my: 0.5 }}>
-                  No Advance Tour Program planned for this date.
-                </Typography>
-              )}
-            </Paper>
-          )}
+                    {isAdvanceChanged && (
+                      <Box sx={{ mt: 1.5 }}>
+                        <TextField
+                          fullWidth
+                          required
+                          multiline
+                          rows={2}
+                          label="Reason for Changing Advance Tour Program"
+                          placeholder="Enter reason why actual tour differs from advance program..."
+                          value={changeReason}
+                          onChange={(e) => setChangeReason(validateRemarks(e.target.value))}
+                          error={isAdvanceChanged && !changeReason.trim()}
+                          helperText={isAdvanceChanged && !changeReason.trim() ? "Reason is required when Change Tour Program is enabled" : ""}
+                        />
+                      </Box>
+                    )}
+                  </>
+                )}
+              </>
+            ) : (
+              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', my: 0.5 }}>
+                No Advance Tour Program planned for this date.
+              </Typography>
+            )}
+          </Paper>
+
           <Grid container spacing={2}>
 
             {/* Entry Type - Always visible */}
@@ -2200,7 +2311,7 @@ const UserTourDiaryDetail = () => {
                 {/* Cluster - Only shown when duty is true */}
                 {!isOtherScheme && !editIsOfficeDuty && (
                   <Grid item xs={12}>
-                    <FormControl fullWidth required>
+                    <FormControl fullWidth error={Boolean(editFormData.zoneId && editFormData.purposeId && filteredClusters.length === 0)}>
                       <InputLabel>Cluster Number</InputLabel>
                       <Select
                         value={editFormData.clusterId}
@@ -2212,10 +2323,14 @@ const UserTourDiaryDetail = () => {
                           });
                         }}
                         label="Cluster Number"
-                        disabled={!editFormData.zoneId || filteredClusters.length === 0 || !editFormData.purposeId || isOtherScheme}
+                        disabled={!editFormData.zoneId || !editFormData.purposeId || isOtherScheme}
                       >
-                        {filteredClusters.length === 0 ? (
-                          <MenuItem disabled>No clusters available</MenuItem>
+                        {!editFormData.zoneId ? (
+                          <MenuItem disabled>Please select a zone first</MenuItem>
+                        ) : !editFormData.purposeId ? (
+                          <MenuItem disabled>Please select a purpose first</MenuItem>
+                        ) : filteredClusters.length === 0 ? (
+                          <MenuItem disabled>No clusters found for the selected zone/purpose</MenuItem>
                         ) : (
                           filteredClusters.map((cluster) => (
                             <MenuItem key={cluster.clusterId} value={cluster.clusterId}>
@@ -2224,6 +2339,11 @@ const UserTourDiaryDetail = () => {
                           ))
                         )}
                       </Select>
+                      {editFormData.zoneId && editFormData.purposeId && filteredClusters.length === 0 && (
+                        <FormHelperText sx={{ fontWeight: 600, mt: 0.5 }}>
+                          No clusters found for the selected zone
+                        </FormHelperText>
+                      )}
                     </FormControl>
                   </Grid>
                 )}
@@ -2311,12 +2431,12 @@ const UserTourDiaryDetail = () => {
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Remarks *"
+                label={(editEntryType === 'HOLIDAY' || editEntryType === 'LEAVE') ? "Remarks" : "Remarks *"}
                 multiline
                 rows={(isOtherScheme || editEntryType !== 'WORKING') ? 6 : 3}
                 value={editFormData.remark}
                 onChange={(e) => setEditFormData({ ...editFormData, remark: validateRemarks(e.target.value) })}
-                required
+                required={!(editEntryType === 'HOLIDAY' || editEntryType === 'LEAVE')}
               />
             </Grid>
           </Grid>
@@ -2345,7 +2465,18 @@ const UserTourDiaryDetail = () => {
           }}
         >
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h4" sx={{ color: theme.palette.text.primary }}>Add Manual Tour Entry</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+              <Typography variant="h4" sx={{ color: theme.palette.text.primary }}>Add Manual Tour Entry</Typography>
+              {manualEntryDate && (
+                <Chip
+                  label={formatHeaderDate(manualEntryDate)}
+                  color="primary"
+                  size="small"
+                  icon={<EventIcon />}
+                  sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}
+                />
+              )}
+            </Box>
             <IconButton onClick={() => setManualEntryOpen(false)} size="small">
               <CloseIcon />
             </IconButton>
@@ -2353,94 +2484,114 @@ const UserTourDiaryDetail = () => {
           <Divider sx={{ mb: 2 }} />
 
           {/* Advance Tour Program Details & Change Toggle */}
-          {!isFieldDataCollector && (
-            <Paper
-              variant="outlined"
-              sx={{
-                p: 2,
-                mb: 2,
-                borderRadius: 2,
-                backgroundColor: alpha(theme.palette.primary.main, 0.04),
-                borderColor: alpha(theme.palette.primary.main, 0.2)
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: theme.palette.primary.main, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <EventIcon fontSize="small" /> Advance Tour Program Details
-                </Typography>
-                {advanceTourLoading && <CircularProgress size={18} />}
-              </Box>
 
-              {advanceTourLoading ? (
-                <Typography variant="body2" color="text.secondary">Loading Advance Tour Program...</Typography>
-              ) : advanceTourForDate && advanceTourForDate.length > 0 ? (
-                <>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, my: 1 }}>
-                    {advanceTourForDate.map((item, idx) => (
-                      <Paper key={item.id || idx} elevation={0} sx={{ p: 1.5, bgcolor: theme.palette.background.paper, border: `1px solid ${alpha(theme.palette.divider, 0.5)}`, borderRadius: 1.5 }}>
-                        <Grid container spacing={1} alignItems="center">
-                          <Grid item xs={12} sm={4}>
-                            <Typography variant="caption" color="text.secondary" display="block">Entry Type</Typography>
-                            <Chip label={item.entryType || 'WORKING'} size="small" color="primary" variant="outlined" sx={{ fontWeight: 600 }} />
-                          </Grid>
-                          {item.location && (
-                            <Grid item xs={12} sm={4}>
-                              <Typography variant="caption" color="text.secondary" display="block">Location</Typography>
-                              <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.location}</Typography>
-                            </Grid>
-                          )}
-                          {item.remark && (
-                            <Grid item xs={12} sm={8}>
-                              <Typography variant="caption" color="text.secondary" display="block">Planned Remarks</Typography>
-                              <Typography variant="body2">{item.remark}</Typography>
-                            </Grid>
-                          )}
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 2,
+              mb: 2,
+              borderRadius: 2,
+              backgroundColor: alpha(theme.palette.primary.main, 0.04),
+              borderColor: alpha(theme.palette.primary.main, 0.2)
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: theme.palette.primary.main, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <EventIcon fontSize="small" /> Advance Tour Program Details
+              </Typography>
+              {advanceTourLoading && <CircularProgress size={18} />}
+            </Box>
+
+            {advanceTourLoading ? (
+              <Typography variant="body2" color="text.secondary">Loading Advance Tour Program...</Typography>
+            ) : advanceTourForDate && advanceTourForDate.length > 0 ? (
+              <>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, my: 1 }}>
+                  {advanceTourForDate.map((item, idx) => (
+                    <Paper key={item.id || idx} elevation={0} sx={{ p: 1.5, bgcolor: theme.palette.background.paper, border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, borderRadius: 1.5 }}>
+                      <Grid container spacing={1.5} alignItems="center">
+                        <Grid item xs={12} sm={4}>
+                          <Typography variant="caption" color="text.secondary" display="block">Entry Type</Typography>
+                          <Chip label={item.entryType || 'WORKING'} size="small" color={item.entryType === 'WORKING' ? "success" : "error"} variant="outlined" sx={{ fontWeight: 600 }} />
                         </Grid>
-                      </Paper>
-                    ))}
-                  </Box>
+                        <Grid item xs={12} sm={4}>
+                          <Typography variant="caption" color="text.secondary" display="block">Scheme</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {item.schemeName || item.schemesName || (item.schemeId === 10 || item.schemesId === 10 || !item.purposeName ? 'Others' : '—')}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <Typography variant="caption" color="text.secondary" display="block">Purpose</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.purposeName || item.purpose || '—'}</Typography>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <Typography variant="caption" color="text.secondary" display="block">Location / Place</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.location || item.place || '—'}</Typography>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <Typography variant="caption" color="text.secondary" display="block">Zone</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.zoneName || (item.zoneId ? `Zone ${item.zoneId}` : '—')}</Typography>
+                        </Grid>
+                        {item.status && (
+                          <Grid item xs={12} sm={4}>
+                            <Typography variant="caption" color="text.secondary" display="block">Status</Typography>
+                            <Chip label={item.status} size="small" color="info" variant="outlined" sx={{ height: '20px', fontSize: '0.65rem' }} />
+                          </Grid>
+                        )}
+                        <Grid item xs={12}>
+                          <Typography variant="caption" color="text.secondary" display="block">Planned Remarks</Typography>
+                          <Typography variant="body2">{item.remark || item.remarks || '—'}</Typography>
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                  ))}
+                </Box>
 
-                  <Divider sx={{ my: 1.5 }} />
+                {!isFieldDataCollector && (
+                  <>
+                    <Divider sx={{ my: 1.5 }} />
 
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={isAdvanceChanged}
-                        onChange={(e) => setIsAdvanceChanged(e.target.checked)}
-                        color="warning"
-                      />
-                    }
-                    label={
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: isAdvanceChanged ? theme.palette.warning.dark : 'text.primary' }}>
-                        Change Tour Program (Any difference from Advance Program?)
-                      </Typography>
-                    }
-                  />
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={isAdvanceChanged}
+                          onChange={(e) => setIsAdvanceChanged(e.target.checked)}
+                          color="warning"
+                        />
+                      }
+                      label={
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: isAdvanceChanged ? theme.palette.warning.dark : 'text.primary' }}>
+                          Change Tour Program (Any difference from Advance Program?)
+                        </Typography>
+                      }
+                    />
 
-                  {isAdvanceChanged && (
-                    <Box sx={{ mt: 1.5 }}>
-                      <TextField
-                        fullWidth
-                        required
-                        multiline
-                        rows={2}
-                        label="Reason for Changing Advance Tour Program"
-                        placeholder="Enter reason why actual tour differs from advance program..."
-                        value={changeReason}
-                        onChange={(e) => setChangeReason(validateRemarks(e.target.value))}
-                        error={isAdvanceChanged && !changeReason.trim()}
-                        helperText={isAdvanceChanged && !changeReason.trim() ? "Reason is required when Change Tour Program is enabled" : ""}
-                      />
-                    </Box>
-                  )}
-                </>
-              ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', my: 0.5 }}>
-                  No Advance Tour Program planned for this date.
-                </Typography>
-              )}
-            </Paper>
-          )}
+                    {isAdvanceChanged && (
+                      <Box sx={{ mt: 1.5 }}>
+                        <TextField
+                          fullWidth
+                          required
+                          multiline
+                          rows={2}
+                          label="Reason for Changing Advance Tour Program"
+                          placeholder="Enter reason why actual tour differs from advance program..."
+                          value={changeReason}
+                          onChange={(e) => setChangeReason(validateRemarks(e.target.value))}
+                          error={isAdvanceChanged && !changeReason.trim()}
+                          helperText={isAdvanceChanged && !changeReason.trim() ? "Reason is required when Change Tour Program is enabled" : ""}
+                        />
+                      </Box>
+                    )}
+                  </>
+                )}
+              </>
+            ) : (
+              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', my: 0.5 }}>
+                No Advance Tour Program planned for this date.
+              </Typography>
+            )}
+          </Paper>
+
 
           <Grid container spacing={2}>
             {/* Entry Type - Always visible */}
@@ -2634,7 +2785,7 @@ const UserTourDiaryDetail = () => {
                 {/* Cluster - Only shown when duty is true */}
                 {!isOtherScheme && !isOfficeDuty && (
                   <Grid item xs={12}>
-                    <FormControl fullWidth required>
+                    <FormControl fullWidth error={Boolean(manualFormData.zoneId && manualFormData.purposeId && filteredClusters.length === 0)}>
                       <InputLabel>Cluster Number</InputLabel>
                       <Select
                         value={manualFormData.clusterId}
@@ -2646,14 +2797,14 @@ const UserTourDiaryDetail = () => {
                           });
                         }}
                         label="Cluster Number"
-                        disabled={!manualFormData.zoneId || filteredClusters.length === 0 || !manualFormData.purposeId || isOtherScheme}
+                        disabled={!manualFormData.zoneId || !manualFormData.purposeId || isOtherScheme}
                       >
                         {!manualFormData.zoneId ? (
                           <MenuItem disabled>Please select a zone first</MenuItem>
                         ) : !manualFormData.purposeId ? (
                           <MenuItem disabled>Please select a purpose first</MenuItem>
                         ) : filteredClusters.length === 0 ? (
-                          <MenuItem disabled>No clusters available for this purpose</MenuItem>
+                          <MenuItem disabled>No clusters found for the selected zone/purpose</MenuItem>
                         ) : (
                           filteredClusters.map((cluster) => (
                             <MenuItem key={cluster.clusterId} value={cluster.clusterId}>
@@ -2662,6 +2813,11 @@ const UserTourDiaryDetail = () => {
                           ))
                         )}
                       </Select>
+                      {manualFormData.zoneId && manualFormData.purposeId && filteredClusters.length === 0 && (
+                        <FormHelperText sx={{ fontWeight: 600, mt: 0.5 }}>
+                          No clusters found for the selected zone
+                        </FormHelperText>
+                      )}
                     </FormControl>
                   </Grid>
                 )}
@@ -2747,16 +2903,16 @@ const UserTourDiaryDetail = () => {
               </>
             )}
 
-            {/* Remarks - Always visible, required for all */}
+            {/* Remarks - Always visible, required for all except Holiday and Leave */}
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Remarks *"
+                label={(entryType === 'HOLIDAY' || entryType === 'LEAVE') ? "Remarks" : "Remarks *"}
                 multiline
                 rows={(isOtherScheme || entryType !== 'WORKING') ? 6 : 3}
                 value={manualFormData.remark}
                 onChange={(e) => setManualFormData({ ...manualFormData, remark: validateRemarks(e.target.value) })}
-                required
+                required={!(entryType === 'HOLIDAY' || entryType === 'LEAVE')}
               />
             </Grid>
           </Grid>

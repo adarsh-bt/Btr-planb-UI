@@ -31,6 +31,15 @@ import logo from '../../../../assets/images/logo/des-print-logo.png';
 // Define all possible cluster labels
 const ALL_CLUSTER_LABELS = ['K', 'S1', 'S2', 'S3', 'S4', 'E1', 'E2', 'E3', 'E4', 'N1', 'N2', 'N3', 'N4', 'W1', 'W2', 'W3', 'W4'];
 const DESIRED_CLUSTER_ORDER = ['K', 'S1', 'E1', 'N1', 'W1', 'N2', 'W2', 'S2', 'E2', 'N3', 'W3', 'S3', 'E3', 'N4', 'W4', 'S4', 'E4'];
+
+// Helper function to format value - show "--" if null/undefined/0
+const formatValue = (value) => {
+  if (value === null || value === undefined) return '--';
+  if (typeof value === 'number' && value === 0) return '--';
+  if (value === '') return '--';
+  return typeof value === 'number' ? value.toFixed(2) : value;
+};
+
 // Styled components for Excel-like appearance
 const ExcelTableContainer = styled(TableContainer)({
   border: '2px solid #000',
@@ -165,7 +174,6 @@ const sortCropsAlphabetically = (crops) => {
   });
 };
 
-// Define the desired cluster order
 // Define the desired cluster order - REPLACE the entire getActiveClusters function
 const getActiveClusters = (data) => {
   if (!data) return ['K']; // Default to K if no data
@@ -257,15 +265,15 @@ const PrintStyle = () => (
           border: none !important;
         }
         table {
-          page-break-inside: auto !important; /* ALLOW TABLE TO START ON PAGE 1 */
+          page-break-inside: auto !important;
           border-collapse: collapse !important;
           width: 100% !important;
         }
         tr {
-          page-break-inside: avoid !important; /* PREVENT INDIVIDUAL ROWS FROM SPLITTING */
+          page-break-inside: avoid !important;
         }
         thead {
-          display: table-header-group !important; /* REPEAT HEADERS ON EVERY NEW PAGE */
+          display: table-header-group !important;
         }
         .print-container {
           padding: 5px;
@@ -369,14 +377,13 @@ const ExcelView = ({ open, onClose, clusterId }) => {
         <CellComponent sx={cellStyle}>"</CellComponent>
         {clusterValues.map((val, idx) => (
           <CellComponent key={idx} colSpan={2} sx={cellStyle}>
-            {typeof val === 'number' ? val.toFixed(2) : '0.00'}
+            {formatValue(val)}
           </CellComponent>
         ))}
-        <TotalCell colSpan={2}>{(nuc.total ?? 0).toFixed(2)}</TotalCell>
+        <TotalCell colSpan={2}>{formatValue(nuc.total)}</TotalCell>
       </TableRow>
     );
   };
-
 
   const renderCropRow = (crop) => {
     const displayName = crop.growthStage && crop.growthStage !== 'no classification'
@@ -385,18 +392,18 @@ const ExcelView = ({ open, onClose, clusterId }) => {
 
     const clusterData = activeClusters.map(cluster => {
       const key = cluster.toLowerCase();
-      let iVal = 0;
-      let uiVal = 0;
+      let iVal = null;
+      let uiVal = null;
 
       if (key === "k") {
         // Handle K cluster - check both ki/kui and kI/kUI
-        iVal = crop.ki !== undefined && crop.ki !== null ? crop.ki : (crop.kI !== undefined && crop.kI !== null ? crop.kI : 0);
-        uiVal = crop.kui !== undefined && crop.kui !== null ? crop.kui : (crop.kUI !== undefined && crop.kUI !== null ? crop.kUI : 0);
+        iVal = crop.ki !== undefined && crop.ki !== null ? crop.ki : (crop.kI !== undefined && crop.kI !== null ? crop.kI : null);
+        uiVal = crop.kui !== undefined && crop.kui !== null ? crop.kui : (crop.kUI !== undefined && crop.kUI !== null ? crop.kUI : null);
       } else {
         const iKey = `${key}I`;
         const uiKey = `${key}UI`;
-        iVal = crop[iKey] !== undefined && crop[iKey] !== null ? crop[iKey] : 0;
-        uiVal = crop[uiKey] !== undefined && crop[uiKey] !== null ? crop[uiKey] : 0;
+        iVal = crop[iKey] !== undefined && crop[iKey] !== null ? crop[iKey] : null;
+        uiVal = crop[uiKey] !== undefined && crop[uiKey] !== null ? crop[uiKey] : null;
       }
 
       return { i: iVal, ui: uiVal };
@@ -408,27 +415,22 @@ const ExcelView = ({ open, onClose, clusterId }) => {
         <DataCell>{crop.unit ?? "NA"}</DataCell>
         {clusterData.map((data, idx) => (
           <React.Fragment key={idx}>
-            <DataCell>{typeof data.i === 'number' ? data.i.toFixed(2) : '0.00'}</DataCell>
-            <DataCell>{typeof data.ui === 'number' ? data.ui.toFixed(2) : '0.00'}</DataCell>
+            <DataCell>{formatValue(data.i)}</DataCell>
+            <DataCell>{formatValue(data.ui)}</DataCell>
           </React.Fragment>
         ))}
-        <TotalCell>{(crop.totalI ?? 0).toFixed(2)}</TotalCell>
-        <TotalCell>{(crop.totalUI ?? 0).toFixed(2)}</TotalCell>
+        <TotalCell>{formatValue(crop.totalI)}</TotalCell>
+        <TotalCell>{formatValue(crop.totalUI)}</TotalCell>
       </TableRow>
     );
   };
-  // Add this helper function after the toArray function
-  // In ExcelView.jsx, update the renderLandUtilization function
 
   const renderLandUtilization = (landData) => {
     const landArray = toArray(landData);
     const totalClusters = activeClusters.length;
     const totalCols = 6 + 1 + (totalClusters * 2) + 2;
 
-    // Get cluster labels with area from formData
     const clusterLabelsWithArea = formData?.clusterLabelsWithArea || [];
-
-    // Create a map for quick lookup
     const areaMap = {};
     let totalArea = 0;
     clusterLabelsWithArea.forEach(item => {
@@ -482,8 +484,7 @@ const ExcelView = ({ open, onClose, clusterId }) => {
         {landArray.map((item, index) => {
           const clusterValues = activeClusters.map(cluster => {
             const val = item[cluster.toLowerCase()];
-            // Convert null/undefined to 0 for display
-            return (val !== null && val !== undefined) ? val : 0;
+            return (val !== null && val !== undefined) ? val : null;
           });
           return (
             <TableRow key={index}>
@@ -492,23 +493,23 @@ const ExcelView = ({ open, onClose, clusterId }) => {
               <DataCell>"</DataCell>
               {clusterValues.map((val, idx) => (
                 <DataCell key={idx} colSpan={2}>
-                  {typeof val === 'number' ? val.toFixed(2) : '0.00'}
+                  {formatValue(val)}
                 </DataCell>
               ))}
-              <TotalCell colSpan={2}>{(item.total ?? 0).toFixed(2)}</TotalCell>
+              <TotalCell colSpan={2}>{formatValue(item.total)}</TotalCell>
             </TableRow>
           );
         })}
       </>
     );
   };
+
   const renderSeasonalSection = (title, data, headerColor = '#FFE699') => {
     if (!data) return null;
     const { crops = [], nucRows = [] } = data;
     const totalClusters = activeClusters.length;
     const totalCols = 6 + 1 + (totalClusters * 2) + 2;
 
-    // Sort crops alphabetically
     const sortedCrops = sortCropsAlphabetically(crops);
 
     return (
@@ -553,7 +554,6 @@ const ExcelView = ({ open, onClose, clusterId }) => {
     const totalClusters = activeClusters.length;
     const totalCols = 6 + 1 + (totalClusters * 2) + 2;
 
-    // Sort crops alphabetically
     const sortedCrops = sortCropsAlphabetically(cropArray);
 
     return (
@@ -591,7 +591,6 @@ const ExcelView = ({ open, onClose, clusterId }) => {
     );
   };
 
-  // In renderIrrigationSection
   const renderIrrigationSection = (irrigationData) => {
     const items = toArray(irrigationData?.items);
     const totalClusters = activeClusters.length;
@@ -603,18 +602,17 @@ const ExcelView = ({ open, onClose, clusterId }) => {
       areaMap[item.label] = item.totalEnumeratedArea || 0;
     });
 
-    // Calculate totals
     const netTotals = {};
     const grossTotals = {};
     items.forEach(item => {
       activeClusters.forEach(cluster => {
         const areaKey = `${cluster.toLowerCase()}Area`;
         const grossKey = `${cluster.toLowerCase()}GrossArea`;
-        const area = item[areaKey] || 0;
-        const gross = item[grossKey] || 0;
+        const area = item[areaKey] !== undefined && item[areaKey] !== null ? item[areaKey] : null;
+        const gross = item[grossKey] !== undefined && item[grossKey] !== null ? item[grossKey] : null;
 
-        netTotals[cluster] = (netTotals[cluster] || 0) + area;
-        grossTotals[cluster] = (grossTotals[cluster] || 0) + gross;
+        if (area !== null) netTotals[cluster] = (netTotals[cluster] || 0) + area;
+        if (gross !== null) grossTotals[cluster] = (grossTotals[cluster] || 0) + gross;
       });
     });
 
@@ -667,9 +665,9 @@ const ExcelView = ({ open, onClose, clusterId }) => {
             const clusterData = activeClusters.map(cluster => {
               const areaKey = `${cluster.toLowerCase()}Area`;
               const countKey = `${cluster.toLowerCase()}Count`;
-              const area = item[areaKey] || 0;
-              const count = item[countKey] || 0;
-              sourceTotal += area;
+              const area = item[areaKey] !== undefined && item[areaKey] !== null ? item[areaKey] : null;
+              const count = item[countKey] !== undefined && item[countKey] !== null ? item[countKey] : null;
+              sourceTotal += area || 0;
               return { area, count };
             });
 
@@ -679,11 +677,11 @@ const ExcelView = ({ open, onClose, clusterId }) => {
                 <DataCell>{item.code || 'N/A'}</DataCell>
                 {clusterData.map((data, idx) => (
                   <React.Fragment key={idx}>
-                    <DataCell>{data.count}</DataCell>
-                    <DataCell>{data.area.toFixed(2)}</DataCell>
+                    <DataCell>{formatValue(data.count)}</DataCell>
+                    <DataCell>{formatValue(data.area)}</DataCell>
                   </React.Fragment>
                 ))}
-                <TotalCell colSpan={2}>{sourceTotal.toFixed(2)}</TotalCell>
+                <TotalCell colSpan={2}>{formatValue(sourceTotal)}</TotalCell>
               </TableRow>
             );
           })
@@ -695,22 +693,18 @@ const ExcelView = ({ open, onClose, clusterId }) => {
           </TableRow>
         )}
 
-        {/* Gross Area Row - Uses stands per hectare logic */}
-
-
-        {/* Net Area Row */}
         <TableRow sx={{ backgroundColor: '#e8f5e9', borderTop: '2px solid #388e3c' }}>
           <DataCell colSpan={7} sx={{ fontWeight: 'bold' }}>Net Area</DataCell>
           {activeClusters.map((cluster) => (
             <React.Fragment key={cluster}>
               <DataCell sx={{ fontWeight: 'bold' }}></DataCell>
               <DataCell sx={{ fontWeight: 'bold' }}>
-                {(netTotals[cluster] || 0).toFixed(2)}
+                {formatValue(netTotals[cluster])}
               </DataCell>
             </React.Fragment>
           ))}
           <TotalCell colSpan={2} sx={{ fontWeight: 'bold' }}>
-            {items.reduce((sum, item) => sum + (item.totalArea || 0), 0).toFixed(2)}
+            {formatValue(items.reduce((sum, item) => sum + (item.totalArea || 0), 0))}
           </TotalCell>
         </TableRow>
         <TableRow sx={{ backgroundColor: '#c8e6c9' }}>
@@ -719,17 +713,18 @@ const ExcelView = ({ open, onClose, clusterId }) => {
             <React.Fragment key={cluster}>
               <DataCell sx={{ fontWeight: 'bold' }}></DataCell>
               <DataCell sx={{ fontWeight: 'bold' }}>
-                {(grossTotals[cluster] || 0).toFixed(2)}
+                {formatValue(grossTotals[cluster])}
               </DataCell>
             </React.Fragment>
           ))}
           <TotalCell colSpan={2} sx={{ fontWeight: 'bold' }}>
-            {items.reduce((sum, item) => sum + (item.totalGrossArea || 0), 0).toFixed(2)}
+            {formatValue(items.reduce((sum, item) => sum + (item.totalGrossArea || 0), 0))}
           </TotalCell>
         </TableRow>
       </>
     );
   };
+
   const renderOwnerDetails = (owner) => {
     const totalClusters = activeClusters.length;
     const totalCols = 6 + 1 + (totalClusters * 2) + 2;
@@ -855,8 +850,6 @@ const ExcelView = ({ open, onClose, clusterId }) => {
       <DialogContent dividers sx={{ p: 1, backgroundColor: '#f5f5f5' }}>
         <PrintStyle />
         <PrintContainer ref={printRef} className="print-container" sx={{ p: 1, maxWidth: '100%' }}>
-
-          {/* ================= NEW BEAUTIFUL PDF HEADER UI ================= */}
           <Box sx={{
             border: '1px solid #ccc',
             borderRadius: '4px',
@@ -867,7 +860,6 @@ const ExcelView = ({ open, onClose, clusterId }) => {
             flexDirection: 'column',
             alignItems: 'center'
           }}>
-            {/* Logo Center Banner */}
             <Box sx={{ mb: 2, textAlign: 'center' }}>
               <img
                 className="logo_gov"
@@ -880,8 +872,6 @@ const ExcelView = ({ open, onClose, clusterId }) => {
                 }}
               />
             </Box>
-
-            {/* Symmetrical Informational Grid */}
             <Grid container spacing={1} sx={{ borderTop: '1px dashed #ccc', pt: 1.5, px: 2 }}>
               <Grid item xs={4}>
                 <Typography variant="body2" sx={{ fontSize: '10px', color: '#555' }}>
@@ -898,7 +888,6 @@ const ExcelView = ({ open, onClose, clusterId }) => {
                   <strong>സോൺ (Zone):</strong> {header?.zoneName || 'N/A'}
                 </Typography>
               </Grid>
-
               <Grid item xs={4}>
                 <Typography variant="body2" sx={{ fontSize: '10px', color: '#555' }}>
                   <strong>പഞ്ചായത്ത് (Panchayath):</strong> {header?.panchayath || 'N/A'}
@@ -916,7 +905,6 @@ const ExcelView = ({ open, onClose, clusterId }) => {
               </Grid>
             </Grid>
           </Box>
-          {/* =============================================================== */}
 
           <Paper elevation={0} sx={{ p: 0, overflow: 'auto' }}>
             <ExcelTableContainer>
@@ -936,7 +924,6 @@ const ExcelView = ({ open, onClose, clusterId }) => {
                         <HeaderCell key={label} colSpan={2} sx={{ minWidth: '45px' }}>
                           {label}
                           <br />
-                          {/* <span style={{ fontSize: '6px', fontWeight: 'normal' }}>({area.toFixed(2)})</span> */}
                         </HeaderCell>
                       );
                     })}
@@ -945,31 +932,15 @@ const ExcelView = ({ open, onClose, clusterId }) => {
                 </TableHead>
 
                 <TableBody>
-                  {/* ========== SECTION A: LAND UTILIZATION ========== */}
                   {renderLandUtilization(landUtilization)}
-
-                  {/* ========== SECTION B: SEASONAL CROPS ========== */}
                   {renderSeasonalSection('ബി. കാലികവിള കൃഷിസ്ഥലം', virippu, '#FFE699')}
-
-                  {/* Mundakan - Season 2 (Winter) */}
                   {renderSeasonalSection('മുണ്ടകൻ കൃഷി', mundakan, '#FFE699')}
-
-                  {/* Puncha - Season 3 (Summer) */}
                   {renderSeasonalSection('പുഞ്ച കൃഷി', puncha, '#FFE699')}
-
-                  {/* ========== SECTION C: ANNUAL CROPS ========== */}
                   {renderRegularCropSection('സി. വാർഷിക വിള കൃഷിസ്ഥലം', annualCrops, '#C6E0B4')}
-
-                  {/* ========== SECTION D: PERENNIAL CROPS ========== */}
                   {renderRegularCropSection('ഡി. ദീർഘകാല വിളകൾ കൃഷിസ്ഥലം', perennialCrops, '#D9C2E9')}
-
-                  {/* ========== SECTION E: IRRIGATION ========== */}
                   {renderIrrigationSection(irrigation)}
-
-                  {/* ========== OWNER DETAILS ========== */}
                   {renderOwnerDetails(ownerDetails)}
 
-                  {/* ========== SIGNATURE SECTION ========== */}
                   <TableRow>
                     <DataCell colSpan={6} sx={{ textAlign: 'center', pt: 1 }}>
                       <Typography variant="caption" display="block" fontWeight="bold" fontSize="8px">ഒപ്പ്</Typography>

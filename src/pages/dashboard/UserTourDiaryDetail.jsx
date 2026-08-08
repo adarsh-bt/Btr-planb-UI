@@ -1065,7 +1065,10 @@ const UserTourDiaryDetail = () => {
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
                         {getStatusChip(fullMonthStatus?.status || 'PENDING', 'Submission')}
-                        {getStatusChip(fullMonthStatus?.verified_status || fullMonthStatus?.verifiedStatus || 'PENDING', 'Verification')}
+                        {!["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(roleName) &&
+                          !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(loggedInRole) &&
+                          getStatusChip(fullMonthStatus?.verified_status || fullMonthStatus?.verifiedStatus || 'PENDING', 'Verification')
+                        }
                         {getStatusChip(fullMonthStatus?.approved_status || fullMonthStatus?.approvedStatus || fullMonthStatus?.adminStatus || 'PENDING', 'Approval')}
                         {tourEntries.some(e => e.isAdvanceChanged === true || e.isAdvanceChanged === "true") && (
                           <Chip
@@ -1087,7 +1090,9 @@ const UserTourDiaryDetail = () => {
                           </Typography>
                         )}
 
-                        {(fullMonthStatus.verified_at || fullMonthStatus.verifiedAt) && (
+                        {!["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(roleName) &&
+                          !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(loggedInRole) &&
+                          (fullMonthStatus.verified_at || fullMonthStatus.verifiedAt) && (
                           <Typography variant="caption" color="text.secondary">
                             <strong>Verified:</strong> {new Date(fullMonthStatus.verified_at || fullMonthStatus.verifiedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, {new Date(fullMonthStatus.verified_at || fullMonthStatus.verifiedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
                             {(fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark) && ` (${fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark})`}
@@ -1122,7 +1127,11 @@ const UserTourDiaryDetail = () => {
                       <Button
                         variant="contained"
                         onClick={handleOpenApprovalDialog}
-                        disabled={!fullMonthStatus || (fullMonthStatus.status !== "SUBMIT" && fullMonthStatus.status !== "SUBMITTED") || approvingMonth}
+                        disabled={
+                          !fullMonthStatus ||
+                          (fullMonthStatus.status !== "SUBMIT" && fullMonthStatus.status !== "SUBMITTED") ||
+                          approvingMonth
+                        }
                         startIcon={approvingMonth ? <CircularProgress size={18} color="inherit" /> : <CheckCircleIcon />}
                         sx={{
                           backgroundColor: '#8e44ad',
@@ -1342,10 +1351,12 @@ const UserTourDiaryDetail = () => {
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>{selectedEntry.zoneName}</Typography>
                 </Grid>
               )}
-              {(selectedEntry.clusterId || selectedEntry.clusterNo) && (
+              {(selectedEntry.clusterNo || selectedEntry.clusterNumber || selectedEntry.clusterName || selectedEntry.clusterId) && (
                 <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary">Cluster No</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>{selectedEntry.clusterId || selectedEntry.clusterNo}</Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {selectedEntry.clusterNo || selectedEntry.clusterNumber || selectedEntry.clusterName || selectedEntry.clusterId}
+                  </Typography>
                 </Grid>
               )}
               {selectedEntry.distance && (
@@ -1511,7 +1522,7 @@ const UserTourDiaryDetail = () => {
       <Snackbar
         open={snackbar.open} autoHideDuration={6000}
         onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Alert onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} severity={snackbar.severity} sx={{ width: '100%' }}>
           {snackbar.message}

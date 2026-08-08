@@ -17,7 +17,8 @@ import {
   TableHead,
   TableRow,
   CircularProgress,
-  Alert
+  Alert,
+  Checkbox
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -106,6 +107,47 @@ const DataItem = ({ label, value }) => {
   );
 };
 
+/**
+ * Metric tile used by the Frame Selection Summary tab.
+ * Same visual language as the existing tree-count cards, just parameterised
+ * so both the count-based and the area-based variants can reuse it.
+ */
+const MetricCard = ({ label, value, color }) => {
+  const theme = useTheme();
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        p: 2,
+        borderRadius: 2,
+        background: alpha(color, 0.08),
+        border: `1px solid ${alpha(color, 0.2)}`,
+        height: '100%'
+      }}
+    >
+      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase' }}>
+        {label}
+      </Typography>
+      <Typography variant="h5" sx={{ fontWeight: 700, color, mt: 0.5 }}>
+        {value}
+      </Typography>
+    </Paper>
+  );
+};
+
+/**
+ * Formats an ISO date string (e.g. "2026-07-08") as DD-MM-YYYY to match the
+ * convention used elsewhere in the app. Returns 'N/A' for empty/invalid input.
+ */
+const formatDate = (value) => {
+  if (!value) return 'N/A';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  const day = String(parsed.getDate()).padStart(2, '0');
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  return `${day}-${month}-${parsed.getFullYear()}`;
+};
+
 const SectionTitle = ({ icon: Icon, title }) => {
   const theme = useTheme();
   const themeColor = "#05307a";
@@ -151,6 +193,48 @@ const CceDataView = () => {
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
   };
+
+  // Fetch full plot details (available-cce-plot-details/{id}) - used for Survey Details tab
+  const [plotDetails, setPlotDetails] = useState(null);
+  const [isPlotDetailsLoading, setIsPlotDetailsLoading] = useState(false);
+  const [plotDetailsError, setPlotDetailsError] = useState(null);
+
+  useEffect(() => {
+    const plotId = rowData.availableCcePlotId || rowData.cceAvailablePlotId;
+    const targetPlotId = plotId || '9de83462-0520-4815-b334-d078855987be';
+
+    const fetchPlotDetails = async () => {
+      setIsPlotDetailsLoading(true);
+      setPlotDetailsError(null);
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` })
+      };
+
+      try {
+        let response = await fetch(`${mainapi.FORM_API}/earas-form1-entry/available-cce-plot-details/${targetPlotId}`, { headers });
+        if (!response.ok) {
+          response = await fetch(`${mainapi.FORM_API}/available-cce-plot-details/${targetPlotId}`, { headers });
+        }
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch plot details');
+        }
+
+        const data = await response.json();
+        const details = data?.payload || data;
+        setPlotDetails(details);
+      } catch (err) {
+        console.error('Error fetching plot details:', err);
+        setPlotDetailsError('Unable to load survey/plot details for this record.');
+      } finally {
+        setIsPlotDetailsLoading(false);
+      }
+    };
+
+    fetchPlotDetails();
+  }, [rowData.availableCcePlotId, rowData.cceAvailablePlotId]);
 
   // Fetch frame details from API
   useEffect(() => {
@@ -344,6 +428,114 @@ const CceDataView = () => {
     fetchIrrigationDetailsList();
   }, [frameDetails]);
 
+  // Yield Details per tree state & fetch
+  const [yieldDetailsList, setYieldDetailsList] = useState([]);
+  const [isYieldLoading, setIsYieldLoading] = useState(false);
+  const [yieldError, setYieldError] = useState(null);
+
+  useEffect(() => {
+    const treeItems = frameDetails?.ifTreeThenRandomNo || [];
+    if (treeItems.length === 0) {
+      setYieldDetailsList([]);
+      return;
+    }
+
+    const fetchYieldDetailsList = async () => {
+      setIsYieldLoading(true);
+      setYieldError(null);
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` })
+      };
+
+      try {
+        const results = await Promise.all(
+          treeItems.map(async (item) => {
+            const treeId = item.cceDataEntryPerTreeId;
+            if (!treeId) return null;
+            try {
+              let response = await fetch(`${mainapi.FORM_API}/earas-form1-entry/cce-data-entry/fetch-yield-details/${treeId}`, { headers });
+              if (!response.ok) {
+                response = await fetch(`${mainapi.FORM_API}/cce-data-entry/fetch-yield-details/${treeId}`, { headers });
+              }
+              if (!response.ok) return null;
+              const data = await response.json();
+              const payload = data?.payload || data;
+              return {
+                ...payload,
+                randomNo: item.randomNo,
+                cceDataEntryPerTreeId: treeId
+              };
+            } catch (e) {
+              console.error(`Error fetching yield details for tree ${treeId}:`, e);
+              return null;
+            }
+          })
+        );
+
+        const validResults = results.filter(Boolean);
+        setYieldDetailsList(validResults);
+      } catch (err) {
+        console.error('Error fetching yield details list:', err);
+        setYieldError('Unable to load yield details');
+      } finally {
+        setIsYieldLoading(false);
+      }
+    };
+
+    fetchYieldDetailsList();
+  }, [frameDetails]);
+
+  // ---------------------------------------------------------------------------
+  // Frame variant discriminator.
+  // The backend returns BOTH field families in BOTH cases (zero-filled for the
+  // one that does not apply), so key presence tells us nothing - only the value
+  // does. Count-based plots have at least one bearing/young tree.
+  // ---------------------------------------------------------------------------
+  const isTreeCountBased =
+    (frameDetails?.totalNumberOfBearing || 0) > 0 ||
+    (frameDetails?.totalNumberOfYoung || 0) > 0;
+
+  const selectedTrees = frameDetails?.ifTreeThenRandomNo || [];
+
+  // Irrigation type(s) live inside each irrigationSources[] entry, not at the
+  // root of the common-details payload. Join them for the summary card.
+  const irrigationTypeLabel =
+    (commonDetails?.irrigationSources || [])
+      .map((source) => source.irrigationType)
+      .filter(Boolean)
+      .join(', ') || 'N/A';
+
+  // The yield payload nests two levels deep (visits, then yield types per
+  // visit), so flatten to one row per measurement for tabular display.
+  const yieldRows = yieldDetailsList.flatMap((tree, treeIdx) =>
+    (tree.visitListResponses || []).flatMap((visit) =>
+      (visit.yieldTypeResponses || []).map((entry, entryIdx) => ({
+        treeLabel: `Tree ${treeIdx + 1}`,
+        noOfVisit: visit.noOfVisit,
+        rowKey: `${tree.cceDataEntryPerTreeId}-${visit.noOfVisit}-${entry.cropYieldTypeId ?? entryIdx}`,
+        ...entry
+      }))
+    )
+  );
+
+  const renderLockCheckbox = (locked) => (
+    <Checkbox
+      checked={!!locked}
+      readOnly
+      disableRipple
+      size="small"
+      sx={{
+        p: 0,
+        cursor: 'default',
+        color: alpha(theme.palette.text.secondary, 0.5),
+        '&.Mui-checked': { color: theme.palette.success.main }
+      }}
+      inputProps={{ 'aria-label': 'Growth stage locked' }}
+    />
+  );
+
   return (
     <Box sx={{ pb: 4 }}>
       {/* Breadcrumb at the very top */}
@@ -433,37 +625,90 @@ const CceDataView = () => {
 
         {/* TAB 1: Survey Details */}
         <TabPanel value={tabValue} index={0}>
+          {plotDetailsError && (
+            <Alert severity="warning" sx={{ mb: 3 }}>
+              {plotDetailsError}
+            </Alert>
+          )}
+
           <Box sx={{ mb: 4 }}>
             <SectionTitle icon={PersonIcon} title="Survey Details" />
             <Grid container spacing={3}>
-              <Grid item xs={12} sm={6} md={3}><DataItem label="Survey " value={rowData.survey} /></Grid>
+              <Grid item xs={12}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                    background: theme.palette.background.default
+                  }}
+                >
+                  <Typography sx={{ fontSize: 12, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px', mb: 1, fontWeight: 600 }}>
+                    Survey
+                  </Typography>
+                  {isPlotDetailsLoading ? (
+                    <CircularProgress size={20} />
+                  ) : plotDetails?.surveyResponses && plotDetails.surveyResponses.length > 0 ? (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      {plotDetails.surveyResponses.map((survey, idx) => (
+                        <Chip
+                          key={survey.surveyId ?? idx}
+                          label={survey.surveyName}
+                          size="small"
+                          color="primary"
+                          sx={{ fontWeight: 600 }}
+                        />
+                      ))}
+                    </Box>
+                  ) : (
+                    <Typography sx={{ fontSize: 14, fontWeight: 600, color: 'text.primary' }}>
+                      N/A
+                    </Typography>
+                  )}
+                </Paper>
+              </Grid>
             </Grid>
           </Box>
           <Box>
             <SectionTitle icon={SpaIcon} title="Cultivation Details" />
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6} md={3}><DataItem label="Crop" value={rowData.crop} /></Grid>
-              <Grid item xs={12} sm={6} md={3}><DataItem label="Season" value={rowData.season} /></Grid>
-              <Grid item xs={12} sm={6} md={3}><DataItem label="Panchayath" value={rowData.panchayath} /></Grid>
-              <Grid item xs={12} sm={6} md={3}><DataItem label="Survey Number" value={rowData.surveyNo} /></Grid>
-              <Grid item xs={12} sm={6} md={3}><DataItem label="Cultivated Area" value={rowData.cultivatedArea} /></Grid>
-              <Grid item xs={12} sm={6} md={3}><DataItem label="Irrigation Type" value={rowData.irrigationType} /></Grid>
+              <Grid item xs={12} sm={6} md={3}><DataItem label="Season" value={plotDetails?.seasonName || 'N/A'} /></Grid>
+              <Grid item xs={12} sm={6} md={3}><DataItem label="Panchayath" value={plotDetails?.btrDetailsResponse?.localbodyNameEn || 'N/A'} /></Grid>
+              {/* NOTE: no direct "survey number" field was returned by the API payload shared,
+                  so this currently falls back to the BTR re-survey number (resvno).
+                  Swap the source below if a different field should be used. */}
+              <Grid item xs={12} sm={6} md={3}><DataItem label="Survey Number" value={plotDetails?.btrDetailsResponse?.resvno ?? 'N/A'} /></Grid>
+              <Grid item xs={12} sm={6} md={3}><DataItem label="Cultivated Area" value={plotDetails?.cultivatedArea ?? 'N/A'} /></Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <DataItem
+                  label="Irrigation Type"
+                  value={
+                    plotDetails?.isIrrigated === true
+                      ? 'Irrigated'
+                      : plotDetails?.isIrrigated === false
+                      ? 'Unirrigated'
+                      : 'N/A'
+                  }
+                />
+              </Grid>
             </Grid>
           </Box>
 
           <Box>
             <SectionTitle icon={PersonIcon} title="Farmer Details" />
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={3}><DataItem label="Farmer Name" value={rowData.farmerName} /></Grid>
-              <Grid item xs={12} sm={6} md={3}><DataItem label="Address" value={rowData.address} /></Grid>
-              <Grid item xs={12} sm={6} md={4}><DataItem label="Contact No." value={rowData.contactNo} /></Grid>
+              <Grid item xs={12} sm={6} md={3}><DataItem label="Farmer Name" value={plotDetails?.farmerName || 'N/A'} /></Grid>
+              <Grid item xs={12} sm={6} md={3}><DataItem label="Address" value={plotDetails?.farmerAddress || 'N/A'} /></Grid>
+              <Grid item xs={12} sm={6} md={4}><DataItem label="Contact No." value={plotDetails?.farmerPhoneNumber || 'N/A'} /></Grid>
             </Grid>
           </Box>
 
           <Box>
             <SectionTitle icon={RemarksIcon} title="Remarks" />
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={3}><DataItem label="Remarks" value={rowData.remarks} /></Grid>
+              <Grid item xs={12} sm={6} md={3}><DataItem label="Remarks" value={plotDetails?.remarks || 'N/A'} /></Grid>
             </Grid>
 
           </Box>
@@ -474,7 +719,7 @@ const CceDataView = () => {
         {/* TAB 2: FRAME SELECTION */}
         <TabPanel value={tabValue} index={1}>
           <Box>
-            <SectionTitle icon={GridOnIcon} title="Frame Selection Summary / Irrigation Method & Schedule" />
+            <SectionTitle icon={GridOnIcon} title="Frame Selection Summary" />
 
             {isFrameLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 6 }}>
@@ -486,246 +731,114 @@ const CceDataView = () => {
               </Alert>
             ) : frameDetails ? (
               <>
-                {(frameDetails.totalNumberOfBearing !== undefined || frameDetails.totalNumberOfYoung !== undefined) ? (
-                  /* TYPE 2: TREE COUNT */
-                  <Box>
-                    <Grid container spacing={2} sx={{ mb: 3 }}>
-                      <Grid item xs={12} sm={4}>
-                        <Paper
-                          elevation={0}
-                          sx={{
-                            p: 2,
-                            borderRadius: 2,
-                            background: alpha(theme.palette.success.main, 0.08),
-                            border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
-                          }}
-                        >
-                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase' }}>
-                            Bearing Trees
-                          </Typography>
-                          <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.success.dark, mt: 0.5 }}>
-                            {frameDetails.totalNumberOfBearing ?? 0}
-                          </Typography>
-                        </Paper>
-                      </Grid>
-                      <Grid item xs={12} sm={4}>
-                        <Paper
-                          elevation={0}
-                          sx={{
-                            p: 2,
-                            borderRadius: 2,
-                            background: alpha(theme.palette.info.main, 0.08),
-                            border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
-                          }}
-                        >
-                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase' }}>
-                            Young Trees
-                          </Typography>
-                          <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.info.dark, mt: 0.5 }}>
-                            {frameDetails.totalNumberOfYoung ?? 0}
-                          </Typography>
-                        </Paper>
-                      </Grid>
-                      <Grid item xs={12} sm={4}>
-                        <Paper
-                          elevation={0}
-                          sx={{
-                            p: 2,
-                            borderRadius: 2,
-                            background: alpha(theme.palette.primary.main, 0.08),
-                            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
-                          }}
-                        >
-                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase' }}>
-                            Total Trees
-                          </Typography>
-                          <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.primary.dark, mt: 0.5 }}>
-                            {(frameDetails.totalNumberOfBearing || 0) + (frameDetails.totalNumberOfYoung || 0)}
-                          </Typography>
-                        </Paper>
-                      </Grid>
+                {/* ---------- Summary metrics ---------- */}
+                {isTreeCountBased ? (
+                  /* CASE 1: Per Tree (count-based crops) */
+                  <Grid container spacing={2} sx={{ mb: 3 }}>
+                    <Grid item xs={12} sm={4}>
+                      <MetricCard
+                        label="Bearing Trees"
+                        value={frameDetails.totalNumberOfBearing ?? 0}
+                        color={theme.palette.success.main}
+                      />
                     </Grid>
-
-                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, mt: 3, color: 'text.primary' }}>
-                      Randomly Selected Trees ({frameDetails.ifTreeThenRandomNo?.length || 0})
-                    </Typography>
-
-                    <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.2)}`, borderRadius: 2 }}>
-                      <Table>
-                        <TableHead sx={{ backgroundColor: alpha(theme.palette.divider, 0.05) }}>
-                          <TableRow>
-                            <TableCell sx={{ fontWeight: 600 }}>S.No</TableCell>
-                            <TableCell sx={{ fontWeight: 600 }}>Random Tree Number</TableCell>
-                            <TableCell sx={{ fontWeight: 600 }}>Per Tree Reference ID</TableCell>
-                            <TableCell sx={{ fontWeight: 600 }}>Drainage Available</TableCell>
-                            <TableCell sx={{ fontWeight: 600 }}>Irrigation Schedule Regular</TableCell>
-                            <TableCell sx={{ fontWeight: 600 }}>Irrigation Frequency</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {frameDetails.ifTreeThenRandomNo && frameDetails.ifTreeThenRandomNo.length > 0 ? (
-                            frameDetails.ifTreeThenRandomNo.map((item, idx) => {
-                              const irr = irrigationDetailsList.find(i => i.cceDataEntryPerTreeId === item.cceDataEntryPerTreeId);
-                              return (
-                                <TableRow key={item.cceDataEntryPerTreeId || idx} hover>
-                                  <TableCell sx={{ fontWeight: 500 }}>{idx + 1}</TableCell>
-                                  <TableCell>
-                                    <Chip
-                                      label={`Tree #${item.randomNo}`}
-                                      size="small"
-                                      color="primary"
-                                      sx={{ fontWeight: 700 }}
-                                    />
-                                  </TableCell>
-                                  <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.85rem', color: 'text.secondary' }}>
-                                    {item.cceDataEntryPerTreeId || 'N/A'}
-                                  </TableCell>
-                                  <TableCell>
-                                    {isIrrigationLoading ? (
-                                      <CircularProgress size={16} />
-                                    ) : irr && irr.isDrainageAvailable !== undefined && irr.isDrainageAvailable !== null ? (
-                                      <Chip
-                                        label={irr.isDrainageAvailable ? "Yes" : "No"}
-                                        size="small"
-                                        color={irr.isDrainageAvailable ? "success" : "error"}
-                                        variant="outlined"
-                                        sx={{ fontWeight: 600 }}
-                                      />
-                                    ) : (
-                                      'N/A'
-                                    )}
-                                  </TableCell>
-                                  <TableCell>
-                                    {isIrrigationLoading ? (
-                                      <CircularProgress size={16} />
-                                    ) : irr && irr.isIrrigationScheduleRegular !== undefined && irr.isIrrigationScheduleRegular !== null ? (
-                                      <Chip
-                                        label={irr.isIrrigationScheduleRegular ? "Regular" : "Irregular"}
-                                        size="small"
-                                        color={irr.isIrrigationScheduleRegular ? "success" : "warning"}
-                                        variant="outlined"
-                                        sx={{ fontWeight: 600 }}
-                                      />
-                                    ) : (
-                                      'N/A'
-                                    )}
-                                  </TableCell>
-                                  <TableCell sx={{ fontWeight: 500 }}>
-                                    {isIrrigationLoading ? (
-                                      <CircularProgress size={16} />
-                                    ) : (
-                                      irr?.irrigationFrequency || 'N/A'
-                                    )}
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })
-                          ) : (
-                            <TableRow>
-                              <TableCell colSpan={6} align="center" sx={{ py: 3, color: 'text.secondary' }}>
-                                No random trees available.
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </Box>
+                    <Grid item xs={12} sm={4}>
+                      <MetricCard
+                        label="Young Trees"
+                        value={frameDetails.totalNumberOfYoung ?? 0}
+                        color={theme.palette.info.main}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                      <MetricCard
+                        label="Total Trees"
+                        value={(frameDetails.totalNumberOfBearing || 0) + (frameDetails.totalNumberOfYoung || 0)}
+                        color={theme.palette.primary.main}
+                      />
+                    </Grid>
+                  </Grid>
                 ) : (
-                  /* TYPE 1: CENT / AREA */
-                  <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.2)}`, borderRadius: 2 }}>
-                    <Table>
-                      <TableHead sx={{ backgroundColor: alpha(theme.palette.divider, 0.05) }}>
-                        <TableRow>
-                          <TableCell sx={{ fontWeight: 600 }}>Parameter / Direction</TableCell>
-                          <TableCell sx={{ fontWeight: 600 }}>Plot Side Length (m)</TableCell>
-                          <TableCell sx={{ fontWeight: 600 }}>Random Selected Distance (m)</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        <TableRow hover>
-                          <TableCell sx={{ fontWeight: 600 }}>X Direction</TableCell>
-                          <TableCell>{frameDetails.sideLengthX ?? 'N/A'}</TableCell>
-                          <TableCell>
-                            <Chip
-                              label={frameDetails.randomSideLengthX ?? 'N/A'}
-                              size="small"
-                              color="secondary"
-                              sx={{ fontWeight: 700 }}
-                            />
-                          </TableCell>
-                        </TableRow>
-                        <TableRow hover>
-                          <TableCell sx={{ fontWeight: 600 }}>Y Direction</TableCell>
-                          <TableCell>{frameDetails.sideLengthY ?? 'N/A'}</TableCell>
-                          <TableCell>
-                            <Chip
-                              label={frameDetails.randomSideLengthY ?? 'N/A'}
-                              size="small"
-                              color="secondary"
-                              sx={{ fontWeight: 700 }}
-                            />
-                          </TableCell>
-                        </TableRow>
-                        {frameDetails.ifTreeThenRandomNo && frameDetails.ifTreeThenRandomNo.length > 0 && (() => {
-                          const item = frameDetails.ifTreeThenRandomNo[0];
-                          const irr = irrigationDetailsList.find(i => i.cceDataEntryPerTreeId === item.cceDataEntryPerTreeId);
-                          return (
-                            <>
-                              <TableRow hover>
-                                <TableCell sx={{ fontWeight: 600 }}>Selected Crop Random Number</TableCell>
-                                <TableCell colSpan={2}>
-                                  <Chip
-                                    label={`Random No: ${item.randomNo}`}
-                                    size="small"
-                                    color="primary"
-                                    sx={{ fontWeight: 700 }}
-                                  />
-                                </TableCell>
-                              </TableRow>
-                              {irr && (
-                                <>
-                                  <TableRow hover>
-                                    <TableCell sx={{ fontWeight: 600 }}>Drainage Available</TableCell>
-                                    <TableCell colSpan={2}>
-                                      {irr.isDrainageAvailable !== undefined && irr.isDrainageAvailable !== null ? (
-                                        <Chip
-                                          label={irr.isDrainageAvailable ? "Yes" : "No"}
-                                          size="small"
-                                          color={irr.isDrainageAvailable ? "success" : "error"}
-                                          variant="outlined"
-                                          sx={{ fontWeight: 600 }}
-                                        />
-                                      ) : 'N/A'}
-                                    </TableCell>
-                                  </TableRow>
-                                  <TableRow hover>
-                                    <TableCell sx={{ fontWeight: 600 }}>Irrigation Schedule Regular</TableCell>
-                                    <TableCell colSpan={2}>
-                                      {irr.isIrrigationScheduleRegular !== undefined && irr.isIrrigationScheduleRegular !== null ? (
-                                        <Chip
-                                          label={irr.isIrrigationScheduleRegular ? "Regular" : "Irregular"}
-                                          size="small"
-                                          color={irr.isIrrigationScheduleRegular ? "success" : "warning"}
-                                          variant="outlined"
-                                          sx={{ fontWeight: 600 }}
-                                        />
-                                      ) : 'N/A'}
-                                    </TableCell>
-                                  </TableRow>
-                                  <TableRow hover>
-                                    <TableCell sx={{ fontWeight: 600 }}>Irrigation Frequency</TableCell>
-                                    <TableCell colSpan={2}>{irr.irrigationFrequency || 'N/A'}</TableCell>
-                                  </TableRow>
-                                </>
-                              )}
-                            </>
-                          );
-                        })()}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
+                  /* CASE 2: Per Cent / Area (frame-based crops) */
+                  <Grid container spacing={2} sx={{ mb: 3 }}>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <MetricCard
+                        label="Side Length X (m)"
+                        value={frameDetails.sideLengthX ?? 0}
+                        color={theme.palette.success.main}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <MetricCard
+                        label="Side Length Y (m)"
+                        value={frameDetails.sideLengthY ?? 0}
+                        color={theme.palette.info.main}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <MetricCard
+                        label="Random Side Length X (m)"
+                        value={frameDetails.randomSideLengthX ?? 0}
+                        color={theme.palette.warning.main}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <MetricCard
+                        label="Random Side Length Y (m)"
+                        value={frameDetails.randomSideLengthY ?? 0}
+                        color={theme.palette.primary.main}
+                      />
+                    </Grid>
+                  </Grid>
                 )}
+
+                {/* ---------- Selected trees list (both cases) ---------- */}
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, mt: 3, color: 'text.primary' }}>
+                  {isTreeCountBased
+                    ? `Randomly Selected Trees (${selectedTrees.length})`
+                    : 'Selected Frame Crop'}
+                </Typography>
+
+                <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.2)}`, borderRadius: 2 }}>
+                  <Table>
+                    <TableHead sx={{ backgroundColor: alpha(theme.palette.divider, 0.05) }}>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600 }}>S.No</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Tree</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Random Number</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }} align="center">Growth Stage Locked</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {selectedTrees.length > 0 ? (
+                        selectedTrees.map((item, idx) => (
+                          <TableRow key={item.cceDataEntryPerTreeId || idx} hover>
+                            <TableCell sx={{ fontWeight: 500 }}>{idx + 1}</TableCell>
+                            <TableCell>
+                              <Chip
+                                label={`Tree ${idx + 1}`}
+                                size="small"
+                                color="primary"
+                                sx={{ fontWeight: 700 }}
+                              />
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>
+                              {item.randomNo ?? 'N/A'}
+                            </TableCell>
+                            <TableCell align="center">
+                              {renderLockCheckbox(item.isGrowthStageLocked)}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={4} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                            No selected trees available.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               </>
             ) : (
               /* FALLBACK: Render static/rowData values if no API response */
@@ -769,70 +882,60 @@ const CceDataView = () => {
             ) : seedError ? (
               <Alert severity="warning" sx={{ mb: 2 }}>{seedError}</Alert>
             ) : seedDetailsList && seedDetailsList.length > 0 ? (
-              seedDetailsList.length === 1 ? (
-                /* Single Seed Detail */
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <DataItem label="Seed Variety" value={seedDetailsList[0].seedVarietyName || 'N/A'} />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <DataItem label="Seed Type" value={seedDetailsList[0].seedTypeName || 'N/A'} />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <DataItem label="Added By" value={seedDetailsList[0].addedBy || 'N/A'} />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <DataItem label="Tree Ref ID" value={seedDetailsList[0].cceDataEntryPerTreeId || 'N/A'} />
-                  </Grid>
-                </Grid>
-              ) : (
-                /* Multiple Per-Tree Seed Details List */
-                <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.2)}`, borderRadius: 2 }}>
-                  <Table>
-                    <TableHead sx={{ backgroundColor: alpha(theme.palette.divider, 0.05) }}>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 600 }}>S.No</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Tree Number</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Seed Type</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Seed Variety</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Added By</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Per Tree Ref ID</TableCell>
+              /* Per-Tree Seed Details - single table for both one and many trees */
+              <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.2)}`, borderRadius: 2 }}>
+                <Table>
+                  <TableHead sx={{ backgroundColor: alpha(theme.palette.divider, 0.05) }}>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 600 }}>S.No</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Tree</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Seed Type</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Source</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Quantity</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Sowing Method</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Age</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Planted Date</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {seedDetailsList.map((item, idx) => (
+                      <TableRow key={item.cceDataEntryPerTreeId || idx} hover>
+                        <TableCell sx={{ fontWeight: 500 }}>{idx + 1}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={`Tree ${idx + 1}`}
+                            size="small"
+                            color="primary"
+                            sx={{ fontWeight: 700 }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={item.seedTypeName || 'N/A'}
+                            size="small"
+                            variant="outlined"
+                            color="info"
+                            sx={{ fontWeight: 600, textTransform: 'capitalize' }}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>{item.seedSourceName || 'N/A'}</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>
+                          {item.seedQuantity !== undefined && item.seedQuantity !== null
+                            ? item.seedQuantity
+                            : 'N/A'}
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>{item.sowingMethodName || 'N/A'}</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>
+                          {item.ageOfPlant !== undefined && item.ageOfPlant !== null
+                            ? item.ageOfPlant
+                            : 'N/A'}
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>{formatDate(item.plantedMonthAndYear)}</TableCell>
                       </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {seedDetailsList.map((item, idx) => (
-                        <TableRow key={item.cceDataEntryPerTreeId || idx} hover>
-                          <TableCell sx={{ fontWeight: 500 }}>{idx + 1}</TableCell>
-                          <TableCell>
-                            <Chip
-                              label={`Tree #${item.randomNo || (idx + 1)}`}
-                              size="small"
-                              color="primary"
-                              sx={{ fontWeight: 700 }}
-                            />
-                          </TableCell>
-                          <TableCell sx={{ textTransform: 'capitalize', fontWeight: 600 }}>
-                            <Chip
-                              label={item.seedTypeName || 'N/A'}
-                              size="small"
-                              variant="outlined"
-                              color="info"
-                              sx={{ fontWeight: 600 }}
-                            />
-                          </TableCell>
-                          <TableCell sx={{ fontWeight: 600 }}>{item.seedVarietyName || 'N/A'}</TableCell>
-                          <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'text.secondary' }}>
-                            {item.addedBy || 'N/A'}
-                          </TableCell>
-                          <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'text.secondary' }}>
-                            {item.cceDataEntryPerTreeId || 'N/A'}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             ) : (
               /* Fallback view when no API seed details are present */
               <Grid container spacing={2}>
@@ -922,25 +1025,94 @@ const CceDataView = () => {
               </Box>
             )}
 
-            {/* Additional Irrigation Information */}
+            {/* Irrigation Type summary card, sourced from irrigationSources */}
+            {!isCommonLoading && !commonError && (
+              <Grid container spacing={2} sx={{ mb: 4 }}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <DataItem label="Irrigation Type" value={irrigationTypeLabel} />
+                </Grid>
+              </Grid>
+            )}
+
+            {/* Per-tree irrigation schedule */}
             <Box sx={{ mt: 3 }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, color: 'text.primary' }}>
                 Irrigation Schedule
               </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6} md={3}>
-                  <DataItem label="Irrigation Type" value={commonDetails?.irrigationType || 'N/A'} />
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <DataItem label="Number of Irrigations" value={commonDetails?.numberOfIrrigations || 'N/A'} />
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <DataItem label="Irrigation Interval" value={commonDetails?.irrigationInterval || 'N/A'} />
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <DataItem label="Drainage Status" value={commonDetails?.drainageStatus || 'Good'} />
-                </Grid>
-              </Grid>
+
+              {isIrrigationLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 5 }}>
+                  <CircularProgress size={32} />
+                </Box>
+              ) : irrigationError ? (
+                <Alert severity="warning" sx={{ mb: 2 }}>{irrigationError}</Alert>
+              ) : (
+                <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.2)}`, borderRadius: 2 }}>
+                  <Table>
+                    <TableHead sx={{ backgroundColor: alpha(theme.palette.divider, 0.05) }}>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600 }}>S.No</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Tree</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Drainage Available</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Irrigation Schedule</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Irrigation Frequency</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {irrigationDetailsList.length > 0 ? (
+                        irrigationDetailsList.map((item, idx) => (
+                          <TableRow key={item.cceDataEntryPerTreeId || idx} hover>
+                            <TableCell sx={{ fontWeight: 500 }}>{idx + 1}</TableCell>
+                            <TableCell>
+                              <Chip
+                                label={`Tree ${idx + 1}`}
+                                size="small"
+                                color="primary"
+                                sx={{ fontWeight: 700 }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              {item.isDrainageAvailable !== undefined && item.isDrainageAvailable !== null ? (
+                                <Chip
+                                  label={item.isDrainageAvailable ? 'Yes' : 'No'}
+                                  size="small"
+                                  color={item.isDrainageAvailable ? 'success' : 'error'}
+                                  variant="outlined"
+                                  sx={{ fontWeight: 600 }}
+                                />
+                              ) : (
+                                'N/A'
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {item.isIrrigationScheduleRegular !== undefined && item.isIrrigationScheduleRegular !== null ? (
+                                <Chip
+                                  label={item.isIrrigationScheduleRegular ? 'Regular' : 'Irregular'}
+                                  size="small"
+                                  color={item.isIrrigationScheduleRegular ? 'success' : 'warning'}
+                                  variant="outlined"
+                                  sx={{ fontWeight: 600 }}
+                                />
+                              ) : (
+                                'N/A'
+                              )}
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>
+                              {item.irrigationFrequency || 'N/A'}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                            No irrigation schedule recorded.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
             </Box>
           </Box>
         </TabPanel>
@@ -949,14 +1121,70 @@ const CceDataView = () => {
         <TabPanel value={tabValue} index={4}>
           <Box sx={{ mb: 4 }}>
             <SectionTitle icon={AgricultureIcon} title="Yield & Production" />
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={3}><DataItem label="Total Production" value="850 Quintals" /></Grid>
-              <Grid item xs={12} sm={6} md={3}><DataItem label="Yield per Hectare" value="42.5 Q/Ha" /></Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <DataItem label="Quality Grade" value={<Chip label="Grade A" size="small" sx={{ backgroundColor: '#DCFCE7', color: '#166534', fontWeight: 'bold' }} />} />
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}><DataItem label="Harvest Date" value="30-10-2024" /></Grid>
-            </Grid>
+            {isYieldLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 5 }}>
+                <CircularProgress size={32} />
+              </Box>
+            ) : yieldError ? (
+              <Alert severity="warning" sx={{ mb: 2 }}>{yieldError}</Alert>
+            ) : (
+              <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.2)}`, borderRadius: 2 }}>
+                <Table>
+                  <TableHead sx={{ backgroundColor: alpha(theme.palette.divider, 0.05) }}>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 600 }}>S.No</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Tree</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Visit</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Harvest Date</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Yield Type</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>വിളവിന്റെ വിവരം</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Result Type</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Result</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {yieldRows.length > 0 ? (
+                      yieldRows.map((row, idx) => (
+                        <TableRow key={row.rowKey || idx} hover>
+                          <TableCell sx={{ fontWeight: 500 }}>{idx + 1}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={row.treeLabel}
+                              size="small"
+                              color="primary"
+                              sx={{ fontWeight: 700 }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={row.noOfVisit ?? 'N/A'}
+                              size="small"
+                              variant="outlined"
+                              sx={{ fontWeight: 600 }}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>{formatDate(row.harvestDate)}</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>{row.cropYieldNameEn || 'N/A'}</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>{row.cropYieldNameMal || 'N/A'}</TableCell>
+                          <TableCell sx={{ textTransform: 'capitalize' }}>{row.resultType || 'N/A'}</TableCell>
+                          <TableCell sx={{ fontWeight: 700 }}>
+                            {row.result !== undefined && row.result !== null
+                              ? `${row.result}${row.resultUnit ? ` ${row.resultUnit}` : ''}`
+                              : 'N/A'}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={8} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                          No yield measurements recorded.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
           </Box>
           <Box>
             <SectionTitle icon={WarningIcon} title="Crop Loss & Damage" />

@@ -195,12 +195,26 @@ const TourDiary = () => {
         return purpose ? purpose.purposeName : 'Unknown';
     };
 
-    const getSchemeNameFromPurpose = (purposeId) => {
-        if (!purposeId) return '—';
-        const purpose = allPurposes.find(p => p.id === purposeId);
-        if (!purpose) return '—';
-        const scheme = schemes.find(s => s.id === purpose.schemeId);
-        return scheme ? scheme.schemeName : '—';
+    const getSchemeNameFromPurpose = (purposeId, event = null) => {
+        if (purposeId) {
+            const purpose = allPurposes.find(p => p.id === purposeId);
+            if (purpose) {
+                const scheme = schemes.find(s => s.id === purpose.schemeId);
+                if (scheme) return scheme.schemeName;
+            }
+        }
+        if (event) {
+            if (event.schemeId === 10 || event.schemesId === 10 || event.schemeName === "Others" || event.schemesName === "Others") {
+                return "Others";
+            }
+            if (event.entryType === 'WORKING' && (!purposeId || purposeId === '')) {
+                return "Others";
+            }
+        }
+        if (!purposeId) {
+            return "Others";
+        }
+        return '—';
     };
 
     const getSchemeName = (purposeId) => {
@@ -820,18 +834,22 @@ const TourDiary = () => {
         if (event.zoneId) setEditSelectedZoneId(event.zoneId);
         else setEditSelectedZoneId(selectedZoneId);
 
-        if (event.entryType === 'WORKING' && event.purposeId) {
-            // Find the scheme from the purpose
-            const purpose = allPurposes.find(p => p.id === event.purposeId);
-            if (purpose && purpose.schemeId) {
-                setEditSelectedScheme(purpose.schemeId);
-                // Fetch purposes for this scheme
-                const purposesData = await tourDiaryService.getActivePurposes(purpose.schemeId);
-                if (purposesData && !purposesData.message) {
-                    setPurposes(purposesData);
+        if (event.entryType === 'WORKING') {
+            if (event.purposeId) {
+                // Find the scheme from the purpose
+                const purpose = allPurposes.find(p => p.id === event.purposeId);
+                if (purpose && purpose.schemeId) {
+                    setEditSelectedScheme(purpose.schemeId);
+                    // Fetch purposes for this scheme
+                    const purposesData = await tourDiaryService.getActivePurposes(purpose.schemeId);
+                    if (purposesData && !purposesData.message) {
+                        setPurposes(purposesData);
+                    }
+                } else {
+                    setEditSelectedScheme(10);
                 }
             } else {
-                setEditSelectedScheme('');
+                setEditSelectedScheme(10);
             }
         } else {
             setEditSelectedScheme('');
@@ -1258,7 +1276,9 @@ const TourDiary = () => {
                 dayEvents.forEach((event, idx) => {
                     const isLast = idx === dayEvents.length - 1;
                     const isFirst = idx === 0;
-                    const cellBorderBottom = isLast ? `2px solid ${theme.palette.divider}` : `1px dashed ${theme.palette.divider}`;
+                    const cellBorderBottom = isLast
+                        ? `2px solid ${theme.palette.divider}`
+                        : `1.5px solid ${theme.palette.mode === 'dark' ? '#1976d2' : '#2196f3'}`;
 
                     rows.push(
                         <TableRow
@@ -1314,7 +1334,7 @@ const TourDiary = () => {
                             {/* Scheme */}
                             <TableCell sx={{ py: 0.75, px: 1, borderBottom: cellBorderBottom }}>
                                 <Typography variant="caption" color="text.secondary">
-                                    {event.entryType === 'WORKING' ? getSchemeNameFromPurpose(event.purposeId) : '—'}
+                                    {event.entryType === 'WORKING' ? getSchemeNameFromPurpose(event.purposeId, event) : '—'}
                                 </Typography>
                             </TableCell>
                             {/* Purpose */}
@@ -1519,7 +1539,8 @@ const TourDiary = () => {
                                                         )}
 
                                                         {/* Verification Status Chip */}
-                                                        {submissionView?.firstHalfSubmitted && submissionView?.firstHalfVerifiedStatus && (
+                                                        {submissionView?.firstHalfSubmitted && submissionView?.firstHalfVerifiedStatus &&
+                                                         !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(role) && (
                                                             <Chip
                                                                 label={`Ver: ${submissionView.firstHalfVerifiedStatus}`}
                                                                 size="small"
@@ -1611,7 +1632,8 @@ const TourDiary = () => {
                                                         )}
 
                                                         {/* Verification Status Chip */}
-                                                        {submissionView?.secondHalfSubmitted && submissionView?.secondHalfVerifiedStatus && (
+                                                        {submissionView?.secondHalfSubmitted && submissionView?.secondHalfVerifiedStatus &&
+                                                         !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(role) && (
                                                             <Chip
                                                                 label={`Ver: ${submissionView.secondHalfVerifiedStatus}`}
                                                                 size="small"
@@ -1724,7 +1746,8 @@ const TourDiary = () => {
                                                     )}
 
                                                     {/* Verification Status Chip */}
-                                                    {submissionView?.fullMonthSubmitId && submissionView?.fullMonthVerifiedStatus && (
+                                                    {submissionView?.fullMonthSubmitId && submissionView?.fullMonthVerifiedStatus &&
+                                                     !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(role) && (
                                                         <Chip
                                                             label={`Ver: ${submissionView.fullMonthVerifiedStatus}`}
                                                             size="small"
@@ -2924,7 +2947,7 @@ const TourDiary = () => {
                                                 Scheme
                                             </Typography>
                                             <Typography variant="body1">
-                                                {getSchemeNameFromPurpose(viewEvent.purposeId)}
+                                                {getSchemeNameFromPurpose(viewEvent.purposeId, viewEvent)}
                                             </Typography>
                                         </Grid>
                                         <Grid item xs={12} sm={4}>

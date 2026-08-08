@@ -371,7 +371,7 @@ const tourDiaryService = {
 
         }
       );
-
+      console.log("dta ", response.data)
       return response.data;
 
     } catch (err) {
@@ -533,18 +533,20 @@ const tourDiaryService = {
     }
   },
   // Add this method to your tourDiaryService object
-  async submitFullMonth(userId, month, year, zoneId) {
+  async submitFullMonth(userId, month, year, zoneId, submitId = null) {
     const token = localStorage.getItem('token');
-
+    console.log(userId, month, year, zoneId, submitId, "submitFullMonth")
     try {
       const response = await axios.post(
         `${BASE_URL}/tour-diary/api/tour/submit/full-month`,
         {
+          submissionType: "FULL_MONTH",
           periodType: "FULL_MONTH",
           month: month,
           year: year,
-          zoneId: zoneId,
-          userId: userId
+          zoneId: zoneId || null,
+          userId: userId,
+          submitId: submitId || null
         },
         {
           headers: {
@@ -554,17 +556,26 @@ const tourDiaryService = {
         }
       );
 
+      const responseData = response.data;
+      let message = typeof responseData === 'string'
+        ? responseData
+        : responseData?.message || "Month submitted successfully";
+
+      if (typeof message === 'string') {
+        message = message.replace(/\s*using same submission id:\s*\d+/gi, '').replace(/\s*using same submission id.*$/gi, '').trim();
+      }
+
       return {
-        data: response.data,
+        data: responseData,
         error: false,
-        message: response.data.message || "Month submitted successfully"
+        message: message
       };
 
     } catch (err) {
       console.error("Error submitting full month:", err);
       return {
         error: true,
-        message: err.response?.data?.message || err.message || "Failed to submit month",
+        message: err.response?.data?.message || (typeof err.response?.data === 'string' ? err.response.data : err.message) || "Failed to submit month",
         status: err.response?.status
       };
     }

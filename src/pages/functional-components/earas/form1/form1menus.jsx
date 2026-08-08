@@ -418,7 +418,7 @@ function Form1_menus() {
       setDistrictId(districtId);
       setZonename(response.data?.payload?.zoneName || 'N/A');
 
-
+      console.log(">>>>>>>>>>>>>>>>>>>>>>>>>> ", data.payload)
       if (data && data.payload) {
         setKeyplotData({
           ...data.payload,
@@ -1979,6 +1979,7 @@ function Form1_menus() {
     'Download'
   )}
 </Button> */}
+
         <ExcelView
           open={openExcelView}
           onClose={handleCloseExcelView}
