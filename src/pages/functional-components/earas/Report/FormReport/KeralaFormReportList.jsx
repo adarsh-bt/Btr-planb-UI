@@ -50,12 +50,29 @@ import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
+import GrassIcon from '@mui/icons-material/Grass';
 import * as XLSX from 'xlsx';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import AuthService from 'pages/authentication/services/authservice';
 import mainapi from 'api/mainapi';
 import api from 'api/api';
+
+// Crop seasons supported by the backend. seasonId is MANDATORY on the
+// form1-status endpoint, so there is intentionally no "ALL"/empty option here.
+const SEASON_OPTIONS = [
+  { value: 1, label: 'Autumn' },
+  { value: 2, label: 'Winter' },
+  { value: 3, label: 'Summer' }
+];
+
+const DEFAULT_SEASON_ID = 1; // Autumn
+
+// The BTR completed-clusters endpoint is a different service. If it also
+// understands seasonId, leave this true so "Total" is season-scoped and the
+// Not Started math stays correct. If BTR ignores the param, behaviour is
+// identical to before. Flip to false only if BTR rejects/breaks on it.
+const BTR_SUPPORTS_SEASON_ID = true;
 
 // Builds the "July <startYear> → June <startYear + 1>" agricultural-year
 // month list used by the Single Month / From Month / To Month dropdowns.
@@ -97,14 +114,19 @@ function resolveMonthValue(val, monthOptions) {
   return monthOptions[0]?.value || '';
 }
 
-function pickMetric(district, metric, seasonTab) {
-  if (seasonTab === 'WET') return Number(district[`wet${metric}`]) || 0;
-  if (seasonTab === 'DRY') return Number(district[`dry${metric}`]) || 0;
+// NOTE: `landType` here is WET / DRY / ALL — this is land type, NOT crop season.
+// Crop season is the separate, mandatory seasonId (Autumn / Winter / Summer).
+function pickMetric(district, metric, landType) {
+  if (landType === 'WET') return Number(district[`wet${metric}`]) || 0;
+  if (landType === 'DRY') return Number(district[`dry${metric}`]) || 0;
   return (Number(district[`wet${metric}`]) || 0) + (Number(district[`dry${metric}`]) || 0);
 }
 
 const formatArea = (num) =>
   Number(num || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const getSeasonLabel = (value) =>
+  SEASON_OPTIONS.find((o) => o.value === Number(value))?.label || 'Autumn';
 
 // Fallback districts list with correct field names
 function getFallbackDistricts() {
@@ -137,7 +159,10 @@ function KeralaFormReportList() {
 
   const [btrData, setBtrData] = useState(null);
 
-  const [seasonTab, setSeasonTab] = useState('ALL');
+  // WET / DRY / ALL — land type, not crop season.
+  const [landTypeTab, setLandTypeTab] = useState('ALL');
+  // Mandatory crop season. Never empty.
+  const [seasonId, setSeasonId] = useState(DEFAULT_SEASON_ID);
   const [filterType, setFilterType] = useState('single');
   const [fromMonth, setFromMonth] = useState(() => MONTH_OPTIONS[0]?.value || '');
   const [toMonth, setToMonth] = useState('');
@@ -182,6 +207,7 @@ function KeralaFormReportList() {
   };
 
   // Fetch data from API
+  // Fetch data from API
   const fetchDistrictData = async () => {
     try {
       setLoading(true);
@@ -201,42 +227,51 @@ function KeralaFormReportList() {
         if (toMonth) endMonthVal = resolveMonthValue(toMonth, MONTH_OPTIONS);
       }
 
-      const token = AuthService.getToken ? AuthService.getToken() : localStorage.getItem('token');
+      const token = AuthService.gettoken ? AuthService.gettoken() : localStorage.getItem('token');
       if (!token) {
         throw new Error('Authentication session token missing. Please log in again.');
       }
 
-      const params = new URLSearchParams({ startMonth: startMonthVal });
-      if (endMonthVal) params.append('endMonth', endMonthVal);
-      if (seasonTab && seasonTab !== 'ALL') params.append('landType', seasonTab);
+      // seasonId is mandatory, so guard against it ever being cleared by a UI change.
+      const effectiveSeasonId = Number(seasonId) || DEFAULT_SEASON_ID;
 
-      const formStatusUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/state?${params.toString()}`;
-      const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/completed-clusters?${params.toString()}`;
+      // form1-status: month range + land type + season.
+      const formStatusParams = new URLSearchParams({ startMonth: startMonthVal });
+      if (endMonthVal) formStatusParams.append('endMonth', endMonthVal);
+      if (landTypeTab && landTypeTab !== 'ALL') formStatusParams.append('landType', landTypeTab);
+      formStatusParams.append('seasonId', String(effectiveSeasonId));
+
+      // BTR completed-clusters: agri-year scoped now. No months, no seasonId.
+      const btrParams = new URLSearchParams();
+      if (landTypeTab && landTypeTab !== 'ALL') btrParams.append('landType', landTypeTab);
+      btrParams.append('agriYear', AuthService.agriyear() || '2025-2026');
+
+      const formStatusUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/state?${formStatusParams.toString()}`;
+      const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/completed-clusters?${btrParams.toString()}`;
 
       console.log('Fetching Form1 status data from:', formStatusUrl);
       console.log('Fetching BTR completed-clusters data from:', completedClustersUrl);
 
       const [formStatusRes, completedClustersRes] = await Promise.all([
-      axios.get(formStatusUrl, { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get(completedClustersUrl, { headers: { Authorization: `Bearer ${token}` } })
-    ]);
-
+        axios.get(formStatusUrl, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(completedClustersUrl, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
 
       setApiData(formStatusRes.data || null);
-    setBtrData(completedClustersRes.data || null);
-  } catch (err) {
-    console.error('Error fetching data:', err);
-    const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch district data';
-    setError(errorMessage);
-  } finally {
-    setLoading(false);
-  }
-};
+      setBtrData(completedClustersRes.data || null);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch district data';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchDistrictData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromMonth, toMonth, singleMonth, seasonTab, filterType]);
+  }, [fromMonth, toMonth, singleMonth, landTypeTab, seasonId, filterType]);
 
   useEffect(() => {
     fetchMasterDistricts();
@@ -244,62 +279,88 @@ function KeralaFormReportList() {
 
   // Map allSubDetails into UI rows, merging with master districts list
   const districtData = useMemo(() => {
-  const apiDistricts = apiData?.allSubDetails || {};
-  const btrDistricts = btrData?.allSubDetails || {};
+    const apiDistricts = apiData?.allSubDetails || {};
+    const btrDistricts = btrData?.allSubDetails || {};
 
-  const apiDataMapById = {};
-  const apiDataMapByName = {};
-  Object.entries(apiDistricts).forEach(([name, details]) => {
-    if (details.id) apiDataMapById[details.id] = { name, details };
-    const key = name?.toLowerCase()?.trim() || '';
-    if (key) apiDataMapByName[key] = { name, details };
-  });
+    const apiDataMapById = {};
+    const apiDataMapByName = {};
+    Object.entries(apiDistricts).forEach(([name, details]) => {
+      if (details.id) apiDataMapById[details.id] = { name, details };
+      const key = name?.toLowerCase()?.trim() || '';
+      if (key) apiDataMapByName[key] = { name, details };
+    });
 
-  const btrMapById = {};
-  const btrMapByName = {};
-  Object.entries(btrDistricts).forEach(([name, details]) => {
-    if (details.id) btrMapById[details.id] = { name, details };
-    const key = name?.toLowerCase()?.trim() || '';
-    if (key) btrMapByName[key] = { name, details };
-  });
+    const btrMapById = {};
+    const btrMapByName = {};
+    Object.entries(btrDistricts).forEach(([name, details]) => {
+      if (details.id) btrMapById[details.id] = { name, details };
+      const key = name?.toLowerCase()?.trim() || '';
+      if (key) btrMapByName[key] = { name, details };
+    });
 
-  const resolveBtrDetails = (districtId, districtName) => {
-    if (districtId && btrMapById[districtId]) return btrMapById[districtId].details;
-    const key = districtName?.toLowerCase()?.trim() || '';
-    if (key && btrMapByName[key]) return btrMapByName[key].details;
-    return {};
-  };
+    const resolveBtrDetails = (districtId, districtName) => {
+      if (districtId && btrMapById[districtId]) return btrMapById[districtId].details;
+      const key = districtName?.toLowerCase()?.trim() || '';
+      if (key && btrMapByName[key]) return btrMapByName[key].details;
+      return {};
+    };
 
-  if (districtsList && districtsList.length > 0) {
-    return districtsList.map((district) => {
-      const districtId = district.distId;
-      const districtName = district.distNameEn || '';
+    if (districtsList && districtsList.length > 0) {
+      return districtsList.map((district) => {
+        const districtId = district.distId;
+        const districtName = district.distNameEn || '';
 
-      let apiMatch = null;
-      if (districtId && apiDataMapById[districtId]) apiMatch = apiDataMapById[districtId];
-      if (!apiMatch) {
-        const key = districtName?.toLowerCase()?.trim() || '';
-        if (key && apiDataMapByName[key]) apiMatch = apiDataMapByName[key];
-      }
-      const apiDetails = apiMatch ? apiMatch.details : {};
+        let apiMatch = null;
+        if (districtId && apiDataMapById[districtId]) apiMatch = apiDataMapById[districtId];
+        if (!apiMatch) {
+          const key = districtName?.toLowerCase()?.trim() || '';
+          if (key && apiDataMapByName[key]) apiMatch = apiDataMapByName[key];
+        }
+        const apiDetails = apiMatch ? apiMatch.details : {};
 
-      const completed = pickMetric(apiDetails, 'Completed', seasonTab); // unchanged source
-      const ongoing = pickMetric(apiDetails, 'Ongoing', seasonTab);
-      const underReview = pickMetric(apiDetails, 'UnderReview', seasonTab);
-      const area = pickMetric(apiDetails, 'ClusterArea', seasonTab);
+        const completed = pickMetric(apiDetails, 'Completed', landTypeTab);
+        const ongoing = pickMetric(apiDetails, 'Ongoing', landTypeTab);
+        const underReview = pickMetric(apiDetails, 'UnderReview', landTypeTab);
+        const area = pickMetric(apiDetails, 'ClusterArea', landTypeTab);
 
-      // NEW: Total now comes from the BTR completed-clusters API
-      const btrDetails = resolveBtrDetails(districtId, districtName);
-      const total = pickMetric(btrDetails, 'Completed', seasonTab); // wetCompleted/dryCompleted
+        // Total comes from the BTR completed-clusters API
+        const btrDetails = resolveBtrDetails(districtId, districtName);
+        const total = pickMetric(btrDetails, 'Completed', landTypeTab); // wetCompleted/dryCompleted
 
-      // NEW: Not Started = new total - existing completed
+        // Not Started = BTR total - form1 completed
+        const notStarted = Math.max(total - completed, 0);
+
+        const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
+
+        return {
+          id: districtId || apiDetails.id || `dist_${Math.random()}`,
+          district: districtName || apiMatch?.name || 'Unknown District',
+          total,
+          completed,
+          ongoing,
+          notStarted,
+          underReview,
+          area,
+          hasData
+        };
+      });
+    }
+
+    // Fallback (no master districts list) — same idea, keyed off apiDistricts
+    return Object.entries(apiDistricts).map(([districtName, d]) => {
+      const completed = pickMetric(d, 'Completed', landTypeTab);
+      const ongoing = pickMetric(d, 'Ongoing', landTypeTab);
+      const underReview = pickMetric(d, 'UnderReview', landTypeTab);
+      const area = pickMetric(d, 'ClusterArea', landTypeTab);
+
+      const btrDetails = resolveBtrDetails(d.id, districtName);
+      const total = pickMetric(btrDetails, 'Completed', landTypeTab);
       const notStarted = Math.max(total - completed, 0);
-
       const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
 
       return {
-        id: districtId || apiDetails.id || `dist_${Math.random()}`,
-        district: districtName || apiMatch?.name || 'Unknown District',
+        id: d.id || `dist_${Math.random()}`,
+        district: districtName || 'Unknown District',
         total,
         completed,
         ongoing,
@@ -309,51 +370,25 @@ function KeralaFormReportList() {
         hasData
       };
     });
-  }
-
-  // Fallback (no master districts list) — same idea, keyed off apiDistricts
-  return Object.entries(apiDistricts).map(([districtName, d]) => {
-    const completed = pickMetric(d, 'Completed', seasonTab);
-    const ongoing = pickMetric(d, 'Ongoing', seasonTab);
-    const underReview = pickMetric(d, 'UnderReview', seasonTab);
-    const area = pickMetric(d, 'ClusterArea', seasonTab);
-
-    const btrDetails = resolveBtrDetails(d.id, districtName);
-    const total = pickMetric(btrDetails, 'Completed', seasonTab);
-    const notStarted = Math.max(total - completed, 0);
-    const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
-
-    return {
-      id: d.id || `dist_${Math.random()}`,
-      district: districtName || 'Unknown District',
-      total,
-      completed,
-      ongoing,
-      notStarted,
-      underReview,
-      area,
-      hasData
-    };
-  });
-}, [apiData, btrData, districtsList, seasonTab]);
+  }, [apiData, btrData, districtsList, landTypeTab]);
 
   const districtsWithNoData = useMemo(() => {
     return districtData.filter(d => !d.hasData).length;
   }, [districtData]);
 
   const stats = useMemo(() => {
-  const totalCompletedClusters = btrData?.totalClusterCompleted || 0; // NEW source for "Total Clusters"
-  const existingCompleted = apiData?.completed || 0; // unchanged
+    const totalCompletedClusters = btrData?.totalClusterCompleted || 0; // source for "Total Clusters"
+    const existingCompleted = apiData?.completed || 0;
 
-  return {
-    all: totalCompletedClusters,
-    completed: existingCompleted,
-    ongoing: apiData?.ongoing || 0,
-    notStarted: Math.max(totalCompletedClusters - existingCompleted, 0), // NEW derivation
-    underReview: apiData?.underView || 0,
-    completedArea: districtData.reduce((sum, d) => sum + d.area, 0)
-  };
-}, [apiData, btrData, districtData]);
+    return {
+      all: totalCompletedClusters,
+      completed: existingCompleted,
+      ongoing: apiData?.ongoing || 0,
+      notStarted: Math.max(totalCompletedClusters - existingCompleted, 0),
+      underReview: apiData?.underView || 0,
+      completedArea: districtData.reduce((sum, d) => sum + d.area, 0)
+    };
+  }, [apiData, btrData, districtData]);
 
   const filteredData = useMemo(() => {
     if (!searchTerm.trim()) return districtData;
@@ -382,16 +417,26 @@ function KeralaFormReportList() {
     setFromMonth(MONTH_OPTIONS[0]?.value || '');
     setToMonth('');
     setSingleMonth(MONTH_OPTIONS[0]?.value || '');
-    setSeasonTab('ALL');
+    setLandTypeTab('ALL');
+    setSeasonId(DEFAULT_SEASON_ID); // reset to Autumn, never blank
     setFilterType('single');
     setPage(0);
   };
+
+  const filtersAreDirty =
+    Boolean(fromMonth) ||
+    Boolean(toMonth) ||
+    Boolean(singleMonth) ||
+    landTypeTab !== 'ALL' ||
+    Number(seasonId) !== DEFAULT_SEASON_ID;
 
   // Build a meaningful filename from the active filters
   const generateExcelFileName = () => {
     const parts = ['District_Report'];
 
-    if (seasonTab !== 'ALL') parts.push(seasonTab);
+    parts.push(getSeasonLabel(seasonId));
+
+    if (landTypeTab !== 'ALL') parts.push(landTypeTab);
 
     if (filterType === 'single' && singleMonth) {
       parts.push(getMonthLabel(singleMonth).replace(/\s+/g, '_'));
@@ -414,6 +459,7 @@ function KeralaFormReportList() {
 
     const exportRows = filteredData.map((row, index) => ({
       '#': index + 1,
+      Season: getSeasonLabel(seasonId),
       District: row.district,
       Total: row.hasData ? row.total : 'NA',
       Completed: row.hasData ? row.completed : 'NA',
@@ -427,7 +473,7 @@ function KeralaFormReportList() {
 
     // Reasonable column widths so it doesn't open looking cramped
     worksheet['!cols'] = [
-      { wch: 5 },  { wch: 25 }, { wch: 10 },
+      { wch: 5 },  { wch: 12 }, { wch: 25 }, { wch: 10 },
       { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
     ];
 
@@ -445,7 +491,11 @@ function KeralaFormReportList() {
         districtId: districtId,
         fromMonth,
         toMonth,
-        seasonTab,
+        // `seasonTab` kept for backward compatibility with the taluk page,
+        // `landType` is the clearer name going forward. Both hold WET/DRY/ALL.
+        seasonTab: landTypeTab,
+        landType: landTypeTab,
+        seasonId: Number(seasonId) || DEFAULT_SEASON_ID,
         filterType,
         singleMonth
       }
@@ -530,15 +580,16 @@ function KeralaFormReportList() {
                 Cluster Enumeration Progress Report
               </Typography>
               <Typography variant="body2" color="text.secondary">
+                {`${getSeasonLabel(seasonId)} season`}
                 {filterType === 'single' && singleMonth && ` • ${getMonthLabel(singleMonth)}`}
                 {filterType === 'range' && fromMonth && ` • ${getMonthLabel(fromMonth)}${toMonth ? ` - ${getMonthLabel(toMonth)}` : ''}`}
-                {seasonTab !== 'ALL' && ` • ${seasonTab} Land`}
+                {landTypeTab !== 'ALL' && ` • ${landTypeTab} Land`}
                 {loading && ' • Refreshing...'}
                 {districtsWithNoData > 0 && ` • ${districtsWithNoData} districts with no data`}
               </Typography>
             </Box>
           </Stack>
-          {(fromMonth || toMonth || singleMonth || seasonTab !== 'ALL') && (
+          {filtersAreDirty && (
             <Button
               variant="outlined"
               onClick={handleClearFilters}
@@ -578,9 +629,28 @@ function KeralaFormReportList() {
         <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
           <Stack spacing={2}>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
+              <FormControl size="small" sx={{ minWidth: 160 }}>
+                <InputLabel id="season-select-label">Season</InputLabel>
+                <Select
+                  labelId="season-select-label"
+                  value={seasonId}
+                  label="Season"
+                  onChange={(e) => { setSeasonId(Number(e.target.value)); setPage(0); }}
+                  startAdornment={
+                    <InputAdornment position="start">
+                      <GrassIcon fontSize="small" sx={{ color: '#2e7d32' }} />
+                    </InputAdornment>
+                  }
+                >
+                  {SEASON_OPTIONS.map((opt) => (
+                    <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
               <Tabs
-                value={seasonTab}
-                onChange={(e, newValue) => { setSeasonTab(newValue); setPage(0); }}
+                value={landTypeTab}
+                onChange={(e, newValue) => { setLandTypeTab(newValue); setPage(0); }}
                 sx={{ minHeight: 40 }}
               >
                 <Tab label="ALL" value="ALL" />
@@ -649,7 +719,12 @@ function KeralaFormReportList() {
 
       <Grid item xs={12}>
         <Box sx={{ position: 'relative', border: `1px solid ${alpha('#04255e', 0.15)}`, borderRadius: 3, p: 2, pt: 3, bgcolor: '#fff' }}>
-          <Chip label="State Summary" color="primary" size="small" sx={{ position: 'absolute', top: -12, left: 20, fontWeight: 600, bgcolor: '#04255e', px: 1 }} />
+          <Chip
+            label={`State Summary • ${getSeasonLabel(seasonId)}`}
+            color="primary"
+            size="small"
+            sx={{ position: 'absolute', top: -12, left: 20, fontWeight: 600, bgcolor: '#04255e', px: 1 }}
+          />
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6} md={2.4}><StatCard label="Total Clusters" value={stats.all} color="#1565c0" bgColor={alpha('#1565c0', 0.08)} icon={<AssessmentIcon sx={{ color: '#1565c0', opacity: 0.7 }} />} /></Grid>
             <Grid item xs={12} sm={6} md={2.4}><StatCard label="Completed" value={stats.completed} color="#2e7d32" bgColor={alpha('#2e7d32', 0.08)} icon={<CheckCircleIcon sx={{ color: '#2e7d32', opacity: 0.7 }} />} areaValue={stats.completedArea} /></Grid>
@@ -734,7 +809,7 @@ function KeralaFormReportList() {
           </Stack>
 
           <MainCard
-            title="District-wise Summary"
+            title={`District-wise Summary — ${getSeasonLabel(seasonId)}`}
             sx={{ borderRadius: 3 }}
           >
             <TableContainer>

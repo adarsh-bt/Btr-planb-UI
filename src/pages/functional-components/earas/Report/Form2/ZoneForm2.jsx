@@ -17,7 +17,9 @@ import {
   Tab,
   Chip,
   Stack,
-  CircularProgress
+  CircularProgress,
+  IconButton,
+  Tooltip
 } from '@mui/material';
 import {
   LocationOn,
@@ -25,18 +27,20 @@ import {
   Agriculture,
   Store,
   ArrowBack,
-  WbSunny
+  WbSunny,
+  Visibility,
+  VisibilityOff,
+  InfoOutlined
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
 import AuthService from 'pages/authentication/services/authservice';
 import Breadcrumb from 'routes/Breadcrumb';
+import api from 'api/api';
 
 // =====================================================================
 // COLUMN WIDTHS — single source of truth.
-// Every table uses a <colgroup> built from these numbers, so the header,
-// body, subtotal and grand-total rows can never disagree about widths.
 // =====================================================================
 
 // Land Utilization tab
@@ -48,25 +52,22 @@ const IRR_BLOCK_W = 140;
 const IRR_ZONE_W = 170;
 const IRR_COUNT_W = 70;
 const IRR_AREA_W = 90;
-// Height of the FIRST header row in the irrigation table. The second
-// header row is stuck at exactly this offset (no more hard-coded "45").
 const IRR_HEADER_ROW1_H = 44;
 
 // ---- Solid (non-transparent) tint colors for sticky cells ----
 const themeColor = '#05307a';
-const stickyTintLight = '#eef1f7';    // ~ alpha(themeColor, 0.06) over white
-const stickyTintSubtotal = '#e4e9f2'; // ~ alpha(themeColor, 0.08) over white
-const stickyTintGrand = '#d2dbe9';    // ~ alpha(themeColor, 0.15) over white
-const stickyHeaderSub = '#22528b';    // ~ alpha(themeColor, 0.85) over white
+const stickyTintLight = '#eef1f7';
+const stickyTintSubtotal = '#e4e9f2';
+const stickyTintGrand = '#d2dbe9';
+const stickyHeaderSub = '#22528b';
 
-// Gateway root (e.g. http://localhost:8080). '/earas-form1-entry' added below.
-// NOTE: if mainapi.FORM_API already ends in '/earas-form1-entry', drop the
-// duplicate segment from the URL to avoid a doubled prefix (404).
+// Gateway root
 const BASE_URL = mainapi.FORM_API;
+const BTR_BASE_URL = mainapi.BTR_API;
 
 const SESSION_KEY = 'zoneForm2State';
 
-// Internal column id → API field name (same land shape at every level).
+// Internal column id → API field name
 const LAND_FIELD_MAP = {
   buildingCourtyard: 'buildingArea',
   otherNonAgri: 'nonAgriculturalArea',
@@ -83,21 +84,18 @@ const LAND_FIELD_MAP = {
   netAreaSown: 'netAreasSown'
 };
 
-// Wet/Dry classification for irrigation sources, keyed by sourceId.
-// ⚠️ VERIFY against the official source definitions — the API does not return a
-// category. Any sourceId NOT listed here is always shown under any filter.
+// Wet/Dry classification for irrigation sources
 const IRRIGATION_SOURCE_CATEGORY = {
-  1: 'wet', // Government canals
-  2: 'wet', // Private canals
-  3: 'wet', // Government tanks
-  4: 'wet', // Private tank
-  5: 'dry', // Government wells
-  6: 'dry', // Private wells
-  7: 'dry', // Test well
-  9: 'wet', // By pumps from rivers, lakes, rivulets, etc
-  10: 'wet', // By country wheels from rivers, lakes...
-  11: 'wet' // By other means from rivers, lakes, rivulets and springs
-  // 8, 12, 13 intentionally unmapped → always shown.
+  1: 'wet',
+  2: 'wet',
+  3: 'wet',
+  4: 'wet',
+  5: 'dry',
+  6: 'dry',
+  7: 'dry',
+  9: 'wet',
+  10: 'wet',
+  11: 'wet'
 };
 
 function getSavedState() {
@@ -108,10 +106,7 @@ function getSavedState() {
   }
 }
 
-// Resolve the block a zone belongs to.
-//   real block   → blockName (when blockId & blockName present)
-//   blockId null  → keyword in zoneName: 'municipality' → Municipality,
-//                   'corporation' → Corporation, otherwise → Unassigned
+// Resolve the block a zone belongs to
 function resolveBlockName(blockId, blockName, zoneName) {
   if (blockId && blockName) return blockName;
   const lower = (zoneName || '').toLowerCase();
@@ -120,9 +115,7 @@ function resolveBlockName(blockId, blockName, zoneName) {
   return 'Unassigned';
 }
 
-// Group rows by block: sorted real blocks first, then Municipality,
-// Corporation, Unassigned (only those that exist). Returns an insertion-ordered
-// plain object so the render can iterate with Object.entries.
+// Group rows by block
 function buildOrderedGroups(rows) {
   const real = new Map();
   const muni = [];
@@ -147,16 +140,27 @@ function buildOrderedGroups(rows) {
   return ordered;
 }
 
+// Fallback zones for a taluk
+function getFallbackZones(talukId) {
+  return [
+    { zoneId: 1, zoneNameEn: 'Zone 1', blockName: 'Block A' },
+    { zoneId: 2, zoneNameEn: 'Zone 2', blockName: 'Block A' },
+    { zoneId: 3, zoneNameEn: 'Zone 3', blockName: 'Block B' },
+    { zoneId: 4, zoneNameEn: 'Zone 4', blockName: 'Block B' },
+    { zoneId: 5, zoneNameEn: 'Zone 5', blockName: 'Block C' }
+  ];
+}
+
 const ZoneForm2 = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Merge saved sessionStorage state with location.state (state wins on fresh nav).
+  // Merge saved sessionStorage state with location.state
   const stateData = useMemo(() => {
     const saved = getSavedState();
     return { ...saved, ...(location.state || {}) };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const officeInfo = useMemo(() => {
     try {
@@ -177,10 +181,34 @@ const ZoneForm2 = () => {
   // API data
   const [landZonesApi, setLandZonesApi] = useState([]);
   const [irrZonesApi, setIrrZonesApi] = useState([]);
+  const [zonesList, setZonesList] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [masterZonesLoading, setMasterZonesLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  /* ── persist taluk context so breadcrumb/refresh keeps working ── */
+  // Fetch master zones list
+  const fetchMasterZones = async (talukIdValue) => {
+    setMasterZonesLoading(true);
+    try {
+      const response = await api.get(`${BTR_BASE_URL}/btr-service/btr-api/zones?desTalukId=${talukIdValue}`);
+      console.log('Master Zones Response:', response.data);
+
+      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        console.log('Setting zones list:', response.data.data);
+        setZonesList(response.data.data);
+      } else {
+        console.warn('No zones found, using fallback');
+        setZonesList(getFallbackZones(talukIdValue));
+      }
+    } catch (err) {
+      console.error('Error fetching master zones:', err);
+      setZonesList(getFallbackZones(talukIdValue));
+    } finally {
+      setMasterZonesLoading(false);
+    }
+  };
+
+  /* ── persist taluk context ── */
   useEffect(() => {
     if (talukId != null) {
       sessionStorage.setItem(
@@ -196,6 +224,13 @@ const ZoneForm2 = () => {
       );
     }
   }, [talukId, selectedTaluk, stateData.districtId, officeInfo, selectedDistrict, agriculturalYear, stateData.activeTab]);
+
+  // Fetch master zones on mount
+  useEffect(() => {
+    if (talukId != null) {
+      fetchMasterZones(talukId);
+    }
+  }, [talukId]);
 
   /* ─────────────────────────── fetch ─────────────────────────── */
 
@@ -218,6 +253,9 @@ const ZoneForm2 = () => {
 
         const [landRes, irrRes] = await Promise.all([axios.get(landUrl, { headers }), axios.get(irrUrl, { headers })]);
 
+        console.log('Land Zones API Response:', landRes.data);
+        console.log('Irrigation Zones API Response:', irrRes.data);
+
         setLandZonesApi(Array.isArray(landRes.data) ? landRes.data : []);
         setIrrZonesApi(Array.isArray(irrRes.data) ? irrRes.data : []);
       } catch (err) {
@@ -237,18 +275,81 @@ const ZoneForm2 = () => {
   /* ─────────────────── land utilization derived data ─────────────────── */
 
   const landRows = useMemo(() => {
-    return landZonesApi.map((z) => {
-      const row = {
-        block: resolveBlockName(z.blockId, z.blockName, z.zoneName),
-        zone: z.zoneName || 'Unknown',
-        zoneId: z.zoneId
-      };
-      Object.entries(LAND_FIELD_MAP).forEach(([colId, apiKey]) => {
-        row[colId] = Number(z[apiKey]) || 0;
-      });
-      return row;
+    // Create a map for quick lookup of API data by zone name or ID
+    const apiDataMap = {};
+    landZonesApi.forEach((z) => {
+      const name = z.zoneName || '';
+      const id = z.zoneId;
+      if (name) apiDataMap[name.toLowerCase().trim()] = z;
+      if (id) apiDataMap[`id_${id}`] = z;
     });
-  }, [landZonesApi]);
+
+    let mergedData = [];
+
+    // If we have master zones list, merge with API data
+    if (zonesList && zonesList.length > 0) {
+      mergedData = zonesList.map((zone) => {
+        const zoneId = zone.zoneId;
+        const zoneName = zone.zoneNameEn || '';
+
+        // Try to find API data by ID first, then by name
+        let apiData = null;
+        if (zoneId && apiDataMap[`id_${zoneId}`]) {
+          apiData = apiDataMap[`id_${zoneId}`];
+        } else if (zoneName && apiDataMap[zoneName.toLowerCase().trim()]) {
+          apiData = apiDataMap[zoneName.toLowerCase().trim()];
+        }
+
+        const row = {
+          block: apiData ? resolveBlockName(apiData.blockId, apiData.blockName, zoneName) : 'Unassigned',
+          zone: zoneName || 'Unknown',
+          zoneId: zoneId
+        };
+
+        // Populate land utilization fields
+        Object.entries(LAND_FIELD_MAP).forEach(([colId, apiKey]) => {
+          row[colId] = apiData ? Number(apiData[apiKey]) || 0 : 0;
+        });
+
+        return row;
+      });
+    } else {
+      // Fallback: use only API data
+      mergedData = landZonesApi.map((z) => {
+        const row = {
+          block: resolveBlockName(z.blockId, z.blockName, z.zoneName),
+          zone: z.zoneName || 'Unknown',
+          zoneId: z.zoneId
+        };
+        Object.entries(LAND_FIELD_MAP).forEach(([colId, apiKey]) => {
+          row[colId] = Number(z[apiKey]) || 0;
+        });
+        return row;
+      });
+    }
+
+    // Sort by block then zone
+    return mergedData.sort((a, b) => {
+      if (a.block === 'Unassigned') return 1;
+      if (b.block === 'Unassigned') return -1;
+      if (a.block === b.block) return a.zone.localeCompare(b.zone);
+      return a.block.localeCompare(b.block);
+    });
+  }, [landZonesApi, zonesList]);
+
+  // Check if a zone has any land data
+  const hasLandData = (row) => {
+    let hasData = false;
+    Object.keys(LAND_FIELD_MAP).forEach((colId) => {
+      if (row[colId] > 0) hasData = true;
+    });
+    return hasData;
+  };
+
+  // Count zones with no land data
+  const zonesWithNoLandData = useMemo(() => {
+    return landRows.filter(row => !hasLandData(row) && row.zoneId !== null).length;
+  }, [landRows]);
 
   const { landGrouped, landBlockTotals, landGrandTotals } = useMemo(() => {
     const grouped = buildOrderedGroups(landRows);
@@ -282,14 +383,77 @@ const ZoneForm2 = () => {
   }, [irrZonesApi]);
 
   const irrRows = useMemo(() => {
-    return irrZonesApi.map((z) => {
-      const byId = {};
-      (z.sources || []).forEach((s) => {
-        byId[s.sourceId] = { count: s.count || 0, area: s.area || 0 };
-      });
-      return { block: resolveBlockName(z.blockId, z.blockName, z.zoneName), zone: z.zoneName || 'Unknown', zoneId: z.zoneId, byId };
+    // Create a map for quick lookup of irrigation API data by zone name or ID
+    const apiDataMap = {};
+    irrZonesApi.forEach((z) => {
+      const name = z.zoneName || '';
+      const id = z.zoneId;
+      if (name) apiDataMap[name.toLowerCase().trim()] = z;
+      if (id) apiDataMap[`id_${id}`] = z;
     });
-  }, [irrZonesApi]);
+
+    let mergedData = [];
+
+    if (zonesList && zonesList.length > 0) {
+      mergedData = zonesList.map((zone) => {
+        const zoneId = zone.zoneId;
+        const zoneName = zone.zoneNameEn || '';
+
+        let apiData = null;
+        if (zoneId && apiDataMap[`id_${zoneId}`]) {
+          apiData = apiDataMap[`id_${zoneId}`];
+        } else if (zoneName && apiDataMap[zoneName.toLowerCase().trim()]) {
+          apiData = apiDataMap[zoneName.toLowerCase().trim()];
+        }
+
+        const byId = {};
+        if (apiData && apiData.sources) {
+          apiData.sources.forEach((s) => {
+            byId[s.sourceId] = { count: s.count || 0, area: s.area || 0 };
+          });
+        }
+
+        return {
+          block: apiData ? resolveBlockName(apiData.blockId, apiData.blockName, zoneName) : 'Unassigned',
+          zone: zoneName || 'Unknown',
+          zoneId: zoneId,
+          byId: byId
+        };
+      });
+    } else {
+      // Fallback: use only API data
+      mergedData = irrZonesApi.map((z) => {
+        const byId = {};
+        (z.sources || []).forEach((s) => {
+          byId[s.sourceId] = { count: s.count || 0, area: s.area || 0 };
+        });
+        return {
+          block: resolveBlockName(z.blockId, z.blockName, z.zoneName),
+          zone: z.zoneName || 'Unknown',
+          zoneId: z.zoneId,
+          byId: byId
+        };
+      });
+    }
+
+    // Sort by block then zone
+    return mergedData.sort((a, b) => {
+      if (a.block === 'Unassigned') return 1;
+      if (b.block === 'Unassigned') return -1;
+      if (a.block === b.block) return a.zone.localeCompare(b.zone);
+      return a.block.localeCompare(b.block);
+    });
+  }, [irrZonesApi, zonesList]);
+
+  // Check if a zone has any irrigation data
+  const hasIrrData = (row) => {
+    return Object.keys(row.byId).length > 0;
+  };
+
+  // Count zones with no irrigation data
+  const zonesWithNoIrrData = useMemo(() => {
+    return irrRows.filter(row => !hasIrrData(row) && row.zoneId !== null).length;
+  }, [irrRows]);
 
   const { irrGrouped, irrBlockTotals, irrGrandTotals } = useMemo(() => {
     const grouped = buildOrderedGroups(irrRows);
@@ -347,7 +511,6 @@ const ZoneForm2 = () => {
     return landTypeFilter === 'all' || cat === landTypeFilter;
   };
 
-  // Exact table widths derived from the column definitions — never guessed.
   const LU_TABLE_W = landUtilizationColumns.reduce((sum, c) => sum + c.minWidth, 0);
   const IRR_TABLE_W = IRR_BLOCK_W + IRR_ZONE_W + (irrigationSources.length || 1) * (IRR_COUNT_W + IRR_AREA_W);
 
@@ -355,13 +518,28 @@ const ZoneForm2 = () => {
 
   const handleTabChange = (event, newValue) => setActiveTab(newValue);
   const formatNumber = (num) => Number(num || 0).toFixed(2);
+
   const handleBack = () => {
-    if (stateData.officeType === 'TALUK' || stateData.isDirectAccess) {
+    let effectiveOfficeType = stateData.officeType || officeInfo.officeType;
+    if (!effectiveOfficeType) {
+      try {
+        const tokenRole = AuthService.getrole();
+        const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+        const des = localStorage.getItem('des') || '';
+        if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
+          effectiveOfficeType = 'TALUK';
+        } else if (roles.some(r => ['District Level Approver', 'District Level Data Viewer'].includes(r)) || des.includes('District')) {
+          effectiveOfficeType = 'DISTRICT';
+        }
+      } catch (e) { }
+    }
+
+    if (effectiveOfficeType === 'TALUK' || stateData.isDirectAccess) {
       navigate('/Report');
     } else {
       navigate('/schemes/earas/cce/TalukForm2', {
         state: {
-          officeType: stateData.officeType || 'DIRECTORATE',
+          officeType: effectiveOfficeType,
           districtId: stateData.districtId || officeInfo.districtOfficeId || officeInfo.districtId,
           districtName: selectedDistrict,
           selectedDistrict,
@@ -395,7 +573,6 @@ const ZoneForm2 = () => {
     { value: 'dry', label: 'Dry', icon: <WbSunny sx={{ fontSize: 18 }} /> }
   ];
 
-  // ---- Reusable sticky cell style (solid bg + border-box, widths from <colgroup>) ----
   const stickyCellSx = (leftPx, bg, extra = {}) => ({
     position: 'sticky',
     left: leftPx,
@@ -417,7 +594,7 @@ const ZoneForm2 = () => {
 
   /* ─────────────────────────── render ─────────────────────────── */
 
-  if (loading && landZonesApi.length === 0 && irrZonesApi.length === 0) {
+  if ((loading || masterZonesLoading) && landZonesApi.length === 0 && irrZonesApi.length === 0 && zonesList.length === 0) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
         <CircularProgress />
@@ -457,6 +634,14 @@ const ZoneForm2 = () => {
             <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
               (Click on any Zone to view detailed report) • Agricultural Year: {agriculturalYear}
             </Typography>
+            {(zonesWithNoLandData > 0 || zonesWithNoIrrData > 0) && (
+              <Chip
+                icon={<InfoOutlined />}
+                label={`${Math.max(zonesWithNoLandData, zonesWithNoIrrData)} zones with no data`}
+                size="small"
+                sx={{ ml: 1, bgcolor: alpha('#ff9800', 0.15), color: '#e65100' }}
+              />
+            )}
           </Box>
 
           {/* Error */}
@@ -466,7 +651,29 @@ const ZoneForm2 = () => {
             </Paper>
           )}
 
-          {/* Land Type Filter - applies to both tabs */}
+          {/* Info Banner for zones with no data */}
+          {(zonesWithNoLandData > 0 || zonesWithNoIrrData > 0) && !loading && (
+            <Paper
+              sx={{
+                p: 1.5,
+                mb: 2,
+                bgcolor: alpha('#ff9800', 0.08),
+                borderRadius: 2,
+                border: `1px solid ${alpha('#ff9800', 0.3)}`,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}
+            >
+              <InfoOutlined sx={{ color: '#ff9800', fontSize: 20 }} />
+              <Typography variant="body2" color="text.secondary">
+                <strong>{Math.max(zonesWithNoLandData, zonesWithNoIrrData)}</strong> zone{Math.max(zonesWithNoLandData, zonesWithNoIrrData) > 1 ? 's' : ''} have no data available for the selected filters.
+                <strong> View details is disabled for zones without data.</strong>
+              </Typography>
+            </Paper>
+          )}
+
+          {/* Land Type Filter */}
           <Paper
             elevation={0}
             sx={{
@@ -603,12 +810,22 @@ const ZoneForm2 = () => {
 
                       zones.forEach((zone, idx) => {
                         const isLastInGroup = idx === zones.length - 1;
+                        const hasData = hasLandData(zone);
+                        const isClickable = zone.zoneId != null;
+
                         rows.push(
                           <TableRow
                             key={`${blockName}-${zone.zone}-${zone.zoneId}`}
-                            hover
-                            onClick={() => handleZoneClick(zone.zone, zone.zoneId)}
-                            sx={{ cursor: 'pointer', '&:hover': { bgcolor: alpha(themeColor, 0.08) } }}
+                            hover={isClickable}
+                            onClick={() => isClickable && handleZoneClick(zone.zone, zone.zoneId)}
+                            sx={{
+                              cursor: isClickable ? 'pointer' : 'default',
+                              '&:hover': isClickable ? { bgcolor: alpha(themeColor, 0.08) } : undefined,
+                              ...(!hasData && isClickable && {
+                                bgcolor: alpha('#ff9800', 0.03),
+                                '&:hover': { bgcolor: alpha('#ff9800', 0.08) }
+                              })
+                            }}
                           >
                             <TableCell
                               align="center"
@@ -643,17 +860,32 @@ const ZoneForm2 = () => {
                                 borderRight: `1px solid ${alpha(themeColor, 0.1)}`
                               }}
                             >
-                              <Chip
-                                label={zone.zone}
-                                size="small"
-                                sx={{
-                                  bgcolor: alpha(themeColor, 0.1),
-                                  color: themeColor,
-                                  fontWeight: 600,
-                                  borderRadius: 1.5,
-                                  '&:hover': { bgcolor: alpha(themeColor, 0.2) }
-                                }}
-                              />
+                              <Stack direction="row" spacing={1} alignItems="center">
+                                <Chip
+                                  label={zone.zone}
+                                  size="small"
+                                  sx={{
+                                    bgcolor: hasData ? alpha(themeColor, 0.1) : alpha('#ff9800', 0.1),
+                                    color: hasData ? themeColor : '#e65100',
+                                    fontWeight: 600,
+                                    borderRadius: 1.5,
+                                    '&:hover': isClickable ? { bgcolor: hasData ? alpha(themeColor, 0.2) : alpha('#ff9800', 0.2) } : undefined
+                                  }}
+                                />
+                                {!hasData && isClickable && (
+                                  <Chip
+                                    label="No Data"
+                                    size="small"
+                                    sx={{
+                                      height: 18,
+                                      fontSize: '0.6rem',
+                                      bgcolor: alpha('#ff9800', 0.15),
+                                      color: '#e65100',
+                                      fontWeight: 600
+                                    }}
+                                  />
+                                )}
+                              </Stack>
                             </TableCell>
                             {landUtilizationDataColumns.map((col) => {
                               const active = isColumnActive(col);
@@ -663,10 +895,10 @@ const ZoneForm2 = () => {
                                   align="right"
                                   sx={{
                                     fontWeight: col.id === 'netAreaSown' ? 600 : 400,
-                                    color: active ? 'inherit' : 'text.disabled'
+                                    color: active && hasData ? 'inherit' : 'text.disabled'
                                   }}
                                 >
-                                  {active ? formatNumber(zone[col.id]) : '—'}
+                                  {active && hasData ? formatNumber(zone[col.id]) : '—'}
                                 </TableCell>
                               );
                             })}
@@ -709,40 +941,6 @@ const ZoneForm2 = () => {
 
                       return rows;
                     })}
-
-                    {/* {Object.keys(landGrouped).length > 0 && (
-                      <TableRow sx={{ bgcolor: stickyTintGrand }}>
-                        <TableCell
-                          colSpan={2}
-                          sx={{
-                            ...stickyCellSx(0, stickyTintGrand),
-                            fontWeight: 800,
-                            color: themeColor,
-                            fontSize: '1rem',
-                            py: 1.5,
-                            zIndex: 2
-                          }}
-                        >
-                          <strong>🏆 GRAND TOTAL</strong>
-                        </TableCell>
-                        {landUtilizationDataColumns.map((col) => {
-                          const active = isColumnActive(col);
-                          return (
-                            <TableCell
-                              key={col.id}
-                              align="right"
-                              sx={{
-                                fontWeight: 800,
-                                bgcolor: stickyTintGrand,
-                                color: active ? 'inherit' : 'text.disabled'
-                              }}
-                            >
-                              {active ? formatNumber(landGrandTotals[col.id]) : '—'}
-                            </TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    )} */}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -852,12 +1050,22 @@ const ZoneForm2 = () => {
 
                       zones.forEach((zone, idx) => {
                         const isLastInGroup = idx === zones.length - 1;
+                        const hasData = hasIrrData(zone);
+                        const isClickable = zone.zoneId != null;
+
                         rows.push(
                           <TableRow
                             key={`${blockName}-${zone.zone}-${zone.zoneId}`}
-                            hover
-                            onClick={() => handleZoneClick(zone.zone, zone.zoneId)}
-                            sx={{ cursor: 'pointer', '&:hover': { bgcolor: alpha(themeColor, 0.08) } }}
+                            hover={isClickable}
+                            onClick={() => isClickable && handleZoneClick(zone.zone, zone.zoneId)}
+                            sx={{
+                              cursor: isClickable ? 'pointer' : 'default',
+                              '&:hover': isClickable ? { bgcolor: alpha(themeColor, 0.08) } : undefined,
+                              ...(!hasData && isClickable && {
+                                bgcolor: alpha('#ff9800', 0.03),
+                                '&:hover': { bgcolor: alpha('#ff9800', 0.08) }
+                              })
+                            }}
                           >
                             <TableCell
                               align="center"
@@ -886,37 +1094,50 @@ const ZoneForm2 = () => {
                                 borderRight: `1px solid ${alpha(themeColor, 0.1)}`
                               }}
                             >
-                              <Chip
-                                label={zone.zone}
-                                size="small"
-                                sx={{
-                                  bgcolor: alpha(themeColor, 0.1),
-                                  color: themeColor,
-                                  fontWeight: 500,
-                                  '&:hover': { bgcolor: alpha(themeColor, 0.2) }
-                                }}
-                              />
+                              <Stack direction="row" spacing={1} alignItems="center">
+                                <Chip
+                                  label={zone.zone}
+                                  size="small"
+                                  sx={{
+                                    bgcolor: hasData ? alpha(themeColor, 0.1) : alpha('#ff9800', 0.1),
+                                    color: hasData ? themeColor : '#e65100',
+                                    fontWeight: 500,
+                                    '&:hover': isClickable ? { bgcolor: hasData ? alpha(themeColor, 0.2) : alpha('#ff9800', 0.2) } : undefined
+                                  }}
+                                />
+                                {!hasData && isClickable && (
+                                  <Chip
+                                    label="No Data"
+                                    size="small"
+                                    sx={{
+                                      height: 18,
+                                      fontSize: '0.6rem',
+                                      bgcolor: alpha('#ff9800', 0.15),
+                                      color: '#e65100',
+                                      fontWeight: 600
+                                    }}
+                                  />
+                                )}
+                              </Stack>
                             </TableCell>
                             {irrigationSources.map((source) => {
                               const active = isSourceActive(source.sourceId);
                               const data = zone.byId[source.sourceId] || { count: 0, area: 0 };
                               return (
                                 <React.Fragment key={source.sourceId}>
-                                  <TableCell align="center">
-                                    {active && data.count > 0 ? (
+                                  <TableCell align="center" sx={{ color: active && hasData ? 'inherit' : 'text.disabled' }}>
+                                    {active && hasData && data.count > 0 ? (
                                       <Chip
                                         label={data.count}
                                         size="small"
                                         sx={{ bgcolor: alpha(themeColor, 0.1), color: themeColor, fontWeight: 600, minWidth: 40 }}
                                       />
                                     ) : (
-                                      <Box component="span" sx={{ color: active ? 'inherit' : 'text.disabled' }}>
-                                        -
-                                      </Box>
+                                      <Box component="span">-</Box>
                                     )}
                                   </TableCell>
-                                  <TableCell align="right" sx={{ fontWeight: 500, color: active ? 'inherit' : 'text.disabled' }}>
-                                    {active && data.area > 0 ? formatNumber(data.area) : '-'}
+                                  <TableCell align="right" sx={{ fontWeight: 500, color: active && hasData ? 'inherit' : 'text.disabled' }}>
+                                    {active && hasData && data.area > 0 ? formatNumber(data.area) : '-'}
                                   </TableCell>
                                 </React.Fragment>
                               );
@@ -959,38 +1180,6 @@ const ZoneForm2 = () => {
 
                       return rows;
                     })}
-
-                    {/* {Object.keys(irrGrouped).length > 0 && (
-                      <TableRow sx={{ bgcolor: stickyTintGrand }}>
-                        <TableCell
-                          colSpan={2}
-                          sx={{
-                            ...stickyCellSx(0, stickyTintGrand),
-                            fontWeight: 800,
-                            color: themeColor,
-                            fontSize: '1rem',
-                            py: 1.5,
-                            zIndex: 2
-                          }}
-                        >
-                          <strong>🏆 GRAND TOTAL</strong>
-                        </TableCell>
-                        {irrigationSources.map((source) => {
-                          const active = isSourceActive(source.sourceId);
-                          const t = irrGrandTotals[source.sourceId] || { count: 0, area: 0 };
-                          return (
-                            <React.Fragment key={source.sourceId}>
-                              <TableCell align="center" sx={{ fontWeight: 800, bgcolor: stickyTintGrand, color: active ? 'inherit' : 'text.disabled' }}>
-                                {active ? t.count : '—'}
-                              </TableCell>
-                              <TableCell align="right" sx={{ fontWeight: 800, bgcolor: stickyTintGrand, color: active ? 'inherit' : 'text.disabled' }}>
-                                {active ? formatNumber(t.area) : '—'}
-                              </TableCell>
-                            </React.Fragment>
-                          );
-                        })}
-                      </TableRow>
-                    )} */}
                   </TableBody>
                 </Table>
               </TableContainer>

@@ -25,6 +25,8 @@ import {
 } from '@mui/material';
 import { LocationOn, WaterDrop, WbSunny, ArrowBack } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
+import AuthService from 'pages/authentication/services/authservice';
+import Breadcrumb from 'routes/Breadcrumb';
 
 // Sticky/column widths
 const PANCHAYATH_W = 180;
@@ -214,7 +216,36 @@ const Form3B = () => {
   const paginatedData = categoryData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   const handleBack = () => {
-    navigate(-1);
+    let effectiveOfficeType = location.state?.officeType || savedState.officeType;
+    if (!effectiveOfficeType) {
+      try {
+        const tokenRole = AuthService.getrole();
+        const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+        const des = localStorage.getItem('des') || '';
+        if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
+          effectiveOfficeType = 'TALUK';
+        } else if (roles.some(r => ['District Level Approver', 'District Level Data Viewer'].includes(r)) || des.includes('District')) {
+          effectiveOfficeType = 'DISTRICT';
+        } else {
+          effectiveOfficeType = 'DIRECTORATE';
+        }
+      } catch (e) {
+        effectiveOfficeType = 'DIRECTORATE';
+      }
+    }
+
+    navigate('/schemes/earas/Report/Form3B/ZoneForm3B', {
+      state: {
+        officeType: effectiveOfficeType,
+        districtId: location.state?.districtId || savedState.districtId,
+        districtName: selectedDistrict,
+        selectedDistrict,
+        talukId: location.state?.talukId || savedState.talukId,
+        talukName: selectedTaluk,
+        selectedTaluk,
+        activeTab
+      }
+    });
   };
 
   const landTypeOptions = [
@@ -226,15 +257,17 @@ const Form3B = () => {
   const TABLE_MIN_W = PANCHAYATH_W + Math.max(activeCategory.crops.length, 1) * CROP_W;
 
   return (
-    <Card
-      elevation={0}
-      sx={{
-        borderRadius: 4,
-        overflow: 'visible',
-        background: theme.palette.background.paper,
-        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-      }}
-    >
+    <Box>
+      <Breadcrumb />
+      <Card
+        elevation={0}
+        sx={{
+          borderRadius: 4,
+          overflow: 'visible',
+          background: theme.palette.background.paper,
+          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+        }}
+      >
       <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
 
         {/* Header */}
@@ -505,6 +538,7 @@ const Form3B = () => {
         </Paper>
       </CardContent>
     </Card>
+    </Box>
   );
 };
 

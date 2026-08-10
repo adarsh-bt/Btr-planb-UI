@@ -938,7 +938,7 @@ const KeyPlotEntryNonBtr = () => {
           });
         });
       });
-
+      console.log("saveeee     ", dtoList)
       const response = await fetch(
         `${BASE_URL}/btr-service/api/btr-data/saveAll`,
         {
@@ -952,19 +952,75 @@ const KeyPlotEntryNonBtr = () => {
       );
 
       const result = await response.json();
-      if (response.ok && result.status === 'Success') {
-        setSavedCount(result.ids?.length || totalKeyplots);
+
+      console.log("Save response:", result);
+
+      if (response.ok && result.status === "COMPLETED") {
+
+        const saved = Number(result.savedCount || 0);
+        const duplicates = Number(result.duplicateCount || 0);
+        const failed = Number(result.errorCount || 0);
+
+        setSavedCount(saved);
+
+        // Only real failures should interrupt the user
+        if (failed > 0) {
+          setValidationErrors(
+            (result.errors || []).map(error => ({
+              message:
+                typeof error === "string"
+                  ? error
+                  : error.message || "Plot failed to save."
+            }))
+          );
+
+          setShowErrorModal(true);
+
+          toast.warning(
+            `${saved} plot(s) saved, ${failed} plot(s) failed.`
+          );
+
+          return;
+        }
+
+        // SUCCESS
+        // Duplicates are NOT errors.
         setShowSuccessModal(true);
-        toast.success(`Successfully saved ${result.ids?.length || totalKeyplots} keyplots!`);
+
+        let message = `${saved} plot(s) saved successfully.`;
+
+        if (duplicates > 0) {
+          message += ` ${duplicates} existing BTR plot(s) skipped.`;
+        }
+
+        toast.success(message);
+
         setLocalBodyData({});
-        setTimeout(() => { window.location.reload(); }, 1500);
-      } else if (result.status === 'Validation Failed') {
-        setValidationErrors(result.errors || []);
+
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+
+      } else if (result.status === "Validation Failed") {
+
+        setValidationErrors(
+          (result.errors || []).map(error => ({
+            message:
+              typeof error === "string"
+                ? error
+                : error.message || "Validation failed."
+          }))
+        );
+
         setShowErrorModal(true);
-        toast.error("Validation failed backend.");
+
+        toast.error("Validation failed.");
+
       } else {
-        setShowErrorModal(true);
-        toast.error(result.message || "Failed to save keyplots.");
+
+        toast.error(
+          result.message || "Failed to save keyplots."
+        );
       }
     } catch (error) {
       console.error("Save error:", error);

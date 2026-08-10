@@ -25,6 +25,7 @@ import {
 } from '@mui/material';
 import { LocationOn, WaterDrop, WbSunny, ArrowBack } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
+import AuthService from 'pages/authentication/services/authservice';
 import Breadcrumb from 'routes/Breadcrumb';
 
 const SESSION_KEY = 'form3AState';
@@ -237,9 +238,27 @@ const Form3A = () => {
   const formatNumber = (num) => num.toFixed(2);
 
   const handleBack = () => {
+    let effectiveOfficeType = location.state?.officeType || savedState.officeType;
+    if (!effectiveOfficeType) {
+      try {
+        const tokenRole = AuthService.getrole();
+        const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+        const des = localStorage.getItem('des') || '';
+        if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
+          effectiveOfficeType = 'TALUK';
+        } else if (roles.some(r => ['District Level Approver', 'District Level Data Viewer'].includes(r)) || des.includes('District')) {
+          effectiveOfficeType = 'DISTRICT';
+        } else {
+          effectiveOfficeType = 'DIRECTORATE';
+        }
+      } catch (e) {
+        effectiveOfficeType = 'DIRECTORATE';
+      }
+    }
+
     navigate('/schemes/earas/Report/Form3A/ZoneForm3A', {
       state: {
-        officeType: location.state?.officeType || 'DIRECTORATE',
+        officeType: effectiveOfficeType,
         districtId: location.state?.districtId || savedState.districtId,
         districtName: selectedDistrict,
         selectedDistrict,

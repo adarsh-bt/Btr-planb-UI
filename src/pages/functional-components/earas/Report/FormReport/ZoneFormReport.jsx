@@ -53,12 +53,44 @@ import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
+import GrassIcon from '@mui/icons-material/Grass';
 import * as XLSX from 'xlsx';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import AuthService from 'pages/authentication/services/authservice';
 import mainapi from 'api/mainapi';
 import api from 'api/api';
+
+/* ─────────────────────────── season (crop season) ─────────────────────────── */
+
+// Crop seasons supported by the backend. seasonId is MANDATORY on the
+// form1-status endpoints, so there is deliberately no "ALL"/empty option.
+// TODO: SEASON_OPTIONS / DEFAULT_SEASON_ID / normalizeSeasonId are now duplicated
+// across the state, taluk and zone report pages — move them into a shared
+// constants module (e.g. utils/cropSeason.js) before a fourth copy appears.
+const SEASON_OPTIONS = [
+  { value: 1, label: 'Autumn' },
+  { value: 2, label: 'Winter' },
+  { value: 3, label: 'Summer' }
+];
+
+const DEFAULT_SEASON_ID = 1; // Autumn
+
+// The BTR zone completed-clusters endpoint is a different service. If it also
+// understands seasonId, keep this true so "Total" is season-scoped and the
+// Not Started math stays correct. Unknown query params are ignored by Spring,
+// so if BTR doesn't support it the behaviour is identical to before.
+const BTR_SUPPORTS_SEASON_ID = true;
+
+const getSeasonLabel = (value) =>
+  SEASON_OPTIONS.find((o) => o.value === Number(value))?.label || 'Autumn';
+
+// Accepts anything (number from location.state, string from a serialized source,
+// undefined on direct access) and always returns a valid season id.
+const normalizeSeasonId = (value) => {
+  const n = Number(value);
+  return SEASON_OPTIONS.some((o) => o.value === n) ? n : DEFAULT_SEASON_ID;
+};
 
 // Builds the "July <startYear> → June <startYear + 1>" agricultural-year
 // month list used by the Single Month / From Month / To Month dropdowns.
@@ -100,11 +132,25 @@ function resolveMonthValue(val, monthOptions) {
   return monthOptions[0]?.value || '';
 }
 
-// Per-zone metrics come split into wet*/dry* fields
-function pickMetric(zone, metric, seasonTab) {
-  if (seasonTab === 'WET') return Number(zone[`wet${metric}`]) || 0;
-  if (seasonTab === 'DRY') return Number(zone[`dry${metric}`]) || 0;
+// Per-zone metrics come split into wet*/dry* fields.
+// NOTE: `landType` here is WET / DRY / ALL — land type, NOT crop season.
+// Crop season is the separate, mandatory seasonId (Autumn / Winter / Summer).
+function pickMetric(zone, metric, landType) {
+  if (landType === 'WET') return Number(zone[`wet${metric}`]) || 0;
+  if (landType === 'DRY') return Number(zone[`dry${metric}`]) || 0;
   return (Number(zone[`wet${metric}`]) || 0) + (Number(zone[`dry${metric}`]) || 0);
+}
+
+// Loose (substring) name matching is only safe when it is UNAMBIGUOUS.
+// "Pothencode 1" is a substring of "Pothencode 10", "Pothencode 11", ... so a
+// naive .includes() fallback can silently attach one zone's numbers to another
+// zone's row. Return a match only when exactly one candidate qualifies.
+function findUniqueLooseMatch(mapByName, searchKey) {
+  if (!searchKey) return null;
+  const candidates = Object.keys(mapByName).filter(
+    (k) => k === searchKey || k.includes(searchKey) || searchKey.includes(k)
+  );
+  return candidates.length === 1 ? mapByName[candidates[0]] : null;
 }
 
 // Resolve the block a zone belongs to.
@@ -143,6 +189,12 @@ function ZoneFormReport() {
   const MONTH_OPTIONS = buildAgriMonthOptions();
   const getMonthLabel = (value) => MONTH_OPTIONS.find((o) => o.value === value)?.label || value;
 
+  // Display name — declared up here because generateExcelFileName() closes over it.
+  const formattedTaluk =
+    (talukName && talukName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')) ||
+    stateData.talukName ||
+    'Taluk';
+
   /* ── resolve taluk ID once and keep in a ref ── */
   const resolvedTalukId = useRef(null);
 
@@ -172,7 +224,11 @@ function ZoneFormReport() {
       fromMonth: resolveMonthValue(stateData.fromMonth, MONTH_OPTIONS),
       toMonth: stateData.toMonth ? resolveMonthValue(stateData.toMonth, MONTH_OPTIONS) : '',
       singleMonth: resolveMonthValue(stateData.singleMonth, MONTH_OPTIONS),
-      seasonTab: stateData.seasonTab || 'ALL'
+      // `landType` is the new key; `seasonTab` is the legacy key still sent by
+      // older callers. Both carry WET / DRY / ALL.
+      landTypeTab: stateData.landType || stateData.seasonTab || 'ALL',
+      // Mandatory crop season — falls back to Autumn on direct access.
+      seasonId: normalizeSeasonId(stateData.seasonId)
     };
   };
 
@@ -183,7 +239,8 @@ function ZoneFormReport() {
 
   const [districtId, setDistrictId] = useState(initialFilters.districtId);
   const [talukId, setTalukId] = useState(initialFilters.talukId);
-  const [seasonTab, setSeasonTab] = useState(initialFilters.seasonTab);
+  const [landTypeTab, setLandTypeTab] = useState(initialFilters.landTypeTab);
+  const [seasonId, setSeasonId] = useState(initialFilters.seasonId);
   const [filterType, setFilterType] = useState(initialFilters.filterType);
   const [fromMonth, setFromMonth] = useState(initialFilters.fromMonth);
   const [toMonth, setToMonth] = useState(initialFilters.toMonth);
@@ -223,273 +280,277 @@ function ZoneFormReport() {
   };
 
   // Fetch data from API
+  // Fetch data from API
   const fetchZoneData = async () => {
-  try {
-    setLoading(true);
-    setError(null);
+    try {
+      setLoading(true);
+      setError(null);
 
-    const targetQueryId = resolvedTalukId.current;
+      const targetQueryId = resolvedTalukId.current;
 
-    if (!targetQueryId) {
-      setError('Taluk ID is required. Please navigate from the taluk report page.');
-      setLoading(false);
-      return;
-    }
-
-    let startMonthVal = resolveMonthValue(MONTH_OPTIONS[0]?.value, MONTH_OPTIONS);
-    let endMonthVal = resolveMonthValue(MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.value, MONTH_OPTIONS);
-
-    if (filterType === 'single') {
-      if (singleMonth) {
-        const resolved = resolveMonthValue(singleMonth, MONTH_OPTIONS);
-        startMonthVal = resolved;
-        endMonthVal = resolved;
+      if (!targetQueryId) {
+        setError('Taluk ID is required. Please navigate from the taluk report page.');
+        setLoading(false);
+        return;
       }
-    } else {
-      if (fromMonth) startMonthVal = resolveMonthValue(fromMonth, MONTH_OPTIONS);
-      if (toMonth) endMonthVal = resolveMonthValue(toMonth, MONTH_OPTIONS);
+
+      let startMonthVal = resolveMonthValue(MONTH_OPTIONS[0]?.value, MONTH_OPTIONS);
+      let endMonthVal = resolveMonthValue(MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.value, MONTH_OPTIONS);
+
+      if (filterType === 'single') {
+        if (singleMonth) {
+          const resolved = resolveMonthValue(singleMonth, MONTH_OPTIONS);
+          startMonthVal = resolved;
+          endMonthVal = resolved;
+        }
+      } else {
+        if (fromMonth) startMonthVal = resolveMonthValue(fromMonth, MONTH_OPTIONS);
+        if (toMonth) endMonthVal = resolveMonthValue(toMonth, MONTH_OPTIONS);
+      }
+
+      const token = AuthService.gettoken ? AuthService.gettoken() : localStorage.getItem('token');
+      if (!token) throw new Error('Authentication session token missing. Please log in again.');
+
+      // seasonId is mandatory — guard against it ever reaching the URL empty.
+      const effectiveSeasonId = normalizeSeasonId(seasonId);
+
+      // form1-status: taluk + month range + land type + season.
+      const params = new URLSearchParams({ talukId: targetQueryId, startMonth: startMonthVal });
+      if (endMonthVal) params.append('endMonth', endMonthVal);
+      if (landTypeTab && landTypeTab !== 'ALL') params.append('landType', landTypeTab);
+      params.append('seasonId', String(effectiveSeasonId));
+
+      // BTR zone completed-clusters: agri-year scoped now. No months, no seasonId.
+      const btrParams = new URLSearchParams({ talukId: targetQueryId });
+      if (landTypeTab && landTypeTab !== 'ALL') btrParams.append('landType', landTypeTab);
+      btrParams.append('agriYear', AuthService.agriyear() || '2025-2026');
+
+      const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/taluk?${params.toString()}`;
+      const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/dashboard/completed/zone?${btrParams.toString()}`;
+
+      console.log('Zone API Request:', url);
+      console.log('BTR Zone Completed-Clusters Request:', completedClustersUrl);
+
+      const [formStatusRes, completedClustersRes] = await Promise.all([
+        axios.get(url, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(completedClustersUrl, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+
+      console.log('Zone API Response:', formStatusRes.data);
+      console.log('BTR Zone Completed-Clusters Response:', completedClustersRes.data);
+
+      setApiData(formStatusRes.data || null);
+      setBtrData(completedClustersRes.data || null);
+    } catch (err) {
+      console.error('API Error:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to fetch data');
+    } finally {
+      setLoading(false);
     }
-
-    const token = AuthService.getToken ? AuthService.getToken() : localStorage.getItem('token');
-    if (!token) throw new Error('Authentication session token missing. Please log in again.');
-
-    const params = new URLSearchParams({ talukId: targetQueryId, startMonth: startMonthVal });
-    if (endMonthVal) params.append('endMonth', endMonthVal);
-    if (seasonTab && seasonTab !== 'ALL') params.append('landType', seasonTab);
-
-    const btrParams = new URLSearchParams({ talukId: targetQueryId, startMonth: startMonthVal });
-    if (endMonthVal) btrParams.append('endMonth', endMonthVal);
-    if (seasonTab && seasonTab !== 'ALL') btrParams.append('landType', seasonTab);
-
-    const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/taluk?${params.toString()}`;
-    const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/dashboard/completed/zone?${btrParams.toString()}`;
-
-    console.log('Zone API Request:', url);
-    console.log('BTR Zone Completed-Clusters Request:', completedClustersUrl);
-
-    const [formStatusRes, completedClustersRes] = await Promise.all([
-      axios.get(url, { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get(completedClustersUrl, { headers: { Authorization: `Bearer ${token}` } })
-    ]);
-
-    console.log('Zone API Response:', formStatusRes.data);
-    console.log('BTR Zone Completed-Clusters Response:', completedClustersRes.data);
-
-    setApiData(formStatusRes.data || null);
-    setBtrData(completedClustersRes.data || null);
-  } catch (err) {
-    console.error('API Error:', err);
-    setError(err.response?.data?.message || err.message || 'Failed to fetch data');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // Fetch master zones on mount
   useEffect(() => {
     if (resolvedTalukId.current) {
       fetchMasterZones(resolvedTalukId.current);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Initial fetch and refetch on filter changes
   useEffect(() => {
     fetchZoneData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [districtId, talukId, seasonTab, filterType, fromMonth, toMonth, singleMonth]);
+  }, [districtId, talukId, landTypeTab, seasonId, filterType, fromMonth, toMonth, singleMonth]);
 
   // Merge API data with master zones list
   const processedData = useMemo(() => {
-  const apiZones = apiData?.allSubDetails || {};
-  const btrZones = btrData?.allSubDetails || {};
+    const apiZones = apiData?.allSubDetails || {};
+    const btrZones = btrData?.allSubDetails || {};
 
-  console.log('API Zones:', apiZones);
-  console.log('Master Zones List:', zonesList);
-  console.log('BTR Zones:', btrZones);
+    console.log('API Zones:', apiZones);
+    console.log('Master Zones List:', zonesList);
+    console.log('BTR Zones:', btrZones);
 
-  const apiDataMapById = {};
-  const apiDataMapByName = {};
-  Object.entries(apiZones).forEach(([key, details]) => {
-    if (details.zoneId) apiDataMapById[details.zoneId] = details;
-    const name = details.zoneName || key;
-    const nameKey = name?.toLowerCase()?.trim() || '';
-    if (nameKey) apiDataMapByName[nameKey] = details;
-  });
-
-  // NEW: BTR completed-clusters lookup, by id and by name
-  const btrMapById = {};
-  const btrMapByName = {};
-  Object.entries(btrZones).forEach(([name, details]) => {
-    if (details.id) btrMapById[details.id] = details;
-    const key = name?.toLowerCase()?.trim() || '';
-    if (key) btrMapByName[key] = details;
-  });
-
-  const resolveBtrDetails = (zoneId, zoneName) => {
-    if (zoneId && btrMapById[zoneId]) return btrMapById[zoneId];
-    const key = zoneName?.toLowerCase()?.trim() || '';
-    if (key && btrMapByName[key]) return btrMapByName[key];
-    // partial match fallback, same spirit as the existing apiDataMapByName partial match below
-    const searchKey = zoneName?.toLowerCase()?.trim() || '';
-    const matchKey = Object.keys(btrMapByName).find(k => k.includes(searchKey) || searchKey.includes(k));
-    return matchKey ? btrMapByName[matchKey] : {};
-  };
-
-  let mergedZones = [];
-
-  if (zonesList && zonesList.length > 0) {
-    mergedZones = zonesList.map((zone) => {
-      const zoneId = zone.zoneId;
-      const zoneName = zone.zoneNameEn || '';
-
-      let apiDetails = null;
-      if (zoneId && apiDataMapById[zoneId]) {
-        apiDetails = apiDataMapById[zoneId];
-      }
-      if (!apiDetails) {
-        const key = zoneName?.toLowerCase()?.trim() || '';
-        if (key && apiDataMapByName[key]) apiDetails = apiDataMapByName[key];
-      }
-      if (!apiDetails) {
-        const searchKey = zoneName?.toLowerCase()?.trim() || '';
-        const matchKey = Object.keys(apiDataMapByName).find(key =>
-          key.includes(searchKey) || searchKey.includes(key)
-        );
-        if (matchKey) apiDetails = apiDataMapByName[matchKey];
-      }
-
-      const completed = apiDetails ? pickMetric(apiDetails, 'Completed', seasonTab) : 0;
-      const ongoing = apiDetails ? pickMetric(apiDetails, 'Ongoing', seasonTab) : 0;
-      const underReview = apiDetails ? pickMetric(apiDetails, 'UnderReview', seasonTab) : 0;
-      const area = apiDetails ? pickMetric(apiDetails, 'ClusterArea', seasonTab) : 0;
-
-      // NEW: total from BTR completed-clusters API, Not Started derived from it
-      const btrDetails = resolveBtrDetails(zoneId, zoneName);
-      const total = pickMetric(btrDetails, 'Completed', seasonTab);
-      const notStarted = Math.max(total - completed, 0);
-
-      const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
-
-      const blockId = apiDetails?.blockId || null;
-      const blockName = apiDetails?.blockName || 'Unassigned';
-      const resolvedBlock = resolveBlockName(blockId, blockName, zoneName);
-
-      return {
-        zoneId: zoneId,
-        zoneName: zoneName || 'Unknown Zone',
-        blockId: blockId,
-        blockName: resolvedBlock,
-        total,
-        completed,
-        ongoing,
-        notStarted,
-        underReview,
-        area,
-        hasData,
-        originalBlockName: apiDetails?.blockName,
-        isMunicipality: resolvedBlock === 'Municipality',
-        isCorporation: resolvedBlock === 'Corporation'
-      };
+    const apiDataMapById = {};
+    const apiDataMapByName = {};
+    Object.entries(apiZones).forEach(([key, details]) => {
+      if (details.zoneId) apiDataMapById[details.zoneId] = details;
+      const name = details.zoneName || key;
+      const nameKey = name?.toLowerCase()?.trim() || '';
+      if (nameKey) apiDataMapByName[nameKey] = details;
     });
-  } else {
-    // Fallback: use only API data
-    mergedZones = Object.entries(apiZones).map(([key, details]) => {
-      const completed = pickMetric(details, 'Completed', seasonTab);
-      const ongoing = pickMetric(details, 'Ongoing', seasonTab);
-      const underReview = pickMetric(details, 'UnderReview', seasonTab);
-      const area = pickMetric(details, 'ClusterArea', seasonTab);
 
-      const zoneName = details.zoneName || key;
-      const zoneIdVal = details.zoneId;
-
-      const btrDetails = resolveBtrDetails(zoneIdVal, zoneName);
-      const total = pickMetric(btrDetails, 'Completed', seasonTab);
-      const notStarted = Math.max(total - completed, 0);
-
-      const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
-
-      const blockId = details.blockId || null;
-      const blockName = details.blockName || 'Unassigned';
-      const resolvedBlock = resolveBlockName(blockId, blockName, zoneName);
-
-      return {
-        zoneId: zoneIdVal || `zone_${Math.random()}`,
-        zoneName: zoneName,
-        blockId: blockId,
-        blockName: resolvedBlock,
-        total,
-        completed,
-        ongoing,
-        notStarted,
-        underReview,
-        area,
-        hasData,
-        isMunicipality: resolvedBlock === 'Municipality',
-        isCorporation: resolvedBlock === 'Corporation'
-      };
+    // BTR completed-clusters lookup, by id and by name
+    const btrMapById = {};
+    const btrMapByName = {};
+    Object.entries(btrZones).forEach(([name, details]) => {
+      if (details.id) btrMapById[details.id] = details;
+      if (details.zoneId) btrMapById[details.zoneId] = details;
+      const key = name?.toLowerCase()?.trim() || '';
+      if (key) btrMapByName[key] = details;
     });
-  }
 
-  // Group by block — unchanged, just carry `total` through zoneData now
-  const blockMap = new Map();
-  const municipalityZones = [];
-  const corporationZones = [];
-
-  mergedZones.forEach((zone) => {
-    const zoneData = {
-      zoneId: zone.zoneId,
-      zoneName: zone.zoneName,
-      total: zone.total,
-      completed: zone.completed,
-      ongoing: zone.ongoing,
-      notStarted: zone.notStarted,
-      underReview: zone.underReview,
-      area: zone.area,
-      hasData: zone.hasData
+    const resolveBtrDetails = (zoneId, zoneName) => {
+      if (zoneId && btrMapById[zoneId]) return btrMapById[zoneId];
+      const key = zoneName?.toLowerCase()?.trim() || '';
+      if (key && btrMapByName[key]) return btrMapByName[key];
+      // Ambiguity-safe loose fallback (see findUniqueLooseMatch).
+      return findUniqueLooseMatch(btrMapByName, key) || {};
     };
 
-    if (zone.isMunicipality) {
-      municipalityZones.push(zoneData);
-      return;
-    }
-    if (zone.isCorporation) {
-      corporationZones.push(zoneData);
-      return;
-    }
+    let mergedZones = [];
 
-    const key = zone.blockId || zone.blockName;
-    if (!blockMap.has(key)) {
-      blockMap.set(key, {
-        blockId: zone.blockId,
-        blockName: zone.blockName,
-        zones: []
+    if (zonesList && zonesList.length > 0) {
+      mergedZones = zonesList.map((zone) => {
+        const zoneId = zone.zoneId;
+        const zoneName = zone.zoneNameEn || '';
+
+        let apiDetails = null;
+        if (zoneId && apiDataMapById[zoneId]) {
+          apiDetails = apiDataMapById[zoneId];
+        }
+        if (!apiDetails) {
+          const key = zoneName?.toLowerCase()?.trim() || '';
+          if (key && apiDataMapByName[key]) apiDetails = apiDataMapByName[key];
+        }
+        if (!apiDetails) {
+          const searchKey = zoneName?.toLowerCase()?.trim() || '';
+          apiDetails = findUniqueLooseMatch(apiDataMapByName, searchKey);
+        }
+
+        const completed = apiDetails ? pickMetric(apiDetails, 'Completed', landTypeTab) : 0;
+        const ongoing = apiDetails ? pickMetric(apiDetails, 'Ongoing', landTypeTab) : 0;
+        const underReview = apiDetails ? pickMetric(apiDetails, 'UnderReview', landTypeTab) : 0;
+        const area = apiDetails ? pickMetric(apiDetails, 'ClusterArea', landTypeTab) : 0;
+
+        // Total from BTR completed-clusters API, Not Started derived from it
+        const btrDetails = resolveBtrDetails(zoneId, zoneName);
+        const total = pickMetric(btrDetails, 'Completed', landTypeTab);
+        const notStarted = Math.max(total - completed, 0);
+
+        const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
+
+        const blockId = apiDetails?.blockId || null;
+        const blockName = apiDetails?.blockName || 'Unassigned';
+        const resolvedBlock = resolveBlockName(blockId, blockName, zoneName);
+
+        return {
+          zoneId: zoneId,
+          zoneName: zoneName || 'Unknown Zone',
+          blockId: blockId,
+          blockName: resolvedBlock,
+          total,
+          completed,
+          ongoing,
+          notStarted,
+          underReview,
+          area,
+          hasData,
+          originalBlockName: apiDetails?.blockName,
+          isMunicipality: resolvedBlock === 'Municipality',
+          isCorporation: resolvedBlock === 'Corporation'
+        };
+      });
+    } else {
+      // Fallback: use only API data
+      mergedZones = Object.entries(apiZones).map(([key, details]) => {
+        const completed = pickMetric(details, 'Completed', landTypeTab);
+        const ongoing = pickMetric(details, 'Ongoing', landTypeTab);
+        const underReview = pickMetric(details, 'UnderReview', landTypeTab);
+        const area = pickMetric(details, 'ClusterArea', landTypeTab);
+
+        const zoneName = details.zoneName || key;
+        const zoneIdVal = details.zoneId;
+
+        const btrDetails = resolveBtrDetails(zoneIdVal, zoneName);
+        const total = pickMetric(btrDetails, 'Completed', landTypeTab);
+        const notStarted = Math.max(total - completed, 0);
+
+        const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
+
+        const blockId = details.blockId || null;
+        const blockName = details.blockName || 'Unassigned';
+        const resolvedBlock = resolveBlockName(blockId, blockName, zoneName);
+
+        return {
+          zoneId: zoneIdVal || `zone_${Math.random()}`,
+          zoneName: zoneName,
+          blockId: blockId,
+          blockName: resolvedBlock,
+          total,
+          completed,
+          ongoing,
+          notStarted,
+          underReview,
+          area,
+          hasData,
+          isMunicipality: resolvedBlock === 'Municipality',
+          isCorporation: resolvedBlock === 'Corporation'
+        };
       });
     }
-    blockMap.get(key).zones.push(zoneData);
-  });
 
-  const blocks = Array.from(blockMap.values()).sort((a, b) => a.blockName.localeCompare(b.blockName));
-  blocks.forEach((block) => block.zones.sort((a, b) => a.zoneName.localeCompare(b.zoneName)));
+    // Group by block — unchanged, just carry `total` through zoneData
+    const blockMap = new Map();
+    const municipalityZones = [];
+    const corporationZones = [];
 
-  if (municipalityZones.length > 0) {
-    blocks.push({
-      blockId: 'municipality',
-      blockName: 'Municipality',
-      isMunicipality: true,
-      zones: municipalityZones.sort((a, b) => a.zoneName.localeCompare(b.zoneName))
+    mergedZones.forEach((zone) => {
+      const zoneData = {
+        zoneId: zone.zoneId,
+        zoneName: zone.zoneName,
+        total: zone.total,
+        completed: zone.completed,
+        ongoing: zone.ongoing,
+        notStarted: zone.notStarted,
+        underReview: zone.underReview,
+        area: zone.area,
+        hasData: zone.hasData
+      };
+
+      if (zone.isMunicipality) {
+        municipalityZones.push(zoneData);
+        return;
+      }
+      if (zone.isCorporation) {
+        corporationZones.push(zoneData);
+        return;
+      }
+
+      const key = zone.blockId || zone.blockName;
+      if (!blockMap.has(key)) {
+        blockMap.set(key, {
+          blockId: zone.blockId,
+          blockName: zone.blockName,
+          zones: []
+        });
+      }
+      blockMap.get(key).zones.push(zoneData);
     });
-  }
-  if (corporationZones.length > 0) {
-    blocks.push({
-      blockId: 'corporation',
-      blockName: 'Corporation',
-      isCorporation: true,
-      zones: corporationZones.sort((a, b) => a.zoneName.localeCompare(b.zoneName))
-    });
-  }
 
-  return blocks;
-}, [apiData, btrData, zonesList, seasonTab]);
+    const blocks = Array.from(blockMap.values()).sort((a, b) => a.blockName.localeCompare(b.blockName));
+    blocks.forEach((block) => block.zones.sort((a, b) => a.zoneName.localeCompare(b.zoneName)));
+
+    if (municipalityZones.length > 0) {
+      blocks.push({
+        blockId: 'municipality',
+        blockName: 'Municipality',
+        isMunicipality: true,
+        zones: municipalityZones.sort((a, b) => a.zoneName.localeCompare(b.zoneName))
+      });
+    }
+    if (corporationZones.length > 0) {
+      blocks.push({
+        blockId: 'corporation',
+        blockName: 'Corporation',
+        isCorporation: true,
+        zones: corporationZones.sort((a, b) => a.zoneName.localeCompare(b.zoneName))
+      });
+    }
+
+    return blocks;
+  }, [apiData, btrData, zonesList, landTypeTab]);
 
   // Count zones with no data
   const zonesWithNoData = useMemo(() => {
@@ -504,90 +565,90 @@ function ZoneFormReport() {
 
   // Overall statistics
   const stats = useMemo(() => {
-  if (!apiData) {
-    return { total: 0, completed: 0, ongoing: 0, notStarted: 0, underReview: 0, completedArea: 0 };
-  }
-  const completedArea = processedData.reduce(
-    (sum, block) => sum + block.zones.reduce((s, z) => s + z.area, 0),
-    0
-  );
+    if (!apiData) {
+      return { total: 0, completed: 0, ongoing: 0, notStarted: 0, underReview: 0, completedArea: 0 };
+    }
+    const completedArea = processedData.reduce(
+      (sum, block) => sum + block.zones.reduce((s, z) => s + z.area, 0),
+      0
+    );
 
-  const totalCompletedClusters = btrData?.totalClusterCompleted || 0; // NEW source for "Total Clusters"
-  const existingCompleted = apiData.completed || 0; // unchanged
+    const totalCompletedClusters = btrData?.totalClusterCompleted || 0; // source for "Total Clusters"
+    const existingCompleted = apiData.completed || 0;
 
-  return {
-    total: totalCompletedClusters,
-    completed: existingCompleted,
-    ongoing: apiData.ongoing || 0,
-    notStarted: Math.max(totalCompletedClusters - existingCompleted, 0), // NEW derivation
-    underReview: apiData.underView || 0,
-    completedArea
-  };
-}, [apiData, btrData, processedData]);
+    return {
+      total: totalCompletedClusters,
+      completed: existingCompleted,
+      ongoing: apiData.ongoing || 0,
+      notStarted: Math.max(totalCompletedClusters - existingCompleted, 0),
+      underReview: apiData.underView || 0,
+      completedArea
+    };
+  }, [apiData, btrData, processedData]);
 
   // Flatten data for table display with subtotals
   const flattenedTableData = useMemo(() => {
-  const result = [];
+    const result = [];
 
-  processedData.forEach((block) => {
-    let blockTotal = 0;
-    let blockCompleted = 0;
-    let blockOngoing = 0;
-    let blockNotStarted = 0;
-    let blockUnderReview = 0;
-    let blockArea = 0;
+    processedData.forEach((block) => {
+      let blockTotal = 0;
+      let blockCompleted = 0;
+      let blockOngoing = 0;
+      let blockNotStarted = 0;
+      let blockUnderReview = 0;
+      let blockArea = 0;
 
-    block.zones.forEach((zone, zoneIndex) => {
-      const zoneTotal = zone.total; // CHANGED: use BTR-derived total directly, not a re-sum
+      block.zones.forEach((zone, zoneIndex) => {
+        const zoneTotal = zone.total; // BTR-derived total, not a re-sum
 
-      blockTotal += zoneTotal;
-      blockCompleted += zone.completed;
-      blockOngoing += zone.ongoing;
-      blockNotStarted += zone.notStarted;
-      blockUnderReview += zone.underReview;
-      blockArea += zone.area;
+        blockTotal += zoneTotal;
+        blockCompleted += zone.completed;
+        blockOngoing += zone.ongoing;
+        blockNotStarted += zone.notStarted;
+        blockUnderReview += zone.underReview;
+        blockArea += zone.area;
+
+        result.push({
+          type: 'zone',
+          id: `${block.blockId}_zone_${zone.zoneId}`,
+          blockId: block.blockId,
+          blockName: block.blockName,
+          isFirstZoneInBlock: zoneIndex === 0,
+          zoneName: zone.zoneName,
+          total: zoneTotal,
+          completed: zone.completed,
+          ongoing: zone.ongoing,
+          notStarted: zone.notStarted,
+          underReview: zone.underReview,
+          area: zone.area,
+          zoneId: zone.zoneId,
+          hasData: zone.hasData,
+          isCorporation: block.isCorporation || false,
+          isMunicipality: block.isMunicipality || false
+        });
+      });
 
       result.push({
-        type: 'zone',
-        id: `${block.blockId}_zone_${zone.zoneId}`,
+        type: 'subtotal',
+        id: `block_${block.blockId}_subtotal`,
         blockId: block.blockId,
         blockName: block.blockName,
-        isFirstZoneInBlock: zoneIndex === 0,
-        zoneName: zone.zoneName,
-        total: zoneTotal,
-        completed: zone.completed,
-        ongoing: zone.ongoing,
-        notStarted: zone.notStarted,
-        underReview: zone.underReview,
-        area: zone.area,
-        zoneId: zone.zoneId,
-        hasData: zone.hasData,
+        zoneName: `Total for ${block.blockName}`,
+        total: blockTotal,
+        completed: blockCompleted,
+        ongoing: blockOngoing,
+        notStarted: blockNotStarted,
+        underReview: blockUnderReview,
+        area: blockArea,
+        isSubtotal: true,
+        hasData: blockTotal > 0,
         isCorporation: block.isCorporation || false,
         isMunicipality: block.isMunicipality || false
       });
     });
 
-    result.push({
-      type: 'subtotal',
-      id: `block_${block.blockId}_subtotal`,
-      blockId: block.blockId,
-      blockName: block.blockName,
-      zoneName: `Total for ${block.blockName}`,
-      total: blockTotal,
-      completed: blockCompleted,
-      ongoing: blockOngoing,
-      notStarted: blockNotStarted,
-      underReview: blockUnderReview,
-      area: blockArea,
-      isSubtotal: true,
-      hasData: blockTotal > 0,
-      isCorporation: block.isCorporation || false,
-      isMunicipality: block.isMunicipality || false
-    });
-  });
-
-  return result;
-}, [processedData]);
+    return result;
+  }, [processedData]);
 
   // Filter data based on search term
   const searchFilteredData = useMemo(() => {
@@ -620,16 +681,28 @@ function ZoneFormReport() {
     setFromMonth(MONTH_OPTIONS[0]?.value || '');
     setToMonth('');
     setSingleMonth(MONTH_OPTIONS[0]?.value || '');
-    setSeasonTab('ALL');
+    setLandTypeTab('ALL');
+    setSeasonId(DEFAULT_SEASON_ID); // reset to Autumn, never blank
     setFilterType('single');
     setPage(0);
   };
 
-  const handleSeasonTabChange = (event, newValue) => {
+  const filtersAreDirty =
+    fromMonth !== MONTH_OPTIONS[0]?.value ||
+    Boolean(toMonth) ||
+    landTypeTab !== 'ALL' ||
+    Number(seasonId) !== DEFAULT_SEASON_ID;
+
+  const handleLandTypeChange = (event, newValue) => {
     if (newValue !== null) {
-      setSeasonTab(newValue);
+      setLandTypeTab(newValue);
       setPage(0);
     }
+  };
+
+  const handleSeasonChange = (event) => {
+    setSeasonId(Number(event.target.value));
+    setPage(0);
   };
 
   const handleFilterTypeChange = (event, newValue) => {
@@ -655,7 +728,9 @@ function ZoneFormReport() {
         talukId: resolvedTalukId.current,
         fromMonth,
         toMonth,
-        seasonTab,
+        seasonTab: landTypeTab, // legacy key
+        landType: landTypeTab,
+        seasonId: normalizeSeasonId(seasonId),
         filterType,
         singleMonth
       }
@@ -666,7 +741,9 @@ function ZoneFormReport() {
   const generateExcelFileName = () => {
     const parts = ['Zone_Report', formattedTaluk.replace(/\s+/g, '_')];
 
-    if (seasonTab !== 'ALL') parts.push(seasonTab);
+    parts.push(getSeasonLabel(seasonId));
+
+    if (landTypeTab !== 'ALL') parts.push(landTypeTab);
 
     if (filterType === 'single' && singleMonth) {
       parts.push(getMonthLabel(singleMonth).replace(/\s+/g, '_'));
@@ -687,6 +764,8 @@ function ZoneFormReport() {
   const handleExportExcel = () => {
     if (!searchFilteredData || searchFilteredData.length === 0) return;
 
+    const seasonLabel = getSeasonLabel(seasonId);
+
     let serial = 0;
     const exportRows = searchFilteredData.map((row) => {
       const isSubtotalRow = row.type === 'subtotal';
@@ -696,6 +775,7 @@ function ZoneFormReport() {
 
       return {
         '#': isSubtotalRow ? '' : serial,
+        Season: seasonLabel,
         Block: row.blockName,
         Zone: row.zoneName,
         Total: hasNoData ? 'NA' : row.total,
@@ -711,12 +791,12 @@ function ZoneFormReport() {
 
     // Reasonable column widths so it doesn't open looking cramped
     worksheet['!cols'] = [
-      { wch: 5 },  { wch: 20 }, { wch: 22 }, { wch: 10 },
+      { wch: 5 },  { wch: 12 }, { wch: 20 }, { wch: 22 }, { wch: 10 },
       { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
     ];
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'District Report');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Zone Report');
 
     XLSX.writeFile(workbook, generateExcelFileName());
   };
@@ -730,7 +810,9 @@ function ZoneFormReport() {
         districtName: stateData.districtName || '',
         fromMonth,
         toMonth,
-        seasonTab,
+        seasonTab: landTypeTab, // legacy key
+        landType: landTypeTab,
+        seasonId: normalizeSeasonId(seasonId),
         filterType,
         singleMonth
       }
@@ -772,12 +854,6 @@ function ZoneFormReport() {
       </CardContent>
     </Card>
   );
-
-  // Format display names
-  const formattedTaluk =
-    (talukName && talukName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')) ||
-    stateData.talukName ||
-    'Taluk';
 
   // Show loading state
   if ((loading || masterZonesLoading) && !apiData && zonesList.length === 0) {
@@ -828,8 +904,9 @@ function ZoneFormReport() {
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {(districtName || stateData.districtName) &&
-                  `District: ${(districtName || stateData.districtName).split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}`}
-                {seasonTab !== 'ALL' && ` • ${seasonTab} Land`}
+                  `District: ${(districtName || stateData.districtName).split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} • `}
+                {`${getSeasonLabel(seasonId)} season`}
+                {landTypeTab !== 'ALL' && ` • ${landTypeTab} Land`}
                 {filterType === 'single' && singleMonth && ` • ${getMonthLabel(singleMonth)}`}
                 {filterType === 'range' && fromMonth && ` • ${getMonthLabel(fromMonth)}${toMonth ? ` - ${getMonthLabel(toMonth)}` : ''}`}
                 {apiData && ` • Total Zones: ${Object.keys(apiData.allSubDetails || {}).length}`}
@@ -839,7 +916,7 @@ function ZoneFormReport() {
             </Box>
           </Stack>
           <Stack direction="row" spacing={1}>
-            {(fromMonth !== MONTH_OPTIONS[0]?.value || toMonth || seasonTab !== 'ALL') && (
+            {filtersAreDirty && (
               <Button
                 variant="outlined"
                 onClick={handleClearFilters}
@@ -882,9 +959,28 @@ function ZoneFormReport() {
         <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
           <Stack spacing={2}>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
+              <FormControl size="small" sx={{ minWidth: 160 }}>
+                <InputLabel id="zone-season-select-label">Season</InputLabel>
+                <Select
+                  labelId="zone-season-select-label"
+                  value={seasonId}
+                  label="Season"
+                  onChange={handleSeasonChange}
+                  startAdornment={
+                    <InputAdornment position="start">
+                      <GrassIcon fontSize="small" sx={{ color: '#2e7d32' }} />
+                    </InputAdornment>
+                  }
+                >
+                  {SEASON_OPTIONS.map((opt) => (
+                    <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
               <Tabs
-                value={seasonTab}
-                onChange={handleSeasonTabChange}
+                value={landTypeTab}
+                onChange={handleLandTypeChange}
                 sx={{ minHeight: 40 }}
               >
                 <Tab label="ALL" value="ALL" />
@@ -955,7 +1051,7 @@ function ZoneFormReport() {
       <Grid item xs={12}>
         <Box sx={{ position: 'relative', borderRadius: 3 }}>
           <Chip
-            label={`${formattedTaluk} - Taluk Report Summary`}
+            label={`${formattedTaluk} - Taluk Report Summary • ${getSeasonLabel(seasonId)}`}
             size="small"
             sx={{
               position: 'absolute',
@@ -1107,7 +1203,7 @@ function ZoneFormReport() {
           </Stack>
 
           <MainCard
-            title={`Blocks and Zones in ${formattedTaluk}`}
+            title={`Blocks and Zones in ${formattedTaluk} — ${getSeasonLabel(seasonId)}`}
             sx={{ borderRadius: 3 }}
           >
             {loading ? (
@@ -1350,7 +1446,10 @@ function ZoneFormReport() {
                                   )}
                                 </TableCell>
 
-                                {/* Actions */}
+                                {/* Actions
+                                    NOTE: the enabled branch is still hard-disabled (`disabled` prop on the
+                                    IconButton) — the zone-details drill-down is not live yet. Remove the
+                                    `disabled` prop when /kerala_form_report/zone-details/:zoneId is ready. */}
                                 <TableCell align="center" sx={{ borderRight: 'none', borderLeft: 'none' }}>
                                   {row.type !== 'subtotal' && (
                                     row.hasData ? (
@@ -1386,7 +1485,9 @@ function ZoneFormReport() {
                         <TableRow>
                           <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                             <Typography color="text.secondary">
-                              {searchTerm ? `No blocks/zones found matching "${searchTerm}"` : 'No data available for selected filters'}
+                              {searchTerm
+                                ? `No blocks/zones found matching "${searchTerm}"`
+                                : `No data available for ${getSeasonLabel(seasonId)} season with the selected filters`}
                             </Typography>
                           </TableCell>
                         </TableRow>

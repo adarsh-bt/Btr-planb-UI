@@ -51,12 +51,44 @@ import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
+import GrassIcon from '@mui/icons-material/Grass';
 import * as XLSX from 'xlsx';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
 import AuthService from 'pages/authentication/services/authservice';
 import mainapi from 'api/mainapi';
 import api from 'api/api';
+
+/* ─────────────────────────── season (crop season) ─────────────────────────── */
+
+// Crop seasons supported by the backend. seasonId is MANDATORY on the
+// form1-status endpoints, so there is deliberately no "ALL"/empty option.
+// TODO: move SEASON_OPTIONS / DEFAULT_SEASON_ID into a shared constants module
+// once the zone and block report pages get the same filter, so the three copies
+// can't drift apart.
+const SEASON_OPTIONS = [
+  { value: 1, label: 'Autumn' },
+  { value: 2, label: 'Winter' },
+  { value: 3, label: 'Summer' }
+];
+
+const DEFAULT_SEASON_ID = 1; // Autumn
+
+// The BTR taluk completed-clusters endpoint is a different service. If it also
+// understands seasonId, keep this true so "Total" is season-scoped and the
+// Not Started math stays correct. Unknown query params are ignored by Spring,
+// so if BTR doesn't support it the behaviour is identical to before.
+const BTR_SUPPORTS_SEASON_ID = true;
+
+const getSeasonLabel = (value) =>
+  SEASON_OPTIONS.find((o) => o.value === Number(value))?.label || 'Autumn';
+
+// Accepts anything (string from sessionStorage, number from location.state,
+// undefined on a cold direct-access load) and always returns a valid season id.
+const normalizeSeasonId = (value) => {
+  const n = Number(value);
+  return SEASON_OPTIONS.some((o) => o.value === n) ? n : DEFAULT_SEASON_ID;
+};
 
 /* ─────────────────────────── session persistence ─────────────────────────── */
 
@@ -73,7 +105,7 @@ function getSavedState() {
 // Builds the "July <startYear> → June <startYear + 1>" agricultural-year
 // month list used by the Single Month / From Month / To Month dropdowns.
 // Each option's `value` is sent to the API in "MM-YYYY" form (e.g. "07-2025"),
-// matching /form1-status/district?districtId=1&startMonth=07-2025&endMonth=09-2025&landType=WET.
+// matching /form1-status/district?districtId=1&startMonth=07-2025&endMonth=09-2025&landType=WET&seasonId=1.
 function buildAgriMonthOptions() {
   const agriYear = AuthService.agriyear() || '2025-2026';
   const startYear = parseInt(agriYear.split('-')[0], 10) || new Date().getFullYear();
@@ -116,9 +148,12 @@ function resolveMonthValue(val, monthOptions) {
 // dryCompleted). This picks the right one — or sums both — based on the
 // active WET / DRY / ALL tab. `metric` is one of:
 // 'Completed' | 'Ongoing' | 'NotStarted' | 'UnderReview' | 'ClusterArea'
-function pickMetric(taluk, metric, seasonTab) {
-  if (seasonTab === 'WET') return Number(taluk[`wet${metric}`]) || 0;
-  if (seasonTab === 'DRY') return Number(taluk[`dry${metric}`]) || 0;
+//
+// NOTE: `landType` here is WET / DRY / ALL. That is land type, NOT crop season.
+// Crop season is the separate, mandatory seasonId (Autumn / Winter / Summer).
+function pickMetric(taluk, metric, landType) {
+  if (landType === 'WET') return Number(taluk[`wet${metric}`]) || 0;
+  if (landType === 'DRY') return Number(taluk[`dry${metric}`]) || 0;
   return (Number(taluk[`wet${metric}`]) || 0) + (Number(taluk[`dry${metric}`]) || 0);
 }
 
@@ -166,6 +201,7 @@ function TalukFormReport() {
   const stateData = useMemo(() => {
     const saved = getSavedState();
     return { ...saved, ...(location.state || {}) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ── resolve district ID once, keep in a ref ── */
@@ -193,7 +229,11 @@ function TalukFormReport() {
       fromMonth: resolveMonthValue(stateData.fromMonth, MONTH_OPTIONS),
       toMonth: stateData.toMonth ? resolveMonthValue(stateData.toMonth, MONTH_OPTIONS) : '',
       singleMonth: resolveMonthValue(stateData.singleMonth, MONTH_OPTIONS),
-      seasonTab: stateData.seasonTab || 'ALL'
+      // `landType` is the new key; `seasonTab` is the legacy key still sent by
+      // the state-level page. Both carry WET / DRY / ALL.
+      landTypeTab: stateData.landType || stateData.seasonTab || 'ALL',
+      // Mandatory crop season — falls back to Autumn on direct access.
+      seasonId: normalizeSeasonId(stateData.seasonId)
     };
   };
 
@@ -203,7 +243,8 @@ function TalukFormReport() {
   const [btrData, setBtrData] = useState(null);
 
   const [districtId, setDistrictId] = useState(initialFilters.districtId);
-  const [seasonTab, setSeasonTab] = useState(initialFilters.seasonTab);
+  const [landTypeTab, setLandTypeTab] = useState(initialFilters.landTypeTab);
+  const [seasonId, setSeasonId] = useState(initialFilters.seasonId);
   const [filterType, setFilterType] = useState(initialFilters.filterType);
   const [fromMonth, setFromMonth] = useState(initialFilters.fromMonth);
   const [toMonth, setToMonth] = useState(initialFilters.toMonth);
@@ -227,25 +268,32 @@ function TalukFormReport() {
     stateData.districtName ||
     'District';
 
-  /* ── persist district context ── */
+  /* ── persist district context + LIVE filter values ──
+     This used to run once on mount and write stateData (i.e. the values this
+     page was opened with), so any filter the user changed here was never saved.
+     It now re-runs on filter changes and writes the current state, which is what
+     a direct-access reload needs — especially for the mandatory seasonId. */
   useEffect(() => {
-    if (resolvedDistrictId.current) {
-      sessionStorage.setItem(
-        SESSION_KEY,
-        JSON.stringify({
-          districtId: resolvedDistrictId.current,
-          districtOfficeId: resolvedDistrictId.current,
-          districtName: stateData.districtName || displayDistrictName || '',
-          isDirectAccess: stateData.isDirectAccess || false,
-          filterType: stateData.filterType || 'single',
-          fromMonth: stateData.fromMonth || MONTH_OPTIONS[0]?.value || '',
-          toMonth: stateData.toMonth || '',
-          singleMonth: stateData.singleMonth || MONTH_OPTIONS[0]?.value || '',
-          seasonTab: stateData.seasonTab || 'ALL'
-        })
-      );
-    }
-  }, []);
+    if (!resolvedDistrictId.current) return;
+
+    sessionStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({
+        districtId: resolvedDistrictId.current,
+        districtOfficeId: resolvedDistrictId.current,
+        districtName: stateData.districtName || displayDistrictName || '',
+        isDirectAccess: stateData.isDirectAccess || false,
+        filterType,
+        fromMonth,
+        toMonth,
+        singleMonth,
+        seasonTab: landTypeTab, // legacy key, kept for other pages
+        landType: landTypeTab,
+        seasonId
+      })
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterType, fromMonth, toMonth, singleMonth, landTypeTab, seasonId]);
 
   // Fetch master taluks list
   const fetchMasterTaluks = async (districtIdValue) => {
@@ -270,141 +318,173 @@ function TalukFormReport() {
   };
 
   // Fetch data from API
+  // Fetch data from API
   const fetchTalukData = async () => {
-  try {
-    setLoading(true);
-    setError(null);
+    try {
+      setLoading(true);
+      setError(null);
 
-    const districtIdValue = resolvedDistrictId.current || districtId;
+      const districtIdValue = resolvedDistrictId.current || districtId;
 
-    if (!districtIdValue) {
-      setError('District ID is required. Please navigate from the district report page.');
-      setLoading(false);
-      return;
-    }
-
-    let startMonthVal = resolveMonthValue(MONTH_OPTIONS[0]?.value, MONTH_OPTIONS);
-    let endMonthVal = resolveMonthValue(MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.value, MONTH_OPTIONS);
-
-    if (filterType === 'single') {
-      if (singleMonth) {
-        const resolved = resolveMonthValue(singleMonth, MONTH_OPTIONS);
-        startMonthVal = resolved;
-        endMonthVal = resolved;
+      if (!districtIdValue) {
+        setError('District ID is required. Please navigate from the district report page.');
+        setLoading(false);
+        return;
       }
-    } else {
-      if (fromMonth) startMonthVal = resolveMonthValue(fromMonth, MONTH_OPTIONS);
-      if (toMonth) endMonthVal = resolveMonthValue(toMonth, MONTH_OPTIONS);
+
+      let startMonthVal = resolveMonthValue(MONTH_OPTIONS[0]?.value, MONTH_OPTIONS);
+      let endMonthVal = resolveMonthValue(MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.value, MONTH_OPTIONS);
+
+      if (filterType === 'single') {
+        if (singleMonth) {
+          const resolved = resolveMonthValue(singleMonth, MONTH_OPTIONS);
+          startMonthVal = resolved;
+          endMonthVal = resolved;
+        }
+      } else {
+        if (fromMonth) startMonthVal = resolveMonthValue(fromMonth, MONTH_OPTIONS);
+        if (toMonth) endMonthVal = resolveMonthValue(toMonth, MONTH_OPTIONS);
+      }
+
+      const token = AuthService.gettoken ? AuthService.gettoken() : localStorage.getItem('token');
+      if (!token) throw new Error('Authentication session token missing. Please log in again.');
+
+      // seasonId is mandatory — guard against it ever reaching the URL empty.
+      const effectiveSeasonId = normalizeSeasonId(seasonId);
+
+      // form1-status: district + month range + land type + season.
+      const formParams = new URLSearchParams({ districtId: districtIdValue, startMonth: startMonthVal });
+      if (endMonthVal) formParams.append('endMonth', endMonthVal);
+      if (landTypeTab && landTypeTab !== 'ALL') formParams.append('landType', landTypeTab);
+      formParams.append('seasonId', String(effectiveSeasonId));
+
+      // BTR taluk completed-clusters: agri-year scoped now. No months, no seasonId.
+      const btrParams = new URLSearchParams({ districtId: districtIdValue });
+      if (landTypeTab && landTypeTab !== 'ALL') btrParams.append('landType', landTypeTab);
+      btrParams.append('agriYear', AuthService.agriyear() || '2025-2026');
+
+      const formStatusUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/district?${formParams.toString()}`;
+      const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/dashboard/completed/taluk?${btrParams.toString()}`;
+
+      console.log('Taluk API Request:', formStatusUrl);
+      console.log('BTR Taluk Completed-Clusters Request:', completedClustersUrl);
+
+      const [formStatusRes, completedClustersRes] = await Promise.all([
+        axios.get(formStatusUrl, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(completedClustersUrl, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+
+      console.log('Taluk API Response:', formStatusRes.data);
+      console.log('BTR Taluk Completed-Clusters Response:', completedClustersRes.data);
+
+      setApiData(formStatusRes.data || null);
+      setBtrData(completedClustersRes.data || null);
+    } catch (err) {
+      console.error('Error fetching taluk data:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to fetch taluk data');
+    } finally {
+      setLoading(false);
     }
-
-    const token = AuthService.getToken ? AuthService.getToken() : localStorage.getItem('token');
-    if (!token) throw new Error('Authentication session token missing. Please log in again.');
-
-    // Form-status API params (no districtId here — it's a path-style query param already used below)
-    const formParams = new URLSearchParams({ districtId: districtIdValue, startMonth: startMonthVal });
-    if (endMonthVal) formParams.append('endMonth', endMonthVal);
-    if (seasonTab && seasonTab !== 'ALL') formParams.append('landType', seasonTab);
-
-    // BTR completed-clusters (taluk) API params
-    const btrParams = new URLSearchParams({ districtId: districtIdValue, startMonth: startMonthVal });
-    if (endMonthVal) btrParams.append('endMonth', endMonthVal);
-    if (seasonTab && seasonTab !== 'ALL') btrParams.append('landType', seasonTab);
-
-    const formStatusUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/district?${formParams.toString()}`;
-    const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/dashboard/completed/taluk?${btrParams.toString()}`;
-
-    console.log('Taluk API Request:', formStatusUrl);
-    console.log('BTR Taluk Completed-Clusters Request:', completedClustersUrl);
-
-    const [formStatusRes, completedClustersRes] = await Promise.all([
-      axios.get(formStatusUrl, { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get(completedClustersUrl, { headers: { Authorization: `Bearer ${token}` } })
-    ]);
-
-    console.log('Taluk API Response:', formStatusRes.data);
-    console.log('BTR Taluk Completed-Clusters Response:', completedClustersRes.data);
-
-    setApiData(formStatusRes.data || null);
-    setBtrData(completedClustersRes.data || null);
-  } catch (err) {
-    console.error('Error fetching taluk data:', err);
-    setError(err.response?.data?.message || err.message || 'Failed to fetch taluk data');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // Fetch master taluks on mount
   useEffect(() => {
     if (resolvedDistrictId.current) {
       fetchMasterTaluks(resolvedDistrictId.current);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fetch data when filters change
   useEffect(() => {
     fetchTalukData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromMonth, toMonth, singleMonth, seasonTab, filterType, districtId]);
+  }, [fromMonth, toMonth, singleMonth, landTypeTab, seasonId, filterType, districtId]);
 
   // Map allSubDetails into UI rows, merging with master taluks list
   const talukData = useMemo(() => {
-  const apiTaluks = apiData?.allSubDetails || {};
-  const btrTaluks = btrData?.allSubDetails || {};
+    const apiTaluks = apiData?.allSubDetails || {};
+    const btrTaluks = btrData?.allSubDetails || {};
 
-  const apiDataMapById = {};
-  const apiDataMapByName = {};
-  Object.entries(apiTaluks).forEach(([name, details]) => {
-    if (details.id) apiDataMapById[details.id] = { name, details };
-    const key = name?.toLowerCase()?.trim() || '';
-    if (key) apiDataMapByName[key] = { name, details };
-  });
+    const apiDataMapById = {};
+    const apiDataMapByName = {};
+    Object.entries(apiTaluks).forEach(([name, details]) => {
+      if (details.id) apiDataMapById[details.id] = { name, details };
+      const key = name?.toLowerCase()?.trim() || '';
+      if (key) apiDataMapByName[key] = { name, details };
+    });
 
-  const btrMapById = {};
-  const btrMapByName = {};
-  Object.entries(btrTaluks).forEach(([name, details]) => {
-    if (details.id) btrMapById[details.id] = { name, details };
-    const key = name?.toLowerCase()?.trim() || '';
-    if (key) btrMapByName[key] = { name, details };
-  });
+    const btrMapById = {};
+    const btrMapByName = {};
+    Object.entries(btrTaluks).forEach(([name, details]) => {
+      if (details.id) btrMapById[details.id] = { name, details };
+      const key = name?.toLowerCase()?.trim() || '';
+      if (key) btrMapByName[key] = { name, details };
+    });
 
-  const resolveBtrDetails = (talukId, talukName) => {
-    if (talukId && btrMapById[talukId]) return btrMapById[talukId].details;
-    const key = talukName?.toLowerCase()?.trim() || '';
-    if (key && btrMapByName[key]) return btrMapByName[key].details;
-    return {};
-  };
+    const resolveBtrDetails = (talukId, talukName) => {
+      if (talukId && btrMapById[talukId]) return btrMapById[talukId].details;
+      const key = talukName?.toLowerCase()?.trim() || '';
+      if (key && btrMapByName[key]) return btrMapByName[key].details;
+      return {};
+    };
 
-  if (taluksList && taluksList.length > 0) {
-    return taluksList.map((taluk) => {
-      const talukId = taluk.id;
-      const talukName = taluk.talukNameEn || '';
+    if (taluksList && taluksList.length > 0) {
+      return taluksList.map((taluk) => {
+        const talukId = taluk.id;
+        const talukName = taluk.talukNameEn || '';
 
-      let apiMatch = null;
-      if (talukId && apiDataMapById[talukId]) apiMatch = apiDataMapById[talukId];
-      if (!apiMatch) {
-        const key = talukName?.toLowerCase()?.trim() || '';
-        if (key && apiDataMapByName[key]) apiMatch = apiDataMapByName[key];
-      }
-      const apiDetails = apiMatch ? apiMatch.details : {};
+        let apiMatch = null;
+        if (talukId && apiDataMapById[talukId]) apiMatch = apiDataMapById[talukId];
+        if (!apiMatch) {
+          const key = talukName?.toLowerCase()?.trim() || '';
+          if (key && apiDataMapByName[key]) apiMatch = apiDataMapByName[key];
+        }
+        const apiDetails = apiMatch ? apiMatch.details : {};
 
-      const completed = pickMetric(apiDetails, 'Completed', seasonTab); // unchanged source
-      const ongoing = pickMetric(apiDetails, 'Ongoing', seasonTab);
-      const underReview = pickMetric(apiDetails, 'UnderReview', seasonTab);
-      const area = pickMetric(apiDetails, 'ClusterArea', seasonTab);
+        const completed = pickMetric(apiDetails, 'Completed', landTypeTab);
+        const ongoing = pickMetric(apiDetails, 'Ongoing', landTypeTab);
+        const underReview = pickMetric(apiDetails, 'UnderReview', landTypeTab);
+        const area = pickMetric(apiDetails, 'ClusterArea', landTypeTab);
 
-      // NEW: Total comes from the BTR taluk completed-clusters API
-      const btrDetails = resolveBtrDetails(talukId, talukName);
-      const total = pickMetric(btrDetails, 'Completed', seasonTab); // wetCompleted/dryCompleted
+        // Total comes from the BTR taluk completed-clusters API
+        const btrDetails = resolveBtrDetails(talukId, talukName);
+        const total = pickMetric(btrDetails, 'Completed', landTypeTab); // wetCompleted/dryCompleted
 
-      // NEW: Not Started = new total - existing completed
+        // Not Started = BTR total - form1 completed
+        const notStarted = Math.max(total - completed, 0);
+
+        const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
+
+        return {
+          id: talukId || apiDetails.id || `taluk_${Math.random()}`,
+          taluk: talukName || apiMatch?.name || 'Unknown Taluk',
+          total,
+          completed,
+          ongoing,
+          notStarted,
+          underReview,
+          area,
+          hasData
+        };
+      });
+    }
+
+    // Fallback (no master taluks list)
+    return Object.entries(apiTaluks).map(([talukName, t]) => {
+      const completed = pickMetric(t, 'Completed', landTypeTab);
+      const ongoing = pickMetric(t, 'Ongoing', landTypeTab);
+      const underReview = pickMetric(t, 'UnderReview', landTypeTab);
+      const area = pickMetric(t, 'ClusterArea', landTypeTab);
+
+      const btrDetails = resolveBtrDetails(t.id, talukName);
+      const total = pickMetric(btrDetails, 'Completed', landTypeTab);
       const notStarted = Math.max(total - completed, 0);
-
       const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
 
       return {
-        id: talukId || apiDetails.id || `taluk_${Math.random()}`,
-        taluk: talukName || apiMatch?.name || 'Unknown Taluk',
+        id: t.id || `taluk_${Math.random()}`,
+        taluk: talukName || 'Unknown Taluk',
         total,
         completed,
         ongoing,
@@ -414,33 +494,7 @@ function TalukFormReport() {
         hasData
       };
     });
-  }
-
-  // Fallback (no master taluks list)
-  return Object.entries(apiTaluks).map(([talukName, t]) => {
-    const completed = pickMetric(t, 'Completed', seasonTab);
-    const ongoing = pickMetric(t, 'Ongoing', seasonTab);
-    const underReview = pickMetric(t, 'UnderReview', seasonTab);
-    const area = pickMetric(t, 'ClusterArea', seasonTab);
-
-    const btrDetails = resolveBtrDetails(t.id, talukName);
-    const total = pickMetric(btrDetails, 'Completed', seasonTab);
-    const notStarted = Math.max(total - completed, 0);
-    const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
-
-    return {
-      id: t.id || `taluk_${Math.random()}`,
-      taluk: talukName || 'Unknown Taluk',
-      total,
-      completed,
-      ongoing,
-      notStarted,
-      underReview,
-      area,
-      hasData
-    };
-  });
-}, [apiData, btrData, taluksList, seasonTab]);
+  }, [apiData, btrData, taluksList, landTypeTab]);
 
   // Count taluks with no data
   const taluksWithNoData = useMemo(() => {
@@ -449,18 +503,18 @@ function TalukFormReport() {
 
   // Stats from API
   const stats = useMemo(() => {
-  const totalCompletedClusters = btrData?.totalClusterCompleted || 0; // NEW source for "Total Clusters"
-  const existingCompleted = apiData?.completed || 0; // unchanged
+    const totalCompletedClusters = btrData?.totalClusterCompleted || 0; // source for "Total Clusters"
+    const existingCompleted = apiData?.completed || 0;
 
-  return {
-    total: totalCompletedClusters,
-    completed: existingCompleted,
-    ongoing: apiData?.ongoing || 0,
-    notStarted: Math.max(totalCompletedClusters - existingCompleted, 0), // NEW derivation
-    underReview: apiData?.underView || 0,
-    completedArea: talukData.reduce((sum, t) => sum + t.area, 0)
-  };
-}, [apiData, btrData, talukData]);
+    return {
+      total: totalCompletedClusters,
+      completed: existingCompleted,
+      ongoing: apiData?.ongoing || 0,
+      notStarted: Math.max(totalCompletedClusters - existingCompleted, 0),
+      underReview: apiData?.underView || 0,
+      completedArea: talukData.reduce((sum, t) => sum + t.area, 0)
+    };
+  }, [apiData, btrData, talukData]);
 
   const searchFilteredData = useMemo(() => {
     if (!searchTerm.trim()) return talukData;
@@ -489,16 +543,25 @@ function TalukFormReport() {
     setFromMonth(MONTH_OPTIONS[0]?.value || '');
     setToMonth('');
     setSingleMonth(MONTH_OPTIONS[0]?.value || '');
-    setSeasonTab('ALL');
+    setLandTypeTab('ALL');
+    setSeasonId(DEFAULT_SEASON_ID); // reset to Autumn, never blank
     setFilterType('single');
     setPage(0);
   };
+
+  const filtersAreDirty =
+    fromMonth !== MONTH_OPTIONS[0]?.value ||
+    Boolean(toMonth) ||
+    landTypeTab !== 'ALL' ||
+    Number(seasonId) !== DEFAULT_SEASON_ID;
 
   // Build a meaningful filename from the active filters
   const generateExcelFileName = () => {
     const parts = ['Taluk_Report', displayDistrictName.replace(/\s+/g, '_')];
 
-    if (seasonTab !== 'ALL') parts.push(seasonTab);
+    parts.push(getSeasonLabel(seasonId));
+
+    if (landTypeTab !== 'ALL') parts.push(landTypeTab);
 
     if (filterType === 'single' && singleMonth) {
       parts.push(getMonthLabel(singleMonth).replace(/\s+/g, '_'));
@@ -521,6 +584,7 @@ function TalukFormReport() {
 
     const exportRows = searchFilteredData.map((row, index) => ({
       '#': index + 1,
+      Season: getSeasonLabel(seasonId),
       Taluk: row.taluk,
       Total: row.hasData ? row.total : 'NA',
       Completed: row.hasData ? row.completed : 'NA',
@@ -534,12 +598,12 @@ function TalukFormReport() {
 
     // Reasonable column widths so it doesn't open looking cramped
     worksheet['!cols'] = [
-      { wch: 5 },  { wch: 25 }, { wch: 10 },
+      { wch: 5 },  { wch: 12 }, { wch: 25 }, { wch: 10 },
       { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
     ];
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'District Report');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Taluk Report');
 
     XLSX.writeFile(workbook, generateExcelFileName());
   };
@@ -549,7 +613,9 @@ function TalukFormReport() {
       state: {
         fromMonth,
         toMonth,
-        seasonTab,
+        seasonTab: landTypeTab, // legacy key
+        landType: landTypeTab,
+        seasonId: normalizeSeasonId(seasonId),
         filterType,
         singleMonth
       }
@@ -572,7 +638,9 @@ function TalukFormReport() {
         talukName: talukName,
         fromMonth,
         toMonth,
-        seasonTab,
+        seasonTab: landTypeTab, // legacy key
+        landType: landTypeTab,
+        seasonId: normalizeSeasonId(seasonId),
         filterType,
         singleMonth
       }
@@ -664,15 +732,16 @@ function TalukFormReport() {
                 {displayDistrictName} - Taluk wise Report
               </Typography>
               <Typography variant="body2" color="text.secondary">
+                {`${getSeasonLabel(seasonId)} season`}
                 {filterType === 'single' && singleMonth && ` • ${getMonthLabel(singleMonth)}`}
                 {filterType === 'range' && fromMonth && ` • ${getMonthLabel(fromMonth)}${toMonth ? ` - ${getMonthLabel(toMonth)}` : ''}`}
-                {seasonTab !== 'ALL' && ` • ${seasonTab} Land`}
+                {landTypeTab !== 'ALL' && ` • ${landTypeTab} Land`}
                 {loading && ' • Loading...'}
                 {taluksWithNoData > 0 && ` • ${taluksWithNoData} taluks with no data`}
               </Typography>
             </Box>
           </Stack>
-          {(fromMonth !== MONTH_OPTIONS[0]?.value || toMonth || seasonTab !== 'ALL') && (
+          {filtersAreDirty && (
             <Button
               variant="outlined"
               onClick={handleClearFilters}
@@ -714,9 +783,28 @@ function TalukFormReport() {
         <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
           <Stack spacing={2}>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
+              <FormControl size="small" sx={{ minWidth: 160 }}>
+                <InputLabel id="taluk-season-select-label">Season</InputLabel>
+                <Select
+                  labelId="taluk-season-select-label"
+                  value={seasonId}
+                  label="Season"
+                  onChange={(e) => { setSeasonId(Number(e.target.value)); setPage(0); }}
+                  startAdornment={
+                    <InputAdornment position="start">
+                      <GrassIcon fontSize="small" sx={{ color: '#2e7d32' }} />
+                    </InputAdornment>
+                  }
+                >
+                  {SEASON_OPTIONS.map((opt) => (
+                    <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
               <Tabs
-                value={seasonTab}
-                onChange={(e, newValue) => { setSeasonTab(newValue); setPage(0); }}
+                value={landTypeTab}
+                onChange={(e, newValue) => { setLandTypeTab(newValue); setPage(0); }}
                 sx={{ minHeight: 40 }}
               >
                 <Tab label="ALL" value="ALL" />
@@ -804,7 +892,7 @@ function TalukFormReport() {
           }}
         >
           <Chip
-            label={`${displayDistrictName} - District Report Summary`}
+            label={`${displayDistrictName} - District Report Summary • ${getSeasonLabel(seasonId)}`}
             color="primary"
             size="small"
             sx={{
@@ -943,7 +1031,7 @@ function TalukFormReport() {
           </Stack>
 
           <MainCard
-            title={`Taluks in ${displayDistrictName}`}
+            title={`Taluks in ${displayDistrictName} — ${getSeasonLabel(seasonId)}`}
             sx={{ borderRadius: 3 }}
           >
             {loading ? (
@@ -1090,7 +1178,9 @@ function TalukFormReport() {
                         <TableRow>
                           <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
                             <Typography color="text.secondary">
-                              {searchTerm ? `No taluks found matching "${searchTerm}"` : 'No data available for selected filters'}
+                              {searchTerm
+                                ? `No taluks found matching "${searchTerm}"`
+                                : `No data available for ${getSeasonLabel(seasonId)} season with the selected filters`}
                             </Typography>
                           </TableCell>
                         </TableRow>

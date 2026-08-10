@@ -4,6 +4,7 @@ import { Breadcrumbs, Chip, Paper, Box } from "@mui/material";
 import HomeIcon from "@mui/icons-material/Home";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { emphasize, styled } from "@mui/material/styles";
+import AuthService from "pages/authentication/services/authservice";
 
 const TALUK_SESSION_KEY = 'talukReportState';
 const ZONE_SESSION_KEY = 'zoneReportState';
@@ -15,6 +16,9 @@ const FORM2_SESSION_KEY = 'form2State';
 const TALUK_FORM3A_SESSION_KEY = 'talukForm3AState';
 const ZONE_FORM3A_SESSION_KEY = 'zoneForm3AState';
 const FORM3A_SESSION_KEY = 'form3AState';
+const TALUK_FORM3B_SESSION_KEY = 'talukForm3BState';
+const ZONE_FORM3B_SESSION_KEY = 'zoneForm3BState';
+const FORM3B_SESSION_KEY = 'form3BState';
 
 // Styled Chip for Breadcrumb
 const StyledBreadcrumb = styled(Chip)(({ theme, isLast }) => {
@@ -69,6 +73,28 @@ function getUserOfficeInfo() {
   }
 }
 
+function getEffectiveOfficeType(locationState, officeInfo) {
+  if (locationState?.officeType) return locationState.officeType;
+  if (officeInfo?.officeType) return officeInfo.officeType;
+
+  try {
+    const tokenRole = AuthService.getrole();
+    const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+    const des = localStorage.getItem('des') || '';
+
+    if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
+      return 'TALUK';
+    }
+    if (roles.some(r => ['District Level Approver', 'District Level Data Viewer'].includes(r)) || des.includes('District')) {
+      return 'DISTRICT';
+    }
+  } catch (e) {
+    console.error('Error resolving officeType from role in Breadcrumb:', e);
+  }
+
+  return 'DIRECTORATE';
+}
+
 const Breadcrumb = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -85,6 +111,8 @@ const Breadcrumb = () => {
     location.pathname.toLowerCase().includes('form_2') ||
     location.pathname.toLowerCase().includes('form3a') ||
     location.pathname.toLowerCase().includes('form_3a') ||
+    location.pathname.toLowerCase().includes('form3b') ||
+    location.pathname.toLowerCase().includes('form_3b') ||
     location.pathname.toLowerCase().includes('ccedataview') ||
     location.state?.from === 'form5';
 
@@ -92,7 +120,7 @@ const Breadcrumb = () => {
 
   if (isReportModule) {
     const officeInfo = getUserOfficeInfo();
-    const officeType = location.state?.officeType || officeInfo.officeType || 'DIRECTORATE';
+    const officeType = getEffectiveOfficeType(location.state, officeInfo);
 
     const talukSessionState = getSavedSessionState(TALUK_SESSION_KEY);
     const zoneSessionState = getSavedSessionState(ZONE_SESSION_KEY);
@@ -120,7 +148,10 @@ const Breadcrumb = () => {
     const isForm3AReport =
       location.pathname.toLowerCase().includes('form3a') ||
       location.pathname.toLowerCase().includes('form_3a');
-    const isFormReport = (location.pathname.toLowerCase().includes('form_report') || location.pathname.toLowerCase().includes('formreport')) && !isForm5Report && !isForm2Report && !isForm3AReport;
+    const isForm3BReport =
+      location.pathname.toLowerCase().includes('form3b') ||
+      location.pathname.toLowerCase().includes('form_3b');
+    const isFormReport = (location.pathname.toLowerCase().includes('form_report') || location.pathname.toLowerCase().includes('formreport')) && !isForm5Report && !isForm2Report && !isForm3AReport && !isForm3BReport;
 
     if (isClusterReport) {
       const isStateLevel = location.pathname === '/Report/kerala_cluster_report' || location.pathname === '/kerala_cluster_report';
@@ -495,6 +526,96 @@ const Breadcrumb = () => {
       // FORM 3A OVERVIEW segment
       if (isForm3AOverviewPage) {
         const overviewLabel = f3aZoneName ? `${formatLabel(f3aZoneName)} Form 3A Overview` : 'Form 3A Overview';
+        items.push({
+          label: overviewLabel,
+          path: null,
+        });
+      }
+
+    } else if (isForm3BReport) {
+      const talukForm3BSessionState = getSavedSessionState(TALUK_FORM3B_SESSION_KEY);
+      const zoneForm3BSessionState = getSavedSessionState(ZONE_FORM3B_SESSION_KEY);
+      const form3BSessionState = getSavedSessionState(FORM3B_SESSION_KEY);
+
+      const isStateLevel = location.pathname.toLowerCase().includes('keralaform3b') || location.pathname === '/schemes/earas/Report/Form3B/KeralaForm3B';
+      const isDistrictLevel = location.pathname.toLowerCase().includes('talukform3b') || location.pathname === '/schemes/earas/Report/Form3B/TalukForm3B';
+      const isTalukLevel = location.pathname.toLowerCase().includes('zoneform3b') || location.pathname === '/schemes/earas/Report/Form3B/ZoneForm3B';
+      const isForm3BOverviewPage = (location.pathname.toLowerCase().endsWith('/form3b') || location.pathname === '/schemes/earas/Report/Form3B/Form3B') && !isStateLevel && !isDistrictLevel && !isTalukLevel;
+
+      const f3bDistrictId = location.state?.districtId || form3BSessionState.districtId || zoneForm3BSessionState.districtId || talukForm3BSessionState.districtId || (params.districtId && !isNaN(params.districtId) ? params.districtId : null);
+      const f3bDistrictName = location.state?.districtName || location.state?.selectedDistrict || form3BSessionState.districtName || zoneForm3BSessionState.districtName || talukForm3BSessionState.districtName || params.districtName || '';
+      const f3bTalukId = location.state?.talukId || form3BSessionState.talukId || zoneForm3BSessionState.talukId || talukForm3BSessionState.talukId || (params.talukId && !isNaN(params.talukId) ? params.talukId : null);
+      const f3bTalukName = location.state?.talukName || location.state?.selectedTaluk || form3BSessionState.talukName || zoneForm3BSessionState.talukName || talukForm3BSessionState.talukName || params.talukName || '';
+      const f3bZoneName = location.state?.zoneName || location.state?.selectedZone || form3BSessionState.zoneName || zoneForm3BSessionState.zoneName || '';
+
+      // STATE segment (only for DIRECTORATE role)
+      if (officeType === 'DIRECTORATE' && !isStateLevel) {
+        items.push({
+          label: 'State',
+          path: '/schemes/earas/Report/Form3B/KeralaForm3B',
+          state: { officeType: 'DIRECTORATE', viewLevel: 'state' },
+        });
+      } else if (officeType === 'DIRECTORATE' && isStateLevel) {
+        items.push({
+          label: 'State',
+          path: null,
+        });
+      }
+
+      // DISTRICT segment
+      if (isDistrictLevel || isTalukLevel || isForm3BOverviewPage) {
+        if (officeType === 'DIRECTORATE' || officeType === 'DISTRICT') {
+          const districtLabel = f3bDistrictName ? `District: ${formatLabel(f3bDistrictName)}` : 'District';
+          const targetDistrictId = f3bDistrictId || officeInfo.districtOfficeId || officeInfo.districtId;
+          const targetDistrictPath = '/schemes/earas/Report/Form3B/TalukForm3B';
+
+          const districtState = {
+            officeType,
+            districtId: targetDistrictId,
+            districtOfficeId: targetDistrictId,
+            districtName: f3bDistrictName,
+            selectedDistrict: f3bDistrictName,
+            isDirectAccess: officeType === 'DISTRICT',
+            ...(talukForm3BSessionState || {}),
+          };
+
+          items.push({
+            label: districtLabel,
+            path: isDistrictLevel ? null : targetDistrictPath,
+            state: districtState,
+          });
+        }
+      }
+
+      // TALUK segment
+      if (isTalukLevel || isForm3BOverviewPage) {
+        const rawTalukLabel = f3bTalukName ? f3bTalukName.split('-')[0] : '';
+        const talukLabel = rawTalukLabel ? `Taluk: ${formatLabel(rawTalukLabel)}` : 'Taluk';
+        const targetTalukId = f3bTalukId || officeInfo.talukOfficeId || officeInfo.talukId;
+        const targetTalukPath = '/schemes/earas/Report/Form3B/ZoneForm3B';
+
+        const talukState = {
+          officeType,
+          talukId: targetTalukId,
+          talukOfficeId: targetTalukId,
+          talukName: rawTalukLabel || f3bTalukName,
+          selectedTaluk: rawTalukLabel || f3bTalukName,
+          districtName: f3bDistrictName,
+          districtId: f3bDistrictId,
+          isDirectAccess: officeType === 'TALUK',
+          ...(zoneForm3BSessionState || {}),
+        };
+
+        items.push({
+          label: talukLabel,
+          path: isTalukLevel ? null : targetTalukPath,
+          state: talukState,
+        });
+      }
+
+      // FORM 3B OVERVIEW segment
+      if (isForm3BOverviewPage) {
+        const overviewLabel = f3bZoneName ? `${formatLabel(f3bZoneName)} Form 3B Overview` : 'Form 3B Overview';
         items.push({
           label: overviewLabel,
           path: null,

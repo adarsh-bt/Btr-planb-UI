@@ -302,6 +302,73 @@ function ApprovalMenus() {
     </Box>
   </Card>
 </Grid>
+
+<Grid item xs={12} sm={6} md={4} lg={3}>
+  <Card
+    component={Link}
+    to="form1_status_approvals"
+    sx={{
+      textDecoration: 'none',
+      display: 'flex',
+      flexDirection: { xs: 'column', sm: 'row' },
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: { xs: '1.2rem', sm: '1.5rem' },
+      borderRadius: '1.5rem',
+      background: 'linear-gradient(135deg, #11998E 0%, #38EF7D 100%)',
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      boxShadow: '0 10px 20px rgba(0, 0, 0, 0.1)',
+      border: '1px solid rgba(255, 255, 255, 0.2)',
+      position: 'relative',
+      overflow: 'hidden',
+      height: '100%',
+      minHeight: { xs: '120px', sm: '130px' },
+      '&::before': {
+        content: '""',
+        position: 'absolute',
+        top: 0,
+        left: '-100%',
+        width: '100%',
+        height: '100%',
+        background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+        transition: 'left 0.5s ease',
+      },
+      '&:hover': {
+        transform: 'translateY(-6px)',
+        boxShadow: '0 15px 30px rgba(0, 0, 0, 0.2)',
+        '&::before': { left: '100%' },
+      },
+    }}
+  >
+    <Box
+      sx={{
+        width: { xs: '4rem', sm: '5rem' },
+        height: { xs: '4rem', sm: '5rem' },
+        borderRadius: '1rem',
+        marginRight: { xs: 0, sm: '1.2rem' },
+        marginBottom: { xs: '0.8rem', sm: 0 },
+        background: 'rgba(255, 255, 255, 0.15)',
+        backdropFilter: 'blur(10px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <EventNoteIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
+    </Box>
+    <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+      <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' }, mb: 0.5 }}>
+        Form satus
+      </Typography>
+      {/* <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' }, mb: 0.5 }}>
+        Approvals
+      </Typography> */}
+      <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: { xs: '0.65rem', sm: '0.7rem' } }}>
+        Pending Approval
+      </Typography>
+    </Box>
+  </Card>
+</Grid>
 {/* 
             <Grid item xs={12} sm={4} md={3} lg={3}>
               <Card

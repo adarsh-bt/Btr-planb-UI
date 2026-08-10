@@ -82,8 +82,16 @@ const TalukForm3B = () => {
     return { ...saved, ...(location.state || {}) };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const districtId = stateData.districtId ?? null;
-  const districtName = stateData.districtName || stateData.selectedDistrict || 'District';
+  const officeInfo = useMemo(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('userOfficeInfo') || '{}');
+    } catch {
+      return {};
+    }
+  }, []);
+
+  const districtId = stateData.districtId || officeInfo.districtOfficeId || officeInfo.districtId || null;
+  const districtName = stateData.districtName || stateData.selectedDistrict || officeInfo.districtName || 'District';
   const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
 
   const [activeTab, setActiveTab] = useState(stateData.activeTab ?? 0);
@@ -97,6 +105,42 @@ const TalukForm3B = () => {
   const cropGroupName = CROP_GROUPS[activeTab]?.name;
 
   const numericCellSx = { fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' };
+
+  // Role auto-redirection if TALUK user visits TalukForm3B directly
+  useEffect(() => {
+    let currentOfficeType = stateData.officeType || officeInfo.officeType;
+    if (!currentOfficeType) {
+      try {
+        const tokenRole = AuthService.getrole();
+        const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+        const des = localStorage.getItem('des') || '';
+        if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
+          currentOfficeType = 'TALUK';
+        }
+      } catch (e) {}
+    }
+
+    if (currentOfficeType === 'TALUK') {
+      const tId = stateData.talukId || officeInfo.talukOfficeId || officeInfo.talukId;
+      const tName = stateData.talukName || officeInfo.talukName || '';
+      if (tId) {
+        navigate('/schemes/earas/Report/Form3B/ZoneForm3B', {
+          replace: true,
+          state: {
+            officeType: 'TALUK',
+            viewLevel: 'taluk',
+            talukId: tId,
+            talukName: tName,
+            selectedTaluk: tName,
+            districtId,
+            districtName,
+            isDirectAccess: true,
+            activeTab: stateData.activeTab || 0
+          }
+        });
+      }
+    }
+  }, [officeInfo, stateData, districtId, districtName, navigate]);
 
   useEffect(() => {
     if (districtId != null) {
@@ -196,13 +240,30 @@ const TalukForm3B = () => {
   );
 
   const handleBack = () => {
-    navigate('/schemes/earas/Report/Form3B/KeralaForm3B', { state: { activeTab } });
+    let effectiveOfficeType = stateData.officeType || officeInfo.officeType;
+    if (!effectiveOfficeType) {
+      try {
+        const tokenRole = AuthService.getrole();
+        const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+        const des = localStorage.getItem('des') || '';
+        if (roles.some(r => ['District Level Approver', 'District Level Data Viewer'].includes(r)) || des.includes('District')) {
+          effectiveOfficeType = 'DISTRICT';
+        }
+      } catch (e) {}
+    }
+
+    if (effectiveOfficeType === 'DISTRICT' || stateData.isDirectAccess) {
+      navigate('/Report');
+    } else {
+      navigate('/schemes/earas/Report/Form3B/KeralaForm3B', { state: { activeTab } });
+    }
   };
 
   const handleTalukClick = (talukName, talukId) => {
     if (talukId == null) return;
     navigate('/schemes/earas/Report/Form3B/ZoneForm3B', {
       state: {
+        officeType: stateData.officeType || 'DIRECTORATE',
         districtId,
         districtName,
         selectedDistrict: districtName,

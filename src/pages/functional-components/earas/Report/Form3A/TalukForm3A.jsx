@@ -111,7 +111,18 @@ const TalukForm3A = () => {
 
   // Role auto-redirection if TALUK user visits TalukForm3A directly
   useEffect(() => {
-    const currentOfficeType = stateData.officeType || officeInfo.officeType;
+    let currentOfficeType = stateData.officeType || officeInfo.officeType;
+    if (!currentOfficeType) {
+      try {
+        const tokenRole = AuthService.getrole();
+        const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+        const des = localStorage.getItem('des') || '';
+        if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
+          currentOfficeType = 'TALUK';
+        }
+      } catch (e) {}
+    }
+
     if (currentOfficeType === 'TALUK') {
       const tId = stateData.talukId || officeInfo.talukOfficeId || officeInfo.talukId;
       const tName = stateData.talukName || officeInfo.talukName || '';
@@ -250,7 +261,19 @@ const TalukForm3A = () => {
   );
 
   const handleBack = () => {
-    if (stateData.officeType === 'DISTRICT' || stateData.isDirectAccess) {
+    let effectiveOfficeType = stateData.officeType || officeInfo.officeType;
+    if (!effectiveOfficeType) {
+      try {
+        const tokenRole = AuthService.getrole();
+        const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+        const des = localStorage.getItem('des') || '';
+        if (roles.some(r => ['District Level Approver', 'District Level Data Viewer'].includes(r)) || des.includes('District')) {
+          effectiveOfficeType = 'DISTRICT';
+        }
+      } catch (e) {}
+    }
+
+    if (effectiveOfficeType === 'DISTRICT' || stateData.isDirectAccess) {
       navigate('/Report');
     } else {
       navigate('/schemes/earas/Report/Form3A/KeralaForm3A', { state: { activeTab } });

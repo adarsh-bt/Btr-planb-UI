@@ -848,7 +848,7 @@ const ClusterManualEntryNonBtr = () => {
       } else if (BtrTypeId == 4) {
         return row.villageName && row.block && row.tpno && row.area && row.enumeratedArea;
       } else if (BtrTypeId == 5) {
-        return row.villageName && row.block && row.oldsvno && row.oldsubno && row.area && row.enumeratedArea;
+        return row.villageName && row.block && row.oldsvno && row.area && row.enumeratedArea;
       }
       return false;
     });

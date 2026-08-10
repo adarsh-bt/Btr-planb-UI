@@ -23,13 +23,13 @@ import {
   DialogTitle,
   DialogContent,
   DialogContentText,
-  DialogActions,Divider
+  DialogActions, Divider
 } from "@mui/material";
 import InfoIcon from '@mui/icons-material/Info';
-import { 
-  AddCircle, 
-  Delete, 
-  Error as ErrorIcon, 
+import {
+  AddCircle,
+  Delete,
+  Error as ErrorIcon,
   CheckCircle,
   Cancel
 } from "@mui/icons-material";
@@ -70,11 +70,11 @@ const KeyPlotEntry = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [mainerror, setMainError] = useState(""); 
+  const [mainerror, setMainError] = useState("");
   const [keyplotLimit, setKeyplotLimit] = useState(null);
   const [workAllocationStatus, setworkAllocationStatus] = useState(false);
-const [remainingKeyplots, setRemainingKeyplots] = useState(0);
-// --- Plot Validation States ---
+  const [remainingKeyplots, setRemainingKeyplots] = useState(0);
+  // --- Plot Validation States ---
   const [isValidationDialogOpen, setIsValidationDialogOpen] = useState(false);
   const [validationInfo, setValidationInfo] = useState(null);
   const [validatingRow, setValidatingRow] = useState(null); // stores { lbId, rowId }
@@ -82,18 +82,19 @@ const [remainingKeyplots, setRemainingKeyplots] = useState(0);
   const [availableSubdivisions, setAvailableSubdivisions] = useState([]);
   const [pendingPlot, setPendingPlot] = useState(null);
 
-    const [listTypes, setListTypes] = useState({});
+  const [listTypes, setListTypes] = useState({});
 
   const BASE_URL = mainapi.BASE_URL;
-  
+
   // Confirmation Modal State
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  
+
   // Success and Error Modal States
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [savedCount, setSavedCount] = useState(0);
-  
+  const [validationErrors, setValidationErrors] = useState([]);
+
   // Form data and validation states
   const [localBodyData, setLocalBodyData] = useState({});
   const [duplicateErrors, setDuplicateErrors] = useState({}); // For backend duplicate errors
@@ -112,7 +113,7 @@ const [remainingKeyplots, setRemainingKeyplots] = useState(0);
   //     return userItem ? JSON.parse(userItem) : null;
   //   } catch (error) {
   //     console.error("Failed to parse user info from localStorage:", error);
-   
+
   //     return null;
   //   }
   // };
@@ -136,48 +137,48 @@ const [remainingKeyplots, setRemainingKeyplots] = useState(0);
       }
     };
   }, [showSuccessModal]);
-  
-useEffect(() => {
 
-  const fetchKeyplotLimit = async () => {
+  useEffect(() => {
 
-    const savedZone = authservice.getzone();
+    const fetchKeyplotLimit = async () => {
 
-    const agriYear =
-      localStorage.getItem("activeAgriYear");
+      const savedZone = authservice.getzone();
 
-    if (!savedZone || !agriYear) return;
+      const agriYear =
+        localStorage.getItem("activeAgriYear");
 
-    try {
+      if (!savedZone || !agriYear) return;
 
-      const response = await api.get(
-        `/btr-service/api/keyplots/limit-status/${savedZone}`,
-        {
-          params: {
-            agriYear: agriYear
+      try {
+
+        const response = await api.get(
+          `/btr-service/api/keyplots/limit-status/${savedZone}`,
+          {
+            params: {
+              agriYear: agriYear
+            }
           }
-        }
-      );
+        );
 
-      const data = response.data;
-console.log("Keyplot limit API response:", data);
-      setKeyplotLimit(data);
-      setRemainingKeyplots(data.remainingKeyplots);
-setworkAllocationStatus(data.is_WorkAllocation);
+        const data = response.data;
+        console.log("Keyplot limit API response:", data);
+        setKeyplotLimit(data);
+        setRemainingKeyplots(data.remainingKeyplots);
+        setworkAllocationStatus(data.is_WorkAllocation);
 
-    } catch (err) {
+      } catch (err) {
 
-      console.error(err);
+        console.error(err);
 
-      toast.error(
-        "Unable to refresh keyplot limit"
-      );
-    }
-  };
+        toast.error(
+          "Unable to refresh keyplot limit"
+        );
+      }
+    };
 
-  fetchKeyplotLimit();
+    fetchKeyplotLimit();
 
-}, []);
+  }, []);
 
   // Auto-close error modal after 4 seconds
   useEffect(() => {
@@ -193,92 +194,92 @@ setworkAllocationStatus(data.is_WorkAllocation);
       }
     };
   }, [showErrorModal]);
-// Dynamic theme mapping for the Work Allocation status badge
-const getWorkAllocationStatusChip = (status) => {
-  switch (status?.toUpperCase()) {
-    case 'APPROVED':
-      return { label: "Allocation Approved", color: "success", variant: "filled" };
-    case 'SUBMITTED':
-    case 'PENDING':
-      return { label: "Allocation Submitted", color: "warning", variant: "filled" };
-    case 'UNDER REVIEW':
-      return { label: "Allocation Under Review", color: "info", variant: "filled" };
-    case 'RETURNED':
-      return { label: "Allocation Returned", color: "error", variant: "filled" };
-    case 'NOT SUBMITTED':
-    default:
-      return { label: "Allocation Not Submitted", color: "error", variant: "outlined" };
-  }
-};
-  // --- Data Fetching ---
-useEffect(() => {
-  if (!zoneId) {
-    setLoading(false);
-    setError("No active zone selected. Please select a zone first.");
-    toast.warn("No active zone found.");
-    return;
-  }
-
-  const fetchData = async () => {
-    setLoading(true);
-    setError("");
-    const BASE_URL = mainapi.BASE_URL;
-    const urls = [
-      `${BASE_URL}/btr-service/localbodies/by-zone/${zoneId}`,
-      `${BASE_URL}/btr-service/localbodies/revenue-villages/${zoneId}`,
-      `${BASE_URL}/btr-service/localbodies/district/${zoneId}`,
-      `${BASE_URL}/btr-service/localbodies/revenue-taluks/${zoneId}`,
-    ];
-
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error("No token found, please log in again.");
-      }
-
-      const requests = urls.map(url =>
-        fetch(url, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          }
-        }).then(res => {
-          if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.statusText}`);
-          return res.json();
-        })
-      );
-
-      const [lbData, villageData, distData, talukData] = await Promise.all(requests);
-
-      setLocalBodies(lbData || []);
-      setVillageOptions(villageData || []);
-      setDistrictInfo(distData);
-      setTalukInfo(talukData || []);
-
-      setLocalBodyData(prev => {
-        const next = { ...prev };
-        (lbData || []).forEach(lb => {
-          if (!next[lb.id]) next[lb.id] = [];
-        });
-        return next;
-      });
-
-    } catch (err) {
-     
-      setError(err.message);
-      toast.error(`Data loading failed: ${err.message}`);
-    } finally {
-      setLoading(false);
+  // Dynamic theme mapping for the Work Allocation status badge
+  const getWorkAllocationStatusChip = (status) => {
+    switch (status?.toUpperCase()) {
+      case 'APPROVED':
+        return { label: "Allocation Approved", color: "success", variant: "filled" };
+      case 'SUBMITTED':
+      case 'PENDING':
+        return { label: "Allocation Submitted", color: "warning", variant: "filled" };
+      case 'UNDER REVIEW':
+        return { label: "Allocation Under Review", color: "info", variant: "filled" };
+      case 'RETURNED':
+        return { label: "Allocation Returned", color: "error", variant: "filled" };
+      case 'NOT SUBMITTED':
+      default:
+        return { label: "Allocation Not Submitted", color: "error", variant: "outlined" };
     }
   };
+  // --- Data Fetching ---
+  useEffect(() => {
+    if (!zoneId) {
+      setLoading(false);
+      setError("No active zone selected. Please select a zone first.");
+      toast.warn("No active zone found.");
+      return;
+    }
 
-  fetchData();
+    const fetchData = async () => {
+      setLoading(true);
+      setError("");
+      const BASE_URL = mainapi.BASE_URL;
+      const urls = [
+        `${BASE_URL}/btr-service/localbodies/by-zone/${zoneId}`,
+        `${BASE_URL}/btr-service/localbodies/revenue-villages/${zoneId}`,
+        `${BASE_URL}/btr-service/localbodies/district/${zoneId}`,
+        `${BASE_URL}/btr-service/localbodies/revenue-taluks/${zoneId}`,
+      ];
 
-}, [zoneId]);
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error("No token found, please log in again.");
+        }
 
-// --- Plot Usage Helpers ---
+        const requests = urls.map(url =>
+          fetch(url, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            }
+          }).then(res => {
+            if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.statusText}`);
+            return res.json();
+          })
+        );
+
+        const [lbData, villageData, distData, talukData] = await Promise.all(requests);
+
+        setLocalBodies(lbData || []);
+        setVillageOptions(villageData || []);
+        setDistrictInfo(distData);
+        setTalukInfo(talukData || []);
+
+        setLocalBodyData(prev => {
+          const next = { ...prev };
+          (lbData || []).forEach(lb => {
+            if (!next[lb.id]) next[lb.id] = [];
+          });
+          return next;
+        });
+
+      } catch (err) {
+
+        setError(err.message);
+        toast.error(`Data loading failed: ${err.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+
+  }, [zoneId]);
+
+  // --- Plot Usage Helpers ---
   const getUiUsedArea = (plotIdentifier, currentRowId) => {
-    const allRows = Object.entries(localBodyData).flatMap(([lbId, rows]) => 
+    const allRows = Object.entries(localBodyData).flatMap(([lbId, rows]) =>
       rows.map(row => ({ ...row, lbId }))
     );
 
@@ -286,12 +287,12 @@ useEffect(() => {
       const id = `${r.village}-${r.villageBlock}-${r.surveyNo}-${r.subDivNo || ''}`;
       if (id !== plotIdentifier) return sum;
       if (r.id === currentRowId) return sum;
-      return sum + (parseFloat(r.area) || 0); 
+      return sum + (parseFloat(r.area) || 0);
     }, 0);
   };
 
   const checkPlotUsageInCurrentForm = (plotIdentifier, currentRowId) => {
-    const allRows = Object.entries(localBodyData).flatMap(([lbId, rows]) => 
+    const allRows = Object.entries(localBodyData).flatMap(([lbId, rows]) =>
       rows.map(row => ({ ...row, lbId }))
     );
 
@@ -303,14 +304,14 @@ useEffect(() => {
     if (duplicateRows.length === 0) return { isUsed: false };
 
     const totalArea = parseFloat(duplicateRows[0].area) || 0;
-    
+
     const usedArea = duplicateRows.reduce((sum, row) => {
       if (row.id === currentRowId) return sum;
       return sum + (parseFloat(row.area) || 0);
     }, 0);
 
     const remainingArea = Math.max(0, totalArea - usedArea);
-    
+
     return {
       isUsed: duplicateRows.length > 1, // True if used in rows other than the current one
       location: 'this form',
@@ -320,37 +321,37 @@ useEffect(() => {
     };
   };
 
-const handleUseRecommendedPlot = (type) => {
-  if (!validatingRow || !validationInfo) return;
-  const { lbId, rowId } = validatingRow;
+  const handleUseRecommendedPlot = (type) => {
+    if (!validatingRow || !validationInfo) return;
+    const { lbId, rowId } = validatingRow;
 
-  setLocalBodyData(prev => ({
-    ...prev,
-    [lbId]: prev[lbId].map(row => 
-      row.id === rowId ? {
-        ...row,
-        btrId: validationInfo.plotId || null, // Capture the existing ID
-        area: type === 'remaining' && validationInfo.uiUsedRemaining > 0 
-          ? validationInfo.uiUsedRemaining.toFixed(2) 
-          : row.area,
-        isAreaLocked: true, // Lock the area
-        // Match dropdown casing ("WET" -> "Wet")
-        landType: validationInfo.landType 
-          ? validationInfo.landType.charAt(0).toUpperCase() + validationInfo.landType.slice(1).toLowerCase() 
-          : row.landType,
-        isLandTypeLocked: true // Lock the land type
-      } : row
-    )
-  }));
+    setLocalBodyData(prev => ({
+      ...prev,
+      [lbId]: prev[lbId].map(row =>
+        row.id === rowId ? {
+          ...row,
+          btrId: validationInfo.plotId || null, // Capture the existing ID
+          area: type === 'remaining' && validationInfo.uiUsedRemaining > 0
+            ? validationInfo.uiUsedRemaining.toFixed(2)
+            : row.area,
+          isAreaLocked: true, // Lock the area
+          // Match dropdown casing ("WET" -> "Wet")
+          landType: validationInfo.landType
+            ? validationInfo.landType.charAt(0).toUpperCase() + validationInfo.landType.slice(1).toLowerCase()
+            : row.landType,
+          isLandTypeLocked: true // Lock the land type
+        } : row
+      )
+    }));
 
-  setIsValidationDialogOpen(false);
-  setValidationInfo(null);
-  setValidatingRow(null);
-  
-  if (type === 'remaining') {
-    toast.success(`Using remaining area: ${validationInfo.uiUsedRemaining.toFixed(2)} cents. Fields locked.`);
-  }
-};
+    setIsValidationDialogOpen(false);
+    setValidationInfo(null);
+    setValidatingRow(null);
+
+    if (type === 'remaining') {
+      toast.success(`Using remaining area: ${validationInfo.uiUsedRemaining.toFixed(2)} cents. Fields locked.`);
+    }
+  };
 
   const handleRejectPlot = () => {
     if (!validatingRow) return;
@@ -358,7 +359,7 @@ const handleUseRecommendedPlot = (type) => {
 
     setLocalBodyData(prev => ({
       ...prev,
-      [lbId]: prev[lbId].map(row => 
+      [lbId]: prev[lbId].map(row =>
         row.id === rowId ? { ...row, surveyNo: '', subDivNo: '', area: '' } : row
       )
     }));
@@ -367,31 +368,31 @@ const handleUseRecommendedPlot = (type) => {
     toast.warn("Plot rejected. Please enter a different one.");
   };
 
-const handleSubdivisionSelect = (selectedSub) => {
-  if (!pendingPlot || !selectedSub) return;
-  const { lbId, rowId, validationInfo } = pendingPlot;
+  const handleSubdivisionSelect = (selectedSub) => {
+    if (!pendingPlot || !selectedSub) return;
+    const { lbId, rowId, validationInfo } = pendingPlot;
 
-  setLocalBodyData(prev => ({
-    ...prev,
-    [lbId]: prev[lbId].map(row => 
-      row.id === rowId ? {
-        ...row,
-        subDivNo: selectedSub,
-        btrId: validationInfo?.id || null,
-        area: validationInfo?.totalcent ? validationInfo.totalcent.toString() : row.area,
-        isAreaLocked: !!validationInfo?.totalcent,
-        landType: validationInfo?.landType 
-          ? validationInfo.landType.charAt(0).toUpperCase() + validationInfo.landType.slice(1).toLowerCase() 
-          : row.landType,
-        isLandTypeLocked: !!validationInfo?.landType
-      } : row
-    )
-  }));
+    setLocalBodyData(prev => ({
+      ...prev,
+      [lbId]: prev[lbId].map(row =>
+        row.id === rowId ? {
+          ...row,
+          subDivNo: selectedSub,
+          btrId: validationInfo?.id || null,
+          area: validationInfo?.totalcent ? validationInfo.totalcent.toString() : row.area,
+          isAreaLocked: !!validationInfo?.totalcent,
+          landType: validationInfo?.landType
+            ? validationInfo.landType.charAt(0).toUpperCase() + validationInfo.landType.slice(1).toLowerCase()
+            : row.landType,
+          isLandTypeLocked: !!validationInfo?.landType
+        } : row
+      )
+    }));
 
-  setSubdivisionDialogOpen(false);
-  setPendingPlot(null);
-  toast.success(`Subdivision ${selectedSub} selected. Fields locked.`);
-};
+    setSubdivisionDialogOpen(false);
+    setPendingPlot(null);
+    toast.success(`Subdivision ${selectedSub} selected. Fields locked.`);
+  };
   // --- Memoized Lookups ---
   const villageInfoMap = useMemo(() => {
     const map = new Map();
@@ -458,12 +459,12 @@ const handleSubdivisionSelect = (selectedSub) => {
         return !value ? 'Village Block is required' : null;
       case 'surveyNo':
         return !value ? 'Survey Number is required' :
-                !/^\d+$/.test(value) ? 'Survey Number must be numeric' : null;
+          !/^\d+$/.test(value) ? 'Survey Number must be numeric' : null;
       // case 'subDivNo':
       //   return !value ? 'Sub Division Number is required' : null;
       case 'area':
         return !value ? 'Area is required' :
-                !/^\d*\.?\d+$/.test(value) ? 'Area must be a valid number' : null;
+          !/^\d*\.?\d+$/.test(value) ? 'Area must be a valid number' : null;
       case 'landType':
         return !value ? 'Land Type is required' : null;
       default:
@@ -474,14 +475,14 @@ const handleSubdivisionSelect = (selectedSub) => {
   const validateRow = (rowData) => {
     const errors = {};
     const fields = ['village', 'villageBlock', 'surveyNo', 'subDivNo', 'area', 'landType'];
-        
+
     fields.forEach(field => {
       const error = validateField(field, rowData[field], rowData);
       if (error) {
         errors[field] = error;
       }
     });
-        
+
     return errors;
   };
 
@@ -489,6 +490,7 @@ const handleSubdivisionSelect = (selectedSub) => {
     setDuplicateErrors({});
     setFieldErrors({});
     setClientDuplicateErrors({});
+    setValidationErrors([]);
   };
 
   // --- Save Handlers ---
@@ -508,64 +510,64 @@ const handleSubdivisionSelect = (selectedSub) => {
   };
 
   // Add near other handlers
-const handleLocalBodyChange = (tabLbId, rowId, selectedLbId) => {
-  const lb = localBodies.find(b => b.id === selectedLbId);
-  setLocalBodyData(prev => ({
-    ...prev,
-    [tabLbId]: prev[tabLbId].map(row =>
-      row.id === rowId
-        ? { ...row, lbIdSelected: selectedLbId, localBody: lb?.name || '' }
-        : row
-    )
-  }));
+  const handleLocalBodyChange = (tabLbId, rowId, selectedLbId) => {
+    const lb = localBodies.find(b => b.id === selectedLbId);
+    setLocalBodyData(prev => ({
+      ...prev,
+      [tabLbId]: prev[tabLbId].map(row =>
+        row.id === rowId
+          ? { ...row, lbIdSelected: selectedLbId, localBody: lb?.name || '' }
+          : row
+      )
+    }));
 
-  // clear field error for Local Body if you track it
-  const errorKey = `${tabLbId}-${rowId}-localBody`;
-  if (fieldErrors[errorKey]) {
-    setFieldErrors(prev => {
-      const next = { ...prev };
-      delete next[errorKey];
-      return next;
-    });
-  }
-};
+    // clear field error for Local Body if you track it
+    const errorKey = `${tabLbId}-${rowId}-localBody`;
+    if (fieldErrors[errorKey]) {
+      setFieldErrors(prev => {
+        const next = { ...prev };
+        delete next[errorKey];
+        return next;
+      });
+    }
+  };
 
-// const fetchKeyplotLimit = async () => {
-//   const savedZone = localStorage.getItem('activeZone');
-//   if (!savedZone) return;
+  // const fetchKeyplotLimit = async () => {
+  //   const savedZone = localStorage.getItem('activeZone');
+  //   if (!savedZone) return;
 
-//   try {
-//     const token = localStorage.getItem('token');
-//     const res = await fetch(
-//       `${BASE_URL}/btr-service/api/keyplots/limit-status/${savedZone}`,
-//       {
-//         headers: {
-//           Authorization: `Bearer ${token}`,
-//           'Content-Type': 'application/json',
-//         },
-//       }
-//     );
+  //   try {
+  //     const token = localStorage.getItem('token');
+  //     const res = await fetch(
+  //       `${BASE_URL}/btr-service/api/keyplots/limit-status/${savedZone}`,
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //           'Content-Type': 'application/json',
+  //         },
+  //       }
+  //     );
 
-//     if (!res.ok) throw new Error('Failed to fetch keyplot limit');
+  //     if (!res.ok) throw new Error('Failed to fetch keyplot limit');
 
-//     const data = await res.json();
-//     setKeyplotLimit(data);
-//     setRemainingKeyplots(data.remainingKeyplots);
-//   } catch (err) {
-//     console.error(err);
-//     toast.error('Unable to refresh keyplot limit');
-//   }
-// };
+  //     const data = await res.json();
+  //     setKeyplotLimit(data);
+  //     setRemainingKeyplots(data.remainingKeyplots);
+  //   } catch (err) {
+  //     console.error(err);
+  //     toast.error('Unable to refresh keyplot limit');
+  //   }
+  // };
 
 
   const handleActualSave = async () => {
     if (totalKeyplots > remainingKeyplots) {
-  toast.error(
-    `You can only save ${remainingKeyplots} keyplots for this zone`
-  );
-  setIsSaving(false);
-  return;
-}
+      toast.error(
+        `You can only save ${remainingKeyplots} keyplots for this zone`
+      );
+      setIsSaving(false);
+      return;
+    }
 
     if (!districtInfo || talukInfo.length === 0) {
       toast.error("District or Taluk data is not yet loaded. Please wait.");
@@ -574,7 +576,7 @@ const handleLocalBodyChange = (tabLbId, rowId, selectedLbId) => {
     // Clear previous errors
     clearValidationErrors();
     setIsSaving(true);
-        
+
     const allKeyplots = Object.entries(localBodyData).flatMap(([lbId, rows]) =>
       rows.map(row => ({ ...row, lbId: parseInt(lbId, 10) }))
     );
@@ -605,36 +607,36 @@ const handleLocalBodyChange = (tabLbId, rowId, selectedLbId) => {
       setIsSaving(false);
       return;
     }
-  
+
     const zoneId = authservice.getzone();
     const payload = allKeyplots.map((row) => {
-  const villageData = villageInfoMap.get(row.village);
+      const villageData = villageInfoMap.get(row.village);
 
-  // Prefer per-row selected Local Body id, fallback to tab lbId
-  const rowLbId = row.lbIdSelected ?? row.lbId;
-  const lbInfo = localBodyInfoMap.get(rowLbId);
+      // Prefer per-row selected Local Body id, fallback to tab lbId
+      const rowLbId = row.lbIdSelected ?? row.lbId;
+      const lbInfo = localBodyInfoMap.get(rowLbId);
 
-  if (!villageData || !lbInfo || !row.surveyNo) return null;
+      if (!villageData || !lbInfo || !row.surveyNo) return null;
 
-  return {
-    id: row.btrId || null,
-    dcode: districtInfo.distId,
-    tcode: talukInfo[0]?.revenueTalukId,
-    vcode: villageData.vcode,
-    lsgcode: villageData.lsgcode,
-    lbcode: lbInfo.lbcode,
-    zoneId: parseInt(zoneId, 10),
-    userid: userId,
-    bcode: row.villageBlock ?? null,
-    ltype: row.landType.toUpperCase(),
-    resvno: parseInt(row.surveyNo, 10),
-    user_id: userId,
-    resbdno: row.subDivNo,
-    totCent: row.area,
-    btrtype: 1,
-    agriYear:authservice.agriyear()
-  };
-}).filter(Boolean);
+      return {
+        id: row.btrId || null,
+        dcode: districtInfo.distId,
+        tcode: talukInfo[0]?.revenueTalukId,
+        vcode: villageData.vcode,
+        lsgcode: villageData.lsgcode,
+        lbcode: lbInfo.lbcode,
+        zoneId: parseInt(zoneId, 10),
+        userid: userId,
+        bcode: row.villageBlock ?? null,
+        ltype: row.landType.toUpperCase(),
+        resvno: parseInt(row.surveyNo, 10),
+        user_id: userId,
+        resbdno: row.subDivNo,
+        totCent: row.area,
+        btrtype: 1,
+        agriYear: authservice.agriyear()
+      };
+    }).filter(Boolean);
 
 
     if (payload.length !== totalKeyplots) {
@@ -644,100 +646,89 @@ const handleLocalBodyChange = (tabLbId, rowId, selectedLbId) => {
     }
 
     try {
-      const token = localStorage.getItem('token');
-
-  const response = await fetch(
-    `${BASE_URL}/btr-service/api/btr-data/saveAll`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify(payload),
-    }
-  );
+      const response = await fetch(
+        `${BASE_URL}/btr-service/api/btr-data/saveAll`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
 
       const result = await response.json();
 
-     if (!response.ok) {
-  if (result.status === "Validation Failed" && result.errors) {
+      console.log("Save response:", result);
 
-    const backendDuplicateErrors = {};
-    let globalErrorMessage = null;
+      if (response.ok && result.status === "COMPLETED") {
+        const saved = Number(result.savedCount || 0);
+        const duplicates = Number(result.duplicateCount || 0);
+        const failed = Number(result.errorCount || 0);
 
-    result.errors.forEach((error) => {
+        setSavedCount(saved);
 
-      // ✅ LIMIT REACHED / GLOBAL ERROR
-      if (
-        error.resvno === 0 &&
-        error.resbdno === null &&
-        error.message
-      ) {
+        // Only real failures should interrupt the user
+        if (failed > 0) {
+          setValidationErrors(
+            (result.errors || []).map(error => ({
+              message:
+                typeof error === "string"
+                  ? error
+                  : error.message || "Plot failed to save."
+            }))
+          );
 
-        globalErrorMessage = error.message;
-        setMainError(error.message);
-        return;
-      }
+          setShowErrorModal(true);
 
-      // ✅ DUPLICATE ROW ERROR
-      const matchingRow = allKeyplots.find(row =>
-        row.surveyNo === error.resvno?.toString() &&
-        row.subDivNo === error.resbdno
-      );
+          toast.warning(
+            `${saved} plot(s) saved, ${failed} plot(s) failed.`
+          );
 
-      if (matchingRow) {
-        const duplicateKey = `${matchingRow.lbId}_${matchingRow.id}`;
-        backendDuplicateErrors[duplicateKey] = error.message;
-      }
-    });
+          return;
+        }
 
-    // Show duplicate row errors
-    if (Object.keys(backendDuplicateErrors).length > 0) {
-      setDuplicateErrors(backendDuplicateErrors);
-      toast.error(
-        `Validation failed: ${Object.keys(backendDuplicateErrors).length} duplicate error(s) found`
-      );
-      setShowErrorModal(true);
-    }
-
-    // 🔥 Show LIMIT REACHED message
-    if (globalErrorMessage) {
-      toast.error(globalErrorMessage);
-      setShowErrorModal(true);
-    }
-
-  } else {
-    const errorMessage = result.message || `API Error: ${response.status}`;
-    toast.error(errorMessage);
-    setShowErrorModal(true);
-  }
-
-  setIsSaving(false);
-  return;
-}
-
-      // Success response
-      
-      if (result.status === "Success") {
-        const savedKeyplotCount = result.ids?.length || totalKeyplots;
-        setSavedCount(savedKeyplotCount);
+        // SUCCESS
+        // Duplicates are NOT errors.
         setShowSuccessModal(true);
-        toast.success(`Successfully saved! All ${savedKeyplotCount} keyplots have been saved successfully.`);
-      
-        // Optional: Reset form state after successful save
-          setLocalBodyData({});
+
+        let message = `${saved} plot(s) saved successfully.`;
+
+        if (duplicates > 0) {
+          message += ` ${duplicates} existing BTR plot(s) skipped.`;
+        }
+
+        toast.success(message);
+
+        setLocalBodyData({});
         setDuplicateErrors({});
         setClientDuplicateErrors({});
-        //  await fetchKeyplotLimit();
         setFieldErrors({});
         clearValidationErrors();
-     setTimeout(() => {
-    window.location.reload();
-  }, 1500);
-      } else {
-        toast.warning("Unexpected response format from server.");
+
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+
+      } else if (result.status === "Validation Failed") {
+        setValidationErrors(
+          (result.errors || []).map(error => ({
+            message:
+              typeof error === "string"
+                ? error
+                : error.message || "Validation failed."
+          }))
+        );
+
         setShowErrorModal(true);
+
+        toast.error("Validation failed.");
+
+      } else {
+        toast.error(
+          result.message || "Failed to save keyplots."
+        );
       }
     } catch (err) {
       console.error("Failed to save keyplots:", err);
@@ -745,144 +736,143 @@ const handleLocalBodyChange = (tabLbId, rowId, selectedLbId) => {
       setShowErrorModal(true);
     } finally {
       setIsSaving(false);
-      
     }
   };
-// At the top of handlePlotValidation, add:
+  // At the top of handlePlotValidation, add:
 
-const handlePlotValidation = async (lbId, rowId) => {
-  const rows = localBodyData[lbId];
-  if (!rows) return;
-  const row = rows.find(r => r.id === rowId);
+  const handlePlotValidation = async (lbId, rowId) => {
+    const rows = localBodyData[lbId];
+    if (!rows) return;
+    const row = rows.find(r => r.id === rowId);
 
-  if (!row || !row.village || !row.villageBlock || !row.surveyNo) {
-    return;
-  }
-
-  // Get lbInfo for the selected local body - THIS WAS MISSING
-  const rowLbId = row.lbIdSelected ?? row.lbId;
-  const lbInfo = localBodyInfoMap.get(rowLbId);
-  
-  if (!lbInfo) {
-    toast.error("Please select a valid Local Body before validation");
-    return;
-  }
-
-  const plotIdentifier = `${row.village}-${row.villageBlock}-${row.surveyNo}-${row.subDivNo || ''}`;
-  const existingUsageInForm = checkPlotUsageInCurrentForm(plotIdentifier, rowId);
-  
-  if (existingUsageInForm.isUsed) {
-    setValidationInfo({
-      message: `This plot is already used in ${existingUsageInForm.location}.`,
-      totalcent: existingUsageInForm.totalArea,
-      remainingArea: existingUsageInForm.remainingArea,
-      isFromCurrentForm: true,
-      uiUsedRemaining: existingUsageInForm.remainingArea
-    });
-    setValidatingRow({ lbId, rowId });
-    setIsValidationDialogOpen(true);
-    return;
-  }
-
-try {
-    const token = localStorage.getItem('token');
-    const zoneId = authservice.getzone();
-    const villageData = villageInfoMap.get(row.village);
-
-    if (!villageData) {
-      toast.error("Invalid village selected");
+    if (!row || !row.village || !row.villageBlock || !row.surveyNo) {
       return;
     }
 
-    const payload = {
-      vcode: villageData.vcode,
-      bcode: row.villageBlock,
-      resvno: parseInt(row.surveyNo, 10),
-      resbdno: row.subDivNo && row.subDivNo.trim() !== "" ? row.subDivNo.trim() : null,
-      zoneId: parseInt(zoneId, 10),
-      lbcode: lbInfo.lbcode,  // Now lbInfo is defined
-      agriYear: authservice.agriyear()
-    };
+    // Get lbInfo for the selected local body - THIS WAS MISSING
+    const rowLbId = row.lbIdSelected ?? row.lbId;
+    const lbInfo = localBodyInfoMap.get(rowLbId);
 
-    // Axios automatically stringifies the payload
-    const response = await api.post(
-      `${BASE_URL}/btr-service/key-plots/validate-duplicate-keyplots`,
-      payload,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      }
-    );
-
-    // If the request succeeds (2xx status code), it comes here directly
-    const data = response.data; // Axios automatically parses the JSON
-
-
-    if (data.id) {
-      // Existing plot found in BTR master, available for reuse
-      setLocalBodyData(prev => ({
-        ...prev,
-        [lbId]: prev[lbId].map(r => 
-          r.id === rowId ? { 
-            ...r, 
-            btrId: data.id, 
-            area: data.totalcent ? data.totalcent.toString() : r.area,
-            isAreaLocked: true,
-            // Fix casing so "WET" becomes "Wet" to match dropdown options
-            landType: data.landType 
-              ? data.landType.charAt(0).toUpperCase() + data.landType.slice(1).toLowerCase() 
-              : r.landType, 
-            isLandTypeLocked: true
-          } : r
-        )
-      }));
-      toast.success(data.message || "Existing plot linked. Fields are locked.");
-    } else {
-      // Completely new plot
-      setLocalBodyData(prev => ({
-        ...prev,
-        [lbId]: prev[lbId].map(r => r.id === rowId ? { ...r, btrId: null, isAreaLocked: false, isLandTypeLocked: false } : r)
-      }));
-      toast.success("Plot is available for use");
+    if (!lbInfo) {
+      toast.error("Please select a valid Local Body before validation");
+      return;
     }
 
-  } catch (error) {
-    // Axios throws an error for 409 Conflict, handle it here
-    if (error.response && error.response.status === 409) {
-      const data = error.response.data; // Get the response body from the error
-      console.log("Validation API response (409):", data);
+    const plotIdentifier = `${row.village}-${row.villageBlock}-${row.surveyNo}-${row.subDivNo || ''}`;
+    const existingUsageInForm = checkPlotUsageInCurrentForm(plotIdentifier, rowId);
 
-      if (data.availableSubdivisions && data.availableSubdivisions.length > 0) {
-        setAvailableSubdivisions(data.availableSubdivisions);
-        setPendingPlot({ lbId, rowId, validationInfo: data });
-        setSubdivisionDialogOpen(true);
+    if (existingUsageInForm.isUsed) {
+      setValidationInfo({
+        message: `This plot is already used in ${existingUsageInForm.location}.`,
+        totalcent: existingUsageInForm.totalArea,
+        remainingArea: existingUsageInForm.remainingArea,
+        isFromCurrentForm: true,
+        uiUsedRemaining: existingUsageInForm.remainingArea
+      });
+      setValidatingRow({ lbId, rowId });
+      setIsValidationDialogOpen(true);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const zoneId = authservice.getzone();
+      const villageData = villageInfoMap.get(row.village);
+
+      if (!villageData) {
+        toast.error("Invalid village selected");
+        return;
+      }
+
+      const payload = {
+        vcode: villageData.vcode,
+        bcode: row.villageBlock,
+        resvno: parseInt(row.surveyNo, 10),
+        resbdno: row.subDivNo && row.subDivNo.trim() !== "" ? row.subDivNo.trim() : null,
+        zoneId: parseInt(zoneId, 10),
+        lbcode: lbInfo.lbcode,  // Now lbInfo is defined
+        agriYear: authservice.agriyear()
+      };
+
+      // Axios automatically stringifies the payload
+      const response = await api.post(
+        `${BASE_URL}/btr-service/key-plots/validate-duplicate-keyplots`,
+        payload,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+
+      // If the request succeeds (2xx status code), it comes here directly
+      const data = response.data; // Axios automatically parses the JSON
+
+
+      if (data.id) {
+        // Existing plot found in BTR master, available for reuse
+        setLocalBodyData(prev => ({
+          ...prev,
+          [lbId]: prev[lbId].map(r =>
+            r.id === rowId ? {
+              ...r,
+              btrId: data.id,
+              area: data.totalcent ? data.totalcent.toString() : r.area,
+              isAreaLocked: true,
+              // Fix casing so "WET" becomes "Wet" to match dropdown options
+              landType: data.landType
+                ? data.landType.charAt(0).toUpperCase() + data.landType.slice(1).toLowerCase()
+                : r.landType,
+              isLandTypeLocked: true
+            } : r
+          )
+        }));
+        toast.success(data.message || "Existing plot linked. Fields are locked.");
       } else {
-        const uiUsed = getUiUsedArea(plotIdentifier, row.id);
-        const backendRemaining = data.remainingArea || data.remaining_area || 0;
-        const finalRemaining = backendRemaining - uiUsed;
-
-        setValidationInfo({
-          message: data.message || "This plot has already been used",
-          totalcent: data.totalArea || data.totalcent || 0,
-          remainingArea: backendRemaining,
-          uiUsedRemaining: finalRemaining,
-          isFromCurrentForm: false,
-          plotId: data.id,
-          landType: data.landType 
-        });
-        setValidatingRow({ lbId, rowId });
-        setIsValidationDialogOpen(true);
+        // Completely new plot
+        setLocalBodyData(prev => ({
+          ...prev,
+          [lbId]: prev[lbId].map(r => r.id === rowId ? { ...r, btrId: null, isAreaLocked: false, isLandTypeLocked: false } : r)
+        }));
+        toast.success("Plot is available for use");
       }
-    } else {
-      // Handle actual network errors, 500 server errors, etc.
-      console.error("Error validating duplicate plot:", error);
-      const errorMsg = error.response?.data?.message || error.message || "Unknown error occurred";
-      toast.error(`Validation Error: ${errorMsg}`);
+
+    } catch (error) {
+      // Axios throws an error for 409 Conflict, handle it here
+      if (error.response && error.response.status === 409) {
+        const data = error.response.data; // Get the response body from the error
+        console.log("Validation API response (409):", data);
+
+        if (data.availableSubdivisions && data.availableSubdivisions.length > 0) {
+          setAvailableSubdivisions(data.availableSubdivisions);
+          setPendingPlot({ lbId, rowId, validationInfo: data });
+          setSubdivisionDialogOpen(true);
+        } else {
+          const uiUsed = getUiUsedArea(plotIdentifier, row.id);
+          const backendRemaining = data.remainingArea || data.remaining_area || 0;
+          const finalRemaining = backendRemaining - uiUsed;
+
+          setValidationInfo({
+            message: data.message || "This plot has already been used",
+            totalcent: data.totalArea || data.totalcent || 0,
+            remainingArea: backendRemaining,
+            uiUsedRemaining: finalRemaining,
+            isFromCurrentForm: false,
+            plotId: data.id,
+            landType: data.landType
+          });
+          setValidatingRow({ lbId, rowId });
+          setIsValidationDialogOpen(true);
+        }
+      } else {
+        // Handle actual network errors, 500 server errors, etc.
+        console.error("Error validating duplicate plot:", error);
+        const errorMsg = error.response?.data?.message || error.message || "Unknown error occurred";
+        toast.error(`Validation Error: ${errorMsg}`);
+      }
     }
-  }
-};
+  };
 
 
   // --- Other Handlers (unchanged) ---
@@ -932,18 +922,18 @@ try {
       [lbId]: prev[lbId].map((row) =>
         row.id === rowId
           ? {
-              ...row,
-              village: villageName,
-              villageBlock: defaultBlock,
-              villageBlockOptions: blocks,
-            }
+            ...row,
+            village: villageName,
+            villageBlock: defaultBlock,
+            villageBlockOptions: blocks,
+          }
           : row
       ),
     }));
     // Clear errors for village and villageBlock
     const villageErrorKey = `${lbId}_${rowId}_village`;
     const blockErrorKey = `${lbId}_${rowId}_villageBlock`;
-        
+
     setFieldErrors(prev => {
       const newErrors = { ...prev };
       delete newErrors[villageErrorKey];
@@ -952,60 +942,60 @@ try {
     });
   };
 
-const handleAddRow = (lbId) => {
-  if (totalKeyplots >= remainingKeyplots) {
-    toast.warn(`Only ${remainingKeyplots} keyplots can be added for this zone`);
-    return;
-  }
+  const handleAddRow = (lbId) => {
+    if (totalKeyplots >= remainingKeyplots) {
+      toast.warn(`Only ${remainingKeyplots} keyplots can be added for this zone`);
+      return;
+    }
 
-  setLocalBodyData((prev) => {
-    const currentRows = prev[lbId] || [];
-    const newId = Date.now();
-    const newSlNo =
-      currentRows.length > 0
-        ? Math.max(...currentRows.map((r) => r.slNo)) + 1
-        : 1;
+    setLocalBodyData((prev) => {
+      const currentRows = prev[lbId] || [];
+      const newId = Date.now();
+      const newSlNo =
+        currentRows.length > 0
+          ? Math.max(...currentRows.map((r) => r.slNo)) + 1
+          : 1;
 
-    return {
-      ...prev,
-      [lbId]: [
-        ...currentRows,
-        {
-          id: newId,
-          slNo: newSlNo,
-          lbIdSelected: lbId,
-          localBody: localBodies.find(b => b.id === lbId)?.name || '',
-          village: "",
-          villageBlock: "",
-          villageBlockOptions: [],
-          surveyNo: "",
-          subDivNo: "",
-          area: "",
-          landType: "",
-        },
-      ],
-    };
-  });
-};
+      return {
+        ...prev,
+        [lbId]: [
+          ...currentRows,
+          {
+            id: newId,
+            slNo: newSlNo,
+            lbIdSelected: lbId,
+            localBody: localBodies.find(b => b.id === lbId)?.name || '',
+            village: "",
+            villageBlock: "",
+            villageBlockOptions: [],
+            surveyNo: "",
+            subDivNo: "",
+            area: "",
+            landType: "",
+          },
+        ],
+      };
+    });
+  };
 
 
 
   // Add this function after your existing helper functions, around line 280
-const areAllFieldsFilled = (lbId) => {
-  const rows = localBodyData[lbId] || [];
-  if (rows.length === 0) return true; // Allow adding first row
-  
-  return rows.every((row) => {
-    return (
-      row.village &&
-      row.villageBlock &&
-      row.surveyNo &&
-      // row.subDivNo &&
-      row.area &&
-      row.landType
-    );
-  });
-};
+  const areAllFieldsFilled = (lbId) => {
+    const rows = localBodyData[lbId] || [];
+    if (rows.length === 0) return true; // Allow adding first row
+
+    return rows.every((row) => {
+      return (
+        row.village &&
+        row.villageBlock &&
+        row.surveyNo &&
+        // row.subDivNo &&
+        row.area &&
+        row.landType
+      );
+    });
+  };
 
 
   const handleDeleteRow = (lbId, rowId) => {
@@ -1090,70 +1080,70 @@ const areAllFieldsFilled = (lbId) => {
 
   return (
     <Grid container spacing={3}>
-    <Breadcrumb> </Breadcrumb> 
+      <Breadcrumb> </Breadcrumb>
       <Box sx={{ p: 3, maxWidth: 1400, margin: "0 auto", width: "100%" }}>
         <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
-          KeyPlot Entry 
+          KeyPlot Entry
           {/* (Total Required: {TOTAL_REQUIRED}) */}
         </Typography>
-{keyplotLimit && (
-  <Paper 
-    elevation={0} 
-    variant="outlined" 
-    sx={{ 
-      p: 2, 
-      mb: 2, 
-      bgcolor: '#f8fafc', 
-      borderColor: '#e2e8f0', 
-      borderRadius: 2,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      flexWrap: 'wrap',
-      gap: 2
-    }}
-  >
-    {/* Left Side: Numeric Metrics */}
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
-      <Typography variant="body1">
-        Zone Limit: <strong style={{ color: '#05307a' }}>{keyplotLimit.allowedKeyplotsLimit}</strong>
-      </Typography>
-      <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
-      <Typography variant="body1">
-        Formed Count: <strong style={{ color: '#05307a' }}>{keyplotLimit.usedKeyplotsCount}</strong>
-      </Typography>
-      <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
-      <Typography variant="body1">
-        Remaining Available: <strong style={{ color: keyplotLimit.remainingKeyplots > 0 ? '#10b981' : '#dc2626' }}>{keyplotLimit.remainingKeyplots}</strong>
-      </Typography>
-    </Box>
+        {keyplotLimit && (
+          <Paper
+            elevation={0}
+            variant="outlined"
+            sx={{
+              p: 2,
+              mb: 2,
+              bgcolor: '#f8fafc',
+              borderColor: '#e2e8f0',
+              borderRadius: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 2
+            }}
+          >
+            {/* Left Side: Numeric Metrics */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+              <Typography variant="body1">
+                Zone Limit: <strong style={{ color: '#05307a' }}>{keyplotLimit.allowedKeyplotsLimit}</strong>
+              </Typography>
+              <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
+              <Typography variant="body1">
+                Formed Count: <strong style={{ color: '#05307a' }}>{keyplotLimit.usedKeyplotsCount}</strong>
+              </Typography>
+              <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
+              <Typography variant="body1">
+                Remaining Available: <strong style={{ color: keyplotLimit.remainingKeyplots > 0 ? '#10b981' : '#dc2626' }}>{keyplotLimit.remainingKeyplots}</strong>
+              </Typography>
+            </Box>
 
-    {/* Right Side: Dynamic Status Badge */}
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-      <Typography variant="body2" color="text.secondary" fontWeight={500}>
-        Work Allocation Status:
-      </Typography>
-      <Chip 
-        label={getWorkAllocationStatusChip(keyplotLimit.status).label}
-        color={getWorkAllocationStatusChip(keyplotLimit.status).color}
-        variant={getWorkAllocationStatusChip(keyplotLimit.status).variant}
-        size="medium"
-        sx={{ fontWeight: 600, px: 1 }}
-      />
-    </Box>
-  </Paper>
-)}
+            {/* Right Side: Dynamic Status Badge */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                Work Allocation Status:
+              </Typography>
+              <Chip
+                label={getWorkAllocationStatusChip(keyplotLimit.status).label}
+                color={getWorkAllocationStatusChip(keyplotLimit.status).color}
+                variant={getWorkAllocationStatusChip(keyplotLimit.status).variant}
+                size="medium"
+                sx={{ fontWeight: 600, px: 1 }}
+              />
+            </Box>
+          </Paper>
+        )}
 
-{/* ✅ NEW: Global warning banner explaining the locking reason */}
-{!workAllocationStatus && (
-  <Alert 
-    severity="error" 
-    icon={<ErrorIcon />} 
-    sx={{ mb: 3, borderRadius: 2, fontWeight: 500 }}
-  >
-    <strong>Keyplot Entry Disabled:</strong> The Work Allocation Statement for this Zone and Agricultural Year must be <strong>Approved</strong> by the administrator before you can record new keyplots.
-  </Alert>
-)}
+        {/* ✅ NEW: Global warning banner explaining the locking reason */}
+        {!workAllocationStatus && (
+          <Alert
+            severity="error"
+            icon={<ErrorIcon />}
+            sx={{ mb: 3, borderRadius: 2, fontWeight: 500 }}
+          >
+            <strong>Keyplot Entry Disabled:</strong> The Work Allocation Statement for this Zone and Agricultural Year must be <strong>Approved</strong> by the administrator before you can record new keyplots.
+          </Alert>
+        )}
 
         {/* {localBodies.length > 0 && (
   <Paper elevation={3} sx={{ mb: 2 }}>
@@ -1258,9 +1248,9 @@ const areAllFieldsFilled = (lbId) => {
                   <TableContainer component={Paper}>
                     <Table stickyHeader>
                       <TableHead>
-                      
+
                         <TableRow>
-                         {["Sl. No", "Local Body", "Village", "Village Block", "Survey No.", "Sub Div No.", "Area (Cents)", "Land Type", "Actions"].map((col) => (
+                          {["Sl. No", "Local Body", "Village", "Village Block", "Survey No.", "Sub Div No.", "Area (Cents)", "Land Type", "Actions"].map((col) => (
 
                             <TableCell key={col} align="center" sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}>
                               {col}
@@ -1271,7 +1261,7 @@ const areAllFieldsFilled = (lbId) => {
                       <TableBody>
                         {rows.map((row) => (
                           <TableRow
-                             key={row.id}
+                            key={row.id}
                             sx={{
                               backgroundColor: hasAnyDuplicateError(lb.id, row.id) ? '#ffebee' : 'inherit'
                             }}
@@ -1281,39 +1271,39 @@ const areAllFieldsFilled = (lbId) => {
                                 {row.slNo}
                                 {hasAnyDuplicateError(lb.id, row.id) && (
                                   <Chip
-                                     icon={<ErrorIcon />}
-                                     label="Duplicate"
-                                     color="error"
-                                     size="small"
-                                   />
+                                    icon={<ErrorIcon />}
+                                    label="Duplicate"
+                                    color="error"
+                                    size="small"
+                                  />
                                 )}
                               </Box>
                             </TableCell>
                             <TableCell>
-                          <TextField
-  select
-  value={row.lbIdSelected ?? lb.id}               // default to tab’s lb.id on first render
-  onChange={(e) => handleLocalBodyChange(lb.id, row.id, Number(e.target.value))}
-  fullWidth
-  error={hasFieldError(lb.id, row.id, 'localBody')}
-  helperText={getFieldError(lb.id, row.id, 'localBody')}
-  size="small"
->
-  {localBodies.map((opt) => (
-    <MenuItem key={opt.id} value={opt.id}>
-      {opt.name}
-    </MenuItem>
-  ))}
-</TextField>
+                              <TextField
+                                select
+                                value={row.lbIdSelected ?? lb.id}               // default to tab’s lb.id on first render
+                                onChange={(e) => handleLocalBodyChange(lb.id, row.id, Number(e.target.value))}
+                                fullWidth
+                                error={hasFieldError(lb.id, row.id, 'localBody')}
+                                helperText={getFieldError(lb.id, row.id, 'localBody')}
+                                size="small"
+                              >
+                                {localBodies.map((opt) => (
+                                  <MenuItem key={opt.id} value={opt.id}>
+                                    {opt.name}
+                                  </MenuItem>
+                                ))}
+                              </TextField>
 
-                        </TableCell>
+                            </TableCell>
 
                             <TableCell>
                               <TextField
-                                 select
-                                 value={row.village}
-                                 onChange={(e) => handleVillageChange(lb.id, row.id, e.target.value)}
-                                 fullWidth
+                                select
+                                value={row.village}
+                                onChange={(e) => handleVillageChange(lb.id, row.id, e.target.value)}
+                                fullWidth
                                 error={hasFieldError(lb.id, row.id, 'village')}
                                 helperText={getFieldError(lb.id, row.id, 'village')}
                                 size="small"
@@ -1327,11 +1317,11 @@ const areAllFieldsFilled = (lbId) => {
                             </TableCell>
                             <TableCell>
                               <TextField
-                                 select
-                                 value={row.villageBlock}
-                                 onChange={(e) => handleChange(lb.id, row.id, "villageBlock", e.target.value)}
-                                 fullWidth
-                                 disabled={!row.village}
+                                select
+                                value={row.villageBlock}
+                                onChange={(e) => handleChange(lb.id, row.id, "villageBlock", e.target.value)}
+                                fullWidth
+                                disabled={!row.village}
                                 error={hasFieldError(lb.id, row.id, 'villageBlock')}
                                 helperText={getFieldError(lb.id, row.id, 'villageBlock')}
                                 size="small"
@@ -1351,18 +1341,18 @@ const areAllFieldsFilled = (lbId) => {
                                 fullWidth
                               /> */}
                               <TextField
-                                  value={row.surveyNo}
-                                  onChange={(e) => handleChange(lb.id, row.id, "surveyNo", e.target.value)}
-                                  onBlur={() => {
-                                    if (row.village && row.villageBlock && row.surveyNo) {
-                                      handlePlotValidation(lb.id, row.id);
-                                    }
-                                  }}
-                                  error={hasFieldError(lb.id, row.id, 'surveyNo')}
-                                  helperText={getFieldError(lb.id, row.id, 'surveyNo')}
-                                  size="small"
-                                  fullWidth
-                                />
+                                value={row.surveyNo}
+                                onChange={(e) => handleChange(lb.id, row.id, "surveyNo", e.target.value)}
+                                onBlur={() => {
+                                  if (row.village && row.villageBlock && row.surveyNo) {
+                                    handlePlotValidation(lb.id, row.id);
+                                  }
+                                }}
+                                error={hasFieldError(lb.id, row.id, 'surveyNo')}
+                                helperText={getFieldError(lb.id, row.id, 'surveyNo')}
+                                size="small"
+                                fullWidth
+                              />
                             </TableCell>
                             <TableCell>
                               {/* <TextField
@@ -1374,20 +1364,20 @@ const areAllFieldsFilled = (lbId) => {
                                 fullWidth
                               /> */}
                               <TextField
-                                  value={row.subDivNo}
-                                  onChange={(e) => handleChange(lb.id, row.id, "subDivNo", e.target.value)}
-                                  onBlur={() => {
-                                    if (row.village && row.villageBlock && row.surveyNo) {
-                                      handlePlotValidation(lb.id, row.id);
-                                    }
-                                  }}
-                                  error={hasFieldError(lb.id, row.id, 'subDivNo')}
-                                  helperText={getFieldError(lb.id, row.id, 'subDivNo')}
-                                  size="small"
-                                  fullWidth
-                                />
+                                value={row.subDivNo}
+                                onChange={(e) => handleChange(lb.id, row.id, "subDivNo", e.target.value)}
+                                onBlur={() => {
+                                  if (row.village && row.villageBlock && row.surveyNo) {
+                                    handlePlotValidation(lb.id, row.id);
+                                  }
+                                }}
+                                error={hasFieldError(lb.id, row.id, 'subDivNo')}
+                                helperText={getFieldError(lb.id, row.id, 'subDivNo')}
+                                size="small"
+                                fullWidth
+                              />
                             </TableCell>
-                           <TableCell>
+                            <TableCell>
                               <TextField
                                 value={row.area}
                                 onChange={(e) => handleChange(lb.id, row.id, "area", e.target.value)}
@@ -1398,22 +1388,22 @@ const areAllFieldsFilled = (lbId) => {
                                 disabled={row.isAreaLocked} // Lock field if the plot already exists
                               />
                             </TableCell>
-                           <TableCell>
-                          <TextField
-                            select
-                            value={row.landType}
-                            onChange={(e) => handleChange(lb.id, row.id, "landType", e.target.value)}
-                            error={hasFieldError(lb.id, row.id, 'landType')}
-                            helperText={getFieldError(lb.id, row.id, 'landType')}
-                            size="small"
-                            fullWidth
-                            disabled={row.isLandTypeLocked} /* NEW: Lock field if the plot already exists */
-                          >
-                            {landTypeOptions.map((opt) => (
-                              <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                            ))}
-                          </TextField>
-                        </TableCell>
+                            <TableCell>
+                              <TextField
+                                select
+                                value={row.landType}
+                                onChange={(e) => handleChange(lb.id, row.id, "landType", e.target.value)}
+                                error={hasFieldError(lb.id, row.id, 'landType')}
+                                helperText={getFieldError(lb.id, row.id, 'landType')}
+                                size="small"
+                                fullWidth
+                                disabled={row.isLandTypeLocked} /* NEW: Lock field if the plot already exists */
+                              >
+                                {landTypeOptions.map((opt) => (
+                                  <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                                ))}
+                              </TextField>
+                            </TableCell>
                             <TableCell align="center">
                               <IconButton color="error" onClick={() => handleDeleteRow(lb.id, row.id)}>
                                 <Delete />
@@ -1422,32 +1412,32 @@ const areAllFieldsFilled = (lbId) => {
                           </TableRow>
                         ))}
                         <TableRow>
-  <TableCell colSpan={9} align="right">
-    {/* ✅ Wrapped in a Box layout container to support inline helper texts */}
-    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, flexWrap: 'wrap' }}>
-      
-      {/* ✅ NEW: Inline explanation helper text message */}
-      {!workAllocationStatus && (
-        <Typography variant="body2" color="error.main" sx={{ fontWeight: 500, fontStyle: 'italic' }}>
-          * Work allocation must be approved to enable this action.
-        </Typography>
-      )}
+                          <TableCell colSpan={9} align="right">
+                            {/* ✅ Wrapped in a Box layout container to support inline helper texts */}
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, flexWrap: 'wrap' }}>
 
-      <Button
-        startIcon={<AddCircle />}
-        variant="outlined"
-        color="success"
-        onClick={() => handleAddRow(lb.id)}
-        disabled={
-          totalKeyplots >= remainingKeyplots ||
-          !areAllFieldsFilled(lb.id) || !workAllocationStatus
-        }
-      >
-        Add Keyplot
-      </Button>
-    </Box>
-  </TableCell>
-</TableRow>
+                              {/* ✅ NEW: Inline explanation helper text message */}
+                              {!workAllocationStatus && (
+                                <Typography variant="body2" color="error.main" sx={{ fontWeight: 500, fontStyle: 'italic' }}>
+                                  * Work allocation must be approved to enable this action.
+                                </Typography>
+                              )}
+
+                              <Button
+                                startIcon={<AddCircle />}
+                                variant="outlined"
+                                color="success"
+                                onClick={() => handleAddRow(lb.id)}
+                                disabled={
+                                  totalKeyplots >= remainingKeyplots ||
+                                  !areAllFieldsFilled(lb.id) || !workAllocationStatus
+                                }
+                              >
+                                Add Keyplot
+                              </Button>
+                            </Box>
+                          </TableCell>
+                        </TableRow>
 
                       </TableBody>
                     </Table>
@@ -1455,30 +1445,30 @@ const areAllFieldsFilled = (lbId) => {
                   {/* Show duplicate error details below the table */}
                   {(Object.keys(duplicateErrors).some(key => key.startsWith(`${lb.id}_`)) ||
                     Object.keys(clientDuplicateErrors).some(key => key.startsWith(`${lb.id}_`))) && (
-                    <Alert severity="warning" sx={{ mt: 2 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                        Duplicate Records Found:
-                      </Typography>
-                                            
-                      {/* Backend duplicate errors */}
-                      {Object.entries(duplicateErrors)
-                        .filter(([key]) => key.startsWith(`${lb.id}_`))
-                        .map(([key, message]) => (
-                          <Typography key={key} variant="body2" sx={{ mt: 1 }}>
-                            • {message}
-                          </Typography>
-                        ))}
-                                            
-                      {/* Client-side duplicate errors */}
-                      {Object.entries(clientDuplicateErrors)
-                        .filter(([key]) => key.startsWith(`${lb.id}_`))
-                        .map(([key, message]) => (
-                          <Typography key={key} variant="body2" sx={{ mt: 1, color: '#ff6b35' }}>
-                            • {message}
-                          </Typography>
-                        ))}
-                    </Alert>
-                  )}
+                      <Alert severity="warning" sx={{ mt: 2 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                          Duplicate Records Found:
+                        </Typography>
+
+                        {/* Backend duplicate errors */}
+                        {Object.entries(duplicateErrors)
+                          .filter(([key]) => key.startsWith(`${lb.id}_`))
+                          .map(([key, message]) => (
+                            <Typography key={key} variant="body2" sx={{ mt: 1 }}>
+                              • {message}
+                            </Typography>
+                          ))}
+
+                        {/* Client-side duplicate errors */}
+                        {Object.entries(clientDuplicateErrors)
+                          .filter(([key]) => key.startsWith(`${lb.id}_`))
+                          .map(([key, message]) => (
+                            <Typography key={key} variant="body2" sx={{ mt: 1, color: '#ff6b35' }}>
+                              • {message}
+                            </Typography>
+                          ))}
+                      </Alert>
+                    )}
                 </Paper>
               )}
             </div>
@@ -1499,7 +1489,7 @@ const areAllFieldsFilled = (lbId) => {
           </DialogTitle>
           <DialogContent>
             <DialogContentText id="confirm-dialog-description">
-              Are you sure you want to save {totalKeyplots} keyplot{totalKeyplots !== 1 ? 's' : ''}? 
+              Are you sure you want to save {totalKeyplots} keyplot{totalKeyplots !== 1 ? 's' : ''}?
               This action will save all the entered data to the database.
             </DialogContentText>
           </DialogContent>
@@ -1514,215 +1504,215 @@ const areAllFieldsFilled = (lbId) => {
         </Dialog>
 
 
-{/* Plot Validation Dialog */}
-     {/* Plot Validation Dialog */}
-<Dialog
-  open={isValidationDialogOpen}
-  onClose={() => setIsValidationDialogOpen(false)}
-  maxWidth="sm"
-  fullWidth
-  PaperProps={{
-    sx: {
-      borderRadius: 3,
-      overflow: 'hidden'
-    }
-  }}
->
-  {/* Header with gradient background */}
-  <DialogTitle 
-    sx={{ 
-      background: validationInfo?.isFromCurrentForm 
-        ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
-        : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-      color: 'white', 
-      px: 3, 
-      py: 2,
-      borderBottom: '1px solid rgba(255,255,255,0.1)'
-    }}
-  >
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-      <InfoIcon sx={{ fontSize: 28 }} />
-      <Typography variant="h6" sx={{ fontWeight: 600 }}>
-        {validationInfo?.isFromCurrentForm ? "Duplicate Plot Detected" : "Plot Already Allocated"}
-      </Typography>
-    </Box>
-  </DialogTitle>
-
-  {/* Content */}
-  <DialogContent sx={{ p: 3 }}>
-    {validationInfo && (
-      <Box>
-        {/* Alert Message */}
-        <Box 
-          sx={{ 
-            mb: 3, 
-            p: 2, 
-            borderRadius: 2,
-            bgcolor: validationInfo.isFromCurrentForm 
-              ? 'warning.lighter' 
-              : 'info.lighter',
-            borderLeft: `4px solid ${validationInfo.isFromCurrentForm ? '#f59e0b' : '#3b82f6'}`,
-            backgroundColor: validationInfo.isFromCurrentForm ? '#fef3c7' : '#eff6ff'
+        {/* Plot Validation Dialog */}
+        {/* Plot Validation Dialog */}
+        <Dialog
+          open={isValidationDialogOpen}
+          onClose={() => setIsValidationDialogOpen(false)}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              overflow: 'hidden'
+            }
           }}
         >
-          <Typography 
-            variant="body1" 
-            sx={{ 
-              color: validationInfo.isFromCurrentForm ? '#92400e' : '#1e40af',
-              fontWeight: 500
+          {/* Header with gradient background */}
+          <DialogTitle
+            sx={{
+              background: validationInfo?.isFromCurrentForm
+                ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+                : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+              color: 'white',
+              px: 3,
+              py: 2,
+              borderBottom: '1px solid rgba(255,255,255,0.1)'
             }}
           >
-            {validationInfo.message || 
-              (validationInfo.isFromCurrentForm 
-                ? `⚠️ This plot is already used in ${validationInfo.location || 'the current form'}.` 
-                : "This plot has already been used in the current agricultural year.")}
-          </Typography>
-        </Box>
-
-        {/* Statistics Cards */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {/* Total Area Card */}
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            p: 1.5,
-            bgcolor: '#f8fafc',
-            borderRadius: 2,
-            border: '1px solid #e2e8f0'
-          }}>
-            <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
-              Total Area
-            </Typography>
-            <Typography variant="h6" sx={{ fontWeight: 600, color: '#0f172a' }}>
-              {validationInfo.totalcent || validationInfo.totalArea || 0} cents
-            </Typography>
-          </Box>
-
-          {/* Already Used Card */}
-          {validationInfo.remainingArea !== undefined && (
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              p: 1.5,
-              bgcolor: '#f8fafc',
-              borderRadius: 2,
-              border: '1px solid #e2e8f0'
-            }}>
-              <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
-                Already Used
-              </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 600, color: '#dc2626' }}>
-                {((validationInfo.totalcent || validationInfo.totalArea || 0) - (validationInfo.remainingArea || 0)).toFixed(2)} cents
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <InfoIcon sx={{ fontSize: 28 }} />
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                {validationInfo?.isFromCurrentForm ? "Duplicate Plot Detected" : "Plot Already Allocated"}
               </Typography>
             </Box>
-          )}
+          </DialogTitle>
 
-          {/* Remaining Available Card with Progress Bar */}
-          {validationInfo.uiUsedRemaining !== undefined && (
-            <Box>
-              <Box sx={{ 
-                display: 'flex', 
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                p: 1.5,
-                bgcolor: '#f8fafc',
-                borderRadius: 2,
-                border: '1px solid #e2e8f0',
-                mb: 1.5
-              }}>
-                <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
-                  Remaining Available
-                </Typography>
-                <Typography 
-                  variant="h6" 
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: validationInfo.uiUsedRemaining > 0 ? '#10b981' : '#ef4444'
+          {/* Content */}
+          <DialogContent sx={{ p: 3 }}>
+            {validationInfo && (
+              <Box>
+                {/* Alert Message */}
+                <Box
+                  sx={{
+                    mb: 3,
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: validationInfo.isFromCurrentForm
+                      ? 'warning.lighter'
+                      : 'info.lighter',
+                    borderLeft: `4px solid ${validationInfo.isFromCurrentForm ? '#f59e0b' : '#3b82f6'}`,
+                    backgroundColor: validationInfo.isFromCurrentForm ? '#fef3c7' : '#eff6ff'
                   }}
                 >
-                  {validationInfo.uiUsedRemaining.toFixed(2)} cents
-                </Typography>
-              </Box>
-              
-              {/* Progress Bar */}
-              {validationInfo.totalcent && (
-                <Box sx={{ mt: 1 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography variant="caption" sx={{ color: '#64748b' }}>
-                      Usage Progress
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: '#64748b' }}>
-                      {((validationInfo.totalcent - validationInfo.uiUsedRemaining) / validationInfo.totalcent * 100).toFixed(0)}%
-                    </Typography>
-                  </Box>
-                  <Box sx={{ 
-                    width: '100%', 
-                    height: 8, 
-                    bgcolor: '#e2e8f0', 
-                    borderRadius: 4,
-                    overflow: 'hidden'
-                  }}>
-                    <Box sx={{ 
-                      width: `${((validationInfo.totalcent - validationInfo.uiUsedRemaining) / validationInfo.totalcent * 100)}%`,
-                      height: '100%',
-                      bgcolor: validationInfo.uiUsedRemaining > 0 ? '#10b981' : '#ef4444',
-                      borderRadius: 4,
-                      transition: 'width 0.3s ease'
-                    }} />
-                  </Box>
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      color: validationInfo.isFromCurrentForm ? '#92400e' : '#1e40af',
+                      fontWeight: 500
+                    }}
+                  >
+                    {validationInfo.message ||
+                      (validationInfo.isFromCurrentForm
+                        ? `⚠️ This plot is already used in ${validationInfo.location || 'the current form'}.`
+                        : "This plot has already been used in the current agricultural year.")}
+                  </Typography>
                 </Box>
-              )}
-            </Box>
-          )}
-        </Box>
-      </Box>
-    )}
-  </DialogContent>
 
-  {/* Actions */}
-  <DialogActions sx={{ p: 3, pt: 0, gap: 2 }}>
-    {validationInfo && validationInfo.uiUsedRemaining > 0 && (
-      <Button
-        onClick={() => handleUseRecommendedPlot('remaining')}
-        variant="contained"
-        fullWidth
-        sx={{
-          bgcolor: '#10b981',
-          '&:hover': {
-            bgcolor: '#059669'
-          },
-          py: 1.2,
-          textTransform: 'none',
-          fontWeight: 600,
-          boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.2)'
-        }}
-      >
-        Use Remaining Area ({validationInfo.uiUsedRemaining.toFixed(2)} cents)
-      </Button>
-    )}
-    <Button 
-      onClick={handleRejectPlot} 
-      variant="outlined"
-      fullWidth
-      sx={{
-        borderColor: '#e2e8f0',
-        color: '#64748b',
-        '&:hover': {
-          borderColor: '#ef4444',
-          color: '#ef4444',
-          bgcolor: '#fef2f2'
-        },
-        py: 1.2,
-        textTransform: 'none',
-        fontWeight: 500
-      }}
-    >
-      {validationInfo?.isFromCurrentForm ? 'Clear Entry' : 'Choose Different Plot'}
-    </Button>
-  </DialogActions>
-</Dialog>
+                {/* Statistics Cards */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {/* Total Area Card */}
+                  <Box sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    p: 1.5,
+                    bgcolor: '#f8fafc',
+                    borderRadius: 2,
+                    border: '1px solid #e2e8f0'
+                  }}>
+                    <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
+                      Total Area
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                      {validationInfo.totalcent || validationInfo.totalArea || 0} cents
+                    </Typography>
+                  </Box>
+
+                  {/* Already Used Card */}
+                  {validationInfo.remainingArea !== undefined && (
+                    <Box sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      p: 1.5,
+                      bgcolor: '#f8fafc',
+                      borderRadius: 2,
+                      border: '1px solid #e2e8f0'
+                    }}>
+                      <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
+                        Already Used
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 600, color: '#dc2626' }}>
+                        {((validationInfo.totalcent || validationInfo.totalArea || 0) - (validationInfo.remainingArea || 0)).toFixed(2)} cents
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {/* Remaining Available Card with Progress Bar */}
+                  {validationInfo.uiUsedRemaining !== undefined && (
+                    <Box>
+                      <Box sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        p: 1.5,
+                        bgcolor: '#f8fafc',
+                        borderRadius: 2,
+                        border: '1px solid #e2e8f0',
+                        mb: 1.5
+                      }}>
+                        <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
+                          Remaining Available
+                        </Typography>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            fontWeight: 600,
+                            color: validationInfo.uiUsedRemaining > 0 ? '#10b981' : '#ef4444'
+                          }}
+                        >
+                          {validationInfo.uiUsedRemaining.toFixed(2)} cents
+                        </Typography>
+                      </Box>
+
+                      {/* Progress Bar */}
+                      {validationInfo.totalcent && (
+                        <Box sx={{ mt: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                            <Typography variant="caption" sx={{ color: '#64748b' }}>
+                              Usage Progress
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: '#64748b' }}>
+                              {((validationInfo.totalcent - validationInfo.uiUsedRemaining) / validationInfo.totalcent * 100).toFixed(0)}%
+                            </Typography>
+                          </Box>
+                          <Box sx={{
+                            width: '100%',
+                            height: 8,
+                            bgcolor: '#e2e8f0',
+                            borderRadius: 4,
+                            overflow: 'hidden'
+                          }}>
+                            <Box sx={{
+                              width: `${((validationInfo.totalcent - validationInfo.uiUsedRemaining) / validationInfo.totalcent * 100)}%`,
+                              height: '100%',
+                              bgcolor: validationInfo.uiUsedRemaining > 0 ? '#10b981' : '#ef4444',
+                              borderRadius: 4,
+                              transition: 'width 0.3s ease'
+                            }} />
+                          </Box>
+                        </Box>
+                      )}
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            )}
+          </DialogContent>
+
+          {/* Actions */}
+          <DialogActions sx={{ p: 3, pt: 0, gap: 2 }}>
+            {validationInfo && validationInfo.uiUsedRemaining > 0 && (
+              <Button
+                onClick={() => handleUseRecommendedPlot('remaining')}
+                variant="contained"
+                fullWidth
+                sx={{
+                  bgcolor: '#10b981',
+                  '&:hover': {
+                    bgcolor: '#059669'
+                  },
+                  py: 1.2,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.2)'
+                }}
+              >
+                Use Remaining Area ({validationInfo.uiUsedRemaining.toFixed(2)} cents)
+              </Button>
+            )}
+            <Button
+              onClick={handleRejectPlot}
+              variant="outlined"
+              fullWidth
+              sx={{
+                borderColor: '#e2e8f0',
+                color: '#64748b',
+                '&:hover': {
+                  borderColor: '#ef4444',
+                  color: '#ef4444',
+                  bgcolor: '#fef2f2'
+                },
+                py: 1.2,
+                textTransform: 'none',
+                fontWeight: 500
+              }}
+            >
+              {validationInfo?.isFromCurrentForm ? 'Clear Entry' : 'Choose Different Plot'}
+            </Button>
+          </DialogActions>
+        </Dialog>
         {/* Subdivision Selection Dialog */}
         <Dialog open={subdivisionDialogOpen} onClose={() => setSubdivisionDialogOpen(false)} maxWidth="xs" fullWidth>
           <DialogTitle>Select Subdivision</DialogTitle>
@@ -1732,9 +1722,9 @@ const areAllFieldsFilled = (lbId) => {
             </DialogContentText>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {availableSubdivisions.map((sub) => (
-                <Button 
-                  key={sub} 
-                  variant="outlined" 
+                <Button
+                  key={sub}
+                  variant="outlined"
                   onClick={() => handleSubdivisionSelect(sub)}
                 >
                   Subdivision: {sub}
@@ -1764,12 +1754,12 @@ const areAllFieldsFilled = (lbId) => {
         >
           <DialogTitle id="success-dialog-title" sx={{ pb: 1 }}>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-              <CheckCircle 
-                sx={{ 
-                  fontSize: 64, 
+              <CheckCircle
+                sx={{
+                  fontSize: 64,
                   color: '#4caf50',
                   animation: 'pulse 1.5s infinite'
-                }} 
+                }}
               />
               <Typography variant="h5" sx={{ color: '#4caf50', fontWeight: 'bold' }}>
                 Success!
@@ -1784,9 +1774,9 @@ const areAllFieldsFilled = (lbId) => {
             </DialogContentText>
           </DialogContent>
           <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
-            <Button 
-              onClick={() => setShowSuccessModal(false)} 
-              variant="contained" 
+            <Button
+              onClick={() => setShowSuccessModal(false)}
+              variant="contained"
               color="success"
               sx={{ minWidth: 100 }}
             >
@@ -1812,12 +1802,12 @@ const areAllFieldsFilled = (lbId) => {
         >
           <DialogTitle id="error-dialog-title" sx={{ pb: 1 }}>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-              <Cancel 
-                sx={{ 
-                  fontSize: 64, 
+              <Cancel
+                sx={{
+                  fontSize: 64,
                   color: '#f44336',
                   animation: 'shake 0.5s ease-in-out'
-                }} 
+                }}
               />
               <Typography variant="h5" sx={{ color: '#f44336', fontWeight: 'bold' }}>
                 Error!
@@ -1826,16 +1816,21 @@ const areAllFieldsFilled = (lbId) => {
           </DialogTitle>
           <DialogContent>
             <DialogContentText sx={{ textAlign: 'center', fontSize: '1.1rem' }}>
-               Save failed!
-              <br />
-              {mainerror ? mainerror : "Please check the form for errors and try again."}
-             
+              {validationErrors.length > 0 ? (
+                validationErrors.slice(0, 3).map((e, idx) => (
+                  <Typography key={idx} variant="body2" color="error" sx={{ mt: 1 }}>
+                    {e.message}
+                  </Typography>
+                ))
+              ) : (
+                mainerror ? mainerror : "Please check the form for errors and try again."
+              )}
             </DialogContentText>
           </DialogContent>
           <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
-            <Button 
-              onClick={() => setShowErrorModal(false)} 
-              variant="contained" 
+            <Button
+              onClick={() => setShowErrorModal(false)}
+              variant="contained"
               color="error"
               sx={{ minWidth: 100 }}
             >

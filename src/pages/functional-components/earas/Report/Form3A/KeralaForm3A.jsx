@@ -20,6 +20,8 @@ import {
   TablePagination
 } from '@mui/material';
 import { LocationOn } from '@mui/icons-material';
+import WaterDropIcon from '@mui/icons-material/WaterDrop';
+import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
@@ -33,6 +35,10 @@ const SESSION_KEY = 'keralaForm3AState';
 // Sticky/column widths
 const DISTRICT_W = 180;
 const CROP_W = 150;
+
+// Land type filter — WET / DRY / ALL. 'ALL' means the landType param is not
+// sent at all, so the backend returns both.
+const DEFAULT_LAND_TYPE = 'ALL';
 
 // Static crop groups (tbl_master_crop_group). The tab index maps to a group,
 // whose id is sent to the API as cropGroupId.
@@ -82,6 +88,7 @@ const KeralaForm3A = () => {
   const agriculturalYear = AuthService.agriyear() || '2025-2026';
 
   const [activeTab, setActiveTab] = useState(() => getSavedState().activeTab ?? 0);
+  const [landTypeTab, setLandTypeTab] = useState(() => getSavedState().landTypeTab ?? DEFAULT_LAND_TYPE);
   const [apiData, setApiData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -100,10 +107,22 @@ const KeralaForm3A = () => {
   useEffect(() => {
     try {
       const officeInfo = JSON.parse(sessionStorage.getItem('userOfficeInfo') || '{}');
-      const officeType = location.state?.officeType || officeInfo.officeType;
+      let officeType = location.state?.officeType || officeInfo.officeType;
+
+      if (!officeType) {
+        const tokenRole = AuthService.getrole();
+        const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+        const des = localStorage.getItem('des') || '';
+
+        if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
+          officeType = 'TALUK';
+        } else if (roles.some(r => ['District Level Approver', 'District Level Data Viewer'].includes(r)) || des.includes('District')) {
+          officeType = 'DISTRICT';
+        }
+      }
 
       if (officeType === 'DISTRICT') {
-        const distId = location.state?.districtId || officeInfo.districtOfficeId || officeInfo.districtId;
+        const distId = location.state?.districtId || officeInfo.districtOfficeId || officeInfo.districtId || localStorage.getItem('dis');
         const distName = location.state?.districtName || officeInfo.districtName || '';
         if (distId) {
           navigate('/schemes/earas/Report/Form3A/TalukForm3A', {
@@ -122,7 +141,7 @@ const KeralaForm3A = () => {
       } else if (officeType === 'TALUK') {
         const tId = location.state?.talukId || officeInfo.talukOfficeId || officeInfo.talukId;
         const tName = location.state?.talukName || officeInfo.talukName || '';
-        const distId = location.state?.districtId || officeInfo.districtOfficeId || officeInfo.districtId;
+        const distId = location.state?.districtId || officeInfo.districtOfficeId || officeInfo.districtId || localStorage.getItem('dis');
         const distName = location.state?.districtName || officeInfo.districtName || '';
         if (tId) {
           navigate('/schemes/earas/Report/Form3A/ZoneForm3A', {
@@ -147,8 +166,8 @@ const KeralaForm3A = () => {
   }, [location.state, navigate]);
 
   useEffect(() => {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ activeTab }));
-  }, [activeTab]);
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ activeTab, landTypeTab }));
+  }, [activeTab, landTypeTab]);
 
   /* ─────────────────────────── fetch (per crop group) ─────────────────────────── */
 
@@ -162,7 +181,14 @@ const KeralaForm3A = () => {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('Authorization token missing');
 
-        const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/state?agriYear=${agriculturalYear}&cropGroupId=${cropGroupId}`;
+        const params = new URLSearchParams({
+          agriYear: agriculturalYear,
+          cropGroupId: String(cropGroupId)
+        });
+        // 'ALL' is represented by omitting the param entirely.
+        if (landTypeTab && landTypeTab !== 'ALL') params.append('landType', landTypeTab);
+
+        const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/state?${params.toString()}`;
         console.log('Fetching Form 3A data from:', url);
 
         const response = await axios.get(url, {
@@ -182,7 +208,7 @@ const KeralaForm3A = () => {
     };
     fetchGroupData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cropGroupId, agriculturalYear]);
+  }, [cropGroupId, agriculturalYear, landTypeTab]);
 
   /* ─────────────────────────── derived data ─────────────────────────── */
 
@@ -234,6 +260,12 @@ const KeralaForm3A = () => {
     setPage(0);
   };
 
+  const handleLandTypeChange = (event, newValue) => {
+    if (newValue === null || newValue === undefined) return;
+    setLandTypeTab(newValue);
+    setPage(0);
+  };
+
   const formatNumber = (num) => Number(num || 0).toFixed(2);
 
   const handleChangePage = (event, newPage) => setPage(newPage);
@@ -258,6 +290,7 @@ const KeralaForm3A = () => {
         cropGroupId,
         cropGroupName,
         agriculturalYear,
+        landType: landTypeTab,
         activeTab
       }
     });
@@ -290,8 +323,40 @@ const KeralaForm3A = () => {
             </Typography>
             <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
               (Click on any district to view Taluk-wise details) • Agricultural Year: {agriculturalYear} • Area in Cents
+              {landTypeTab !== 'ALL' && ` • ${landTypeTab} Land`}
             </Typography>
           </Box>
+
+          {/* Land type filter — ALL / WET / DRY */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 1,
+              mb: 2,
+              borderRadius: 3,
+              border: `1px solid ${theme.palette.divider}`,
+              display: 'inline-block'
+            }}
+          >
+            <Tabs
+              value={landTypeTab}
+              onChange={handleLandTypeChange}
+              sx={{
+                minHeight: 40,
+                '& .MuiTab-root': {
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  minHeight: 40,
+                  '&.Mui-selected': { color: themeColor }
+                },
+                '& .MuiTabs-indicator': { backgroundColor: themeColor, height: 3 }
+              }}
+            >
+              <Tab label="ALL" value="ALL" />
+              <Tab label="WET" value="WET" icon={<WaterDropIcon />} iconPosition="start" />
+              <Tab label="DRY" value="DRY" icon={<WbSunnyIcon />} iconPosition="start" />
+            </Tabs>
+          </Paper>
 
           {/* Error */}
           {error && (

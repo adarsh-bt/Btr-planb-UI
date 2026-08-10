@@ -308,12 +308,28 @@ function ReportMenuWrapper({ children }) {
     // Form 2 has no month filter — only agriYear (read from AuthService by each
     // level). DISTRICT/TALUK levels resolve their scope id from location.state.
     else if (reportPath === '/schemes/earas/cce/KeralaForm2') {
-      if (!officeInfo) {
-        console.error('Office info not loaded');
-        return;
+      const info = officeInfo || {};
+      let officeType = info.officeType;
+
+      if (!officeType) {
+        try {
+          const tokenRole = AuthService.getrole();
+          const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+          const des = localStorage.getItem('des') || '';
+
+          if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
+            officeType = 'TALUK';
+          } else if (roles.some(r => ['District Level Approver', 'District Level Data Viewer'].includes(r)) || des.includes('District')) {
+            officeType = 'DISTRICT';
+          } else {
+            officeType = 'DIRECTORATE';
+          }
+        } catch (e) {
+          officeType = 'DIRECTORATE';
+        }
       }
 
-      const { officeType, districtOfficeId, districtId, talukOfficeId, talukId, districtName, talukName } = officeInfo;
+      const { districtOfficeId, districtId, talukOfficeId, talukId, districtName, talukName } = info;
 
       console.log('Form 2 Navigation - Office Type:', officeType);
 
@@ -329,7 +345,7 @@ function ReportMenuWrapper({ children }) {
 
       // ── DISTRICT ── Jump straight to Taluk Form 2 for this district
       else if (officeType === 'DISTRICT') {
-        const districtIdValue = districtOfficeId || districtId;
+        const districtIdValue = districtOfficeId || districtId || localStorage.getItem('dis');
 
         if (!districtIdValue) {
           console.error('District ID not found for DISTRICT office type');
@@ -369,7 +385,7 @@ function ReportMenuWrapper({ children }) {
             talukId: talukIdValue,
             talukName: talukName || '',
             selectedTaluk: talukName || '',
-            districtId: districtOfficeId || districtId || null,
+            districtId: districtOfficeId || districtId || localStorage.getItem('dis') || null,
             districtName: districtName || '',
             isDirectAccess: true,
             activeTab: 0,
@@ -385,12 +401,32 @@ function ReportMenuWrapper({ children }) {
     // received state into sessionStorage (keralaForm3AState / talukForm3AState /
     // zoneForm3AState) so a refresh or back-navigation keeps working.
     else if (reportPath === '/schemes/earas/Report/Form3A/KeralaForm3A') {
-      if (!officeInfo) {
-        console.error('Office info not loaded');
-        return;
-      }
+      const currentOfficeInfo = officeInfo || {};
+      let officeType = currentOfficeInfo.officeType;
+      const districtOfficeId = currentOfficeInfo.districtOfficeId;
+      const districtId = currentOfficeInfo.districtId;
+      const talukOfficeId = currentOfficeInfo.talukOfficeId;
+      const talukId = currentOfficeInfo.talukId;
+      const districtName = currentOfficeInfo.districtName;
+      const talukName = currentOfficeInfo.talukName;
 
-      const { officeType, districtOfficeId, districtId, talukOfficeId, talukId, districtName, talukName } = officeInfo;
+      if (!officeType) {
+        try {
+          const tokenRole = AuthService.getrole();
+          const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+          const des = localStorage.getItem('des') || '';
+
+          if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
+            officeType = 'TALUK';
+          } else if (roles.some(r => ['District Level Approver', 'District Level Data Viewer'].includes(r)) || des.includes('District')) {
+            officeType = 'DISTRICT';
+          } else {
+            officeType = 'DIRECTORATE';
+          }
+        } catch (e) {
+          officeType = 'DIRECTORATE';
+        }
+      }
 
       console.log('Form 3A Navigation - Office Type:', officeType);
 
@@ -406,7 +442,7 @@ function ReportMenuWrapper({ children }) {
 
       // ── DISTRICT ── Jump straight to Taluk-wise Form 3A for this district
       else if (officeType === 'DISTRICT') {
-        const districtIdValue = districtOfficeId || districtId;
+        const districtIdValue = districtOfficeId || districtId || localStorage.getItem('dis');
 
         if (!districtIdValue) {
           console.error('District ID not found for DISTRICT office type');
@@ -446,7 +482,7 @@ function ReportMenuWrapper({ children }) {
             talukId: talukIdValue,
             talukName: talukName || '',
             selectedTaluk: talukName || '',
-            districtId: districtOfficeId || districtId || null,
+            districtId: districtOfficeId || districtId || localStorage.getItem('dis') || null,
             districtName: districtName || '',
             isDirectAccess: true,
             activeTab: 0,
@@ -460,12 +496,32 @@ function ReportMenuWrapper({ children }) {
     // all three levels are state-only routes, each mirrors received state
     // into sessionStorage (talukForm3BState / zoneForm3BState) on its own.
     else if (reportPath === '/schemes/earas/Report/Form3B/KeralaForm3B') {
-      if (!officeInfo) {
-        console.error('Office info not loaded');
-        return;
-      }
+      const currentOfficeInfo = officeInfo || {};
+      let officeType = currentOfficeInfo.officeType;
+      const districtOfficeId = currentOfficeInfo.districtOfficeId;
+      const districtId = currentOfficeInfo.districtId;
+      const talukOfficeId = currentOfficeInfo.talukOfficeId;
+      const talukId = currentOfficeInfo.talukId;
+      const districtName = currentOfficeInfo.districtName;
+      const talukName = currentOfficeInfo.talukName;
 
-      const { officeType, districtOfficeId, districtId, talukOfficeId, talukId, districtName, talukName } = officeInfo;
+      if (!officeType) {
+        try {
+          const tokenRole = AuthService.getrole();
+          const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+          const des = localStorage.getItem('des') || '';
+
+          if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
+            officeType = 'TALUK';
+          } else if (roles.some(r => ['District Level Approver', 'District Level Data Viewer'].includes(r)) || des.includes('District')) {
+            officeType = 'DISTRICT';
+          } else {
+            officeType = 'DIRECTORATE';
+          }
+        } catch (e) {
+          officeType = 'DIRECTORATE';
+        }
+      }
 
       console.log('Form 3B Navigation - Office Type:', officeType);
 
@@ -481,7 +537,7 @@ function ReportMenuWrapper({ children }) {
 
       // ── DISTRICT ── Jump straight to Taluk-wise Form 3B for this district
       else if (officeType === 'DISTRICT') {
-        const districtIdValue = districtOfficeId || districtId;
+        const districtIdValue = districtOfficeId || districtId || localStorage.getItem('dis');
 
         if (!districtIdValue) {
           console.error('District ID not found for DISTRICT office type');
@@ -521,7 +577,7 @@ function ReportMenuWrapper({ children }) {
             talukId: talukIdValue,
             talukName: talukName || '',
             selectedTaluk: talukName || '',
-            districtId: districtOfficeId || districtId || null,
+            districtId: districtOfficeId || districtId || localStorage.getItem('dis') || null,
             districtName: districtName || '',
             isDirectAccess: true,
             activeTab: 0,

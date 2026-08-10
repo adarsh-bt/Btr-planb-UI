@@ -268,12 +268,26 @@ const ZoneForm3A = () => {
   };
   const formatNumber = (num) => Number(num || 0).toFixed(2);
   const handleBack = () => {
-    if (stateData.officeType === 'TALUK' || stateData.isDirectAccess) {
+    let effectiveOfficeType = stateData.officeType || officeInfo.officeType;
+    if (!effectiveOfficeType) {
+      try {
+        const tokenRole = AuthService.getrole();
+        const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+        const des = localStorage.getItem('des') || '';
+        if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
+          effectiveOfficeType = 'TALUK';
+        } else if (roles.some(r => ['District Level Approver', 'District Level Data Viewer'].includes(r)) || des.includes('District')) {
+          effectiveOfficeType = 'DISTRICT';
+        }
+      } catch (e) {}
+    }
+
+    if (effectiveOfficeType === 'TALUK' || stateData.isDirectAccess) {
       navigate('/Report');
     } else {
       navigate('/schemes/earas/Report/Form3A/TalukForm3A', {
         state: {
-          officeType: stateData.officeType || 'DIRECTORATE',
+          officeType: effectiveOfficeType,
           districtId,
           districtName,
           selectedDistrict: districtName,

@@ -127,10 +127,18 @@ const ZoneForm3B = () => {
     return { ...saved, ...(location.state || {}) };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const talukId = stateData.talukId ?? null;
-  const talukName = stateData.talukName || stateData.selectedTaluk || 'Taluk';
-  const districtId = stateData.districtId ?? null;
-  const districtName = stateData.districtName || stateData.selectedDistrict || 'District';
+  const officeInfo = useMemo(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('userOfficeInfo') || '{}');
+    } catch {
+      return {};
+    }
+  }, []);
+
+  const talukId = stateData.talukId || officeInfo.talukOfficeId || officeInfo.talukId || null;
+  const talukName = stateData.talukName || stateData.selectedTaluk || officeInfo.talukName || 'Taluk';
+  const districtId = stateData.districtId || officeInfo.districtOfficeId || officeInfo.districtId || null;
+  const districtName = stateData.districtName || stateData.selectedDistrict || officeInfo.districtName || 'District';
   const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
 
   const [activeTab, setActiveTab] = useState(stateData.activeTab ?? 0);
@@ -266,9 +274,33 @@ const ZoneForm3B = () => {
   );
 
   const handleBack = () => {
-    navigate('/schemes/earas/Report/Form3B/TalukForm3B', {
-      state: { districtId, districtName, selectedDistrict: districtName, activeTab }
-    });
+    let effectiveOfficeType = stateData.officeType || officeInfo.officeType;
+    if (!effectiveOfficeType) {
+      try {
+        const tokenRole = AuthService.getrole();
+        const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+        const des = localStorage.getItem('des') || '';
+        if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
+          effectiveOfficeType = 'TALUK';
+        } else if (roles.some(r => ['District Level Approver', 'District Level Data Viewer'].includes(r)) || des.includes('District')) {
+          effectiveOfficeType = 'DISTRICT';
+        }
+      } catch (e) {}
+    }
+
+    if (effectiveOfficeType === 'TALUK' || stateData.isDirectAccess) {
+      navigate('/Report');
+    } else {
+      navigate('/schemes/earas/Report/Form3B/TalukForm3B', {
+        state: {
+          officeType: effectiveOfficeType,
+          districtId,
+          districtName,
+          selectedDistrict: districtName,
+          activeTab
+        }
+      });
+    }
   };
 
   const stickyCellSx = (leftPx, bg, extra = {}) => ({

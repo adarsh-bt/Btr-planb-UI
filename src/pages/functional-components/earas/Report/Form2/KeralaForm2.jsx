@@ -16,22 +16,28 @@ import {
   Tabs,
   Tab,
   Chip,
-  CircularProgress
+  CircularProgress,
+  IconButton,
+  Tooltip, Stack
 } from '@mui/material';
 import {
   LocationOn,
   WaterDrop,
   Agriculture,
-  WbSunny
+  WbSunny,
+  Visibility,
+  VisibilityOff,
+  InfoOutlined
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
 import AuthService from 'pages/authentication/services/authservice';
 import Breadcrumb from 'routes/Breadcrumb';
-
+import api from 'api/api';
 
 const BASE_URL = mainapi.FORM_API;
+const BTR_BASE_URL = mainapi.BTR_API;
 
 const LAND_FIELD_MAP = {
   buildingCourtyard: 'buildingArea',
@@ -49,12 +55,7 @@ const LAND_FIELD_MAP = {
   netAreaSown: 'netAreasSown'
 };
 
-// Wet/Dry classification for irrigation sources, keyed by sourceId.
-// ⚠️ VERIFY these against the official source definitions — the API does not
-// return a category. Any sourceId NOT listed here is treated as uncategorised
-// and always shown regardless of the Wet/Dry filter.
-//   surface water (canals, tanks, pumps/wheels from rivers) → 'wet'
-//   groundwater (wells) → 'dry'
+// Wet/Dry classification for irrigation sources
 const IRRIGATION_SOURCE_CATEGORY = {
   1: 'wet', // Government canals
   2: 'wet', // Private canals
@@ -66,9 +67,27 @@ const IRRIGATION_SOURCE_CATEGORY = {
   9: 'wet', // By pumps from rivers, lakes, rivulets, etc
   10: 'wet', // By country wheels from rivers, lakes...
   11: 'wet' // By other means from rivers, lakes, rivulets and springs
-  // 8 (Other minor and lift irrigation schemes), 12 (Others), 13 (No irrigation)
-  // intentionally unmapped → always shown under any filter.
 };
+
+// Fallback districts list
+function getFallbackDistricts() {
+  return [
+    { distId: 1, distNameEn: 'Thiruvananthapuram' },
+    { distId: 2, distNameEn: 'Kollam' },
+    { distId: 3, distNameEn: 'Pathanamthitta' },
+    { distId: 4, distNameEn: 'Alappuzha' },
+    { distId: 5, distNameEn: 'Kottayam' },
+    { distId: 6, distNameEn: 'Idukki' },
+    { distId: 7, distNameEn: 'Ernakulam' },
+    { distId: 8, distNameEn: 'Thrissur' },
+    { distId: 9, distNameEn: 'Palakkad' },
+    { distId: 10, distNameEn: 'Malappuram' },
+    { distId: 11, distNameEn: 'Kozhikode' },
+    { distId: 12, distNameEn: 'Wayanad' },
+    { distId: 13, distNameEn: 'Kannur' },
+    { distId: 14, distNameEn: 'Kasaragod' }
+  ];
+}
 
 const KeralaForm2 = () => {
   const theme = useTheme();
@@ -76,7 +95,7 @@ const KeralaForm2 = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Agricultural year from AuthService (e.g. '2025-2026')
+  // Agricultural year from AuthService
   const agriculturalYear = AuthService.agriyear() || '2025-2026';
 
   // Tab state
@@ -88,23 +107,63 @@ const KeralaForm2 = () => {
   // API data
   const [landData, setLandData] = useState([]);
   const [irrigationApiData, setIrrigationApiData] = useState([]);
+  const [districtsList, setDistrictsList] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [masterDistrictsLoading, setMasterDistrictsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Shared style for numeric cells - tabular numerals keep digits vertically aligned
+  // Shared style for numeric cells
   const numericCellSx = {
     fontVariantNumeric: 'tabular-nums',
     whiteSpace: 'nowrap'
   };
 
-  // Role-based auto-redirection on direct visit / refresh
+  // Fetch master districts list
+  const fetchMasterDistricts = async () => {
+    setMasterDistrictsLoading(true);
+    try {
+      const response = await api.get(`${BTR_BASE_URL}/btr-service/btr-api/districts`);
+      console.log('Master Districts Response:', response.data);
+
+      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        const mappedDistricts = response.data.data.map(d => ({
+          distId: d.distId,
+          distNameEn: d.distNameEn || d.districtName || d.name || ''
+        }));
+        console.log('Mapped Districts:', mappedDistricts);
+        setDistrictsList(mappedDistricts);
+      } else {
+        console.warn('No districts found, using fallback');
+        setDistrictsList(getFallbackDistricts());
+      }
+    } catch (err) {
+      console.error('Error fetching master districts:', err);
+      setDistrictsList(getFallbackDistricts());
+    } finally {
+      setMasterDistrictsLoading(false);
+    }
+  };
+
+  // Role-based auto-redirection
   useEffect(() => {
     try {
       const officeInfo = JSON.parse(sessionStorage.getItem('userOfficeInfo') || '{}');
-      const officeType = location.state?.officeType || officeInfo.officeType;
+      let officeType = location.state?.officeType || officeInfo.officeType;
+
+      if (!officeType) {
+        const tokenRole = AuthService.getrole();
+        const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+        const des = localStorage.getItem('des') || '';
+
+        if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
+          officeType = 'TALUK';
+        } else if (roles.some(r => ['District Level Approver', 'District Level Data Viewer'].includes(r)) || des.includes('District')) {
+          officeType = 'DISTRICT';
+        }
+      }
 
       if (officeType === 'DISTRICT') {
-        const distId = location.state?.districtId || officeInfo.districtOfficeId || officeInfo.districtId;
+        const distId = location.state?.districtId || officeInfo.districtOfficeId || officeInfo.districtId || localStorage.getItem('dis');
         const distName = location.state?.districtName || officeInfo.districtName || '';
         if (distId) {
           navigate('/schemes/earas/cce/TalukForm2', {
@@ -123,7 +182,7 @@ const KeralaForm2 = () => {
       } else if (officeType === 'TALUK') {
         const tId = location.state?.talukId || officeInfo.talukOfficeId || officeInfo.talukId;
         const tName = location.state?.talukName || officeInfo.talukName || '';
-        const distId = location.state?.districtId || officeInfo.districtOfficeId || officeInfo.districtId;
+        const distId = location.state?.districtId || officeInfo.districtOfficeId || officeInfo.districtId || localStorage.getItem('dis');
         const distName = location.state?.districtName || officeInfo.districtName || '';
         if (tId) {
           navigate('/schemes/earas/cce/ZoneForm2', {
@@ -147,7 +206,12 @@ const KeralaForm2 = () => {
     }
   }, [location.state, navigate]);
 
-  /* ─────────────────────────── fetch ─────────────────────────── */
+  // Fetch master districts on mount
+  useEffect(() => {
+    fetchMasterDistricts();
+  }, []);
+
+  /* ─────────────────────────── fetch data ─────────────────────────── */
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -162,6 +226,9 @@ const KeralaForm2 = () => {
         const irrigationUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/district-irrigation?agriYear=${agriculturalYear}`;
 
         const [landRes, irrRes] = await Promise.all([axios.get(landUrl, { headers }), axios.get(irrigationUrl, { headers })]);
+
+        console.log('Land Data Response:', landRes.data);
+        console.log('Irrigation Data Response:', irrRes.data);
 
         setLandData(Array.isArray(landRes.data) ? landRes.data : []);
         setIrrigationApiData(Array.isArray(irrRes.data) ? irrRes.data : []);
@@ -180,28 +247,81 @@ const KeralaForm2 = () => {
 
   /* ─────────────────────── land utilization data ─────────────────────── */
 
-  // Transform API rows → the internal shape keyed by column id.
-  // Sort alphabetically by district name, with Unassigned at the end.
+  // Transform API rows and merge with master districts list
   const districtData = useMemo(() => {
-    const list = landData.map((d) => {
-      const row = {
-        districtId: d.districtId ?? null,
-        district: d.districtName || 'Unassigned'
-      };
-      Object.entries(LAND_FIELD_MAP).forEach(([colId, apiKey]) => {
-        row[colId] = Number(d[apiKey]) || 0;
-      });
-      return row;
+    // Create a map for quick lookup of API data by district name or ID
+    const apiDataMap = {};
+    landData.forEach((d) => {
+      const name = d.districtName || '';
+      const id = d.districtId;
+      if (name) apiDataMap[name.toLowerCase().trim()] = d;
+      if (id) apiDataMap[`id_${id}`] = d;
     });
 
-    return list.sort((a, b) => {
+    // If we have master districts list, merge with API data
+    let mergedData = [];
+    if (districtsList && districtsList.length > 0) {
+      mergedData = districtsList.map((district) => {
+        const distId = district.distId;
+        const distName = district.distNameEn || '';
+
+        // Try to find API data by ID first, then by name
+        let apiData = null;
+        if (distId && apiDataMap[`id_${distId}`]) {
+          apiData = apiDataMap[`id_${distId}`];
+        } else if (distName && apiDataMap[distName.toLowerCase().trim()]) {
+          apiData = apiDataMap[distName.toLowerCase().trim()];
+        }
+
+        const row = {
+          districtId: distId,
+          district: distName
+        };
+
+        // Populate land utilization fields
+        Object.entries(LAND_FIELD_MAP).forEach(([colId, apiKey]) => {
+          row[colId] = apiData ? Number(apiData[apiKey]) || 0 : 0;
+        });
+
+        return row;
+      });
+    } else {
+      // Fallback: use only API data
+      mergedData = landData.map((d) => {
+        const row = {
+          districtId: d.districtId ?? null,
+          district: d.districtName || 'Unassigned'
+        };
+        Object.entries(LAND_FIELD_MAP).forEach(([colId, apiKey]) => {
+          row[colId] = Number(d[apiKey]) || 0;
+        });
+        return row;
+      });
+    }
+
+    // Sort alphabetically by district name, with Unassigned at the end
+    return mergedData.sort((a, b) => {
       if (a.district === 'Unassigned') return 1;
       if (b.district === 'Unassigned') return -1;
       return a.district.localeCompare(b.district);
     });
-  }, [landData]);
+  }, [landData, districtsList]);
 
-  // Totals for Land Utilization (includes the Unassigned row so the total is complete)
+  // Check if a district has any data
+  const hasDistrictData = (row) => {
+    let hasData = false;
+    Object.keys(LAND_FIELD_MAP).forEach((colId) => {
+      if (row[colId] > 0) hasData = true;
+    });
+    return hasData;
+  };
+
+  // Count districts with no data
+  const districtsWithNoData = useMemo(() => {
+    return districtData.filter(row => !hasDistrictData(row) && row.districtId !== null).length;
+  }, [districtData]);
+
+  // Totals for Land Utilization
   const landUtilizationTotals = useMemo(() => {
     const acc = {};
     Object.keys(LAND_FIELD_MAP).forEach((colId) => (acc[colId] = 0));
@@ -211,8 +331,7 @@ const KeralaForm2 = () => {
     return acc;
   }, [districtData]);
 
-  // District column stays left-aligned (text); all numeric columns are right-aligned.
-  // `category` classifies each column as 'wet', 'dry', or 'always' (always visible regardless of filter)
+  // Land Utilization Columns
   const landUtilizationColumns = [
     { id: 'district', label: 'District', minWidth: 160, align: 'left', category: 'always' },
     { id: 'buildingCourtyard', label: 'Building and Courtyard', minWidth: 160, align: 'right', category: 'dry' },
@@ -230,13 +349,71 @@ const KeralaForm2 = () => {
     { id: 'netAreaSown', label: 'Net areas sown', minWidth: 130, align: 'right', category: 'always' }
   ];
 
-  // All columns always render. The filter only decides whether a cell shows its
-  // real value or a placeholder dash — columns are never added/removed.
   const isColumnActive = (col) => col.category === 'always' || landTypeFilter === 'all' || col.category === landTypeFilter;
 
   /* ─────────────────────── irrigation data ─────────────────────── */
 
-  // Unique source columns across all districts, ordered by sourceId.
+  // Merge irrigation data with master districts list
+  const irrigationRows = useMemo(() => {
+    // Create a map for quick lookup of API data by district name or ID
+    const apiDataMap = {};
+    irrigationApiData.forEach((d) => {
+      const name = d.districtName || '';
+      const id = d.districtId;
+      if (name) apiDataMap[name.toLowerCase().trim()] = d;
+      if (id) apiDataMap[`id_${id}`] = d;
+    });
+
+    let mergedData = [];
+    if (districtsList && districtsList.length > 0) {
+      mergedData = districtsList.map((district) => {
+        const distId = district.distId;
+        const distName = district.distNameEn || '';
+
+        let apiData = null;
+        if (distId && apiDataMap[`id_${distId}`]) {
+          apiData = apiDataMap[`id_${distId}`];
+        } else if (distName && apiDataMap[distName.toLowerCase().trim()]) {
+          apiData = apiDataMap[distName.toLowerCase().trim()];
+        }
+
+        const byId = {};
+        if (apiData && apiData.sources) {
+          apiData.sources.forEach((s) => {
+            byId[s.sourceId] = { count: s.count || 0, area: s.area || 0 };
+          });
+        }
+
+        return {
+          districtId: distId,
+          district: distName,
+          byId: byId
+        };
+      });
+    } else {
+      // Fallback: use only API data
+      mergedData = irrigationApiData.map((d) => {
+        const byId = {};
+        (d.sources || []).forEach((s) => {
+          byId[s.sourceId] = { count: s.count || 0, area: s.area || 0 };
+        });
+        return {
+          districtId: d.districtId ?? null,
+          district: d.districtName || 'Unassigned',
+          byId: byId
+        };
+      });
+    }
+
+    // Sort alphabetically by district name, with Unassigned at the end
+    return mergedData.sort((a, b) => {
+      if (a.district === 'Unassigned') return 1;
+      if (b.district === 'Unassigned') return -1;
+      return a.district.localeCompare(b.district);
+    });
+  }, [irrigationApiData, districtsList]);
+
+  // Unique source columns across all districts
   const irrigationSources = useMemo(() => {
     const map = new Map();
     irrigationApiData.forEach((d) =>
@@ -247,25 +424,7 @@ const KeralaForm2 = () => {
     return Array.from(map.values()).sort((a, b) => a.sourceId - b.sourceId);
   }, [irrigationApiData]);
 
-  // Per-district rows: { district, districtId, byId: { [sourceId]: { count, area } } }
-  // Sorted alphabetically by district name, with Unassigned at the end.
-  const irrigationRows = useMemo(() => {
-    const list = irrigationApiData.map((d) => {
-      const byId = {};
-      (d.sources || []).forEach((s) => {
-        byId[s.sourceId] = { count: s.count || 0, area: s.area || 0 };
-      });
-      return { districtId: d.districtId ?? null, district: d.districtName || 'Unassigned', byId };
-    });
-
-    return list.sort((a, b) => {
-      if (a.district === 'Unassigned') return 1;
-      if (b.district === 'Unassigned') return -1;
-      return a.district.localeCompare(b.district);
-    });
-  }, [irrigationApiData]);
-
-  // Column totals per source across all districts.
+  // Column totals per source
   const irrigationTotals = useMemo(() => {
     const t = {};
     irrigationSources.forEach((s) => (t[s.sourceId] = { count: 0, area: 0 }));
@@ -281,8 +440,6 @@ const KeralaForm2 = () => {
     return t;
   }, [irrigationRows, irrigationSources]);
 
-  // A source is active (shown) when the filter is 'all', when it is uncategorised,
-  // or when its category matches the current filter.
   const isSourceActive = (sourceId) => {
     const cat = IRRIGATION_SOURCE_CATEGORY[sourceId];
     if (!cat) return true;
@@ -297,9 +454,8 @@ const KeralaForm2 = () => {
 
   const formatNumber = (num) => Number(num || 0).toFixed(2);
 
-  // Handle row click navigation with tab state
   const handleDistrictClick = (districtName, districtId, tabIndex) => {
-    if (districtId == null) return; // skip the Unassigned / state-level bucket
+    if (districtId == null) return;
     navigate(`/schemes/earas/cce/TalukForm2`, {
       state: {
         officeType: location.state?.officeType || 'DIRECTORATE',
@@ -312,7 +468,6 @@ const KeralaForm2 = () => {
     });
   };
 
-  // Land Type filter options
   const landTypeOptions = [
     { value: 'all', label: 'All', icon: null },
     { value: 'wet', label: 'Wet', icon: <WaterDrop sx={{ fontSize: 18 }} /> },
@@ -321,7 +476,7 @@ const KeralaForm2 = () => {
 
   /* ─────────────────────────── render ─────────────────────────── */
 
-  if (loading && landData.length === 0 && irrigationApiData.length === 0) {
+  if ((loading || masterDistrictsLoading) && landData.length === 0 && irrigationApiData.length === 0 && districtsList.length === 0) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
         <CircularProgress />
@@ -334,9 +489,7 @@ const KeralaForm2 = () => {
 
   return (
     <Box>
-      <Box sx={{ mb: 2 }}>
-        <Breadcrumb />
-      </Box>
+      <Breadcrumb />
       <Card
         elevation={0}
         sx={{
@@ -356,6 +509,14 @@ const KeralaForm2 = () => {
             <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
               (Click on any district to view Taluk-wise details) • Agricultural Year: {agriculturalYear}
             </Typography>
+            {districtsWithNoData > 0 && (
+              <Chip
+                icon={<InfoOutlined />}
+                label={`${districtsWithNoData} districts with no data`}
+                size="small"
+                sx={{ ml: 1, bgcolor: alpha('#ff9800', 0.15), color: '#e65100' }}
+              />
+            )}
           </Box>
 
           {/* Error */}
@@ -365,7 +526,28 @@ const KeralaForm2 = () => {
             </Paper>
           )}
 
-          {/* Land Type Filter - applies to both Land Utilization and Irrigation Details */}
+          {/* Info Banner for districts with no data */}
+          {districtsWithNoData > 0 && !loading && (
+            <Paper
+              sx={{
+                p: 1.5,
+                mb: 2,
+                bgcolor: alpha('#ff9800', 0.08),
+                borderRadius: 2,
+                border: `1px solid ${alpha('#ff9800', 0.3)}`,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}
+            >
+              <InfoOutlined sx={{ color: '#ff9800', fontSize: 20 }} />
+              <Typography variant="body2" color="text.secondary">
+                <strong>{districtsWithNoData}</strong> district{districtsWithNoData > 1 ? 's' : ''} have no data available for the selected filters.
+              </Typography>
+            </Paper>
+          )}
+
+          {/* Land Type Filter */}
           <Paper
             elevation={0}
             sx={{
@@ -475,6 +657,19 @@ const KeralaForm2 = () => {
                   <Table stickyHeader size="small" sx={{ minWidth: 2000 }}>
                     <TableHead>
                       <TableRow>
+                        <TableCell
+                          sx={{
+                            backgroundColor: themeColor,
+                            color: 'white',
+                            fontWeight: 700,
+                            whiteSpace: 'nowrap',
+                            minWidth: 60,
+                            py: 1.5,
+                            textAlign: 'center'
+                          }}
+                        >
+                          #
+                        </TableCell>
                         {landUtilizationColumns.map((col) => {
                           const active = isColumnActive(col);
                           return (
@@ -500,6 +695,9 @@ const KeralaForm2 = () => {
                       {districtData.length > 0 ? (
                         districtData.map((row, index) => {
                           const clickable = row.districtId != null;
+                          const hasData = hasDistrictData(row);
+                          const serialNumber = index + 1;
+
                           return (
                             <TableRow
                               key={index}
@@ -512,38 +710,63 @@ const KeralaForm2 = () => {
                                     backgroundColor: alpha(themeColor, 0.08),
                                     transition: '0.2s'
                                   }
-                                  : undefined
+                                  : undefined,
+                                ...(!hasData && clickable && {
+                                  backgroundColor: alpha('#ff9800', 0.03),
+                                  '&:hover': { backgroundColor: alpha('#ff9800', 0.08) }
+                                })
                               }}
                             >
+                              <TableCell align="center">
+                                <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                                  {serialNumber}
+                                </Typography>
+                              </TableCell>
                               {landUtilizationColumns.map((col) => {
                                 if (col.id === 'district') {
                                   return (
                                     <TableCell key={col.id} align="left">
-                                      <Chip
-                                        label={row.district}
-                                        size="small"
-                                        sx={{
-                                          backgroundColor: alpha(themeColor, 0.1),
-                                          color: themeColor,
-                                          fontWeight: 500,
-                                          borderRadius: 1.5,
-                                          '&:hover': clickable ? { backgroundColor: alpha(themeColor, 0.2) } : undefined
-                                        }}
-                                      />
+                                      <Stack direction="row" spacing={1} alignItems="center">
+                                        <Chip
+                                          label={row.district}
+                                          size="small"
+                                          sx={{
+                                            backgroundColor: hasData ? alpha(themeColor, 0.1) : alpha('#ff9800', 0.1),
+                                            color: hasData ? themeColor : '#e65100',
+                                            fontWeight: 500,
+                                            borderRadius: 1.5,
+                                            '&:hover': clickable ? { backgroundColor: hasData ? alpha(themeColor, 0.2) : alpha('#ff9800', 0.2) } : undefined
+                                          }}
+                                        />
+                                        {!hasData && clickable && (
+                                          <Chip
+                                            label="No Data"
+                                            size="small"
+                                            sx={{
+                                              height: 18,
+                                              fontSize: '0.6rem',
+                                              bgcolor: alpha('#ff9800', 0.15),
+                                              color: '#e65100',
+                                              fontWeight: 600
+                                            }}
+                                          />
+                                        )}
+                                      </Stack>
                                     </TableCell>
                                   );
                                 }
                                 const active = isColumnActive(col);
+                                const value = row[col.id] || 0;
                                 return (
                                   <TableCell
                                     key={col.id}
                                     align="right"
                                     sx={{
                                       ...numericCellSx,
-                                      color: active ? 'inherit' : 'text.disabled'
+                                      color: active && hasData ? 'inherit' : 'text.disabled'
                                     }}
                                   >
-                                    {active ? formatNumber(row[col.id]) : '—'}
+                                    {active && hasData ? formatNumber(value) : '—'}
                                   </TableCell>
                                 );
                               })}
@@ -552,7 +775,7 @@ const KeralaForm2 = () => {
                         })
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={landUtilizationColumns.length} align="center" sx={{ py: 6 }}>
+                          <TableCell colSpan={landUtilizationColumns.length + 1} align="center" sx={{ py: 6 }}>
                             <Typography color="text.secondary">No data available</Typography>
                           </TableCell>
                         </TableRow>
@@ -560,6 +783,9 @@ const KeralaForm2 = () => {
                       {/* Total Row */}
                       {districtData.length > 0 && (
                         <TableRow sx={{ backgroundColor: alpha(themeColor, 0.08) }}>
+                          <TableCell align="center" sx={{ fontWeight: 700, color: themeColor }}>
+                            T
+                          </TableCell>
                           {landUtilizationColumns.map((col) => {
                             if (col.id === 'district') {
                               return (
@@ -659,8 +885,11 @@ const KeralaForm2 = () => {
                     <TableBody>
                       {irrigationRows.length > 0 ? (
                         <>
-                          {irrigationRows.map((row) => {
+                          {irrigationRows.map((row, index) => {
                             const clickable = row.districtId != null;
+                            const hasData = Object.keys(row.byId).length > 0;
+                            const serialNumber = index + 1;
+
                             return (
                               <TableRow
                                 key={row.districtId ?? row.district}
@@ -668,20 +897,42 @@ const KeralaForm2 = () => {
                                 onClick={() => handleDistrictClick(row.district, row.districtId, 1)}
                                 sx={{
                                   cursor: clickable ? 'pointer' : 'default',
-                                  '&:hover': clickable ? { backgroundColor: alpha(themeColor, 0.08) } : undefined
+                                  '&:hover': clickable ? { backgroundColor: alpha(themeColor, 0.08) } : undefined,
+                                  ...(!hasData && clickable && {
+                                    backgroundColor: alpha('#ff9800', 0.03),
+                                    '&:hover': { backgroundColor: alpha('#ff9800', 0.08) }
+                                  })
                                 }}
                               >
                                 <TableCell align="left">
-                                  <Chip
-                                    label={row.district}
-                                    size="small"
-                                    sx={{
-                                      backgroundColor: alpha(themeColor, 0.1),
-                                      color: themeColor,
-                                      fontWeight: 500,
-                                      '&:hover': clickable ? { backgroundColor: alpha(themeColor, 0.2) } : undefined
-                                    }}
-                                  />
+                                  <Stack direction="row" spacing={1} alignItems="center">
+                                    <Typography variant="body2" color="text.secondary" fontWeight={500} sx={{ mr: 1 }}>
+                                      {serialNumber}
+                                    </Typography>
+                                    <Chip
+                                      label={row.district}
+                                      size="small"
+                                      sx={{
+                                        backgroundColor: hasData ? alpha(themeColor, 0.1) : alpha('#ff9800', 0.1),
+                                        color: hasData ? themeColor : '#e65100',
+                                        fontWeight: 500,
+                                        '&:hover': clickable ? { backgroundColor: hasData ? alpha(themeColor, 0.2) : alpha('#ff9800', 0.2) } : undefined
+                                      }}
+                                    />
+                                    {!hasData && clickable && (
+                                      <Chip
+                                        label="No Data"
+                                        size="small"
+                                        sx={{
+                                          height: 18,
+                                          fontSize: '0.6rem',
+                                          bgcolor: alpha('#ff9800', 0.15),
+                                          color: '#e65100',
+                                          fontWeight: 600
+                                        }}
+                                      />
+                                    )}
+                                  </Stack>
                                 </TableCell>
                                 {irrigationSources.map((source) => {
                                   const active = isSourceActive(source.sourceId);
@@ -692,10 +943,10 @@ const KeralaForm2 = () => {
                                       align="center"
                                       sx={{
                                         ...numericCellSx,
-                                        color: active ? 'inherit' : 'text.disabled'
+                                        color: active && hasData ? 'inherit' : 'text.disabled'
                                       }}
                                     >
-                                      {!active ? '—' : cell ? `${cell.count} | ${formatNumber(cell.area)}` : '—'}
+                                      {active && hasData ? (cell ? `${cell.count} | ${formatNumber(cell.area)}` : '—') : '—'}
                                     </TableCell>
                                   );
                                 })}
