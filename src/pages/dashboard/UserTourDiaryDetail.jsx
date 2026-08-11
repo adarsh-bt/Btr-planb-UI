@@ -626,6 +626,8 @@ const UserTourDiaryDetail = () => {
         entry.formattedDateWithDay.toLowerCase().includes(searchTerm.toLowerCase()) ||
         entry.entryType.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (entry.zoneName && entry.zoneName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        ((entry.clusterNo || entry.clusterNumber || entry.clusterName || entry.clusterId) &&
+          String(entry.clusterNo || entry.clusterNumber || entry.clusterName || entry.clusterId).toLowerCase().includes(searchTerm.toLowerCase())) ||
         (entry.purposeName && entry.purposeName.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (entry.remark && entry.remark.toLowerCase().includes(searchTerm.toLowerCase()))
       )
@@ -646,7 +648,7 @@ const UserTourDiaryDetail = () => {
           <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
               <TextField
-                placeholder="Search by date, zone, purpose, remark..."
+                placeholder="Search by date, zone, cluster, purpose, remark..."
                 size="small"
                 value={searchTerm}
                 onChange={(e) => {
@@ -678,8 +680,11 @@ const UserTourDiaryDetail = () => {
                 <TableRow sx={{ bgcolor: '#04255e' }}>
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Date</TableCell>
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Zone</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Cluster No</TableCell>
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Entry Type</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Program Change</TableCell>
+                  {roleName !== "Field Data Collector" && (
+                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Program Change</TableCell>
+                  )}
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Purpose</TableCell>
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Distance / Hours</TableCell>
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Remarks</TableCell>
@@ -718,6 +723,11 @@ const UserTourDiaryDetail = () => {
                           <Typography variant="body2">{entry.zoneName}</Typography>
                         </TableCell>
                         <TableCell>
+                          <Typography variant="body2">
+                            {entry.clusterNo || entry.clusterNumber || entry.clusterName || entry.clusterId || '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
                           <Chip
                             label={entry.entryType}
                             size="small"
@@ -729,20 +739,22 @@ const UserTourDiaryDetail = () => {
                             }}
                           />
                         </TableCell>
-                        <TableCell>
-                          {(entry.isAdvanceChanged === true || entry.isAdvanceChanged === "true") ? (
-                            <Tooltip title={entry.changeReason ? `Reason: ${entry.changeReason}` : "Program Changed from Advance Tour"}>
-                              <Chip
-                                label="Changed"
-                                color="warning"
-                                size="small"
-                                sx={{ fontWeight: 'bold', fontSize: '0.7rem', height: '22px' }}
-                              />
-                            </Tooltip>
-                          ) : (
-                            <Typography variant="caption" color="text.secondary">—</Typography>
-                          )}
-                        </TableCell>
+                        {roleName !== "Field Data Collector" && (
+                          <TableCell>
+                            {(entry.isAdvanceChanged === true || entry.isAdvanceChanged === "true") ? (
+                              <Tooltip title={entry.changeReason ? `Reason: ${entry.changeReason}` : "Program Changed from Advance Tour"}>
+                                <Chip
+                                  label="Changed"
+                                  color="warning"
+                                  size="small"
+                                  sx={{ fontWeight: 'bold', fontSize: '0.7rem', height: '22px' }}
+                                />
+                              </Tooltip>
+                            ) : (
+                              <Typography variant="caption" color="text.secondary">—</Typography>
+                            )}
+                          </TableCell>
+                        )}
                         <TableCell>
                           <Typography variant="body2">{entry.purposeName}</Typography>
                         </TableCell>
@@ -777,7 +789,7 @@ const UserTourDiaryDetail = () => {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                    <TableCell colSpan={roleName === "Field Data Collector" ? 8 : 9} align="center" sx={{ py: 4 }}>
                       <Typography variant="body1" color="text.secondary">
                         {searchTerm
                           ? `No tour entries found matching "${searchTerm}"`
@@ -1070,7 +1082,15 @@ const UserTourDiaryDetail = () => {
                           getStatusChip(fullMonthStatus?.verified_status || fullMonthStatus?.verifiedStatus || 'PENDING', 'Verification')
                         }
                         {getStatusChip(fullMonthStatus?.approved_status || fullMonthStatus?.approvedStatus || fullMonthStatus?.adminStatus || 'PENDING', 'Approval')}
-                        {tourEntries.some(e => e.isAdvanceChanged === true || e.isAdvanceChanged === "true") && (
+                        {fullMonthStatus && (fullMonthStatus.isPartialSubmission || fullMonthStatus.is_partial_submission || fullMonthStatus.isPartial) && (
+                          <Chip
+                            label="Partial Submission"
+                            color="warning"
+                            size="small"
+                            sx={{ fontWeight: 'bold' }}
+                          />
+                        )}
+                        {roleName !== "Field Data Collector" && tourEntries.some(e => e.isAdvanceChanged === true || e.isAdvanceChanged === "true") && (
                           <Chip
                             label={`${tourEntries.filter(e => e.isAdvanceChanged === true || e.isAdvanceChanged === "true").length} Program Changes`}
                             color="warning"
@@ -1093,16 +1113,21 @@ const UserTourDiaryDetail = () => {
                         {!["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(roleName) &&
                           !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(loggedInRole) &&
                           (fullMonthStatus.verified_at || fullMonthStatus.verifiedAt) && (
-                          <Typography variant="caption" color="text.secondary">
-                            <strong>Verified:</strong> {new Date(fullMonthStatus.verified_at || fullMonthStatus.verifiedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, {new Date(fullMonthStatus.verified_at || fullMonthStatus.verifiedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                            {(fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark) && ` (${fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark})`}
-                          </Typography>
-                        )}
+                            <Typography variant="caption" color="text.secondary">
+                              <strong>Verified:</strong> {new Date(fullMonthStatus.verified_at || fullMonthStatus.verifiedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, {new Date(fullMonthStatus.verified_at || fullMonthStatus.verifiedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                              {(fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark) && ` (${fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark})`}
+                            </Typography>
+                          )}
 
                         {(fullMonthStatus.approved_at || fullMonthStatus.approvedAt) && (
                           <Typography variant="caption" color="text.secondary">
                             <strong>Approved:</strong> {new Date(fullMonthStatus.approved_at || fullMonthStatus.approvedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, {new Date(fullMonthStatus.approved_at || fullMonthStatus.approvedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
                             {(fullMonthStatus.approved_remark || fullMonthStatus.approvedRemark) && ` (${fullMonthStatus.approved_remark || fullMonthStatus.approvedRemark})`}
+                          </Typography>
+                        )}
+                        {(fullMonthStatus.partialSubmissionRemark || fullMonthStatus.partial_submission_remark) && (
+                          <Typography variant="caption" color="warning.dark" sx={{ display: 'block', width: '100%', mt: 0.5, fontWeight: 600 }}>
+                            <strong>Partial Submission Remark:</strong> {fullMonthStatus.partialSubmissionRemark || fullMonthStatus.partial_submission_remark}
                           </Typography>
                         )}
                       </Box>
@@ -1452,6 +1477,15 @@ const UserTourDiaryDetail = () => {
             User: <strong>{userDetails?.name || 'N/A'}</strong> ({monthNames[selectedMonth - 1]} {selectedYear})
           </Typography>
 
+          {(fullMonthStatus?.isPartialSubmission || fullMonthStatus?.is_partial_submission || fullMonthStatus?.partialSubmissionRemark || fullMonthStatus?.partial_submission_remark) && (
+            <Alert severity="warning" sx={{ mb: 1.5, borderRadius: 1.5 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Partial Submission</Typography>
+              <Typography variant="body2">
+                <strong>User Remark:</strong> {fullMonthStatus?.partialSubmissionRemark || fullMonthStatus?.partial_submission_remark || "Submitted as Partial Month"}
+              </Typography>
+            </Alert>
+          )}
+
           <FormControl fullWidth sx={{ mt: 2, mb: 2 }}>
             <InputLabel>Verification Decision</InputLabel>
             <Select value={verificationStatus} onChange={(e) => setVerificationStatus(e.target.value)} label="Verification Decision">
@@ -1490,6 +1524,15 @@ const UserTourDiaryDetail = () => {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             User: <strong>{userDetails?.name || 'N/A'}</strong> ({monthNames[selectedMonth - 1]} {selectedYear})
           </Typography>
+
+          {(fullMonthStatus?.isPartialSubmission || fullMonthStatus?.is_partial_submission || fullMonthStatus?.partialSubmissionRemark || fullMonthStatus?.partial_submission_remark) && (
+            <Alert severity="warning" sx={{ mb: 1.5, borderRadius: 1.5 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Partial Submission</Typography>
+              <Typography variant="body2">
+                <strong>User Remark:</strong> {fullMonthStatus?.partialSubmissionRemark || fullMonthStatus?.partial_submission_remark || "Submitted as Partial Month"}
+              </Typography>
+            </Alert>
+          )}
 
           <FormControl fullWidth sx={{ mt: 2, mb: 2 }}>
             <InputLabel>Approval Decision</InputLabel>

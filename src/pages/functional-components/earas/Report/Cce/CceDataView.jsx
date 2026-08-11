@@ -688,8 +688,8 @@ const CceDataView = () => {
                     plotDetails?.isIrrigated === true
                       ? 'Irrigated'
                       : plotDetails?.isIrrigated === false
-                      ? 'Unirrigated'
-                      : 'N/A'
+                        ? 'Unirrigated'
+                        : 'N/A'
                   }
                 />
               </Grid>

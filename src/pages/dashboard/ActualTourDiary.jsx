@@ -254,6 +254,10 @@ const UserTourDiaryDetail = () => {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [pendingZoneId, setPendingZoneId] = useState("");
 
+  const [isPartialSubmission, setIsPartialSubmission] = useState(false);
+  const [partialSubmissionRemark, setPartialSubmissionRemark] = useState("");
+  const [partialRemarkError, setPartialRemarkError] = useState(false);
+
   const [clusters, setClusters] = useState([]);
   const [selectedClusterId, setSelectedClusterId] = useState("");
   const [editSelectedClusterId, setEditSelectedClusterId] = useState("");
@@ -475,17 +479,9 @@ const UserTourDiaryDetail = () => {
   };
   // In the handleSubmitMonth function
   const handleSubmitMonth = async () => {
-
-    // const zoneId = authservice.getzone();
-    // if (!zoneId) {
-    //   setSnackbar({
-    //     open: true,
-    //     message: "No active zone found. Please select a zone first.",
-    //     severity: "error"
-    //   });
-    //   return;
-    // }
-    // setPendingZoneId(zoneId);
+    setIsPartialSubmission(false);
+    setPartialSubmissionRemark("");
+    setPartialRemarkError(false);
     setConfirmDialogOpen(true);
   };
   // Fetch clusters when zone changes
@@ -517,12 +513,22 @@ const UserTourDiaryDetail = () => {
   }, [purposeLandType, editPurposeLandType, crops.length]);
   // In handleConfirmSubmit, update success message
   const handleConfirmSubmit = async () => {
+    if (isPartialSubmission && (!partialSubmissionRemark || !partialSubmissionRemark.trim())) {
+      setPartialRemarkError(true);
+      setSnackbar({
+        open: true,
+        message: "Remarks are required for partial submission",
+        severity: "error"
+      });
+      return;
+    }
+
     setConfirmDialogOpen(false);
     setSubmittingMonth(true);
     try {
       const submitId = fullMonthStatus?.id || fullMonthStatus?.fullMonthId || fullMonthStatus?.submitId || fullMonthStatus?.fullMonthSubmitId || null;
       const response = await tourDiaryService.submitFullMonth(
-        selectedUserId, selectedMonth, selectedYear, pendingZoneId, submitId
+        selectedUserId, selectedMonth, selectedYear, pendingZoneId, submitId, isPartialSubmission, partialSubmissionRemark.trim()
       );
       console.log(response, "response");
       let rawMsg = typeof response === 'string'
@@ -547,14 +553,14 @@ const UserTourDiaryDetail = () => {
         setResultDialog({
           open: true,
           type: "error",
-          title: "Full Month Submission Failed",
+          title: isPartialSubmission ? "Partial Submission Failed" : "Full Month Submission Failed",
           message
         });
       } else if (isWarning) {
         setResultDialog({
           open: true,
           type: "warning",
-          title: "Full Month Submitted Late",
+          title: isPartialSubmission ? "Partial Month Submitted Late" : "Full Month Submitted Late",
           message
         });
         await fetchUserTourEntries();
@@ -563,8 +569,8 @@ const UserTourDiaryDetail = () => {
         setResultDialog({
           open: true,
           type: "success",
-          title: "Full Month Submission Successful",
-          message: message || "Full month submitted successfully"
+          title: isPartialSubmission ? "Partial Submission Successful" : "Full Month Submission Successful",
+          message: message || (isPartialSubmission ? "Partial month submitted successfully" : "Full month submitted successfully")
         });
         await fetchUserTourEntries();
         await fetchFullMonthStatus();
@@ -580,6 +586,9 @@ const UserTourDiaryDetail = () => {
     } finally {
       setSubmittingMonth(false);
       setPendingZoneId("");
+      setIsPartialSubmission(false);
+      setPartialSubmissionRemark("");
+      setPartialRemarkError(false);
     }
   };
 
@@ -1635,6 +1644,14 @@ const UserTourDiaryDetail = () => {
                     size="small"
                     sx={{ fontWeight: 'bold' }}
                   />
+                  {fullMonthStatus && (fullMonthStatus.isPartialSubmission || fullMonthStatus.is_partial_submission || fullMonthStatus.partialSubmission) && (
+                    <Chip
+                      label="Partial Submission"
+                      size="small"
+                      color="warning"
+                      sx={{ fontWeight: 'bold' }}
+                    />
+                  )}
                   {fullMonthStatus && (
                     <>
                       {!["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(role) && (
@@ -1937,7 +1954,7 @@ const UserTourDiaryDetail = () => {
             </Grid>
           )}
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 3 }}>
-            {selectedEntry && (
+            {/* {selectedEntry && (
               <Button
                 variant="outlined"
                 color="error"
@@ -1950,7 +1967,7 @@ const UserTourDiaryDetail = () => {
               >
                 Delete
               </Button>
-            )}
+            )} */}
             <Button variant="contained" onClick={closeDetailModal} sx={{ backgroundColor: '#2980b9', '&:hover': { backgroundColor: '#1f6391' } }}>
               Close
             </Button>
@@ -3004,6 +3021,50 @@ const UserTourDiaryDetail = () => {
           <Alert severity="warning" sx={{ py: 0.5 }}>
             This action cannot be undone.
           </Alert>
+
+          <Divider sx={{ my: 2 }} />
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={isPartialSubmission}
+                onChange={(e) => {
+                  setIsPartialSubmission(e.target.checked);
+                  if (!e.target.checked) {
+                    setPartialSubmissionRemark("");
+                    setPartialRemarkError(false);
+                  }
+                }}
+                color="warning"
+              />
+            }
+            label={
+              <Typography variant="body2" sx={{ fontWeight: 600, color: isPartialSubmission ? theme.palette.warning.dark : 'text.primary' }}>
+                Partial Submit (Enable if submitting incomplete month)
+              </Typography>
+            }
+          />
+
+          {isPartialSubmission && (
+            <Box sx={{ mt: 1.5 }}>
+              <TextField
+                fullWidth
+                required
+                multiline
+                rows={3}
+                label="Partial Submission Remarks *"
+                placeholder="Enter reason for partial submission (e.g., 10th and 11th date entries are not available because of official duty)..."
+                value={partialSubmissionRemark}
+                onChange={(e) => {
+                  const val = validateRemarks(e.target.value);
+                  setPartialSubmissionRemark(val);
+                  if (val.trim()) setPartialRemarkError(false);
+                }}
+                error={partialRemarkError}
+                helperText={partialRemarkError ? "Remarks are required for partial submission" : ""}
+              />
+            </Box>
+          )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, pt: 1, gap: 1 }}>
           <Button variant="outlined" onClick={() => setConfirmDialogOpen(false)} sx={{ minWidth: 90 }}>
@@ -3015,12 +3076,12 @@ const UserTourDiaryDetail = () => {
             disabled={submittingMonth}
             startIcon={submittingMonth ? <CircularProgress size={16} color="inherit" /> : null}
             sx={{
-              minWidth: 110,
-              backgroundColor: '#27ae60',
-              '&:hover': { backgroundColor: '#229954' }
+              minWidth: 120,
+              backgroundColor: isPartialSubmission ? '#e67e22' : '#27ae60',
+              '&:hover': { backgroundColor: isPartialSubmission ? '#d35400' : '#229954' }
             }}
           >
-            {submittingMonth ? "Submitting..." : "Submit Full Month"}
+            {submittingMonth ? "Submitting..." : (isPartialSubmission ? "Partial Submit" : "Submit Full Month")}
           </Button>
         </DialogActions>
       </Dialog>
@@ -3172,6 +3233,22 @@ const UserTourDiaryDetail = () => {
                   )}
                 </Grid>
               </Paper>
+
+              {/* Partial Submission Details */}
+              {(fullMonthStatus.isPartialSubmission || fullMonthStatus.is_partial_submission || fullMonthStatus.partialSubmissionRemark || fullMonthStatus.partial_submission_remark) && (
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: alpha(theme.palette.warning.main, 0.05), borderColor: theme.palette.warning.main }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: theme.palette.warning.dark }}>
+                      Partial Submission Information
+                    </Typography>
+                    <Chip label="Partial Submit" size="small" color="warning" sx={{ fontWeight: 'bold' }} />
+                  </Box>
+                  <Typography variant="caption" color="text.secondary" display="block">Partial Submission Remark</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500, mt: 0.5, fontStyle: (fullMonthStatus.partialSubmissionRemark || fullMonthStatus.partial_submission_remark) ? 'normal' : 'italic' }}>
+                    {(fullMonthStatus.partialSubmissionRemark || fullMonthStatus.partial_submission_remark) || 'No partial submission remark provided.'}
+                  </Typography>
+                </Paper>
+              )}
 
               {/* Verification Details */}
               <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>

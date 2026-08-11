@@ -46,18 +46,32 @@ const UserTourDiarySubmissions = () => {
     const fetchSubmissions = async () => {
       setLoading(true);
       setError("");
-      
+
       try {
         const response = await tourDiaryService.getAdminSubmissionView(userId, selectedYear);
-        
+
         if (response.error) {
           setError(response.message || "Failed to fetch submissions");
           setSubmissions([]);
         } else {
-          setSubmissions(response.data || []);
-          
+          const rawSubmissions = response.data || [];
+
+          // Sort months by Agricultural Year sequence (July to June)
+          const getAgriMonthOrder = (month) => (month >= 7 ? month - 6 : month + 6);
+
+          const sortedSubmissions = [...rawSubmissions].sort((a, b) => {
+            const orderA = getAgriMonthOrder(a.month);
+            const orderB = getAgriMonthOrder(b.month);
+            if (a.year && b.year && a.year !== b.year) {
+              return a.year - b.year || orderA - orderB;
+            }
+            return orderA - orderB;
+          });
+
+          setSubmissions(sortedSubmissions);
+
           // Extract unique years from the data if available
-          const uniqueYears = [...new Set((response.data || []).map(item => item.year))];
+          const uniqueYears = [...new Set((rawSubmissions).map(item => item.year))];
           if (uniqueYears.length > 0) {
             setYears(uniqueYears);
           } else {
@@ -82,12 +96,12 @@ const UserTourDiarySubmissions = () => {
 
   const handleViewDetailedDiary = (month) => {
     // Navigate to detailed calendar view for admin approval
-    navigate("/approval_manage/tourdiary/user-details", { 
-      state: { 
+    navigate("/approval_manage/tourdiary/user-details", {
+      state: {
         userId: userId,
         month: month,
         year: selectedYear
-      } 
+      }
     });
   };
 
@@ -103,8 +117,8 @@ const UserTourDiarySubmissions = () => {
             <Alert severity="error" sx={{ mb: 2 }}>
               No user selected. Please go back and select a user.
             </Alert>
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               startIcon={<ArrowBackIcon />}
               onClick={handleBack}
             >
@@ -130,7 +144,13 @@ const UserTourDiarySubmissions = () => {
       <Grid item xs={12}>
         <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
           {/* Header with back button */}
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+            mb={2}
+            sx={{ position: "relative" }}
+          >
             <Button
               variant="outlined"
               startIcon={<ArrowBackIcon />}
@@ -139,31 +159,21 @@ const UserTourDiarySubmissions = () => {
             >
               Back
             </Button>
-            
-            <Typography variant="h4" sx={{ color: "#04255e", fontWeight: "bold" }}>
+
+            <Typography
+              variant="h4"
+              sx={{
+                color: "#04255e",
+                fontWeight: "bold",
+                position: "absolute",
+                left: "50%",
+                transform: "translateX(-50%)",
+              }}
+            >
               Tour Diary Submissions
             </Typography>
-            
-            <FormControl sx={{ minWidth: 120 }} size="small">
-              <InputLabel>Year</InputLabel>
-              <Select
-                value={selectedYear}
-                label="Year"
-                onChange={(e) => setSelectedYear(e.target.value)}
-              >
-                {years.length > 0 ? (
-                  years.map((year) => (
-                    <MenuItem key={year} value={year}>{year}</MenuItem>
-                  ))
-                ) : (
-                  <MenuItem value={selectedYear}>{selectedYear}</MenuItem>
-                )}
-                {/* Add option to select other years if needed */}
-                <MenuItem value={2025}>2025</MenuItem>
-                <MenuItem value={2026}>2026</MenuItem>
-                <MenuItem value={2024}>2024</MenuItem>
-              </Select>
-            </FormControl>
+
+
           </Box>
 
           <Divider sx={{ mb: 3 }} />
@@ -188,9 +198,9 @@ const UserTourDiarySubmissions = () => {
             <Grid container spacing={2} sx={{ mt: 1 }}>
               {submissions.map((item) => (
                 <Grid item xs={12} sm={6} md={4} lg={3} key={item.month}>
-                  <Card 
-                    elevation={2} 
-                    sx={{ 
+                  <Card
+                    elevation={2}
+                    sx={{
                       height: "100%",
                       transition: "transform 0.2s, box-shadow 0.2s",
                       "&:hover": {
@@ -200,10 +210,10 @@ const UserTourDiarySubmissions = () => {
                     }}
                   >
                     <CardContent>
-                      <Typography 
-                        variant="h6" 
-                        sx={{ 
-                          color: "#141514", 
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          color: "#141514",
                           fontWeight: "bold",
                           borderBottom: "2px solid #131412",
                           pb: 1,
@@ -213,23 +223,23 @@ const UserTourDiarySubmissions = () => {
                       >
                         {monthNames[item.month - 1]} {item.year}
                       </Typography>
-                      
+
                       <Button
-                            variant="contained"
-                            fullWidth
-                            size="large"
-                            startIcon={<VisibilityIcon />}
-                            onClick={() => handleViewDetailedDiary(item.month)}
-                            sx={{ 
-                                mt: 1,
-                                bgcolor: '#2e7d32', // Green color
-                                '&:hover': {
-                                bgcolor: '#1b5e20', // Darker green on hover
-                                }
-                            }}
-                            >
-                            View Details
-                            </Button>
+                        variant="contained"
+                        fullWidth
+                        size="large"
+                        startIcon={<VisibilityIcon />}
+                        onClick={() => handleViewDetailedDiary(item.month)}
+                        sx={{
+                          mt: 1,
+                          bgcolor: '#2e7d32', // Green color
+                          '&:hover': {
+                            bgcolor: '#1b5e20', // Darker green on hover
+                          }
+                        }}
+                      >
+                        View Details
+                      </Button>
                     </CardContent>
                   </Card>
                 </Grid>

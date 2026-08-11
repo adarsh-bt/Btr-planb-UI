@@ -519,12 +519,24 @@ const tourDiaryService = {
   },
 
 
-  async getClusters(zoneId, agriYear) {
-    const token = localStorage.getItem('token');
+  getSeasonIdByCurrentMonth(month) {
+    const currentMonth = month || (new Date().getMonth() + 1);
+    if (currentMonth >= 7 && currentMonth <= 10) {
+      return 1; // Season 1: Autumn (July to October)
+    } else if (currentMonth === 11 || currentMonth === 12 || currentMonth === 1 || currentMonth === 2) {
+      return 2; // Season 2: Winter (November to February)
+    } else if (currentMonth >= 3 && currentMonth <= 6) {
+      return 3; // Season 3: Summer (March to June)
+    }
+    return 1;
+  },
 
+  async getClusters(zoneId, agriYear, seasonId = null) {
     try {
+      const activeSeasonId = seasonId || this.getSeasonIdByCurrentMonth();
       const response = await api.get(
-        `${BASE_URL}/btr-service/cluster-api/cluster-list?zoneId=${zoneId}&agriYear=${agriYear}`);
+        `${BASE_URL}/earas-form1-entry/form1/cluster-list?zoneId=${zoneId}&seasonId=${activeSeasonId}&agriYear=${agriYear}`
+      );
 
       return response.data;
     } catch (err) {
@@ -533,9 +545,9 @@ const tourDiaryService = {
     }
   },
   // Add this method to your tourDiaryService object
-  async submitFullMonth(userId, month, year, zoneId, submitId = null) {
+  async submitFullMonth(userId, month, year, zoneId, submitId = null, isPartialSubmission = false, partialSubmissionRemark = "") {
     const token = localStorage.getItem('token');
-    console.log(userId, month, year, zoneId, submitId, "submitFullMonth")
+    console.log(userId, month, year, zoneId, submitId, isPartialSubmission, partialSubmissionRemark, "submitFullMonth")
     try {
       const response = await axios.post(
         `${BASE_URL}/tour-diary/api/tour/submit/full-month`,
@@ -546,7 +558,9 @@ const tourDiaryService = {
           year: year,
           zoneId: zoneId || null,
           userId: userId,
-          submitId: submitId || null
+          submitId: submitId || null,
+          isPartialSubmission: Boolean(isPartialSubmission),
+          partialSubmissionRemark: isPartialSubmission ? (partialSubmissionRemark || "") : ""
         },
         {
           headers: {
