@@ -21,6 +21,8 @@ import {
   TablePagination
 } from '@mui/material';
 import { LocationOn, ArrowBack } from '@mui/icons-material';
+import WaterDropIcon from '@mui/icons-material/WaterDrop';
+import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
@@ -34,6 +36,14 @@ const SESSION_KEY = 'talukForm3BState';
 // Sticky/column widths
 const TALUK_W = 180;
 const CROP_W = 150;
+
+// Land type filter — WET / DRY / ALL. 'ALL' means the landType param is not
+// sent at all, so the backend returns both.
+const DEFAULT_LAND_TYPE = 'ALL';
+
+// Backend expects title-case values (…&landType=Dry). 'ALL' has no entry here,
+// so the param is omitted entirely and both land types come back.
+const LAND_TYPE_PARAM = { WET: 'Wet', DRY: 'Dry' };
 
 const CROP_GROUPS = [
   { id: 1, name: 'Food crops' },
@@ -87,6 +97,8 @@ const TalukForm3B = () => {
   const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
 
   const [activeTab, setActiveTab] = useState(stateData.activeTab ?? 0);
+  // Inherited from KeralaForm3B on drill-down, or restored from session on refresh.
+  const [landTypeTab, setLandTypeTab] = useState(stateData.landType ?? DEFAULT_LAND_TYPE);
   const [apiData, setApiData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -107,11 +119,12 @@ const TalukForm3B = () => {
           districtName,
           selectedDistrict: districtName,
           agriculturalYear,
+          landType: landTypeTab,
           activeTab: stateData.activeTab ?? 0
         })
       );
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [landTypeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (districtId == null) {
@@ -127,7 +140,16 @@ const TalukForm3B = () => {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('Authorization token missing');
 
-        const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form3B/district?agriYear=${agriculturalYear}&districtId=${districtId}&cropGroupId=${cropGroupId}`;
+        const params = new URLSearchParams({
+          agriYear: agriculturalYear,
+          districtId: String(districtId),
+          cropGroupId: String(cropGroupId)
+        });
+        // 'ALL' is represented by omitting the param entirely.
+        const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
+        if (landTypeParam) params.append('landType', landTypeParam);
+
+        const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form3B/district?${params.toString()}`;
         console.log('Fetching Taluk Form 3B data from:', url);
 
         const response = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
@@ -145,7 +167,7 @@ const TalukForm3B = () => {
     };
     fetchGroupData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cropGroupId, districtId, agriculturalYear]);
+  }, [cropGroupId, districtId, agriculturalYear, landTypeTab]);
 
   const cropColumns = useMemo(() => {
     const map = new Map();
@@ -182,6 +204,13 @@ const TalukForm3B = () => {
     setActiveTab(newValue);
     setPage(0);
   };
+
+  const handleLandTypeChange = (event, newValue) => {
+    if (newValue === null || newValue === undefined) return;
+    setLandTypeTab(newValue);
+    setPage(0);
+  };
+
   const formatNumber = (num) => Number(num || 0).toFixed(2);
 
   const handleChangePage = (event, newPage) => setPage(newPage);
@@ -196,7 +225,7 @@ const TalukForm3B = () => {
   );
 
   const handleBack = () => {
-    navigate('/schemes/earas/Report/Form3B/KeralaForm3B', { state: { activeTab } });
+    navigate('/schemes/earas/Report/Form3B/KeralaForm3B', { state: { activeTab, landType: landTypeTab } });
   };
 
   const handleTalukClick = (talukName, talukId) => {
@@ -212,6 +241,7 @@ const TalukForm3B = () => {
         cropGroupId,
         cropGroupName,
         agriculturalYear,
+        landType: landTypeTab,
         activeTab
       }
     });
@@ -235,6 +265,26 @@ const TalukForm3B = () => {
             {districtName} District - Taluk-wise Crop Area Report (Form 3B)
           </Typography>
         </Box>
+
+        {/* Land type filter — ALL / WET / DRY */}
+        <Paper
+          elevation={0}
+          sx={{ p: 1, mb: 2, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, display: 'inline-block' }}
+        >
+          <Tabs
+            value={landTypeTab}
+            onChange={handleLandTypeChange}
+            sx={{
+              minHeight: 40,
+              '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, minHeight: 40, '&.Mui-selected': { color: themeColor } },
+              '& .MuiTabs-indicator': { backgroundColor: themeColor, height: 3 }
+            }}
+          >
+            <Tab label="ALL" value="ALL" />
+            <Tab label="WET" value="WET" icon={<WaterDropIcon />} iconPosition="start" />
+            <Tab label="DRY" value="DRY" icon={<WbSunnyIcon />} iconPosition="start" />
+          </Tabs>
+        </Paper>
 
         {error && (
           <Paper sx={{ p: 2, mb: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>

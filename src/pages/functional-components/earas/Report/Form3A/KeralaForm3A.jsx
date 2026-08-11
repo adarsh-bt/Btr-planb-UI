@@ -16,12 +16,17 @@ import {
   Tabs,
   Tab,
   Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
   CircularProgress,
   TablePagination
 } from '@mui/material';
 import { LocationOn } from '@mui/icons-material';
 import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
+import EnergySavingsLeafIcon from '@mui/icons-material/EnergySavingsLeaf';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
@@ -39,6 +44,18 @@ const CROP_W = 150;
 // Land type filter — WET / DRY / ALL. 'ALL' means the landType param is not
 // sent at all, so the backend returns both.
 const DEFAULT_LAND_TYPE = 'ALL';
+
+// Backend expects title-case values (…&landType=Dry). 'ALL' has no entry here,
+// so the param is omitted entirely and both land types come back.
+const LAND_TYPE_PARAM = { WET: 'Wet', DRY: 'Dry' };
+
+// Season filter — always sent as seasonId. Defaults to Autumn.
+const SEASONS = [
+  { id: 1, name: 'Autumn' },
+  { id: 2, name: 'Winter' },
+  { id: 3, name: 'Summer' }
+];
+const DEFAULT_SEASON_ID = 1;
 
 // Static crop groups (tbl_master_crop_group). The tab index maps to a group,
 // whose id is sent to the API as cropGroupId.
@@ -89,6 +106,7 @@ const KeralaForm3A = () => {
 
   const [activeTab, setActiveTab] = useState(() => getSavedState().activeTab ?? 0);
   const [landTypeTab, setLandTypeTab] = useState(() => getSavedState().landTypeTab ?? DEFAULT_LAND_TYPE);
+  const [seasonId, setSeasonId] = useState(() => getSavedState().seasonId ?? DEFAULT_SEASON_ID);
   const [apiData, setApiData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -97,6 +115,7 @@ const KeralaForm3A = () => {
 
   const cropGroupId = CROP_GROUPS[activeTab]?.id;
   const cropGroupName = CROP_GROUPS[activeTab]?.name;
+  const seasonName = SEASONS.find((s) => s.id === seasonId)?.name || '';
 
   const numericCellSx = {
     fontVariantNumeric: 'tabular-nums',
@@ -122,6 +141,8 @@ const KeralaForm3A = () => {
               districtName: distName,
               selectedDistrict: distName,
               isDirectAccess: true,
+              landType: landTypeTab,
+              seasonId,
               activeTab: 0
             }
           });
@@ -143,6 +164,8 @@ const KeralaForm3A = () => {
               districtId: distId,
               districtName: distName,
               isDirectAccess: true,
+              landType: landTypeTab,
+              seasonId,
               activeTab: 0
             }
           });
@@ -151,13 +174,14 @@ const KeralaForm3A = () => {
     } catch (e) {
       console.error('Error during role check redirection in KeralaForm3A:', e);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state, navigate]);
 
   useEffect(() => {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ activeTab, landTypeTab }));
-  }, [activeTab, landTypeTab]);
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ activeTab, landTypeTab, seasonId }));
+  }, [activeTab, landTypeTab, seasonId]);
 
-  /* ─────────────────────────── fetch (per crop group) ─────────────────────────── */
+  /* ─────────────────── fetch (per crop group + land type + season) ─────────────────── */
 
   useEffect(() => {
     if (!cropGroupId) return;
@@ -174,7 +198,9 @@ const KeralaForm3A = () => {
           cropGroupId: String(cropGroupId)
         });
         // 'ALL' is represented by omitting the param entirely.
-        if (landTypeTab && landTypeTab !== 'ALL') params.append('landType', landTypeTab);
+        const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
+        if (landTypeParam) params.append('landType', landTypeParam);
+        params.append('seasonId', String(seasonId));
 
         const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/state?${params.toString()}`;
         console.log('Fetching Form 3A data from:', url);
@@ -196,7 +222,7 @@ const KeralaForm3A = () => {
     };
     fetchGroupData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cropGroupId, agriculturalYear, landTypeTab]);
+  }, [cropGroupId, agriculturalYear, landTypeTab, seasonId]);
 
   /* ─────────────────────────── derived data ─────────────────────────── */
 
@@ -254,6 +280,11 @@ const KeralaForm3A = () => {
     setPage(0);
   };
 
+  const handleSeasonChange = (event) => {
+    setSeasonId(Number(event.target.value));
+    setPage(0);
+  };
+
   const formatNumber = (num) => Number(num || 0).toFixed(2);
 
   const handleChangePage = (event, newPage) => setPage(newPage);
@@ -279,6 +310,7 @@ const KeralaForm3A = () => {
         cropGroupName,
         agriculturalYear,
         landType: landTypeTab,
+        seasonId,
         activeTab
       }
     });
@@ -312,39 +344,66 @@ const KeralaForm3A = () => {
             <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
               (Click on any district to view Taluk-wise details) • Agricultural Year: {agriculturalYear} • Area in Cents
               {landTypeTab !== 'ALL' && ` • ${landTypeTab} Land`}
+              {seasonName && ` • ${seasonName} Season`}
             </Typography>
           </Box>
 
-          {/* Land type filter — ALL / WET / DRY */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: 1,
-              mb: 2,
-              borderRadius: 3,
-              border: `1px solid ${theme.palette.divider}`,
-              display: 'inline-block'
-            }}
-          >
-            <Tabs
-              value={landTypeTab}
-              onChange={handleLandTypeChange}
+          {/* Filters — land type + season */}
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            {/* Land type filter — ALL / WET / DRY */}
+            <Paper
+              elevation={0}
               sx={{
-                minHeight: 40,
-                '& .MuiTab-root': {
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  minHeight: 40,
-                  '&.Mui-selected': { color: themeColor }
-                },
-                '& .MuiTabs-indicator': { backgroundColor: themeColor, height: 3 }
+                p: 1,
+                borderRadius: 3,
+                border: `1px solid ${theme.palette.divider}`,
+                display: 'inline-block'
               }}
             >
-              <Tab label="ALL" value="ALL" />
-              <Tab label="WET" value="WET" icon={<WaterDropIcon />} iconPosition="start" />
-              <Tab label="DRY" value="DRY" icon={<WbSunnyIcon />} iconPosition="start" />
-            </Tabs>
-          </Paper>
+              <Tabs
+                value={landTypeTab}
+                onChange={handleLandTypeChange}
+                sx={{
+                  minHeight: 40,
+                  '& .MuiTab-root': {
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    minHeight: 40,
+                    '&.Mui-selected': { color: themeColor }
+                  },
+                  '& .MuiTabs-indicator': { backgroundColor: themeColor, height: 3 }
+                }}
+              >
+                <Tab label="ALL" value="ALL" />
+                <Tab label="WET" value="WET" icon={<WaterDropIcon />} iconPosition="start" />
+                <Tab label="DRY" value="DRY" icon={<WbSunnyIcon />} iconPosition="start" />
+              </Tabs>
+            </Paper>
+
+            {/* Season filter — Autumn / Winter / Summer */}
+            <FormControl size="small" sx={{ minWidth: 180 }}>
+              <InputLabel id="kerala-form3a-season-label">Season</InputLabel>
+              <Select
+                labelId="kerala-form3a-season-label"
+                id="kerala-form3a-season"
+                value={seasonId}
+                label="Season"
+                onChange={handleSeasonChange}
+                renderValue={(value) => (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <EnergySavingsLeafIcon sx={{ fontSize: 20, color: '#2e7d32' }} />
+                    {SEASONS.find((s) => s.id === value)?.name || ''}
+                  </Box>
+                )}
+              >
+                {SEASONS.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
 
           {/* Error */}
           {error && (

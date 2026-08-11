@@ -20,6 +20,8 @@ import {
   TablePagination
 } from '@mui/material';
 import { LocationOn } from '@mui/icons-material';
+import WaterDropIcon from '@mui/icons-material/WaterDrop';
+import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
@@ -30,6 +32,14 @@ const BASE_URL = mainapi.FORM_API;
 
 const DISTRICT_W = 180;
 const CROP_W = 150;
+
+// Land type filter — WET / DRY / ALL. 'ALL' means the landType param is not
+// sent at all, so the backend returns both.
+const DEFAULT_LAND_TYPE = 'ALL';
+
+// Backend expects title-case values (…&landType=Dry). 'ALL' has no entry here,
+// so the param is omitted entirely and both land types come back.
+const LAND_TYPE_PARAM = { WET: 'Wet', DRY: 'Dry' };
 
 const CROP_GROUPS = [
   { id: 1, name: 'Food crops' },
@@ -69,6 +79,8 @@ const KeralaForm3B = () => {
 
   // Restore the crop-group tab when returning from TalukForm3B (Back passes activeTab).
   const [activeTab, setActiveTab] = useState(location.state?.activeTab ?? 0);
+  // Restored the same way — Back from TalukForm3B passes landType.
+  const [landTypeTab, setLandTypeTab] = useState(location.state?.landType ?? DEFAULT_LAND_TYPE);
   const [apiData, setApiData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -90,7 +102,15 @@ const KeralaForm3B = () => {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('Authorization token missing');
 
-        const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form3B/state?agriYear=${agriculturalYear}&cropGroupId=${cropGroupId}`;
+        const params = new URLSearchParams({
+          agriYear: agriculturalYear,
+          cropGroupId: String(cropGroupId)
+        });
+        // 'ALL' is represented by omitting the param entirely.
+        const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
+        if (landTypeParam) params.append('landType', landTypeParam);
+
+        const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form3B/state?${params.toString()}`;
         console.log('Fetching Form 3B data from:', url);
 
         const response = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
@@ -107,7 +127,7 @@ const KeralaForm3B = () => {
     };
     fetchGroupData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cropGroupId, agriculturalYear]);
+  }, [cropGroupId, agriculturalYear, landTypeTab]);
 
   const cropColumns = useMemo(() => {
     const map = new Map();
@@ -144,6 +164,13 @@ const KeralaForm3B = () => {
     setActiveTab(newValue);
     setPage(0);
   };
+
+  const handleLandTypeChange = (event, newValue) => {
+    if (newValue === null || newValue === undefined) return;
+    setLandTypeTab(newValue);
+    setPage(0);
+  };
+
   const formatNumber = (num) => Number(num || 0).toFixed(2);
 
   const handleChangePage = (event, newPage) => setPage(newPage);
@@ -167,6 +194,7 @@ const KeralaForm3B = () => {
         cropGroupId,
         cropGroupName,
         agriculturalYear,
+        landType: landTypeTab,
         activeTab
       }
     });
@@ -187,6 +215,26 @@ const KeralaForm3B = () => {
             Kerala State - Crop Area Report (Form 3B)
           </Typography>
         </Box>
+
+        {/* Land type filter — ALL / WET / DRY */}
+        <Paper
+          elevation={0}
+          sx={{ p: 1, mb: 2, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, display: 'inline-block' }}
+        >
+          <Tabs
+            value={landTypeTab}
+            onChange={handleLandTypeChange}
+            sx={{
+              minHeight: 40,
+              '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, minHeight: 40, '&.Mui-selected': { color: themeColor } },
+              '& .MuiTabs-indicator': { backgroundColor: themeColor, height: 3 }
+            }}
+          >
+            <Tab label="ALL" value="ALL" />
+            <Tab label="WET" value="WET" icon={<WaterDropIcon />} iconPosition="start" />
+            <Tab label="DRY" value="DRY" icon={<WbSunnyIcon />} iconPosition="start" />
+          </Tabs>
+        </Paper>
 
         {error && (
           <Paper sx={{ p: 2, mb: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
