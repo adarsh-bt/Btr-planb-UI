@@ -17,10 +17,17 @@ import {
   Tab,
   Chip,
   Stack,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
   CircularProgress,
   TablePagination
 } from '@mui/material';
 import { LocationOn, ArrowBack, Store } from '@mui/icons-material';
+import WaterDropIcon from '@mui/icons-material/WaterDrop';
+import WbSunnyIcon from '@mui/icons-material/WbSunny';
+import EnergySavingsLeafIcon from '@mui/icons-material/EnergySavingsLeaf';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
@@ -30,6 +37,22 @@ import Breadcrumb from 'routes/Breadcrumb';
 const BASE_URL = mainapi.FORM_API;
 
 const SESSION_KEY = 'zoneForm3AState';
+
+// Land type filter — WET / DRY / ALL. 'ALL' means the landType param is not
+// sent at all, so the backend returns both.
+const DEFAULT_LAND_TYPE = 'ALL';
+
+// Backend expects title-case values (…&landType=Wet). 'ALL' has no entry here,
+// so the param is omitted entirely and both land types come back.
+const LAND_TYPE_PARAM = { WET: 'Wet', DRY: 'Dry' };
+
+// Season filter — always sent as seasonId. Defaults to Autumn.
+const SEASONS = [
+  { id: 1, name: 'Autumn' },
+  { id: 2, name: 'Winter' },
+  { id: 3, name: 'Summer' }
+];
+const DEFAULT_SEASON_ID = 1;
 
 const CROP_GROUPS = [
   { id: 1, name: 'Food crops' },
@@ -111,6 +134,9 @@ const ZoneForm3A = () => {
   const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
 
   const [activeTab, setActiveTab] = useState(stateData.activeTab ?? 0);
+  // Inherited from the District (Taluk) page on drill-down, or restored from session on refresh.
+  const [landTypeTab, setLandTypeTab] = useState(stateData.landType ?? DEFAULT_LAND_TYPE);
+  const [seasonId, setSeasonId] = useState(stateData.seasonId ?? DEFAULT_SEASON_ID);
   const [apiData, setApiData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -121,6 +147,7 @@ const ZoneForm3A = () => {
 
   const cropGroupId = CROP_GROUPS[activeTab]?.id;
   const cropGroupName = CROP_GROUPS[activeTab]?.name;
+  const seasonName = SEASONS.find((s) => s.id === seasonId)?.name || '';
 
   /* ── persist taluk/district context so back-nav / refresh keeps working ── */
   useEffect(() => {
@@ -135,19 +162,21 @@ const ZoneForm3A = () => {
           talukName,
           selectedTaluk: talukName,
           agriculturalYear,
+          landType: landTypeTab,
+          seasonId,
           activeTab: stateData.activeTab ?? 0
         })
       );
     }
-  }, [talukId, talukName, districtId, districtName, agriculturalYear, stateData.activeTab]);
+  }, [talukId, talukName, districtId, districtName, agriculturalYear, landTypeTab, seasonId, stateData.activeTab]);
 
-  /* ── keep the active crop-group tab in sync in sessionStorage too ── */
+  /* ── keep the active crop-group tab + land type + season in sync in sessionStorage too ── */
   useEffect(() => {
     const saved = getSavedState();
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ...saved, activeTab }));
-  }, [activeTab]);
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ...saved, activeTab, landType: landTypeTab, seasonId }));
+  }, [activeTab, landTypeTab, seasonId]);
 
-  /* ─────────────────────────── fetch (per crop group) ─────────────────────────── */
+  /* ─────────────────── fetch (per crop group + land type + season) ─────────────────── */
 
   useEffect(() => {
     if (talukId == null) {
@@ -163,7 +192,17 @@ const ZoneForm3A = () => {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('Authorization token missing');
 
-        const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/taluk?agriYear=${agriculturalYear}&talukId=${talukId}&cropGroupId=${cropGroupId}`;
+        const params = new URLSearchParams({
+          agriYear: agriculturalYear,
+          talukId: String(talukId),
+          cropGroupId: String(cropGroupId)
+        });
+        // 'ALL' is represented by omitting the param entirely.
+        const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
+        if (landTypeParam) params.append('landType', landTypeParam);
+        params.append('seasonId', String(seasonId));
+
+        const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/taluk?${params.toString()}`;
         console.log('Fetching Zone Form 3A data from:', url);
 
         const response = await axios.get(url, {
@@ -184,7 +223,7 @@ const ZoneForm3A = () => {
     };
     fetchZoneData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cropGroupId, talukId, agriculturalYear]);
+  }, [cropGroupId, talukId, agriculturalYear, landTypeTab, seasonId]);
 
   /* ─────────────────────────── derived data ─────────────────────────── */
 
@@ -266,6 +305,18 @@ const ZoneForm3A = () => {
     setActiveTab(newValue);
     setPage(0);
   };
+
+  const handleLandTypeChange = (event, newValue) => {
+    if (newValue === null || newValue === undefined) return;
+    setLandTypeTab(newValue);
+    setPage(0);
+  };
+
+  const handleSeasonChange = (event) => {
+    setSeasonId(Number(event.target.value));
+    setPage(0);
+  };
+
   const formatNumber = (num) => Number(num || 0).toFixed(2);
   const handleBack = () => {
     let effectiveOfficeType = stateData.officeType || officeInfo.officeType;
@@ -291,6 +342,8 @@ const ZoneForm3A = () => {
           districtId,
           districtName,
           selectedDistrict: districtName,
+          landType: landTypeTab,
+          seasonId,
           activeTab
         }
       });
@@ -329,6 +382,8 @@ const ZoneForm3A = () => {
         cropGroupId,
         cropGroupName,
         agriculturalYear,
+        landType: landTypeTab,
+        seasonId,
         activeTab
       }
     });
@@ -386,7 +441,66 @@ const ZoneForm3A = () => {
           </Typography>
           <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
             (Click on any zone to view Panchayath-wise details) • Agricultural Year: {agriculturalYear} • Area in Cents
+            {landTypeTab !== 'ALL' && ` • ${landTypeTab} Land`}
+            {seasonName && ` • ${seasonName} Season`}
           </Typography>
+        </Box>
+
+        {/* Filters — land type + season */}
+        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+          {/* Land type filter — ALL / WET / DRY */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 1,
+              borderRadius: 3,
+              border: `1px solid ${theme.palette.divider}`,
+              display: 'inline-block'
+            }}
+          >
+            <Tabs
+              value={landTypeTab}
+              onChange={handleLandTypeChange}
+              sx={{
+                minHeight: 40,
+                '& .MuiTab-root': {
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  minHeight: 40,
+                  '&.Mui-selected': { color: themeColor }
+                },
+                '& .MuiTabs-indicator': { backgroundColor: themeColor, height: 3 }
+              }}
+            >
+              <Tab label="ALL" value="ALL" />
+              <Tab label="WET" value="WET" icon={<WaterDropIcon />} iconPosition="start" />
+              <Tab label="DRY" value="DRY" icon={<WbSunnyIcon />} iconPosition="start" />
+            </Tabs>
+          </Paper>
+
+          {/* Season filter — Autumn / Winter / Summer */}
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <InputLabel id="zone-form3a-season-label">Season</InputLabel>
+            <Select
+              labelId="zone-form3a-season-label"
+              id="zone-form3a-season"
+              value={seasonId}
+              label="Season"
+              onChange={handleSeasonChange}
+              renderValue={(value) => (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <EnergySavingsLeafIcon sx={{ fontSize: 20, color: '#2e7d32' }} />
+                  {SEASONS.find((s) => s.id === value)?.name || ''}
+                </Box>
+              )}
+            >
+              {SEASONS.map((s) => (
+                <MenuItem key={s.id} value={s.id}>
+                  {s.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </Box>
 
         {/* Error */}
