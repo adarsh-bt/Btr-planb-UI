@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Grid,
@@ -273,6 +272,144 @@ const DataBox = ({ row, col }) =>
     <Box sx={CELL_SX[col.variant]}>{cellValue(row, col)}</Box>
   );
 
+/* ─────────────────── zone grouping helpers ─────────────────── */
+
+// A "zone group" = every panchayat / municipality / corporation row that belongs
+// to the same Block + Zone Name pair.
+const zoneKeyOf = (r) => `${r.blockName || 'General Block'}||${r.name || 'N/A'}`;
+
+const sumMetrics = (rowsArr) => {
+  const acc = {};
+  METRIC_KEYS.forEach((k) => {
+    acc[k] = rowsArr.reduce((s, r) => s + Number(r[k] || 0), 0);
+  });
+  return acc;
+};
+
+// Aggregated per zone over the WHOLE filtered set (not just the current page), so
+// a zone whose panchayats straddle a page boundary still reports a correct subtotal.
+function buildZoneIndex(allRows) {
+  const buckets = new Map();
+  allRows.forEach((r) => {
+    const key = zoneKeyOf(r);
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(r);
+  });
+
+  const index = new Map();
+  buckets.forEach((members, key) => {
+    index.set(key, {
+      count: members.length,
+      lastId: members[members.length - 1].id,
+      totals: sumMetrics(members)
+    });
+  });
+  return index;
+}
+
+// Flatten the current page into render items: data rows plus a synthetic subtotal
+// row after any zone that holds more than one panchayat. Subtotal rows carry the
+// same metric keys as data rows, so DataBox / the exporter need no special casing.
+function buildDisplayItems(pageRows, zoneIndex) {
+  const items = [];
+  let i = 0;
+
+  while (i < pageRows.length) {
+    const key = zoneKeyOf(pageRows[i]);
+    let j = i;
+    while (j < pageRows.length && zoneKeyOf(pageRows[j]) === key) j++;
+
+    const group = pageRows.slice(i, j);
+    const info =
+      zoneIndex.get(key) || { count: group.length, lastId: group[group.length - 1].id, totals: sumMetrics(group) };
+
+    // Only emit the subtotal on the page that holds the zone's final panchayat.
+    const showSubtotal = info.count > 1 && group[group.length - 1].id === info.lastId;
+    const zoneSpan = group.length + (showSubtotal ? 1 : 0);
+
+    group.forEach((row, k) => {
+      items.push({
+        kind: 'data',
+        row,
+        blockName: row.blockName || 'General Block',
+        zoneKey: key,
+        zoneName: row.name || 'N/A',
+        zoneStart: k === 0,
+        zoneSpan: k === 0 ? zoneSpan : 0,
+        zoneMerged: zoneSpan > 1
+      });
+    });
+
+    if (showSubtotal) {
+      items.push({
+        kind: 'subtotal',
+        row: { id: `${key}__subtotal`, ...info.totals },
+        blockName: group[0].blockName || 'General Block',
+        zoneKey: key,
+        zoneName: group[0].name || 'N/A',
+        label: `Zone Total (${info.count} Panchayats)`
+      });
+    }
+
+    i = j;
+  }
+
+  return items;
+}
+
+// Block cells are merged with rowSpan, which only works while a block's rows are
+// contiguous — so compute the spans against the items actually on this page.
+function getBlockSpanInfo(items) {
+  const spanMap = {};
+  let currentBlock = null;
+  let count = 0;
+  let startIndex = 0;
+
+  for (let i = 0; i < items.length; i++) {
+    const bName = items[i].blockName || 'Unassigned';
+    if (bName !== currentBlock) {
+      if (currentBlock !== null) spanMap[startIndex] = count;
+      currentBlock = bName;
+      startIndex = i;
+      count = 1;
+    } else {
+      count++;
+    }
+  }
+  if (currentBlock !== null) spanMap[startIndex] = count;
+  return spanMap;
+}
+
+// Export mirrors the table: zone subtotal pseudo-rows interleaved into the data.
+function buildExportRows(allRows) {
+  const out = [];
+  let i = 0;
+
+  while (i < allRows.length) {
+    const key = zoneKeyOf(allRows[i]);
+    let j = i;
+    while (j < allRows.length && zoneKeyOf(allRows[j]) === key) j++;
+
+    const group = allRows.slice(i, j);
+    group.forEach((r) => out.push(r));
+
+    if (group.length > 1) {
+      out.push({
+        ...sumMetrics(group),
+        __subtotal: true,
+        id: `${key}__export_subtotal`,
+        blockName: group[0].blockName,
+        name: group[0].name,
+        panchayathName: `Zone Subtotal (${group.length} Panchayats)`
+      });
+    }
+
+    i = j;
+  }
+
+  return out;
+}
+
 /* ─────────────────── SpreadsheetML export (same .xls the client signed off) ─────────────────── */
 
 const xmlEscape = (str) =>
@@ -288,7 +425,7 @@ const xmlEscape = (str) =>
 const XML_STYLE_FOR = { green: 'GreenHighlight', blue: 'BlueHighlight', blueTotal: 'BlueHighlight' };
 
 // textColumns: [{ label, get(row) }] — District / Taluk / Block+Zone+Panchayat.
-function downloadWorkAllocationXls({ textColumns, rows, totals, totalLabels, reportLevelName, username }) {
+function downloadWorkAllocationXls({ textColumns, rows, totals, totalLabels, reportLevelName, username, recordCount }) {
   const downloadTime = new Date().toLocaleString('en-IN', { timeZoneName: 'short' });
 
   const sheets = TAB_DEFS.map((tab, tabIndex) => {
@@ -310,8 +447,9 @@ function downloadWorkAllocationXls({ textColumns, rows, totals, totalLabels, rep
     `;
 
     rows.forEach((row) => {
+      const rowAttr = row.__subtotal ? ' ss:StyleID="ZoneSubtotal"' : '';
       body += `
-        <Row>
+        <Row${rowAttr}>
           ${textColumns
             .map((tc) => `<Cell><Data ss:Type="String">${xmlEscape(tc.get(row) || 'N/A')}</Data></Cell>`)
             .join('')}
@@ -354,7 +492,8 @@ function downloadWorkAllocationXls({ textColumns, rows, totals, totalLabels, rep
     ['Agricultural Year', AuthService.agriyear() || ''],
     ['Downloaded By User', username],
     ['Download Timestamp', downloadTime],
-    ['Total Records Exported', String(rows.length)],
+    ['Total Records Exported', String(recordCount ?? rows.length)],
+    ['Zone Subtotal Rows Included', String(rows.filter((r) => r.__subtotal).length)],
     ['Worksheets Contained', '1. Area As Per Village Records, 2. Excluded Areas, 3. Area Available For Estimation, 4. Metadata'],
     ['Source Platform', 'AIDeA BTR EARAS System']
   ]
@@ -400,6 +539,10 @@ function downloadWorkAllocationXls({ textColumns, rows, totals, totalLabels, rep
   <Style ss:ID="BoldRow">
    <Font ss:FontName="Calibri" ss:Size="11" ss:Color="#000000" ss:Bold="1"/>
    <Interior ss:Color="#F0F4F8" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="ZoneSubtotal">
+   <Font ss:FontName="Calibri" ss:Size="11" ss:Color="#04255E" ss:Bold="1" ss:Italic="1"/>
+   <Interior ss:Color="#F7FAFF" ss:Pattern="Solid"/>
   </Style>
   <Style ss:ID="GreenHighlight">
    <Font ss:FontName="Calibri" ss:Size="11" ss:Color="#1B5E20" ss:Bold="1"/>
@@ -447,29 +590,6 @@ const TEXT_COLS = [
   { label: 'Panchayat / Municipality / Corporation', width: '25%', get: (r) => r.panchayathName }
 ];
 const TOTAL_LABELS = ['Summary Total', 'Total Excluded Summary', 'Total Available Summary'];
-
-// Block cells are merged with rowSpan, which only works while a block's rows are
-// contiguous — so compute the spans against the rows actually on this page.
-function getBlockSpanInfo(pageRows) {
-  const spanMap = {};
-  let currentBlock = null;
-  let count = 0;
-  let startIndex = 0;
-
-  for (let i = 0; i < pageRows.length; i++) {
-    const bName = pageRows[i].blockName || 'Unassigned';
-    if (bName !== currentBlock) {
-      if (currentBlock !== null) spanMap[startIndex] = count;
-      currentBlock = bName;
-      startIndex = i;
-      count = 1;
-    } else {
-      count++;
-    }
-  }
-  if (currentBlock !== null) spanMap[startIndex] = count;
-  return spanMap;
-}
 
 /* ─────────────────────────── component ─────────────────────────── */
 
@@ -543,10 +663,13 @@ function ZoneWorkAllocationReport() {
       setSummaryArea(data.areaAvailableForEstimation || { wet: 0, dry: 0, total: 0 });
 
       const mapped = (Array.isArray(data.locations) ? data.locations : []).map(normalizeLocation);
-      // Keep blocks contiguous so the merged Block cell renders correctly.
+      // Keep blocks — and zones inside each block — contiguous so the merged
+      // Block / Zone cells and the zone subtotal rows render correctly.
       mapped.sort(
         (a, b) =>
-          String(a.blockName).localeCompare(String(b.blockName)) || String(a.name).localeCompare(String(b.name))
+          String(a.blockName).localeCompare(String(b.blockName)) ||
+          String(a.name).localeCompare(String(b.name)) ||
+          String(a.panchayathName).localeCompare(String(b.panchayathName))
       );
       setRows(mapped);
     } catch (err) {
@@ -577,7 +700,19 @@ function ZoneWorkAllocationReport() {
     [filteredData, page, rowsPerPage]
   );
 
-  const blockSpans = useMemo(() => getBlockSpanInfo(paginatedData), [paginatedData]);
+  const zoneIndex = useMemo(() => buildZoneIndex(filteredData), [filteredData]);
+
+  const displayItems = useMemo(() => buildDisplayItems(paginatedData, zoneIndex), [paginatedData, zoneIndex]);
+
+  const blockSpans = useMemo(() => getBlockSpanInfo(displayItems), [displayItems]);
+
+  const multiPanchayatZones = useMemo(() => {
+    let c = 0;
+    zoneIndex.forEach((info) => {
+      if (info.count > 1) c++;
+    });
+    return c;
+  }, [zoneIndex]);
 
   const totals = useMemo(() => {
     const acc = {};
@@ -599,11 +734,12 @@ function ZoneWorkAllocationReport() {
   const handleExportExcel = () =>
     downloadWorkAllocationXls({
       textColumns: TEXT_COLS,
-      rows: filteredData,
+      rows: buildExportRows(filteredData),
       totals,
       totalLabels: TOTAL_LABELS,
       reportLevelName,
-      username: jurisdiction.user
+      username: jurisdiction.user,
+      recordCount: filteredData.length
     });
 
   const colSpanAll = TEXT_COLS.length + columns.length;
@@ -779,6 +915,13 @@ function ZoneWorkAllocationReport() {
               />
 
               <Stack direction="row" spacing={1.5} alignItems="center">
+                {multiPanchayatZones > 0 && (
+                  <Chip
+                    label={`${multiPanchayatZones} Multi-Panchayat Zone${multiPanchayatZones > 1 ? 's' : ''}`}
+                    size="small"
+                    sx={{ fontWeight: 700, borderRadius: 2, bgcolor: '#f7faff', color: '#04255e', border: '1px solid #cfe0f5' }}
+                  />
+                )}
                 <Chip
                   label={`Showing ${filteredData.length} Records`}
                   color="primary"
@@ -901,13 +1044,54 @@ function ZoneWorkAllocationReport() {
                         </Typography>
                       </TableCell>
                     </TableRow>
-                  ) : paginatedData.length > 0 ? (
-                    paginatedData.map((row, index) => {
-                      const blockNameVal = row.blockName || 'General Block';
+                  ) : displayItems.length > 0 ? (
+                    displayItems.map((item, index) => {
                       const isBlockStart = blockSpans[index] !== undefined;
-                      const nextRow = paginatedData[index + 1];
-                      const isLastRowOfBlock = !nextRow || (nextRow.blockName || 'General Block') !== blockNameVal;
-                      const rowBorderBottom = isLastRowOfBlock ? '1px solid #8e8a8aff' : '1px solid #e0e0e0';
+                      const nextItem = displayItems[index + 1];
+                      const isLastRowOfBlock = !nextItem || nextItem.blockName !== item.blockName;
+                      const isLastRowOfZone = !nextItem || nextItem.zoneKey !== item.zoneKey;
+                      const rowBorderBottom = isLastRowOfBlock
+                        ? '1px solid #8e8a8aff'
+                        : isLastRowOfZone
+                          ? '1px solid #c5cdd6'
+                          : '1px solid #e0e0e0';
+
+                      /* ── Zone Subtotal row (only for zones with >1 panchayat) ── */
+                      if (item.kind === 'subtotal') {
+                        return (
+                          <TableRow key={item.row.id} sx={{ bgcolor: '#f7faff' }}>
+                            <TableCell
+                              sx={{
+                                fontWeight: 700,
+                                fontStyle: 'italic',
+                                fontSize: '0.9rem',
+                                color: '#04255e',
+                                borderRight: '1px solid #f0f0f0',
+                                borderBottom: rowBorderBottom
+                              }}
+                            >
+                              {item.label}
+                            </TableCell>
+                            {columns.map((c) => (
+                              <TableCell
+                                key={c.key}
+                                align="center"
+                                sx={{ borderBottom: rowBorderBottom, ...(c.groupEnd ? { borderRight: '1px solid #f0f0f0' } : {}) }}
+                              >
+                                {c.type === 'remarks' ? null : (
+                                  <Box sx={{ p: 1, ...(c.totalSx || { fontWeight: 700 }) }}>
+                                    {c.fixed ? Number(item.row[c.key] || 0).toFixed(2) : Number(item.row[c.key] || 0)}
+                                  </Box>
+                                )}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        );
+                      }
+
+                      /* ── Normal data row ── */
+                      const row = item.row;
+                      const blockNameVal = item.blockName;
 
                       return (
                         <TableRow key={row.id ?? index} hover sx={{ '&:nth-of-type(even)': { bgcolor: '#fafafa' } }}>
@@ -927,9 +1111,20 @@ function ZoneWorkAllocationReport() {
                               {blockNameVal}
                             </TableCell>
                           )}
-                          <TableCell sx={{ fontWeight: 600, borderRight: '1px solid #f0f0f0', borderBottom: rowBorderBottom, color: '#1976d2' }}>
-                            {row.name || 'N/A'}
-                          </TableCell>
+                          {item.zoneStart && (
+                            <TableCell
+                              rowSpan={item.zoneSpan}
+                              sx={{
+                                fontWeight: 600,
+                                borderRight: '1px solid #f0f0f0',
+                                borderBottom: item.zoneMerged ? '1px solid #c5cdd6' : rowBorderBottom,
+                                color: '#1976d2',
+                                ...(item.zoneMerged ? { verticalAlign: 'middle', textAlign: 'center', bgcolor: '#fbfcff' } : {})
+                              }}
+                            >
+                              {row.name || 'N/A'}
+                            </TableCell>
+                          )}
                           <TableCell sx={{ fontWeight: 500, borderRight: '1px solid #f0f0f0', borderBottom: rowBorderBottom }}>
                             {row.panchayathName || 'N/A'}
                           </TableCell>
