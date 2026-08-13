@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import {
   Grid,
   Typography,
@@ -99,25 +100,22 @@ function Form1Status() {
         const token = localStorage.getItem('token');
         const agriYear = authservice.agriyear();
 
-        const response = await fetch(
-          `${BASE_URL}/user-access/zones/fetch-zone-cluster-edit-requests?agriYear=${agriYear}&page=${page}&size=${rowsPerPage}`,
+        const response = await axios.get(
+          `${BASE_URL}/user-access/zones/fetch-zone-cluster-edit-requests`,
           {
+            params: { agriYear, page, size: rowsPerPage },
             headers: {
               Authorization: `Bearer ${token}`
             }
           }
         );
 
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(result?.message || 'Failed to fetch Form 1 edit requests');
-        }
+        const result = response.data;
 
         setRequests(result.content || []);
         setTotalElements(result.totalElements || 0);
       } catch (err) {
-        setError(err.message || 'Unexpected error occurred.');
+        setError(err?.response?.data?.message || err.message || 'Failed to fetch Form 1 edit requests');
         setRequests([]);
         setTotalElements(0);
       } finally {
@@ -312,21 +310,18 @@ function Form1Status() {
         approvedBy: approverId
       };
 
-      const response = await fetch(`${BASE_URL}/earas-form1-entry/form1/edit-log-save`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
+      const response = await axios.post(
+        `${BASE_URL}/earas-form1-entry/form1/edit-log-save`,
+        requestBody,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      const result = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(result?.message || `Failed to ${isApprove ? 'approve' : 'reject'} the edit request`);
-      }
-
+      const result = response.data || {};
       const payload = result?.payload || {};
       const savedAt = new Date().toISOString();
 
@@ -354,7 +349,8 @@ function Form1Status() {
     } catch (err) {
       setSnackbar({
         open: true,
-        message: err.message || `Failed to ${isApprove ? 'approve' : 'reject'} the edit request`,
+        message:
+          err?.response?.data?.message || err.message || `Failed to ${isApprove ? 'approve' : 'reject'} the edit request`,
         severity: 'error'
       });
     } finally {
