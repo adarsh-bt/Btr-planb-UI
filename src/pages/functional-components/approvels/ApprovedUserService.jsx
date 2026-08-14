@@ -369,7 +369,7 @@ class ApprovedUserService {
   static async fetchTourApprovedUsers(params) {
     try {
       const token = localStorage.getItem("token");
-
+      console.log("param  ", params)
       const response = await axios.get(
         `${ApprovedUserService.USER_URL}/user-access/user-state/tour/approved-users`,
         {
@@ -379,7 +379,7 @@ class ApprovedUserService {
           params
         }
       );
-
+      console.log("resposne   ", response.data)
       return response.data;
     } catch (err) {
       return {

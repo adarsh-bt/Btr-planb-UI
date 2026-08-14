@@ -161,16 +161,15 @@ const AdminTourDiary = () => {
     setLoading(true);
 
     try {
-      const params = {
-        page,
-        size,
-        level: level === "ALL" ? null : level,
-        districtId: district || null,
-        talukId: taluk || null,
-        search: search || null,
-        month: month,
-        year: year.toString()
-      };
+      const params = {};
+      if (page !== undefined && page !== null) params.page = page;
+      if (size !== undefined && size !== null) params.size = size;
+      if (level && level !== "ALL") params.level = level;
+      if (district) params.districtId = district;
+      if (taluk) params.talukId = taluk;
+      if (search && search.trim() !== "") params.search = search.trim();
+      if (month) params.month = month;
+      if (year) params.year = year.toString();
 
       console.log("Fetching tour users with params:", params);
 
@@ -178,12 +177,22 @@ const AdminTourDiary = () => {
 
       if (!res.error && res.payload) {
         console.log("Fetched Tour Users:", res.payload);
-        setUsers(res.payload.content);
-        setTotalRows(res.payload.totalElements);
-        setLoggedDistrictId(res.payload.distId || null);
-        setLoggedTalukId(res.payload.talukId || null);
+
+        const payload = res.payload;
+        const contentData = Array.isArray(payload)
+          ? payload
+          : (payload.content || payload.data || payload.users || []);
+
+        const totalElements = Array.isArray(payload)
+          ? payload.length
+          : (payload.totalElements ?? payload.totalCount ?? payload.total ?? payload.total_elements ?? contentData.length);
+
+        setUsers(contentData);
+        setTotalRows(totalElements);
+        setLoggedDistrictId(payload.distId || null);
+        setLoggedTalukId(payload.talukId || null);
       } else {
-        console.error("Error fetching users:", res.message);
+        console.error("Error fetching users:", res?.message);
         setUsers([]);
         setTotalRows(0);
       }
@@ -203,7 +212,7 @@ const AdminTourDiary = () => {
 
   useEffect(() => {
     setPage(0);
-  }, [search, month, year]); // Reset page when month or year changes too
+  }, [level, district, taluk, search, month, year]); // Reset page when any filter changes
 
   // Auto-set level when district or taluk changes
   useEffect(() => {
@@ -439,8 +448,14 @@ const AdminTourDiary = () => {
             pagination
             paginationServer
             paginationTotalRows={totalRows}
+            paginationDefaultPage={page + 1}
+            paginationPerPage={size}
+            paginationRowsPerPageOptions={[10, 15, 20, 25, 30, 50]}
             onChangePage={(pg) => setPage(pg - 1)}
-            onChangeRowsPerPage={(perPage) => setSize(perPage)}
+            onChangeRowsPerPage={(perPage) => {
+              setSize(perPage);
+              setPage(0);
+            }}
             customStyles={{
               headCells: {
                 style: {

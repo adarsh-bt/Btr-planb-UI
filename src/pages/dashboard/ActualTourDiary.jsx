@@ -684,12 +684,15 @@ const UserTourDiaryDetail = () => {
       }
       // Default (Field Data Collector and others) -> assigned zones
       const zonesRes = await tourDiaryService.getAssignedZones(selectedUserId);
-      if (zonesRes && !zonesRes.error && Array.isArray(zonesRes)) {
-        setZones(zonesRes);
-        setRoleBasedZones(zonesRes);
-      } else if (zonesRes && zonesRes.data && Array.isArray(zonesRes.data)) {
-        setZones(zonesRes.data);
-        setRoleBasedZones(zonesRes.data);
+      const rawZones = Array.isArray(zonesRes) ? zonesRes : (zonesRes && zonesRes.data && Array.isArray(zonesRes.data) ? zonesRes.data : []);
+      if (rawZones.length > 0) {
+        const mapped = rawZones.map(z => ({
+          ...z,
+          zoneId: z.zoneId || z.id,
+          zoneName: z.zoneNameEn || z.zoneName || z.desZoneNameEn || z.desZoneName || z.name || (z.zoneId ? `Zone ${z.zoneId}` : '—')
+        }));
+        setZones(mapped);
+        setRoleBasedZones(mapped);
       } else {
         setZones([]);
         setRoleBasedZones([]);
@@ -710,8 +713,9 @@ const UserTourDiaryDetail = () => {
       const response = await tourDiaryService.getZoneDropdown();
       if (response && Array.isArray(response) && response.length > 0) {
         const mappedZones = response.map(zone => ({
-          zoneId: zone.zoneId,
-          zoneName: zone.zoneNameEn || zone.zoneName,
+          ...zone,
+          zoneId: zone.zoneId || zone.id,
+          zoneName: zone.zoneNameEn || zone.zoneName || zone.desZoneNameEn || zone.desZoneName || zone.name || (zone.zoneId ? `Zone ${zone.zoneId}` : '—'),
           zoneType: zone.zoneType
         }));
         setZones(mappedZones);
@@ -767,8 +771,9 @@ const UserTourDiaryDetail = () => {
       const response = await tourDiaryService.getZonesByTaluk(talukId);
       if (response && Array.isArray(response) && response.length > 0) {
         const mappedZones = response.map(zone => ({
-          zoneId: zone.zoneId,
-          zoneName: zone.zoneNameEn || zone.zoneName,
+          ...zone,
+          zoneId: zone.zoneId || zone.id,
+          zoneName: zone.zoneNameEn || zone.zoneName || zone.desZoneNameEn || zone.desZoneName || zone.name || (zone.zoneId ? `Zone ${zone.zoneId}` : '—'),
           zoneType: zone.zoneType
         }));
         setZones(mappedZones);
@@ -817,6 +822,26 @@ const UserTourDiaryDetail = () => {
       console.error("Error fetching month status:", error);
       setFullMonthStatus(null);
     }
+  };
+
+  const getZoneName = (zoneId, entry = null) => {
+    if (entry) {
+      const directName = entry.zoneNameEn || entry.desZoneNameEn || entry.desZoneName || (entry.zoneName && !entry.zoneName.startsWith('Zone ') ? entry.zoneName : null) || entry.zone;
+      if (directName) return directName;
+    }
+
+    if (!zoneId) return '—';
+
+    if (zones && zones.length > 0) {
+      const foundZone = zones.find(z => Number(z.zoneId || z.id) === Number(zoneId));
+      if (foundZone) {
+        const zName = foundZone.zoneName || foundZone.zoneNameEn || foundZone.desZoneNameEn || foundZone.desZoneName || foundZone.name;
+        if (zName && !zName.startsWith('Zone ')) return zName;
+        if (zName) return zName;
+      }
+    }
+
+    return `Zone ${zoneId}`;
   };
 
   useEffect(() => {
@@ -1439,7 +1464,7 @@ const UserTourDiaryDetail = () => {
               </TableCell>
               {/* Zone */}
               <TableCell sx={{ py: 0.75, px: 1, borderBottom: cellBorderBottom }}>
-                <Typography variant="caption">{event.zoneName || (event.zoneId ? `Zone ${event.zoneId}` : '—')}</Typography>
+                <Typography variant="caption">{getZoneName(event.zoneId, event)}</Typography>
               </TableCell>
               {/* Purpose */}
               <TableCell sx={{ py: 0.75, px: 1, borderBottom: cellBorderBottom }}>
@@ -2100,7 +2125,7 @@ const UserTourDiaryDetail = () => {
                         </Grid>
                         <Grid item xs={12} sm={4}>
                           <Typography variant="caption" color="text.secondary" display="block">Zone</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.zoneName || (item.zoneId ? `Zone ${item.zoneId}` : '—')}</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>{getZoneName(item.zoneId, item)}</Typography>
                         </Grid>
                         {item.status && (
                           <Grid item xs={12} sm={4}>
@@ -2547,7 +2572,7 @@ const UserTourDiaryDetail = () => {
                         </Grid>
                         <Grid item xs={12} sm={4}>
                           <Typography variant="caption" color="text.secondary" display="block">Zone</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.zoneName || (item.zoneId ? `Zone ${item.zoneId}` : '—')}</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>{getZoneName(item.zoneId, item)}</Typography>
                         </Grid>
                         {item.status && (
                           <Grid item xs={12} sm={4}>
@@ -2982,7 +3007,7 @@ const UserTourDiaryDetail = () => {
             {availableZones.map((zone) => (
               <React.Fragment key={zone.zoneId}>
                 <ListItem button onClick={() => { }} sx={{ borderRadius: 1, mb: 1, '&:hover': { backgroundColor: theme.palette.action.hover } }}>
-                  <ListItemText primary={zone.zoneName || `Zone ${zone.zoneId}`} secondary={`Zone ID: ${zone.zoneId}`} />
+                  <ListItemText primary={getZoneName(zone.zoneId, zone)} secondary={`Zone ID: ${zone.zoneId}`} />
                 </ListItem>
                 <Divider />
               </React.Fragment>

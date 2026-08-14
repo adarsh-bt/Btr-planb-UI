@@ -318,6 +318,52 @@ const UserTourDiaryDetail = () => {
     }
   };
 
+  const [userZones, setUserZones] = useState([]);
+
+  const fetchUserZones = async () => {
+    if (!userId) return;
+    try {
+      let response = await tourDiaryService.getAssignedZones(userId);
+      if (!response || response.error || !Array.isArray(response) || response.length === 0) {
+        response = await tourDiaryService.getZoneDropdown();
+      }
+      if (response && Array.isArray(response) && response.length > 0) {
+        const mapped = response.map(z => ({
+          zoneId: z.zoneId || z.id,
+          zoneName: z.zoneNameEn || z.zoneName || z.desZoneNameEn || z.desZoneName || z.name || (z.zoneId ? `Zone ${z.zoneId}` : '—')
+        }));
+        setUserZones(mapped);
+      }
+    } catch (e) {
+      console.error("Error fetching user zones:", e);
+    }
+  };
+
+  const getZoneName = (zoneId, entry = null) => {
+    if (entry) {
+      const directName = entry.zoneNameEn || entry.desZoneNameEn || entry.desZoneName || (entry.zoneName && !entry.zoneName.startsWith('Zone ') ? entry.zoneName : null) || entry.zone;
+      if (directName) return directName;
+    }
+
+    if (!zoneId) return '—';
+
+    const foundZone = userZones.find(z => Number(z.zoneId) === Number(zoneId));
+    if (foundZone) {
+      const zName = foundZone.zoneName || foundZone.zoneNameEn || foundZone.desZoneNameEn || foundZone.desZoneName || foundZone.name;
+      if (zName) return zName;
+    }
+
+    if (!entry && tourEntries && tourEntries.length > 0) {
+      const matchedEntry = tourEntries.find(e => Number(e.zoneId) === Number(zoneId));
+      if (matchedEntry) {
+        const directName = matchedEntry.zoneNameEn || matchedEntry.desZoneNameEn || matchedEntry.desZoneName || (matchedEntry.zoneName && !matchedEntry.zoneName.startsWith('Zone ') ? matchedEntry.zoneName : null) || matchedEntry.zone;
+        if (directName) return directName;
+      }
+    }
+
+    return `Zone ${zoneId}`;
+  };
+
   const fetchUserProfile = async () => {
     if (!userId) return;
     try {
@@ -361,6 +407,7 @@ const UserTourDiaryDetail = () => {
   useEffect(() => {
     if (userId) {
       fetchUserTourEntries();
+      fetchUserZones();
       fetchUserProfile();
       fetchAdvanceEntries();
       fetchFullMonthStatus();
@@ -610,7 +657,7 @@ const UserTourDiaryDetail = () => {
           is2ndSat,
           formattedDateWithDay,
           purposeName: entry.purposeName || getPurposeName(entry.purposeId),
-          zoneName: entry.zoneName || (entry.zoneId ? `Zone ${entry.zoneId}` : '—'),
+          zoneName: getZoneName(entry.zoneId, entry),
           remark: entry.remark || '—',
           entryType: entry.entryType || 'WORKING'
         });
@@ -692,8 +739,8 @@ const UserTourDiaryDetail = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {paginatedEntries.length > 0 ? (
-                  paginatedEntries.map((entry, index) => {
+                {filteredEntries.length > 0 ? (
+                  filteredEntries.map((entry, index) => {
                     let rowBgColor = 'inherit';
                     if (entry.isSun) {
                       rowBgColor = theme.palette.mode === 'dark' ? '#4a2a2a' : '#ffe6e6';
@@ -801,24 +848,6 @@ const UserTourDiaryDetail = () => {
               </TableBody>
             </Table>
           </TableContainer>
-
-          {filteredEntries.length > 0 && (
-            <TablePagination
-              component="div"
-              count={filteredEntries.length}
-              page={tablePage}
-              onPageChange={handleTableChangePage}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={handleTableChangeRowsPerPage}
-              rowsPerPageOptions={[5, 10, 25, 50]}
-              labelRowsPerPage="Rows per page:"
-              labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count}`}
-              sx={{
-                borderTop: `1px solid ${theme.palette.divider}`,
-                '& .MuiTablePagination-select': { borderRadius: 1 }
-              }}
-            />
-          )}
         </MainCard>
       </Box>
     );
@@ -1331,7 +1360,7 @@ const UserTourDiaryDetail = () => {
                       }
                       secondary={
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                          {event.zoneName || `Zone ${event.zoneId}`} {event.distance ? `• ${event.distance} km` : ''} {event.remark ? `• ${event.remark}` : ''}
+                          {getZoneName(event.zoneId, event)} {event.distance ? `• ${event.distance} km` : ''} {event.remark ? `• ${event.remark}` : ''}
                         </Typography>
                       }
                     />
@@ -1370,10 +1399,10 @@ const UserTourDiaryDetail = () => {
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>{selectedEntry.purposeName}</Typography>
                 </Grid>
               )}
-              {selectedEntry.zoneName && (
+              {(selectedEntry.zoneName || selectedEntry.zoneId) && (
                 <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary">Zone</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>{selectedEntry.zoneName}</Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>{getZoneName(selectedEntry.zoneId, selectedEntry)}</Typography>
                 </Grid>
               )}
               {(selectedEntry.clusterNo || selectedEntry.clusterNumber || selectedEntry.clusterName || selectedEntry.clusterId) && (

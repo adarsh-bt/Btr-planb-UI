@@ -19,8 +19,8 @@ import {
     DialogActions,
     Divider,
     Backdrop,
-    Fade  
-    
+    Fade
+
 } from '@mui/material';
 import EmailIcon from "@mui/icons-material/Email";
 import LockIcon from "@mui/icons-material/Lock";
@@ -31,7 +31,7 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import Register from './Register';
-import des_logo from "../images/des.png"; 
+import des_logo from "../images/des.png";
 import deslogo from "../images/des2.png"; // Import the CDTI logo image
 import logo from "../images/gok_logo1.png"; // Import the logo image
 import loginimg from "../images/login.png"; // Import the login image
@@ -49,7 +49,7 @@ import InaugurationLandingPage from './InaugurationLandingPage';
 import TheatricalCurtain from './TheatricalCurtain';
 import InaugurationShowcase from './InaugurationShowcase';
 // Import your Dialog component here
-import AgriYearSelectDialog from './AgriYearSelectDialog'; 
+import AgriYearSelectDialog from './AgriYearSelectDialog';
 
 const fadeIn = keyframes`
 0% { opacity: 0; transform: translateY(50px); }
@@ -59,7 +59,7 @@ const fadeIn = keyframes`
 const SignInSide = () => {
     const [isForgotPassword, setIsForgotPassword] = useState(false);
     const [isRegister, setIsRegister] = useState(false);
-    
+
     const handleForgotPasswordClick = () => {
         setIsForgotPassword(true);
     };
@@ -75,113 +75,113 @@ const SignInSide = () => {
 
     return (
         <>
-        <Grid className="main" container>
-            {isRegister}
-            <Grid
-                item
-                xs={12}
-                sm={12}
-                md={7}
-                lg={7}
-                sx={{
-                    backgroundImage: `url(${bg1})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                }}
-            >
-                <Stack
-                    spacing={3}
-                    alignItems="center"
-                    justifyContent="center"
-                    sx={{ textAlign: 'center', width: '100%', maxWidth: '80%' }}
+            <Grid className="main" container>
+                {isRegister}
+                <Grid
+                    item
+                    xs={12}
+                    sm={12}
+                    md={7}
+                    lg={7}
+                    sx={{
+                        backgroundImage: `url(${bg1})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                    }}
                 >
-                    <img
-                        className='logo_gov'
-                        src={logo}
-                        alt="Logo"
-                    />
-                    <Typography
-                        className='deparment'
-                        variant="h3"
-                        sx={{ color: '#fff', px: 4, textAlign: "center" }}
+                    <Stack
+                        spacing={3}
+                        alignItems="center"
+                        justifyContent="center"
+                        sx={{ textAlign: 'center', width: '100%', maxWidth: '80%' }}
                     >
-                        Department of Economics & Statistics
-                    </Typography>
-                    <Typography variant="h3" className='deparment'>
-                        Government of Kerala
-                    </Typography>
-                    <Typography
-                        variant="h3"
-                        className='deparment'
-                        sx={{
-                            color: "#fff",
-                            fontWeight: "bold",
-                            px: 4,
-                            textAlign: "center",
-                            animation: `${fadeIn} 1.5s ease-out`,
-                        }}
-                    >
-                        Application for Intelligent Data Engineering and Analytics (AIDEA)
-                    </Typography>
-                    <Stack spacing={1} sx={{ mt: 5 }}>
-                        <Stack
-                            direction="row"
-                            spacing={3}
-                            justifyContent="center"
-                            alignItems="center"
+                        <img
+                            className='logo_gov'
+                            src={logo}
+                            alt="Logo"
+                        />
+                        <Typography
+                            className='deparment'
+                            variant="h3"
+                            sx={{ color: '#fff', px: 4, textAlign: "center" }}
                         >
-                            <img className="header-logo des_logo" src={deslogo} alt="DES Logo" />
-                            <img className="header-logo duk_logo" src={duklogo} alt="DUK Logo" />
-                            <img className="header-logo cdti_logo" src={cdtilogo} alt="CDTI Logo" />
+                            Department of Economics & Statistics
+                        </Typography>
+                        <Typography variant="h3" className='deparment'>
+                            Government of Kerala
+                        </Typography>
+                        <Typography
+                            variant="h3"
+                            className='deparment'
+                            sx={{
+                                color: "#fff",
+                                fontWeight: "bold",
+                                px: 4,
+                                textAlign: "center",
+                                animation: `${fadeIn} 1.5s ease-out`,
+                            }}
+                        >
+                            Application for Intelligent Data Engineering and Analytics (AIDEA)
+                        </Typography>
+                        <Stack spacing={1} sx={{ mt: 5 }}>
+                            <Stack
+                                direction="row"
+                                spacing={3}
+                                justifyContent="center"
+                                alignItems="center"
+                            >
+                                <img className="header-logo des_logo" src={deslogo} alt="DES Logo" />
+                                <img className="header-logo duk_logo" src={duklogo} alt="DUK Logo" />
+                                <img className="header-logo cdti_logo" src={cdtilogo} alt="CDTI Logo" />
+                            </Stack>
+                            <Box className="copy_right" sx={{ color: 'text.disabled' }}>
+                                © 2026 AIDEA CDTI-DUK. All rights reserved.
+                            </Box>
                         </Stack>
-                        <Box className="copy_right" sx={{ color: 'text.disabled' }}>
-                            © 2026 AIDEA CDTI-DUK. All rights reserved.
-                        </Box>
                     </Stack>
-                </Stack>
-            </Grid>
-            <Grid
-                item
-                xs={12}
-                sm={12}
-                md={5}
-                component={Paper}
-                elevation={6}
-                square
-                sx={{
-                    backgroundColor: "rgb(250, 251, 252)",
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    p: 4,
-                    borderRadius: '0px 20px 20px 0px',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
-                }}
-            >
-                <Avatar
-                    alt="User Login"
-                    src={loginimg}
-                    sx={{ width: 50, height: 50, marginBottom: '.5rem' }}
-                />
-                <Typography component="h1" variant="h5" sx={{ fontWeight: 'bold', color: '#333', mb: 3 }}>
-                    {isForgotPassword ? '' : isRegister ? 'Registration' : 'Sign In'}
-                </Typography>
-                {isForgotPassword ? (
-                    <ForgotPassword onBack={handleBackToSignIn} />
-                ) : isRegister ? (
-                    <Register onBack={handleBackToSignIn} />
-                ) : (
-                    <SignInForm
-                        onForgotPasswordClick={handleForgotPasswordClick}
-                        onRegisterClick={handleRegisterClick}
+                </Grid>
+                <Grid
+                    item
+                    xs={12}
+                    sm={12}
+                    md={5}
+                    component={Paper}
+                    elevation={6}
+                    square
+                    sx={{
+                        backgroundColor: "rgb(250, 251, 252)",
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        p: 4,
+                        borderRadius: '0px 20px 20px 0px',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                    }}
+                >
+                    <Avatar
+                        alt="User Login"
+                        src={loginimg}
+                        sx={{ width: 50, height: 50, marginBottom: '.5rem' }}
                     />
-                )}
+                    <Typography component="h1" variant="h5" sx={{ fontWeight: 'bold', color: '#333', mb: 3 }}>
+                        {isForgotPassword ? '' : isRegister ? 'Registration' : 'Sign In'}
+                    </Typography>
+                    {isForgotPassword ? (
+                        <ForgotPassword onBack={handleBackToSignIn} />
+                    ) : isRegister ? (
+                        <Register onBack={handleBackToSignIn} />
+                    ) : (
+                        <SignInForm
+                            onForgotPasswordClick={handleForgotPasswordClick}
+                            onRegisterClick={handleRegisterClick}
+                        />
+                    )}
+                </Grid>
             </Grid>
-        </Grid>
         </>
     );
 };
@@ -197,7 +197,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
 
     const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
     const [loginAttemptData, setLoginAttemptData] = useState(null);
-    
+
     // State to trigger the Agricultural Year Dialog
     const [openYearDialog, setOpenYearDialog] = useState(false);
 
@@ -240,7 +240,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                 if (userData.payload && typeof userData.payload.token === 'string') {
                     const { token } = userData.payload;
                     localStorage.setItem('token', token);
-                   
+
                     if (rememberMe) {
                         localStorage.setItem('rememberedUsername', username);
                         localStorage.setItem('rememberedPassword', password);
@@ -266,7 +266,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
 
                         const permissionsData = await permissionsResponse.json();
                         setIsLoading(false);
-                        
+
                         // Force Login Success -> Show Agricultural Year Dialog instead of immediate redirect
                         setOpenYearDialog(true);
                     } catch (permissionsError) {
@@ -305,7 +305,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
             let userData = await authservice.login(userLogin);
             console.log("Login response:", userData);
             setIsLoading(false);
-            
+
             if (userData.message === "User already logged in elsewhere") {
                 setLoginAttemptData(userLogin);
                 setOpenConfirmDialog(true);
@@ -325,9 +325,9 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     localStorage.removeItem('rememberedPassword');
                     localStorage.removeItem('rememberMe');
                 }
-                
+
                 console.log("Login successful, token stored. Fetching permissions...");
-                
+
                 try {
                     const permissionsResponse = await fetch(
                         `${mainapi.USER_API}/user-access/user-state/user-permissions`,
@@ -340,7 +340,7 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
                     );
 
                     const permissionsData = await permissionsResponse.json();
-                    
+
                     // Normal Login Success -> Show Agricultural Year Dialog instead of immediate redirect
                     setOpenYearDialog(true);
                 } catch (permError) {
@@ -536,9 +536,9 @@ const SignInForm = ({ onForgotPasswordClick, onRegisterClick }) => {
             </Dialog>
 
             {/* Intercepting Agricultural Year Dialog */}
-            <AgriYearSelectDialog 
-                open={openYearDialog} 
-                onConfirm={handleYearSelectedProceed} 
+            <AgriYearSelectDialog
+                open={openYearDialog}
+                onConfirm={handleYearSelectedProceed}
             />
         </Box>
     );

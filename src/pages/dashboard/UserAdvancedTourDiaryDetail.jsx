@@ -1643,8 +1643,8 @@ const UserAdvancedTourDiaryDetail = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {paginatedEntries.length > 0 ? (
-                  paginatedEntries.map((entry, index) => {
+                {filteredEntries.length > 0 ? (
+                  filteredEntries.map((entry, index) => {
                     let rowBgColor = 'inherit';
                     if (entry.isSun) {
                       rowBgColor = theme.palette.mode === 'dark' ? '#4a2a2a' : '#ffe6e6';
@@ -1784,24 +1784,6 @@ const UserAdvancedTourDiaryDetail = () => {
               </TableBody>
             </Table>
           </TableContainer>
-
-          {filteredEntries.length > 0 && (
-            <TablePagination
-              component="div"
-              count={filteredEntries.length}
-              page={tablePage}
-              onPageChange={handleTableChangePage}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={handleTableChangeRowsPerPage}
-              rowsPerPageOptions={[5, 10, 25, 50]}
-              labelRowsPerPage="Rows per page:"
-              labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count}`}
-              sx={{
-                borderTop: `1px solid ${theme.palette.divider}`,
-                '& .MuiTablePagination-select': { borderRadius: 1 }
-              }}
-            />
-          )}
         </MainCard>
       </Box>
     );

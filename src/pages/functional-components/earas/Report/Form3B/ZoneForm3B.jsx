@@ -303,39 +303,9 @@ const ZoneForm3B = () => {
   );
 
   const handleBack = () => {
-<<<<<<< HEAD
-    let effectiveOfficeType = stateData.officeType || officeInfo.officeType;
-    if (!effectiveOfficeType) {
-      try {
-        const tokenRole = AuthService.getrole();
-        const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
-        const des = localStorage.getItem('des') || '';
-        if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
-          effectiveOfficeType = 'TALUK';
-        } else if (roles.some(r => ['District Level Approver', 'District Level Data Viewer'].includes(r)) || des.includes('District')) {
-          effectiveOfficeType = 'DISTRICT';
-        }
-      } catch (e) {}
-    }
-
-    if (effectiveOfficeType === 'TALUK' || stateData.isDirectAccess) {
-      navigate('/Report');
-    } else {
-      navigate('/schemes/earas/Report/Form3B/TalukForm3B', {
-        state: {
-          officeType: effectiveOfficeType,
-          districtId,
-          districtName,
-          selectedDistrict: districtName,
-          activeTab
-        }
-      });
-    }
-=======
     navigate('/schemes/earas/Report/Form3B/TalukForm3B', {
       state: { districtId, districtName, selectedDistrict: districtName, landType: landTypeTab, activeTab }
     });
->>>>>>> e38c0a404e1d8e51105cd47ee5c1d9eb8433072a
   };
 
   const stickyCellSx = (leftPx, bg, extra = {}) => ({
@@ -356,7 +326,7 @@ const ZoneForm3B = () => {
       elevation={0}
       sx={{ borderRadius: 4, overflow: 'visible', background: theme.palette.background.paper, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}
     >
-      <Breadcrumb/>
+      <Breadcrumb />
       <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
         <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
           <IconButton onClick={handleBack} size="small" sx={{ color: themeColor }}>

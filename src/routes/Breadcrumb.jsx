@@ -50,9 +50,30 @@ const StyledBreadcrumb = styled(Chip)(({ theme, isLast }) => {
 
 const formatLabel = (string) => {
   if (!string) return '';
+
+  const customLabels = {
+    'advancedtourdiary': 'Advanced Tour Diary',
+    'tourdiary': 'Tour Diary',
+    'approvals': 'Approvals',
+    'user-submissions': 'User Submissions',
+    'user-details': 'User Details',
+    'actual_tour_diary': 'Actual Tour Diary',
+    'work_allocation_approvals': 'Work Allocation Approvals',
+    'cluster_approvals': 'Cluster Approvals',
+    'form1_status_approvals': 'Form1 Status Approvals',
+  };
+
+  const lower = string.toLowerCase();
+  if (customLabels[lower]) {
+    return customLabels[lower];
+  }
+
   return string
     .replace(/_/g, ' ')
+    .replace(/-/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
     .split(' ')
+    .filter(Boolean)
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 };
@@ -672,8 +693,12 @@ const Breadcrumb = () => {
 
       accumulatedPath += `/${segment}`;
       const isLast = index === pathnames.length - 1;
+
+      const isNumericSuffix = segment.includes('-') && segment.split('-').pop().match(/^\d+$/);
+      const rawLabel = isNumericSuffix ? segment.split('-')[0] : segment;
+
       items.push({
-        label: formatLabel(segment.split('-')[0]),
+        label: formatLabel(rawLabel),
         path: isLast ? null : accumulatedPath,
       });
     });

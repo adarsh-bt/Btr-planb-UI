@@ -51,17 +51,17 @@ const UserAdvancedTourDiarySubmissions = () => {
     const fetchSubmissions = async () => {
       setLoading(true);
       setError("");
-      
+
       try {
         // Fetch user role
-          const roleResponse = await tourDiaryService.getUserRole(userId);
+        const roleResponse = await tourDiaryService.getUserRole(userId);
 
-          if (
-            !roleResponse.error &&
-            roleResponse.data?.payload?.roles?.length > 0
-          ) {
-            setRoleName(roleResponse.data.payload.roles[0].roleName);
-          }
+        if (
+          !roleResponse.error &&
+          roleResponse.data?.payload?.roles?.length > 0
+        ) {
+          setRoleName(roleResponse.data.payload.roles[0].roleName);
+        }
         // Fetch data for both calendar years spanning the agricultural year
         const [startYearResponse, endYearResponse] = await Promise.all([
           tourDiaryService.getAdminSubmissionView(userId, startYear),
@@ -119,12 +119,12 @@ const UserAdvancedTourDiarySubmissions = () => {
   };
 
   const handleViewDetailedDiary = (month, targetYear) => {
-    navigate("/approval_manage/advancedtourdiary/user-details", { 
-      state: { 
+    navigate("/approval_manage/advancedtourdiary/user-details", {
+      state: {
         userId: userId,
         month: month,
         year: targetYear
-      } 
+      }
     });
   };
 
@@ -139,8 +139,8 @@ const UserAdvancedTourDiarySubmissions = () => {
             <Alert severity="error" sx={{ mb: 2 }}>
               No user selected. Please go back and select a user.
             </Alert>
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               startIcon={<ArrowBackIcon />}
               onClick={handleBack}
             >
@@ -157,30 +157,30 @@ const UserAdvancedTourDiarySubmissions = () => {
     "July", "August", "September", "October", "November", "December"
   ];
 
-// In UserAdvancedTourDiarySubmissions.jsx
-const getStatusChip = (submitted, submitId) => {
-  // Consider it submitted if either flag is true or submitId exists
+  // In UserAdvancedTourDiarySubmissions.jsx
+  const getStatusChip = (submitted, submitId) => {
+    // Consider it submitted if either flag is true or submitId exists
 
-  const isSubmitted = submitted || submitId;
- 
-  return isSubmitted ? (
-    <Chip
-      icon={<CheckCircleIcon />}
-      label="Submitted"
-      color="success"
-      size="small"
-      sx={{ fontWeight: "bold", width: "100%" }}
-    />
-  ) : (
-    <Chip
-      icon={<CancelIcon />}
-      label="Not Submitted"
-      color="default"
-      size="small"
-      sx={{ fontWeight: "bold", width: "100%" }}
-    />
-  );
-};
+    const isSubmitted = submitted || submitId;
+
+    return isSubmitted ? (
+      <Chip
+        icon={<CheckCircleIcon />}
+        label="Submitted"
+        color="success"
+        size="small"
+        sx={{ fontWeight: "bold", width: "100%" }}
+      />
+    ) : (
+      <Chip
+        icon={<CancelIcon />}
+        label="Not Submitted"
+        color="default"
+        size="small"
+        sx={{ fontWeight: "bold", width: "100%" }}
+      />
+    );
+  };
 
   return (
     <Grid container spacing={3}>
@@ -198,11 +198,11 @@ const getStatusChip = (submitted, submitId) => {
             >
               Back
             </Button>
-            
+
             <Typography variant="h4" sx={{ color: "#04255e", fontWeight: "bold" }}>
               ATP Submissions ({agriYear})
             </Typography>
-            
+
             <Box sx={{ minWidth: 120 }}></Box>
           </Box>
 
@@ -222,9 +222,9 @@ const getStatusChip = (submitted, submitId) => {
             <Grid container spacing={2} sx={{ mt: 1 }}>
               {submissions.map((item) => (
                 <Grid item xs={12} sm={6} md={4} lg={3} key={`${item.year}-${item.month}`}>
-                  <Card 
-                    elevation={2} 
-                    sx={{ 
+                  <Card
+                    elevation={2}
+                    sx={{
                       height: "100%",
                       transition: "transform 0.2s, box-shadow 0.2s",
                       "&:hover": {
@@ -232,16 +232,16 @@ const getStatusChip = (submitted, submitId) => {
                         boxShadow: 4
                       },
                       position: "relative",
-                      border: item.firstHalfSubmitted && item.secondHalfSubmitted 
-                        ? "2px solid #4caf50" 
+                      border: item.firstHalfSubmitted && item.secondHalfSubmitted
+                        ? "2px solid #4caf50"
                         : "none"
                     }}
                   >
                     <CardContent>
-                      <Typography 
-                        variant="h6" 
-                        sx={{ 
-                          color: "#04255e", 
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          color: "#04255e",
                           fontWeight: "bold",
                           borderBottom: "2px solid #04255e",
                           pb: 1,
@@ -256,32 +256,32 @@ const getStatusChip = (submitted, submitId) => {
                           <CheckCircleIcon color="success" fontSize="small" />
                         )}
                       </Typography>
-                      
-                      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      {roleName === "Field Data Collector" ? (
-  <>
-    <Box>
-      <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
-        First Half (1st - 15th)
-      </Typography>
-      {getStatusChip(item.firstHalfSubmitted, item.firstHalfSubmitId)}
-    </Box>
 
-    <Box>
-      <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
-        Second Half (16th - End)
-      </Typography>
-      {getStatusChip(item.secondHalfSubmitted, item.secondHalfSubmitId)}
-    </Box>
-  </>
-) : (
-  <Box>
-    <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
-      Month Status
-    </Typography>
-    {getStatusChip(item.fullMonthSubmitted, item.fullMonthSubmitId)}
-  </Box>
-)}
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        {roleName === "Field Data Collector" ? (
+                          <>
+                            <Box>
+                              <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
+                                First Half (1st - 15th)
+                              </Typography>
+                              {getStatusChip(item.firstHalfSubmitted, item.firstHalfSubmitId)}
+                            </Box>
+
+                            <Box>
+                              <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
+                                Second Half (16th - End)
+                              </Typography>
+                              {getStatusChip(item.secondHalfSubmitted, item.secondHalfSubmitId)}
+                            </Box>
+                          </>
+                        ) : (
+                          <Box>
+                            <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
+                              Month Status
+                            </Typography>
+                            {getStatusChip(item.fullMonthSubmitted, item.fullMonthSubmitId)}
+                          </Box>
+                        )}
 
                         <Button
                           variant="outlined"

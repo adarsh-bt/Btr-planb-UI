@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import Avatar from '@mui/material/Avatar';
 import AvatarGroup from '@mui/material/AvatarGroup';
 import Button from '@mui/material/Button';
@@ -11,6 +11,10 @@ import ListItemText from '@mui/material/ListItemText';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
+import Paper from '@mui/material/Paper';
+import ProjectOverview from 'pages/Dashboard/ProjectOverview';
 
 // project import
 import MainCard from 'components/MainCard';
@@ -68,44 +72,51 @@ const { children } = tabmenus.items2[0];
 // ==============================|| DASHBOARD - DEFAULT ||============================== //
 
 export default function DashboardDefault() {
-  // const isauth = auth.isAdmin();
-
-  //for permissions line
-  // const { userAccessData, loading, hasPermission, hasPermissionByName } = useUserAccess();
-
-  // console.log('Dashboard Debug:');
-  // console.log('Loading:', loading);
-  // console.log('UserAccessData:', userAccessData);
-  // console.log('HasPermission function:', hasPermission);
-  // console.log('Permission 11 result:', hasPermission && hasPermission(11));
-
-  // if (loading) {
-  //   return <div>Loading permissions...</div>;
-  // }
-
-  // const { permissions, loading, error } = useContext(PermissionsContext);
-  // console.log("User Permissions:", permissions);
+  const [dashboardTab, setDashboardTab] = useState(0);
 
   return (
-    <Grid
-      container
-      rowSpacing={4.5}
-      justifyContent="center" // Ensures all cards are horizontally centered
-      alignItems="center" // Ensures proper vertical alignment
-    >
-      {/* Row 1 */}
-      <Grid item xs={12}>
-        <Typography variant="h4" align="center" sx={{ mb: 3 }}>
-          Dashboard
-          {/* Check by permission ID
+    <Box sx={{ width: '100%' }}>
+      {/* <Paper elevation={0} sx={{ borderBottom: 1, borderColor: 'divider', mb: 3, backgroundColor: 'transparent' }}>
+        <Tabs
+          value={dashboardTab}
+          onChange={(e, val) => setDashboardTab(val)}
+          textColor="primary"
+          indicatorColor="primary"
+          sx={{
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontWeight: 700,
+              fontSize: '1rem',
+              px: 3,
+              py: 1
+            }
+          }}
+        >
+          <Tab label="Main Dashboard" />
+          <Tab label="Progress Overview" />
+        </Tabs>
+      </Paper> */}
+
+      {dashboardTab === 0 ? (
+        <Grid
+          container
+          rowSpacing={4.5}
+          justifyContent="center" // Ensures all cards are horizontally centered
+          alignItems="center" // Ensures proper vertical alignment
+        >
+          {/* Row 1 */}
+          <Grid item xs={12}>
+            <Typography variant="h4" align="center" sx={{ mb: 3 }}>
+              Dashboard
+              {/* Check by permission ID
       {hasPermission(11) && (
         <button>Cluster Formation</button>
       )} */}
-        </Typography>
-      </Grid>
+            </Typography>
+          </Grid>
 
-      {/* Card Items */}
-      {/* {children.map((item) => (
+          {/* Card Items */}
+          {/* {children.map((item) => (
       <Grid item xs={12} sm={6} md={4} lg={4} >
       <Card
                       sx={{width:'50rem', maxWidth: 250,padding: '.5rem',margin: '0 auto',borderRadius: '2rem',transition: 'background 0.3s ease-in-out', // Smooth transition
@@ -131,465 +142,465 @@ export default function DashboardDefault() {
 
     ))} */}
 
-      <Grid container spacing={4} sx={{ marginBottom: '3rem' }}>
-        <Grid item xs={12} sm={4} md={4} lg={4}>
-          <Card
-            component={Link}
-            to="/schemes"
-            sx={{
-              textDecoration: 'none',
-              position: 'relative',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '2rem',
-              borderRadius: '1rem',
-              background: 'linear-gradient(135deg, rgba(255, 110, 97, 0.57), rgb(255, 128, 109))',
-              transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-              overflow: 'hidden', // Ensure circles don't overflow the card
-              '&:hover': {
-                transform: 'scale(1.05)',
-                boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
-              },
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                width: '200px',
-                height: '200px',
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.2)',
-                top: '-50px',
-                right: '-50px'
-              },
-              '&::after': {
-                content: '""',
-                position: 'absolute',
-                width: '150px',
-                height: '150px',
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.15)',
-                bottom: '-40px',
-                left: '-40px'
-              }
-            }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
-              -
-            </Typography>
-            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
-              Schemes
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                color: '#f3f3f3',
-                fontWeight: 'lighter',
-                marginTop: '0.5rem',
-                textAlign: 'center',
-                marginBottom: '1.2rem'
-              }}
-            >
-              Main menus
-            </Typography>
-            <Box
-              sx={{
-                position: 'absolute',
-                top: '1rem',
-                right: '1rem',
-                background: 'rgba(255, 255, 255, 0.3)',
-                padding: '0.5rem',
-                borderRadius: '50%',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center'
-              }}
-            >
-              <CardMedia
-                component="img"
+          <Grid container spacing={4} sx={{ marginBottom: '3rem' }}>
+            <Grid item xs={12} sm={4} md={4} lg={4}>
+              <Card
+                component={Link}
+                to="/schemes"
                 sx={{
-                  width: '3rem',
-                  height: '3rem',
-                  borderRadius: '50%'
-                }}
-                image={schemes} // <-- Use the imported image here
-                alt="Schemes Logo"
-              />
-            </Box>
-          </Card>
-        </Grid>
-
-        {["Field Data Collector",].includes(authservice.getrole()) && (
-          <Grid item xs={12} sm={4} md={4} lg={4}>
-            <Card
-              component={Link}
-              to="/tourdiary"
-              sx={{
-                textDecoration: 'none',
-                position: 'relative',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '2rem',
-                borderRadius: '1rem',
-                background: 'linear-gradient(135deg, rgba(99, 155, 255, 0.57), rgb(51, 125, 253))',
-                transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-                overflow: 'hidden',
-                '&:hover': {
-                  transform: 'scale(1.05)',
-                  boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
-                },
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  width: '200px',
-                  height: '200px',
-                  borderRadius: '50%',
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  top: '-50px',
-                  right: '-50px'
-                },
-                '&::after': {
-                  content: '""',
-                  position: 'absolute',
-                  width: '150px',
-                  height: '150px',
-                  borderRadius: '50%',
-                  background: 'rgba(255, 255, 255, 0.15)',
-                  bottom: '-40px',
-                  left: '-40px'
-                }
-              }}
-            >
-              <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
-                -
-              </Typography>
-              <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
-                Tour diary
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: '#f3f3f3',
-                  fontWeight: 'lighter',
-                  marginTop: '0.5rem',
-                  textAlign: 'center',
-                  marginBottom: '1.2rem'
-                }}
-              >
-                Tracking
-              </Typography>
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: '1rem',
-                  right: '1rem',
-                  background: 'rgba(255, 255, 255, 0.3)',
-                  padding: '0.5rem',
-                  borderRadius: '50%',
+                  textDecoration: 'none',
+                  position: 'relative',
                   display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
                   justifyContent: 'center',
-                  alignItems: 'center'
+                  padding: '2rem',
+                  borderRadius: '1rem',
+                  background: 'linear-gradient(135deg, rgba(255, 110, 97, 0.57), rgb(255, 128, 109))',
+                  transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+                  overflow: 'hidden', // Ensure circles don't overflow the card
+                  '&:hover': {
+                    transform: 'scale(1.05)',
+                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
+                  },
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    width: '200px',
+                    height: '200px',
+                    borderRadius: '50%',
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    top: '-50px',
+                    right: '-50px'
+                  },
+                  '&::after': {
+                    content: '""',
+                    position: 'absolute',
+                    width: '150px',
+                    height: '150px',
+                    borderRadius: '50%',
+                    background: 'rgba(255, 255, 255, 0.15)',
+                    bottom: '-40px',
+                    left: '-40px'
+                  }
                 }}
               >
-                <CardMedia
-                  component="img"
+                <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
+                  -
+                </Typography>
+                <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
+                  Schemes
+                </Typography>
+                <Typography
+                  variant="body2"
                   sx={{
-                    width: '3rem',
-                    height: '3rem',
-                    borderRadius: '50%'
+                    color: '#f3f3f3',
+                    fontWeight: 'lighter',
+                    marginTop: '0.5rem',
+                    textAlign: 'center',
+                    marginBottom: '1.2rem'
                   }}
-                  image={tourdiary} // <-- Use the imported image here
-                  alt="Cluster Logo"
-                />
-              </Box>
-            </Card>
-          </Grid>
-        )}
-
-        {["Super Admin", "District Level Approver", "IT Admin", "EARAS Admin", "Taluk Level Approver", "District Level Data Viewer"].includes(authservice.getrole()) && (
-          <Grid item xs={12} sm={4} md={4} lg={4}>
-            <Card
-              component={Link}
-              to="/Report"
-              sx={{
-                textDecoration: 'none',
-                position: 'relative',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '2rem',
-                borderRadius: '1rem',
-                background: 'linear-gradient(135deg, rgba(79, 208, 170, 0.57), rgb(37, 187, 142))',
-                transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-                overflow: 'hidden', // Ensure circles don't overflow the card
-                '&:hover': {
-                  transform: 'scale(1.05)',
-                  boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
-                },
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  width: '200px',
-                  height: '200px',
-                  borderRadius: '50%',
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  top: '-50px',
-                  right: '-50px'
-                },
-                '&::after': {
-                  content: '""',
-                  position: 'absolute',
-                  width: '150px',
-                  height: '150px',
-                  borderRadius: '50%',
-                  background: 'rgba(255, 255, 255, 0.15)',
-                  bottom: '-40px',
-                  left: '-40px'
-                }
-              }}
-            >
-              <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
-                -
-              </Typography>
-              <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
-                Reports
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: '#f3f3f3',
-                  fontWeight: 'lighter',
-                  marginTop: '0.5rem',
-                  textAlign: 'center',
-                  marginBottom: '1.2rem'
-                }}
-              >
-                List of Reports
-              </Typography>
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: '1rem',
-                  right: '1rem',
-                  background: 'rgba(255, 255, 255, 0.3)',
-                  padding: '0.5rem',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center'
-                }}
-              >
-                <CardMedia
-                  component="img"
+                >
+                  Main menus
+                </Typography>
+                <Box
                   sx={{
-                    width: '3rem',
-                    height: '3rem',
-                    borderRadius: '50%'
+                    position: 'absolute',
+                    top: '1rem',
+                    right: '1rem',
+                    background: 'rgba(255, 255, 255, 0.3)',
+                    padding: '0.5rem',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center'
                   }}
-                  image={reports} // <-- Use the imported image here
-                  alt="Chart Icon"
-                />
-              </Box>
-            </Card>
-          </Grid>
-        )}
+                >
+                  <CardMedia
+                    component="img"
+                    sx={{
+                      width: '3rem',
+                      height: '3rem',
+                      borderRadius: '50%'
+                    }}
+                    image={schemes} // <-- Use the imported image here
+                    alt="Schemes Logo"
+                  />
+                </Box>
+              </Card>
+            </Grid>
 
-        {["Super Admin", "District Level Approver", "IT Admin", "Taluk Level Approver", "Field Inspector"].includes(authservice.getrole()) && (
-          <Grid item xs={12} sm={4} md={4} lg={4}>
-            <Card
-              component={Link}
-              to="/approval_manage"
-              sx={{
-                textDecoration: 'none',
-                position: 'relative',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '2rem',
-                borderRadius: '1rem',
-                background: 'linear-gradient(135deg, rgba(255, 184, 97, 0.57), rgb(255, 189, 109))',
-                transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-                overflow: 'hidden', // Ensure circles don't overflow the card
-                '&:hover': {
-                  transform: 'scale(1.05)',
-                  boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
-                },
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  width: '200px',
-                  height: '200px',
-                  borderRadius: '50%',
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  top: '-50px',
-                  right: '-50px'
-                },
-                '&::after': {
-                  content: '""',
-                  position: 'absolute',
-                  width: '150px',
-                  height: '150px',
-                  borderRadius: '50%',
-                  background: 'rgba(255, 255, 255, 0.15)',
-                  bottom: '-40px',
-                  left: '-40px'
-                }
-              }}
-            >
-              <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
-                -
-              </Typography>
-              <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
-                Approvals
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: '#f3f3f3',
-                  fontWeight: 'lighter',
-                  marginTop: '0.5rem',
-                  textAlign: 'center',
-                  marginBottom: '1.2rem'
-                }}
-              >
-                Main menus
-              </Typography>
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: '1rem',
-                  right: '1rem',
-                  background: 'rgba(255, 255, 255, 0.3)',
-                  padding: '0.5rem',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center'
-                }}
-              >
-                <CardMedia
-                  component="img"
+            {["Field Data Collector",].includes(authservice.getrole()) && (
+              <Grid item xs={12} sm={4} md={4} lg={4}>
+                <Card
+                  component={Link}
+                  to="/tourdiary"
                   sx={{
-                    width: '3rem',
-                    height: '3rem',
-                    borderRadius: '50%'
+                    textDecoration: 'none',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '2rem',
+                    borderRadius: '1rem',
+                    background: 'linear-gradient(135deg, rgba(99, 155, 255, 0.57), rgb(51, 125, 253))',
+                    transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+                    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+                    overflow: 'hidden',
+                    '&:hover': {
+                      transform: 'scale(1.05)',
+                      boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
+                    },
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      width: '200px',
+                      height: '200px',
+                      borderRadius: '50%',
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      top: '-50px',
+                      right: '-50px'
+                    },
+                    '&::after': {
+                      content: '""',
+                      position: 'absolute',
+                      width: '150px',
+                      height: '150px',
+                      borderRadius: '50%',
+                      background: 'rgba(255, 255, 255, 0.15)',
+                      bottom: '-40px',
+                      left: '-40px'
+                    }
                   }}
-                  image={approvals} // <-- Use the imported image here
-                  alt="Approvals Logo"
-                />
-              </Box>
-            </Card>
-          </Grid>
-        )}
+                >
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
+                    -
+                  </Typography>
+                  <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
+                    Tour diary
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: '#f3f3f3',
+                      fontWeight: 'lighter',
+                      marginTop: '0.5rem',
+                      textAlign: 'center',
+                      marginBottom: '1.2rem'
+                    }}
+                  >
+                    Tracking
+                  </Typography>
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: '1rem',
+                      right: '1rem',
+                      background: 'rgba(255, 255, 255, 0.3)',
+                      padding: '0.5rem',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <CardMedia
+                      component="img"
+                      sx={{
+                        width: '3rem',
+                        height: '3rem',
+                        borderRadius: '50%'
+                      }}
+                      image={tourdiary} // <-- Use the imported image here
+                      alt="Cluster Logo"
+                    />
+                  </Box>
+                </Card>
+              </Grid>
+            )}
 
-        {["Super Admin", "District Level Approver", "IT Admin"].includes(authservice.getrole()) && (
-          <Grid item xs={12} sm={4} md={4} lg={4}>
-            <Card
-              component={Link}
-              to="/User_Manage"
-              sx={{
-                textDecoration: 'none',
-                position: 'relative',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '2rem',
-                borderRadius: '1rem',
-                background: 'linear-gradient(135deg, rgba(173, 97, 255, 0.57), rgb(175, 109, 255))',
-                transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-                overflow: 'hidden', // Ensure circles don't overflow the card
-                '&:hover': {
-                  transform: 'scale(1.05)',
-                  boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
-                },
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  width: '200px',
-                  height: '200px',
-                  borderRadius: '50%',
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  top: '-50px',
-                  right: '-50px'
-                },
-                '&::after': {
-                  content: '""',
-                  position: 'absolute',
-                  width: '150px',
-                  height: '150px',
-                  borderRadius: '50%',
-                  background: 'rgba(255, 255, 255, 0.15)',
-                  bottom: '-40px',
-                  left: '-40px'
-                }
-              }}
-            >
-              <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
-                -
-              </Typography>
-              <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
-                User Manage
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: '#f3f3f3',
-                  fontWeight: 'lighter',
-                  marginTop: '0.5rem',
-                  textAlign: 'center',
-                  marginBottom: '1.2rem'
-                }}
-              >
-                Main menus
-              </Typography>
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: '1rem',
-                  right: '1rem',
-                  background: 'rgba(255, 255, 255, 0.3)',
-                  padding: '0.5rem',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center'
-                }}
-              >
-                <CardMedia
-                  component="img"
+            {["Super Admin", "District Level Approver", "IT Admin", "EARAS Admin", "Taluk Level Approver", "District Level Data Viewer"].includes(authservice.getrole()) && (
+              <Grid item xs={12} sm={4} md={4} lg={4}>
+                <Card
+                  component={Link}
+                  to="/Report"
                   sx={{
-                    width: '3rem',
-                    height: '3rem',
-                    borderRadius: '50%'
+                    textDecoration: 'none',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '2rem',
+                    borderRadius: '1rem',
+                    background: 'linear-gradient(135deg, rgba(79, 208, 170, 0.57), rgb(37, 187, 142))',
+                    transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+                    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+                    overflow: 'hidden', // Ensure circles don't overflow the card
+                    '&:hover': {
+                      transform: 'scale(1.05)',
+                      boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
+                    },
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      width: '200px',
+                      height: '200px',
+                      borderRadius: '50%',
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      top: '-50px',
+                      right: '-50px'
+                    },
+                    '&::after': {
+                      content: '""',
+                      position: 'absolute',
+                      width: '150px',
+                      height: '150px',
+                      borderRadius: '50%',
+                      background: 'rgba(255, 255, 255, 0.15)',
+                      bottom: '-40px',
+                      left: '-40px'
+                    }
                   }}
-                  image={usermanage} // <-- Use the imported image here
-                  alt="User Manage Logo"
-                />
-              </Box>
-            </Card>
+                >
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
+                    -
+                  </Typography>
+                  <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
+                    Reports
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: '#f3f3f3',
+                      fontWeight: 'lighter',
+                      marginTop: '0.5rem',
+                      textAlign: 'center',
+                      marginBottom: '1.2rem'
+                    }}
+                  >
+                    List of Reports
+                  </Typography>
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: '1rem',
+                      right: '1rem',
+                      background: 'rgba(255, 255, 255, 0.3)',
+                      padding: '0.5rem',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <CardMedia
+                      component="img"
+                      sx={{
+                        width: '3rem',
+                        height: '3rem',
+                        borderRadius: '50%'
+                      }}
+                      image={reports} // <-- Use the imported image here
+                      alt="Chart Icon"
+                    />
+                  </Box>
+                </Card>
+              </Grid>
+            )}
+
+            {["Super Admin", "District Level Approver", "IT Admin", "Taluk Level Approver", "Field Inspector"].includes(authservice.getrole()) && (
+              <Grid item xs={12} sm={4} md={4} lg={4}>
+                <Card
+                  component={Link}
+                  to="/approval_manage"
+                  sx={{
+                    textDecoration: 'none',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '2rem',
+                    borderRadius: '1rem',
+                    background: 'linear-gradient(135deg, rgba(255, 184, 97, 0.57), rgb(255, 189, 109))',
+                    transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+                    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+                    overflow: 'hidden', // Ensure circles don't overflow the card
+                    '&:hover': {
+                      transform: 'scale(1.05)',
+                      boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
+                    },
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      width: '200px',
+                      height: '200px',
+                      borderRadius: '50%',
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      top: '-50px',
+                      right: '-50px'
+                    },
+                    '&::after': {
+                      content: '""',
+                      position: 'absolute',
+                      width: '150px',
+                      height: '150px',
+                      borderRadius: '50%',
+                      background: 'rgba(255, 255, 255, 0.15)',
+                      bottom: '-40px',
+                      left: '-40px'
+                    }
+                  }}
+                >
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
+                    -
+                  </Typography>
+                  <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
+                    Approvals
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: '#f3f3f3',
+                      fontWeight: 'lighter',
+                      marginTop: '0.5rem',
+                      textAlign: 'center',
+                      marginBottom: '1.2rem'
+                    }}
+                  >
+                    Main menus
+                  </Typography>
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: '1rem',
+                      right: '1rem',
+                      background: 'rgba(255, 255, 255, 0.3)',
+                      padding: '0.5rem',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <CardMedia
+                      component="img"
+                      sx={{
+                        width: '3rem',
+                        height: '3rem',
+                        borderRadius: '50%'
+                      }}
+                      image={approvals} // <-- Use the imported image here
+                      alt="Approvals Logo"
+                    />
+                  </Box>
+                </Card>
+              </Grid>
+            )}
+
+            {["Super Admin", "District Level Approver", "IT Admin"].includes(authservice.getrole()) && (
+              <Grid item xs={12} sm={4} md={4} lg={4}>
+                <Card
+                  component={Link}
+                  to="/User_Manage"
+                  sx={{
+                    textDecoration: 'none',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '2rem',
+                    borderRadius: '1rem',
+                    background: 'linear-gradient(135deg, rgba(173, 97, 255, 0.57), rgb(175, 109, 255))',
+                    transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+                    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+                    overflow: 'hidden', // Ensure circles don't overflow the card
+                    '&:hover': {
+                      transform: 'scale(1.05)',
+                      boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
+                    },
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      width: '200px',
+                      height: '200px',
+                      borderRadius: '50%',
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      top: '-50px',
+                      right: '-50px'
+                    },
+                    '&::after': {
+                      content: '""',
+                      position: 'absolute',
+                      width: '150px',
+                      height: '150px',
+                      borderRadius: '50%',
+                      background: 'rgba(255, 255, 255, 0.15)',
+                      bottom: '-40px',
+                      left: '-40px'
+                    }
+                  }}
+                >
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
+                    -
+                  </Typography>
+                  <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
+                    User Manage
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: '#f3f3f3',
+                      fontWeight: 'lighter',
+                      marginTop: '0.5rem',
+                      textAlign: 'center',
+                      marginBottom: '1.2rem'
+                    }}
+                  >
+                    Main menus
+                  </Typography>
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: '1rem',
+                      right: '1rem',
+                      background: 'rgba(255, 255, 255, 0.3)',
+                      padding: '0.5rem',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <CardMedia
+                      component="img"
+                      sx={{
+                        width: '3rem',
+                        height: '3rem',
+                        borderRadius: '50%'
+                      }}
+                      image={usermanage} // <-- Use the imported image here
+                      alt="User Manage Logo"
+                    />
+                  </Box>
+                </Card>
+              </Grid>
+
+            )}
           </Grid>
 
-        )}
-      </Grid>
 
+          <Grid item md={8} sx={{ display: { sm: 'none', md: 'block', lg: 'none' } }} />
 
-      <Grid item md={8} sx={{ display: { sm: 'none', md: 'block', lg: 'none' } }} />
-
-      {/* row 2 */}
-      <Grid item xs={12} md={12} lg={12}>
-        <UniqueVisitorCard />
-      </Grid>
-      {/* <Grid item xs={12} md={5} lg={4}>
+          {/* row 2 */}
+          <Grid item xs={12} md={12} lg={12}>
+            <UniqueVisitorCard />
+          </Grid>
+          {/* <Grid item xs={12} md={5} lg={4}>
         <Grid container alignItems="center" justifyContent="space-between">
           <Grid item>
             <Typography variant="h5">Income Overview</Typography>
@@ -609,8 +620,8 @@ export default function DashboardDefault() {
         </MainCard>
       </Grid> */}
 
-      {/* row 3 */}
-      {/* <Grid item xs={12} md={7} lg={8}>
+          {/* row 3 */}
+          {/* <Grid item xs={12} md={7} lg={8}>
         <Grid container alignItems="center" justifyContent="space-between">
           <Grid item>
             <Typography variant="h5">Recent Orders</Typography>
@@ -622,7 +633,7 @@ export default function DashboardDefault() {
         </MainCard>
       </Grid> */}
 
-      {/* <Grid item xs={12} md={5} lg={4}>
+          {/* <Grid item xs={12} md={5} lg={4}>
         <Grid container alignItems="center" justifyContent="space-between">
           <Grid item>
             <Typography variant="h5">Analytics Report</Typography>
@@ -648,12 +659,12 @@ export default function DashboardDefault() {
         </MainCard>
       </Grid> */}
 
-      {/* row 4 */}
-      {/* <Grid item xs={12} md={7} lg={8}>
+          {/* row 4 */}
+          {/* <Grid item xs={12} md={7} lg={8}>
         <SaleReportCard />
       </Grid> */}
 
-      {/* <Grid item xs={12} md={5} lg={4}>
+          {/* <Grid item xs={12} md={5} lg={4}>
         <Grid container alignItems="center" justifyContent="space-between">
           <Grid item>
             <Typography variant="h5">Transaction History</Typography>
@@ -757,6 +768,10 @@ export default function DashboardDefault() {
           </Stack>
         </MainCard>
       </Grid> */}
-    </Grid>
+        </Grid>
+      ) : (
+        <ProjectOverview />
+      )}
+    </Box>
   );
 }

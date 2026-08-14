@@ -129,7 +129,7 @@ const TalukForm3B = () => {
         if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
           currentOfficeType = 'TALUK';
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     if (currentOfficeType === 'TALUK') {
@@ -269,27 +269,7 @@ const TalukForm3B = () => {
   );
 
   const handleBack = () => {
-<<<<<<< HEAD
-    let effectiveOfficeType = stateData.officeType || officeInfo.officeType;
-    if (!effectiveOfficeType) {
-      try {
-        const tokenRole = AuthService.getrole();
-        const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
-        const des = localStorage.getItem('des') || '';
-        if (roles.some(r => ['District Level Approver', 'District Level Data Viewer'].includes(r)) || des.includes('District')) {
-          effectiveOfficeType = 'DISTRICT';
-        }
-      } catch (e) {}
-    }
-
-    if (effectiveOfficeType === 'DISTRICT' || stateData.isDirectAccess) {
-      navigate('/Report');
-    } else {
-      navigate('/schemes/earas/Report/Form3B/KeralaForm3B', { state: { activeTab } });
-    }
-=======
     navigate('/schemes/earas/Report/Form3B/KeralaForm3B', { state: { activeTab, landType: landTypeTab } });
->>>>>>> e38c0a404e1d8e51105cd47ee5c1d9eb8433072a
   };
 
   const handleTalukClick = (talukName, talukId) => {
@@ -319,7 +299,7 @@ const TalukForm3B = () => {
       elevation={0}
       sx={{ borderRadius: 4, overflow: 'visible', background: theme.palette.background.paper, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}
     >
-      <Breadcrumb/>
+      <Breadcrumb />
       <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
         <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
           <IconButton onClick={handleBack} size="small" sx={{ color: themeColor }}>

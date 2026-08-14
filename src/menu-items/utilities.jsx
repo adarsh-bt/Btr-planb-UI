@@ -11,12 +11,12 @@ import {
   ScissorOutlined,
   TableOutlined,
   EnvironmentOutlined,       // New icon for Zone Details
-  ClusterOutlined ,    
-   UsergroupAddOutlined,
-  UserSwitchOutlined,        
-  DeliveredProcedureOutlined ,
- AppstoreOutlined,
- ProfileOutlined
+  ClusterOutlined,
+  UsergroupAddOutlined,
+  UserSwitchOutlined,
+  DeliveredProcedureOutlined,
+  AppstoreOutlined,
+  ProfileOutlined
 } from '@ant-design/icons';
 import authservice from 'pages/authentication/services/authservice';
 
@@ -34,7 +34,7 @@ const icons = {
   TableOutlined,
   EnvironmentOutlined,
   ClusterOutlined,
-   UsergroupAddOutlined,
+  UsergroupAddOutlined,
   UserSwitchOutlined,
   DeliveredProcedureOutlined,
   AppstoreOutlined,
@@ -117,22 +117,22 @@ const userManagement = {
 };
 
 
-  const workallocation = {
-      id: 'util-workallocation',
-      title: 'Work Allocation Report',
-      type: 'item',
-      url: '/workallocation',
-      icon: icons.FormOutlined
-    };
+const workallocation = {
+  id: 'util-workallocation',
+  title: 'Work Allocation Report',
+  type: 'item',
+  url: '/workallocation',
+  icon: icons.FormOutlined
+};
 
-    const cceview = {
+const cceview = {
   id: 'util-cceview',
   title: 'Crop Cutting Experiment',
   type: 'item',
   url: '/schemes/earas/cce/cceview',
   icon: icons.AppstoreOutlined
 };
-   const ccereport = {
+const ccereport = {
   id: 'util-ccereport',
   title: 'CCE Report',
   type: 'item',
@@ -141,7 +141,7 @@ const userManagement = {
 };
 
 // Role-based logic with fallback
-if (role == 'Super Admin' ||role === 'IT Admin' || role === 'District Level Approver' || role === 'Taluk Level Approver') {
+if (role == 'Super Admin' || role === 'IT Admin' || role === 'District Level Approver' || role === 'Taluk Level Approver') {
   utilities.children.push(
     userApproval,
     userManagement,
@@ -150,7 +150,7 @@ if (role == 'Super Admin' ||role === 'IT Admin' || role === 'District Level Appr
     // keyPlot,
     // clusterFormation
   );
-}else if (role === 'District Level Data Viewer') {
+} else if (role === 'District Level Data Viewer') {
   utilities.children.push(
     // userApproval,
     // userManagement,

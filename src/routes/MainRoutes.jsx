@@ -10,6 +10,12 @@ const Color = Loadable(lazy(() => import('pages/component-overview/color')));
 const WorkAllocation = Loadable(lazy(() => import('pages/component-overview/WorkAllocationForm')));
 const Shadow = Loadable(lazy(() => import('pages/component-overview/shadows')));
 const DashboardDefault = Loadable(lazy(() => import('pages/dashboard/index')));
+const ProjectOverview = Loadable(lazy(() => import('pages/Dashboard/ProjectOverview')));
+const TourDiaryPage = Loadable(lazy(() => import('pages/TourDiary/TourDiaryPage')));
+const ActualTourPage = Loadable(lazy(() => import('pages/ActualTour/ActualTourPage')));
+const WorkAllocationPage = Loadable(lazy(() => import('pages/WorkAllocation/WorkAllocationPage')));
+const KeyPlotPage = Loadable(lazy(() => import('pages/KeyPlot/KeyPlotPage')));
+const ReportsPage = Loadable(lazy(() => import('pages/Reports/ReportsPage')));
 const TourDiary = Loadable(lazy(() => import('pages/dashboard/TourDiary')));
 const TourDiaryMenu = Loadable(lazy(() => import('pages/dashboard/TourDiaryMenu')));
 const AdminTourDiaryApprovals = Loadable(lazy(() => import('pages/dashboard/AdminTourDiary')));
@@ -160,6 +166,54 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <DashboardDefault />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'dashboard',
+      element: (
+        <PrivateRoute>
+          <DashboardDefault />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'tour-diary',
+      element: (
+        <PrivateRoute>
+          <TourDiaryPage />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'actual-tour',
+      element: (
+        <PrivateRoute>
+          <ActualTourPage />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'work-allocation',
+      element: (
+        <PrivateRoute>
+          <WorkAllocationPage />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'key-plot',
+      element: (
+        <PrivateRoute>
+          <KeyPlotPage />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'reports',
+      element: (
+        <PrivateRoute>
+          <ReportsPage />
         </PrivateRoute>
       )
     },
@@ -352,6 +406,14 @@ const MainRoutes = {
     },
     {
       path: 'approval_manage/tourdiary',
+      element: (
+        <PrivateRoute>
+          <AdminTourDiaryApprovals />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'approval_manage/advancedtourdiary',
       element: (
         <PrivateRoute>
           <AdminTourDiaryApprovals />

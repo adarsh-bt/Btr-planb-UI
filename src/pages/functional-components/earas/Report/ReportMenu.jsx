@@ -283,7 +283,7 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
             </Grid>
 
             {/* Form 2 Card — role-based direct access */}
-            <Grid item xs={12} sm={6} md={4} lg={3}>
+            {/* <Grid item xs={12} sm={6} md={4} lg={3}>
               <Card
                 component={Link}
                 to="/schemes/earas/cce/KeralaForm2"
@@ -346,10 +346,10 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
                   </Typography>
                 </Box>
               </Card>
-            </Grid>
+            </Grid> */}
 
             {/* Form 3A Card — role-based direct access */}
-            <Grid item xs={12} sm={6} md={4} lg={3}>
+            {/* <Grid item xs={12} sm={6} md={4} lg={3}>
               <Card
                 component={Link}
                 to="/schemes/earas/Report/Form3A/KeralaForm3A"
@@ -412,10 +412,10 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
                   </Typography>
                 </Box>
               </Card>
-            </Grid>
+            </Grid> */}
 
             {/* Form 3B Card — role-based direct access */}
-            <Grid item xs={12} sm={6} md={4} lg={3}>
+            {/* <Grid item xs={12} sm={6} md={4} lg={3}>
               <Card
                 component={Link}
                 to="/schemes/earas/Report/Form3B/KeralaForm3B"
@@ -478,10 +478,10 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
                   </Typography>
                 </Box>
               </Card>
-            </Grid>
+            </Grid> */}
 
             {/* Work Allocation Abstract Card */}
-            <Grid item xs={12} sm={6} md={4} lg={3}>
+            {/* <Grid item xs={12} sm={6} md={4} lg={3}>
               <Card
                 component={Link}
                 to="/report/kerala_work_allocation_report"
@@ -543,7 +543,7 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
                   </Typography>
                 </Box>
               </Card>
-            </Grid>
+            </Grid> */}
 
           </Grid>
         </MainCard>
