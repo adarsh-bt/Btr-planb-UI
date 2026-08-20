@@ -27,6 +27,7 @@ import { LocationOn } from '@mui/icons-material';
 import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import EnergySavingsLeafIcon from '@mui/icons-material/EnergySavingsLeaf';
+import WaterIcon from '@mui/icons-material/Water';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
@@ -56,6 +57,16 @@ const SEASONS = [
   { id: 3, name: 'Summer' }
 ];
 const DEFAULT_SEASON_ID = 1;
+
+// Irrigation filter — ALL / IRRIGATED / UNIRRIGATED. 'ALL' means the
+// isIrrigated param is not sent at all, so the backend returns both.
+const DEFAULT_IRRIGATION = 'ALL';
+const IRRIGATION_PARAM = { IRRIGATED: 'true', UNIRRIGATED: 'false' };
+const IRRIGATION_OPTIONS = [
+  { value: 'ALL', label: 'All' },
+  { value: 'IRRIGATED', label: 'Irrigated' },
+  { value: 'UNIRRIGATED', label: 'Unirrigated' }
+];
 
 // Static crop groups (tbl_master_crop_group). The tab index maps to a group,
 // whose id is sent to the API as cropGroupId.
@@ -107,6 +118,7 @@ const KeralaForm3A = () => {
   const [activeTab, setActiveTab] = useState(() => getSavedState().activeTab ?? 0);
   const [landTypeTab, setLandTypeTab] = useState(() => getSavedState().landTypeTab ?? DEFAULT_LAND_TYPE);
   const [seasonId, setSeasonId] = useState(() => getSavedState().seasonId ?? DEFAULT_SEASON_ID);
+  const [irrigation, setIrrigation] = useState(() => getSavedState().irrigation ?? DEFAULT_IRRIGATION);
   const [apiData, setApiData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -116,6 +128,7 @@ const KeralaForm3A = () => {
   const cropGroupId = CROP_GROUPS[activeTab]?.id;
   const cropGroupName = CROP_GROUPS[activeTab]?.name;
   const seasonName = SEASONS.find((s) => s.id === seasonId)?.name || '';
+  const irrigationLabel = IRRIGATION_OPTIONS.find((o) => o.value === irrigation)?.label || '';
 
   const numericCellSx = {
     fontVariantNumeric: 'tabular-nums',
@@ -143,6 +156,7 @@ const KeralaForm3A = () => {
               isDirectAccess: true,
               landType: landTypeTab,
               seasonId,
+              irrigation,
               activeTab: 0
             }
           });
@@ -166,6 +180,7 @@ const KeralaForm3A = () => {
               isDirectAccess: true,
               landType: landTypeTab,
               seasonId,
+              irrigation,
               activeTab: 0
             }
           });
@@ -178,10 +193,10 @@ const KeralaForm3A = () => {
   }, [location.state, navigate]);
 
   useEffect(() => {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ activeTab, landTypeTab, seasonId }));
-  }, [activeTab, landTypeTab, seasonId]);
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ activeTab, landTypeTab, seasonId, irrigation }));
+  }, [activeTab, landTypeTab, seasonId, irrigation]);
 
-  /* ─────────────────── fetch (per crop group + land type + season) ─────────────────── */
+  /* ─────────────────── fetch (per crop group + land type + season + irrigation) ─────────────────── */
 
   useEffect(() => {
     if (!cropGroupId) return;
@@ -201,6 +216,10 @@ const KeralaForm3A = () => {
         const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
         if (landTypeParam) params.append('landType', landTypeParam);
         params.append('seasonId', String(seasonId));
+
+        // 'ALL' is represented by omitting the param entirely.
+        const irrigationParam = IRRIGATION_PARAM[irrigation];
+        if (irrigationParam) params.append('isIrrigated', irrigationParam);
 
         const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/state?${params.toString()}`;
         console.log('Fetching Form 3A data from:', url);
@@ -222,7 +241,7 @@ const KeralaForm3A = () => {
     };
     fetchGroupData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cropGroupId, agriculturalYear, landTypeTab, seasonId]);
+  }, [cropGroupId, agriculturalYear, landTypeTab, seasonId, irrigation]);
 
   /* ─────────────────────────── derived data ─────────────────────────── */
 
@@ -285,6 +304,11 @@ const KeralaForm3A = () => {
     setPage(0);
   };
 
+  const handleIrrigationChange = (event) => {
+    setIrrigation(event.target.value);
+    setPage(0);
+  };
+
   const formatNumber = (num) => Number(num || 0).toFixed(2);
 
   const handleChangePage = (event, newPage) => setPage(newPage);
@@ -311,6 +335,7 @@ const KeralaForm3A = () => {
         agriculturalYear,
         landType: landTypeTab,
         seasonId,
+        irrigation,
         activeTab
       }
     });
@@ -345,10 +370,11 @@ const KeralaForm3A = () => {
               (Click on any district to view Taluk-wise details) • Agricultural Year: {agriculturalYear} • Area in Cents
               {landTypeTab !== 'ALL' && ` • ${landTypeTab} Land`}
               {seasonName && ` • ${seasonName} Season`}
+              {irrigation !== 'ALL' && ` • ${irrigationLabel}`}
             </Typography>
           </Box>
 
-          {/* Filters — land type + season */}
+          {/* Filters — land type + season + irrigation */}
           <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
             {/* Land type filter — ALL / WET / DRY */}
             <Paper
@@ -399,6 +425,30 @@ const KeralaForm3A = () => {
                 {SEASONS.map((s) => (
                   <MenuItem key={s.id} value={s.id}>
                     {s.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Irrigation filter — All / Irrigated / Unirrigated */}
+            <FormControl size="small" sx={{ minWidth: 180 }}>
+              <InputLabel id="kerala-form3a-irrigation-label">Irrigation</InputLabel>
+              <Select
+                labelId="kerala-form3a-irrigation-label"
+                id="kerala-form3a-irrigation"
+                value={irrigation}
+                label="Irrigation"
+                onChange={handleIrrigationChange}
+                renderValue={(value) => (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <WaterIcon sx={{ fontSize: 20, color: value === 'UNIRRIGATED' ? '#9e9e9e' : '#0288d1' }} />
+                    {IRRIGATION_OPTIONS.find((o) => o.value === value)?.label || ''}
+                  </Box>
+                )}
+              >
+                {IRRIGATION_OPTIONS.map((o) => (
+                  <MenuItem key={o.value} value={o.value}>
+                    {o.label}
                   </MenuItem>
                 ))}
               </Select>

@@ -145,6 +145,8 @@ const KeralaWorkAllocationReport = Loadable(lazy(() => import('pages/functional-
 const TalukWorkAllocationReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/workAllocationReport/TalukWorkAllocationReport')));
 const ZoneWorkAllocationReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/workAllocationReport/ZoneWorkAllocationReport')));
 
+const AdvancedForecastDashboard = Loadable(lazy(() => import('pages/functional-components/earas/AdvancedForecast/AdvancedForecastDashboard')));
+
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
@@ -1037,6 +1039,14 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <ZoneWorkAllocationReport />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/advancedForecast_dashboard',
+      element: (
+        <PrivateRoute>
+          <AdvancedForecastDashboard />
         </PrivateRoute>
       )
     },

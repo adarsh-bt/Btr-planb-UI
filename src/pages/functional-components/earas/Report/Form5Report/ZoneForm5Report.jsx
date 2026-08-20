@@ -622,7 +622,7 @@ const fetchCropsList = async () => {
       '#': index + 1,
       Block: row.blockName,
       Zone: row.zoneName,
-      'Allowted CCE': row.hasData ? row.allowtedCce : 'NA',
+      'Alloted CCE': row.hasData ? row.allowtedCce : 'NA',
       'Selected CCE': row.hasData ? row.selectedCce : 'NA',
       Completed: row.hasData ? row.completed : 'NA',
       Ongoing: row.hasData ? row.ongoing : 'NA',
@@ -900,7 +900,7 @@ const fetchCropsList = async () => {
           />
           <Grid container spacing={2}>
             {[
-              { label: 'Allowted CCE', value: stats.allowtedCce, color: '#1565c0', icon: <HubIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} /> },
+              { label: 'Alloted CCE', value: stats.allowtedCce, color: '#1565c0', icon: <HubIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} /> },
               { label: 'Selected CCE', value: stats.selectedCce, color: '#04255e', icon: <AssessmentIcon sx={{ fontSize: 32, color: '#04255e', opacity: 0.7 }} /> },
               { label: 'Completed', value: stats.completed, color: '#2e7d32', icon: <CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} /> },
               { label: 'Ongoing', value: stats.ongoing, color: '#ed6c02', icon: <PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} /> },
@@ -1012,7 +1012,7 @@ const fetchCropsList = async () => {
                       '#',
                       'Block',
                       'Zone',
-                      'Allowted CCE',
+                      'Alloted CCE',
                       'Selected CCE',
                       'Completed',
                       'Ongoing',

@@ -358,7 +358,7 @@ function ApprovalMenus() {
     </Box>
     <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
       <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' }, mb: 0.5 }}>
-        Form satus
+        Form Status
       </Typography>
       {/* <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' }, mb: 0.5 }}>
         Approvals

@@ -272,11 +272,16 @@ const DataBox = ({ row, col }) =>
     <Box sx={CELL_SX[col.variant]}>{cellValue(row, col)}</Box>
   );
 
-/* ─────────────────── zone grouping helpers ─────────────────── */
+/* ─────────────────── zone / block grouping helpers ─────────────────── */
 
 // A "zone group" = every panchayat / municipality / corporation row that belongs
-// to the same Block + Zone Name pair.
-const zoneKeyOf = (r) => `${r.blockName || 'General Block'}||${r.name || 'N/A'}`;
+// to the same Block + Zone Name pair. A "block group" = every row of one Block.
+const blockKeyOf = (r) => r.blockName || 'General Block';
+const zoneKeyOf = (r) => `${blockKeyOf(r)}||${r.name || 'N/A'}`;
+
+// Set to true if the client wants a Block Total printed even for a block that
+// holds a single panchayat (where the total just repeats that one row).
+const SHOW_BLOCK_SUBTOTAL_ALWAYS = false;
 
 const sumMetrics = (rowsArr) => {
   const acc = {};
@@ -307,51 +312,102 @@ function buildZoneIndex(allRows) {
   return index;
 }
 
-// Flatten the current page into render items: data rows plus a synthetic subtotal
-// row after any zone that holds more than one panchayat. Subtotal rows carry the
-// same metric keys as data rows, so DataBox / the exporter need no special casing.
-function buildDisplayItems(pageRows, zoneIndex) {
-  const items = [];
-  let i = 0;
+// Same idea one level up: Block Total = sum of every zone (i.e. every panchayat
+// row) inside that block, computed over the whole filtered set.
+function buildBlockIndex(allRows) {
+  const buckets = new Map();
+  allRows.forEach((r) => {
+    const key = blockKeyOf(r);
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(r);
+  });
 
-  while (i < pageRows.length) {
-    const key = zoneKeyOf(pageRows[i]);
-    let j = i;
-    while (j < pageRows.length && zoneKeyOf(pageRows[j]) === key) j++;
-
-    const group = pageRows.slice(i, j);
-    const info =
-      zoneIndex.get(key) || { count: group.length, lastId: group[group.length - 1].id, totals: sumMetrics(group) };
-
-    // Only emit the subtotal on the page that holds the zone's final panchayat.
-    const showSubtotal = info.count > 1 && group[group.length - 1].id === info.lastId;
-    const zoneSpan = group.length + (showSubtotal ? 1 : 0);
-
-    group.forEach((row, k) => {
-      items.push({
-        kind: 'data',
-        row,
-        blockName: row.blockName || 'General Block',
-        zoneKey: key,
-        zoneName: row.name || 'N/A',
-        zoneStart: k === 0,
-        zoneSpan: k === 0 ? zoneSpan : 0,
-        zoneMerged: zoneSpan > 1
-      });
+  const index = new Map();
+  buckets.forEach((members, key) => {
+    index.set(key, {
+      rowCount: members.length,
+      zoneCount: new Set(members.map((m) => zoneKeyOf(m))).size,
+      lastId: members[members.length - 1].id,
+      totals: sumMetrics(members)
     });
+  });
+  return index;
+}
 
-    if (showSubtotal) {
+// Flatten the current page into render items: data rows, a zone subtotal after any
+// zone holding more than one panchayat, and a block subtotal after each block.
+// Subtotal rows carry the same metric keys as data rows, so DataBox / the exporter
+// need no special casing.
+function buildDisplayItems(pageRows, zoneIndex, blockIndex) {
+  const items = [];
+  let b = 0;
+
+  while (b < pageRows.length) {
+    const blockName = blockKeyOf(pageRows[b]);
+    let bEnd = b;
+    while (bEnd < pageRows.length && blockKeyOf(pageRows[bEnd]) === blockName) bEnd++;
+    const blockRows = pageRows.slice(b, bEnd);
+
+    /* ── zones inside this block ── */
+    let i = 0;
+    while (i < blockRows.length) {
+      const key = zoneKeyOf(blockRows[i]);
+      let j = i;
+      while (j < blockRows.length && zoneKeyOf(blockRows[j]) === key) j++;
+
+      const group = blockRows.slice(i, j);
+      const info =
+        zoneIndex.get(key) || { count: group.length, lastId: group[group.length - 1].id, totals: sumMetrics(group) };
+
+      // Only emit the subtotal on the page that holds the zone's final panchayat.
+      const showZoneSubtotal = info.count > 1 && group[group.length - 1].id === info.lastId;
+      const zoneSpan = group.length + (showZoneSubtotal ? 1 : 0);
+
+      group.forEach((row, k) => {
+        items.push({
+          kind: 'data',
+          row,
+          blockName,
+          zoneKey: key,
+          zoneName: row.name || 'N/A',
+          zoneStart: k === 0,
+          zoneSpan: k === 0 ? zoneSpan : 0,
+          zoneMerged: zoneSpan > 1
+        });
+      });
+
+      if (showZoneSubtotal) {
+        items.push({
+          kind: 'zoneSubtotal',
+          row: { id: `${key}__zone_subtotal`, ...info.totals },
+          blockName,
+          zoneKey: key,
+          zoneName: group[0].name || 'N/A',
+          label: `Zone Total (${info.count} Panchayats)`
+        });
+      }
+
+      i = j;
+    }
+
+    /* ── block subtotal (sum of all zones of this block) ── */
+    const bInfo = blockIndex.get(blockName);
+    const showBlockSubtotal =
+      bInfo &&
+      (SHOW_BLOCK_SUBTOTAL_ALWAYS || bInfo.rowCount > 1) &&
+      blockRows[blockRows.length - 1].id === bInfo.lastId;
+
+    if (showBlockSubtotal) {
       items.push({
-        kind: 'subtotal',
-        row: { id: `${key}__subtotal`, ...info.totals },
-        blockName: group[0].blockName || 'General Block',
-        zoneKey: key,
-        zoneName: group[0].name || 'N/A',
-        label: `Zone Total (${info.count} Panchayats)`
+        kind: 'blockSubtotal',
+        row: { id: `${blockName}__block_subtotal`, ...bInfo.totals },
+        blockName,
+        zoneKey: `${blockName}__block_subtotal`,
+        label: `Block Total — ${blockName} (${bInfo.zoneCount} Zone${bInfo.zoneCount > 1 ? 's' : ''})`
       });
     }
 
-    i = j;
+    b = bEnd;
   }
 
   return items;
@@ -380,31 +436,54 @@ function getBlockSpanInfo(items) {
   return spanMap;
 }
 
-// Export mirrors the table: zone subtotal pseudo-rows interleaved into the data.
+// Export mirrors the table: zone + block subtotal pseudo-rows interleaved into the data.
 function buildExportRows(allRows) {
   const out = [];
-  let i = 0;
+  let b = 0;
 
-  while (i < allRows.length) {
-    const key = zoneKeyOf(allRows[i]);
-    let j = i;
-    while (j < allRows.length && zoneKeyOf(allRows[j]) === key) j++;
+  while (b < allRows.length) {
+    const blockName = blockKeyOf(allRows[b]);
+    let bEnd = b;
+    while (bEnd < allRows.length && blockKeyOf(allRows[bEnd]) === blockName) bEnd++;
+    const blockRows = allRows.slice(b, bEnd);
 
-    const group = allRows.slice(i, j);
-    group.forEach((r) => out.push(r));
+    let zoneCount = 0;
+    let i = 0;
+    while (i < blockRows.length) {
+      const key = zoneKeyOf(blockRows[i]);
+      let j = i;
+      while (j < blockRows.length && zoneKeyOf(blockRows[j]) === key) j++;
 
-    if (group.length > 1) {
+      const group = blockRows.slice(i, j);
+      zoneCount++;
+      group.forEach((r) => out.push(r));
+
+      if (group.length > 1) {
+        out.push({
+          ...sumMetrics(group),
+          __subtotal: true,
+          id: `${key}__export_zone_subtotal`,
+          blockName: group[0].blockName,
+          name: group[0].name,
+          panchayathName: `Zone Subtotal (${group.length} Panchayats)`
+        });
+      }
+
+      i = j;
+    }
+
+    if (SHOW_BLOCK_SUBTOTAL_ALWAYS || blockRows.length > 1) {
       out.push({
-        ...sumMetrics(group),
-        __subtotal: true,
-        id: `${key}__export_subtotal`,
-        blockName: group[0].blockName,
-        name: group[0].name,
-        panchayathName: `Zone Subtotal (${group.length} Panchayats)`
+        ...sumMetrics(blockRows),
+        __blockSubtotal: true,
+        id: `${blockName}__export_block_subtotal`,
+        blockName,
+        name: 'All Zones',
+        panchayathName: `Block Total (${zoneCount} Zone${zoneCount > 1 ? 's' : ''})`
       });
     }
 
-    i = j;
+    b = bEnd;
   }
 
   return out;
@@ -447,7 +526,11 @@ function downloadWorkAllocationXls({ textColumns, rows, totals, totalLabels, rep
     `;
 
     rows.forEach((row) => {
-      const rowAttr = row.__subtotal ? ' ss:StyleID="ZoneSubtotal"' : '';
+      const rowAttr = row.__blockSubtotal
+        ? ' ss:StyleID="BlockSubtotal"'
+        : row.__subtotal
+          ? ' ss:StyleID="ZoneSubtotal"'
+          : '';
       body += `
         <Row${rowAttr}>
           ${textColumns
@@ -494,6 +577,7 @@ function downloadWorkAllocationXls({ textColumns, rows, totals, totalLabels, rep
     ['Download Timestamp', downloadTime],
     ['Total Records Exported', String(recordCount ?? rows.length)],
     ['Zone Subtotal Rows Included', String(rows.filter((r) => r.__subtotal).length)],
+    ['Block Subtotal Rows Included', String(rows.filter((r) => r.__blockSubtotal).length)],
     ['Worksheets Contained', '1. Area As Per Village Records, 2. Excluded Areas, 3. Area Available For Estimation, 4. Metadata'],
     ['Source Platform', 'AIDeA BTR EARAS System']
   ]
@@ -543,6 +627,10 @@ function downloadWorkAllocationXls({ textColumns, rows, totals, totalLabels, rep
   <Style ss:ID="ZoneSubtotal">
    <Font ss:FontName="Calibri" ss:Size="11" ss:Color="#04255E" ss:Bold="1" ss:Italic="1"/>
    <Interior ss:Color="#F7FAFF" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="BlockSubtotal">
+   <Font ss:FontName="Calibri" ss:Size="11" ss:Color="#04255E" ss:Bold="1"/>
+   <Interior ss:Color="#E4ECF5" ss:Pattern="Solid"/>
   </Style>
   <Style ss:ID="GreenHighlight">
    <Font ss:FontName="Calibri" ss:Size="11" ss:Color="#1B5E20" ss:Bold="1"/>
@@ -664,7 +752,7 @@ function ZoneWorkAllocationReport() {
 
       const mapped = (Array.isArray(data.locations) ? data.locations : []).map(normalizeLocation);
       // Keep blocks — and zones inside each block — contiguous so the merged
-      // Block / Zone cells and the zone subtotal rows render correctly.
+      // Block / Zone cells and the subtotal rows render correctly.
       mapped.sort(
         (a, b) =>
           String(a.blockName).localeCompare(String(b.blockName)) ||
@@ -702,7 +790,12 @@ function ZoneWorkAllocationReport() {
 
   const zoneIndex = useMemo(() => buildZoneIndex(filteredData), [filteredData]);
 
-  const displayItems = useMemo(() => buildDisplayItems(paginatedData, zoneIndex), [paginatedData, zoneIndex]);
+  const blockIndex = useMemo(() => buildBlockIndex(filteredData), [filteredData]);
+
+  const displayItems = useMemo(
+    () => buildDisplayItems(paginatedData, zoneIndex, blockIndex),
+    [paginatedData, zoneIndex, blockIndex]
+  );
 
   const blockSpans = useMemo(() => getBlockSpanInfo(displayItems), [displayItems]);
 
@@ -1056,8 +1149,41 @@ function ZoneWorkAllocationReport() {
                           ? '1px solid #c5cdd6'
                           : '1px solid #e0e0e0';
 
-                      /* ── Zone Subtotal row (only for zones with >1 panchayat) ── */
-                      if (item.kind === 'subtotal') {
+                      /* ── Block Total row (sum of all zones in the block) ── */
+                      if (item.kind === 'blockSubtotal') {
+                        return (
+                          <TableRow key={item.row.id} sx={{ bgcolor: '#e9eff7' }}>
+                            <TableCell
+                              colSpan={TEXT_COLS.length - 1}
+                              sx={{
+                                fontWeight: 800,
+                                fontSize: '0.92rem',
+                                color: '#04255e',
+                                borderRight: '1px solid #e0e0e0',
+                                borderBottom: rowBorderBottom
+                              }}
+                            >
+                              {item.label}
+                            </TableCell>
+                            {columns.map((c) => (
+                              <TableCell
+                                key={c.key}
+                                align="center"
+                                sx={{ borderBottom: rowBorderBottom, ...(c.groupEnd ? { borderRight: '1px solid #e0e0e0' } : {}) }}
+                              >
+                                {c.type === 'remarks' ? null : (
+                                  <Box sx={{ p: 1, ...(c.totalSx || { fontWeight: 700 }), fontWeight: 800 }}>
+                                    {c.fixed ? Number(item.row[c.key] || 0).toFixed(2) : Number(item.row[c.key] || 0)}
+                                  </Box>
+                                )}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        );
+                      }
+
+                      /* ── Zone Total row (only for zones with >1 panchayat) ── */
+                      if (item.kind === 'zoneSubtotal') {
                         return (
                           <TableRow key={item.row.id} sx={{ bgcolor: '#f7faff' }}>
                             <TableCell

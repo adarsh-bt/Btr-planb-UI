@@ -16,12 +16,17 @@ import {
   Tabs,
   Tab,
   Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
   CircularProgress,
   TablePagination
 } from '@mui/material';
 import { LocationOn } from '@mui/icons-material';
 import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
+import WaterIcon from '@mui/icons-material/Water';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
@@ -40,6 +45,16 @@ const DEFAULT_LAND_TYPE = 'ALL';
 // Backend expects title-case values (…&landType=Dry). 'ALL' has no entry here,
 // so the param is omitted entirely and both land types come back.
 const LAND_TYPE_PARAM = { WET: 'Wet', DRY: 'Dry' };
+
+// Irrigation filter — ALL / IRRIGATED / UNIRRIGATED. 'ALL' means the
+// isIrrigated param is not sent at all, so the backend returns both.
+const DEFAULT_IRRIGATION = 'ALL';
+const IRRIGATION_PARAM = { IRRIGATED: 'true', UNIRRIGATED: 'false' };
+const IRRIGATION_OPTIONS = [
+  { value: 'ALL', label: 'All' },
+  { value: 'IRRIGATED', label: 'Irrigated' },
+  { value: 'UNIRRIGATED', label: 'Unirrigated' }
+];
 
 const CROP_GROUPS = [
   { id: 1, name: 'Food crops' },
@@ -81,6 +96,8 @@ const KeralaForm3B = () => {
   const [activeTab, setActiveTab] = useState(location.state?.activeTab ?? 0);
   // Restored the same way — Back from TalukForm3B passes landType.
   const [landTypeTab, setLandTypeTab] = useState(location.state?.landType ?? DEFAULT_LAND_TYPE);
+  // Restored the same way — Back from TalukForm3B passes irrigation.
+  const [irrigation, setIrrigation] = useState(location.state?.irrigation ?? DEFAULT_IRRIGATION);
   const [apiData, setApiData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -110,6 +127,10 @@ const KeralaForm3B = () => {
         const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
         if (landTypeParam) params.append('landType', landTypeParam);
 
+        // 'ALL' is represented by omitting the param entirely.
+        const irrigationParam = IRRIGATION_PARAM[irrigation];
+        if (irrigationParam) params.append('isIrrigated', irrigationParam);
+
         const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form3B/state?${params.toString()}`;
         console.log('Fetching Form 3B data from:', url);
 
@@ -127,7 +148,7 @@ const KeralaForm3B = () => {
     };
     fetchGroupData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cropGroupId, agriculturalYear, landTypeTab]);
+  }, [cropGroupId, agriculturalYear, landTypeTab, irrigation]);
 
   const cropColumns = useMemo(() => {
     const map = new Map();
@@ -171,6 +192,11 @@ const KeralaForm3B = () => {
     setPage(0);
   };
 
+  const handleIrrigationChange = (event) => {
+    setIrrigation(event.target.value);
+    setPage(0);
+  };
+
   const formatNumber = (num) => Number(num || 0).toFixed(2);
 
   const handleChangePage = (event, newPage) => setPage(newPage);
@@ -195,6 +221,7 @@ const KeralaForm3B = () => {
         cropGroupName,
         agriculturalYear,
         landType: landTypeTab,
+        irrigation,
         activeTab
       }
     });
@@ -216,25 +243,52 @@ const KeralaForm3B = () => {
           </Typography>
         </Box>
 
-        {/* Land type filter — ALL / WET / DRY */}
-        <Paper
-          elevation={0}
-          sx={{ p: 1, mb: 2, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, display: 'inline-block' }}
-        >
-          <Tabs
-            value={landTypeTab}
-            onChange={handleLandTypeChange}
-            sx={{
-              minHeight: 40,
-              '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, minHeight: 40, '&.Mui-selected': { color: themeColor } },
-              '& .MuiTabs-indicator': { backgroundColor: themeColor, height: 3 }
-            }}
+        {/* Filters — land type + irrigation */}
+        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+          {/* Land type filter — ALL / WET / DRY */}
+          <Paper
+            elevation={0}
+            sx={{ p: 1, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, display: 'inline-block' }}
           >
-            <Tab label="ALL" value="ALL" />
-            <Tab label="WET" value="WET" icon={<WaterDropIcon />} iconPosition="start" />
-            <Tab label="DRY" value="DRY" icon={<WbSunnyIcon />} iconPosition="start" />
-          </Tabs>
-        </Paper>
+            <Tabs
+              value={landTypeTab}
+              onChange={handleLandTypeChange}
+              sx={{
+                minHeight: 40,
+                '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, minHeight: 40, '&.Mui-selected': { color: themeColor } },
+                '& .MuiTabs-indicator': { backgroundColor: themeColor, height: 3 }
+              }}
+            >
+              <Tab label="ALL" value="ALL" />
+              <Tab label="WET" value="WET" icon={<WaterDropIcon />} iconPosition="start" />
+              <Tab label="DRY" value="DRY" icon={<WbSunnyIcon />} iconPosition="start" />
+            </Tabs>
+          </Paper>
+
+          {/* Irrigation filter — All / Irrigated / Unirrigated */}
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <InputLabel id="kerala-form3b-irrigation-label">Irrigation</InputLabel>
+            <Select
+              labelId="kerala-form3b-irrigation-label"
+              id="kerala-form3b-irrigation"
+              value={irrigation}
+              label="Irrigation"
+              onChange={handleIrrigationChange}
+              renderValue={(value) => (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <WaterIcon sx={{ fontSize: 20, color: value === 'UNIRRIGATED' ? '#9e9e9e' : '#0288d1' }} />
+                  {IRRIGATION_OPTIONS.find((o) => o.value === value)?.label || ''}
+                </Box>
+              )}
+            >
+              {IRRIGATION_OPTIONS.map((o) => (
+                <MenuItem key={o.value} value={o.value}>
+                  {o.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
 
         {error && (
           <Paper sx={{ p: 2, mb: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
