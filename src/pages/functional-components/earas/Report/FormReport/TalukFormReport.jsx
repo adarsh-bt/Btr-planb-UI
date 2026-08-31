@@ -152,6 +152,16 @@ function resolveMonthValue(val, monthOptions) {
 // NOTE: `landType` here is WET / DRY / ALL. That is land type, NOT crop season.
 // Crop season is the separate, mandatory seasonId (Autumn / Winter / Summer).
 function pickMetric(taluk, metric, landType) {
+  if (!taluk) return 0;
+  if (metric === 'ClusterArea') {
+    const wetComp = Number(taluk.wetCompleted) || 0;
+    const dryComp = Number(taluk.dryCompleted) || 0;
+    const wetArea = wetComp > 0 ? (Number(taluk.wetClusterArea) || 0) : 0;
+    const dryArea = dryComp > 0 ? (Number(taluk.dryClusterArea) || 0) : 0;
+    if (landType === 'WET') return wetArea;
+    if (landType === 'DRY') return dryArea;
+    return wetArea + dryArea;
+  }
   if (landType === 'WET') return Number(taluk[`wet${metric}`]) || 0;
   if (landType === 'DRY') return Number(taluk[`dry${metric}`]) || 0;
   return (Number(taluk[`wet${metric}`]) || 0) + (Number(taluk[`dry${metric}`]) || 0);
@@ -598,7 +608,7 @@ function TalukFormReport() {
 
     // Reasonable column widths so it doesn't open looking cramped
     worksheet['!cols'] = [
-      { wch: 5 },  { wch: 12 }, { wch: 25 }, { wch: 10 },
+      { wch: 5 }, { wch: 12 }, { wch: 25 }, { wch: 10 },
       { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
     ];
 

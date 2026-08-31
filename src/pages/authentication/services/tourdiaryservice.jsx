@@ -537,7 +537,7 @@ const tourDiaryService = {
       const response = await api.get(
         `${BASE_URL}/earas-form1-entry/form1/cluster-list?zoneId=${zoneId}&seasonId=${activeSeasonId}&agriYear=${agriYear}`
       );
-
+      console.log(`${BASE_URL}/earas-form1-entry/form1/cluster-list?zoneId=${zoneId}&seasonId=${activeSeasonId}&agriYear=${agriYear}`)
       return response.data;
     } catch (err) {
       console.error("Error fetching clusters:", err);

@@ -117,6 +117,16 @@ function resolveMonthValue(val, monthOptions) {
 // NOTE: `landType` here is WET / DRY / ALL — this is land type, NOT crop season.
 // Crop season is the separate, mandatory seasonId (Autumn / Winter / Summer).
 function pickMetric(district, metric, landType) {
+  if (!district) return 0;
+  if (metric === 'ClusterArea') {
+    const wetComp = Number(district.wetCompleted) || 0;
+    const dryComp = Number(district.dryCompleted) || 0;
+    const wetArea = wetComp > 0 ? (Number(district.wetClusterArea) || 0) : 0;
+    const dryArea = dryComp > 0 ? (Number(district.dryClusterArea) || 0) : 0;
+    if (landType === 'WET') return wetArea;
+    if (landType === 'DRY') return dryArea;
+    return wetArea + dryArea;
+  }
   if (landType === 'WET') return Number(district[`wet${metric}`]) || 0;
   if (landType === 'DRY') return Number(district[`dry${metric}`]) || 0;
   return (Number(district[`wet${metric}`]) || 0) + (Number(district[`dry${metric}`]) || 0);

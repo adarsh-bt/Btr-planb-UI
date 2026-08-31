@@ -1540,22 +1540,22 @@ const TourDiary = () => {
 
                                                         {/* Verification Status Chip */}
                                                         {submissionView?.firstHalfSubmitted && submissionView?.firstHalfVerifiedStatus &&
-                                                         !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(role) && (
-                                                            <Chip
-                                                                label={`Ver: ${submissionView.firstHalfVerifiedStatus}`}
-                                                                size="small"
-                                                                color={
-                                                                    submissionView.firstHalfVerifiedStatus === 'APPROVED' ? 'success' :
-                                                                        submissionView.firstHalfVerifiedStatus === 'REJECTED' ? 'error' : 'warning'
-                                                                }
-                                                                sx={{
-                                                                    height: '20px',
-                                                                    fontSize: '0.6rem',
-                                                                    fontWeight: 'bold',
-                                                                    ml: 0.5
-                                                                }}
-                                                            />
-                                                        )}
+                                                            !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(role) && (
+                                                                <Chip
+                                                                    label={`Ver: ${submissionView.firstHalfVerifiedStatus}`}
+                                                                    size="small"
+                                                                    color={
+                                                                        submissionView.firstHalfVerifiedStatus === 'APPROVED' ? 'success' :
+                                                                            submissionView.firstHalfVerifiedStatus === 'REJECTED' ? 'error' : 'warning'
+                                                                    }
+                                                                    sx={{
+                                                                        height: '20px',
+                                                                        fontSize: '0.6rem',
+                                                                        fontWeight: 'bold',
+                                                                        ml: 0.5
+                                                                    }}
+                                                                />
+                                                            )}
 
                                                         {/* Remarks Indicator - Blinking/Animated */}
                                                         {(submissionView?.firstHalfAdminRemark || submissionView?.firstHalfVerificationRemark) && (
@@ -1633,22 +1633,22 @@ const TourDiary = () => {
 
                                                         {/* Verification Status Chip */}
                                                         {submissionView?.secondHalfSubmitted && submissionView?.secondHalfVerifiedStatus &&
-                                                         !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(role) && (
-                                                            <Chip
-                                                                label={`Ver: ${submissionView.secondHalfVerifiedStatus}`}
-                                                                size="small"
-                                                                color={
-                                                                    submissionView.secondHalfVerifiedStatus === 'APPROVED' ? 'success' :
-                                                                        submissionView.secondHalfVerifiedStatus === 'REJECTED' ? 'error' : 'warning'
-                                                                }
-                                                                sx={{
-                                                                    height: '20px',
-                                                                    fontSize: '0.6rem',
-                                                                    fontWeight: 'bold',
-                                                                    ml: 0.5
-                                                                }}
-                                                            />
-                                                        )}
+                                                            !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(role) && (
+                                                                <Chip
+                                                                    label={`Ver: ${submissionView.secondHalfVerifiedStatus}`}
+                                                                    size="small"
+                                                                    color={
+                                                                        submissionView.secondHalfVerifiedStatus === 'APPROVED' ? 'success' :
+                                                                            submissionView.secondHalfVerifiedStatus === 'REJECTED' ? 'error' : 'warning'
+                                                                    }
+                                                                    sx={{
+                                                                        height: '20px',
+                                                                        fontSize: '0.6rem',
+                                                                        fontWeight: 'bold',
+                                                                        ml: 0.5
+                                                                    }}
+                                                                />
+                                                            )}
 
                                                         {/* Remarks Indicator - Blinking/Animated */}
                                                         {(submissionView?.secondHalfAdminRemark || submissionView?.secondHalfVerificationRemark) && (
@@ -1747,22 +1747,22 @@ const TourDiary = () => {
 
                                                     {/* Verification Status Chip */}
                                                     {submissionView?.fullMonthSubmitId && submissionView?.fullMonthVerifiedStatus &&
-                                                     !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(role) && (
-                                                        <Chip
-                                                            label={`Ver: ${submissionView.fullMonthVerifiedStatus}`}
-                                                            size="small"
-                                                            color={
-                                                                submissionView.fullMonthVerifiedStatus === 'APPROVED' ? 'success' :
-                                                                    submissionView.fullMonthVerifiedStatus === 'REJECTED' ? 'error' : 'warning'
-                                                            }
-                                                            sx={{
-                                                                height: '20px',
-                                                                fontSize: '0.6rem',
-                                                                fontWeight: 'bold',
-                                                                ml: 0.5
-                                                            }}
-                                                        />
-                                                    )}
+                                                        !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(role) && (
+                                                            <Chip
+                                                                label={`Ver: ${submissionView.fullMonthVerifiedStatus}`}
+                                                                size="small"
+                                                                color={
+                                                                    submissionView.fullMonthVerifiedStatus === 'APPROVED' ? 'success' :
+                                                                        submissionView.fullMonthVerifiedStatus === 'REJECTED' ? 'error' : 'warning'
+                                                                }
+                                                                sx={{
+                                                                    height: '20px',
+                                                                    fontSize: '0.6rem',
+                                                                    fontWeight: 'bold',
+                                                                    ml: 0.5
+                                                                }}
+                                                            />
+                                                        )}
 
                                                     {/* Remarks Indicator */}
                                                     {(submissionView?.fullMonthAdminRemark || submissionView?.fullMonthVerificationRemark) && (

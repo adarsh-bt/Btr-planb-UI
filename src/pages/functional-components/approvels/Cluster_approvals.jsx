@@ -30,7 +30,7 @@ import {
   TableSortLabel,
   TablePagination,
   Stack,
-  TextareaAutosize,Snackbar,FormControlLabel,Switch,
+  TextareaAutosize, Snackbar, FormControlLabel, Switch,
 } from '@mui/material';
 import {
   Search,
@@ -41,10 +41,10 @@ import {
   Visibility,
   Download,
   FilterList,
-  Refresh,Person,
+  Refresh, Person,
   Cancel,
-  CalendarToday,Info,Warning,PlayCircleOutline,PlayCircleFilled
-  
+  CalendarToday, Info, Warning, PlayCircleOutline, PlayCircleFilled
+
 } from '@mui/icons-material';
 import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
@@ -56,7 +56,7 @@ function ClusterApprovals() {
   const theme = useTheme();
   const role = authservice.getrole()?.trim();
   const BASE_URL = mainapi.BASE_URL;
-  
+
   const [approvals, setApprovals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -71,75 +71,75 @@ function ClusterApprovals() {
   const [remarks, setRemarks] = useState('');
   const [isEditEnabled, setIsEditEnabled] = useState(false);
 
-  
-  
-const [page, setPage] = useState(0);
-const [rowsPerPage, setRowsPerPage] = useState(25);
 
-const [totalElements, setTotalElements] = useState(0);
-const [totalPages, setTotalPages] = useState(0);
+
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [order, setOrder] = useState('asc');
   const [orderBy, setOrderBy] = useState('clusterNo');
   // Add these with your other useState declarations
-const [snackbar, setSnackbar] = useState({
-  open: false,
-  message: '',
-  severity: 'success' // 'success', 'error', 'info', 'warning'
-});
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' // 'success', 'error', 'info', 'warning'
+  });
 
   // Fetch cluster approvals data
-useEffect(() => {
+  useEffect(() => {
 
-  const fetchClusterApprovals = async () => {
+    const fetchClusterApprovals = async () => {
 
-    try {
+      try {
 
-      setLoading(true);
+        setLoading(true);
 
-      const token = localStorage.getItem('token');
-      const agriYear = authservice.agriyear();
-      const response = await fetch(
-        `${BASE_URL}/user-access/zones/zone_cluster_approvals?page=${page}&size=${rowsPerPage}&agriYear=${agriYear}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
+        const token = localStorage.getItem('token');
+        const agriYear = authservice.agriyear();
+        const response = await fetch(
+          `${BASE_URL}/user-access/zones/zone_cluster_approvals?page=${page}&size=${rowsPerPage}&agriYear=${agriYear}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
           }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result?.message || "Failed to fetch cluster approvals");
         }
-      );
 
-      const result = await response.json();
+        setApprovals(result.content || []);
+        setTotalElements(result.totalElements || 0);
+        setTotalPages(result.totalPages || 0);
 
-      if (!response.ok) {
-        throw new Error(result?.message || "Failed to fetch cluster approvals");
+      } catch (err) {
+
+        setError(err.message || "Unexpected error occurred.");
+
+      } finally {
+
+        setLoading(false);
       }
+    };
 
-      setApprovals(result.content || []);
-      setTotalElements(result.totalElements || 0);
-      setTotalPages(result.totalPages || 0);
+    fetchClusterApprovals();
 
-    } catch (err) {
-
-      setError(err.message || "Unexpected error occurred.");
-
-    } finally {
-
-      setLoading(false);
-    }
-  };
-
-  fetchClusterApprovals();
-
-}, [page, rowsPerPage]);
+  }, [page, rowsPerPage]);
 
   // Extract unique values for filters
   const taluks = [...new Set(approvals.map(a => a.talukName))];
   const zones = [...new Set(approvals.map(a => a.zoneName))];
 
   // Get filtered zones based on selected taluk
-  const filteredZones = selectedTaluk 
+  const filteredZones = selectedTaluk
     ? [...new Set(approvals
-        .filter(a => a.talukName === selectedTaluk)
-        .map(a => a.zoneName))]
+      .filter(a => a.talukName === selectedTaluk)
+      .map(a => a.zoneName))]
     : zones;
 
   // Sorting logic
@@ -175,7 +175,7 @@ useEffect(() => {
 
   // Filter logic
   const filteredApprovals = approvals.filter(approval => {
-    const matchesSearch = !searchQuery || 
+    const matchesSearch = !searchQuery ||
       approval.zoneName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       approval.talukName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       approval.clusterNo?.toString().includes(searchQuery) ||
@@ -183,17 +183,17 @@ useEffect(() => {
 
     const matchesTaluk = !selectedTaluk || approval.talukName === selectedTaluk;
     const matchesZone = !selectedZone || approval.zoneName === selectedZone;
-    const matchesStatus = 
+    const matchesStatus =
       statusFilter === 'all' ? true :
-      statusFilter === 'pending' ? !approval.approved :
-      statusFilter === 'approved' ? approval.approved : true;
+        statusFilter === 'pending' ? !approval.approved :
+          statusFilter === 'approved' ? approval.approved : true;
 
     return matchesSearch && matchesTaluk && matchesZone && matchesStatus;
   });
 
   // Sort and paginate data
   const sortedAndPaginatedData = [...filteredApprovals]
-  .sort(getComparator(order, orderBy));
+    .sort(getComparator(order, orderBy));
 
   // Handle view details
   const handleViewDetails = (approval) => {
@@ -205,7 +205,7 @@ useEffect(() => {
   const handleApprove = (approval) => {
     setSelectedApproval(approval);
     setRemarks('');
-     setIsEditEnabled(false);
+    setIsEditEnabled(false);
     setApproveDialog(true);
   };
 
@@ -218,77 +218,77 @@ useEffect(() => {
   };
 
   // Submit approval or rejection
-const handleSubmitAction = async (isApprove) => {
-  try {
-    if (!selectedApproval) return;
+  const handleSubmitAction = async (isApprove) => {
+    try {
+      if (!selectedApproval) return;
 
-    const token = localStorage.getItem('token');
-    const userId = authservice.userid();
-    
-    const requestBody = {
-      approvalLogId: selectedApproval.approvalId,
-      approve: isApprove,
-      // is_Reject: !isApprove,
-      approver_id: userId,
-      remarks: remarks || null,
-      is_edit: isEditEnabled // Add this parameter
-    };
+      const token = localStorage.getItem('token');
+      const userId = authservice.userid();
 
-   
+      const requestBody = {
+        approvalLogId: selectedApproval.approvalId,
+        approve: isApprove,
+        // is_Reject: !isApprove,
+        approver_id: userId,
+        remarks: remarks || null,
+        is_edit: isEditEnabled // Add this parameter
+      };
 
-    const response = await fetch(
-      `${BASE_URL}/btr-service/admin-manage/approve-reject`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      }
-    );
 
-    if (response.ok) {
-      // Update local state
-      setApprovals(prev => prev.map(approval => 
-        approval.approvalId === selectedApproval.approvalId 
-          ? { 
-              ...approval, 
+
+      const response = await fetch(
+        `${BASE_URL}/btr-service/admin-manage/approve-reject`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestBody)
+        }
+      );
+
+      if (response.ok) {
+        // Update local state
+        setApprovals(prev => prev.map(approval =>
+          approval.approvalId === selectedApproval.approvalId
+            ? {
+              ...approval,
               approved: isApprove,
               approvedBy: userId,
               approvedAt: new Date().toISOString(),
               remarks: remarks || approval.remarks,
               isEdit: isEditEnabled // Track edit status
             }
-          : approval
-      ));
-      
-      // Close dialogs and reset states
-      setApproveDialog(false);
-      setRejectDialog(false);
-      setSelectedApproval(null);
-      setRemarks('');
-      setIsEditEnabled(false); // Reset edit toggle
-      
-      // Show success message
+            : approval
+        ));
+
+        // Close dialogs and reset states
+        setApproveDialog(false);
+        setRejectDialog(false);
+        setSelectedApproval(null);
+        setRemarks('');
+        setIsEditEnabled(false); // Reset edit toggle
+
+        // Show success message
+        setSnackbar({
+          open: true,
+          message: `Cluster ${isApprove ? 'approved' : 'rejected'} successfully! ${isEditEnabled ? ' (Edit Enabled)' : ''}`,
+          severity: 'success'
+        });
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to ${isApprove ? 'approve' : 'reject'} cluster`);
+      }
+    } catch (err) {
+      console.error('Action error:', err);
       setSnackbar({
         open: true,
-        message: `Cluster ${isApprove ? 'approved' : 'rejected'} successfully! ${isEditEnabled ? ' (Edit Enabled)' : ''}`,
-        severity: 'success'
+        message: `Failed to ${isApprove ? 'approve' : 'reject'} cluster: ${err.message}`,
+        severity: 'error'
       });
-    } else {
-      const errorData = await response.json();
-      throw new Error(errorData.message || `Failed to ${isApprove ? 'approve' : 'reject'} cluster`);
     }
-  } catch (err) {
-    console.error('Action error:', err);
-    setSnackbar({
-      open: true,
-      message: `Failed to ${isApprove ? 'approve' : 'reject'} cluster: ${err.message}`,
-      severity: 'error'
-    });
-  }
-};
+  };
 
   // Format date
   const formatDate = (dateString) => {
@@ -358,10 +358,10 @@ const handleSubmitAction = async (isApprove) => {
         <Breadcrumb />
         <Grid item xs={12}>
           <Card sx={{ p: 4 }}>
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
               minHeight: 400,
               flexDirection: 'column',
               gap: 2
@@ -382,14 +382,14 @@ const handleSubmitAction = async (isApprove) => {
       <Breadcrumb />
       <Grid item xs={12}>
         <Typography variant="h3" sx={{ mb: 2, fontWeight: 700 }}>
-          Cluster Approval Requests 
+          Cluster Approval Requests
         </Typography>
-        
+
         <Card sx={{ p: 1, borderRadius: 3, boxShadow: '0 8px 32px rgba(0,0,0,0.08)' }}>
           {/* Header Section */}
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
+          <Box sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'flex-start',
             mb: 3,
             flexWrap: 'wrap',
@@ -405,11 +405,11 @@ const handleSubmitAction = async (isApprove) => {
               }}>
                 Cluster Approval Requests
               </Typography> */}
-              {/* <Typography variant="body1" color="text.secondary">
+            {/* <Typography variant="body1" color="text.secondary">
                 Total {filteredApprovals.length} cluster approvals • Total area: {totalArea} hectares
               </Typography> */}
             {/* </Box> */}
-            
+
             {/* Summary Chips */}
             {/* <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
               <Chip
@@ -447,8 +447,8 @@ const handleSubmitAction = async (isApprove) => {
           )} */}
 
           {/* Filters Section */}
-          <Box sx={{ 
-            p: 3, 
+          <Box sx={{
+            p: 3,
             mb: 3,
             bgcolor: '#f8f9fa',
             borderRadius: 2,
@@ -542,8 +542,8 @@ const handleSubmitAction = async (isApprove) => {
                   variant="contained"
                   startIcon={<Refresh />}
                   onClick={() => {
-  setPage(0);
-}}
+                    setPage(0);
+                  }}
                   size="small"
                 >
                   Refresh
@@ -552,9 +552,9 @@ const handleSubmitAction = async (isApprove) => {
             </Grid>
 
             {/* Results Summary */}
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
               alignItems: 'center',
               mt: 2,
               pt: 2,
@@ -575,8 +575,8 @@ const handleSubmitAction = async (isApprove) => {
 
           {/* Table Section */}
           {filteredApprovals.length === 0 ? (
-            <Box sx={{ 
-              textAlign: 'center', 
+            <Box sx={{
+              textAlign: 'center',
               py: 8,
               color: 'text.secondary'
             }}>
@@ -608,14 +608,14 @@ const handleSubmitAction = async (isApprove) => {
                         { key: 'zoneName', label: 'Zone' },
                         { key: 'talukName', label: 'Taluk' },
                         { key: 'districtName', label: 'District' },
-                        { key: 'totalArea', label: 'Area (hectares)' },
+                        { key: 'totalArea', label: 'Area (cents)' },
                         { key: 'requestedAt', label: 'Requested On' },
                         { key: 'approved', label: 'Status' },
                         { key: 'action', label: 'Actions' }
                       ].map((column) => (
                         <TableCell
                           key={column.key}
-                          sx={{ 
+                          sx={{
                             color: 'white',
                             fontWeight: 'bold',
                             py: 2,
@@ -644,10 +644,10 @@ const handleSubmitAction = async (isApprove) => {
                     {sortedAndPaginatedData.map((approval, index) => {
                       const statusInfo = getStatusInfo(approval.approved);
                       return (
-                        <TableRow 
+                        <TableRow
                           key={approval.approvalId}
                           hover
-                          sx={{ 
+                          sx={{
                             '&:nth-of-type(even)': { bgcolor: '#f8f9fa' },
                             '&:hover': { bgcolor: '#e3f2fd' }
                           }}
@@ -658,7 +658,7 @@ const handleSubmitAction = async (isApprove) => {
                               {page * rowsPerPage + index + 1}
                             </Typography>
                           </TableCell>
-                          
+
                           <TableCell>
                             <Typography variant="body2" fontWeight="medium">
                               {approval.clusterNo} ({approval.clusterType})
@@ -714,30 +714,30 @@ const handleSubmitAction = async (isApprove) => {
                                   <Visibility fontSize="small" />
                                 </IconButton>
                               </Tooltip>
-                              
+
                               {/* {!approval.approved && role?.includes('Approver') && ( */}
-                                <>
-                                  <Tooltip title="Approve Cluster">
-                                    <IconButton
+                              <>
+                                <Tooltip title="Approve Cluster">
+                                  <IconButton
                                     disabled={statusInfo.label === 'Approved'}
-                                      size="small"
-                                      color="success"
-                                      onClick={() => handleApprove(approval)}
-                                    >
-                                      <CheckCircle fontSize="small" />
-                                    </IconButton>
-                                  </Tooltip>
-                                  <Tooltip title="Reject Cluster">
-                                    <IconButton
-                                      size="small"
-                                      color="error"
-                                      disabled={true}
-                                      onClick={() => handleReject(approval)}
-                                    >
-                                      <Cancel fontSize="small" />
-                                    </IconButton>
-                                  </Tooltip>
-                                </>
+                                    size="small"
+                                    color="success"
+                                    onClick={() => handleApprove(approval)}
+                                  >
+                                    <CheckCircle fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Reject Cluster">
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    disabled={true}
+                                    onClick={() => handleReject(approval)}
+                                  >
+                                    <Cancel fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              </>
                               {/* )} */}
                             </Stack>
                           </TableCell>
@@ -757,9 +757,9 @@ const handleSubmitAction = async (isApprove) => {
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
                 rowsPerPageOptions={[25, 50, 100]}
-                sx={{ 
+                sx={{
                   mt: 2,
-                  '.MuiTablePagination-toolbar': { 
+                  '.MuiTablePagination-toolbar': {
                     justifyContent: 'center',
                     flexWrap: 'wrap'
                   }
@@ -807,632 +807,632 @@ const handleSubmitAction = async (isApprove) => {
       </Grid>
 
       {/* View Details Dialog */}
-   {/* View Details Dialog - Enhanced */}
-{/* View Details Dialog - Enhanced */}
-<Dialog
-  open={viewDialog}
-  onClose={() => setViewDialog(false)}
-  maxWidth="md"
-  fullWidth
-  PaperProps={{
-    sx: {
-      borderRadius: 3,
-      boxShadow: '0 24px 64px rgba(0,0,0,0.2)',
-      overflow: 'hidden'
-    }
-  }}
->
-  <DialogTitle sx={{
-    bgcolor: '#05307a',
-    color: 'white',
-    fontWeight: 'bold',
-    py: 2.5,
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  }}>
-    <Box>
-      <Typography variant="h6" sx={{ fontWeight: 600 }}>
-        Cluster Details
-      </Typography>
-      <Typography variant="caption" sx={{
-        color: 'rgba(255,255,255,0.8)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 0.5,
-        mt: 0.5
-      }}>
-        <Chip
-          label={`ID: ${selectedApproval?.approvalId}`}
-          size="small"
-          sx={{
-            bgcolor: 'rgba(255,255,255,0.15)',
-            color: 'white',
-            height: 20,
-            fontSize: '0.7rem'
-          }}
-        />
-        <Chip
-          label={selectedApproval?.approved ? "Approved" : "Pending"}
-          size="small"
-          color={selectedApproval?.approved ? "success" : "warning"}
-          sx={{ height: 20, fontSize: '0.7rem' }}
-        />
-      </Typography>
-    </Box>
-    <IconButton
-      onClick={() => setViewDialog(false)}
-      sx={{ color: 'white' }}
-      size="small"
-    >
-      <Clear fontSize="small" />
-    </IconButton>
-  </DialogTitle>
-
-  <DialogContent dividers sx={{ p: 0 }}>
-    {selectedApproval && (
-      <Box sx={{ p: 3 }}>
-        {/* Cluster Information Card */}
-        <Card
-          variant="outlined"
-          sx={{
-            mb: 3,
-            borderRadius: 2,
-            borderColor: '#e0e0e0',
-            bgcolor: '#f8fafc'
-          }}
-        >
-          <Box sx={{ p: 2.5, borderBottom: '1px solid #e0e0e0' }}>
-            <Typography variant="subtitle1" fontWeight={600} color="#05307a">
-              Cluster Information
-            </Typography>
-          </Box>
-          <Grid container spacing={2} sx={{ p: 2.5 }}>
-            <Grid item xs={12} md={6}>
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  Cluster Number & Type
-                </Typography>
-                <Typography variant="body1" fontWeight={500}>
-                  Cluster #{selectedApproval.clusterNo} • {selectedApproval.clusterType}
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  Total Area
-                </Typography>
-                <Typography variant="body1" fontWeight={500} color="#1976d2">
-                  {selectedApproval.totalArea.toFixed(2)} hectares
-                </Typography>
-              </Box>
-            </Grid>
-          </Grid>
-        </Card>
-
-        {/* Location Information Card */}
-        <Card
-          variant="outlined"
-          sx={{
-            mb: 3,
-            borderRadius: 2,
-            borderColor: '#e0e0e0'
-          }}
-        >
-          <Box sx={{ p: 2.5, borderBottom: '1px solid #e0e0e0' }}>
-            <Typography variant="subtitle1" fontWeight={600} color="#05307a">
-              Location Details
-            </Typography>
-          </Box>
-          <Grid container spacing={2} sx={{ p: 2.5 }}>
-            <Grid item xs={12} md={4}>
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  Zone
-                </Typography>
-                <Chip
-                  label={selectedApproval.zoneName}
-                  size="small"
-                  variant="outlined"
-                  color="primary"
-                />
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  Taluk
-                </Typography>
-                <Typography variant="body1" fontWeight={500}>
-                  {selectedApproval.talukName}
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  District
-                </Typography>
-                <Typography variant="body1" fontWeight={500}>
-                  {selectedApproval.districtName}
-                </Typography>
-              </Box>
-            </Grid>
-          </Grid>
-        </Card>
-
-        {/* Remarks Card */}
-        <Card
-          variant="outlined"
-          sx={{
-            mb: 3,
-            borderRadius: 2,
-            borderColor: '#e0e0e0'
-          }}
-        >
-          <Box sx={{ p: 2.5, borderBottom: '1px solid #e0e0e0' }}>
-            <Typography variant="subtitle1" fontWeight={600} color="#05307a">
-              Investigator Remarks
-            </Typography>
-            Investigator Name : <strong>{selectedApproval.requestedByName || 'N/A'}</strong>
-          </Box>
-          <Box sx={{ p: 2.5 }}>
-            <Paper
-              variant="outlined"
-              sx={{
-                p: 2,
-                bgcolor: selectedApproval.reqRemarks ? '#fff8e1' : '#f5f5f5',
-                borderRadius: 1,
-                minHeight: 60
-              }}
-            >
-              <Typography variant="body2">
-                {selectedApproval.reqRemarks || 'No remarks provided by investigator'}
-              </Typography>
-            </Paper>
-          </Box>
-        </Card>
-
-        {/* Timeline Information */}
-        <Card
-          variant="outlined"
-          sx={{
-            borderRadius: 2,
-            borderColor: '#e0e0e0'
-          }}
-        >
-          <Box sx={{ p: 2.5, borderBottom: '1px solid #e0e0e0' }}>
-            <Typography variant="subtitle1" fontWeight={600} color="#05307a">
-              Timeline
-            </Typography>
-          </Box>
-          <Grid container spacing={2} sx={{ p: 2.5 }}>
-            <Grid item xs={12} md={6}>
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  Requested On
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <CalendarToday fontSize="small" color="action" />
-                  <Typography variant="body1" fontWeight={500}>
-                    {formatDate(selectedApproval.requestedAt)}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {new Date(selectedApproval.requestedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </Typography>
-                </Box>
-              </Box>
-            </Grid>
-
-            {selectedApproval.approved && (
-              <>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      Approved On
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <CheckCircle fontSize="small" color="success" />
-                      <Typography variant="body1" fontWeight={500}>
-                        {formatDate(selectedApproval.approvedAt)}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {new Date(selectedApproval.approvedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      Approved By
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Person fontSize="small" color="action" />
-                      <Typography variant="body1" fontWeight={500}>
-                        {selectedApproval.approvedByName || 'System'}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-
-                {selectedApproval.resRemarks && (
-                  <Grid item xs={12}>
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        Approver Remarks
-                      </Typography>
-                      <Paper
-                        variant="outlined"
-                        sx={{
-                          p: 2,
-                          bgcolor: '#e8f5e9',
-                          borderRadius: 1,
-                          borderColor: '#c8e6c9'
-                        }}
-                      >
-                        <Typography variant="body2">
-                          {selectedApproval.resRemarks}
-                        </Typography>
-                      </Paper>
-                    </Box>
-                  </Grid>
-                )}
-              </>
-            )}
-          </Grid>
-        </Card>
-      </Box>
-    )}
-  </DialogContent>
-
-  <DialogActions sx={{ p: 2.5, bgcolor: '#f8f9fa', borderTop: '1px solid #e0e0e0' }}>
-    <Button
-      onClick={() => setViewDialog(false)}
-      variant="outlined"
-      startIcon={<Clear />}
-    >
-      Close
-    </Button>
-    {!selectedApproval?.approved && role?.includes('Approver') && (
-      <Button
-        variant="contained"
-        color="primary"
-        startIcon={<CheckCircle />}
-        onClick={() => {
-          setViewDialog(false);
-          handleApprove(selectedApproval);
-        }}
-      >
-        Approve Cluster
-      </Button>
-    )}
-  </DialogActions>
-</Dialog>
-
-   {/* Approve Confirmation Dialog */}
-<Dialog 
-  open={approveDialog} 
-  onClose={() => {
-    setApproveDialog(false);
-    setIsEditEnabled(false);
-  }}
-  maxWidth="sm"
-  fullWidth
-  PaperProps={{
-    sx: {
-      borderRadius: 3,
-      maxWidth: '500px',
-      width: '100%'
-    }
-  }}
->
-  <DialogTitle sx={{
-    bgcolor: '#05307a',
-    color: 'white',
-    py: 2,
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  }}>
-    <Box>
-      <Typography variant="h6" sx={{ fontWeight: 600 }}>
-        Approve Cluster
-      </Typography>
-      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-        ID: {selectedApproval?.approvalId}
-      </Typography>
-    </Box>
-    <IconButton
-      onClick={() => {
-        setApproveDialog(false);
-        setIsEditEnabled(false);
-      }}
-      sx={{ color: 'white' }}
-      size="small"
-    >
-      <Clear fontSize="small" />
-    </IconButton>
-  </DialogTitle>
-  
-  <DialogContent dividers sx={{ p: 3 }}>
-    <Alert 
-      severity="info" 
-      icon={<Info fontSize="small" />}
-      sx={{ mb: 3, borderRadius: 2 }}
-    >
-      You are about to approve this cluster. This action cannot be undone.
-    </Alert>
-    
-    {selectedApproval && (
-      <>
-        {/* Cluster Details Card */}
-        <Card 
-          variant="outlined" 
-          sx={{ 
-            mb: 3, 
-            borderRadius: 2,
-            borderColor: '#e0e0e0'
-          }}
-        >
-          <Box sx={{ 
-            p: 2, 
-            borderBottom: '1px solid #e0e0e0',
-            bgcolor: '#f8fafc'
-          }}>
-            <Typography variant="subtitle1" fontWeight={600} color="#05307a">
-              Cluster Details
-            </Typography>
-          </Box>
-          <Grid container spacing={2} sx={{ p: 2 }}>
-            <Grid item xs={6}>
-              <Typography variant="caption" color="text.secondary" display="block">
-                Cluster #
-              </Typography>
-              <Typography variant="body1" fontWeight={500}>
-                {selectedApproval.clusterNo}
-              </Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="caption" color="text.secondary" display="block">
-                Type
-              </Typography>
-              <Typography variant="body1" fontWeight={500}>
-                {selectedApproval.clusterType}
-              </Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="caption" color="text.secondary" display="block">
-                Zone
-              </Typography>
-              <Typography variant="body1">{selectedApproval.zoneName}</Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="caption" color="text.secondary" display="block">
-                Taluk
-              </Typography>
-              <Typography variant="body1">{selectedApproval.talukName}</Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="caption" color="text.secondary" display="block">
-                Area
-              </Typography>
-              <Typography variant="body1" fontWeight={500} color="#1976d2">
-                {selectedApproval.totalArea.toFixed(2)} cents
-              </Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="caption" color="text.secondary" display="block">
-                District
-              </Typography>
-              <Typography variant="body1">{selectedApproval.districtName}</Typography>
-            </Grid>
-             <Grid item xs={6}>
-              <Typography variant="caption" color="text.secondary" display="block">
-                Zone Name
-              </Typography>
-              <Typography variant="body1">{selectedApproval.zoneName}</Typography>
-            </Grid>
-             <Grid item xs={6}>
-              <Typography variant="caption" color="text.secondary" display="block">
-                Requested By
-              </Typography>
-              <Typography variant="body1">{selectedApproval.requestedByName}</Typography>
-            </Grid>
-            <Grid item xs={12} sx={{borderTop: '1px solid #e0e0e0', pt: 2 }}>
-              <Typography variant="caption" color="text.secondary" display="block">
-                Remarks by Investigator
-              </Typography>
-              <Typography variant="body1">{selectedApproval.reqRemarks || 'No remarks provided by investigator'}</Typography>
-            </Grid>
-          </Grid>
-        </Card>
-
-        {/* Edit Toggle Card - Fixed Width */}
-        <Card 
-          variant="outlined" 
-          sx={{ 
-            mb: 3, 
-            borderRadius: 2,
-            borderColor: isEditEnabled ? '#ffb74d' : '#e0e0e0',
-            bgcolor: isEditEnabled ? '#fff8e1' : '#fafafa',
-            transition: 'all 0.3s ease'
-          }}
-        >
-          <Box sx={{ p: 2.5 }}>
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'space-between',
-              mb: 1
-            }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                {isEditEnabled ? (
-                  <PlayCircleOutline sx={{ color: '#ff9800' }} />
-                ) : (
-                  <CheckCircle sx={{ color: '#4caf50' }} />
-                )}
-                <Typography variant="subtitle1" fontWeight={600}>
-                  Cluster Edit Mode
-                </Typography>
-              </Box>
-              <Switch
-                checked={isEditEnabled}
-                onChange={(e) => setIsEditEnabled(e.target.checked)}
-                color={isEditEnabled ? "warning" : "default"}
-                size="medium"
-              />
-            </Box>
-            
-            {/* Status Display */}
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 2,
-              mb: 2,
-              p: 1.5,
-              borderRadius: 1,
-              bgcolor: isEditEnabled ? '#fff3cd' : '#e8f5e9',
-              border: `1px solid ${isEditEnabled ? '#ffeaa7' : '#c8e6c9'}`
-            }}>
-              {isEditEnabled ? (
-                <>
-                  <Chip
-                    icon={<PlayCircleFilled sx={{ fontSize: 16 }} />}
-                    label="Ongoing"
-                    size="small"
-                    color="warning"
-                    sx={{ fontWeight: 500 }}
-                  />
-                  <Typography variant="body2" color="#e65100">
-                    Cluster will remain editable after approval
-                  </Typography>
-                </>
-              ) : (
-                <>
-                  <Chip
-                    icon={<CheckCircle sx={{ fontSize: 16 }} />}
-                    label="Completed"
-                    size="small"
-                    color="success"
-                    sx={{ fontWeight: 500 }}
-                  />
-                  <Typography variant="body2" color="#2e7d32">
-                    Cluster will be marked as completed
-                  </Typography>
-                </>
-              )}
-            </Box>
-            
-            {/* Caution Alert */}
-            <Alert 
-              severity="warning" 
-              icon={<Warning sx={{ fontSize: 18 }} />}
-              sx={{ 
-                borderRadius: 1,
-                fontSize: '0.8rem',
-                '& .MuiAlert-icon': { alignItems: 'center' }
-              }}
-            >
-              <Typography variant="caption" fontWeight={500}>
-                <strong>Important:</strong> When "Edit Mode" is ON, cluster status will be "Ongoing" 
-                allowing further modifications. When OFF, status will be "Completed" and no further 
-                edits will be allowed.
-              </Typography>
-            </Alert>
-          </Box>
-        </Card>
-
-        {/* Remarks Section */}
-        <Box sx={{ mb: 1 }}>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-            Approver Remarks (Optional)
-          </Typography>
-          <TextField
-            fullWidth
-            multiline
-            rows={3}
-            value={remarks}
-            onChange={(e) => setRemarks(e.target.value)}
-            placeholder="Add any remarks, notes, or observations for this approval..."
-            variant="outlined"
-            size="small"
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: 2
-              }
-            }}
-          />
-        </Box>
-      </>
-    )}
-  </DialogContent>
-  
-  <DialogActions sx={{ 
-    p: 2.5, 
-    bgcolor: '#f8f9fa', 
-    borderTop: '1px solid #e0e0e0',
-    justifyContent: 'space-between'
-  }}>
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      {isEditEnabled ? (
-        <Chip
-          icon={<PlayCircleFilled sx={{ fontSize: 16 }} />}
-          label="Edit Mode: ON"
-          color="warning"
-          size="small"
-          variant="outlined"
-          sx={{ fontWeight: 500 }}
-        />
-      ) : (
-        <Chip
-          icon={<CheckCircle sx={{ fontSize: 16 }} />}
-          label="Edit Mode: OFF"
-          color="success"
-          size="small"
-          variant="outlined"
-          sx={{ fontWeight: 500 }}
-        />
-      )}
-    </Box>
-    
-    <Box sx={{ display: 'flex', gap: 1 }}>
-      <Button
-        onClick={() => {
-          setApproveDialog(false);
-          setIsEditEnabled(false);
-        }}
-        variant="outlined"
-        size="medium"
-        startIcon={<Clear />}
-      >
-        Cancel
-      </Button>
-      <Button
-        variant="contained"
-        color="success"
-        onClick={() => handleSubmitAction(true)}
-        size="medium"
-        startIcon={<CheckCircle />}
-        sx={{ 
-          minWidth: 140,
-          boxShadow: '0 2px 8px rgba(76, 175, 80, 0.3)',
-          '&:hover': {
-            boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)'
+      {/* View Details Dialog - Enhanced */}
+      {/* View Details Dialog - Enhanced */}
+      <Dialog
+        open={viewDialog}
+        onClose={() => setViewDialog(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: '0 24px 64px rgba(0,0,0,0.2)',
+            overflow: 'hidden'
           }
         }}
       >
-        Approve Cluster
-      </Button>
-    </Box>
-  </DialogActions>
-</Dialog>
+        <DialogTitle sx={{
+          bgcolor: '#05307a',
+          color: 'white',
+          fontWeight: 'bold',
+          py: 2.5,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Cluster Details
+            </Typography>
+            <Typography variant="caption" sx={{
+              color: 'rgba(255,255,255,0.8)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
+              mt: 0.5
+            }}>
+              <Chip
+                label={`ID: ${selectedApproval?.approvalId}`}
+                size="small"
+                sx={{
+                  bgcolor: 'rgba(255,255,255,0.15)',
+                  color: 'white',
+                  height: 20,
+                  fontSize: '0.7rem'
+                }}
+              />
+              <Chip
+                label={selectedApproval?.approved ? "Approved" : "Pending"}
+                size="small"
+                color={selectedApproval?.approved ? "success" : "warning"}
+                sx={{ height: 20, fontSize: '0.7rem' }}
+              />
+            </Typography>
+          </Box>
+          <IconButton
+            onClick={() => setViewDialog(false)}
+            sx={{ color: 'white' }}
+            size="small"
+          >
+            <Clear fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent dividers sx={{ p: 0 }}>
+          {selectedApproval && (
+            <Box sx={{ p: 3 }}>
+              {/* Cluster Information Card */}
+              <Card
+                variant="outlined"
+                sx={{
+                  mb: 3,
+                  borderRadius: 2,
+                  borderColor: '#e0e0e0',
+                  bgcolor: '#f8fafc'
+                }}
+              >
+                <Box sx={{ p: 2.5, borderBottom: '1px solid #e0e0e0' }}>
+                  <Typography variant="subtitle1" fontWeight={600} color="#05307a">
+                    Cluster Information
+                  </Typography>
+                </Box>
+                <Grid container spacing={2} sx={{ p: 2.5 }}>
+                  <Grid item xs={12} md={6}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Cluster Number & Type
+                      </Typography>
+                      <Typography variant="body1" fontWeight={500}>
+                        Cluster #{selectedApproval.clusterNo} • {selectedApproval.clusterType}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Total Area
+                      </Typography>
+                      <Typography variant="body1" fontWeight={500} color="#1976d2">
+                        {selectedApproval.totalArea.toFixed(2)} cents
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Card>
+
+              {/* Location Information Card */}
+              <Card
+                variant="outlined"
+                sx={{
+                  mb: 3,
+                  borderRadius: 2,
+                  borderColor: '#e0e0e0'
+                }}
+              >
+                <Box sx={{ p: 2.5, borderBottom: '1px solid #e0e0e0' }}>
+                  <Typography variant="subtitle1" fontWeight={600} color="#05307a">
+                    Location Details
+                  </Typography>
+                </Box>
+                <Grid container spacing={2} sx={{ p: 2.5 }}>
+                  <Grid item xs={12} md={4}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Zone
+                      </Typography>
+                      <Chip
+                        label={selectedApproval.zoneName}
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                      />
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Taluk
+                      </Typography>
+                      <Typography variant="body1" fontWeight={500}>
+                        {selectedApproval.talukName}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        District
+                      </Typography>
+                      <Typography variant="body1" fontWeight={500}>
+                        {selectedApproval.districtName}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Card>
+
+              {/* Remarks Card */}
+              <Card
+                variant="outlined"
+                sx={{
+                  mb: 3,
+                  borderRadius: 2,
+                  borderColor: '#e0e0e0'
+                }}
+              >
+                <Box sx={{ p: 2.5, borderBottom: '1px solid #e0e0e0' }}>
+                  <Typography variant="subtitle1" fontWeight={600} color="#05307a">
+                    Investigator Remarks
+                  </Typography>
+                  Investigator Name : <strong>{selectedApproval.requestedByName || 'N/A'}</strong>
+                </Box>
+                <Box sx={{ p: 2.5 }}>
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 2,
+                      bgcolor: selectedApproval.reqRemarks ? '#fff8e1' : '#f5f5f5',
+                      borderRadius: 1,
+                      minHeight: 60
+                    }}
+                  >
+                    <Typography variant="body2">
+                      {selectedApproval.reqRemarks || 'No remarks provided by investigator'}
+                    </Typography>
+                  </Paper>
+                </Box>
+              </Card>
+
+              {/* Timeline Information */}
+              <Card
+                variant="outlined"
+                sx={{
+                  borderRadius: 2,
+                  borderColor: '#e0e0e0'
+                }}
+              >
+                <Box sx={{ p: 2.5, borderBottom: '1px solid #e0e0e0' }}>
+                  <Typography variant="subtitle1" fontWeight={600} color="#05307a">
+                    Timeline
+                  </Typography>
+                </Box>
+                <Grid container spacing={2} sx={{ p: 2.5 }}>
+                  <Grid item xs={12} md={6}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Requested On
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CalendarToday fontSize="small" color="action" />
+                        <Typography variant="body1" fontWeight={500}>
+                          {formatDate(selectedApproval.requestedAt)}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {new Date(selectedApproval.requestedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+
+                  {selectedApproval.approved && (
+                    <>
+                      <Grid item xs={12} md={6}>
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            Approved On
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <CheckCircle fontSize="small" color="success" />
+                            <Typography variant="body1" fontWeight={500}>
+                              {formatDate(selectedApproval.approvedAt)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {new Date(selectedApproval.approvedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+
+                      <Grid item xs={12}>
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            Approved By
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Person fontSize="small" color="action" />
+                            <Typography variant="body1" fontWeight={500}>
+                              {selectedApproval.approvedByName || 'System'}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+
+                      {selectedApproval.resRemarks && (
+                        <Grid item xs={12}>
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Approver Remarks
+                            </Typography>
+                            <Paper
+                              variant="outlined"
+                              sx={{
+                                p: 2,
+                                bgcolor: '#e8f5e9',
+                                borderRadius: 1,
+                                borderColor: '#c8e6c9'
+                              }}
+                            >
+                              <Typography variant="body2">
+                                {selectedApproval.resRemarks}
+                              </Typography>
+                            </Paper>
+                          </Box>
+                        </Grid>
+                      )}
+                    </>
+                  )}
+                </Grid>
+              </Card>
+            </Box>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2.5, bgcolor: '#f8f9fa', borderTop: '1px solid #e0e0e0' }}>
+          <Button
+            onClick={() => setViewDialog(false)}
+            variant="outlined"
+            startIcon={<Clear />}
+          >
+            Close
+          </Button>
+          {!selectedApproval?.approved && role?.includes('Approver') && (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<CheckCircle />}
+              onClick={() => {
+                setViewDialog(false);
+                handleApprove(selectedApproval);
+              }}
+            >
+              Approve Cluster
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Approve Confirmation Dialog */}
+      <Dialog
+        open={approveDialog}
+        onClose={() => {
+          setApproveDialog(false);
+          setIsEditEnabled(false);
+        }}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            maxWidth: '500px',
+            width: '100%'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          bgcolor: '#05307a',
+          color: 'white',
+          py: 2,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Approve Cluster
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+              ID: {selectedApproval?.approvalId}
+            </Typography>
+          </Box>
+          <IconButton
+            onClick={() => {
+              setApproveDialog(false);
+              setIsEditEnabled(false);
+            }}
+            sx={{ color: 'white' }}
+            size="small"
+          >
+            <Clear fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent dividers sx={{ p: 3 }}>
+          <Alert
+            severity="info"
+            icon={<Info fontSize="small" />}
+            sx={{ mb: 3, borderRadius: 2 }}
+          >
+            You are about to approve this cluster. This action cannot be undone.
+          </Alert>
+
+          {selectedApproval && (
+            <>
+              {/* Cluster Details Card */}
+              <Card
+                variant="outlined"
+                sx={{
+                  mb: 3,
+                  borderRadius: 2,
+                  borderColor: '#e0e0e0'
+                }}
+              >
+                <Box sx={{
+                  p: 2,
+                  borderBottom: '1px solid #e0e0e0',
+                  bgcolor: '#f8fafc'
+                }}>
+                  <Typography variant="subtitle1" fontWeight={600} color="#05307a">
+                    Cluster Details
+                  </Typography>
+                </Box>
+                <Grid container spacing={2} sx={{ p: 2 }}>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Cluster #
+                    </Typography>
+                    <Typography variant="body1" fontWeight={500}>
+                      {selectedApproval.clusterNo}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Type
+                    </Typography>
+                    <Typography variant="body1" fontWeight={500}>
+                      {selectedApproval.clusterType}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Zone
+                    </Typography>
+                    <Typography variant="body1">{selectedApproval.zoneName}</Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Taluk
+                    </Typography>
+                    <Typography variant="body1">{selectedApproval.talukName}</Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Area
+                    </Typography>
+                    <Typography variant="body1" fontWeight={500} color="#1976d2">
+                      {selectedApproval.totalArea.toFixed(2)} cents
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      District
+                    </Typography>
+                    <Typography variant="body1">{selectedApproval.districtName}</Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Zone Name
+                    </Typography>
+                    <Typography variant="body1">{selectedApproval.zoneName}</Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Requested By
+                    </Typography>
+                    <Typography variant="body1">{selectedApproval.requestedByName}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sx={{ borderTop: '1px solid #e0e0e0', pt: 2 }}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Remarks by Investigator
+                    </Typography>
+                    <Typography variant="body1">{selectedApproval.reqRemarks || 'No remarks provided by investigator'}</Typography>
+                  </Grid>
+                </Grid>
+              </Card>
+
+              {/* Edit Toggle Card - Fixed Width */}
+              <Card
+                variant="outlined"
+                sx={{
+                  mb: 3,
+                  borderRadius: 2,
+                  borderColor: isEditEnabled ? '#ffb74d' : '#e0e0e0',
+                  bgcolor: isEditEnabled ? '#fff8e1' : '#fafafa',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <Box sx={{ p: 2.5 }}>
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    mb: 1
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {isEditEnabled ? (
+                        <PlayCircleOutline sx={{ color: '#ff9800' }} />
+                      ) : (
+                        <CheckCircle sx={{ color: '#4caf50' }} />
+                      )}
+                      <Typography variant="subtitle1" fontWeight={600}>
+                        Cluster Edit Mode
+                      </Typography>
+                    </Box>
+                    <Switch
+                      checked={isEditEnabled}
+                      onChange={(e) => setIsEditEnabled(e.target.checked)}
+                      color={isEditEnabled ? "warning" : "default"}
+                      size="medium"
+                    />
+                  </Box>
+
+                  {/* Status Display */}
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 2,
+                    mb: 2,
+                    p: 1.5,
+                    borderRadius: 1,
+                    bgcolor: isEditEnabled ? '#fff3cd' : '#e8f5e9',
+                    border: `1px solid ${isEditEnabled ? '#ffeaa7' : '#c8e6c9'}`
+                  }}>
+                    {isEditEnabled ? (
+                      <>
+                        <Chip
+                          icon={<PlayCircleFilled sx={{ fontSize: 16 }} />}
+                          label="Ongoing"
+                          size="small"
+                          color="warning"
+                          sx={{ fontWeight: 500 }}
+                        />
+                        <Typography variant="body2" color="#e65100">
+                          Cluster will remain editable after approval
+                        </Typography>
+                      </>
+                    ) : (
+                      <>
+                        <Chip
+                          icon={<CheckCircle sx={{ fontSize: 16 }} />}
+                          label="Completed"
+                          size="small"
+                          color="success"
+                          sx={{ fontWeight: 500 }}
+                        />
+                        <Typography variant="body2" color="#2e7d32">
+                          Cluster will be marked as completed
+                        </Typography>
+                      </>
+                    )}
+                  </Box>
+
+                  {/* Caution Alert */}
+                  <Alert
+                    severity="warning"
+                    icon={<Warning sx={{ fontSize: 18 }} />}
+                    sx={{
+                      borderRadius: 1,
+                      fontSize: '0.8rem',
+                      '& .MuiAlert-icon': { alignItems: 'center' }
+                    }}
+                  >
+                    <Typography variant="caption" fontWeight={500}>
+                      <strong>Important:</strong> When "Edit Mode" is ON, cluster status will be "Ongoing"
+                      allowing further modifications. When OFF, status will be "Completed" and no further
+                      edits will be allowed.
+                    </Typography>
+                  </Alert>
+                </Box>
+              </Card>
+
+              {/* Remarks Section */}
+              <Box sx={{ mb: 1 }}>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Approver Remarks (Optional)
+                </Typography>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={3}
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  placeholder="Add any remarks, notes, or observations for this approval..."
+                  variant="outlined"
+                  size="small"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2
+                    }
+                  }}
+                />
+              </Box>
+            </>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{
+          p: 2.5,
+          bgcolor: '#f8f9fa',
+          borderTop: '1px solid #e0e0e0',
+          justifyContent: 'space-between'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {isEditEnabled ? (
+              <Chip
+                icon={<PlayCircleFilled sx={{ fontSize: 16 }} />}
+                label="Edit Mode: ON"
+                color="warning"
+                size="small"
+                variant="outlined"
+                sx={{ fontWeight: 500 }}
+              />
+            ) : (
+              <Chip
+                icon={<CheckCircle sx={{ fontSize: 16 }} />}
+                label="Edit Mode: OFF"
+                color="success"
+                size="small"
+                variant="outlined"
+                sx={{ fontWeight: 500 }}
+              />
+            )}
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              onClick={() => {
+                setApproveDialog(false);
+                setIsEditEnabled(false);
+              }}
+              variant="outlined"
+              size="medium"
+              startIcon={<Clear />}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              color="success"
+              onClick={() => handleSubmitAction(true)}
+              size="medium"
+              startIcon={<CheckCircle />}
+              sx={{
+                minWidth: 140,
+                boxShadow: '0 2px 8px rgba(76, 175, 80, 0.3)',
+                '&:hover': {
+                  boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)'
+                }
+              }}
+            >
+              Approve Cluster
+            </Button>
+          </Box>
+        </DialogActions>
+      </Dialog>
 
       {/* Reject Confirmation Dialog */}
-      <Dialog 
-        open={rejectDialog} 
+      <Dialog
+        open={rejectDialog}
         onClose={() => setRejectDialog(false)}
         maxWidth="sm"
         PaperProps={{
@@ -1486,8 +1486,8 @@ const handleSubmitAction = async (isApprove) => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setRejectDialog(false)}>Cancel</Button>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             color="error"
             onClick={() => handleSubmitAction(false)}
             disabled={!remarks.trim()}
@@ -1497,21 +1497,21 @@ const handleSubmitAction = async (isApprove) => {
         </DialogActions>
       </Dialog>
       {/* Snackbar for notifications */}
-<Snackbar
-  open={snackbar.open}
-  autoHideDuration={6000}
-  onClose={() => setSnackbar({ ...snackbar, open: false })}
-  anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
->
-  <Alert
-    onClose={() => setSnackbar({ ...snackbar, open: false })}
-    severity={snackbar.severity}
-    variant="filled"
-    sx={{ width: '100%' }}
-  >
-    {snackbar.message}
-  </Alert>
-</Snackbar>
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Grid>
   );
 }

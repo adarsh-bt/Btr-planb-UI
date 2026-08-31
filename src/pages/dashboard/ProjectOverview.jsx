@@ -892,8 +892,8 @@ export default function ProjectOverview() {
                             u.overallStatus === 'Completed'
                               ? 'ON_TRACK'
                               : u.overallStatus === 'Not Submitted'
-                              ? 'CRITICAL'
-                              : 'NEEDS_ATTENTION'
+                                ? 'CRITICAL'
+                                : 'NEEDS_ATTENTION'
                           }
                           label={u.overallStatus}
                           size="small"

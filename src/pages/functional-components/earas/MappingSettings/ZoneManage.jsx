@@ -816,8 +816,7 @@ const ZoneManage = () => {
       if (!response.ok) throw new Error("Failed to fetch blocks");
 
       const data = await response.json();
-      console.log("Available blocks for this zone's district:", data);
-      console.log("data >>.....", data)
+
       if (Array.isArray(data)) {
         setAvailableBlocks(data);
       } else {
@@ -1482,8 +1481,7 @@ const ZoneManage = () => {
                                   ) : (
                                     availableLocalBodies.map((lb) => (
                                       <MenuItem key={lb.localbodyId} value={lb.localbodyId}>
-                                        {lb.localbodyNameEn}   /  ({lb.localbodyNameMal
-                                        })
+                                        {lb.localbodyNameEn}   /  ({lb.localbodyNameMal})
                                       </MenuItem>
                                     ))
                                   )}

@@ -477,6 +477,7 @@ const UserTourDiaryDetail = () => {
       setFilteredClusters(filtered);
     }
   };
+  console.log(filteredClusters, "filteredClusters");
   // In the handleSubmitMonth function
   const handleSubmitMonth = async () => {
     setIsPartialSubmission(false);

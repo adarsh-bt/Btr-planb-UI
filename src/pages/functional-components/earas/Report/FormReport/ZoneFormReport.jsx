@@ -136,6 +136,16 @@ function resolveMonthValue(val, monthOptions) {
 // NOTE: `landType` here is WET / DRY / ALL — land type, NOT crop season.
 // Crop season is the separate, mandatory seasonId (Autumn / Winter / Summer).
 function pickMetric(zone, metric, landType) {
+  if (!zone) return 0;
+  if (metric === 'ClusterArea') {
+    const wetComp = Number(zone.wetCompleted) || 0;
+    const dryComp = Number(zone.dryCompleted) || 0;
+    const wetArea = wetComp > 0 ? (Number(zone.wetClusterArea) || 0) : 0;
+    const dryArea = dryComp > 0 ? (Number(zone.dryClusterArea) || 0) : 0;
+    if (landType === 'WET') return wetArea;
+    if (landType === 'DRY') return dryArea;
+    return wetArea + dryArea;
+  }
   if (landType === 'WET') return Number(zone[`wet${metric}`]) || 0;
   if (landType === 'DRY') return Number(zone[`dry${metric}`]) || 0;
   return (Number(zone[`wet${metric}`]) || 0) + (Number(zone[`dry${metric}`]) || 0);
@@ -257,6 +267,7 @@ function ZoneFormReport() {
   const [apiData, setApiData] = useState(null);
   const [zonesList, setZonesList] = useState([]);
 
+
   // Fetch master zones list
   const fetchMasterZones = async (talukIdValue) => {
     setMasterZonesLoading(true);
@@ -364,6 +375,7 @@ function ZoneFormReport() {
   }, [districtId, talukId, landTypeTab, seasonId, filterType, fromMonth, toMonth, singleMonth]);
 
   // Merge API data with master zones list
+  // Merge API data with master zones list
   const processedData = useMemo(() => {
     const apiZones = apiData?.allSubDetails || {};
     const btrZones = btrData?.allSubDetails || {};
@@ -395,7 +407,6 @@ function ZoneFormReport() {
       if (zoneId && btrMapById[zoneId]) return btrMapById[zoneId];
       const key = zoneName?.toLowerCase()?.trim() || '';
       if (key && btrMapByName[key]) return btrMapByName[key];
-      // Ambiguity-safe loose fallback (see findUniqueLooseMatch).
       return findUniqueLooseMatch(btrMapByName, key) || {};
     };
 
@@ -405,6 +416,11 @@ function ZoneFormReport() {
       mergedZones = zonesList.map((zone) => {
         const zoneId = zone.zoneId;
         const zoneName = zone.zoneNameEn || '';
+
+        // IMPORTANT: Get block info from master zones list
+        const masterBlockId = zone.blockId || null;
+        const masterBlockName = zone.blockName || null;
+        const masterBlockType = zone.blockType || null;
 
         let apiDetails = null;
         if (zoneId && apiDataMapById[zoneId]) {
@@ -431,8 +447,23 @@ function ZoneFormReport() {
 
         const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
 
-        const blockId = apiDetails?.blockId || null;
-        const blockName = apiDetails?.blockName || 'Unassigned';
+        // Use block info from master zones list FIRST (this is the key fix)
+        // Fallback to API details if master doesn't have it
+        let blockId = masterBlockId;
+        let blockName = masterBlockName;
+
+        // If master doesn't have block info, try to get it from API details
+        if (!blockId && !blockName && apiDetails) {
+          blockId = apiDetails.blockId || null;
+          blockName = apiDetails.blockName || null;
+        }
+
+        // If we have block type from master but no block name, use block type as name
+        if (!blockName && masterBlockType) {
+          blockName = masterBlockType;
+        }
+
+        // Fallback to 'Unassigned' if still no block info
         const resolvedBlock = resolveBlockName(blockId, blockName, zoneName);
 
         return {
@@ -440,6 +471,7 @@ function ZoneFormReport() {
           zoneName: zoneName || 'Unknown Zone',
           blockId: blockId,
           blockName: resolvedBlock,
+          masterBlockType: masterBlockType, // Keep for reference
           total,
           completed,
           ongoing,
@@ -518,6 +550,7 @@ function ZoneFormReport() {
         return;
       }
 
+      // Use the block name from the zone (which now correctly comes from master)
       const key = zone.blockId || zone.blockName;
       if (!blockMap.has(key)) {
         blockMap.set(key, {
@@ -791,7 +824,7 @@ function ZoneFormReport() {
 
     // Reasonable column widths so it doesn't open looking cramped
     worksheet['!cols'] = [
-      { wch: 5 },  { wch: 12 }, { wch: 20 }, { wch: 22 }, { wch: 10 },
+      { wch: 5 }, { wch: 12 }, { wch: 20 }, { wch: 22 }, { wch: 10 },
       { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
     ];
 
@@ -1308,22 +1341,22 @@ function ZoneFormReport() {
 
                                 {/* Zone Column */}
                                 <TableCell
-                                    colSpan={isCurrentRowSubtotal ? 2 : 1}
-                                    sx={{ borderRight: 'none', borderLeft: 'none' }}
-                                  >
-                                    {row.type === 'subtotal' ? (
-                                      <Typography
-                                        variant="body2"
-                                        sx={{
-                                          fontWeight: 'bold',
-                                          color: '#04255e',
-                                          fontStyle: 'italic'
-                                        }}
-                                      >
-                                        {row.zoneName}
-                                      </Typography>
-                                    ) : (
-                                      <Stack direction="row" spacing={1} alignItems="center">
+                                  colSpan={isCurrentRowSubtotal ? 2 : 1}
+                                  sx={{ borderRight: 'none', borderLeft: 'none' }}
+                                >
+                                  {row.type === 'subtotal' ? (
+                                    <Typography
+                                      variant="body2"
+                                      sx={{
+                                        fontWeight: 'bold',
+                                        color: '#04255e',
+                                        fontStyle: 'italic'
+                                      }}
+                                    >
+                                      {row.zoneName}
+                                    </Typography>
+                                  ) : (
+                                    <Stack direction="row" spacing={1} alignItems="center">
                                       <StoreIcon sx={{ fontSize: 18, color: hasNoData ? '#ff9800' : '#04255e', opacity: 0.7 }} />
                                       <Typography fontWeight={hasNoData ? 400 : 500} color={hasNoData ? 'text.secondary' : 'text.primary'}>
                                         {row.zoneName}

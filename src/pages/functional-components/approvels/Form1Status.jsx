@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import {
   Grid,
   Typography,
@@ -48,6 +49,7 @@ import {
 import Breadcrumb from 'routes/Breadcrumb';
 import authservice from 'pages/authentication/services/authservice';
 import mainapi from 'api/mainapi';
+import api from 'api/api';
 
 function Form1Status() {
   const BASE_URL = mainapi.BASE_URL;
@@ -93,31 +95,26 @@ function Form1Status() {
   useEffect(() => {
     const fetchEditRequests = async () => {
       try {
-        setLoading(true);
+        if (requests.length === 0) {
+          setLoading(true);
+        }
         setError(null);
 
-        const token = localStorage.getItem('token');
         const agriYear = authservice.agriyear();
-
-        const response = await fetch(
-          `${BASE_URL}/user-access/zones/fetch-zone-cluster-edit-requests?agriYear=${agriYear}&page=${page}&size=${rowsPerPage}`,
+        console.log("params ", agriYear, page, rowsPerPage);
+        const response = await api.get(
+          `${BASE_URL}/user-access/zones/fetch-zone-cluster-edit-requests`,
           {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
+            params: { agriYear, page, size: rowsPerPage }
           }
         );
 
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(result?.message || 'Failed to fetch Form 1 edit requests');
-        }
+        const result = response.data;
 
         setRequests(result.content || []);
         setTotalElements(result.totalElements || 0);
       } catch (err) {
-        setError(err.message || 'Unexpected error occurred.');
+        setError(err?.response?.data?.message || err.message || 'Failed to fetch Form 1 edit requests');
         setRequests([]);
         setTotalElements(0);
       } finally {
@@ -131,19 +128,22 @@ function Form1Status() {
   // ------------------------------------------------------------------ helpers
   // requestStatus is nullable in the API, so derive a usable status from it.
   const getStatusInfo = (row) => {
-    const raw = (row?.requestStatus || '').toString().trim().toUpperCase();
-
-    if (raw === 'REJECTED' || raw === 'REJECT') {
+    const raw = (row?.status || row?.requestStatus || '').toString().trim().toUpperCase();
+    console.log("row", row)
+    if (raw === 'REJECTED' || raw === 'REJECT' || raw.includes('REJECT')) {
       return { key: 'rejected', label: 'Rejected', color: 'error', icon: <Cancel /> };
     }
-    if (raw === 'APPROVED' || raw === 'APPROVE') {
+    if (raw === 'APPROVED' || raw === 'APPROVE' || raw.includes('APPROV')) {
       return { key: 'approved', label: 'Approved', color: 'success', icon: <CheckCircle /> };
+    }
+    if (raw === 'REQUESTED' || raw === 'REQUEST') {
+      return { key: 'requested', label: 'Requested', color: 'info', icon: <PendingActions /> };
     }
     if (raw === 'PENDING') {
       return { key: 'pending', label: 'Pending', color: 'warning', icon: <PendingActions /> };
     }
-    // Fallback when the backend leaves requestStatus null
-    if (row?.approvedAt) {
+    // Fallback when the backend leaves status / requestStatus null
+    if (row?.approvedAt || row?.approvedBy) {
       return { key: 'approved', label: 'Approved', color: 'success', icon: <CheckCircle /> };
     }
     return { key: 'pending', label: 'Pending', color: 'warning', icon: <PendingActions /> };
@@ -208,8 +208,13 @@ function Form1Status() {
   const createSortHandler = (property) => () => handleRequestSort(property);
 
   const descendingComparator = (a, b, key) => {
-    const av = a?.[key];
-    const bv = b?.[key];
+    let av = a?.[key];
+    let bv = b?.[key];
+
+    if (key === 'requestStatus' || key === 'status') {
+      av = getStatusInfo(a).label;
+      bv = getStatusInfo(b).label;
+    }
 
     // Nulls always sink to the bottom
     if (av == null && bv == null) return 0;
@@ -236,11 +241,16 @@ function Form1Status() {
       row.zoneName?.toLowerCase().includes(q) ||
       row.talukName?.toLowerCase().includes(q) ||
       row.districtName?.toLowerCase().includes(q) ||
-      row.clusterNo?.toString().includes(q);
+      row.clusterNo?.toString().includes(q) ||
+      row.seasonName?.toLowerCase().includes(q) ||
+      getStatusInfo(row).label.toLowerCase().includes(q);
 
     const matchesTaluk = !selectedTaluk || row.talukName === selectedTaluk;
     const matchesZone = !selectedZone || row.zoneName === selectedZone;
-    const matchesStatus = statusFilter === 'all' || getStatusInfo(row).key === statusFilter;
+    const matchesStatus =
+      statusFilter === 'all' ||
+      getStatusInfo(row).key === statusFilter ||
+      (statusFilter === 'pending' && getStatusInfo(row).key === 'requested');
 
     return matchesSearch && matchesTaluk && matchesZone && matchesStatus;
   });
@@ -312,39 +322,41 @@ function Form1Status() {
         approvedBy: approverId
       };
 
-      const response = await fetch(`${BASE_URL}/earas-form1-entry/form1/edit-log-save`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
+      const response = await axios.post(
+        `${BASE_URL}/earas-form1-entry/form1/edit-log-save`,
+        requestBody,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      const result = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(result?.message || `Failed to ${isApprove ? 'approve' : 'reject'} the edit request`);
-      }
-
+      const result = response.data || {};
       const payload = result?.payload || {};
       const savedAt = new Date().toISOString();
+      const updatedStatus = payload.status || status;
 
       setRequests((prev) =>
-        prev.map((row) =>
-          (row.requestId ?? row.id) === ids.id
-            ? {
-                ...row,
-                requestStatus: payload.status || status,
-                approvedRemark: payload.approvedRemark ?? requestBody.approvedRemark,
-                approvedBy: payload.approvedBy ?? approverId,
-                approvedAt: payload.approvedAt ?? savedAt
-              }
-            : row
-        )
+        prev.map((row) => {
+          const rowId = row.requestId ?? row.id;
+          if (String(rowId) === String(ids.id)) {
+            return {
+              ...row,
+              status: updatedStatus,
+              requestStatus: updatedStatus,
+              approvedRemark: payload.approvedRemark ?? requestBody.approvedRemark,
+              approvedBy: payload.approvedBy ?? approverId,
+              approvedAt: payload.approvedAt ?? savedAt
+            };
+          }
+          return row;
+        })
       );
 
       closeActionDialog();
+      setRefreshKey((k) => k + 1);
 
       setSnackbar({
         open: true,
@@ -354,7 +366,8 @@ function Form1Status() {
     } catch (err) {
       setSnackbar({
         open: true,
-        message: err.message || `Failed to ${isApprove ? 'approve' : 'reject'} the edit request`,
+        message:
+          err?.response?.data?.message || err.message || `Failed to ${isApprove ? 'approve' : 'reject'} the edit request`,
         severity: 'error'
       });
     } finally {
@@ -575,7 +588,8 @@ function Form1Status() {
                   <InputLabel>Status</InputLabel>
                   <Select value={statusFilter} label="Status" onChange={(e) => setStatusFilter(e.target.value)}>
                     <MenuItem value="all">All Status</MenuItem>
-                    <MenuItem value="pending">Pending</MenuItem>
+                    <MenuItem value="requested">Requested</MenuItem>
+                    {/* <MenuItem value="pending">Pending</MenuItem> */}
                     <MenuItem value="approved">Approved</MenuItem>
                     <MenuItem value="rejected">Rejected</MenuItem>
                   </Select>
@@ -665,10 +679,10 @@ function Form1Status() {
                   <TableBody>
                     {sortedData.map((row, index) => {
                       const statusInfo = getStatusInfo(row);
-                      const isPending = statusInfo.key === 'pending';
+                      const isPending = statusInfo.key === 'pending' || statusInfo.key === 'requested';
                       return (
                         <TableRow
-                          key={row.requestId}
+                          key={row.requestId || row.id || index}
                           hover
                           sx={{
                             '&:nth-of-type(even)': { bgcolor: '#f8f9fa' },
@@ -949,7 +963,7 @@ function Form1Status() {
                   </Typography>
                 </Box>
                 <Box sx={{ p: 2.5 }}>
-                  {getStatusInfo(selectedRequest).key === 'pending' ? (
+                  {['pending', 'requested'].includes(getStatusInfo(selectedRequest).key) ? (
                     <Alert severity="info" sx={{ borderRadius: 1 }}>
                       This request is waiting for approver action.
                     </Alert>
