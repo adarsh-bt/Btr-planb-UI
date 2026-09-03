@@ -1236,13 +1236,13 @@ const UserTourDiaryDetail = () => {
   const isMonthSubmitted = () => {
     if (fullMonthStatus) {
       // If verification is REJECTED, re-submission is NOT allowed. Keep locked.
-      const isVerificationRejected =
-        fullMonthStatus.verified_status === 'REJECTED' ||
-        fullMonthStatus.verifiedStatus === 'REJECTED';
+      //  -- const isVerificationRejected =
+      //    -- fullMonthStatus.verified_status === 'REJECTED' ||
+      //    -- fullMonthStatus.verifiedStatus === 'REJECTED';
 
-      if (isVerificationRejected) {
-        return true; // Locked, re-submission never allowed if verified status is REJECTED
-      }
+      //   --if (isVerificationRejected) {
+      //    -- return true; // Locked, re-submission never allowed if verified status is REJECTED
+      //   --}
 
       // Re-submission / editing is ONLY allowed if the approver rejected it
       const isApproverRejected =

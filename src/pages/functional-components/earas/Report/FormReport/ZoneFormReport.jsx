@@ -351,6 +351,7 @@ function ZoneFormReport() {
       console.log('BTR Zone Completed-Clusters Response:', completedClustersRes.data);
 
       setApiData(formStatusRes.data || null);
+      console.log("resposne dataaaa  " + formStatusRes.data)
       setBtrData(completedClustersRes.data || null);
     } catch (err) {
       console.error('API Error:', err);
@@ -443,7 +444,7 @@ function ZoneFormReport() {
         // Total from BTR completed-clusters API, Not Started derived from it
         const btrDetails = resolveBtrDetails(zoneId, zoneName);
         const total = pickMetric(btrDetails, 'Completed', landTypeTab);
-        const notStarted = Math.max(total - completed, 0);
+        const notStarted = Math.max(total - completed - ongoing - underReview, 0);
 
         const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
 
@@ -497,7 +498,7 @@ function ZoneFormReport() {
 
         const btrDetails = resolveBtrDetails(zoneIdVal, zoneName);
         const total = pickMetric(btrDetails, 'Completed', landTypeTab);
-        const notStarted = Math.max(total - completed, 0);
+        const notStarted = Math.max(total - completed - ongoing - underReview, 0);
 
         const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
 
@@ -608,13 +609,15 @@ function ZoneFormReport() {
 
     const totalCompletedClusters = btrData?.totalClusterCompleted || 0; // source for "Total Clusters"
     const existingCompleted = apiData.completed || 0;
+    const existingOngoing = apiData.ongoing || 0;
+    const existingUnderReview = apiData.underView || apiData.underReview || 0;
 
     return {
       total: totalCompletedClusters,
       completed: existingCompleted,
-      ongoing: apiData.ongoing || 0,
-      notStarted: Math.max(totalCompletedClusters - existingCompleted, 0),
-      underReview: apiData.underView || 0,
+      ongoing: existingOngoing,
+      notStarted: Math.max(totalCompletedClusters - existingCompleted - existingOngoing - existingUnderReview, 0),
+      underReview: existingUnderReview,
       completedArea
     };
   }, [apiData, btrData, processedData]);

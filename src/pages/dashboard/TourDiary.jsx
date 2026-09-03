@@ -1539,8 +1539,7 @@ const TourDiary = () => {
                                                         )}
 
                                                         {/* Verification Status Chip */}
-                                                        {submissionView?.firstHalfSubmitted && submissionView?.firstHalfVerifiedStatus &&
-                                                            !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(role) && (
+                                                        {submissionView?.firstHalfSubmitted && submissionView?.firstHalfVerifiedStatus && (
                                                                 <Chip
                                                                     label={`Ver: ${submissionView.firstHalfVerifiedStatus}`}
                                                                     size="small"
@@ -1632,8 +1631,7 @@ const TourDiary = () => {
                                                         )}
 
                                                         {/* Verification Status Chip */}
-                                                        {submissionView?.secondHalfSubmitted && submissionView?.secondHalfVerifiedStatus &&
-                                                            !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(role) && (
+                                                        {submissionView?.secondHalfSubmitted && submissionView?.secondHalfVerifiedStatus && (
                                                                 <Chip
                                                                     label={`Ver: ${submissionView.secondHalfVerifiedStatus}`}
                                                                     size="small"
@@ -1746,8 +1744,7 @@ const TourDiary = () => {
                                                     )}
 
                                                     {/* Verification Status Chip */}
-                                                    {submissionView?.fullMonthSubmitId && submissionView?.fullMonthVerifiedStatus &&
-                                                        !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(role) && (
+                                                    {submissionView?.fullMonthSubmitId && submissionView?.fullMonthVerifiedStatus && (
                                                             <Chip
                                                                 label={`Ver: ${submissionView.fullMonthVerifiedStatus}`}
                                                                 size="small"

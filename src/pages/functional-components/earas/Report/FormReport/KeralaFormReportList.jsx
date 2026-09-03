@@ -337,8 +337,8 @@ function KeralaFormReportList() {
         const btrDetails = resolveBtrDetails(districtId, districtName);
         const total = pickMetric(btrDetails, 'Completed', landTypeTab); // wetCompleted/dryCompleted
 
-        // Not Started = BTR total - form1 completed
-        const notStarted = Math.max(total - completed, 0);
+        // Not Started = BTR total - form1 (completed + ongoing + underReview)
+        const notStarted = Math.max(total - completed - ongoing - underReview, 0);
 
         const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
 
@@ -365,7 +365,7 @@ function KeralaFormReportList() {
 
       const btrDetails = resolveBtrDetails(d.id, districtName);
       const total = pickMetric(btrDetails, 'Completed', landTypeTab);
-      const notStarted = Math.max(total - completed, 0);
+      const notStarted = Math.max(total - completed - ongoing - underReview, 0);
       const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
 
       return {
@@ -389,13 +389,15 @@ function KeralaFormReportList() {
   const stats = useMemo(() => {
     const totalCompletedClusters = btrData?.totalClusterCompleted || 0; // source for "Total Clusters"
     const existingCompleted = apiData?.completed || 0;
+    const existingOngoing = apiData?.ongoing || 0;
+    const existingUnderReview = apiData?.underView || apiData?.underReview || 0;
 
     return {
       all: totalCompletedClusters,
       completed: existingCompleted,
-      ongoing: apiData?.ongoing || 0,
-      notStarted: Math.max(totalCompletedClusters - existingCompleted, 0),
-      underReview: apiData?.underView || 0,
+      ongoing: existingOngoing,
+      notStarted: Math.max(totalCompletedClusters - existingCompleted - existingOngoing - existingUnderReview, 0),
+      underReview: existingUnderReview,
       completedArea: districtData.reduce((sum, d) => sum + d.area, 0)
     };
   }, [apiData, btrData, districtData]);

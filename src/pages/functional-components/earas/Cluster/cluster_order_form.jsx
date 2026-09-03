@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Grid,
@@ -30,11 +30,12 @@ import {
   Search,
   Grass,
   AcUnit,
-  WbSunny
+  WbSunny,
+  Clear
 } from '@mui/icons-material';
 import axios from 'axios';
-import Breadcrumb from 'routes/Breadcrumb'; // Ensure this path is correct for your project
-import LoadingScreen from 'utils/loadingscreen'; // Ensure this path is correct
+import Breadcrumb from 'routes/Breadcrumb';
+import LoadingScreen from 'utils/loadingscreen';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import authservice from 'pages/authentication/services/authservice';
 import mainapi from 'api/mainapi';
@@ -42,13 +43,8 @@ import api from 'api/api';
 
 function ClusterSeatForm({ zoneId }) {
   const [clusters, setClusters] = useState([]);
-  const [summary, setSummary] = useState({
-    completed: 0,
-    ongoing: 0,
-    notStarted: 0,
-    underreview: 0
-  });
   const [selectedStatus, setSelectedStatus] = useState('All');
+  const [selectedSeason, setSelectedSeason] = useState('All'); // 'All', '1', '2', '3'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -56,7 +52,6 @@ function ClusterSeatForm({ zoneId }) {
 
   const [resolvedZoneId] = useState(() => {
     const role = authservice.getrole();
- 
     return role === 'Field Data Collector' ? authservice.getzone() : zoneId;
   });
 
@@ -89,20 +84,12 @@ function ClusterSeatForm({ zoneId }) {
 
     api.get(`${BASE_URL}/btr-service/cluster-api/cluster-form-status/${resolvedZoneId}/${authservice.agriyear()}`)
       .then(res => {
-        // Store the raw payload directly - One object per cluster
         setClusters(res.data.payload || []);
-        setSummary({
-          completed: res.data.completed || 0,
-          ongoing: res.data.ongoing || 0,
-          notStarted: res.data.notStarted || 0,
-          underreview: res.data.underreview || 0,
-        });
         setLoading(false);
       })
       .catch(err => {
         console.error('Failed to fetch data:', err);
         setClusters([]);
-        setSummary({ completed: 0, ongoing: 0, notStarted: 0, underreview: 0 });
         setError('Failed to load cluster data. Please try again later.');
         setLoading(false);
       });
@@ -150,36 +137,85 @@ function ClusterSeatForm({ zoneId }) {
     }
   };
 
+  // --- Dynamic Season-Wise Summary Calculation ---
+  const seasonSummary = useMemo(() => {
+    if (!clusters || clusters.length === 0) {
+      return { total: 0, completed: 0, ongoing: 0, notStarted: 0, underreview: 0 };
+    }
+
+    let completed = 0;
+    let ongoing = 0;
+    let underreview = 0;
+    let notStarted = 0;
+
+    clusters.forEach(cluster => {
+      let statusToUse = cluster.status;
+
+      if (selectedSeason !== 'All') {
+        const seasonId = Number(selectedSeason);
+        const seasonData = cluster.seasons?.find(s => s.seasonId === seasonId);
+        statusToUse = seasonData ? seasonData.status : 'NOT STARTED';
+      }
+
+      const norm = normalizeStatus(statusToUse);
+      if (norm === 'Completed') completed++;
+      else if (norm === 'On Going') ongoing++;
+      else if (norm === 'Under Review') underreview++;
+      else notStarted++;
+    });
+
+    return { total: clusters.length, completed, ongoing, notStarted, underreview };
+  }, [clusters, selectedSeason]);
+
   // --- Navigation & Actions ---
 
   const handleSeasonClick = (e, cluster, seasonId) => {
-    e.stopPropagation(); // Prevent triggering parent card click if any
-    const encodedSyNo = encodeURIComponent(cluster.keyplotId); // keyplotId maps to 'No'
-    const encodedSlNo = encodeURIComponent(cluster.clusterNo);          // seasonId maps to 'slno'
-console.Console
-    // Check if we have a resolvedZoneId (Admin context or specific zone view)
+    e.stopPropagation();
+    const encodedSyNo = encodeURIComponent(cluster.keyplotId);
+    const encodedSlNo = encodeURIComponent(cluster.clusterNo);
+
     if (resolvedZoneId) {
       navigate(`/schemes/earas/Clusters_Form/${resolvedZoneId}/ClusterFormView?No=${encodedSyNo}&slno=${encodedSlNo}`);
     } else {
       navigate(`/schemes/earas/Clusters_Form/ClusterFormView?No=${encodedSyNo}&slno=${encodedSlNo}`);
     }
   };
+
   // --- Filtering ---
-  const filteredClusters = clusters.filter(cluster => {
-    // 1. Filter by Status (Check Root Status)
-    const normalizedRootStatus = normalizeStatus(cluster.status);
-    const matchesStatus = selectedStatus === 'All' || normalizedRootStatus === selectedStatus;
+  const filteredClusters = useMemo(() => {
+    return clusters.filter(cluster => {
+      // 1. Filter by Status & Season
+      let matchesStatus = true;
 
-    // 2. Filter by Search
-    const matchesSearch =
-      cluster.clusterNo?.toString().includes(searchTerm) ||
-      cluster.localbody?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cluster.village?.toLowerCase().includes(searchTerm.toLowerCase());
+      if (selectedStatus !== 'All') {
+        let statusToMatch = cluster.status;
 
-    return matchesStatus && matchesSearch;
-  });
+        if (selectedSeason !== 'All') {
+          const seasonId = Number(selectedSeason);
+          const seasonData = cluster.seasons?.find(s => s.seasonId === seasonId);
+          statusToMatch = seasonData ? seasonData.status : 'NOT STARTED';
+        }
 
-  const statuses = ['All', 'Completed', 'On Going', 'Not Started', 'Under Review'];
+        const normalizedStatus = normalizeStatus(statusToMatch);
+        matchesStatus = normalizedStatus === selectedStatus;
+      }
+
+      // 2. Filter by Search
+      const matchesSearch =
+        !searchTerm ||
+        cluster.clusterNo?.toString().includes(searchTerm) ||
+        cluster.localbody?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        cluster.village?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      return matchesStatus && matchesSearch;
+    });
+  }, [clusters, selectedStatus, selectedSeason, searchTerm]);
+
+  const selectedSeasonLabel = useMemo(() => {
+    if (selectedSeason === 'All') return 'All Seasons';
+    const s = SEASONS.find(item => item.id === Number(selectedSeason));
+    return s ? `${s.name} Season` : 'Season';
+  }, [selectedSeason]);
 
   return (
     <Grid container spacing={3}>
@@ -207,57 +243,156 @@ console.Console
         ) : (
           <>
             <Typography
-                variant="h4"
-                fontWeight="bold"
-                sx={{
-                  textAlign: 'center',
-                  opacity: 0.9,
-                  mb: 3
-                }}
-              >
-                Form Status of Clusters
-              </Typography>
-            {/* --- Summary Cards --- */}
+              variant="h4"
+              fontWeight="bold"
+              sx={{
+                textAlign: 'center',
+                opacity: 0.9,
+                mb: 3
+              }}
+            >
+              Form Status of Clusters
+            </Typography>
+
+            {/* --- Season Wise Filter Tabs --- */}
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                mb: 3,
+                border: '1px solid #e0e0e0',
+                borderRadius: 3,
+                bgcolor: '#fafafa'
+              }}
+            >
+              <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems="center" spacing={2}>
+                <Box display="flex" alignItems="center">
+                  <FilterList sx={{ mr: 1, color: 'primary.main' }} />
+                  <Typography variant="subtitle1" fontWeight="bold" sx={{ color: '#333' }}>
+                    Select Season:
+                  </Typography>
+                </Box>
+                <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                  <Chip
+                    icon={<Dashboard fontSize="small" />}
+                    label="All Seasons"
+                    clickable
+                    color={selectedSeason === 'All' ? 'primary' : 'default'}
+                    variant={selectedSeason === 'All' ? 'filled' : 'outlined'}
+                    onClick={() => setSelectedSeason('All')}
+                    sx={{ fontWeight: 'bold', px: 1, py: 2 }}
+                  />
+                  {SEASONS.map((season) => (
+                    <Chip
+                      key={season.id}
+                      icon={season.icon}
+                      label={`${season.name}`}
+                      clickable
+                      color={selectedSeason === String(season.id) ? 'primary' : 'default'}
+                      variant={selectedSeason === String(season.id) ? 'filled' : 'outlined'}
+                      onClick={() => setSelectedSeason(String(season.id))}
+                      sx={{ fontWeight: 'bold', px: 1, py: 2 }}
+                    />
+                  ))}
+                </Stack>
+              </Stack>
+            </Paper>
+
+            {/* --- Summary Cards (Season-wise Dynamic Counts) --- */}
             <Grid container spacing={2} sx={{ mb: 4 }}>
               {[
-                { status: 'All', count: clusters.length, label: 'Total Clusters', icon: <Dashboard />, color: '#666' },
-                { status: 'Completed', count: summary.completed, label: 'Completed', icon: <CheckCircle />, color: '#4caf50' },
-                { status: 'On Going', count: summary.ongoing, label: 'In Progress', icon: <PlayCircle />, color: '#ff9800' },
-                { status: 'Under Review', count: summary.underreview, label: 'Under Review', icon: <PendingActions />, color: '#2196f3' },
-                { status: 'Not Started', count: summary.notStarted, label: 'Not Started', icon: <NewReleases />, color: '#9e9e9e' },
-              ].map((item) => (
-                <Grid item xs={12} sm={6} md={2.4} key={item.status}>
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      p: 2,
-                      border: '1px solid #e0e0e0',
-                      borderRadius: 3,
-                      display: 'flex',
-                      alignItems: 'center',
-                      transition: 'all 0.2s',
-                      '&:hover': { transform: 'translateY(-2px)', boxShadow: 2, borderColor: item.color }
-                    }}
-                  >
-                    <Box sx={{ p: 1.5, borderRadius: '50%', bgcolor: `${item.color}15`, color: item.color, mr: 2 }}>
-                      {item.icon}
-                    </Box>
-                    <Box>
-                      <Typography variant="h5" sx={{ fontWeight: 'bold' }}>{item.count}</Typography>
-                      <Typography variant="caption" color="text.secondary">{item.label}</Typography>
-                    </Box>
-                  </Paper>
-                </Grid>
-              ))}
+                { status: 'All', count: seasonSummary.total, label: 'Total Clusters', icon: <Dashboard />, color: '#666' },
+                { status: 'Completed', count: seasonSummary.completed, label: 'Completed', icon: <CheckCircle />, color: '#4caf50' },
+                { status: 'On Going', count: seasonSummary.ongoing, label: 'In Progress', icon: <PlayCircle />, color: '#ff9800' },
+                { status: 'Under Review', count: seasonSummary.underreview, label: 'Under Review', icon: <PendingActions />, color: '#2196f3' },
+                { status: 'Not Started', count: seasonSummary.notStarted, label: 'Not Started', icon: <NewReleases />, color: '#9e9e9e' },
+              ].map((item) => {
+                const isSelected = selectedStatus === item.status;
+                return (
+                  <Grid item xs={12} sm={6} md={2.4} key={item.status}>
+                    <Paper
+                      elevation={isSelected ? 4 : 0}
+                      onClick={() => setSelectedStatus(item.status)}
+                      sx={{
+                        p: 2,
+                        border: isSelected ? `2px solid ${item.color}` : '1px solid #e0e0e0',
+                        borderRadius: 3,
+                        display: 'flex',
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                        bgcolor: isSelected ? `${item.color}08` : '#ffffff',
+                        transition: 'all 0.2s',
+                        '&:hover': { transform: 'translateY(-2px)', boxShadow: 2, borderColor: item.color }
+                      }}
+                    >
+                      <Box sx={{ p: 1.5, borderRadius: '50%', bgcolor: `${item.color}15`, color: item.color, mr: 2 }}>
+                        {item.icon}
+                      </Box>
+                      <Box>
+                        <Typography variant="h5" sx={{ fontWeight: 'bold' }}>{item.count}</Typography>
+                        <Typography variant="caption" color="text.secondary" fontWeight={isSelected ? 'bold' : 'normal'}>
+                          {item.label} ({selectedSeasonLabel})
+                        </Typography>
+                      </Box>
+                    </Paper>
+                  </Grid>
+                );
+              })}
             </Grid>
 
-            {/* --- Filters & Search --- */}
-        
-            {/* --- Cluster Grid --- */}
+            {/* --- Search and Reset Controls --- */}
+            <Paper elevation={0} sx={{ p: 2, mb: 3, border: '1px solid #e0e0e0', borderRadius: 3 }}>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={6} md={6}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Search by Cluster No, Village or Localbody..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Search color="action" fontSize="small" />
+                        </InputAdornment>
+                      ),
+                      endAdornment: searchTerm && (
+                        <InputAdornment position="end">
+                          <Button size="small" onClick={() => setSearchTerm('')} sx={{ p: 0, minWidth: 24 }}>
+                            <Clear fontSize="small" />
+                          </Button>
+                        </InputAdornment>
+                      )
+                    }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={6}>
+                  <Stack direction="row" spacing={1} justifyContent={{ xs: 'flex-start', sm: 'flex-end' }} alignItems="center" flexWrap="wrap" gap={1}>
+                    {(selectedStatus !== 'All' || selectedSeason !== 'All' || searchTerm) && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="secondary"
+                        onClick={() => {
+                          setSelectedStatus('All');
+                          setSelectedSeason('All');
+                          setSearchTerm('');
+                        }}
+                      >
+                        Reset Filters
+                      </Button>
+                    )}
+                  </Stack>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* --- Cluster Grid Header --- */}
             <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
               <LocalFlorist sx={{ mr: 1, color: 'primary.main' }} />
               <Typography variant="h6" fontWeight="bold">
-                {selectedStatus === 'All' ? 'All Clusters' : `${selectedStatus} Clusters`}
+                {selectedSeasonLabel} - {selectedStatus === 'All' ? 'All Clusters' : `${selectedStatus} Clusters`}
                 <Typography component="span" sx={{ ml: 1, color: 'text.secondary', fontSize: '0.9rem' }}>
                   ({filteredClusters.length} found)
                 </Typography>
@@ -265,12 +400,21 @@ console.Console
             </Box>
 
             {filteredClusters.length === 0 ? (
-              <Alert severity="info">No clusters found matching your criteria.</Alert>
+              <Alert severity="info">No clusters found matching your selected season and status criteria.</Alert>
             ) : (
               <Grid container spacing={2}>
                 {filteredClusters.map((cluster) => {
                   const typeStyles = getClusterTypeColor(cluster.clusterType);
-                  const rootStatusConfig = getStatusColorConfig(cluster.status);
+
+                  // Determine display status based on selected season
+                  let displayStatus = cluster.status;
+                  if (selectedSeason !== 'All') {
+                    const seasonId = Number(selectedSeason);
+                    const seasonData = cluster.seasons?.find(s => s.seasonId === seasonId);
+                    displayStatus = seasonData ? seasonData.status : 'NOT STARTED';
+                  }
+
+                  const rootStatusConfig = getStatusColorConfig(displayStatus);
 
                   return (
                     <Grid item xs={12} sm={6} md={4} lg={3} key={cluster.keyplotId}>
@@ -320,7 +464,7 @@ console.Console
                             </Box>
                             <Chip
                               size="small"
-                              label={normalizeStatus(cluster.status)}
+                              label={`${selectedSeason !== 'All' ? selectedSeasonLabel.split(' ')[0] + ': ' : ''}${normalizeStatus(displayStatus)}`}
                               sx={{
                                 bgcolor: rootStatusConfig.main,
                                 color: '#fff',
@@ -353,9 +497,6 @@ console.Console
                                   textTransform: 'uppercase'
                                 }}
                               />
-                              {/* <Typography variant="caption" sx={{ alignSelf: 'center', color: 'text.secondary' }}>
-                                        Area: {cluster.area} 
-                                    </Typography> */}
                             </Stack>
                           </Box>
 
@@ -368,10 +509,10 @@ console.Console
 
                           <Grid container spacing={1}>
                             {SEASONS.map((seasonDef) => {
-                              // Find status for this season from the 'seasons' array
                               const seasonData = cluster.seasons?.find(s => s.seasonId === seasonDef.id);
                               const sStatus = seasonData ? seasonData.status : 'NOT STARTED';
                               const sConfig = getStatusColorConfig(sStatus);
+                              const isSeasonActive = selectedSeason === String(seasonDef.id);
 
                               return (
                                 <Grid item xs={4} key={seasonDef.id} sx={{ display: 'flex', justifyContent: 'center' }}>
@@ -384,8 +525,9 @@ console.Console
                                       sx={{
                                         flexDirection: 'column',
                                         p: 0.5,
-                                        borderColor: sConfig.border,
-                                        bgcolor: sConfig.light,
+                                        borderColor: isSeasonActive ? sConfig.main : sConfig.border,
+                                        bgcolor: isSeasonActive ? sConfig.border : sConfig.light,
+                                        borderWidth: isSeasonActive ? 2 : 1,
                                         color: '#444',
                                         minHeight: 55,
                                         '&:hover': {
@@ -399,7 +541,7 @@ console.Console
                                       </Box>
                                       <Typography variant="caption" sx={{ lineHeight: 1, fontWeight: 'bold', fontSize: '0.65rem' }}>
                                         {seasonDef.short}<br></br>
-                                        {seasonData.status}
+                                        {normalizeStatus(sStatus)}
                                       </Typography>
                                       <Box
                                         sx={{

@@ -697,7 +697,7 @@ function Form1Status() {
 
                           <TableCell>
                             <Typography variant="body2" fontWeight="medium">
-                              {row.clusterNo ?? '—'}
+                              {row.clusterNo ?? '—'} ({row.landType})
                             </Typography>
                             {row.seasonName && (
                               <Typography variant="caption" color="text.secondary">

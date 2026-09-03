@@ -858,19 +858,17 @@ const UserAdvancedTourDiaryDetail = () => {
                   />
                 )}
                 {/* Verification Status */}
-                {submissionDetails.firstHalfVerifiedStatus &&
-                  !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(roleName) &&
-                  !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(loggedInRole) && (
-                  <Chip
-                    label={`Ver: ${submissionDetails.firstHalfVerifiedStatus}`}
-                    size="small"
-                    color={
-                      submissionDetails.firstHalfVerifiedStatus === "APPROVED" ? "success" :
-                        submissionDetails.firstHalfVerifiedStatus === "REJECTED" ? "error" : "warning"
-                    }
-                    sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
-                  />
-                )}
+                {submissionDetails.firstHalfVerifiedStatus && (
+                    <Chip
+                      label={`Ver: ${submissionDetails.firstHalfVerifiedStatus}`}
+                      size="small"
+                      color={
+                        submissionDetails.firstHalfVerifiedStatus === "APPROVED" ? "success" :
+                          submissionDetails.firstHalfVerifiedStatus === "REJECTED" ? "error" : "warning"
+                      }
+                      sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
+                    />
+                  )}
                 {/* Remarks Indicator */}
                 {(submissionDetails.firstHalfAdminRemark || submissionDetails.firstHalfVerificationRemark) && (
                   <Tooltip
@@ -933,19 +931,17 @@ const UserAdvancedTourDiaryDetail = () => {
                   />
                 )}
                 {/* Verification Status */}
-                {submissionDetails.secondHalfVerifiedStatus &&
-                  !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(roleName) &&
-                  !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(loggedInRole) && (
-                  <Chip
-                    label={`Ver: ${submissionDetails.secondHalfVerifiedStatus}`}
-                    size="small"
-                    color={
-                      submissionDetails.secondHalfVerifiedStatus === "APPROVED" ? "success" :
-                        submissionDetails.secondHalfVerifiedStatus === "REJECTED" ? "error" : "warning"
-                    }
-                    sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
-                  />
-                )}
+                {submissionDetails.secondHalfVerifiedStatus && (
+                    <Chip
+                      label={`Ver: ${submissionDetails.secondHalfVerifiedStatus}`}
+                      size="small"
+                      color={
+                        submissionDetails.secondHalfVerifiedStatus === "APPROVED" ? "success" :
+                          submissionDetails.secondHalfVerifiedStatus === "REJECTED" ? "error" : "warning"
+                      }
+                      sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
+                    />
+                  )}
                 {/* Remarks Indicator */}
                 {(submissionDetails.secondHalfAdminRemark || submissionDetails.secondHalfVerificationRemark) && (
                   <Tooltip
@@ -1012,19 +1008,17 @@ const UserAdvancedTourDiaryDetail = () => {
               />
             )}
             {/* Verification Status */}
-            {submissionDetails.fullMonthVerifiedStatus &&
-              !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(roleName) &&
-              !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(loggedInRole) && (
-              <Chip
-                label={`Ver: ${submissionDetails.fullMonthVerifiedStatus}`}
-                size="small"
-                color={
-                  submissionDetails.fullMonthVerifiedStatus === "APPROVED" ? "success" :
-                    submissionDetails.fullMonthVerifiedStatus === "REJECTED" ? "error" : "warning"
-                }
-                sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
-              />
-            )}
+            {submissionDetails.fullMonthVerifiedStatus && (
+                <Chip
+                  label={`Ver: ${submissionDetails.fullMonthVerifiedStatus}`}
+                  size="small"
+                  color={
+                    submissionDetails.fullMonthVerifiedStatus === "APPROVED" ? "success" :
+                      submissionDetails.fullMonthVerifiedStatus === "REJECTED" ? "error" : "warning"
+                  }
+                  sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
+                />
+              )}
             {/* Remarks Indicator */}
             {(submissionDetails.fullMonthAdminRemark || submissionDetails.fullMonthVerificationRemark) && (
               <Tooltip
