@@ -61,6 +61,7 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import mainapi from 'api/mainapi';
 import authservice from 'pages/authentication/services/authservice';
 import { pl } from 'date-fns/locale';
+import api from 'api/api';
 // import { usePermission } from 'contexts/auth-reducer/usePermission';
 
 const KeyPlotListing = ({zoneId}) => {
@@ -102,7 +103,7 @@ const [clusterChanges, setClusterChanges] = useState({});
   const [plotDetailsLoading, setPlotDetailsLoading] = useState(false);
   const [plotDetailsData, setPlotDetailsData] = useState(null);
   const [plotDetailsError, setPlotDetailsError] = useState(null);
-  
+  const [showFinalConfirm, setShowFinalConfirm] = useState(false);
   // Snackbar states
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -111,6 +112,19 @@ const [clusterChanges, setClusterChanges] = useState({});
   const [zonestatus,setZonestatus] = useState(false)
   const [removalValidationError, setRemovalValidationError] = useState('');
 const [clusterStatus, setClusterStatus] = useState(null);
+
+const [openPreCheckDialog, setOpenPreCheckDialog] = useState(false);
+const [preCheckData, setPreCheckData] = useState({
+  hasCrops: false,
+  cropsCount: 0,
+  loading: false,
+  status: '',
+  isStatusBlocked: false
+});
+
+const [showCropsList, setShowCropsList] = useState(false);
+const [cropsList, setCropsList] = useState([]);
+const [cropsLoading, setCropsLoading] = useState(false);
   // const { hasPermission } = usePermission();
 // const { roles, hasRole } = usePermission();
 
@@ -147,6 +161,7 @@ const handleOpenEnumEdit = () => {
   
   setOpenEditEnumDialog(true);
 };
+
 
 const handleEnumAreaChange = (e) => {
   const value = e.target.value;
@@ -214,6 +229,7 @@ const validateEnumArea = (value, totalArea) => {
       oldsuvNo: plot.oldsuvNo,
       oldsubNo: plot.oldsubNo,
       enumarea: plot.enumArea,
+      status:plot.status,
       action: "View Cluster"
     }));
   };
@@ -233,47 +249,47 @@ const handleUpdateEnumeratedArea = async () => {
 
   setEnumLoading(true);
 
-  try {
-    const BASE_URL = mainapi.BASE_URL;
-    const token = localStorage.getItem("token");
-    
-    const response = await fetch(
-      `${BASE_URL}/btr-service/key-plots/update-enumerated-area`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          kpId: id,
-          enumeratedArea: parseFloat(enumAreaValue),
-          remark: enumRemark,
-        }),
-      }
+try {
+
+  setEnumLoading(true);
+
+  const response = await api.post(
+    `/btr-service/key-plots/update-enumerated-area`,
+    {
+      kpId: id,
+      enumeratedArea: parseFloat(enumAreaValue),
+      remark: enumRemark,
+    }
+  );
+
+  setSnackbarMessage("Enumerated area updated successfully");
+  setSnackbarSeverity("success");
+  setSnackbarOpen(true);
+
+  setOpenEditEnumDialog(false);
+
+  // ✅ Refresh both list & modal
+  fetchKeyPlots();
+  fetchPlotDetails(id);
+
+} catch (err) {
+
+  // ✅ interceptor handles 401
+  if (err?.response?.status !== 401) {
+
+    setSnackbarMessage(
+      err.message || "Failed to update enumerated area"
     );
 
-    if (!response.ok) {
-      throw new Error("Failed to update enumerated area");
-    }
-
-    setSnackbarMessage("Enumerated area updated successfully");
-    setSnackbarSeverity("success");
-    setSnackbarOpen(true);
-
-    setOpenEditEnumDialog(false);
-
-    // Refresh both list & modal
-    fetchKeyPlots();
-    fetchPlotDetails(id);
-
-  } catch (err) {
-    setSnackbarMessage(err.message || "Failed to update enumerated area");
     setSnackbarSeverity("error");
     setSnackbarOpen(true);
-  } finally {
-    setEnumLoading(false);
   }
+
+} finally {
+
+  setEnumLoading(false);
+
+}
 };
   // Fetch keyplot data from API
   const fetchKeyPlots = useCallback(async () => {
@@ -281,81 +297,162 @@ const handleUpdateEnumeratedArea = async () => {
     setError(null);
     setFetchError(null);
 
-
-    try {
-      const BASE_URL = mainapi.BASE_URL;
-      const token = localStorage.getItem('token')
-        if (!resolvedZoneId || resolvedZoneId === "null") {
+try {
+  if (!resolvedZoneId || resolvedZoneId === "null") {
     setError("No zones are assigned to you. Please contact your administrator.");
-    setZonestatus(true)
+    setZonestatus(true);
     setDataVisible(false);
     setLoading(false);
     return;
   }
-      
-      const response = await fetch(`${BASE_URL}/btr-service/key-plots/get-all/${resolvedZoneId}`, {
-  headers: {
-    'Authorization': `Bearer ${token}`,
-  }
-});
-     
-      if (!response.ok) {
-        throw new Error(`Failed to fetch data (${response.status})`);
-      }
-      const data = await response.json();
-      console.log("API Response:", data);
-      const plots = data.payload || [];
-      
-      const transformedPlots = transformPlotData(plots);
-      
-      setPlotData(transformedPlots);
-      setDataVisible(plots.length > 0);
-      
-      // Calculate panchayath summary
-     // Calculate panchayath summary WITH WET/DRY counts
-const panchayathSummary = plots.reduce((acc, plot) => {
-  const existing = acc.find(item => item.panchayath === plot.panchayath);
-  const isWet = plot.landType?.toUpperCase() === "WET";
-  const isDry = plot.landType?.toUpperCase() === "DRY";
+const agriYear = authservice.agriyear();
+  const response = await api.get(
+   `/btr-service/key-plots/get-all/${resolvedZoneId}/${agriYear}`
+  );
 
-  if (existing) {
-    existing.totalarea += plot.areaCents || 0;
-    existing.count += 1;
+  const data = response.data;
 
-    if (isWet) existing.wetCount += 1;
-    if (isDry) existing.dryCount += 1;
+  console.log("API Response:", data);
 
-  } else {
-    acc.push({
-      panchayath: plot.panchayath,
-      totalarea: plot.areaCents || 0,
-      count: 1,
-      wetCount: isWet ? 1 : 0,
-      dryCount: isDry ? 1 : 0
-    });
-  }
-  return acc;
-}, []).sort((a, b) => b.totalarea - a.totalarea);
+  const plots = data.payload || [];
 
-setPanchayathAreaSummary(panchayathSummary);
+  const transformedPlots = transformPlotData(plots);
 
-      
-      // setSnackbarMessage(`Successfully loaded ${plots.length} keyplots`);
-      // setSnackbarSeverity('success');
-      // setSnackbarOpen(true);
-      
-    } catch (err) {
-      setError(err.message);
-      setFetchError(`Failed to fetch keyplot data. ${err.message}`);
-      setDataVisible(false);
-      setSnackbarMessage(`Error loading data: ${err.message}`);
-      setSnackbarSeverity('error');
-      setSnackbarOpen(true);
-    } finally {
-      setLoading(false);
+  setPlotData(transformedPlots);
+  setDataVisible(plots.length > 0);
+
+  // ✅ Panchayath summary
+  const panchayathSummary = plots.reduce((acc, plot) => {
+
+    const existing = acc.find(item => item.panchayath === plot.panchayath);
+
+    const isWet = plot.landType?.toUpperCase() === "WET";
+    const isDry = plot.landType?.toUpperCase() === "DRY";
+
+    if (existing) {
+      existing.totalarea += plot.areaCents || 0;
+      existing.count += 1;
+
+      if (isWet) existing.wetCount += 1;
+      if (isDry) existing.dryCount += 1;
+
+    } else {
+      acc.push({
+        panchayath: plot.panchayath,
+        totalarea: plot.areaCents || 0,
+        count: 1,
+        wetCount: isWet ? 1 : 0,
+        dryCount: isDry ? 1 : 0
+      });
     }
+
+    return acc;
+
+  }, []).sort((a, b) => b.totalarea - a.totalarea);
+
+  setPanchayathAreaSummary(panchayathSummary);
+
+} catch (err) {
+
+  console.error("Fetch error:", err);
+
+  // ❗ DO NOT handle 401 here → interceptor handles it
+
+  if (err.response) {
+    setError(err.response.data?.message || "Failed to fetch keyplot data");
+    setFetchError(err.response.data?.message || "Server error");
+  } else {
+    setError("Network error. Please check your connection.");
+    setFetchError("Network error");
+  }
+
+  setDataVisible(false);
+
+  setSnackbarMessage("Error loading data");
+  setSnackbarSeverity('error');
+  setSnackbarOpen(true);
+
+} finally {
+  setLoading(false);
+}
   }, []);
 
+// When fetching crops, add removing property
+const fetchCropsForCluster = async (clusterId) => {
+  setCropsLoading(true);
+  try {
+    const response = await api.get(`/earas-form1-entry/available-cce-plot-details/fetch-cce-crops/${clusterId}`);
+    const data = response.data;
+    const cropsWithStatus = (data.payload || []).map(crop => ({
+      ...crop,
+      removing: false,
+      remark: ''
+    }));
+    setCropsList(cropsWithStatus);
+    setShowCropsList(true);
+  } catch (err) {
+    console.error("Error fetching crops:", err);
+    setSnackbarMessage(err.response?.data?.message || "Failed to fetch crops list");
+    setSnackbarSeverity("error");
+    setSnackbarOpen(true);
+  } finally {
+    setCropsLoading(false);
+  }
+};
+
+// Update your handleConfirmRemoval function
+
+  // Add this function after handleConfirmRemoval
+const retryRemovalAfterCropsRemoved = async () => {
+  if (!selectedRowToRemove || !selectedRowToRemove.id) return;
+  
+  setDialogLoading(true);
+  
+try {
+
+  setDialogLoading(true);
+
+  const response = await api.delete(
+    `/btr-service/key-plots/remove-keyPlots/${selectedRowToRemove.plot_id}`
+  );
+
+  // ✅ Success - remove from local state
+  setPlotData(prevData =>
+    prevData.filter(item => item.id !== selectedRowToRemove.id)
+  );
+
+  setSnackbarMessage(
+    `✅ Successfully removed KeyPlot ${selectedRowToRemove?.syNo}`
+  );
+
+  setSnackbarSeverity('success');
+  setSnackbarOpen(true);
+
+  fetchKeyPlots();
+
+  handleCloseRemoveDialog();
+
+} catch (error) {
+
+  console.error("Error during removal retry:", error);
+
+  // ✅ interceptor handles 401
+  if (error?.response?.status !== 401) {
+
+    setSnackbarMessage(
+      `Failed to remove KeyPlot: ${error.message}`
+    );
+
+    setSnackbarSeverity('error');
+    setSnackbarOpen(true);
+  }
+
+} finally {
+
+  setDialogLoading(false);
+
+}
+};
   const hasDuplicateWithExisting = () => {
   const currentValues = plotData.map(row => row.cluster_number);
 
@@ -383,40 +480,45 @@ const hasAnyErrors = () => {
   return Object.values(clusterErrors).some(err => err && err !== "");
 };
   // Fetch individual plot details
-  const fetchPlotDetails = async (plotId) => {
+const fetchPlotDetails = async (plotId) => {
+
+  try {
+
     setPlotDetailsLoading(true);
     setPlotDetailsError(null);
-    
-    try {
-      const BASE_URL = mainapi.BASE_URL;
-      const token = localStorage.getItem('token')
-      const response = await fetch(`${BASE_URL}/btr-service/key-plots/get-keyplot/${plotId}`,{
-         headers: {
-          Authorization: `Bearer ${token}` // Add token in Authorization header
-        }
-      }
-        
-      );
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch plot details (${response.status})`);
-      }
-      
-      const data = await response.json();
-      
-      setPlotDetailsData(data.payload);
-      
-      
-    } catch (err) {
+
+    const response = await api.get(
+      `/btr-service/key-plots/get-keyplot/${plotId}`
+    );
+
+    setPlotDetailsData(response.data.payload);
+
+  } catch (err) {
+
+    // ✅ interceptor handles 401
+    if (err?.response?.status !== 401) {
+
       console.error('Error fetching plot details:', err);
-      setPlotDetailsError(`Failed to fetch plot details: ${err.message}`);
-      setSnackbarMessage(`Error fetching plot details: ${err.message}`);
+
+      setPlotDetailsError(
+        `Failed to fetch plot details: ${err.message}`
+      );
+
+      setSnackbarMessage(
+        `Error fetching plot details: ${err.message}`
+      );
+
       setSnackbarSeverity('error');
+
       setSnackbarOpen(true);
-    } finally {
-      setPlotDetailsLoading(false);
     }
-  };
+
+  } finally {
+
+    setPlotDetailsLoading(false);
+
+  }
+};
 
   useEffect(() => {
     fetchKeyPlots();
@@ -458,7 +560,7 @@ const hasAnyErrors = () => {
   // Filter and sort data
   const filteredSortedAndPaginatedData = useMemo(() => {
     const visibleKeys = ['slNo', 'cluster', 'panchayth', 'village','area', 'syNo','villageBlock', 'landType'];
-
+console.log("plotss ",plotData);
     let filtered = plotData.filter((row) => {
       const matchesSearch = !searchTerm || 
         visibleKeys.some((key) =>
@@ -533,14 +635,72 @@ const hasAnyErrors = () => {
   };
 
   // Remove dialog handlers
-const handleOpenRemoveDialog = (row) => {
+// const handleOpenRemoveDialog = (row) => {
+//   setSelectedRowToRemove(row);
+//   setRemovalValidationError(''); // Clear any previous errors
+//   setOpenRemoveDialog(true);
+// };
+
+const handleOpenRemoveDialog = async (row) => {
   setSelectedRowToRemove(row);
-  setRemovalValidationError(''); // Clear any previous errors
-  setOpenRemoveDialog(true);
-};
-const handleConfirmRemoval = async () => {
-  // Reason validation removed - no longer needed
+  console.log('Viewing plot:', row);
+  setRemovalValidationError('');
+  setPreCheckData({ hasCrops: false, cropsCount: 0, loading: true, status: row.status });
+  setOpenPreCheckDialog(true);
   
+  // Check if status allows removal
+  const allowedStatuses = ['On Going', 'Not Started'];
+  const status = row.status || '';
+  
+  if (!allowedStatuses.includes(status)) {
+    setPreCheckData({
+      hasCrops: false,
+      cropsCount: 0,
+      loading: false,
+      status: status,
+      isStatusBlocked: true
+    });
+    return;
+  }
+  
+  try {
+    // Check if crops exist for this cluster
+    const response = await api.get(`/earas-form1-entry/available-cce-plot-details/fetch-cce-crops/${row.id}`);
+    const crops = response.data.payload || [];
+    
+    setPreCheckData({
+      hasCrops: crops.length > 0,
+      cropsCount: crops.length,
+      loading: false,
+      status: status,
+      isStatusBlocked: false
+    });
+    
+  } catch (err) {
+    console.error("Error checking crops:", err);
+    setPreCheckData({
+      hasCrops: false,
+      cropsCount: 0,
+      loading: false,
+      status: status,
+      isStatusBlocked: false
+    });
+  }
+};
+const handleProceedFromPreCheck = () => {
+  setOpenPreCheckDialog(false);
+  
+  if (preCheckData.hasCrops) {
+    // Show crops list dialog
+    fetchCropsForCluster(selectedRowToRemove.id);
+    setOpenRemoveDialog(true);
+  } else {
+    // Show normal removal dialog (no crops)
+    setOpenRemoveDialog(true);
+  }
+};
+
+const handleConfirmRemoval = async () => {
   if (!selectedRowToRemove || !selectedRowToRemove.id) {
     console.error('No row selected for removal or row has no ID.');
     handleCloseRemoveDialog();
@@ -549,85 +709,118 @@ const handleConfirmRemoval = async () => {
 
   setDialogLoading(true);
   
-  try {
-    const BASE_URL = mainapi.BASE_URL;
-    const token = localStorage.getItem("token");
-    const response = await fetch(
-      `${BASE_URL}/btr-service/key-plots/remove-keyPlots/${selectedRowToRemove.plot_id}`,
-      {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        // Optional: You can still send reason if needed, but not required
-        // body: JSON.stringify({
-        //   reason: "Removed by user"
-        // })
-      }
+ try {
+
+  setDialogLoading(true);
+
+  const response = await api.delete(
+    `/btr-service/key-plots/remove-keyPlots/${selectedRowToRemove.plot_id}`
+  );
+
+  // ✅ Success - remove from local state
+  setPlotData(prevData =>
+    prevData.filter(item => item.id !== selectedRowToRemove.id)
+  );
+
+  setSnackbarMessage(
+    `✅ Successfully removed KeyPlot ${selectedRowToRemove?.syNo}`
+  );
+
+  setSnackbarSeverity('success');
+  setSnackbarOpen(true);
+
+  fetchKeyPlots();
+
+  handleCloseRemoveDialog();
+
+} catch (error) {
+
+  console.error("Error during keyplot removal:", error);
+
+  // ✅ interceptor handles 401
+  if (error?.response?.status === 401) {
+    return;
+  }
+
+  let errorMessage =
+    error.response?.data ||
+    error.message ||
+    "Failed to remove keyplot";
+
+  // ✅ Check if error is about crops existing
+  if (
+    errorMessage.includes("Crops exist") ||
+    errorMessage.includes("remove crops first")
+  ) {
+
+    const clusterId = selectedRowToRemove.id;
+
+    await fetchCropsForCluster(clusterId);
+
+    setRemovalValidationError(errorMessage);
+
+  }
+
+  // ✅ Cluster status validation
+  else if (errorMessage.includes("cluster status is")) {
+
+    const statusMatch = errorMessage.match(
+      /status is:?\s*([^\.]+)/i
     );
 
-    const responseText = await response.text();
-    
-    if (!response.ok) {
-      throw new Error(responseText || "Failed to remove keyplot");
-    }
-    
-    // Success - remove from local state
-    setPlotData(prevData => prevData.filter(item => item.id !== selectedRowToRemove.id));
-    
-    setSnackbarMessage(
-      `✅ Successfully removed KeyPlot ${selectedRowToRemove?.syNo}`
-    );
-    setSnackbarSeverity('success');
-    setSnackbarOpen(true);
-    
-    // Refresh the data to ensure consistency
-    fetchKeyPlots();
-    handleCloseRemoveDialog();
-    
-  } catch (error) {
-    console.error("Error during keyplot removal:", error);
-    
-    // Check if error message contains cluster status information
-    let errorMessage = error.message;
-    let showInDialog = false;
-    
-    if (errorMessage.includes("cluster status is")) {
-      // Extract the status from error message
-      const statusMatch = errorMessage.match(/status is:?\s*([^\.]+)/i);
-      const status = statusMatch ? statusMatch[1].trim() : '';
-      
-      errorMessage = `❌ Cannot remove this KeyPlot because the cluster status is "${status}".\n\nOnly clusters with status "Not Started" can be removed.`;
-      showInDialog = true;
-    } else if (errorMessage.includes("KeyPlot not found")) {
-      errorMessage = "❌ KeyPlot not found. It may have been already removed.";
-      showInDialog = true;
-    } else {
-      errorMessage = `❌ Failed to remove keyplot: ${errorMessage}`;
-    }
-    
-    if (showInDialog) {
-      // Show error in the dialog instead of closing it
-      setRemovalValidationError(errorMessage);
-    } else {
-      // Show error in snackbar and close dialog
-      setSnackbarMessage(errorMessage);
-      setSnackbarSeverity('error');
-      setSnackbarOpen(true);
-      handleCloseRemoveDialog();
-    }
-  } finally {
-    setDialogLoading(false);
+    const status = statusMatch
+      ? statusMatch[1].trim()
+      : '';
+
+    errorMessage =
+      `❌ Cannot remove this KeyPlot because the cluster status is "${status}".\n\nOnly clusters with status "Not Started" can be removed.`;
+
+    setRemovalValidationError(errorMessage);
+
   }
+
+  // ✅ Not found validation
+  else if (errorMessage.includes("KeyPlot not found")) {
+
+    errorMessage =
+      "❌ KeyPlot not found. It may have been already removed.";
+
+    setRemovalValidationError(errorMessage);
+
+  }
+
+  // ✅ Generic error
+  else {
+
+    errorMessage =
+      `❌ Failed to remove keyplot: ${errorMessage}`;
+
+    setSnackbarMessage(errorMessage);
+
+    setSnackbarSeverity('error');
+
+    setSnackbarOpen(true);
+
+    handleCloseRemoveDialog();
+  }
+
+} finally {
+
+  setDialogLoading(false);
+
+}
 };
 
-  const handleCloseRemoveDialog = () => {
+
+ const handleCloseRemoveDialog = () => {
     setOpenRemoveDialog(false);
     setSelectedRowToRemove(null);
     setReason('');
     setSelectedPresetReason('');
     setReasonError(false);
+    setShowCropsList(false);
+    setCropsList([]);
+    setRemovalValidationError('');
   };
 
   const handleReasonChange = (event) => {
@@ -646,46 +839,6 @@ const handleConfirmRemoval = async () => {
     }
   };
 
-  // const handleConfirmRemoval = async () => {
-  //   let finalReason = selectedPresetReason;
-
-  //   if (selectedPresetReason === 'Other') {
-  //     finalReason = reason.trim();
-  //   }
-
-  //   if (finalReason === '') {
-  //     setReasonError(true);
-  //     return;
-  //   }
-
-  //   if (!selectedRowToRemove || !selectedRowToRemove.id) {
-  //     console.error('No row selected for removal or row has no ID.');
-  //     handleCloseRemoveDialog();
-  //     return;
-  //   }
-
-  //   setDialogLoading(true);
-    
-  //   try {
-  //     // Simulate API call for removal
-  //     await new Promise(resolve => setTimeout(resolve, 1000));
-      
-  //     setPlotData(prevData => prevData.filter(item => item.id !== selectedRowToRemove.id));
-      
-  //     setSnackbarMessage(`Removed Sy.No: ${selectedRowToRemove?.syNo} successfully with reason: "${finalReason}"`);
-  //     setSnackbarSeverity('success');
-  //     setSnackbarOpen(true);
-      
-  //   } catch (error) {
-  //     console.error("Error during keyplot removal:", error);
-  //     setSnackbarMessage("Failed to remove keyplot. Please try again.");
-  //     setSnackbarSeverity('error');
-  //     setSnackbarOpen(true);
-  //   } finally {
-  //     setDialogLoading(false);
-  //     handleCloseRemoveDialog();
-  //   }
-  // };
 
   const handleSaveClusterChanges = async () => {
      if (hasDuplicateClusters() || hasAnyErrors()) {
@@ -695,45 +848,46 @@ const handleConfirmRemoval = async () => {
     return;
   }
   try {
-    const BASE_URL = mainapi.BASE_URL;
-    const token = localStorage.getItem("token");
 
   const updates = Object.keys(clusterChanges)
-  .filter(id => clusterChanges[id] && !isNaN(clusterChanges[id]))
-  .map(id => ({
-    clusterId: parseInt(id),
-    newClusterNumber: clusterChanges[id]
-  }));
+    .filter(id => clusterChanges[id] && !isNaN(clusterChanges[id]))
+    .map(id => ({
+      clusterId: parseInt(id),
+      newClusterNumber: clusterChanges[id]
+    }));
 
-    const response = await fetch(
-      `${BASE_URL}/btr-service/cluster-api/cluster/number-update`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(updates),
-      }
+  const response = await api.put(
+    `/btr-service/cluster-api/cluster/number-update`,
+    updates
+  );
+
+  setSnackbarMessage("Cluster numbers updated successfully");
+
+  setSnackbarSeverity("success");
+
+  setSnackbarOpen(true);
+
+  setClusterChanges({}); // reset
+
+  fetchKeyPlots(); // refresh data
+
+} catch (err) {
+
+  // ✅ interceptor handles 401
+  if (err?.response?.status !== 401) {
+
+    setSnackbarMessage(
+      err.response?.data ||
+      err.message ||
+      "Failed to update clusters"
     );
 
-    if (!response.ok) {
-      throw new Error("Failed to update clusters");
-    }
-
-    setSnackbarMessage("Cluster numbers updated successfully");
-    setSnackbarSeverity("success");
-    setSnackbarOpen(true);
-
-    setClusterChanges({}); // reset
-
-    fetchKeyPlots(); // refresh data
-
-  } catch (err) {
-    setSnackbarMessage(err.message);
     setSnackbarSeverity("error");
+
     setSnackbarOpen(true);
   }
+
+}
 };
 const handleClusterChange = (clusterId, newValue) => {
   // Allow only numbers
@@ -832,7 +986,6 @@ const hasDuplicateClusterNumbers = () => {
             <Typography variant="h6" sx={{ ml: 2, color: 'text.secondary' }}>Loading data...</Typography>
           </Box>
         )}
-
 {zonestatus && (
   <Box
     sx={{
@@ -923,7 +1076,7 @@ const hasDuplicateClusterNumbers = () => {
         {!loading && dataVisible && (
           <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
             {/* Panchayath Summary and Search */}
-            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
               {panchayathAreaSummary.map((item, index) => (
                   <Chip
                     key={index}
@@ -936,22 +1089,8 @@ const hasDuplicateClusterNumbers = () => {
 
 
               <Box sx={{ display: 'flex', gap: 2, ml: { xs: 0, sm: 2 }, mt: { xs: 2, sm: 0 } }}>
-                <Chip label="AY 2025 - 2026" variant="outlined" color="info" />
-                <TextField
-                  label="Search Data"
-                  variant="outlined"
-                  size="small"
-                  value={searchTerm}
-                  onChange={handleSearchChange}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon />
-                      </InputAdornment>
-                    )
-                  }}
-                  sx={{ width: '100%', maxWidth: '250px' }}
-                />
+                {/* <Chip label="AY 2025 - 2026" variant="outlined" color="info" /> */}
+                
               </Box>
             </Box>
 
@@ -995,6 +1134,15 @@ const hasDuplicateClusterNumbers = () => {
             <Divider />
 
             {/* Table */}
+            <Box
+  sx={{
+    display: "flex",
+    justifyContent: "space-between", 
+    alignItems: "center",
+    flexWrap: "wrap",        
+    gap: 2
+  }}
+>
 <Button
   variant="contained"
   color="primary"
@@ -1030,6 +1178,23 @@ const hasDuplicateClusterNumbers = () => {
 >
   Submit Cluster number
 </Button>
+<TextField
+                  label="Search Data"
+                  variant="outlined"
+                  size="small"
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                    )
+                  }}
+                  sx={{ width: '100%', maxWidth: '250px' }}
+                />
+
+               </Box> 
     <TableContainer component={Paper} sx={{ maxHeight: '50%', border: '1px solid #e0e0e0', borderRadius: 1 }}>
   <Table stickyHeader sx={{ tableLayout: 'fixed' }}>
     <TableHead>
@@ -1120,20 +1285,22 @@ const hasDuplicateClusterNumbers = () => {
             <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.panchayth}</TableCell>
             <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.kvillageName}</TableCell>
             <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.villageBlock}</TableCell>
-            <TableCell align="center">
+           
              
-<TextField
-  size="small"
-  type="text"
-  value={row.cluster_number || ""}
-  onChange={(e) => handleClusterChange(row.id, e.target.value)}
-  onBlur={() => handleClusterBlur(row.id)}
-  error={!!clusterErrors[row.id]}
-  helperText={clusterErrors[row.id]}
-  sx={{ width: 70 }}
-/>
+<TableCell align="center">
+  <TextField
+    size="small"
+    type="text"
+    value={row.cluster_number || ""}
+    onChange={(e) => handleClusterChange(row.id, e.target.value)}
+    onBlur={() => handleClusterBlur(row.id)}
+    error={!!clusterErrors[row.id]}
+    helperText={clusterErrors[row.id]}
+    sx={{ width: 70 }}
+  />
+</TableCell>
              
-            </TableCell>
+            
             <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.syNo}</TableCell>
             <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{!row.wardNo ? '--' : row.wardNo}</TableCell>
             <TableCell align="center" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{!row.houseNo ? '--' : row.houseNo}</TableCell>
@@ -1796,6 +1963,7 @@ const hasDuplicateClusterNumbers = () => {
             </Button>
           </DialogActions>
         </Dialog> */}
+
 <Dialog 
   open={openRemoveDialog} 
   onClose={() => {
@@ -1804,10 +1972,10 @@ const hasDuplicateClusterNumbers = () => {
     }
   }} 
   fullWidth 
-  maxWidth="sm"
+  maxWidth="md"
 >
-  {removalValidationError ? (
-    // Error State Dialog
+  {removalValidationError && !showCropsList ? (
+    // Error State Dialog (for cluster status errors)
     <>
       <DialogTitle sx={{ 
         background: 'linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%)', 
@@ -1852,7 +2020,7 @@ const hasDuplicateClusterNumbers = () => {
         
         <Alert severity="info" sx={{ mt: 2 }}>
           <Typography variant="body2">
-            💡 <strong>Tip:</strong> Only KeyPlots with cluster status "Not Started" can be removed.
+            💡 <strong>Tip:</strong> Cannot remove KeyPlots with cluster status "Under review" or crops assign exists. 
             Please check the cluster status before attempting removal.
           </Typography>
         </Alert>
@@ -1873,38 +2041,517 @@ const hasDuplicateClusterNumbers = () => {
         </Button>
       </DialogActions>
     </>
-  ) : (
-    // Normal Confirmation Dialog
+  ) : showCropsList ? (
+    // Crops List Dialog (shown when crops exist)
     <>
-      <DialogTitle sx={{ background: '#d32f2f', color: 'white' }}>
+      <DialogTitle sx={{ 
+        background: 'linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%)', 
+        color: 'white'
+      }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <WarningIcon />
-          <Typography variant="h6">Confirm Removal</Typography>
+          <ErrorIcon sx={{ fontSize: 32 }} />
+          <Typography variant="h5" fontWeight="bold">Cannot Remove - Crops Exist</Typography>
         </Box>
       </DialogTitle>
       
       <DialogContent dividers>
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-            ⚠️ This action cannot be undone!
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <Typography variant="body1" fontWeight="bold" gutterBottom>
+            ⚠️ This KeyPlot has existing crops assigned.
           </Typography>
           <Typography variant="body2">
-            Removing this KeyPlot will permanently delete:
+            Please remove all crops from this cluster before deleting the KeyPlot.
           </Typography>
-          <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
-            <li>The KeyPlot record</li>
-            <li>Associated cluster (only if status is "Not Started")</li>
-            <li>Related BTR data</li>
-          </ul>
         </Alert>
         
-        <Typography variant="body1" sx={{ mb: 2 }}>
-          You are about to remove Survey Number:{' '}
-          <Typography component="span" fontWeight="bold" color="error.main">
-            {selectedRowToRemove?.syNo}
-          </Typography>
-        </Typography>
+        {cropsLoading ? (
+          <Box display="flex" justifyContent="center" py={4}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <>
+            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+              Existing Crops in this Cluster:
+            </Typography>
+            
+            <TableContainer component={Paper} sx={{ mt: 2, mb: 3, border: '1px solid #e0e0e0' }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: '#ffebee' }}>
+                    <TableCell><strong>Sl No</strong></TableCell>
+                    <TableCell><strong>Crop Name</strong></TableCell>
+                    
+                    <TableCell align="center"><strong>Remarks</strong></TableCell>
+                    <TableCell align="center"><strong>Action</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                {cropsList.length === 0 ? (
+  <TableRow>
+    <TableCell colSpan={4} align="center" sx={{ py: 3 }}>  {/* Change from 6 to 4 */}
+      <Typography color="text.secondary">No crops found</Typography>
+    </TableCell>
+  </TableRow>
+) : (
+                    cropsList.map((crop, index) => (
+                      <TableRow key={crop.cropId}>
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>{crop.cropName}</TableCell>
+                        <TableCell align="center">  {crop.IsActive}</TableCell>
+                      
+                        <TableCell align="center">
+                          <TextField
+                            size="small"
+                            placeholder="Add remark"
+                            variant="outlined"
+                            fullWidth
+                            sx={{ minWidth: 150 }}
+                            onChange={(e) => {
+                              // Store remark for this crop
+                              setCropsList(prev => prev.map(c => 
+                                c.cropId === crop.cropId 
+                                  ? { ...c, remark: e.target.value }
+                                  : c
+                              ));
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                        
+<Button
+  size="small"
+  color="error"
+  variant="contained"
+  disabled={crop.removing}
+  onClick={async () => {
+    // Set loading state for this crop
+    setCropsList(prev => prev.map(c => 
+      c.cropId === crop.cropId 
+        ? { ...c, removing: true }
+        : c
+    ));
+    
+try {
+
+  const userId = authservice.userid();
+
+  const response = await api.delete(
+    `/btr-service/key-plots/remove-crop`,
+    {
+      data: {
+        cropId: crop.cropId,
+        clusterId: selectedRowToRemove?.id,
+        cceAvailablePlotId: crop.cceAvailablePlotId,
+        rejectionReason: crop.remark || "Removed by user",
+        rejectedBy: userId
+      }
+    }
+  );
+
+  const data = response.data;
+
+  // ✅ Remove crop from list
+  setCropsList(prev =>
+    prev.filter(c => c.cropId !== crop.cropId)
+  );
+
+  setSnackbarMessage(
+    `✅ ${crop.cropName} removed successfully`
+  );
+
+  setSnackbarSeverity('success');
+
+  setSnackbarOpen(true);
+
+  // ✅ If no crops left
+  if (cropsList.length === 1) {
+
+    setSnackbarMessage(
+      `All crops removed. You can now delete the KeyPlot.`
+    );
+
+    setSnackbarSeverity('success');
+
+    setSnackbarOpen(true);
+
+    setTimeout(() => {
+
+      setShowCropsList(false);
+
+      setCropsList([]);
+
+      setRemovalValidationError('');
+
+    }, 1500);
+  }
+
+} catch (err) {
+
+  console.error("Error removing crop:", err);
+
+  // ✅ interceptor handles 401
+  if (err?.response?.status !== 401) {
+
+    const errorMessage =
+      err.response?.data?.message ||
+      err.message ||
+      `Failed to remove ${crop.cropName}`;
+
+    setSnackbarMessage(
+      `Failed to remove ${crop.cropName}: ${errorMessage}`
+    );
+
+    setSnackbarSeverity('error');
+
+    setSnackbarOpen(true);
+  }
+
+} finally {
+
+  setCropsList(prev =>
+    prev.map(c =>
+      c.cropId === crop.cropId
+        ? { ...c, removing: false }
+        : c
+    )
+  );
+
+}
+  }}
+  startIcon={crop.removing ? <CircularProgress size={16} /> : <DeleteIcon />}
+>
+  {crop.removing ? 'Removing...' : 'Remove'}
+</Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              <Typography variant="body2">
+                ⚠️ <strong>Note:</strong> After removing all crops, click "Retry Removal" to delete the KeyPlot.
+              </Typography>
+            </Alert>
+          </>
+        )}
       </DialogContent>
+      
+      <DialogActions sx={{ p: 2, gap: 1, justifyContent: 'space-between' }}>
+  <Button 
+    onClick={() => {
+      setShowCropsList(false);
+      setCropsList([]);
+      setRemovalValidationError('');
+      handleCloseRemoveDialog();
+    }} 
+    variant="outlined"
+    color="secondary"
+  >
+    Cancel
+  </Button>
+  
+  <Button
+    onClick={retryRemovalAfterCropsRemoved}
+    variant="contained"
+    color="primary"
+    disabled={cropsList.length > 0 || cropsLoading}
+    startIcon={dialogLoading ? <CircularProgress size={20} /> : <RefreshIcon />}
+  >
+    {dialogLoading ? 'Removing...' : 'Retry Removal'}
+  </Button>
+</DialogActions>
+    </>
+  ) : (
+    // Normal Confirmation Dialog
+    <>
+   {showCropsList ? (
+  // Crops List Dialog (shown when crops exist)
+  <>
+    <DialogTitle sx={{ 
+      background: 'linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%)', 
+      color: 'white'
+    }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <ErrorIcon sx={{ fontSize: 32 }} />
+        <Typography variant="h5" fontWeight="bold">Cannot Remove - Crops Exist</Typography>
+      </Box>
+    </DialogTitle>
+    
+    <DialogContent dividers>
+      <Alert severity="error" sx={{ mb: 3 }}>
+        <Typography variant="body1" fontWeight="bold" gutterBottom>
+          ⚠️ This KeyPlot has existing crops assigned.
+        </Typography>
+        <Typography variant="body2">
+          Please remove all crops from this cluster before deleting the KeyPlot.
+        </Typography>
+      </Alert>
+      
+      {cropsLoading ? (
+        <Box display="flex" justifyContent="center" py={4}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <>
+          <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+            Existing Crops in this Cluster:
+          </Typography>
+          
+          <TableContainer component={Paper} sx={{ mt: 2, mb: 3, border: '1px solid #e0e0e0' }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: '#ffebee' }}>
+                  <TableCell><strong>Sl No</strong></TableCell>
+                  <TableCell><strong>Crop Name</strong></TableCell>
+                  <TableCell align="center"><strong>Remarks</strong></TableCell>
+                  <TableCell align="center"><strong>Action</strong></TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {cropsList.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
+                      <Typography color="text.secondary">No crops found</Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  cropsList.map((crop, index) => (
+                    <TableRow key={crop.cropId}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{crop.cropName}</TableCell>
+                      <TableCell align="center">
+                        <TextField
+                          size="small"
+                          placeholder="Add remark"
+                          variant="outlined"
+                          fullWidth
+                          sx={{ minWidth: 150 }}
+                          onChange={(e) => {
+                            setCropsList(prev => prev.map(c => 
+                              c.cropId === crop.cropId 
+                                ? { ...c, remark: e.target.value }
+                                : c
+                            ));
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <Button
+                          size="small"
+                          color="error"
+                          variant="contained"
+                          disabled={crop.removing}
+                          onClick={async () => {
+                            setCropsList(prev => prev.map(c => 
+                              c.cropId === crop.cropId 
+                                ? { ...c, removing: true }
+                                : c
+                            ));
+                            
+                          try {
+
+  const userId = authservice.userid();
+
+  const response = await api.delete(
+    `/btr-service/key-plots/remove-crop`,
+    {
+      data: {
+        cropId: crop.cropId,
+        clusterId: selectedRowToRemove?.id,
+        cceAvailablePlotId: crop.cceAvailablePlotId,
+        rejectionReason: crop.remark || "Removed by user",
+        rejectedBy: userId
+      }
+    }
+  );
+
+  const data = response.data;
+
+  setCropsList(prev =>
+    prev.filter(c => c.cropId !== crop.cropId)
+  );
+
+  setSnackbarMessage(
+    `✅ ${crop.cropName} removed successfully`
+  );
+
+  setSnackbarSeverity('success');
+
+  setSnackbarOpen(true);
+
+  if (cropsList.length === 1) {
+
+    setSnackbarMessage(
+      `All crops removed. You can now delete the KeyPlot.`
+    );
+
+    setSnackbarSeverity('success');
+
+    setSnackbarOpen(true);
+
+    setTimeout(() => {
+
+      setShowCropsList(false);
+
+      setCropsList([]);
+
+      retryRemovalAfterCropsRemoved();
+
+    }, 1500);
+  }
+
+} catch (err) {
+
+  console.error("Error removing crop:", err);
+
+  // ✅ interceptor handles 401
+  if (err?.response?.status !== 401) {
+
+    const errorMessage =
+      err.response?.data?.message ||
+      err.message ||
+      `Failed to remove ${crop.cropName}`;
+
+    setSnackbarMessage(
+      `Failed to remove ${crop.cropName}: ${errorMessage}`
+    );
+
+    setSnackbarSeverity('error');
+
+    setSnackbarOpen(true);
+  }
+
+} finally {
+
+  setCropsList(prev =>
+    prev.map(c =>
+      c.cropId === crop.cropId
+        ? { ...c, removing: false }
+        : c
+    )
+  );
+}
+                          }}
+                          startIcon={crop.removing ? <CircularProgress size={16} /> : <DeleteIcon />}
+                        >
+                          {crop.removing ? 'Removing...' : 'Remove'}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          
+          <Alert severity="warning" sx={{ mt: 2 }}>
+            <Typography variant="body2">
+              ⚠️ <strong>Note:</strong> After removing all crops, click "Retry Removal" to delete the KeyPlot.
+            </Typography>
+          </Alert>
+        </>
+      )}
+    </DialogContent>
+    
+    <DialogActions sx={{ p: 2, gap: 1, justifyContent: 'space-between' }}>
+      <Button 
+        onClick={() => {
+          setShowCropsList(false);
+          setCropsList([]);
+          setRemovalValidationError('');
+          handleCloseRemoveDialog();
+        }} 
+        variant="outlined"
+        color="secondary"
+      >
+        Cancel
+      </Button>
+      
+      <Button
+        onClick={retryRemovalAfterCropsRemoved}
+        variant="contained"
+        color="primary"
+        disabled={cropsList.length > 0 || cropsLoading}
+        startIcon={dialogLoading ? <CircularProgress size={20} /> : <RefreshIcon />}
+      >
+        {dialogLoading ? 'Removing...' : 'Retry Removal'}
+      </Button>
+    </DialogActions>
+  </>
+) : null}
+      
+{/* Normal Confirmation Dialog content */}
+<DialogContent dividers>
+  <Alert severity="warning" sx={{ mb: 3 }}>
+    <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+      ⚠️ This action cannot be undone!
+    </Typography>
+    <Typography variant="body2">
+      Removing this KeyPlot will permanently delete:
+    </Typography>
+    <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+      <li>The KeyPlot record</li>
+      <li>Associated cluster</li>
+      <li>Related Form1 data will be removed</li>
+    </ul>
+    <Typography variant="h6" fontWeight="bold" sx={{ mt: 2 }}>
+      ❗ Before Delete the Cluster/Keyplots please Check Your Cluster Status is On Going or Not Started.<br />
+      ❗ Cluster Status is "Completed" Or "Under Review" please Contact your Tso and Change to Edit/On Going mode.<br />
+      ❗ If the selected cluster is On Going ,Not Started, it will also be deleted.
+    </Typography>
+  </Alert>
+  
+  <Typography variant="h6" fontWeight="bold" gutterBottom>
+    You are about remove the cluster: {selectedRowToRemove?.cluster_number}
+  </Typography>
+  
+  <Typography variant="body1" sx={{ mb: 2 }}>
+    You are about to remove Survey Number:{' '}
+    <Typography component="span" fontWeight="bold" color="error.main">
+      {selectedRowToRemove?.syNo} 
+    </Typography>
+  </Typography>
+  
+  {/* Added status display */}
+  <Box sx={{ 
+    mt: 2, 
+    p: 2, 
+    bgcolor: selectedRowToRemove?.status === 'Completed' || selectedRowToRemove?.status === 'Under Review' 
+      ? '#ffebee' 
+      : '#e8f5e9',
+    borderRadius: 1,
+    border: `1px solid ${selectedRowToRemove?.status === 'Completed' || selectedRowToRemove?.status === 'Under Review' 
+      ? '#ef9a9a' 
+      : '#81c784'}`
+  }}>
+    <Typography variant="body2">
+      <strong>Cluster Status:</strong>{' '}
+      <Typography 
+        component="span" 
+        sx={{ 
+          fontWeight: 'bold',
+          color: selectedRowToRemove?.status === 'Completed' || selectedRowToRemove?.status === 'Under Review' 
+            ? '#d32f2f' 
+            : '#2e7d32'
+        }}
+      >
+        {selectedRowToRemove?.status || 'Unknown'}
+      </Typography>
+      {selectedRowToRemove?.status === 'Completed' || selectedRowToRemove?.status === 'Under Review' ? (
+        <Typography component="span" sx={{ ml: 1, color: '#d32f2f', fontWeight: 'bold' }}>
+          ⚠️ Removal not allowed - Only "On Going" or "Not Started" clusters can be removed
+        </Typography>
+      ) : (
+        <Typography component="span" sx={{ ml: 1, color: '#2e7d32', fontWeight: 'bold' }}>
+          ✅ Eligible for removal
+        </Typography>
+      )}
+    </Typography>
+  </Box>
+</DialogContent>
       
       <DialogActions sx={{ p: 2, gap: 1 }}>
         <Button 
@@ -1928,7 +2575,182 @@ const hasDuplicateClusterNumbers = () => {
     </>
   )}
 </Dialog>
+
+
+
+{/* Pre-Check Dialog - Shows before removal */}
+<Dialog 
+  open={openPreCheckDialog} 
+  onClose={() => {
+    if (!preCheckData.loading) {
+      setOpenPreCheckDialog(false);
+      setSelectedRowToRemove(null);
+    }
+  }} 
+  fullWidth 
+  maxWidth="sm"
+>
+  <DialogTitle sx={{ 
+    background: preCheckData.isStatusBlocked 
+      ? 'linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%)'
+      : preCheckData.hasCrops 
+        ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)' 
+        : 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
+    color: 'white'
+  }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      {preCheckData.loading ? (
+        <CircularProgress size={24} color="inherit" />
+      ) : preCheckData.isStatusBlocked ? (
+        <ErrorIcon sx={{ fontSize: 28 }} />
+      ) : preCheckData.hasCrops ? (
+        <WarningIcon sx={{ fontSize: 28 }} />
+      ) : (
+        <CheckCircleIcon sx={{ fontSize: 28 }} />
+      )}
+      <Typography variant="h6" fontWeight="bold">
+        {preCheckData.loading ? 'Checking...' : 
+         preCheckData.isStatusBlocked ? '⛔ Removal Blocked' :
+         preCheckData.hasCrops ? '⚠️ Crops Detected' : '✅ Ready for Removal'}
+      </Typography>
+    </Box>
+  </DialogTitle>
+  
+  <DialogContent dividers sx={{ py: 4 }}>
+    {preCheckData.loading ? (
+      <Box textAlign="center">
+        <CircularProgress size={40} />
+        <Typography sx={{ mt: 2 }}>Checking cluster status and crops...</Typography>
+      </Box>
+    ) : preCheckData.isStatusBlocked ? (
+      <>
+        <Box sx={{ textAlign: 'center', mb: 3 }}>
+          <ErrorIcon sx={{ fontSize: 60, color: '#d32f2f', mb: 2 }} />
+          <Typography variant="h6" color="error" gutterBottom fontWeight="bold">
+            Cannot Remove KeyPlot
+          </Typography>
+        </Box>
         
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <Typography variant="body1" fontWeight="bold" gutterBottom>
+            ❌ Cluster Status: <strong style={{ textTransform: 'uppercase' }}>"{preCheckData.status}"</strong>
+          </Typography>
+          <Typography variant="body2">
+            Only clusters with status <strong>"On Going"</strong> or <strong>"Not Started"</strong> can be removed.
+          </Typography>
+        </Alert>
+        
+        <Paper sx={{ p: 3, bgcolor: '#ffebee', border: '1px solid #ef9a9a' }}>
+          <Typography variant="body2" gutterBottom fontWeight="bold" color="error">
+            ⚠️ Why can't this be removed?
+          </Typography>
+          <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+            <li>Cluster status is <strong>"{preCheckData.status}"</strong></li>
+            <li>This status indicates the cluster has been reviewed or completed</li>
+            <li>To remove this cluster, contact your TSO to change the status to "On Going" or "Not Started"</li>
+          </ul>
+        </Paper>
+        
+        <Box sx={{ mt: 3, p: 2, bgcolor: '#fff3e0', borderRadius: 1, border: '1px solid #ffb74d' }}>
+          <Typography variant="body2">
+            <strong>📋 Cluster Details:</strong>
+          </Typography>
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="body2">• Cluster Number: <strong>{selectedRowToRemove?.cluster_number}</strong></Typography>
+            <Typography variant="body2">• Survey Number: <strong>{selectedRowToRemove?.syNo}</strong></Typography>
+            <Typography variant="body2">• Panchayath: <strong>{selectedRowToRemove?.panchayth}</strong></Typography>
+            <Typography variant="body2">• Village: <strong>{selectedRowToRemove?.kvillageName}</strong></Typography>
+          </Box>
+        </Box>
+      </>
+    ) : preCheckData.hasCrops ? (
+      <>
+        <Box sx={{ textAlign: 'center', mb: 3 }}>
+          <WarningIcon sx={{ fontSize: 60, color: '#ff9800', mb: 2 }} />
+          <Typography variant="h6" color="warning.main" gutterBottom fontWeight="bold">
+            {preCheckData.cropsCount} Crop(s) Found in this Cluster
+          </Typography>
+        </Box>
+        
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <Typography variant="body2">
+            <strong>⚠️ Important:</strong> This KeyPlot has {preCheckData.cropsCount} active crop(s) assigned.
+          </Typography>
+        </Alert>
+        
+        <Paper sx={{ p: 2, bgcolor: '#fff3e0', border: '1px solid #ffb74d' }}>
+          <Typography variant="body2" gutterBottom>
+            <strong>What happens next:</strong>
+          </Typography>
+          <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+            <li>You will see the list of crops in this cluster</li>
+            <li>You must remove all crops before deleting the KeyPlot</li>
+            <li>Each crop can be removed with an optional remark</li>
+            <li>After all crops are removed, you can retry deletion</li>
+          </ul>
+        </Paper>
+      </>
+    ) : (
+      <>
+        <Box sx={{ textAlign: 'center', mb: 3 }}>
+          <CheckCircleIcon sx={{ fontSize: 60, color: '#4caf50', mb: 2 }} />
+          <Typography variant="h6" color="success.main" gutterBottom fontWeight="bold">
+            No Crops Found
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            This KeyPlot has no existing crops.
+          </Typography>
+        </Box>
+        
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Typography variant="body2">
+            <strong>ℹ️ Information:</strong> Since no crops are assigned to this KeyPlot, 
+            it can be removed directly.
+          </Typography>
+        </Alert>
+        
+        <Paper sx={{ p: 2, bgcolor: '#e8f5e9', border: '1px solid #81c784' }}>
+          <Typography variant="body2" gutterBottom>
+            <strong>Cluster Details:</strong>
+          </Typography>
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="body2">• Status: <strong style={{ color: '#2e7d32' }}>{preCheckData.status}</strong></Typography>
+            <Typography variant="body2">• Cluster Number: <strong>{selectedRowToRemove?.cluster_number}</strong></Typography>
+            <Typography variant="body2">• Survey Number: <strong>{selectedRowToRemove?.syNo}</strong></Typography>
+            <Typography variant="body2">• Panchayath: <strong>{selectedRowToRemove?.panchayth}</strong></Typography>
+            <Typography variant="body2">• Village: <strong>{selectedRowToRemove?.kvillageName}</strong></Typography>
+          </Box>
+        </Paper>
+      </>
+    )}
+  </DialogContent>
+  
+  <DialogActions sx={{ p: 2, justifyContent: 'space-between' }}>
+    <Button 
+      onClick={() => {
+        setOpenPreCheckDialog(false);
+        setSelectedRowToRemove(null);
+      }}
+      variant="outlined"
+      disabled={preCheckData.loading}
+    >
+      Cancel
+    </Button>
+    
+    {!preCheckData.loading && !preCheckData.isStatusBlocked && (
+      <Button
+        onClick={handleProceedFromPreCheck}
+        variant="contained"
+        color={preCheckData.hasCrops ? "warning" : "error"}
+        startIcon={preCheckData.hasCrops ? <WarningIcon /> : <DeleteIcon />}
+        sx={{ minWidth: '150px' }}
+      >
+        {preCheckData.hasCrops ? 'View & Remove Crops' : 'Proceed to Remove'}
+      </Button>
+    )}
+  </DialogActions>
+</Dialog>
+
        <Dialog open={openEditEnumDialog} onClose={() => setOpenEditEnumDialog(false)} fullWidth maxWidth="sm">
   <DialogTitle>Edit Enumerated Area</DialogTitle>
   

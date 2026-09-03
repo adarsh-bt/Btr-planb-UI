@@ -15,11 +15,15 @@ import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
 
 import { useContext } from 'react';
-// import { PermissionsContext } from 'contexts/auth-reducer/PermissionsContext';
-// import { flattenPermissions } from 'contexts/auth-reducer/permissionHelpers';
 
 import zonesettings from 'assets/images/logo/zonesettings.png';
 import ccecropselection from 'assets/images/logo/ccecropselection.png';
+import zonedetails from 'assets/images/logo/zonedetails.png';
+import SettingsIcon from '@mui/icons-material/Settings';
+import AgricultureIcon from '@mui/icons-material/Agriculture';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import BusinessIcon from '@mui/icons-material/Business';
+import SpaIcon from '@mui/icons-material/Spa';
 
 const SettingsMenu = () => {
   return (
@@ -30,143 +34,267 @@ const SettingsMenu = () => {
           EARAS Management
         </Typography>
         <MainCard title="">
-          <Grid container spacing={4} alignItems="stretch">
-            {/* {canViewZoneDetails && ( */}
-            <Grid item xs={12} sm={4} md={3} lg={3}>
-              <Card
-                component={Link}
-                to="/schemes/earas/earas_management/zonesettings"
-                sx={{
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '1rem',
-                  borderRadius: '1rem',
-                  background: 'linear-gradient(135deg, rgba(79, 208, 170, 0.45), rgb(98, 218, 182))', // Gradient color
-                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
-                  height: '100%', // Ensure card takes full height of the grid item
-                  '&:hover': {
-                    transform: 'scale(1.05)', // Hover scale effect
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
-                  }
-                }}
-              >
-                <CardMedia
-                  component="img"
-                  sx={{
-                    width: '5rem',
-                    height: '5rem',
-                    borderRadius: '.5rem',
-                    marginRight: '1rem' // Space between image and text
-                  }}
-                  image={zonesettings}
-                  alt="zonesettings"
-                />
+          <Grid container spacing={3} alignItems="stretch">
+  {/* Plot Settings Card */}
+  <Grid item xs={12} sm={6} md={4} lg={3}>
+    <Card
+      component={Link}
+      to="/schemes/earas/earas_management/zonesettings"
+      sx={{
+        textDecoration: 'none',
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: { xs: '1.2rem', sm: '1.5rem' },
+        borderRadius: '1.5rem',
+        background: 'linear-gradient(135deg, #11998E 0%, #38EF7D 100%)',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        boxShadow: '0 10px 20px rgba(0, 0, 0, 0.1)',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        position: 'relative',
+        overflow: 'hidden',
+        height: '100%',
+        minHeight: { xs: '120px', sm: '130px' },
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: '-100%',
+          width: '100%',
+          height: '100%',
+          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+          transition: 'left 0.5s ease',
+        },
+        '&:hover': {
+          transform: 'translateY(-6px)',
+          boxShadow: '0 15px 30px rgba(0, 0, 0, 0.2)',
+          '&::before': { left: '100%' },
+        },
+      }}
+    >
+      <Box
+        sx={{
+          width: { xs: '4rem', sm: '5rem' },
+          height: { xs: '4rem', sm: '5rem' },
+          borderRadius: '1rem',
+          marginRight: { xs: 0, sm: '1.2rem' },
+          marginBottom: { xs: '0.8rem', sm: 0 },
+          background: 'rgba(255, 255, 255, 0.15)',
+          backdropFilter: 'blur(10px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <SettingsIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
+      </Box>
+      <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+        <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1.1rem', sm: '1.25rem' }, mb: 0.5 }}>
+          Plot
+        </Typography>
+        <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+          Settings
+        </Typography>
+      </Box>
+    </Card>
+  </Grid>
 
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Zone Settings
-                    </Typography>
-                    {/* Subtitle removed from here */}
-                  </CardContent>
-                </Box>
-              </Card>
-            </Grid>
-            {/* )} */}
+  {/* CCE Crop Selection Card */}
+  <Grid item xs={12} sm={6} md={4} lg={3}>
+    <Card
+      component={Link}
+      to="/schemes/earas/earas_management/crops_management"
+      sx={{
+        textDecoration: 'none',
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: { xs: '1.2rem', sm: '1.5rem' },
+        borderRadius: '1.5rem',
+        background: 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        boxShadow: '0 10px 20px rgba(0, 0, 0, 0.1)',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        position: 'relative',
+        overflow: 'hidden',
+        height: '100%',
+        minHeight: { xs: '120px', sm: '130px' },
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: '-100%',
+          width: '100%',
+          height: '100%',
+          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+          transition: 'left 0.5s ease',
+        },
+        '&:hover': {
+          transform: 'translateY(-6px)',
+          boxShadow: '0 15px 30px rgba(0, 0, 0, 0.2)',
+          '&::before': { left: '100%' },
+        },
+      }}
+    >
+      <Box
+        sx={{
+          width: { xs: '4rem', sm: '5rem' },
+          height: { xs: '4rem', sm: '5rem' },
+          borderRadius: '1rem',
+          marginRight: { xs: 0, sm: '1.2rem' },
+          marginBottom: { xs: '0.8rem', sm: 0 },
+          background: 'rgba(255, 255, 255, 0.15)',
+          backdropFilter: 'blur(10px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <SpaIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
+      </Box>
+      <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+        <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.25rem' }, mb: 0.5 }}>
+          Crops 
+        </Typography>
+        <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+          Management
+        </Typography>
+      </Box>
+    </Card>
+  </Grid>
 
-            {/* {canViewBTR && ( */}
-            <Grid item xs={12} sm={4} md={3} lg={3}>
-              <Card
-                component={Link}
-                to="/schemes/earas/earas_management/CCE_crop_selection"
-                sx={{
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '1rem',
-                  borderRadius: '1rem',
-                  background: 'linear-gradient(135deg, rgba(146, 254, 252, 0.45), rgb(155, 120, 250))', // Gradient color
-                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
-                  height: '100%', // Ensure card takes full height of the grid item
-                  '&:hover': {
-                    transform: 'scale(1.05)', // Hover scale effect
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
-                  }
-                }}
-              >
-                <CardMedia
-                  component="img"
-                  sx={{
-                    width: '5rem',
-                    height: '5rem',
-                    borderRadius: '.5rem',
-                    marginRight: '1rem' // Space between image and text
-                  }}
-                  image={ccecropselection}
-                  alt="ccecropselection"
-                />
+  {/* Schedule List Card */}
+  {/* <Grid item xs={12} sm={6} md={4} lg={3}>
+    <Card
+      component={Link}
+      // to="/schemes/earas/zone_season_shedule_list"
+      sx={{
+        textDecoration: 'none',
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: { xs: '1.2rem', sm: '1.5rem' },
+        borderRadius: '1.5rem',
+        background: 'linear-gradient(135deg, #F2994A 0%, #F2C94C 100%)',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        boxShadow: '0 10px 20px rgba(0, 0, 0, 0.1)',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        position: 'relative',
+        overflow: 'hidden',
+        height: '100%',
+        minHeight: { xs: '120px', sm: '130px' },
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: '-100%',
+          width: '100%',
+          height: '100%',
+          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+          transition: 'left 0.5s ease',
+        },
+        '&:hover': {
+          transform: 'translateY(-6px)',
+          boxShadow: '0 15px 30px rgba(0, 0, 0, 0.2)',
+          '&::before': { left: '100%' },
+        },
+      }}
+    >
+      <Box
+        sx={{
+          width: { xs: '4rem', sm: '5rem' },
+          height: { xs: '4rem', sm: '5rem' },
+          borderRadius: '1rem',
+          marginRight: { xs: 0, sm: '1.2rem' },
+          marginBottom: { xs: '0.8rem', sm: 0 },
+          background: 'rgba(255, 255, 255, 0.15)',
+          backdropFilter: 'blur(10px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <ScheduleIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
+      </Box>
+      <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+        <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1.1rem', sm: '1.25rem' }, mb: 0.5 }}>
+          Schedule
+        </Typography>
+        <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+          List Details
+        </Typography>
+      </Box>
+    </Card>
+  </Grid> */}
 
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      CCE Crop Management
-                    </Typography>
-                    {/* Subtitle removed from here */}
-                  </CardContent>
-                </Box>
-              </Card>
-            </Grid>
-
-  <Grid item xs={12} sm={4} md={3} lg={3}>
-              <Card
-                component={Link}
-                to="/schemes/earas/earas_management/crop_management"
-                sx={{
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '1rem',
-                  borderRadius: '1rem',
-                  background: 'linear-gradient(135deg, rgba(146, 254, 252, 0.45), rgb(155, 120, 250))', // Gradient color
-                  transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
-                  height: '100%', // Ensure card takes full height of the grid item
-                  '&:hover': {
-                    transform: 'scale(1.05)', // Hover scale effect
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)' // Stronger shadow on hover
-                  }
-                }}
-              >
-                <CardMedia
-                  component="img"
-                  sx={{
-                    width: '5rem',
-                    height: '5rem',
-                    borderRadius: '.5rem',
-                    marginRight: '1rem' // Space between image and text
-                  }}
-                  image={ccecropselection}
-                  alt="ccecropselection"
-                />
-
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-                    <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                      Crop Management
-                    </Typography>
-                    {/* Subtitle removed from here */}
-                  </CardContent>
-                </Box>
-              </Card>
-            </Grid>
-            {/* )} */}
-          </Grid>
+  {/* Office Settings Card */}
+  <Grid item xs={12} sm={6} md={4} lg={3}>
+    <Card
+      component={Link}
+      to="/schemes/earas/earas_management/Office_settings"
+      sx={{
+        textDecoration: 'none',
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: { xs: '1.2rem', sm: '1.5rem' },
+        borderRadius: '1.5rem',
+        background: 'linear-gradient(135deg, #00B4DB 0%, #0083B0 100%)',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        boxShadow: '0 10px 20px rgba(0, 0, 0, 0.1)',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        position: 'relative',
+        overflow: 'hidden',
+        height: '100%',
+        minHeight: { xs: '120px', sm: '130px' },
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: '-100%',
+          width: '100%',
+          height: '100%',
+          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+          transition: 'left 0.5s ease',
+        },
+        '&:hover': {
+          transform: 'translateY(-6px)',
+          boxShadow: '0 15px 30px rgba(0, 0, 0, 0.2)',
+          '&::before': { left: '100%' },
+        },
+      }}
+    >
+      <Box
+        sx={{
+          width: { xs: '4rem', sm: '5rem' },
+          height: { xs: '4rem', sm: '5rem' },
+          borderRadius: '1rem',
+          marginRight: { xs: 0, sm: '1.2rem' },
+          marginBottom: { xs: '0.8rem', sm: 0 },
+          background: 'rgba(255, 255, 255, 0.15)',
+          backdropFilter: 'blur(10px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <BusinessIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
+      </Box>
+      <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+        <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1.1rem', sm: '1.25rem' }, mb: 0.5 }}>
+          Office
+        </Typography>
+        <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+          Settings
+        </Typography>
+      </Box>
+    </Card>
+  </Grid>
+</Grid>
         </MainCard>
       </Grid>
     </Grid>

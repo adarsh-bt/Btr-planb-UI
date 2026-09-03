@@ -35,6 +35,7 @@ const ForgotPassword = ({ onBack }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+  const [resetToken, setResetToken] = useState(null);
 
   // Central dynamic heading based on the step
   const getHeading = () => {
@@ -128,16 +129,17 @@ const handleEmailSubmit = async (e) => {
         const otpValue = otp.join('');
         if (otpValue.length === 6) {
             const userLogin = { userid: email, otp: otpValue };
-            const response = await authservice.verify_otp(userLogin);
+            const response = await authservice.verifyOtp(userLogin);
 
-            if (response.statusCode === 200) {
-                // ✅ Store the reset token from server
-               
-                setEmail(response.data.resetToken); // reuse email state for resetToken
-                setStep(3);
-            } else {
-                setGlobalError(response.message);
-            }
+          if (
+    response.statusCode === 200 &&
+    response.data?.resetToken
+) {
+    setResetToken(response.data.resetToken);
+    setStep(3);
+} else {
+    setGlobalError("OTP verification failed");
+}
         }
     } catch (error) {
         setGlobalError('An error occurred while verifying OTP.');
@@ -188,11 +190,11 @@ const handleEmailSubmit = async (e) => {
         }
 
     const trimmedPassword = newPassword.trim();
-    const userLogin = {
-      resetToken: email,
-      password: trimmedPassword
-    };
-    const response = await authservice.password_reset(userLogin);
+  const userLogin = {
+    resetToken: resetToken,
+    password: trimmedPassword
+};
+    const response = await authservice.passwordReset(userLogin);
     if (response.status === 200) {
       setSuccess('Password Successfully changed');
       setGlobalError('');

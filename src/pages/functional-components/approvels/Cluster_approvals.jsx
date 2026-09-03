@@ -70,10 +70,14 @@ function ClusterApprovals() {
   const [rejectDialog, setRejectDialog] = useState(false);
   const [remarks, setRemarks] = useState('');
   const [isEditEnabled, setIsEditEnabled] = useState(false);
+
   
-  // Table states
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
+  
+const [page, setPage] = useState(0);
+const [rowsPerPage, setRowsPerPage] = useState(25);
+
+const [totalElements, setTotalElements] = useState(0);
+const [totalPages, setTotalPages] = useState(0);
   const [order, setOrder] = useState('asc');
   const [orderBy, setOrderBy] = useState('clusterNo');
   // Add these with your other useState declarations
@@ -84,36 +88,48 @@ const [snackbar, setSnackbar] = useState({
 });
 
   // Fetch cluster approvals data
-  useEffect(() => {
-    const fetchClusterApprovals = async () => {
-      try {
-        setLoading(true);
-        const token = localStorage.getItem('token');
-        const response = await fetch(
-          `${BASE_URL}/user-access/zones/zone_cluster_approvals`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
+useEffect(() => {
+
+  const fetchClusterApprovals = async () => {
+
+    try {
+
+      setLoading(true);
+
+      const token = localStorage.getItem('token');
+      const agriYear = authservice.agriyear();
+      const response = await fetch(
+        `${BASE_URL}/user-access/zones/zone_cluster_approvals?page=${page}&size=${rowsPerPage}&agriYear=${agriYear}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
           }
-        );
-
-        const result = await response.json();
-    
-        if (!response.ok) {
-          throw new Error(result?.message || "Failed to fetch cluster approvals");
-        } else {
-          setApprovals(result || []);
         }
-      } catch (err) {
-        setError(err.message || "Unexpected error occurred.");
-      } finally {
-        setLoading(false);
-      }
-    };
+      );
 
-    fetchClusterApprovals();
-  }, []);
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result?.message || "Failed to fetch cluster approvals");
+      }
+
+      setApprovals(result.content || []);
+      setTotalElements(result.totalElements || 0);
+      setTotalPages(result.totalPages || 0);
+
+    } catch (err) {
+
+      setError(err.message || "Unexpected error occurred.");
+
+    } finally {
+
+      setLoading(false);
+    }
+  };
+
+  fetchClusterApprovals();
+
+}, [page, rowsPerPage]);
 
   // Extract unique values for filters
   const taluks = [...new Set(approvals.map(a => a.talukName))];
@@ -177,8 +193,7 @@ const [snackbar, setSnackbar] = useState({
 
   // Sort and paginate data
   const sortedAndPaginatedData = [...filteredApprovals]
-    .sort(getComparator(order, orderBy))
-    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  .sort(getComparator(order, orderBy));
 
   // Handle view details
   const handleViewDetails = (approval) => {
@@ -367,10 +382,10 @@ const handleSubmitAction = async (isApprove) => {
       <Breadcrumb />
       <Grid item xs={12}>
         <Typography variant="h3" sx={{ mb: 2, fontWeight: 700 }}>
-          Cluster Approvals
+          Cluster Approval Requests 
         </Typography>
         
-        <Card sx={{ p: 3, borderRadius: 3, boxShadow: '0 8px 32px rgba(0,0,0,0.08)' }}>
+        <Card sx={{ p: 1, borderRadius: 3, boxShadow: '0 8px 32px rgba(0,0,0,0.08)' }}>
           {/* Header Section */}
           <Box sx={{ 
             display: 'flex', 
@@ -380,7 +395,7 @@ const handleSubmitAction = async (isApprove) => {
             flexWrap: 'wrap',
             gap: 2
           }}>
-            <Box>
+            {/* <Box>
               <Typography variant="h4" sx={{ 
                 fontWeight: 600,
                 background: 'linear-gradient(45deg, #05307a, #1976d2)',
@@ -389,14 +404,14 @@ const handleSubmitAction = async (isApprove) => {
                 color: 'transparent'
               }}>
                 Cluster Approval Requests
-              </Typography>
+              </Typography> */}
               {/* <Typography variant="body1" color="text.secondary">
                 Total {filteredApprovals.length} cluster approvals • Total area: {totalArea} hectares
               </Typography> */}
-            </Box>
+            {/* </Box> */}
             
             {/* Summary Chips */}
-            <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+            {/* <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
               <Chip
                 label={`Pending: ${filteredApprovals.filter(a => !a.approved).length}`}
                 color="warning"
@@ -409,7 +424,7 @@ const handleSubmitAction = async (isApprove) => {
                 variant="outlined"
                 size="small"
               />
-            </Stack>
+            </Stack> */}
           </Box>
 
           {/* Error Display */}
@@ -526,7 +541,9 @@ const handleSubmitAction = async (isApprove) => {
                 <Button
                   variant="contained"
                   startIcon={<Refresh />}
-                  onClick={() => window.location.reload()}
+                  onClick={() => {
+  setPage(0);
+}}
                   size="small"
                 >
                   Refresh
@@ -544,7 +561,7 @@ const handleSubmitAction = async (isApprove) => {
               borderTop: '1px solid #e0e0e0'
             }}>
               <Typography variant="body2" color="text.secondary">
-                Showing {sortedAndPaginatedData.length} of {filteredApprovals.length} cluster approvals
+                Showing {approvals.length} of {totalElements} cluster approvals
               </Typography>
               {filteredApprovals.length < approvals.length && (
                 <Chip
@@ -734,7 +751,7 @@ const handleSubmitAction = async (isApprove) => {
               {/* Pagination */}
               <TablePagination
                 component="div"
-                count={filteredApprovals.length}
+                count={totalElements}
                 page={page}
                 onPageChange={handleChangePage}
                 rowsPerPage={rowsPerPage}
@@ -752,7 +769,7 @@ const handleSubmitAction = async (isApprove) => {
           )}
 
           {/* Summary Section */}
-          {filteredApprovals.length > 0 && (
+          {/* {filteredApprovals.length > 0 && (
             <Box sx={{ 
               mt: 3,
               p: 2,
@@ -785,7 +802,7 @@ const handleSubmitAction = async (isApprove) => {
                 </Box>
               </Box>
             </Box>
-          )}
+          )} */}
         </Card>
       </Grid>
 

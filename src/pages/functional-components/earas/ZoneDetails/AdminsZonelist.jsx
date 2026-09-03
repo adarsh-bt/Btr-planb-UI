@@ -39,11 +39,13 @@ import {
 } from '@mui/icons-material';
 import AppsIcon from '@mui/icons-material/Apps';
 import SummarizeIcon from '@mui/icons-material/Summarize';
+import WorkIcon from '@mui/icons-material/Work';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
 import mainapi from 'api/mainapi';
 import Breadcrumb from 'routes/Breadcrumb';
 import authservice from 'pages/authentication/services/authservice';
+import api from 'api/api';
 
 function AdminsZonelistUI() {
   const theme = useTheme();
@@ -80,6 +82,7 @@ function AdminsZonelistUI() {
       'view-keyplots': `/schemes/earas/Zone_Details/Key_plots/${selectedZone.zoneId}`,
       'view-clusters': `/schemes/earas/Zone_Details/clusters/${selectedZone.zoneId}`,
       'view-forms': `/schemes/earas/Zone_Details/Clusters_Form/${selectedZone.zoneId}`,
+      'view-work': `/schemes/earas/Zone_Details/Work_Allocation/${selectedZone.zoneId}`
     };
 
     if (routes[menuItem]) {
@@ -92,40 +95,52 @@ function AdminsZonelistUI() {
   const role = authservice.getrole();
   const currentUser = authservice.getusername(); // Assuming you have a method to get current user
 
-  useEffect(() => {
-    const fetchZones = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(
-          `${BASE_URL}/user-access/zones/zone_lists`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        );
-        console.log("Fetching zones with token:", token); // Debug log
-console.log("Fetching zones with token:", response); // Debug log
-        const result = await response.json();
-     console.log("Fetched zones:", result); // Debug log
-        if (!response.ok) {
-          if (result?.response === "No value present") {
-            setError("No zones are currently assigned to you.");
-          } else {
-            throw new Error(result?.message || "Failed to fetch zones");
-          }
-        } else {
-          setZoneData(result || []);
-        }
-      } catch (err) {
-        setError(err.message || "Unexpected error occurred.");
-      } finally {
-        setLoading(false);
-      }
-    };
+useEffect(() => {
 
-    fetchZones();
-  }, []);
+  const fetchZones = async () => {
+    try {
+
+      const response = await api.get(
+        `/user-access/zones/zone_lists`
+      );
+
+      const result = response.data;
+
+      console.log("Fetched zones:", result);
+
+      // ✅ Business case handling
+      if (result?.response === "No value present") {
+        setError("No zones are currently assigned to you.");
+        setZoneData([]);
+        return;
+      }
+
+      // ✅ Success
+      setZoneData(result || []);
+      setError(null);
+
+    } catch (err) {
+
+      console.error("Fetch zones error:", err);
+
+      // ❗ 401 handled globally by interceptor
+      if (err.response) {
+        setError(
+          err.response.data?.message ||
+          "Failed to fetch zones"
+        );
+      } else {
+        setError("Network error. Please check your connection.");
+      }
+
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchZones();
+
+}, []);
 
   // Filter logic
   const districts = [...new Set(zoneData.map(z => z.districtName))];
@@ -515,6 +530,12 @@ console.log("Fetching zones with token:", response); // Debug log
                   key: 'view-forms', 
                   icon: <SummarizeIcon sx={{ fontSize: 32 }} />, 
                   label: 'View Forms',
+                  color: '#1a237e'
+                },
+                { 
+                  key: 'view-work', 
+                  icon: <WorkIcon sx={{ fontSize: 32 }} />, 
+                  label: 'View Work Allocation',
                   color: '#1a237e'
                 }
               ].map((item) => (

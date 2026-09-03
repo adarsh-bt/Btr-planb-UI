@@ -2,6 +2,7 @@ import axios from 'axios';
 import authservice from 'pages/authentication/services/authservice';
 import { useNavigate } from 'react-router-dom';
 import mainapi from 'api/mainapi';
+import api from 'api/api';
 
 class approvalservice {
   static USER_URL = mainapi.USER_API;
@@ -218,7 +219,25 @@ class approvalservice {
           Authorization: `Bearer ${token}` // Ensure token is included
         }
       });
-      alert("role by schmes")
+     
+      return response.data; // Return response data on success
+    } catch (err) {
+      return {
+        message: err.response ? err.response.data.message : 'An error occurred'
+      }; // Return error message if the API call fails
+    }
+  }
+
+  static async selectedrolesBySchems(schemeId) {
+    try {
+      const token = localStorage.getItem('token');
+      console.log("sssss  >>   "+schemeId)
+      const response = await api.get(`${approvalservice.USER_URL}/user-access/api/user-approval/fetch/schemes/${schemeId}/roles`, {
+        headers: {
+          Authorization: `Bearer ${token}` // Ensure token is included
+        }
+      });
+      console.log(">>>  "+response)
       return response.data; // Return response data on success
     } catch (err) {
       return {

@@ -233,6 +233,7 @@ static async changeEmail(data) {
   // Update user schemes and roles
   static async updateUserRoleScheme({ userId, isActive, roleScheme }) {
     try {
+      console.log("ddd  ",userId)
       const token = localStorage.getItem('token');
       const response = await axios.post(
         `${ApprovedUserService.USER_URL}/user-access/api/user-manage/update-role-scheme`,

@@ -116,6 +116,21 @@ const [confirmPanchayatOpen, setConfirmPanchayatOpen] = useState(false);
 const [panchayatToRemove, setPanchayatToRemove] = useState(null);
 const [panchayatLoading, setPanchayatLoading] = useState(false);
 
+// Add these around line 30-50 with your other state declarations
+const [blockMapping, setBlockMapping] = useState(null);
+const [blockMappingLoading, setBlockMappingLoading] = useState(false);
+// Block Mapping states - Add these with your other useState declarations
+
+const [openBlockDialog, setOpenBlockDialog] = useState(false);
+const [blockDialogLoading, setBlockDialogLoading] = useState(false);
+const [selectedTypeCode, setSelectedTypeCode] = useState(1); // 1 = Block Panchayat, 2 = Local Body
+const [selectedReferenceId, setSelectedReferenceId] = useState('');
+const [availableBlocks, setAvailableBlocks] = useState([]);
+const [availableLocalBodies, setAvailableLocalBodies] = useState([]);
+const [selectedLocalBodyType, setSelectedLocalBodyType] = useState('');
+const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
+
+
   // ================= FETCH ZONE DETAILS =================
   useEffect(() => {
     const fetchZoneDetails = async () => {
@@ -464,7 +479,7 @@ const [panchayatLoading, setPanchayatLoading] = useState(false);
     );
   };
 
-  const availableBlocks = getAvailableBlocks();
+  // const availableBlocks = getAvailableBlocks();
 
   const handleRemoveVillage = async (villageMappingId) => {
     try {
@@ -738,8 +753,240 @@ const handleConfirmRemovePanchayat = async () => {
     setPanchayatLoading(false);
   }
 };
+// Fetch block mapping when component loads
+useEffect(() => {
+  if (resolvedZoneId) {
+    fetchBlockMapping();
+  }
+}, [resolvedZoneId]);
+// Fetch local bodies when local body type changes
+useEffect(() => {
+  if (selectedTypeCode === 2 && selectedLocalBodyType) {
+    fetchAvailableLocalBodies();
+  } else if (selectedTypeCode === 2 && !selectedLocalBodyType) {
+    setAvailableLocalBodies([]);
+  }
+}, [selectedLocalBodyType, selectedTypeCode]);
+// ================= FETCH BLOCK MAPPING =================
+const fetchBlockMapping = async () => {
+  if (!resolvedZoneId) return;
+  
+  setBlockMappingLoading(true);
+  try {
+    const token = localStorage.getItem("token");
+    const response = await fetch(
+      `${BASE_URL}/btr-service/admin-manage/zones/${resolvedZoneId}/block-mappings`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
 
+    if (!response.ok) throw new Error("Failed to fetch block mapping");
 
+    const data = await response.json();
+    console.log("Block mapping data:", data);
+    
+    if (Array.isArray(data) && data.length > 0) {
+      setBlockMapping(data[0]);
+    } else {
+      setBlockMapping(null);
+    }
+  } catch (error) {
+    console.error("Failed to fetch block mapping:", error);
+    setBlockMapping(null);
+    showSnackbar(error.message || "Failed to fetch block mapping", "error");
+  } finally {
+    setBlockMappingLoading(false);
+  }
+};
+
+// ================= FETCH AVAILABLE BLOCKS (Based on Zone's District) =================
+const fetchAvailableBlocks = async () => {
+  if (!resolvedZoneId) return;
+  
+  try {
+    const token = localStorage.getItem("token");
+    const response = await fetch(
+      `${BASE_URL}/btr-service/admin-manage/local-blocks?zoneId=${resolvedZoneId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+
+    if (!response.ok) throw new Error("Failed to fetch blocks");
+
+    const data = await response.json();
+    console.log("Available blocks for this zone's district:", data);
+    console.log("data ",data)
+    if (Array.isArray(data)) {
+      setAvailableBlocks(data);
+    } else {
+      setAvailableBlocks([]);
+    }
+  } catch (error) {
+    console.error("Failed to fetch blocks:", error);
+    setAvailableBlocks([]);
+    showSnackbar("Failed to load blocks", "error");
+  }
+};
+
+// ================= FETCH AVAILABLE LOCAL BODIES BY TYPE =================
+const fetchAvailableLocalBodies = async () => {
+  if (!selectedLocalBodyType) {
+    setAvailableLocalBodies([]);
+    return;
+  }
+  
+  try {
+    const token = localStorage.getItem("token");
+    // You'll need to adjust this endpoint based on your API
+    // This should fetch local bodies by type
+    const response = await fetch(
+      `${BASE_URL}/btr-service/admin-manage/local-bodies?typeId=${selectedLocalBodyType}&zoneId=${resolvedZoneId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+
+    if (!response.ok) throw new Error("Failed to fetch local bodies");
+
+    const data = await response.json();
+    console.log("Available local bodies by type:", data);
+    
+    if (Array.isArray(data)) {
+      setAvailableLocalBodies(data);
+    } else if (data?.payload && Array.isArray(data.payload)) {
+      setAvailableLocalBodies(data.payload);
+    } else {
+      setAvailableLocalBodies([]);
+    }
+  } catch (error) {
+    console.error("Failed to fetch local bodies:", error);
+    setAvailableLocalBodies([]);
+    showSnackbar("Failed to load local bodies", "error");
+  }
+};
+
+// ================= SAVE OR UPDATE BLOCK MAPPING =================
+const handleSaveBlockMapping = async () => {
+  // Validation
+  if (!selectedReferenceId) {
+    showSnackbar("Please select a value", "warning");
+    return;
+  }
+  
+  setBlockDialogLoading(true);
+  try {
+    const token = localStorage.getItem("token");
+    
+    const payload = {
+      zoneId: parseInt(resolvedZoneId),
+      typeCode: selectedTypeCode,
+      referenceId: parseInt(selectedReferenceId),
+      userId: authservice.userid() 
+    };
+    
+    console.log("Saving block mapping payload:", payload);
+    
+    const response = await fetch(
+      `${BASE_URL}/btr-service/admin-manage/zones/block-mapping`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      }
+    );
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || "Failed to save block mapping");
+    }
+    
+    showSnackbar("Block mapping saved successfully", "success");
+    setOpenBlockDialog(false);
+    
+    // Reset form
+    setSelectedTypeCode(1);
+    setSelectedReferenceId('');
+    setSelectedLocalBodyType('');
+    setAvailableBlocks([]);
+    setAvailableLocalBodies([]);
+    
+    // Refresh the mapping display
+    await fetchBlockMapping();
+    
+  } catch (error) {
+    console.error("Failed to save block mapping:", error);
+    showSnackbar(error.message || "Failed to save block mapping", "error");
+  } finally {
+    setBlockDialogLoading(false);
+  }
+};
+
+// ================= REMOVE BLOCK MAPPING =================
+const handleRemoveBlockMapping = async () => {
+  setBlockDialogLoading(true);
+  try {
+    const token = localStorage.getItem("token");
+    
+    // For remove, we need to soft delete the existing mapping
+    // You might need a DELETE endpoint, or we can save with isValid=false
+    // For now, let's show message
+    showSnackbar("Remove functionality - Need DELETE endpoint", "info");
+    
+    // If you have a delete endpoint, use:
+    /*
+    const response = await fetch(
+      `${BASE_URL}/btr-service/admin-manage/zones/block-mapping/${resolvedZoneId}`,
+      {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+    */
+    
+  } catch (error) {
+    console.error("Failed to remove block mapping:", error);
+    showSnackbar(error.message || "Failed to remove block mapping", "error");
+  } finally {
+    setBlockDialogLoading(false);
+    setConfirmRemoveOpen(false);
+  }
+};
+
+// ================= HANDLE OPEN ADD DIALOG =================
+const handleOpenAddDialog = async () => {
+  // Reset form
+  setSelectedTypeCode(1);
+  setSelectedReferenceId('');
+  setSelectedLocalBodyType('');
+  setAvailableLocalBodies([]);
+  
+  // Fetch blocks based on zone's district (no district selection needed!)
+  await fetchAvailableBlocks();
+  
+  setOpenBlockDialog(true);
+};
+
+// ================= HANDLE OPEN EDIT DIALOG =================
+const handleOpenEditDialog = async () => {
+  if (!blockMapping) return;
+  
+  // Set existing values
+  setSelectedTypeCode(blockMapping.typeCode);
+  setSelectedReferenceId('');
+  setSelectedLocalBodyType('');
+  
+  if (blockMapping.typeCode === 1) {
+    // For Block Panchayat, fetch blocks first
+    await fetchAvailableBlocks();
+  }
+  
+  setOpenBlockDialog(true);
+};
 // Add this to your existing useEffect for initial data fetch
 useEffect(() => {
   if (resolvedZoneId) {
@@ -836,6 +1083,7 @@ useEffect(() => {
           >
             <Tab label="Taluk - Village Mapping" />
             <Tab label="Local Body Mapping" />
+            <Tab label="Block Mapping" />
           </Tabs>
         </Box>
 
@@ -1030,6 +1278,269 @@ useEffect(() => {
         </TableBody>
       </Table>
     </TableContainer>
+  </Box>
+)}
+{/* block mapp */}
+{activeTab === 2 && (
+  <Box>
+    <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+      <Button
+        variant="contained"
+        startIcon={blockMapping ? <Edit /> : <AddCircleOutline />}
+        onClick={blockMapping ? handleOpenEditDialog : handleOpenAddDialog}
+        disabled={blockMappingLoading}
+      >
+        {blockMapping ? 'Edit Block Mapping' : 'Add Block Mapping'}
+      </Button>
+    </Box>
+    
+    <TableContainer component={Paper} sx={{ maxHeight: 500, border: '1px solid #e0e0e0' }}>
+      <Table stickyHeader>
+        <TableHead>
+          <TableRow>
+            <TableCell sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}>
+              Type
+            </TableCell>
+            <TableCell sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}>
+              Name
+            </TableCell>
+            <TableCell sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold" }}>
+              Status
+            </TableCell>
+            <TableCell sx={{ bgcolor: "#05307a", color: "white", fontWeight: "bold", textAlign: 'center' }}>
+              Actions
+            </TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {blockMappingLoading ? (
+            <TableRow>
+              <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
+                <CircularProgress size={30} />
+                <Typography sx={{ mt: 1 }}>Loading block mapping...</Typography>
+              </TableCell>
+            </TableRow>
+          ) : !blockMapping ? (
+            <TableRow>
+              <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
+                <Typography color="text.secondary">
+                  No block/local body mapping configured for this zone
+                </Typography>
+              </TableCell>
+            </TableRow>
+          ) : (
+            <TableRow>
+              <TableCell>
+                <Chip 
+                  label={blockMapping.type} 
+                  color={blockMapping.typeCode === 1 ? 'primary' : 'secondary'}
+                  size="medium"
+                />
+              </TableCell>
+              <TableCell>
+                <Typography variant="body1">
+                  {blockMapping.name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  ID: {blockMapping.id}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Chip 
+                  label={blockMapping.isActive ? 'Active' : 'Inactive'}
+                  color={blockMapping.isActive ? 'success' : 'default'}
+                  size="small"
+                />
+              </TableCell>
+              <TableCell align="center">
+                <Stack direction="row" spacing={1} justifyContent="center">
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    onClick={handleOpenEditDialog}
+                    title="Edit Mapping"
+                  >
+                    <Edit fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() => setConfirmRemoveOpen(true)}
+                    title="Remove Mapping"
+                  >
+                    <RemoveCircleOutline fontSize="small" />
+                  </IconButton>
+                </Stack>
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </TableContainer>
+
+    {/* Add/Edit Block Mapping Dialog */}
+    <Dialog 
+      open={openBlockDialog} 
+      onClose={() => !blockDialogLoading && setOpenBlockDialog(false)} 
+      maxWidth="sm" 
+      fullWidth
+    >
+      <DialogTitle sx={{ bgcolor: '#05307a', color: 'white' }}>
+        {blockMapping ? 'Edit Block Mapping' : 'Add Block Mapping'}
+      </DialogTitle>
+      
+      <DialogContent dividers>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Select the type of mapping
+        </Typography>
+
+        {/* Step 1: Select Type */}
+        <FormControl fullWidth sx={{ mb: 3 }}>
+          <InputLabel>Select Type</InputLabel>
+          <Select
+            value={selectedTypeCode}
+            label="Select Type"
+            onChange={(e) => {
+              setSelectedTypeCode(e.target.value);
+              setSelectedReferenceId('');
+              setSelectedLocalBodyType('');
+              setAvailableLocalBodies([]);
+            }}
+            disabled={blockDialogLoading}
+          >
+            <MenuItem value={1}>Block Panchayat</MenuItem>
+            <MenuItem value={2}>Local Body</MenuItem>
+          </Select>
+        </FormControl>
+
+        {/* Step 2: Based on Type */}
+        {selectedTypeCode === 1 && (
+          <>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Select Block Panchayat (from zone's district)
+            </Typography>
+            <FormControl fullWidth required>
+              <InputLabel>Select Block Panchayat</InputLabel>
+              <Select
+                value={selectedReferenceId}
+                label="Select Block Panchayat"
+                onChange={(e) => setSelectedReferenceId(e.target.value)}
+                disabled={blockDialogLoading || availableBlocks.length === 0}
+              >
+                {availableBlocks.length === 0 ? (
+                  <MenuItem disabled>No blocks available for this zone's district</MenuItem>
+                ) : (
+                  availableBlocks.map((block) => (
+                    <MenuItem key={block.blockId} value={block.blockId}>
+                      {block.blockName} ({block.blockCode})
+                    </MenuItem>
+                  ))
+                )}
+              </Select>
+            </FormControl>
+          </>
+        )}
+
+        {selectedTypeCode === 2 && (
+          <>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Select Local Body Type
+            </Typography>
+            <FormControl fullWidth sx={{ mb: 2 }} required>
+              <InputLabel>Local Body Type</InputLabel>
+              <Select
+                value={selectedLocalBodyType}
+                label="Local Body Type"
+                onChange={(e) => {
+                  setSelectedLocalBodyType(e.target.value);
+                  setSelectedReferenceId('');
+                }}
+                disabled={blockDialogLoading}
+              >
+                <MenuItem value="">Select Type</MenuItem>
+                <MenuItem value="1">Grama Panchayat</MenuItem>
+                <MenuItem value="2">Municipality</MenuItem>
+                <MenuItem value="3">Corporation</MenuItem>
+              </Select>
+            </FormControl>
+
+            {selectedLocalBodyType && (
+              <>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  Select Local Body
+                </Typography>
+                <FormControl fullWidth required>
+                  <InputLabel>Select Local Body</InputLabel>
+                  <Select
+                    value={selectedReferenceId}
+                    label="Select Local Body"
+                    onChange={(e) => setSelectedReferenceId(e.target.value)}
+                    disabled={blockDialogLoading || availableLocalBodies.length === 0}
+                  >
+                    {availableLocalBodies.length === 0 ? (
+                      <MenuItem disabled>No local bodies available for this type</MenuItem>
+                    ) : (
+                      availableLocalBodies.map((lb) => (
+                        <MenuItem key={lb.localbodyId} value={lb.localbodyId}>
+                          {lb.localbodyNameEn}   /  ({lb.localbodyNameMal
+})
+                        </MenuItem>
+                      ))
+                    )}
+                  </Select>
+                </FormControl>
+              </>
+            )}
+          </>
+        )}
+      </DialogContent>
+      
+      <DialogActions sx={{ p: 2 }}>
+        <Button 
+          onClick={() => setOpenBlockDialog(false)}
+          disabled={blockDialogLoading}
+        >
+          Cancel
+        </Button>
+        <Button 
+          variant="contained"
+          disabled={
+            blockDialogLoading ||
+            !selectedReferenceId ||
+            (selectedTypeCode === 2 && !selectedLocalBodyType)
+          }
+          onClick={handleSaveBlockMapping}
+          startIcon={blockDialogLoading ? <CircularProgress size={20} /> : <SaveIcon />}
+          sx={{ bgcolor: '#05307a' }}
+        >
+          {blockDialogLoading ? 'Saving...' : 'Save Mapping'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+
+    {/* Confirm Remove Dialog */}
+    <Dialog open={confirmRemoveOpen} onClose={() => setConfirmRemoveOpen(false)}>
+      <DialogTitle>Confirm Removal</DialogTitle>
+      <DialogContent>
+        <Typography>
+          Are you sure you want to remove the block mapping for this zone?
+        </Typography>
+        <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+          This will remove the association with {blockMapping?.name}.
+        </Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setConfirmRemoveOpen(false)}>Cancel</Button>
+        <Button 
+          color="error" 
+          variant="contained" 
+          onClick={handleRemoveBlockMapping}
+          disabled={blockDialogLoading}
+        >
+          Remove
+        </Button>
+      </DialogActions>
+    </Dialog>
   </Box>
 )}
       </MainCard>
@@ -1405,7 +1916,7 @@ useEffect(() => {
         ) : (
           availablePanchayats.map((panchayat) => (
             <MenuItem key={panchayat.localbodyId} value={panchayat.localbodyId}>
-              {panchayat.localbodyName} ({panchayat.localbodyType})
+              {panchayat.localbodyName} 
             </MenuItem>
           ))
         )}

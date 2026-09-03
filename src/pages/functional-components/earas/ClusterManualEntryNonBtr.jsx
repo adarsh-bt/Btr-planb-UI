@@ -23,6 +23,7 @@ import {
   Alert
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import { ArrowDownward, ArrowUpward, TrendingFlat } from '@mui/icons-material';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import MapIcon from '@mui/icons-material/Map';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
@@ -36,6 +37,7 @@ import Autocomplete from '@mui/material/Autocomplete';
 import authservice from 'pages/authentication/services/authservice';
 import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest';
 import { set } from 'lodash';
+import api from 'api/api';
 
 const BASE_URL = mainapi.BASE_URL;
 const FORM_URL = mainapi.FORM_API;
@@ -194,29 +196,45 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
   const [rowBlockOptions, setRowBlockOptions] = useState({});
 
   // fetch and filter CCE crop details
-  const fetchCceCropDetails = async () => {
-    setLoadingCrops(true);
-    try {
-      const token = localStorage.getItem('token');
-      const zoneid = getEffectiveZoneId();
-      const response = await fetch(`${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops?zoneId=${zoneid}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      const cropData = Array.isArray(data) ? data : (data.crops || data.payload || []);
-      const filteredCrops = filterCropsByLandType(cropData, clusterInfo.landType);
-      setCceCropDetails(filteredCrops);
-    } catch (error) {
-      console.error('Error fetching CCE crop details:', error);
-      setCceCropDetails([]);
-      setSnackbarMessage('Failed to load crop details.');
-      setSnackbarOpen(true);
-    } finally {
-      setLoadingCrops(false);
-    }
-  };
+const fetchCceCropDetails = async () => {
+  setLoadingCrops(true);
 
+  try {
+    const zoneid = getEffectiveZoneId();
+
+    const response = await api.get(
+      `${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops`,
+      {
+        params: {
+          zoneId: zoneid,
+          agriYear: authservice.agriyear()
+        }
+      }
+    );
+
+    const data = response.data;
+
+    const cropData = Array.isArray(data)
+      ? data
+      : (data.crops || data.payload || []);
+
+    const filteredCrops = filterCropsByLandType(
+      cropData,
+      clusterInfo.landType
+    );
+
+    setCceCropDetails(filteredCrops);
+
+  } catch (error) {
+    console.error('Error fetching CCE crop details:', error);
+
+    setCceCropDetails([]);
+    setSnackbarMessage('Failed to load crop details.');
+    setSnackbarOpen(true);
+  } finally {
+    setLoadingCrops(false);
+  }
+};
 
   const renderValidationDialogContent = () => {
     if (!validationInfo) return null;
@@ -287,6 +305,29 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
     setSnackbarMessage("This plot cannot be used. Please enter a different one.");
     setSnackbarOpen(true);
   };
+const handleMovePlot = (index, direction) => {
+    if (index === 0) return; // Never allow moving 'K' (Keyplot)
+
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    
+    // Boundary checks: don't move into K's slot (index 0) and don't go out of bounds
+    if (newIndex === 0 || newIndex >= keyplotsData.length) return;
+
+    setKeyplotsData(prevData => {
+        const updatedData = [...prevData];
+        // Swap the items
+        const temp = updatedData[index];
+        updatedData[index] = updatedData[newIndex];
+        updatedData[newIndex] = temp;
+
+        // Sync the currentLabels array to reflect the new visual order
+        const labels = updatedData.map(kp => kp.label).filter(label => label);
+        setCurrentLabels(labels);
+
+        return updatedData;
+    });
+};
+
   const handleUseRecommendedPlot = (type) => {
     if (!validatingRow || !validationInfo) return;
 
@@ -436,7 +477,7 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
       }
 
       const data = await response.json();
-  
+console.log("Fetched keyplot details:", data);
       const keyplotBTypeId = data.payload.btr_id;
       const keyplotBTypeName = data.payload.btr_type;
       setCurrentBType({
@@ -847,6 +888,7 @@ const proceedSubmit = async (mode) => {
       keyplotId: keyplotId,
       clusterNo: clusterId,
       btrType: currentBType?.id,
+      agriYear:authservice.agriyear(),
       status: mode === 'COMPLETED'
         ? 'Completed'
         : mode === 'Under Review'
@@ -892,7 +934,8 @@ const proceedSubmit = async (mode) => {
               area: area,
               bcode: row.block,
               village: row.villageId,
-              btrtype: currentBType?.id
+              btrtype: currentBType?.id,
+              
             };
 
             if (currentBType) {
@@ -959,9 +1002,12 @@ const proceedSubmit = async (mode) => {
     setSnackbarMessage('Cluster data saved successfully!');
     setSnackbarOpen(true);
     // setOpenLimitDialog(false);
-  if (mode === 'ON_GOING' ||  mode === 'SAVE') {
+   if (mode === 'ON_GOING' || mode === 'SAVE') {
                     setOpenLimitDialog(false)
-                     window.location.reload();
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                     
             }
     // Update local status
     setStatus(mode === 'COMPLETED' ? 'Completed' : mode === 'Under Review' ? 'Under Review' : 'On Going');
@@ -1068,6 +1114,7 @@ const proceedSubmit = async (mode) => {
           addedBy: authservice.userid(),
           rejectedBy: null,
           rejectedAt: null,
+          agriYear:authservice.agriyear(),
           assignedOn: new Date().toISOString().slice(0, 19)
         };
       });
@@ -1726,6 +1773,7 @@ const requiredFieldsByType = {
           houseno: row.houseno,
           lbcode: defaultLbcode,
           zoneId: parseInt(zoneId, 10),
+          agriYear:authservice.agriyear()
         };
       } else if (BtrTypeId == 3) {
         payload = {
@@ -1739,6 +1787,7 @@ const requiredFieldsByType = {
           lbcode: defaultLbcode,
           totCent: row.area,
           zoneId: parseInt(zoneId, 10),
+          agriYear:authservice.agriyear()
         };
       } else if (BtrTypeId == 4) {
 
@@ -1753,6 +1802,7 @@ const requiredFieldsByType = {
           lbcode: defaultLbcode,
           totCent: row.area,
           zoneId: parseInt(zoneId, 10),
+          agriYear:authservice.agriyear()
         };
       } else if (BtrTypeId == 5) {
         payload = {
@@ -1766,6 +1816,7 @@ const requiredFieldsByType = {
           lbcode: defaultLbcode,
           totCent: row.area,
           zoneId: parseInt(zoneId, 10),
+          agriYear:authservice.agriyear()
         };
       }
 
@@ -1855,6 +1906,7 @@ const requiredFieldsByType = {
         resvno: parseInt(row.svNo, 10),
         resbdno: row.sub && row.sub.trim() !== "" ? row.sub.trim() : null,
         zoneId: parseInt(zoneId, 10),
+        agriYear: authservice.agriyear()
       };
 
     
@@ -2604,11 +2656,13 @@ const getMissingLabels = () => {
                   });
 
                   // Add API crops
-                  if (apiCropsData && apiCropsData.crops) {
-                    apiCropsData.crops.forEach(crop => {
-                      allCrops.push(crop.cropName);
-                    });
-                  }
+                    if (apiCropsData && apiCropsData.crops) {
+                                            apiCropsData.crops.forEach(crop => {
+                                                 if(crop.isActive) {
+                                                allCrops.push(crop.cropName);
+                                                }
+                                            });
+                                        }
 
                   // Count occurrences of each crop
                   const cropCounts = {};
@@ -2631,13 +2685,20 @@ const getMissingLabels = () => {
             </Box>
           </Paper>
         )}
+
+                     {status == "Under Review" && (
+                        <Box sx={{ width: '100%', mt: 1, textAlign: 'center', color: 'warning.main' }}><WarningAmberIcon />
+                            <Typography >This Cluster is Under Review. after the Approval Edit is active</Typography></Box>)}
+                    {status == "Completed" && (
+                        <Box sx={{ width: '100%', mt: 1, textAlign: 'center', color: 'warning.main' }}><WarningAmberIcon />
+                            <Typography >This Cluster is Completed. Editing is not allowed</Typography></Box>)}
+
         {/* Action Buttons */}
         <Box sx={{ maxWidth: 900, margin: '0 auto', mb: 3 ,mt:2 }}>
           <Grid container spacing={2} alignItems="center" justifyContent="center">
             <Grid item>
               {role === 'Field Data Collector' && (
-                <Button variant="contained" color="info" onClick={handleOpenCropsModal}>Add CCE crops</Button>
-              )}
+                 <Grid item><Button variant="contained" color="info" onClick={handleOpenCropsModal} disabled={!isedit}>Add CCE crops</Button></Grid>)}
             </Grid>
             <Grid item>{(
   (
@@ -2664,7 +2725,7 @@ const getMissingLabels = () => {
         </Box>
 
         {/* Keyplot Sections - REFACTORED TO STACKED FORM FIELDS */}
-        {keyplotsData.map((keyplot) => {
+        {keyplotsData.map((keyplot, index) => {
           let isNewRowIncomplete = false;
           
           if (BtrTypeId === 2) {
@@ -2759,6 +2820,58 @@ const getMissingLabels = () => {
       })}
     </Select>
   </FormControl>
+  {/* 2. ENHANCED REORDER CONTROLS */}
+<Box 
+    sx={{ 
+        display: 'flex', 
+        ml: 3, 
+        backgroundColor: 'rgba(255, 255, 255, 0.1)', // Subtle light background
+        borderRadius: '6px', // Rounded corners
+        border: '1px solid rgba(255, 255, 255, 0.3)', // Light border
+        overflow: 'hidden' 
+    }}
+>
+    <Tooltip title="Move Up">
+        <span>
+            <IconButton 
+                size="small" 
+                onClick={() => handleMovePlot(index, 'up')} 
+                disabled={index === 1} // Disabled if it's right below K
+                sx={{ 
+                    color: 'white',
+                    borderRadius: 0, // Remove default circle hover for a cleaner look
+                    padding: '4px 8px',
+                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+                    '&.Mui-disabled': { color: 'rgba(255, 255, 255, 0.3)' }
+                }}
+            >
+                <ArrowUpward fontSize="small" />
+            </IconButton>
+        </span>
+    </Tooltip>
+
+    {/* Vertical line separating the two buttons */}
+    <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255, 255, 255, 0.3)' }} />
+    
+    <Tooltip title="Move Down">
+        <span>
+            <IconButton 
+                size="small" 
+                onClick={() => handleMovePlot(index, 'down')} 
+                disabled={index === keyplotsData.length - 1} // Disabled if it's at the very bottom
+                sx={{ 
+                    color: 'white',
+                    borderRadius: 0,
+                    padding: '4px 8px',
+                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+                    '&.Mui-disabled': { color: 'rgba(255, 255, 255, 0.3)' }
+                }}
+            >
+                <ArrowDownward fontSize="small" />
+            </IconButton>
+        </span>
+    </Tooltip>
+</Box>
 </Box>
                 )}
                 <Box sx={{
@@ -2817,7 +2930,7 @@ const getMissingLabels = () => {
                       variant="contained"
                       color="success"
                       onClick={() => handleAddRow(keyplot.id)}
-                      disabled={isNewRowIncomplete || hasErrorInKeyplot}
+                      disabled={isNewRowIncomplete || hasErrorInKeyplot || !isedit}
                     >
                       Add Row
                     </Button>
@@ -2896,7 +3009,7 @@ const getMissingLabels = () => {
   </DialogContent>
 
   <DialogActions>
-    <Button onClick={() => setOpenLimitDialog(false)}>Cancel</Button>
+    <Button onClick={() => setOpenLimitDialog(false)} color="secondary" variant="contained">Cancel</Button>
 
     {/* BELOW MIN → Save only */}
     {limitSeverity === 'info' && (
@@ -2925,7 +3038,7 @@ const getMissingLabels = () => {
     {/* ABOVE MEAN */}
     {limitSeverity === 'success' && (
       <>
-        <Button onClick={() => proceedSubmit('SAVE')}>
+        <Button onClick={() => proceedSubmit('SAVE')} color="primary" variant="contained" >
           Save
         </Button>
 
@@ -3025,7 +3138,8 @@ const getMissingLabels = () => {
         <DialogActions>
           <Button
             onClick={() => setCropsModalOpen(false)}
-            color="primary"
+            color="secondary"
+                             variant="contained"
           >
             Close
           </Button>
@@ -3111,10 +3225,10 @@ const getMissingLabels = () => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseConfirmDialog} color="primary">
+          <Button onClick={handleCloseConfirmDialog} color="secondary" variant="contained">
             Cancel
           </Button>
-          <Button onClick={handleConfirmDelete} color="error" autoFocus>
+          <Button onClick={handleConfirmDelete} color="error" autoFocus variant="contained">
             Delete Permanently
           </Button>
         </DialogActions>

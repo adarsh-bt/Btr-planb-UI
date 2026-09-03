@@ -32,7 +32,7 @@ import {
     Radio,
   } from '@mui/material';
 import approvalservice from './approvalservice';
-import auth from 'contexts/auth-reducer/auth';
+// import auth from 'contexts/auth-reducer/auth';
 import authservice from 'pages/authentication/services/authservice';
 import Taluk from './talukusers';
 import Breadcrumb from 'routes/Breadcrumb';
@@ -168,7 +168,7 @@ const[zoneVisble, setzoneVisble] = useState(false);
            
             // Fetch roles and zones in parallel
             const [rolesResponse, zonesResponse] = await Promise.all([
-              approvalservice.allrolesBySchems(value),
+              approvalservice.selectedrolesBySchems(value),
               approvalservice.zoneslist(selectedRow.officeType, selectedRow.officeId)
             ]);
            console.log("okkkkkk" ,zonesResponse)
@@ -1054,11 +1054,11 @@ return (
         </FormControl>
 
         {/* Buttons */}
-        {index === schemeRolePairs.length - 1 && (
+        {/* {index === schemeRolePairs.length - 1 && (
           <Button onClick={addSchemeRolePair} variant="contained" color="primary" size="small">
             +
           </Button>
-        )}
+        )} */}
 
         {schemeRolePairs.length > 1 && (
           <Button

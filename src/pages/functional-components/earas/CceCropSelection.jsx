@@ -10,6 +10,8 @@ import Breadcrumb from 'routes/Breadcrumb';
 
 import axios from "axios";
 import mainapi from 'api/mainapi';
+import api from "api/api";
+import AuthService from "pages/authentication/services/authservice";
 
 const FORM_URL = mainapi.FORM_API;
 
@@ -90,11 +92,14 @@ const CceCropSelection = () => {
       if (!allCropsResponse.data || !allCropsResponse.data.payload || !Array.isArray(allCropsResponse.data.payload)) {
         throw new Error("Invalid API response format");
       }
-
+      const agriYear = AuthService.agriyear();
       // Fetch already selected crops for the current year
-      const selectedCropsResponse = await axios.get(
+      const selectedCropsResponse = await api.get(
         `${FORM_URL}/earas-form1-entry/cce-crop-details/cce-crops-selected/fetch-all`,
-        { headers: { Authorization: `Bearer ${token}` } }
+         {
+    params: {
+      agriYear: agriYear,
+    }}
       );
 
       console.log("Selected Crops API RESPONSE:", selectedCropsResponse.data);
@@ -244,6 +249,9 @@ const CceCropSelection = () => {
     <Grid container spacing={3}>
       <Breadcrumb />
       <Grid item xs={12}>
+       <Typography variant="h3" >
+          Crop Selection
+        </Typography>
         {/* Snackbar - Now positioned at top center */}
         <Snackbar
           open={snackbar.open}

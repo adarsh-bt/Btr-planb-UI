@@ -39,6 +39,7 @@ import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest';
 import { is } from 'date-fns/locale';
 // Add this import at the top
 import { useNavigate, useParams } from 'react-router-dom';
+import api from 'api/api';
 
 const BASE_URL = mainapi.BASE_URL;
 const FORM_URL = mainapi.FORM_API;
@@ -164,37 +165,51 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
     });
     const [rowBlockOptions, setRowBlockOptions] = useState({});
 
-    // ✅ NEW: Function to fetch CCE croFORM_URp details from API
-    // Updated function to fetch and filter CCE crop details based on land type
-    const fetchCceCropDetails = async () => {
-        setLoadingCrops(true);
-        try {
-            const token = localStorage.getItem('token');
-            const zoneid = getEffectiveZoneId();
+    
+  const fetchCceCropDetails = async () => {
+    setLoadingCrops(true);
 
-            const response = await fetch(`${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops?zoneId=${zoneid}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+        const zoneid = getEffectiveZoneId();
 
-            const data = await response.json();
+        const response = await api.get(
+            `${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops`,
+            {
+                params: {
+                    zoneId: zoneid,
+                    agriYear: authservice.agriyear()
+                }
+            }
+        );
 
-            // Ensure data is always an array
-            const cropData = Array.isArray(data) ? data : (data.crops || data.payload || []);
+        const data = response.data;
 
-            // Filter crops based on cluster land type
-            const filteredCrops = filterCropsByLandType(cropData, clusterInfo.landType);
+        // Ensure data is always an array
+        const cropData = Array.isArray(data)
+            ? data
+            : (data.crops || data.payload || []);
 
-            setCceCropDetails(filteredCrops);
-        } catch (error) {
-            console.error('Error fetching CCE crop details:', error);
-            setCceCropDetails([]);
-            // setSnackbarMessage('Failed to load crop details.');
-            // setSnackbarOpen(true);
-        } finally {
-            setLoadingCrops(false);
+        // Filter crops based on cluster land type
+        const filteredCrops = filterCropsByLandType(
+            cropData,
+            clusterInfo.landType
+        );
+
+        setCceCropDetails(filteredCrops);
+
+    } catch (error) {
+        console.error('Error fetching CCE crop details:', error);
+
+        if (error.response) {
+            console.error('Status:', error.response.status);
+            console.error('Response:', error.response.data);
         }
-    };
+
+        setCceCropDetails([]);
+    } finally {
+        setLoadingCrops(false);
+    }
+};
 
     const handleUseRecommendedPlot = (type) => {
         if (!validatingRow || !validationInfo) return;
@@ -283,7 +298,29 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
         setSnackbarMessage("This plot cannot be used. Please enter a different one.");
         // setSnackbarOpen(true);
     };
+// Function to move a side plot up or down in the array
+const handleMovePlot = (index, direction) => {
+    if (index === 0) return; // Never allow moving 'K' (Keyplot)
 
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    
+    // Boundary checks: don't move into K's slot (index 0) and don't go out of bounds
+    if (newIndex === 0 || newIndex >= keyplotsData.length) return;
+
+    setKeyplotsData(prevData => {
+        const updatedData = [...prevData];
+        // Swap the items
+        const temp = updatedData[index];
+        updatedData[index] = updatedData[newIndex];
+        updatedData[newIndex] = temp;
+
+        // Sync the currentLabels array to reflect the new visual order
+        const labels = updatedData.map(kp => kp.label).filter(label => label);
+        setCurrentLabels(labels);
+
+        return updatedData;
+    });
+};
     const checkPlotUsageInCurrentForm = (plotIdentifier, currentRowUniqueId) => {
         // Collect all rows from the current form, including saved (isExisting) ones
         const allRows = keyplotsData.flatMap(kp => kp.rows);
@@ -379,9 +416,9 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
                 resvno: parseInt(row.svNo, 10),
                 resbdno: row.sub && row.sub.trim() !== "" ? row.sub.trim() : null,
                 zoneId: parseInt(zoneId, 10),
+                agriYear: authservice.agriyear()
             };
 
-       
 
             const response = await fetch(`${BASE_URL}/btr-service/api/btr-data/validate-duplicate`, {
                 method: 'POST',
@@ -553,7 +590,7 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
             }
 
             const data = await response.json();
-      
+    console.log('API CCE Crops Response:', data);
             setApiCropsData(data);
 
         } catch (error) {
@@ -959,6 +996,7 @@ const hasValidRow = (keyplot) => {
             const requestData = {
                 userId: userId,
                 keyplotId: keyplotId,
+                agriYear: authservice.agriyear(),
                 clusterNo: clusterId,
                 zoneId: parseInt(zoneId),
                 status:
@@ -1047,7 +1085,10 @@ const hasValidRow = (keyplot) => {
          
             if (mode === 'ON_GOING' || mode === 'SAVE') {
                     setOpenLimitDialog(false)
-                     window.location.reload();
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                     
             }
             if (mode === 'COMPLETED' || mode === 'Under Review') {
                 setTimeout(() => {
@@ -1165,12 +1206,13 @@ const hasValidRow = (keyplot) => {
                     clusterId: clusterIdNumber,
                     keyplotId: keyplotId, // This should be the UUID from URL params
                     zoneId: parseInt(zoneId),
-                    landType: clusterInfo.landType || "WET",
+                    landType: clusterInfo.landType,
                     isLimitExceeded: false,
                     isCurrentAssignment: true,
                     addedBy: authservice.userid(),
                     rejectedBy: null,
                     rejectedAt: null,
+                    agriYear:authservice.agriyear(),
                     assignedOn: new Date().toISOString().slice(0, 19) // Format: YYYY-MM-DDTHH:mm:ss
                 };
             });
@@ -1251,7 +1293,7 @@ const hasValidRow = (keyplot) => {
 
             setSnackbarMessage("CCE crops saved successfully!");
             setSnackbarOpen(true);
-            // setCropsModalOpen(false);
+            setCropsModalOpen(false);
 
         } catch (error) {
             console.error('Error saving CCE crops:', error);
@@ -2026,7 +2068,7 @@ const validateSidePlotLabels = () => {
                                     }}
                                 >
                                     <TrendingFlat fontSize="small" sx={{ mr: 0.5 }} />
-                                    MEAN TOTAL
+                                    TSO LIMIT
                                 </Typography>
                                 <Typography variant="h5" component="p" sx={{ fontWeight: 'bold', color: '#333' }}>
                                     {meanCluster}
@@ -2093,7 +2135,9 @@ const validateSidePlotLabels = () => {
                                         // Add API crops
                                         if (apiCropsData && apiCropsData.crops) {
                                             apiCropsData.crops.forEach(crop => {
+                                                if(crop.isActive) {
                                                 allCrops.push(crop.cropName);
+                                                }
                                             });
                                         }
 
@@ -2129,7 +2173,7 @@ const validateSidePlotLabels = () => {
                     </Box>
 
                     {/* Keyplot Sections - ORIGINAL UI PRESERVED */}
-                    {keyplotsData.map((keyplot) => {
+                   {keyplotsData.map((keyplot, index) => {
 
                         const isNewRowIncomplete = keyplot.rows.filter(r => r.isNew).some(r => !r.villageName || !r.block || !r.svNo || !r.area || !r.enumeratedArea);
 
@@ -2167,14 +2211,13 @@ const validateSidePlotLabels = () => {
                                         </Box>
                                     ) : (
                                        
-<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-  <Typography variant="h6">Side Plot -</Typography>
-  <FormControl size="small" sx={{ minWidth: 120 }} error={!keyplot.label}>
-    {/* <InputLabel>Select Label</InputLabel> */}
-    <Select
-      value={keyplot.label || ''}
-      onChange={(e) => handleLabelChange(e.target.value, keyplot.id)}
-      displayEmpty
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="h6">Side Plot -</Typography>
+                        <FormControl size="small" sx={{ minWidth: 120 }} error={!keyplot.label}>
+                            <Select
+                                value={keyplot.label || ''}
+                                onChange={(e) => handleLabelChange(e.target.value, keyplot.id)}
+                                displayEmpty
     //   label="Select Label"
       sx={{
         color: keyplot.label ? 'white' : 'rgba(255, 255, 255, 0.7)',
@@ -2204,7 +2247,60 @@ const validateSidePlotLabels = () => {
       </Typography>
     )} */}
   </FormControl>
+  
+{/* 2. ENHANCED REORDER CONTROLS */}
+<Box 
+    sx={{ 
+        display: 'flex', 
+        ml: 3, 
+        backgroundColor: 'rgba(255, 255, 255, 0.1)', // Subtle light background
+        borderRadius: '6px', // Rounded corners
+        border: '1px solid rgba(255, 255, 255, 0.3)', // Light border
+        overflow: 'hidden' 
+    }}
+>
+    <Tooltip title="Move Up">
+        <span>
+            <IconButton 
+                size="small" 
+                onClick={() => handleMovePlot(index, 'up')} 
+                disabled={index === 1} // Disabled if it's right below K
+                sx={{ 
+                    color: 'white',
+                    borderRadius: 0, // Remove default circle hover for a cleaner look
+                    padding: '4px 8px',
+                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+                    '&.Mui-disabled': { color: 'rgba(255, 255, 255, 0.3)' }
+                }}
+            >
+                <ArrowUpward fontSize="small" />
+            </IconButton>
+        </span>
+    </Tooltip>
+
+    {/* Vertical line separating the two buttons */}
+    <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255, 255, 255, 0.3)' }} />
+    
+    <Tooltip title="Move Down">
+        <span>
+            <IconButton 
+                size="small" 
+                onClick={() => handleMovePlot(index, 'down')} 
+                disabled={index === keyplotsData.length - 1} // Disabled if it's at the very bottom
+                sx={{ 
+                    color: 'white',
+                    borderRadius: 0,
+                    padding: '4px 8px',
+                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+                    '&.Mui-disabled': { color: 'rgba(255, 255, 255, 0.3)' }
+                }}
+            >
+                <ArrowDownward fontSize="small" />
+            </IconButton>
+        </span>
+    </Tooltip>
 </Box>
+                    </Box>
                                     )}
 
                                     {/* RIGHT SIDE: Total enumerated area for this section */}
@@ -2400,11 +2496,12 @@ const validateSidePlotLabels = () => {
                     </DialogContent>
 
                     <DialogActions>
-                        <Button onClick={() => setOpenLimitDialog(false)}>Cancel</Button>
+                        <Button onClick={() => setOpenLimitDialog(false)}  color="secondary"
+                             variant="contained">Cancel</Button>
 
                         {/* BELOW MIN → Save only */}
                         {limitSeverity === 'info' && (
-                            <Button onClick={() => proceedSubmit('ON_GOING')}>
+                            <Button onClick={() => proceedSubmit('ON_GOING')} color="primary" variant="contained">
                                 Save
                             </Button>
                         )}
@@ -2412,7 +2509,7 @@ const validateSidePlotLabels = () => {
                         {/* BETWEEN MIN & MEAN */}
                         {limitSeverity === 'warning' && (
                             <>
-                                <Button onClick={() => proceedSubmit('SAVE')}>
+                                <Button onClick={() => proceedSubmit('SAVE')} color="primary" variant="contained">
                                     Save
                                 </Button>
 
@@ -2429,9 +2526,17 @@ const validateSidePlotLabels = () => {
                         {/* ABOVE MEAN */}
                         {limitSeverity === 'success' && (
                             <>
-                                <Button onClick={() => proceedSubmit('SAVE')}>
-                                    Save
-                                </Button>
+                                <Button
+  onClick={() => proceedSubmit('SAVE')}
+  style={{
+    backgroundColor: '#1677ff', // primary blue
+    color: '#fff',
+    width: '7rem',
+    borderColor: '#1677ff',
+  }}
+>
+  Save
+</Button>
 
                                 <Button
                                     variant="contained"
@@ -2447,14 +2552,14 @@ const validateSidePlotLabels = () => {
 
 
                 <Dialog open={isCropsModalOpen} onClose={() => setCropsModalOpen(false)} maxWidth="md" fullWidth>
-                    <DialogTitle>
+                    <DialogTitle sx={{background:"#05307a", color: 'white'}}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <GrassIcon />
                             <Typography variant="h6">Select CCE Crops</Typography>
                         </Box>
                     </DialogTitle>
                     <DialogContent>
-                        <DialogContentText sx={{ mb: 2 }}>
+                        <DialogContentText sx={{ my: 2 }}>
                             Please select the crops for Crop Cutting Experiment (CCE). Only active crops are available for selection.
                         </DialogContentText>
 
@@ -2555,7 +2660,8 @@ const validateSidePlotLabels = () => {
   </Button> */}
                         <Button
                             onClick={() => setCropsModalOpen(false)}
-                            color="primary"
+                            color="secondary"
+                             variant="contained"
                         >
                             Close
                         </Button>
@@ -2649,10 +2755,11 @@ const validateSidePlotLabels = () => {
                         </DialogContentText>
                     </DialogContent>
                     <DialogActions>
-                        <Button onClick={handleCloseConfirmDialog} color="primary">
+                        <Button onClick={handleCloseConfirmDialog}  color="secondary"
+                             variant="contained">
                             Cancel
                         </Button>
-                        <Button onClick={handleConfirmDelete} color="error" autoFocus>
+                        <Button onClick={handleConfirmDelete} color="error" autoFocus variant="contained">
                             Delete Permanently
                         </Button>
                     </DialogActions>

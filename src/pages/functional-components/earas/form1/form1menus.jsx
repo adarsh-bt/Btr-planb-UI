@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect ,useCallback} from 'react';
 import {
   Grid,
   Typography,
@@ -25,7 +25,7 @@ import {
   IconButton,
   Tooltip,
   Menu,
-  MenuItem,CardHeader,Stack
+  MenuItem,CardHeader,Stack,CircularProgress
 } from '@mui/material';
 import {
   Circle,
@@ -51,6 +51,8 @@ import AgricultureIcon from '@mui/icons-material/Agriculture';
 import StorageIcon from '@mui/icons-material/Storage';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CommentIcon from '@mui/icons-material/Comment';
+import ExcelView from './ExcelView'; 
+import api from 'api/api';
 // --- Theme Constants ---
 const TABLE_HEADER_BG = '#04255e';
 const TABLE_HEADER_COLOR = '#ffffff';
@@ -154,35 +156,35 @@ const DownloadMenu = ({ onDownload }) => {
     setAnchorEl(null);
   };
 
-  const handleDownload = (format) => {
-    onDownload(format);
-    handleClose();
-  };
+  // const handleDownload = (format) => {
+  //   onDownload(format);
+  //   handleClose();
+  // };
 
-  return (
-    <div>
-      <Button
-        variant="contained"
-        startIcon={<GetApp />}
-        onClick={handleClick}
-        sx={{ 
-          backgroundColor: TABLE_HEADER_BG,
-          '&:hover': { backgroundColor: '#031a45' }
-        }}
-      >
-        Download
-      </Button>
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleClose}
-      >
-        <MenuItem onClick={() => handleDownload('csv')}>Download as CSV</MenuItem>
-        <MenuItem onClick={() => handleDownload('excel')}>Download as Excel</MenuItem>
-        <MenuItem onClick={() => handleDownload('pdf')}>Download as PDF</MenuItem>
-      </Menu>
-    </div>
-  );
+  // return (
+  //   <div>
+  //     <Button
+  //       variant="contained"
+  //       startIcon={<GetApp />}
+  //       onClick={handleClick}
+  //       sx={{ 
+  //         backgroundColor: TABLE_HEADER_BG,
+  //         '&:hover': { backgroundColor: '#031a45' }
+  //       }}
+  //     >
+  //       Downloadss
+  //     </Button>
+  //     <Menu
+  //       anchorEl={anchorEl}
+  //       open={Boolean(anchorEl)}
+  //       onClose={handleClose}
+  //     >
+  //       <MenuItem onClick={() => handleDownload('csv')}>Download as CSV</MenuItem>
+  //       <MenuItem onClick={() => handleDownload('excel')}>Download as Excel</MenuItem>
+  //       <MenuItem onClick={() => handleDownload('pdf')}>Download as PDF</MenuItem>
+  //     </Menu>
+  //   </div>
+  // );
 };
 
 // --- Form1_menus Main Component ---
@@ -212,9 +214,12 @@ const [availableCropSeasons, setAvailableCropSeasons] = useState([]);
   const [districtId, setDistrictId] = useState(null);
   const [zonename , setZonename] = useState('');
 
-  const KEYPLOT_ID = 'db537d81-e8d5-45f4-82d5-fd12d9026bc5';
-  const CLUSTER_ID_63 = '63';
-  const IRRIGATION_CLUSTER_ID_108 = '108';
+  const [isCropLoading, setIsCropLoading] = useState(false);
+const [cropFetchError, setCropFetchError] = useState(null);
+const [seasonSwitchPending, setSeasonSwitchPending] = useState(false);
+const [openExcelView, setOpenExcelView] = useState(false);
+
+ const [isDownloading, setIsDownloading] = useState(false);
 
 const StyledDetailItem = ({ label, value, icon }) => (
   <Stack spacing={0.5}>
@@ -254,6 +259,13 @@ const StyledDetailItem = ({ label, value, icon }) => (
     setSearchTerm(term.toLowerCase());
   };
 
+const handleOpenExcelView = () => {
+  setOpenExcelView(true);
+ 
+};
+const handleCloseExcelView = () => {
+  setOpenExcelView(false);
+};
   // Download Handler
   const handleDownload = (format, data, filename) => {
    
@@ -305,8 +317,84 @@ useEffect(() => {
 }, [seasonId, clusterId]);
 
 
+// const testPdfDownload = async () => {
+//   try {
+//     const response = await api.get(
+//       '/earas-form1-entry/api/download/excel',
+//       {
+//         responseType: 'blob', // ✅ MUST
+//       }
+//     );
+
+//     // ✅ Correct MIME type for Excel
+//     const blob = new Blob([response.data], {
+//       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+//     });
+
+//     const url = window.URL.createObjectURL(blob);
+
+//     const a = document.createElement('a');
+//     a.href = url;
+//     a.download = 'land_use_survey_template.xlsx'; // ✅ Correct file name
+//     document.body.appendChild(a);
+//     a.click();
+
+//     a.remove();
+//     window.URL.revokeObjectURL(url);
+
+//   } catch (error) {
+//     console.error("Download failed:", error);
+//   }
+// };
+
 
   // API Fetch Functions (same as before)
+
+const testExcelDownload = async () => {
+  if (isDownloading) return; // Prevent multiple clicks
+  
+  setIsDownloading(true);
+  
+  try {
+    const response = await api.get(
+      `/earas-form1-entry/api/download/excel/${clusterId}`,
+      {
+        responseType: 'blob',
+      }
+    );
+
+    const blob = new Blob(
+      [response.data],
+      {
+        type:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }
+    );
+
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+
+    a.href = url;
+
+    a.download = 'form_1_report.xlsx';
+
+    document.body.appendChild(a);
+
+    a.click();
+
+    a.remove();
+
+    window.URL.revokeObjectURL(url);
+
+  } catch (error) {
+    console.error(error);
+    // Optional: Add error toast/notification here
+  } finally {
+    setIsDownloading(false);
+  }
+};
+
  const fetchKeyplotDetails = async (idFromUrl) => {
   setIsLoading(true);
   setError(null);
@@ -314,7 +402,7 @@ useEffect(() => {
     const token = localStorage.getItem('token');
     const BASE_URL = mainapi.BASE_URL;
 
-    const response = await axios.get(
+    const response = await api.get(
       `${BASE_URL}/btr-service/key-plots/fetch-by-keyplotsdetails/${idFromUrl}`,
       {
         headers: {
@@ -330,7 +418,7 @@ useEffect(() => {
       setDistrictId(districtId);
       setZonename(response.data?.payload?.zoneName || 'N/A');
   
-    console.log('Keyplot API response:', data);
+   
       if (data && data.payload) {
         setKeyplotData({
           ...data.payload,
@@ -353,39 +441,180 @@ useEffect(() => {
     }
   };
 
-const fetchCropDetails = async () => {
+const fetchCropDetails = useCallback(async (seasonOverride = null) => {
+  const targetSeason = seasonOverride !== null ? seasonOverride : seasonId;
+  const currentClusterId = clusterId;
+  const currentDistrictId = districtId;
+  
+  // Prevent duplicate requests
+  if (!currentClusterId || !currentDistrictId || !targetSeason) {
+    console.log('Missing required params:', { clusterId: currentClusterId, districtId: currentDistrictId, seasonId: targetSeason });
+    return;
+  }
+
+  setIsCropLoading(true);
+  setCropFetchError(null);
+  
   try {
     const token = localStorage.getItem('token');
     const BASE_URL = mainapi.BASE_URL;
-    
 
-console.log('Fetching crop details with clusterId:', clusterId, 'seasonId:', seasonId, 'districtId:', districtId);
+    console.log('Fetching crop details:', { clusterId: currentClusterId, seasonId: targetSeason, districtId: currentDistrictId });
 
-    // Second API call using correct distId
     const response = await axios.get(
-      `${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${clusterId}/season/${seasonId}/district/${districtId}`,
+      `${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${currentClusterId}/season/${targetSeason}/district/${currentDistrictId}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        timeout: 30000 // 30 second timeout
       }
     );
 
     const data = response.data;
 console.log('Crop Details API response:', data);
-    if (data?.payload?.length > 0) {
+
+    // Verify we're still on the same season before updating state
+    if (seasonOverride !== null ? seasonOverride === seasonId : true) {
+      if (data?.payload && Array.isArray(data.payload) && data.payload.length > 0) {
+        setCropData(data.payload);
+        setCropFetchError(null);
+      } else {
+        setCropData([]);
+        if (data?.payload && data.payload.length === 0) {
+          setCropFetchError(`No crop data available for ${getSeasonLabel(targetSeason)} season.`);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching crop details:', err);
+    if (seasonOverride !== null ? seasonOverride === seasonId : true) {
+      setCropData([]);
+      setCropFetchError(
+        err.response?.status === 404 
+          ? `No crop data found for ${getSeasonLabel(targetSeason)} season.`
+          : `Failed to load crop data: ${err.message}`
+      );
+    }
+  } finally {
+    if (seasonOverride !== null ? seasonOverride === seasonId : true) {
+      setIsCropLoading(false);
+      setSeasonSwitchPending(false);
+    }
+  }
+}, [clusterId, districtId, seasonId]);
+
+
+
+const handleSeasonChange = useCallback(async (newSeasonId) => {
+  if (newSeasonId === seasonId || seasonSwitchPending) return;
+  
+  setSeasonSwitchPending(true);
+  setSeasonId(newSeasonId);
+  
+  // Clear current data immediately to show loading state
+  setCropData([]);
+  setCropFetchError(null);
+  
+  // Fetch with the new season
+  try {
+    const token = localStorage.getItem('token');
+    const BASE_URL = mainapi.BASE_URL;
+    
+    const response = await axios.get(
+      `${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${clusterId}/season/${newSeasonId}/district/${districtId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000
+      }
+    );
+
+    const data = response.data;
+    
+    if (data?.payload && Array.isArray(data.payload)) {
       setCropData(data.payload);
+      if (data.payload.length === 0) {
+        setCropFetchError(`No crop data available for ${getSeasonLabel(newSeasonId)} season.`);
+      } else {
+        setCropFetchError(null);
+      }
     } else {
       setCropData([]);
+      setCropFetchError(`No crop data available for ${getSeasonLabel(newSeasonId)} season.`);
     }
-
   } catch (err) {
     console.error('Error fetching crop details:', err);
     setCropData([]);
+    setCropFetchError(
+      err.response?.status === 404 
+        ? `No crop data found for ${getSeasonLabel(newSeasonId)} season.`
+        : `Failed to load crop data. Please try again.`
+    );
+  } finally {
+    setIsCropLoading(false);
+    setSeasonSwitchPending(false);
   }
-};
+}, [clusterId, districtId, seasonId, seasonSwitchPending]);
 
+// Improved useEffect for initial load
+useEffect(() => {
+  if (clusterId && districtId && seasonId) {
+    fetchCropDetails();
+  }
+}, [clusterId, districtId]); // Only re-run when cluster or district changes
+
+// Separate useEffect for seasonId changes
+useEffect(() => {
+  if (clusterId && districtId && seasonId) {
+    handleSeasonChange(seasonId);
+  }
+}, [seasonId]); // This will trigger when seasonId changes
+
+// Improved checkAvailableCropSeasons with better error handling
+const checkAvailableCropSeasons = useCallback(async () => {
+  if (!clusterId || !districtId) return;
+  
+  const seasons = [1, 2, 3];
+  const available = [];
+  
+  for (const season of seasons) {
+    try {
+      const token = localStorage.getItem('token');
+      const BASE_URL = mainapi.BASE_URL;
+      
+      const response = await axios.get(
+        `${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${clusterId}/season/${season}/district/${districtId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 15000
+        }
+      );
+
+      if (response.data && Array.isArray(response.data.payload) && response.data.payload.length > 0) {
+        available.push({
+          id: season,
+          name: season === 1 ? 'Autumn' : season === 2 ? 'Winter' : 'Summer'
+        });
+      }
+    } catch (err) {
+      console.log(`No crop data for season ${season}:`, err.message);
+    }
+  }
+  
+  setAvailableCropSeasons(available);
+  
+  // If current season has no data and there are available seasons, switch to first available
+  if (available.length > 0 && !available.some(s => s.id === seasonId)) {
+    setSeasonId(available[0].id);
+  }
+}, [clusterId, districtId, seasonId]);
   const fetchIrrigationDetails = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -399,7 +628,7 @@ console.log('Crop Details API response:', data);
       });
 
       const data = response.data;
-
+console.log('Irrigation Details API response:', data);
       if (data && Array.isArray(data.payload)) {
         setIrrigationData(data.payload);
       } else {
@@ -469,6 +698,85 @@ const fetchNucDetails = async (season = seasonId) => {
     setError(`Failed to fetch NUC details for season ${season}. Try another season.`);
   }
 };
+
+const renderBtrDetails = () => {
+  const plotNo =
+    keyplotData?.plotno &&
+    keyplotData.plotno !== 'null/'
+      ? keyplotData.plotno
+      : null;
+
+  switch (keyplotData?.btrTypeId) {
+    case 1:
+      return (
+        <DetailItem
+          label="Survey & Sub Division No"
+          value={plotNo || 'N/A'}
+        />
+      );
+
+    case 2:
+      return (
+        <>
+          <DetailItem
+            label="Ward No"
+            value={keyplotData?.wardno || 'N/A'}
+          />
+          <DetailItem
+            label="House No"
+            value={keyplotData?.houseno || 'N/A'}
+          />
+        </>
+      );
+
+    case 3:
+      return (
+        <>
+          <DetailItem
+            label="Cultivate Name"
+            value={keyplotData?.cultivateName || 'N/A'}
+          />
+
+          <DetailItem
+            label="Cultivate Area"
+            value={
+              keyplotData?.cultivateArea
+                ? `${keyplotData.cultivateArea} cent`
+                : 'N/A'
+            }
+          />
+        </>
+      );
+
+    case 4:
+      return (
+        <DetailItem
+          label="TP No / TP Sub Division No"
+          value={`${keyplotData?.tpno || 'N/A'}/${keyplotData?.tpsubdivno || 'N/A'}${
+            plotNo ? ` (Survey : ${plotNo})` : ''
+          }`}
+        />
+      );
+
+    case 5:
+      return (
+        <DetailItem
+          label="Old Survey / Old Sub Division No"
+          value={`${keyplotData?.oldSurvey || 'N/A'}/${keyplotData?.oldSubDivNo || 'N/A'}${
+            plotNo ? ` (Survey : ${plotNo})` : ''
+          }`}
+        />
+      );
+
+    default:
+      return (
+        <DetailItem
+          label="Details"
+          value="N/A"
+        />
+      );
+  }
+};
 const getSeasonLabel = (seasonId) =>
   seasonId === 1 ? "Autumn" :
   seasonId === 2 ? "Winter" : "Summer";
@@ -481,7 +789,7 @@ const checkAvailableSeasons = async () => {
     try {
       const token = localStorage.getItem('token');
       const BASE_URL = mainapi.BASE_URL;
-     
+
       const response = await axios.get(
         `${BASE_URL}/earas-form1-entry/nuc-details/fetch-by-clusterId/${clusterId}/season/${season}`,
         {
@@ -512,44 +820,44 @@ const checkAvailableSeasons = async () => {
   }
 };
 
-const checkAvailableCropSeasons = async () => {
-  const seasons = [1, 2, 3]; // Autumn, Winter, Summer
-  const available = [];
+// const checkAvailableCropSeasons = async () => {
+//   const seasons = [1, 2, 3]; // Autumn, Winter, Summer
+//   const available = [];
   
-  for (const season of seasons) {
-    try {
-      const token = localStorage.getItem('token');
-      const BASE_URL = mainapi.BASE_URL;
-      const distId = localStorage.getItem('activeDistId');
+//   for (const season of seasons) {
+//     try {
+//       const token = localStorage.getItem('token');
+//       const BASE_URL = mainapi.BASE_URL;
+//       const distId = localStorage.getItem('activeDistId');
       
-      const response = await axios.get(
-        `${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${clusterId}/season/${season}/district/${districtId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+//       const response = await axios.get(
+//         `${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${clusterId}/season/${season}/district/${districtId}`,
+//         {
+//           headers: {
+//             Authorization: `Bearer ${token}`,
+//             'Content-Type': 'application/json'
+//           }
+//         }
+//       );
 
-      if (response.data && Array.isArray(response.data.payload) && response.data.payload.length > 0) {
-        available.push({
-          id: season,
-          name: season === 1 ? 'Autumn' : season === 2 ? 'Winter' : 'Summer'
-        });
-      }
-    } catch (err) {
-      console.log(`No crop data for season ${season}:`, err.message);
-    }
-  }
+//       if (response.data && Array.isArray(response.data.payload) && response.data.payload.length > 0) {
+//         available.push({
+//           id: season,
+//           name: season === 1 ? 'Autumn' : season === 2 ? 'Winter' : 'Summer'
+//         });
+//       }
+//     } catch (err) {
+//       console.log(`No crop data for season ${season}:`, err.message);
+//     }
+//   }
   
-  setAvailableCropSeasons(available);
+//   setAvailableCropSeasons(available);
   
-  // Set default season to first available season
-  if (available.length > 0 && !available.some(s => s.id === seasonId)) {
-    setSeasonId(available[0].id);
-  }
-};
+//   // Set default season to first available season
+//   if (available.length > 0 && !available.some(s => s.id === seasonId)) {
+//     setSeasonId(available[0].id);
+//   }
+// };
 
 // Update useEffect to check available seasons
 useEffect(() => {
@@ -594,7 +902,7 @@ useEffect(() => {
   );
 
 
-  // 1. Enhanced Keyplot Details with Download
+  // 1. Enhanced  with Download
   const renderKeyplotDetails = () => {
     if (isLoading) return renderLoading();
     // if (error) return renderError();
@@ -603,10 +911,13 @@ useEffect(() => {
     return (
       <Card sx={{ border: `1px solid #e0e0e0`, boxShadow: 2 }}>
         <CardContent>
-          <Grid container spacing={3}>
+         BTR Type : <Chip label={`${keyplotData.btrTypeName || 'N/A'}`} color="success" />
+          <Divider sx={{ my: 3 }} />
+          <Grid container spacing={3} mt={1}>
+           
             <DetailItem label="Owner Name" value={keyplotData?.owner_name} />
             <DetailItem label="Contact Number" value={keyplotData?.phone_number} />
-            <DetailItem label="Survey No" value={keyplotData?.plotno} />
+            {renderBtrDetails()}
             <DetailItem label="Area" value={keyplotData?.area+" cent"} />
             <DetailItem
   label="Location"
@@ -673,68 +984,113 @@ useEffect(() => {
     );
   };
 
-  // 3. Enhanced Crop Details with Sorting, Filtering and Download
 const renderCropDetails = () => {
-  if (isLoading && activeTab === 2) return renderLoading();
-  
-  // Check if we have seasons available
-  if (availableCropSeasons.length === 0) {
-    return <Alert severity="info">No crop data available for any season in this cluster.</Alert>;
+  // Show loading state immediately when switching seasons or initial load
+  if (isCropLoading || seasonSwitchPending) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <LinearProgress sx={{ height: 4, borderRadius: 2, mb: 2 }} />
+        <Typography variant="body2" align="center" color="text.secondary">
+          Loading crop data for {getSeasonLabel(seasonId)} season...
+        </Typography>
+      </Box>
+    );
   }
   
+  // Show error state if fetch failed
+  if (cropFetchError) {
+    return (
+      <Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 700, color: 'text.secondary', mb: 1.5 }}>
+              SELECT VIEWING SEASON:
+            </Typography>
+            <Stack direction="row" spacing={2}>
+              {ALL_SEASONS.map((s) => (
+                <Button
+                  key={s.id}
+                  variant={seasonId === s.id ? "contained" : "outlined"}
+                  onClick={() => handleSeasonChange(s.id)}
+                  disabled={seasonSwitchPending}
+                  sx={{
+                    px: 4,
+                    borderRadius: 2,
+                    fontWeight: 600,
+                    backgroundColor: seasonId === s.id ? TABLE_HEADER_BG : 'transparent',
+                    borderColor: seasonId === s.id ? TABLE_HEADER_BG : 'divider',
+                    '&:hover': {
+                      backgroundColor: seasonId === s.id ? '#031a45' : '#f5f5f5'
+                    }
+                  }}
+                >
+                  {s.name}
+                </Button>
+              ))}
+            </Stack>
+          </Box>
+        </Box>
+        <Alert 
+          severity="info" 
+          sx={{ mb: 2, borderRadius: 2 }}
+          action={
+            <Button color="inherit" size="small" onClick={() => handleSeasonChange(seasonId)}>
+              Retry
+            </Button>
+          }
+        >
+          {cropFetchError}
+        </Alert>
+      </Box>
+    );
+  }
+  
+
   if (!cropData || cropData.length === 0) {
     return (
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-          
-          {/* Season dropdown */}
-           <Box sx={{ mb: 4 }}>
-        <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 700, color: 'text.secondary', mb: 1.5 }}>
-          SELECT VIEWING SEASON:
-        </Typography>
-        <Stack direction="row" spacing={2}>
-          {ALL_SEASONS.map((s) => (
-            <Button
-              key={s.id}
-              variant={seasonId === s.id ? "contained" : "outlined"}
-              onClick={() => {
-                setSeasonId(s.id);
-            fetchCropDetails();
-              }}
-              sx={{
-                px: 4,
-                borderRadius: 2,
-                fontWeight: 600,
-                backgroundColor: seasonId === s.id ? TABLE_HEADER_BG : 'transparent',
-                borderColor: seasonId === s.id ? TABLE_HEADER_BG : 'divider',
-                '&:hover': {
-                  backgroundColor: seasonId === s.id ? '#031a45' : '#f5f5f5'
-                }
-              }}
-            >
-              {s.name}
-            </Button>
-          ))}
-        </Stack>
-      </Box>
-          
-          <SearchFilter onFilter={handleFilter} placeholder="Search crops..." />
-
-
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            <DownloadMenu 
-              onDownload={(format) => handleDownload(format, [], 'crop-details')}
-            />
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 700, color: 'text.secondary', mb: 1.5 }}>
+              SELECT VIEWING SEASON:
+            </Typography>
+            <Stack direction="row" spacing={2}>
+              {ALL_SEASONS.map((s) => (
+                <Button
+                  key={s.id}
+                  variant={seasonId === s.id ? "contained" : "outlined"}
+                  onClick={() => handleSeasonChange(s.id)}
+                  disabled={seasonSwitchPending}
+                  sx={{
+                    px: 4,
+                    borderRadius: 2,
+                    fontWeight: 600,
+                    backgroundColor: seasonId === s.id ? TABLE_HEADER_BG : 'transparent',
+                    borderColor: seasonId === s.id ? TABLE_HEADER_BG : 'divider',
+                    '&:hover': {
+                      backgroundColor: seasonId === s.id ? '#031a45' : '#f5f5f5'
+                    }
+                  }}
+                >
+                  {s.name}
+                </Button>
+              ))}
+            </Stack>
           </Box>
+          <SearchFilter onFilter={handleFilter} placeholder="Search crops..." />
+          <DownloadMenu 
+            onDownload={(format) => handleDownload(format, [], 'crop-details')}
+          />
         </Box>
-        <Alert severity="warning">
-          No crop details found for {availableCropSeasons.find(s => s.id === seasonId)?.name || 'selected'} season.
+        <Alert severity="warning" sx={{ borderRadius: 2 }}>
+          No crop details found for {getSeasonLabel(seasonId)} season. Please try another season.
         </Alert>
       </Box>
     );
   }
 
-  const columns = [
+
+ const columns = [
     { id: 'clusterLabel', label: 'Cluster Label', sortable: true },
     { id: 'seasonName', label: 'Season Name', sortable: true },
     { id: 'cropName', label: 'Crop Name', sortable: true },
@@ -746,28 +1102,28 @@ const renderCropDetails = () => {
 
   // Flatten and filter data
   const flattenedData = cropData.flatMap((cluster) => 
-    cluster.crops.map((crop) => ({
+    (cluster.crops || []).map((crop) => ({
       ...crop,
       clusterLabel: cluster.clusterLabel,
       seasonId: cluster.seasonId,
       cropTypeId: cluster.cropTypeId,
-      seasonName: crop.season,
-      cropName: crop.cropNameEn,
-      cropStage: crop.cropGrowthStage,
-      cropType: crop.cropType,
+      seasonName: crop.season || getSeasonLabel(seasonId),
+      cropName: crop.cropNameEn || crop.cropName || 'N/A',
+      cropStage: crop.cropGrowthStage || 'N/A',
+      cropType: crop.cropType || 'N/A',
     }))
   );
 
   const filteredData = flattenedData.filter(item =>
     Object.values(item).some(value =>
-      String(value).toLowerCase().includes(searchTerm)
+      String(value || '').toLowerCase().includes(searchTerm)
     )
   );
 
-  const sortedData = filteredData.sort((a, b) => {
+  const sortedData = [...filteredData].sort((a, b) => {
     if (orderBy) {
-      const aValue = a[orderBy];
-      const bValue = b[orderBy];
+      const aValue = a[orderBy] || '';
+      const bValue = b[orderBy] || '';
       if (order === 'asc') {
         return aValue < bValue ? -1 : 1;
       }
@@ -776,7 +1132,7 @@ const renderCropDetails = () => {
     return 0;
   });
 
-  const totalArea = sortedData.reduce((sum, item) => sum + item.cropArea, 0);
+  const totalArea = sortedData.reduce((sum, item) => sum + (item.cropArea || 0), 0);
 
   return (
     <Box>
@@ -790,158 +1146,123 @@ const renderCropDetails = () => {
           gap: 2 
         }}
       >
-
-        {/* Season dropdown - only show available seasons */}
-        {/* <TextField
-          select
-          label="Season"
-          size="small"
-          sx={{ minWidth: 150 }}
-          value={seasonId}
-          onChange={(e) => {
-            setSeasonId(e.target.value);
-            fetchCropDetails();
-          }}
-        >
-          {availableCropSeasons.map((season) => (
-            <MenuItem key={season.id} value={season.id}>
-              {season.name}
-            </MenuItem>
-          ))}
-        </TextField> */}
-
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 700, color: 'text.secondary', mb: 1.5 }}>
-          SELECT VIEWING SEASON:
-        </Typography>
-        <Stack direction="row" spacing={2}>
-          {ALL_SEASONS.map((s) => (
-            <Button
-              key={s.id}
-              variant={seasonId === s.id ? "contained" : "outlined"}
-              onClick={() => {
-                setSeasonId(s.id);
-            fetchCropDetails();
-              }}
-              sx={{
-                px: 4,
-                borderRadius: 2,
-                fontWeight: 600,
-                backgroundColor: seasonId === s.id ? TABLE_HEADER_BG : 'transparent',
-                borderColor: seasonId === s.id ? TABLE_HEADER_BG : 'divider',
-                '&:hover': {
-                  backgroundColor: seasonId === s.id ? '#031a45' : '#f5f5f5'
-                }
-              }}
-            >
-              {s.name}
-            </Button>
-          ))}
-        </Stack>
-      </Box>
-        <SearchFilter onFilter={handleFilter} placeholder="Search crops..." />
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <DownloadMenu 
-            onDownload={(format) => handleDownload(format, sortedData, 'crop-details')}
-          />
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 700, color: 'text.secondary', mb: 1.5 }}>
+            SELECT VIEWING SEASON:
+          </Typography>
+          <Stack direction="row" spacing={2}>
+            {ALL_SEASONS.map((s) => (
+              <Button
+                key={s.id}
+                variant={seasonId === s.id ? "contained" : "outlined"}
+                onClick={() => handleSeasonChange(s.id)}
+                disabled={seasonSwitchPending}
+                sx={{
+                  px: 4,
+                  borderRadius: 2,
+                  fontWeight: 600,
+                  backgroundColor: seasonId === s.id ? TABLE_HEADER_BG : 'transparent',
+                  borderColor: seasonId === s.id ? TABLE_HEADER_BG : 'divider',
+                  '&:hover': {
+                    backgroundColor: seasonId === s.id ? '#031a45' : '#f5f5f5'
+                  }
+                }}
+              >
+                {s.name}
+              </Button>
+            ))}
+          </Stack>
         </Box>
+       <SearchFilter onFilter={handleFilter} placeholder="Search crops..." />
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+           <DownloadMenu 
+          onDownload={(format) => handleDownload(format, sortedData, `crop-details-${getSeasonLabel(seasonId)}`)}
+        />
+      </Box>
       </Box>
 
       {/* Rest of your existing crop details table code... */}
-      <TableContainer component={Paper} sx={{ border: '1px solid #e0e0e0', boxShadow: 1 }}>
-          <Table aria-label="crop details table" size="small">
-            <EnhancedTableHead 
-              columns={columns} 
-              order={order} 
-              orderBy={orderBy} 
-              onSort={handleSort}
-            />
-            <TableBody>
-              {sortedData.map((row, index) => (
-                <TableRow 
-                  key={`${row.id}-${index}`}
-                  sx={{ 
-                    '&:nth-of-type(odd)': { backgroundColor: '#fafafa' },
-                    '&:hover': { backgroundColor: '#f0f0f0' }
-                  }}
-                >
-                  <TableCell>
-                    <Chip label={row.clusterLabel} size="small" variant="outlined" />
-                  </TableCell>
-                  <TableCell>{row.seasonName} </TableCell>
-                  <TableCell>{row.cropName} ({row.cropStage})</TableCell>
-                  <TableCell>{row.cropType}</TableCell>
-<TableCell align="right">
-  <Typography variant="body2" fontWeight="medium">
-    {row.cropArea != null
-      ? row.centPerTree != null
-        ?  Number((row.cropArea)).toFixed(2)
-        : Number(row.cropArea).toFixed(2)
-      : "NA"}
-  </Typography>
-</TableCell>
-
-
-<TableCell align="right">
-  <Typography variant="body2" fontWeight="medium">
-    {row.centPerTree != null
-      ? (Number(row.cropArea).toFixed(2) / Number(row.centPerTree).toFixed(2)).toFixed(2)
-      : "NA"}
-  </Typography>
-</TableCell>
-
-
-                  <TableCell align="center">
-                    {row.isIrrigated ? (
-                      <Chip 
-                        icon={<Circle sx={{ fontSize: 12 }} />} 
-                        label="Irrigated" 
-                        size="small" 
-                        color="success" 
-                        variant="outlined" 
-                      />
-                    ) : (
-                      <Chip 
-                        icon={<Close sx={{ fontSize: 12 }} />} 
-                        label="Not Irrigated" 
-                        size="small" 
-                        color="error" 
-                        variant="outlined" 
-                      />
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-              
-              {/* Summary Row */}
-              <TableRow sx={{ backgroundColor: '#e8f5e9', borderTop: '2px solid #388e3c' }}>
-                <TableCell colSpan={4} align="right">
-                  <Typography variant="subtitle1" fontWeight="bold">
-                    Total Area:
+ <TableContainer component={Paper} sx={{ border: '1px solid #e0e0e0', boxShadow: 1 }}>
+        <Table aria-label="crop details table" size="small">
+          <EnhancedTableHead 
+            columns={columns} 
+            order={order} 
+            orderBy={orderBy} 
+            onSort={handleSort}
+          />
+          <TableBody>
+            {sortedData.map((row, index) => (
+              <TableRow 
+                key={`${row.id || row.cropId || index}-${index}`}
+                sx={{ 
+                  '&:nth-of-type(odd)': { backgroundColor: '#fafafa' },
+                  '&:hover': { backgroundColor: '#f0f0f0' }
+                }}
+              >
+                <TableCell>
+                  <Chip label={row.clusterLabel || 'N/A'} size="small" variant="outlined" />
+                </TableCell>
+                <TableCell>{row.seasonName || getSeasonLabel(seasonId)}</TableCell>
+                <TableCell>
+                  {row.cropName || 'N/A'}
+                  {row.cropStage && row.cropStage !== 'N/A' && (
+                    <Typography variant="caption" display="block" >
+                      Stage: {row.cropStage}
+                    </Typography>
+                  )}
+                </TableCell>
+                <TableCell>{row.cropType || 'N/A'}</TableCell>
+                <TableCell align="right">
+                  <Typography variant="body2" fontWeight="medium">
+                    {(row.cropArea != null
+                      ? row.centPerTree == null
+                        ? Number(row.cropArea).toFixed(2)
+                        : (Number(row.cropArea) * Number(row.centPerTree)).toFixed(2)
+                      : "0.00")}
                   </Typography>
                 </TableCell>
                 <TableCell align="right">
-                  <Typography variant="subtitle1" fontWeight="bold">
-                    {totalArea.toFixed(2)}
+                  <Typography variant="body2" fontWeight="medium">
+                    {row.centPerTree != null ? Number(row.centPerTree).toFixed(2) : "NA"}
                   </Typography>
                 </TableCell>
-                <TableCell></TableCell>
+                <TableCell align="center">
+                  {row.isIrrigated ? (
+                    <Chip 
+                      icon={<Circle sx={{ fontSize: 12 }} />} 
+                      label="Irrigated" 
+                      size="small" 
+                      color="success" 
+                      variant="outlined" 
+                    />
+                  ) : (
+                    <Chip 
+                      icon={<Close sx={{ fontSize: 12 }} />} 
+                      label="Not Irrigated" 
+                      size="small" 
+                      color="error" 
+                      variant="outlined" 
+                    />
+                  )}
+                </TableCell>
               </TableRow>
-            </TableBody>
-          </Table>
-        </TableContainer>
+            ))}
+         
+          </TableBody>
+        </Table>
+      </TableContainer>
         
-        <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="caption" color="textSecondary">
-            Showing {sortedData.length} of {flattenedData.length} records
-          </Typography>
-          {/* <Chip 
-            label={`Total Clusters: ${cropData.length}`} 
-            size="small" 
-            color="primary" 
-            variant="outlined" 
-          /> */}
-        </Box>
+        {/* <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="caption" color="textSecondary">
+          Showing {sortedData.length} of {flattenedData.length} records
+        </Typography>
+        <Chip 
+          label={`Total Clusters: ${cropData.length}`} 
+          size="small" 
+          color="primary" 
+          variant="outlined" 
+        />
+      </Box> */}
       </Box>
     );
   };
@@ -960,6 +1281,7 @@ const renderCropDetails = () => {
           irrigatedArea: sourceItem.irrigatedArea,
           sourceCount: sourceItem.sourceCount,
           centPerTree: source.centPerTree,
+        
         }))
       )
     );
@@ -1007,14 +1329,14 @@ const renderCropDetails = () => {
                       {item.irrigationType}
                     </Box>
                   </TableCell>
-                  <TableCell align="right">
-                    <Typography variant="body2" fontWeight="medium">
-                      {/* {item.irrigatedArea.toFixed(2) || ''} */}
-                    </Typography>
-                  </TableCell>
+                 <TableCell align="right">
+  <Typography variant="body2" fontWeight="medium">
+    {typeof item.irrigatedArea === 'number' ? item.irrigatedArea.toFixed(2) : '0.00'}
+  </Typography>
+</TableCell>
                   <TableCell align="center">
                     <Chip 
-                      label={item.sourceCount} 
+                      label={item.sourceCount || '--'} 
                       size="small" 
                       color="primary" 
                       variant="filled"
@@ -1032,7 +1354,7 @@ const renderCropDetails = () => {
                 </TableCell>
                 <TableCell align="right">
                   <Typography variant="subtitle1" fontWeight="bold">
-                    {filteredData.reduce((sum, item) => sum + item.irrigatedArea, 0).toFixed(2)}
+                   {filteredData.reduce((sum, item) => sum + (item.irrigatedArea || 0), 0).toFixed(2)}
                   </Typography>
                 </TableCell>
                 <TableCell></TableCell>
@@ -1063,10 +1385,10 @@ const renderCropDetails = () => {
       )
     );
 
-    const totals = areaFields.reduce((acc, field) => {
-      acc[field] = filteredData.reduce((sum, item) => sum + item[field], 0).toFixed(2);
-      return acc;
-    }, {});
+const totals = areaFields.reduce((acc, field) => {
+  acc[field] = filteredData.reduce((sum, item) => sum + (Number(item[field]) || 0), 0).toFixed(2);
+  return acc;
+}, {});
 
     return (
       <Box>
@@ -1177,20 +1499,20 @@ const renderCropDetails = () => {
                   >
                     <Chip label={lu.clusterLabel} size="small" color="primary" />
                   </TableCell>
-                  <TableCell align="right">{lu.netAreasSown.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.currentFallowArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.otherFallowArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.cultivableWasteArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.permanentPasturesArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.barrenArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.nonAgriculturalArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.buildingArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.miscellaneousTreesArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.areaUnderSocialForestry.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.waterloggedArea.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.stillWaterLand.toFixed(2)}</TableCell>
-                  <TableCell align="right">{lu.marshyLand.toFixed(2)}</TableCell>
-                </TableRow>
+              <TableCell align="right">{(lu.netAreasSown ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.currentFallowArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.otherFallowArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.cultivableWasteArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.permanentPasturesArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.barrenArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.nonAgriculturalArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.buildingArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.miscellaneousTreesArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.areaUnderSocialForestry ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.waterloggedArea ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.stillWaterLand ?? 0).toFixed(2)}</TableCell>
+                 <TableCell align="right">{(lu.marshyLand ?? 0).toFixed(2)}</TableCell>
+              </TableRow>
               ))}
               
               {/* Summary Row */}
@@ -1315,7 +1637,7 @@ const renderNucDetails = () => {
                     <Typography variant="h3" sx={{ color: stat.color, fontWeight: 800, mt: 1 }}>
                       {stat.value.toFixed(2)}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">Hectares</Typography>
+                    <Typography variant="caption" color="text.secondary">Cents</Typography>
                   </Box>
                   <Box sx={{ 
                     width: 50, height: 50, borderRadius: '12px', 
@@ -1497,7 +1819,7 @@ const renderNucDetails = () => {
           </Table>
         </TableContainer>
         
-        {hasData && (
+        {/* {hasData && (
           <Box sx={{ p: 2, backgroundColor: '#fafafa', borderTop: '1px solid #e0e0e0' }}>
             <Stack direction="row" spacing={2} justifyContent="flex-end">
               <Chip 
@@ -1513,11 +1835,12 @@ const renderNucDetails = () => {
               />
             </Stack>
           </Box>
-        )}
+        )} */}
       </Card>
 
       {/* 4. Additional Information Card */}
-      <Card
+
+      {/* <Card
         elevation={0}
         sx={{
           borderRadius: 3,
@@ -1609,7 +1932,7 @@ const renderNucDetails = () => {
             </Grid>
           </Grid>
         </CardContent>
-      </Card>
+      </Card> */}
     </Box>
   );
 };
@@ -1619,7 +1942,7 @@ const renderNucDetails = () => {
       <Grid item xs={12}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h3" sx={{ color: TABLE_HEADER_BG, fontWeight: 'bold' }}>
-            Form 1 Details Viewer : {zonename}
+            Form 1 Details Viewer : {zonename} 
           </Typography>
           {/* <Button 
             variant="outlined" 
@@ -1630,7 +1953,40 @@ const renderNucDetails = () => {
             Refresh All
           </Button> */}
         </Box>
-
+      {/* <Button
+  onClick={testExcelDownload}
+  disabled={isDownloading || isLoading}
+  variant="contained"
+  sx={{
+    backgroundColor: TABLE_HEADER_BG,
+    '&:hover': { backgroundColor: '#031a45' },
+    mb: 2,
+    position: 'relative'
+  }}
+>
+  {isDownloading ? (
+    <>
+      <CircularProgress
+        size={20}
+        sx={{
+          color: 'white',
+          position: 'absolute',
+          left: '50%',
+          marginLeft: '-10px'
+        }}
+      />
+      <span style={{ opacity: 0 }}>Downloading...</span>
+    </>
+  ) : (
+    'Download'
+  )}
+</Button> */}
+           <ExcelView 
+  open={openExcelView} 
+  onClose={handleCloseExcelView} 
+  clusterId={clusterId}
+/>
+ 
         <MainCard 
           title=""
           sx={{ 
@@ -1697,6 +2053,8 @@ const renderNucDetails = () => {
             {renderNucDetails()}
         </TabPanel>
         </MainCard>
+
+
       </Grid>
     </Grid>
   );

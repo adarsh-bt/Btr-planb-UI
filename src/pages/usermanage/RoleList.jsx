@@ -35,7 +35,7 @@ const RoleList = () => {
 
   const [loading, setLoading] = useState(false);
   const [loggedDistrictId, setLoggedDistrictId] = useState(null);
-const [loggedTalukId, setLoggedTalukId] = useState(null);
+  const [loggedTalukId, setLoggedTalukId] = useState(null);
 
 const role = authservice.getrole();
 const userId = authservice.userid();
