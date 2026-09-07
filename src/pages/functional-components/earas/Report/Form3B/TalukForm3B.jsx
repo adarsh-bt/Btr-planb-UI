@@ -28,6 +28,7 @@ import { LocationOn, ArrowBack } from '@mui/icons-material';
 import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import WaterIcon from '@mui/icons-material/Water';
+import GrassIcon from '@mui/icons-material/Grass';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
@@ -60,6 +61,8 @@ const IRRIGATION_OPTIONS = [
   { value: 'UNIRRIGATED', label: 'Unirrigated' }
 ];
 
+// Selected via the crop group dropdown; the index is kept as `activeTab` so the
+// value forwarded through navigate state stays compatible with the other pages.
 const CROP_GROUPS = [
   { id: 1, name: 'Food crops' },
   { id: 2, name: 'Non food crops' },
@@ -86,6 +89,18 @@ const CROP_GROUPS = [
   { id: 23, name: 'Dry fruit' }
 ];
 
+// Crop group filter — 'ALL' is a synthetic option kept outside CROP_GROUPS so the
+// index-based `activeTab` contract with the other pages stays intact. It is
+// represented by -1 (no valid CROP_GROUPS index), fans out one request per crop
+// group and merges the responses taluk-by-taluk. It is also the default.
+const ALL_CROP_GROUPS = -1;
+const ALL_CROP_GROUPS_LABEL = 'All Crop Groups';
+const DEFAULT_CROP_GROUP = ALL_CROP_GROUPS;
+
+// How many crop-group requests run at once when 'All' is selected, so the
+// report endpoint isn't hit with 23 concurrent calls.
+const FETCH_BATCH_SIZE = 6;
+
 const cleanName = (name) => (name || '').replace(/\s+/g, ' ').trim();
 
 function getSavedState() {
@@ -94,6 +109,45 @@ function getSavedState() {
   } catch {
     return {};
   }
+}
+
+// Merge one or more crop-group responses into a single taluk list of the same
+// shape the API returns ({ talukId, talukName, crops: [...] }), so all the
+// derived data below works unchanged for both single-group and 'All'.
+function mergeGroupResponses(responses) {
+  const taluks = new Map();
+
+  responses.forEach((rows) => {
+    (Array.isArray(rows) ? rows : []).forEach((t) => {
+      const key = t.talukId ?? `name:${t.talukName || 'Unassigned'}`;
+      if (!taluks.has(key)) {
+        taluks.set(key, {
+          talukId: t.talukId ?? null,
+          talukName: t.talukName,
+          crops: new Map()
+        });
+      }
+      const entry = taluks.get(key);
+      (t.crops || []).forEach((c) => {
+        const existing = entry.crops.get(c.cropId);
+        if (existing) {
+          existing.areaInCents = (Number(existing.areaInCents) || 0) + (Number(c.areaInCents) || 0);
+        } else {
+          entry.crops.set(c.cropId, {
+            cropId: c.cropId,
+            cropName: c.cropName,
+            areaInCents: Number(c.areaInCents) || 0
+          });
+        }
+      });
+    });
+  });
+
+  return Array.from(taluks.values()).map((t) => ({
+    talukId: t.talukId,
+    talukName: t.talukName,
+    crops: Array.from(t.crops.values())
+  }));
 }
 
 const TalukForm3B = () => {
@@ -111,7 +165,7 @@ const TalukForm3B = () => {
   const districtName = stateData.districtName || stateData.selectedDistrict || 'District';
   const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
 
-  const [activeTab, setActiveTab] = useState(stateData.activeTab ?? 0);
+  const [activeTab, setActiveTab] = useState(stateData.activeTab ?? DEFAULT_CROP_GROUP);
   // Inherited from KeralaForm3B on drill-down, or restored from session on refresh.
   const [landTypeTab, setLandTypeTab] = useState(stateData.landType ?? DEFAULT_LAND_TYPE);
   const [irrigation, setIrrigation] = useState(stateData.irrigation ?? DEFAULT_IRRIGATION);
@@ -121,8 +175,9 @@ const TalukForm3B = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
-  const cropGroupId = CROP_GROUPS[activeTab]?.id;
-  const cropGroupName = CROP_GROUPS[activeTab]?.name;
+  const isAllCropGroups = activeTab === ALL_CROP_GROUPS;
+  const cropGroupId = isAllCropGroups ? null : CROP_GROUPS[activeTab]?.id;
+  const cropGroupName = isAllCropGroups ? ALL_CROP_GROUPS_LABEL : CROP_GROUPS[activeTab]?.name;
 
   const numericCellSx = { fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' };
 
@@ -137,7 +192,7 @@ const TalukForm3B = () => {
           agriculturalYear,
           landType: landTypeTab,
           irrigation,
-          activeTab: stateData.activeTab ?? 0
+          activeTab: stateData.activeTab ?? DEFAULT_CROP_GROUP
         })
       );
     }
@@ -148,7 +203,26 @@ const TalukForm3B = () => {
       setError('District is required. Please navigate from the state (district) report page.');
       return;
     }
-    if (!cropGroupId) return;
+    if (!isAllCropGroups && !cropGroupId) return;
+
+    let cancelled = false;
+
+    const buildUrl = (groupId) => {
+      const params = new URLSearchParams({
+        agriYear: agriculturalYear,
+        districtId: String(districtId),
+        cropGroupId: String(groupId)
+      });
+      // 'ALL' is represented by omitting the param entirely.
+      const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
+      if (landTypeParam) params.append('landType', landTypeParam);
+
+      // 'ALL' is represented by omitting the param entirely.
+      const irrigationParam = IRRIGATION_PARAM[irrigation];
+      if (irrigationParam) params.append('isIrrigated', irrigationParam);
+
+      return `${BASE_URL}/earas-form1-entry/api/progress-report/form3B/district?${params.toString()}`;
+    };
 
     const fetchGroupData = async () => {
       setLoading(true);
@@ -157,25 +231,24 @@ const TalukForm3B = () => {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('Authorization token missing');
 
-        const params = new URLSearchParams({
-          agriYear: agriculturalYear,
-          districtId: String(districtId),
-          cropGroupId: String(cropGroupId)
-        });
-        // 'ALL' is represented by omitting the param entirely.
-        const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
-        if (landTypeParam) params.append('landType', landTypeParam);
+        const headers = { Authorization: `Bearer ${token}` };
+        // 'All' fans out to every crop group; a single group keeps its one call.
+        const groupIds = isAllCropGroups ? CROP_GROUPS.map((g) => g.id) : [cropGroupId];
+        console.log('Fetching Taluk Form 3B data for crop groups:', groupIds.join(', '), '→', buildUrl(groupIds[0]));
 
-        // 'ALL' is represented by omitting the param entirely.
-        const irrigationParam = IRRIGATION_PARAM[irrigation];
-        if (irrigationParam) params.append('isIrrigated', irrigationParam);
+        const payloads = [];
+        for (let i = 0; i < groupIds.length; i += FETCH_BATCH_SIZE) {
+          const batch = groupIds.slice(i, i + FETCH_BATCH_SIZE);
+          // eslint-disable-next-line no-await-in-loop
+          const responses = await Promise.all(batch.map((id) => axios.get(buildUrl(id), { headers })));
+          if (cancelled) return;
+          responses.forEach((r) => payloads.push(r.data));
+        }
 
-        const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form3B/district?${params.toString()}`;
-        console.log('Fetching Taluk Form 3B data from:', url);
-
-        const response = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
-        setApiData(Array.isArray(response.data) ? response.data : []);
+        if (cancelled) return;
+        setApiData(mergeGroupResponses(payloads));
       } catch (err) {
+        if (cancelled) return;
         console.error('Error fetching Taluk Form 3B data:', err);
         if (err.response?.status === 401) setError('Session expired. Please login again.');
         else if (err.response?.status === 403) setError("You don't have permission to access this data.");
@@ -183,12 +256,16 @@ const TalukForm3B = () => {
         else setError(err.response?.data?.message || err.message || 'Failed to fetch data');
         setApiData([]);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     fetchGroupData();
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cropGroupId, districtId, agriculturalYear, landTypeTab, irrigation]);
+  }, [cropGroupId, isAllCropGroups, districtId, agriculturalYear, landTypeTab, irrigation]);
 
   const cropColumns = useMemo(() => {
     const map = new Map();
@@ -221,8 +298,8 @@ const TalukForm3B = () => {
     return totals;
   }, [talukRows, cropColumns]);
 
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
+  const handleCropGroupChange = (event) => {
+    setActiveTab(Number(event.target.value));
     setPage(0);
   };
 
@@ -264,7 +341,7 @@ const TalukForm3B = () => {
         talukId,
         talukName,
         selectedTaluk: talukName,
-        cropGroupId,
+        cropGroupId, // null when 'All' is selected
         cropGroupName,
         agriculturalYear,
         landType: landTypeTab,
@@ -293,7 +370,7 @@ const TalukForm3B = () => {
           </Typography>
         </Box>
 
-        {/* Filters — land type + irrigation */}
+        {/* Filters — crop group + land type + irrigation */}
         <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
           {/* Land type filter — ALL / WET / DRY */}
           <Paper
@@ -314,6 +391,32 @@ const TalukForm3B = () => {
               <Tab label="DRY" value="DRY" icon={<WbSunnyIcon />} iconPosition="start" />
             </Tabs>
           </Paper>
+
+          {/* Crop group filter — All (default) + one entry per tbl_master_crop_group row */}
+          <FormControl size="small" sx={{ minWidth: 240 }}>
+            <InputLabel id="taluk-form3b-cropgroup-label">Crop Group</InputLabel>
+            <Select
+              labelId="taluk-form3b-cropgroup-label"
+              id="taluk-form3b-cropgroup"
+              value={activeTab}
+              label="Crop Group"
+              onChange={handleCropGroupChange}
+              MenuProps={{ PaperProps: { sx: { maxHeight: 360 } } }}
+              renderValue={(value) => (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <GrassIcon sx={{ fontSize: 20, color: '#2e7d32' }} />
+                  {value === ALL_CROP_GROUPS ? ALL_CROP_GROUPS_LABEL : CROP_GROUPS[value]?.name || ''}
+                </Box>
+              )}
+            >
+              <MenuItem value={ALL_CROP_GROUPS}>All</MenuItem>
+              {CROP_GROUPS.map((g, index) => (
+                <MenuItem key={g.id} value={index}>
+                  {g.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
 
           {/* Irrigation filter — All / Irrigated / Unirrigated */}
           <FormControl size="small" sx={{ minWidth: 180 }}>
@@ -347,24 +450,7 @@ const TalukForm3B = () => {
         )}
 
         <Paper elevation={2} sx={{ borderRadius: 3, overflow: 'hidden', border: `1px solid ${alpha(themeColor, 0.1)}` }}>
-          <Tabs
-            value={activeTab}
-            onChange={handleTabChange}
-            variant="scrollable"
-            scrollButtons="auto"
-            allowScrollButtonsMobile
-            sx={{
-              backgroundColor: alpha(themeColor, 0.05),
-              '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: '0.95rem', py: 1.5, minHeight: 'auto', '&.Mui-selected': { color: themeColor } },
-              '& .MuiTabs-indicator': { backgroundColor: themeColor, height: 3 }
-            }}
-          >
-            {CROP_GROUPS.map((g) => (
-              <Tab key={g.id} label={g.name} />
-            ))}
-          </Tabs>
-
-          <Box role="tabpanel" sx={{ p: 0 }}>
+          <Box sx={{ p: 0 }}>
             <TableContainer sx={{ maxHeight: 600, overflowX: 'auto' }}>
               <Table
                 stickyHeader

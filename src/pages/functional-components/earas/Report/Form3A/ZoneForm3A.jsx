@@ -29,6 +29,7 @@ import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import EnergySavingsLeafIcon from '@mui/icons-material/EnergySavingsLeaf';
 import WaterIcon from '@mui/icons-material/Water';
+import GrassIcon from '@mui/icons-material/Grass';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
@@ -65,6 +66,8 @@ const IRRIGATION_OPTIONS = [
   { value: 'UNIRRIGATED', label: 'Unirrigated' }
 ];
 
+// Selected via the crop group dropdown; the index is kept as `activeTab` so the
+// value forwarded through navigate state stays compatible with the other pages.
 const CROP_GROUPS = [
   { id: 1, name: 'Food crops' },
   { id: 2, name: 'Non food crops' },
@@ -91,6 +94,16 @@ const CROP_GROUPS = [
   { id: 23, name: 'Dry fruit' }
 ];
 
+// Crop group filter — 'ALL' is a synthetic option kept outside CROP_GROUPS so the
+// index-based `activeTab` contract with the other pages stays intact. It is
+// represented by -1 (no valid CROP_GROUPS index) and fans out one request per
+// crop group, merging the responses zone-by-zone.
+const ALL_CROP_GROUPS = -1;
+const ALL_CROP_GROUPS_LABEL = 'All Crop Groups';
+
+// How many crop-group requests run at once when 'All' is selected, so the
+// report endpoint isn't hit with 23 concurrent calls.
+const FETCH_BATCH_SIZE = 6;
 
 const cleanName = (name) => (name || '').replace(/\s+/g, ' ').trim();
 
@@ -108,6 +121,49 @@ function getSavedState() {
   } catch {
     return {};
   }
+}
+
+// Merge one or more crop-group responses into a single zone list of the same
+// shape the API returns ({ blockId, blockName, zoneId, zoneName, crops: [...] }),
+// so all the derived data below works unchanged for both single-group and 'All'.
+function mergeGroupResponses(responses) {
+  const zones = new Map();
+
+  responses.forEach((rows) => {
+    (Array.isArray(rows) ? rows : []).forEach((z) => {
+      const key = z.zoneId ?? `name:${z.blockId ?? ''}:${z.zoneName || 'Unassigned'}`;
+      if (!zones.has(key)) {
+        zones.set(key, {
+          blockId: z.blockId ?? null,
+          blockName: z.blockName,
+          zoneId: z.zoneId ?? null,
+          zoneName: z.zoneName,
+          crops: new Map()
+        });
+      }
+      const entry = zones.get(key);
+      (z.crops || []).forEach((c) => {
+        const existing = entry.crops.get(c.cropId);
+        if (existing) {
+          existing.areaInCents = (Number(existing.areaInCents) || 0) + (Number(c.areaInCents) || 0);
+        } else {
+          entry.crops.set(c.cropId, {
+            cropId: c.cropId,
+            cropName: c.cropName,
+            areaInCents: Number(c.areaInCents) || 0
+          });
+        }
+      });
+    });
+  });
+
+  return Array.from(zones.values()).map((z) => ({
+    blockId: z.blockId,
+    blockName: z.blockName,
+    zoneId: z.zoneId,
+    zoneName: z.zoneName,
+    crops: Array.from(z.crops.values())
+  }));
 }
 
 const BLOCK_W = 160;
@@ -157,8 +213,9 @@ const ZoneForm3A = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const cropGroupId = CROP_GROUPS[activeTab]?.id;
-  const cropGroupName = CROP_GROUPS[activeTab]?.name;
+  const isAllCropGroups = activeTab === ALL_CROP_GROUPS;
+  const cropGroupId = isAllCropGroups ? null : CROP_GROUPS[activeTab]?.id;
+  const cropGroupName = isAllCropGroups ? ALL_CROP_GROUPS_LABEL : CROP_GROUPS[activeTab]?.name;
   const seasonName = SEASONS.find((s) => s.id === seasonId)?.name || '';
   const irrigationLabel = IRRIGATION_OPTIONS.find((o) => o.value === irrigation)?.label || '';
 
@@ -184,7 +241,7 @@ const ZoneForm3A = () => {
     }
   }, [talukId, talukName, districtId, districtName, agriculturalYear, landTypeTab, seasonId, irrigation, stateData.activeTab]);
 
-  /* ── keep the active crop-group tab + land type + season + irrigation in sync in sessionStorage too ── */
+  /* ── keep the selected crop group + land type + season + irrigation in sync in sessionStorage too ── */
   useEffect(() => {
     const saved = getSavedState();
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ...saved, activeTab, landType: landTypeTab, seasonId, irrigation }));
@@ -197,7 +254,27 @@ const ZoneForm3A = () => {
       setError('Taluk is required. Please navigate from the District (Taluk) report page.');
       return;
     }
-    if (!cropGroupId) return;
+    if (!isAllCropGroups && !cropGroupId) return;
+
+    let cancelled = false;
+
+    const buildUrl = (groupId) => {
+      const params = new URLSearchParams({
+        agriYear: agriculturalYear,
+        talukId: String(talukId),
+        cropGroupId: String(groupId)
+      });
+      // 'ALL' is represented by omitting the param entirely.
+      const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
+      if (landTypeParam) params.append('landType', landTypeParam);
+      params.append('seasonId', String(seasonId));
+
+      // 'ALL' is represented by omitting the param entirely.
+      const irrigationParam = IRRIGATION_PARAM[irrigation];
+      if (irrigationParam) params.append('isIrrigated', irrigationParam);
+
+      return `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/taluk?${params.toString()}`;
+    };
 
     const fetchZoneData = async () => {
       setLoading(true);
@@ -206,29 +283,24 @@ const ZoneForm3A = () => {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('Authorization token missing');
 
-        const params = new URLSearchParams({
-          agriYear: agriculturalYear,
-          talukId: String(talukId),
-          cropGroupId: String(cropGroupId)
-        });
-        // 'ALL' is represented by omitting the param entirely.
-        const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
-        if (landTypeParam) params.append('landType', landTypeParam);
-        params.append('seasonId', String(seasonId));
+        const headers = { Authorization: `Bearer ${token}` };
+        // 'All' fans out to every crop group; a single group keeps its one call.
+        const groupIds = isAllCropGroups ? CROP_GROUPS.map((g) => g.id) : [cropGroupId];
+        console.log('Fetching Zone Form 3A data for crop groups:', groupIds.join(', '), '→', buildUrl(groupIds[0]));
 
-        // 'ALL' is represented by omitting the param entirely.
-        const irrigationParam = IRRIGATION_PARAM[irrigation];
-        if (irrigationParam) params.append('isIrrigated', irrigationParam);
+        const payloads = [];
+        for (let i = 0; i < groupIds.length; i += FETCH_BATCH_SIZE) {
+          const batch = groupIds.slice(i, i + FETCH_BATCH_SIZE);
+          // eslint-disable-next-line no-await-in-loop
+          const responses = await Promise.all(batch.map((id) => axios.get(buildUrl(id), { headers })));
+          if (cancelled) return;
+          responses.forEach((r) => payloads.push(r.data));
+        }
 
-        const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/taluk?${params.toString()}`;
-        console.log('Fetching Zone Form 3A data from:', url);
-
-        const response = await axios.get(url, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        setApiData(Array.isArray(response.data) ? response.data : []);
+        if (cancelled) return;
+        setApiData(mergeGroupResponses(payloads));
       } catch (err) {
+        if (cancelled) return;
         console.error('Error fetching Zone Form 3A data:', err);
         if (err.response?.status === 401) setError('Session expired. Please login again.');
         else if (err.response?.status === 403) setError("You don't have permission to access this data.");
@@ -236,12 +308,16 @@ const ZoneForm3A = () => {
         else setError(err.response?.data?.message || err.message || 'Failed to fetch data');
         setApiData([]);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     fetchZoneData();
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cropGroupId, talukId, agriculturalYear, landTypeTab, seasonId, irrigation]);
+  }, [cropGroupId, isAllCropGroups, talukId, agriculturalYear, landTypeTab, seasonId, irrigation]);
 
   /* ─────────────────────────── derived data ─────────────────────────── */
 
@@ -319,8 +395,8 @@ const ZoneForm3A = () => {
 
   const TABLE_MIN_W = BLOCK_W + ZONE_W + Math.max(cropColumns.length, 1) * CROP_COL_W;
 
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
+  const handleCropGroupChange = (event) => {
+    setActiveTab(Number(event.target.value));
     setPage(0);
   };
 
@@ -389,7 +465,7 @@ const ZoneForm3A = () => {
         zoneId,
         zoneName,
         selectedZone: zoneName,
-        cropGroupId,
+        cropGroupId, // null when 'All' is selected
         cropGroupName,
         agriculturalYear,
         landType: landTypeTab,
@@ -452,13 +528,14 @@ const ZoneForm3A = () => {
           </Typography>
           <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
             (Click on any zone to view Panchayath-wise details) • Agricultural Year: {agriculturalYear} • Area in Cents
+            {cropGroupName && ` • ${cropGroupName}`}
             {landTypeTab !== 'ALL' && ` • ${landTypeTab} Land`}
             {seasonName && ` • ${seasonName} Season`}
             {irrigation !== 'ALL' && ` • ${irrigationLabel}`}
           </Typography>
         </Box>
 
-        {/* Filters — land type + season + irrigation */}
+        {/* Filters — crop group + land type + season + irrigation */}
         <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
           {/* Land type filter — ALL / WET / DRY */}
           <Paper
@@ -489,6 +566,32 @@ const ZoneForm3A = () => {
               <Tab label="DRY" value="DRY" icon={<WbSunnyIcon />} iconPosition="start" />
             </Tabs>
           </Paper>
+
+          {/* Crop group filter — All + one entry per tbl_master_crop_group row */}
+          <FormControl size="small" sx={{ minWidth: 240 }}>
+            <InputLabel id="zone-form3a-cropgroup-label">Crop Group</InputLabel>
+            <Select
+              labelId="zone-form3a-cropgroup-label"
+              id="zone-form3a-cropgroup"
+              value={activeTab}
+              label="Crop Group"
+              onChange={handleCropGroupChange}
+              MenuProps={{ PaperProps: { sx: { maxHeight: 360 } } }}
+              renderValue={(value) => (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <GrassIcon sx={{ fontSize: 20, color: '#2e7d32' }} />
+                  {value === ALL_CROP_GROUPS ? ALL_CROP_GROUPS_LABEL : CROP_GROUPS[value]?.name || ''}
+                </Box>
+              )}
+            >
+              <MenuItem value={ALL_CROP_GROUPS}>All</MenuItem>
+              {CROP_GROUPS.map((g, index) => (
+                <MenuItem key={g.id} value={index}>
+                  {g.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
 
           {/* Season filter — Autumn / Winter / Summer */}
           <FormControl size="small" sx={{ minWidth: 180 }}>
@@ -547,23 +650,6 @@ const ZoneForm3A = () => {
         )}
 
         <Paper elevation={2} sx={{ borderRadius: 2, overflow: 'hidden', border: `1px solid ${alpha(themeColor, 0.1)}` }}>
-          <Tabs
-            value={activeTab}
-            onChange={handleTabChange}
-            variant="scrollable"
-            scrollButtons="auto"
-            allowScrollButtonsMobile
-            sx={{
-              bgcolor: alpha(themeColor, 0.05),
-              '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: '0.95rem', py: 1.5 },
-              '& .MuiTabs-indicator': { backgroundColor: themeColor, height: 3 }
-            }}
-          >
-            {CROP_GROUPS.map((g) => (
-              <Tab key={g.id} label={g.name} />
-            ))}
-          </Tabs>
-
           <TableContainer sx={{ maxHeight: 550, overflow: 'auto' }}>
             <Table stickyHeader sx={tableSx(TABLE_MIN_W)}>
               {/* colgroup is the ONLY place widths are defined.

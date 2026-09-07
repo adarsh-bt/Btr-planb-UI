@@ -28,6 +28,7 @@ import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import EnergySavingsLeafIcon from '@mui/icons-material/EnergySavingsLeaf';
 import WaterIcon from '@mui/icons-material/Water';
+import GrassIcon from '@mui/icons-material/Grass';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
@@ -68,8 +69,9 @@ const IRRIGATION_OPTIONS = [
   { value: 'UNIRRIGATED', label: 'Unirrigated' }
 ];
 
-// Static crop groups (tbl_master_crop_group). The tab index maps to a group,
-// whose id is sent to the API as cropGroupId.
+// Static crop groups (tbl_master_crop_group). Selected via the crop group
+// dropdown; the index is kept as `activeTab` so the value forwarded through
+// navigate state stays compatible with the drill-down pages.
 const CROP_GROUPS = [
   { id: 1, name: 'Food crops' },
   { id: 2, name: 'Non food crops' },
@@ -96,6 +98,17 @@ const CROP_GROUPS = [
   { id: 23, name: 'Dry fruit' }
 ];
 
+// Crop group filter — 'ALL' is a synthetic option kept outside CROP_GROUPS so the
+// index-based `activeTab` contract with the drill-down pages stays intact. It is
+// represented by -1 (no valid CROP_GROUPS index) and fans out one request per
+// crop group, merging the responses district-by-district.
+const ALL_CROP_GROUPS = -1;
+const ALL_CROP_GROUPS_LABEL = 'All Crop Groups';
+
+// How many crop-group requests run at once when 'All' is selected, so the
+// report endpoint isn't hit with 23 concurrent calls.
+const FETCH_BATCH_SIZE = 6;
+
 // Collapse whitespace/newlines in crop labels (some come as "OTHER VEGETABLES\n(Please Specify)\n").
 const cleanName = (name) => (name || '').replace(/\s+/g, ' ').trim();
 
@@ -105,6 +118,45 @@ function getSavedState() {
   } catch {
     return {};
   }
+}
+
+// Merge one or more crop-group responses into a single district list of the same
+// shape the API returns ({ districtId, districtName, crops: [...] }), so all the
+// derived data below works unchanged for both single-group and 'All'.
+function mergeGroupResponses(responses) {
+  const districts = new Map();
+
+  responses.forEach((rows) => {
+    (Array.isArray(rows) ? rows : []).forEach((d) => {
+      const key = d.districtId ?? `name:${d.districtName || 'Unassigned'}`;
+      if (!districts.has(key)) {
+        districts.set(key, {
+          districtId: d.districtId ?? null,
+          districtName: d.districtName,
+          crops: new Map()
+        });
+      }
+      const entry = districts.get(key);
+      (d.crops || []).forEach((c) => {
+        const existing = entry.crops.get(c.cropId);
+        if (existing) {
+          existing.areaInCents = (Number(existing.areaInCents) || 0) + (Number(c.areaInCents) || 0);
+        } else {
+          entry.crops.set(c.cropId, {
+            cropId: c.cropId,
+            cropName: c.cropName,
+            areaInCents: Number(c.areaInCents) || 0
+          });
+        }
+      });
+    });
+  });
+
+  return Array.from(districts.values()).map((d) => ({
+    districtId: d.districtId,
+    districtName: d.districtName,
+    crops: Array.from(d.crops.values())
+  }));
 }
 
 const KeralaForm3A = () => {
@@ -125,8 +177,9 @@ const KeralaForm3A = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
-  const cropGroupId = CROP_GROUPS[activeTab]?.id;
-  const cropGroupName = CROP_GROUPS[activeTab]?.name;
+  const isAllCropGroups = activeTab === ALL_CROP_GROUPS;
+  const cropGroupId = isAllCropGroups ? null : CROP_GROUPS[activeTab]?.id;
+  const cropGroupName = isAllCropGroups ? ALL_CROP_GROUPS_LABEL : CROP_GROUPS[activeTab]?.name;
   const seasonName = SEASONS.find((s) => s.id === seasonId)?.name || '';
   const irrigationLabel = IRRIGATION_OPTIONS.find((o) => o.value === irrigation)?.label || '';
 
@@ -199,7 +252,26 @@ const KeralaForm3A = () => {
   /* ─────────────────── fetch (per crop group + land type + season + irrigation) ─────────────────── */
 
   useEffect(() => {
-    if (!cropGroupId) return;
+    if (!isAllCropGroups && !cropGroupId) return;
+
+    let cancelled = false;
+
+    const buildUrl = (groupId) => {
+      const params = new URLSearchParams({
+        agriYear: agriculturalYear,
+        cropGroupId: String(groupId)
+      });
+      // 'ALL' is represented by omitting the param entirely.
+      const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
+      if (landTypeParam) params.append('landType', landTypeParam);
+      params.append('seasonId', String(seasonId));
+
+      // 'ALL' is represented by omitting the param entirely.
+      const irrigationParam = IRRIGATION_PARAM[irrigation];
+      if (irrigationParam) params.append('isIrrigated', irrigationParam);
+
+      return `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/state?${params.toString()}`;
+    };
 
     const fetchGroupData = async () => {
       setLoading(true);
@@ -208,40 +280,40 @@ const KeralaForm3A = () => {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('Authorization token missing');
 
-        const params = new URLSearchParams({
-          agriYear: agriculturalYear,
-          cropGroupId: String(cropGroupId)
-        });
-        // 'ALL' is represented by omitting the param entirely.
-        const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
-        if (landTypeParam) params.append('landType', landTypeParam);
-        params.append('seasonId', String(seasonId));
+        const headers = { Authorization: `Bearer ${token}` };
+        // 'All' fans out to every crop group; a single group keeps its one call.
+        const groupIds = isAllCropGroups ? CROP_GROUPS.map((g) => g.id) : [cropGroupId];
+        console.log('Fetching Form 3A data for crop groups:', groupIds.join(', '), '→', buildUrl(groupIds[0]));
 
-        // 'ALL' is represented by omitting the param entirely.
-        const irrigationParam = IRRIGATION_PARAM[irrigation];
-        if (irrigationParam) params.append('isIrrigated', irrigationParam);
+        const payloads = [];
+        for (let i = 0; i < groupIds.length; i += FETCH_BATCH_SIZE) {
+          const batch = groupIds.slice(i, i + FETCH_BATCH_SIZE);
+          // eslint-disable-next-line no-await-in-loop
+          const responses = await Promise.all(batch.map((id) => axios.get(buildUrl(id), { headers })));
+          if (cancelled) return;
+          responses.forEach((r) => payloads.push(r.data));
+        }
 
-        const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/state?${params.toString()}`;
-        console.log('Fetching Form 3A data from:', url);
-
-        const response = await axios.get(url, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        setApiData(Array.isArray(response.data) ? response.data : []);
+        if (cancelled) return;
+        setApiData(mergeGroupResponses(payloads));
       } catch (err) {
+        if (cancelled) return;
         console.error('Error fetching Form 3A data:', err);
         if (err.response?.status === 401) setError('Session expired. Please login again.');
         else if (err.response?.status === 403) setError("You don't have permission to access this data.");
         else setError(err.response?.data?.message || err.message || 'Failed to fetch data');
         setApiData([]);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     fetchGroupData();
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cropGroupId, agriculturalYear, landTypeTab, seasonId, irrigation]);
+  }, [cropGroupId, isAllCropGroups, agriculturalYear, landTypeTab, seasonId, irrigation]);
 
   /* ─────────────────────────── derived data ─────────────────────────── */
 
@@ -288,8 +360,8 @@ const KeralaForm3A = () => {
 
   /* ─────────────────────────── handlers ─────────────────────────── */
 
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
+  const handleCropGroupChange = (event) => {
+    setActiveTab(Number(event.target.value));
     setPage(0);
   };
 
@@ -330,7 +402,7 @@ const KeralaForm3A = () => {
         districtId,
         districtName,
         selectedDistrict: districtName,
-        cropGroupId,
+        cropGroupId, // null when 'All' is selected
         cropGroupName,
         agriculturalYear,
         landType: landTypeTab,
@@ -368,13 +440,14 @@ const KeralaForm3A = () => {
             </Typography>
             <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
               (Click on any district to view Taluk-wise details) • Agricultural Year: {agriculturalYear} • Area in Cents
+              {cropGroupName && ` • ${cropGroupName}`}
               {landTypeTab !== 'ALL' && ` • ${landTypeTab} Land`}
               {seasonName && ` • ${seasonName} Season`}
               {irrigation !== 'ALL' && ` • ${irrigationLabel}`}
             </Typography>
           </Box>
 
-          {/* Filters — land type + season + irrigation */}
+          {/* Filters — crop group + land type + season + irrigation */}
           <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
             {/* Land type filter — ALL / WET / DRY */}
             <Paper
@@ -405,6 +478,32 @@ const KeralaForm3A = () => {
                 <Tab label="DRY" value="DRY" icon={<WbSunnyIcon />} iconPosition="start" />
               </Tabs>
             </Paper>
+
+            {/* Crop group filter — All + one entry per tbl_master_crop_group row */}
+            <FormControl size="small" sx={{ minWidth: 240 }}>
+              <InputLabel id="kerala-form3a-cropgroup-label">Crop Group</InputLabel>
+              <Select
+                labelId="kerala-form3a-cropgroup-label"
+                id="kerala-form3a-cropgroup"
+                value={activeTab}
+                label="Crop Group"
+                onChange={handleCropGroupChange}
+                MenuProps={{ PaperProps: { sx: { maxHeight: 360 } } }}
+                renderValue={(value) => (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <GrassIcon sx={{ fontSize: 20, color: '#2e7d32' }} />
+                    {value === ALL_CROP_GROUPS ? ALL_CROP_GROUPS_LABEL : CROP_GROUPS[value]?.name || ''}
+                  </Box>
+                )}
+              >
+                <MenuItem value={ALL_CROP_GROUPS}>All</MenuItem>
+                {CROP_GROUPS.map((g, index) => (
+                  <MenuItem key={g.id} value={index}>
+                    {g.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
             {/* Season filter — Autumn / Winter / Summer */}
             <FormControl size="small" sx={{ minWidth: 180 }}>
@@ -462,7 +561,7 @@ const KeralaForm3A = () => {
             </Paper>
           )}
 
-          {/* Tabs Section — one tab per crop group */}
+          {/* Table Section — District, <crop columns...> for the selected crop group */}
           <Paper
             elevation={2}
             sx={{
@@ -471,37 +570,7 @@ const KeralaForm3A = () => {
               border: `1px solid ${alpha(themeColor, 0.1)}`
             }}
           >
-            <Tabs
-              value={activeTab}
-              onChange={handleTabChange}
-              variant="scrollable"
-              scrollButtons="auto"
-              allowScrollButtonsMobile
-              sx={{
-                backgroundColor: alpha(themeColor, 0.05),
-                '& .MuiTab-root': {
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  fontSize: '0.95rem',
-                  py: 1.5,
-                  minHeight: 'auto',
-                  '&.Mui-selected': {
-                    color: themeColor
-                  }
-                },
-                '& .MuiTabs-indicator': {
-                  backgroundColor: themeColor,
-                  height: 3
-                }
-              }}
-            >
-              {CROP_GROUPS.map((g) => (
-                <Tab key={g.id} label={g.name} />
-              ))}
-            </Tabs>
-
-            {/* Active group's table: District, <crop columns...> */}
-            <Box role="tabpanel" sx={{ p: 0, position: 'relative' }}>
+            <Box sx={{ p: 0, position: 'relative' }}>
               <TableContainer sx={{ maxHeight: 600, overflowX: 'auto' }}>
                 <Table
                   stickyHeader
