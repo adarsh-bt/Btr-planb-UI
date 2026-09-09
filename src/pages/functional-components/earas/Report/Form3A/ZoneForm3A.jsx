@@ -28,6 +28,7 @@ import { LocationOn, ArrowBack, Store } from '@mui/icons-material';
 import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import EnergySavingsLeafIcon from '@mui/icons-material/EnergySavingsLeaf';
+import WaterIcon from '@mui/icons-material/Water';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import mainapi from 'api/mainapi';
@@ -53,6 +54,16 @@ const SEASONS = [
   { id: 3, name: 'Summer' }
 ];
 const DEFAULT_SEASON_ID = 1;
+
+// Irrigation filter — ALL / IRRIGATED / UNIRRIGATED. 'ALL' means the
+// isIrrigated param is not sent at all, so the backend returns both.
+const DEFAULT_IRRIGATION = 'ALL';
+const IRRIGATION_PARAM = { IRRIGATED: 'true', UNIRRIGATED: 'false' };
+const IRRIGATION_OPTIONS = [
+  { value: 'ALL', label: 'All' },
+  { value: 'IRRIGATED', label: 'Irrigated' },
+  { value: 'UNIRRIGATED', label: 'Unirrigated' }
+];
 
 const CROP_GROUPS = [
   { id: 1, name: 'Food crops' },
@@ -137,6 +148,7 @@ const ZoneForm3A = () => {
   // Inherited from the District (Taluk) page on drill-down, or restored from session on refresh.
   const [landTypeTab, setLandTypeTab] = useState(stateData.landType ?? DEFAULT_LAND_TYPE);
   const [seasonId, setSeasonId] = useState(stateData.seasonId ?? DEFAULT_SEASON_ID);
+  const [irrigation, setIrrigation] = useState(stateData.irrigation ?? DEFAULT_IRRIGATION);
   const [apiData, setApiData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -148,6 +160,7 @@ const ZoneForm3A = () => {
   const cropGroupId = CROP_GROUPS[activeTab]?.id;
   const cropGroupName = CROP_GROUPS[activeTab]?.name;
   const seasonName = SEASONS.find((s) => s.id === seasonId)?.name || '';
+  const irrigationLabel = IRRIGATION_OPTIONS.find((o) => o.value === irrigation)?.label || '';
 
   /* ── persist taluk/district context so back-nav / refresh keeps working ── */
   useEffect(() => {
@@ -164,19 +177,20 @@ const ZoneForm3A = () => {
           agriculturalYear,
           landType: landTypeTab,
           seasonId,
+          irrigation,
           activeTab: stateData.activeTab ?? 0
         })
       );
     }
-  }, [talukId, talukName, districtId, districtName, agriculturalYear, landTypeTab, seasonId, stateData.activeTab]);
+  }, [talukId, talukName, districtId, districtName, agriculturalYear, landTypeTab, seasonId, irrigation, stateData.activeTab]);
 
-  /* ── keep the active crop-group tab + land type + season in sync in sessionStorage too ── */
+  /* ── keep the active crop-group tab + land type + season + irrigation in sync in sessionStorage too ── */
   useEffect(() => {
     const saved = getSavedState();
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ...saved, activeTab, landType: landTypeTab, seasonId }));
-  }, [activeTab, landTypeTab, seasonId]);
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ...saved, activeTab, landType: landTypeTab, seasonId, irrigation }));
+  }, [activeTab, landTypeTab, seasonId, irrigation]);
 
-  /* ─────────────────── fetch (per crop group + land type + season) ─────────────────── */
+  /* ─────────────────── fetch (per crop group + land type + season + irrigation) ─────────────────── */
 
   useEffect(() => {
     if (talukId == null) {
@@ -202,6 +216,10 @@ const ZoneForm3A = () => {
         if (landTypeParam) params.append('landType', landTypeParam);
         params.append('seasonId', String(seasonId));
 
+        // 'ALL' is represented by omitting the param entirely.
+        const irrigationParam = IRRIGATION_PARAM[irrigation];
+        if (irrigationParam) params.append('isIrrigated', irrigationParam);
+
         const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/taluk?${params.toString()}`;
         console.log('Fetching Zone Form 3A data from:', url);
 
@@ -223,7 +241,7 @@ const ZoneForm3A = () => {
     };
     fetchZoneData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cropGroupId, talukId, agriculturalYear, landTypeTab, seasonId]);
+  }, [cropGroupId, talukId, agriculturalYear, landTypeTab, seasonId, irrigation]);
 
   /* ─────────────────────────── derived data ─────────────────────────── */
 
@@ -317,6 +335,11 @@ const ZoneForm3A = () => {
     setPage(0);
   };
 
+  const handleIrrigationChange = (event) => {
+    setIrrigation(event.target.value);
+    setPage(0);
+  };
+
   const formatNumber = (num) => Number(num || 0).toFixed(2);
   const handleBack = () => {
     let effectiveOfficeType = stateData.officeType || officeInfo.officeType;
@@ -344,6 +367,7 @@ const ZoneForm3A = () => {
           selectedDistrict: districtName,
           landType: landTypeTab,
           seasonId,
+          irrigation,
           activeTab
         }
       });
@@ -384,6 +408,7 @@ const ZoneForm3A = () => {
         agriculturalYear,
         landType: landTypeTab,
         seasonId,
+        irrigation,
         activeTab
       }
     });
@@ -443,10 +468,11 @@ const ZoneForm3A = () => {
             (Click on any zone to view Panchayath-wise details) • Agricultural Year: {agriculturalYear} • Area in Cents
             {landTypeTab !== 'ALL' && ` • ${landTypeTab} Land`}
             {seasonName && ` • ${seasonName} Season`}
+            {irrigation !== 'ALL' && ` • ${irrigationLabel}`}
           </Typography>
         </Box>
 
-        {/* Filters — land type + season */}
+        {/* Filters — land type + season + irrigation */}
         <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
           {/* Land type filter — ALL / WET / DRY */}
           <Paper
@@ -497,6 +523,30 @@ const ZoneForm3A = () => {
               {SEASONS.map((s) => (
                 <MenuItem key={s.id} value={s.id}>
                   {s.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* Irrigation filter — All / Irrigated / Unirrigated */}
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <InputLabel id="zone-form3a-irrigation-label">Irrigation</InputLabel>
+            <Select
+              labelId="zone-form3a-irrigation-label"
+              id="zone-form3a-irrigation"
+              value={irrigation}
+              label="Irrigation"
+              onChange={handleIrrigationChange}
+              renderValue={(value) => (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <WaterIcon sx={{ fontSize: 20, color: value === 'UNIRRIGATED' ? '#9e9e9e' : '#0288d1' }} />
+                  {IRRIGATION_OPTIONS.find((o) => o.value === value)?.label || ''}
+                </Box>
+              )}
+            >
+              {IRRIGATION_OPTIONS.map((o) => (
+                <MenuItem key={o.value} value={o.value}>
+                  {o.label}
                 </MenuItem>
               ))}
             </Select>

@@ -321,7 +321,7 @@ export default function DashboardDefault() {
               </Grid>
             )}
 
-            {["Super Admin", "District Level Approver", "IT Admin", "EARAS Admin", "Taluk Level Approver", "District Level Data Viewer"].includes(authservice.getrole()) && (
+            {["Super Admin", "District Level Approver", "IT Admin", "EARAS Admin", "Taluk Level Approver", "District Level Data Viewer", "Field Inspector"].includes(authservice.getrole()) && (
               <Grid item xs={12} sm={4} md={4} lg={4}>
                 <Card
                   component={Link}

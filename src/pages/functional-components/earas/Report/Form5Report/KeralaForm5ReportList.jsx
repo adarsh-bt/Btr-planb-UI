@@ -592,7 +592,7 @@ const fetchCropsList = async () => {
   // Stat cards configuration
   const statCards = [
     {
-      label: 'Allowted CCE',
+      label: 'Alloted CCE',
       value: stats.allowtedCce,
       color: '#1565c0',
       icon: <HubIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />
@@ -951,7 +951,7 @@ const fetchCropsList = async () => {
                     {[
                       '#',
                       'District',
-                      'Allowted CCE',
+                      'Alloted CCE',
                       'Selected CCE',
                       'Completed',
                       'Ongoing',
