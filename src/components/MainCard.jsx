@@ -5,9 +5,7 @@ import { forwardRef } from 'react';
 import { useTheme } from '@mui/material/styles';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-// import CardHeader from '@mui/material/CardHeader';
-// import Divider from '@mui/material/Divider';
-// import Typography from '@mui/material/Typography';
+import CardHeader from '@mui/material/CardHeader';
 
 // header style
 const headerSX = {
@@ -58,7 +56,12 @@ function MainCard(
       }}
     >
       {/* card header and action */}
-     
+      {!darkTitle && title && (
+        <CardHeader sx={headerSX} titleTypographyProps={{ variant: 'subtitle1' }} title={title} action={secondary} />
+      )}
+      {darkTitle && title && (
+        <CardHeader sx={headerSX} title={title} action={secondary} />
+      )}
 
       {/* card content */}
       {content && <CardContent sx={contentSX}>{children}</CardContent>}

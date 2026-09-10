@@ -82,7 +82,7 @@ const columns = (handleView, page, size) => [
     center: true,
   },
 ];
-const Btr = ({zoneId}) => {
+const Btr = ({ zoneId }) => {
   // State management
   const [filterText, setFilterText] = useState('');
   const [openViewModal, setOpenViewModal] = useState(false);
@@ -100,12 +100,12 @@ const Btr = ({zoneId}) => {
   const [detailLoading, setDetailLoading] = useState(false);
 
 
-    const [resolvedZoneId, setResolvedZoneId] = useState(() => {
-  const role = authservice.getrole(); // Get the role
-  return role === 'Field Data Collector'
-    ? authservice.getzone()  // For Field Data Collector
-    : zoneId;                         // For Admin or other roles
-});
+  const [resolvedZoneId, setResolvedZoneId] = useState(() => {
+    const role = authservice.getrole(); // Get the role
+    return role === 'Field Data Collector'
+      ? authservice.getzone()  // For Field Data Collector
+      : zoneId;                         // For Admin or other roles
+  });
 
   // Fetch data from your API
   const fetchData = async () => {
@@ -305,9 +305,9 @@ const Btr = ({zoneId}) => {
     fetchData();
   }, []);
 
-return (
+  return (
     <Grid container spacing={3}>
-    <Breadcrumb> </Breadcrumb>
+      <Breadcrumb> </Breadcrumb>
       <Grid item xs={12}>
         <Paper elevation={3} style={{ marginBottom: '16px', padding: '16px' }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
@@ -468,11 +468,13 @@ return (
                     { key: 'localBodyName', label: 'Local Body Name' },
                     { key: 'villageName', label: 'Village Name' },
                     { key: 'bcode', label: 'Block Code' },
-                    { key: 'resvno', label: 'Re-Survey No', format: (row) =>
+                    {
+                      key: 'resvno', label: 'Re-Survey No', format: (row) =>
                         row.resvno && row.resbdno ? `${row.resvno}/${row.resbdno}` : (row.resvno || row.resbdno || 'NA')
                     },
                     { key: 'ltype', label: 'Land Type' },
-                    { key: 'totCent', label: 'Total Area (Cents)', format: (row) =>
+                    {
+                      key: 'totCent', label: 'Total Area (Cents)', format: (row) =>
                         row.totCent ? row.totCent.toLocaleString() : 'NA'
                     },
                     { key: 'dcode', label: 'District Code' },

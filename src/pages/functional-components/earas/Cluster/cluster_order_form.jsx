@@ -54,11 +54,7 @@ function ClusterSeatForm({ zoneId }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [zonestatus, setZonestatus] = useState(false);
 
-  const [resolvedZoneId] = useState(() => {
-    const role = authservice.getrole();
- 
-    return role === 'Field Data Collector' ? authservice.getzone() : zoneId;
-  });
+  const [zoneStatusError, setZoneStatusError] = useState(false);
 
   const BASE_URL = mainapi.BTR_API;
   const navigate = useNavigate();
@@ -73,33 +69,35 @@ function ClusterSeatForm({ zoneId }) {
   useEffect(() => {
     fetchClusterData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolvedZoneId]);
+  }, [zoneId]);
 
   const fetchClusterData = () => {
     const token = localStorage.getItem('token');
+    const currentZoneId = zoneId || authservice.getzone();
+    
     setLoading(true);
     setError(null);
 
-    if (!resolvedZoneId || resolvedZoneId === "null") {
+    if (!currentZoneId || currentZoneId === "null") {
       setError("No zones are assigned to you. Please contact your administrator.");
-      setZonestatus(true);
+      setZoneStatusError(true);
       setLoading(false);
       return;
     }
 
-    api.get(`${BASE_URL}/btr-service/cluster-api/cluster-form-status/${resolvedZoneId}`, {
+    api.get(`${BASE_URL}/btr-service/cluster-api/cluster-form-status/${currentZoneId}`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
     })
       .then(res => {
         // Store the raw payload directly - One object per cluster
-        setClusters(res.data.payload || []);
+        setClusters(res.data?.payload || []);
         setSummary({
-          completed: res.data.completed || 0,
-          ongoing: res.data.ongoing || 0,
-          notStarted: res.data.notStarted || 0,
-          underreview: res.data.underreview || 0,
+          completed: res.data?.completed || 0,
+          ongoing: res.data?.ongoing || 0,
+          notStarted: res.data?.notStarted || 0,
+          underreview: res.data?.underreview || 0,
         });
         setLoading(false);
       })
@@ -160,7 +158,6 @@ function ClusterSeatForm({ zoneId }) {
     e.stopPropagation(); // Prevent triggering parent card click if any
     const encodedSyNo = encodeURIComponent(cluster.keyplotId); // keyplotId maps to 'No'
     const encodedSlNo = encodeURIComponent(cluster.clusterNo);          // seasonId maps to 'slno'
-console.Console
     // Check if we have a resolvedZoneId (Admin context or specific zone view)
     if (resolvedZoneId) {
       navigate(`/schemes/earas/Clusters_Form/${resolvedZoneId}/ClusterFormView?No=${encodedSyNo}&slno=${encodedSlNo}`);
@@ -201,7 +198,7 @@ console.Console
               loop
               autoplay
             />
-            {zonestatus && (
+            {zoneStatusError && (
               <Alert severity="warning" sx={{ mt: 2, mb: 2 }}>{error}</Alert>
             )}
             <Button variant="contained" startIcon={<Refresh />} onClick={fetchClusterData}>

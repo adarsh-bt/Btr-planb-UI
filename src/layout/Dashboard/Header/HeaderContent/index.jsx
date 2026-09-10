@@ -39,7 +39,7 @@ export default function HeaderContent() {
       <AgriYearOptions />
       {role === "Field Data Collector" && <ZoneOptions />}
 
-      {/* <Notification /> */}
+      <Notification />
       {!downLG && <Profile />}
       {downLG && <MobileSection />}
     </>

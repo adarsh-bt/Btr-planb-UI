@@ -135,8 +135,19 @@ class AuthService {
       // ignore error → still logout locally
     }
 
-    // 🔥 ALWAYS clear storage (important)
+    // 🔥 Clear auth/user keys but PRESERVE shared EARAS workflow state
+    // (estimation status, history, and observations must survive user switch
+    //  so Verifier 1 / admins can see work done by the Area Estimator)
+    const earasKeysToKeep = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('est_') || key.startsWith('earas_') || key.startsWith('last_val_time_'))) {
+        earasKeysToKeep.push([key, localStorage.getItem(key)]);
+      }
+    }
     localStorage.clear();
+    // Restore EARAS shared state
+    earasKeysToKeep.forEach(([key, value]) => localStorage.setItem(key, value));
 
     // 🔥 Force redirect
     window.location.href = '/login';

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 
 // material-ui
 import { useTheme } from '@mui/material/styles';
@@ -22,13 +22,16 @@ import Box from '@mui/material/Box';
 // project import
 import MainCard from 'components/MainCard';
 import Transitions from 'components/@extended/Transitions';
+import {
+  fetchNotifications,
+  markNotificationsRead
+} from 'pages/functional-components/earas/area-estimation/areaEstimationApi';
+import { apiErrorMessage } from 'pages/functional-components/earas/area-estimation/apiErrors';
 
 // assets
 import BellOutlined from '@ant-design/icons/BellOutlined';
 import CheckCircleOutlined from '@ant-design/icons/CheckCircleOutlined';
-import GiftOutlined from '@ant-design/icons/GiftOutlined';
 import MessageOutlined from '@ant-design/icons/MessageOutlined';
-import SettingOutlined from '@ant-design/icons/SettingOutlined';
 
 // sx styles
 const avatarSX = {
@@ -43,7 +46,6 @@ const actionSX = {
   top: 'auto',
   right: 'auto',
   alignSelf: 'flex-start',
-
   transform: 'none'
 };
 
@@ -54,8 +56,44 @@ export default function Notification() {
   const matchesXs = useMediaQuery(theme.breakpoints.down('md'));
 
   const anchorRef = useRef(null);
-  const [read, setRead] = useState(2);
   const [open, setOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const loadNotifications = async () => {
+    try {
+      // The recipient is the authenticated caller, resolved by the backend from the gateway's
+      // headers. There is no parameter for whose notifications to fetch, so there is no way to ask
+      // for someone else's.
+      const result = await fetchNotifications(25);
+      setNotifications(result?.notifications || []);
+      setUnreadCount(result?.unreadCount || 0);
+    } catch (error) {
+      // The bell is ambient: a failure to load it must not interrupt whatever the user is doing.
+      // An empty bell is the honest display when the list could not be read.
+      console.error('Notifications could not be loaded:', apiErrorMessage(error));
+      setNotifications([]);
+      setUnreadCount(0);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+
+    // Still listens for the in-app event, so an action that raises a notification refreshes the
+    // bell immediately instead of waiting for the next poll.
+    window.addEventListener('earas-notifications-updated', loadNotifications);
+
+    // The backend is the only source now, so the bell polls for anything raised elsewhere — an
+    // approval forwarded to this user, a clarification assigned to their zone.
+    const poll = setInterval(loadNotifications, 60000);
+
+    return () => {
+      window.removeEventListener('earas-notifications-updated', loadNotifications);
+      clearInterval(poll);
+    };
+  }, []);
+
   const handleToggle = () => {
     setOpen((prevOpen) => !prevOpen);
   };
@@ -67,7 +105,14 @@ export default function Notification() {
     setOpen(false);
   };
 
-  const iconBackColorOpen = 'grey.100';
+  const handleMarkAllRead = async () => {
+    try {
+      await markNotificationsRead();
+    } catch (error) {
+      console.error('Notifications could not be marked as read:', apiErrorMessage(error));
+    }
+    loadNotifications();
+  };
 
   return (
     <Box sx={{ flexShrink: 0, ml: 0.75 }}>
@@ -75,13 +120,13 @@ export default function Notification() {
         color="secondary"
         variant="light"
         sx={{ color: 'white', bgcolor: open ? "orange" : 'transparent' }}
-        aria-label="open profile"
+        aria-label="open notifications"
         ref={anchorRef}
         aria-controls={open ? 'profile-grow' : undefined}
         aria-haspopup="true"
         onClick={handleToggle}
       >
-        <Badge badgeContent={read} color="primary">
+        <Badge badgeContent={unreadCount} color="primary">
           <BellOutlined />
         </Badge>
       </IconButton>
@@ -105,9 +150,9 @@ export default function Notification() {
                   content={false}
                   secondary={
                     <>
-                      {read > 0 && (
+                      {unreadCount > 0 && (
                         <Tooltip title="Mark as all read">
-                          <IconButton color="success" size="small" onClick={() => setRead(0)}>
+                          <IconButton color="success" size="small" onClick={handleMarkAllRead}>
                             <CheckCircleOutlined style={{ fontSize: '1.15rem' }} />
                           </IconButton>
                         </Tooltip>
@@ -127,113 +172,40 @@ export default function Notification() {
                       }
                     }}
                   >
-                    <ListItemButton selected={read > 0}>
-                      <ListItemAvatar>
-                        <Avatar sx={{ color: 'success.main', bgcolor: 'success.lighter' }}>
-                          <GiftOutlined />
-                        </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={
-                          <Typography variant="h6">
-                            It&apos;s{' '}
-                            <Typography component="span" variant="subtitle1">
-                              Test Meassage&apos;s
-                            </Typography>{' '}
-                            for aidea.
-                          </Typography>
-                        }
-                        secondary="2 min ago"
-                      />
-                      <ListItemSecondaryAction>
-                        <Typography variant="caption" noWrap>
-                          3:00 AM
-                        </Typography>
-                      </ListItemSecondaryAction>
-                    </ListItemButton>
-                    <Divider />
-                    {/* <ListItemButton>
-                      <ListItemAvatar>
-                        <Avatar sx={{ color: 'primary.main', bgcolor: 'primary.lighter' }}>
-                          <MessageOutlined />
-                        </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={
-                          <Typography variant="h6">
-                            <Typography component="span" variant="subtitle1">
-                              Aida Burg
-                            </Typography>{' '}
-                            commented your post.
-                          </Typography>
-                        }
-                        secondary="5 August"
-                      />
-                      <ListItemSecondaryAction>
-                        <Typography variant="caption" noWrap>
-                          6:00 PM
-                        </Typography>
-                      </ListItemSecondaryAction>
-                    </ListItemButton>
-                    <Divider />
-                    <ListItemButton selected={read > 0}>
-                      <ListItemAvatar>
-                        <Avatar sx={{ color: 'error.main', bgcolor: 'error.lighter' }}>
-                          <SettingOutlined />
-                        </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={
-                          <Typography variant="h6">
-                            Your Profile is Complete &nbsp;
-                            <Typography component="span" variant="subtitle1">
-                              60%
-                            </Typography>{' '}
-                          </Typography>
-                        }
-                        secondary="7 hours ago"
-                      />
-                      <ListItemSecondaryAction>
-                        <Typography variant="caption" noWrap>
-                          2:45 PM
-                        </Typography>
-                      </ListItemSecondaryAction>
-                    </ListItemButton>
-                    <Divider />
-                    <ListItemButton>
-                      <ListItemAvatar>
-                        <Avatar sx={{ color: 'primary.main', bgcolor: 'primary.lighter' }}>C</Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={
-                          <Typography variant="h6">
-                            <Typography component="span" variant="subtitle1">
-                              Cristina Danny
-                            </Typography>{' '}
-                            invited to join{' '}
-                            <Typography component="span" variant="subtitle1">
-                              Meeting.
-                            </Typography>
-                          </Typography>
-                        }
-                        secondary="Daily scrum meeting time"
-                      />
-                      <ListItemSecondaryAction>
-                        <Typography variant="caption" noWrap>
-                          9:10 PM
-                        </Typography>
-                      </ListItemSecondaryAction>
-                    </ListItemButton>
-                    <Divider />
-                    <ListItemButton sx={{ textAlign: 'center', py: `${12}px !important` }}>
-                      <ListItemText
-                        primary={
-                          <Typography variant="h6" color="primary">
-                            View All
-                          </Typography>
-                        }
-                      />
-                    </ListItemButton> */}
+                    {notifications.length > 0 ? (
+                      notifications.slice(0, 5).map((noti) => (
+                        <React.Fragment key={noti.id}>
+                          <ListItemButton selected={!noti.read}>
+                            <ListItemAvatar>
+                              <Avatar sx={{
+                                color: noti.type === 'success' ? 'success.main' : noti.type === 'error' ? 'error.main' : noti.type === 'warning' ? 'warning.main' : 'primary.main',
+                                bgcolor: noti.type === 'success' ? 'success.lighter' : noti.type === 'error' ? 'error.lighter' : noti.type === 'warning' ? 'warning.lighter' : 'primary.lighter'
+                              }}>
+                                {noti.type === 'success' ? <CheckCircleOutlined /> : <MessageOutlined />}
+                              </Avatar>
+                            </ListItemAvatar>
+                            <ListItemText
+                              primary={
+                                <Typography variant="h6">
+                                  {noti.title}
+                                </Typography>
+                              }
+                              secondary={noti.message}
+                            />
+                            <ListItemSecondaryAction>
+                              <Typography variant="caption" noWrap>
+                                {new Date(noti.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </Typography>
+                            </ListItemSecondaryAction>
+                          </ListItemButton>
+                          <Divider />
+                        </React.Fragment>
+                      ))
+                    ) : (
+                      <ListItemButton>
+                        <ListItemText primary={<Typography align="center" color="text.secondary">No new alerts.</Typography>} />
+                      </ListItemButton>
+                    )}
                   </List>
                 </MainCard>
               </ClickAwayListener>

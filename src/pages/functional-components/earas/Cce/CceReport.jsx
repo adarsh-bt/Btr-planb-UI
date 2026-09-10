@@ -38,18 +38,18 @@ function CceReport() {
         </Typography>
 
         <MainCard title="">
-          <Grid 
-            container 
-            spacing={4} 
-            direction="column" 
-            alignItems="center" 
+          <Grid
+            container
+            spacing={4}
+            direction="column"
+            alignItems="center"
             justifyContent="center"
             sx={{ minHeight: '400px' }} // Give it height to look good
           >
-            
+
             <Grid item>
               {/* Optional: Add an illustration or Icon here */}
-              <Box 
+              <Box
                 component="img"
                 src="https://cdn-icons-png.flaticon.com/512/7486/7486831.png" // Example placeholder icon
                 alt="No Data"
@@ -58,8 +58,8 @@ function CceReport() {
             </Grid>
 
             <Grid item>
-              <Typography 
-                variant="h4" 
+              <Typography
+                variant="h4"
                 align="center"
                 sx={{
                   fontWeight: 'bold',
@@ -82,7 +82,7 @@ function CceReport() {
               >
                 Please Complete the Crop Data Collection
               </Typography>
-              
+
               <Typography variant="body1" align="center" color="textSecondary" sx={{ mt: 1 }}>
                 No reports generated yet. Complete the collection process to view data here.
               </Typography>

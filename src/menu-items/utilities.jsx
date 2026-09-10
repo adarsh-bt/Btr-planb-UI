@@ -16,7 +16,8 @@ import {
   UserSwitchOutlined,        
   DeliveredProcedureOutlined ,
  AppstoreOutlined,
- ProfileOutlined
+ ProfileOutlined,
+ BookOutlined
 } from '@ant-design/icons';
 import authservice from 'pages/authentication/services/authservice';
 
@@ -38,7 +39,8 @@ const icons = {
   UserSwitchOutlined,
   DeliveredProcedureOutlined,
   AppstoreOutlined,
-  ProfileOutlined
+  ProfileOutlined,
+  BookOutlined
 };
 
 // ==============================|| MENU ITEMS - UTILITIES ||============================== //
@@ -136,8 +138,20 @@ const userManagement = {
   id: 'util-ccereport',
   title: 'CCE Report',
   type: 'item',
-  url: '/schemes/earas/cce/CceReport',
+  url: '/kerala_cce_report',
   icon: icons.ProfileOutlined
+};
+
+// Every signed-in user gets this entry. What they actually see behind it is decided by the
+// backend from their roles, so there is no role test here: a user with no manuals assigned to
+// their roles simply gets an empty list, and the management screen is offered from inside the
+// page only when the server reports the User Manual Management permission.
+const userManuals = {
+  id: 'util-usermanuals',
+  title: 'User Manuals',
+  type: 'item',
+  url: '/user_manuals',
+  icon: icons.BookOutlined
 };
 
 // Role-based logic with fallback
@@ -146,6 +160,8 @@ if (role == 'Super Admin' ||role === 'IT Admin' || role === 'District Level Appr
     userApproval,
     userManagement,
     zoneDetails,
+    ccereport,
+    userManuals
     // viewBtr,
     // keyPlot,
     // clusterFormation
@@ -159,16 +175,18 @@ if (role == 'Super Admin' ||role === 'IT Admin' || role === 'District Level Appr
     ClusterFormView,
     workallocation,
     cceview,
-    ccereport
+    ccereport,
+    userManuals
   );
 } else if (role === 'EARAS Admin') {
   utilities.children.push(
     zoneDetails,
-    earasManagement
+    earasManagement,
+    userManuals
   );
 } else {
   // Fallback for undefined/empty/other roles
-  utilities.children.push(zoneDetails);
+  utilities.children.push(zoneDetails, userManuals);
 }
 
 export default utilities;

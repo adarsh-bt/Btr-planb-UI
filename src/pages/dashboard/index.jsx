@@ -47,6 +47,10 @@ import reports from 'assets/images/logo/reports.png';
 //for permissions line
 import { useUserAccess, PermissionGate } from 'contexts/auth-reducer/universal/UserAccessContext';
 
+// The manuals tile uses an icon rather than a logo image: there is no user-manual asset in
+// assets/images/logo, and reusing another module's logo would mislabel the tile.
+import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined';
+
 
 const avatarSX = {
   width: 36,
@@ -580,6 +584,88 @@ export default function DashboardDefault() {
           </Grid>
 
         )}
+
+        {/* Shown to every signed-in user, with no role test. Which manuals a user can actually
+            read is decided by the backend from their roles; a user with none assigned reaches an
+            empty list rather than a locked door. */}
+        <Grid item xs={12} sm={4} md={4} lg={4}>
+          <Card
+            component={Link}
+            to="/user_manuals"
+            sx={{
+              textDecoration: 'none',
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '2rem',
+              borderRadius: '1rem',
+              background: 'linear-gradient(135deg, rgba(94, 114, 228, 0.57), rgb(94, 114, 228))',
+              transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+              overflow: 'hidden',
+              '&:hover': {
+                transform: 'scale(1.05)',
+                boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
+              },
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                width: '200px',
+                height: '200px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.2)',
+                top: '-50px',
+                right: '-50px'
+              },
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                width: '150px',
+                height: '150px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.15)',
+                bottom: '-40px',
+                left: '-40px'
+              }
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', textAlign: 'center' }}>
+              -
+            </Typography>
+            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
+              User Manuals
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: '#f3f3f3',
+                fontWeight: 'lighter',
+                marginTop: '0.5rem',
+                textAlign: 'center',
+                marginBottom: '1.2rem'
+              }}
+            >
+              Guides for your role
+            </Typography>
+            <Box
+              sx={{
+                position: 'absolute',
+                top: '1rem',
+                right: '1rem',
+                background: 'rgba(255, 255, 255, 0.3)',
+                padding: '0.5rem',
+                borderRadius: '50%',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}
+            >
+              <MenuBookOutlinedIcon sx={{ width: '3rem', height: '3rem', color: '#fff' }} />
+            </Box>
+          </Card>
+        </Grid>
       </Grid>
 
 

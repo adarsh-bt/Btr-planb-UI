@@ -40,8 +40,7 @@ function ClusterSeatMap({ zoneId }) {
   const [selectedCrop, setSelectedCrop] = useState('All');
 
   const [resolvedZoneId, setResolvedZoneId] = useState(() => {
-    const role = authservice.getrole();
-    return role === 'Field Data Collector' ? authservice.getzone() : zoneId;
+    return zoneId || authservice.getzone();
   });
 
   const BASE_URL = mainapi.BASE_URL;

@@ -18,7 +18,7 @@ import {
 } from '@mui/material';
 import { keyframes } from '@mui/system';
 
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
@@ -35,6 +35,7 @@ const shimmer = keyframes`
 // --- 2. Main Component ---
 function CceView() {
   const theme = useTheme();
+  const navigate = useNavigate();
   
   // State for data, loading, and handling "no data" logic
   const [plotData, setPlotData] = useState([]);
@@ -132,7 +133,14 @@ useEffect(() => {
                   {plotData.map((row,key) => (
                     <TableRow
                       key={row.cceAvailablePlotId}
-                      sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                      onClick={() => navigate('/schemes/earas/cce/cceDataView', { state: { rowData: row } })}
+                      sx={{ 
+                        '&:last-child td, &:last-child th': { border: 0 },
+                        cursor: 'pointer',
+                        '&:hover': {
+                          backgroundColor: 'rgba(0,0,0,0.04)'
+                        }
+                      }}
                     >
                     <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>
                         {key + 1}
