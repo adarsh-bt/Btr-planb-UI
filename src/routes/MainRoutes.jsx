@@ -711,13 +711,13 @@ const MainRoutes = {
       )
     },
      {
-      path: '/schemes/earas/earas_management/crops_management/crops_settings',
-      element: (
-        <PrivateRoute>
-          <CropsManagement />
-        </PrivateRoute>
-      )
-    },
+      path: '/schemes/earas/earas_management/crops_management/crops_settings',
+      element: (
+        <PrivateRoute>
+          <CropsManagement />
+        </PrivateRoute>
+      )
+    },
      {
       path: '/schemes/earas/earas_management/crops_management',
       element: (
