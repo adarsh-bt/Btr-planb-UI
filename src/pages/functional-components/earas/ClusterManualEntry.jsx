@@ -74,7 +74,7 @@ const ClusterFormUI = () => {
 
     const [keyplotsData, setKeyplotsData] = useState([]);
     const [currentLabels, setCurrentLabels] = useState(['K', 'S1', 'E1', 'N1', 'W1']);
-    
+
     const [clusterInfo, setClusterInfo] = useState({
         clusterNo: '',
         localBody: '',
@@ -116,7 +116,7 @@ const ClusterFormUI = () => {
     const [isedit, setEdit] = useState(false);
     const [status, setStatus] = useState(false);
 
-const [showSummaryBox, setShowSummaryBox] = useState(false);
+    const [showSummaryBox, setShowSummaryBox] = useState(false);
     const nextRowId = useRef(0);
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [snackbarOpen1, setSnackbarOpen1] = useState(false);
@@ -165,51 +165,51 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
     });
     const [rowBlockOptions, setRowBlockOptions] = useState({});
 
-    
-  const fetchCceCropDetails = async () => {
-    setLoadingCrops(true);
 
-    try {
-        const zoneid = getEffectiveZoneId();
+    const fetchCceCropDetails = async () => {
+        setLoadingCrops(true);
 
-        const response = await api.get(
-            `${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops`,
-            {
-                params: {
-                    zoneId: zoneid,
-                    agriYear: authservice.agriyear()
+        try {
+            const zoneid = getEffectiveZoneId();
+
+            const response = await api.get(
+                `${FORM_URL}/earas-form1-entry/cce-crop-details/fetch-cce-crops`,
+                {
+                    params: {
+                        zoneId: zoneid,
+                        agriYear: authservice.agriyear()
+                    }
                 }
+            );
+
+            const data = response.data;
+
+            // Ensure data is always an array
+            const cropData = Array.isArray(data)
+                ? data
+                : (data.crops || data.payload || []);
+
+            // Filter crops based on cluster land type
+            const filteredCrops = filterCropsByLandType(
+                cropData,
+                clusterInfo.landType
+            );
+
+            setCceCropDetails(filteredCrops);
+
+        } catch (error) {
+            console.error('Error fetching CCE crop details:', error);
+
+            if (error.response) {
+                console.error('Status:', error.response.status);
+                console.error('Response:', error.response.data);
             }
-        );
 
-        const data = response.data;
-
-        // Ensure data is always an array
-        const cropData = Array.isArray(data)
-            ? data
-            : (data.crops || data.payload || []);
-
-        // Filter crops based on cluster land type
-        const filteredCrops = filterCropsByLandType(
-            cropData,
-            clusterInfo.landType
-        );
-
-        setCceCropDetails(filteredCrops);
-
-    } catch (error) {
-        console.error('Error fetching CCE crop details:', error);
-
-        if (error.response) {
-            console.error('Status:', error.response.status);
-            console.error('Response:', error.response.data);
+            setCceCropDetails([]);
+        } finally {
+            setLoadingCrops(false);
         }
-
-        setCceCropDetails([]);
-    } finally {
-        setLoadingCrops(false);
-    }
-};
+    };
 
     const handleUseRecommendedPlot = (type) => {
         if (!validatingRow || !validationInfo) return;
@@ -298,29 +298,29 @@ const [showSummaryBox, setShowSummaryBox] = useState(false);
         setSnackbarMessage("This plot cannot be used. Please enter a different one.");
         // setSnackbarOpen(true);
     };
-// Function to move a side plot up or down in the array
-const handleMovePlot = (index, direction) => {
-    if (index === 0) return; // Never allow moving 'K' (Keyplot)
+    // Function to move a side plot up or down in the array
+    const handleMovePlot = (index, direction) => {
+        if (index === 0) return; // Never allow moving 'K' (Keyplot)
 
-    const newIndex = direction === 'up' ? index - 1 : index + 1;
-    
-    // Boundary checks: don't move into K's slot (index 0) and don't go out of bounds
-    if (newIndex === 0 || newIndex >= keyplotsData.length) return;
+        const newIndex = direction === 'up' ? index - 1 : index + 1;
 
-    setKeyplotsData(prevData => {
-        const updatedData = [...prevData];
-        // Swap the items
-        const temp = updatedData[index];
-        updatedData[index] = updatedData[newIndex];
-        updatedData[newIndex] = temp;
+        // Boundary checks: don't move into K's slot (index 0) and don't go out of bounds
+        if (newIndex === 0 || newIndex >= keyplotsData.length) return;
 
-        // Sync the currentLabels array to reflect the new visual order
-        const labels = updatedData.map(kp => kp.label).filter(label => label);
-        setCurrentLabels(labels);
+        setKeyplotsData(prevData => {
+            const updatedData = [...prevData];
+            // Swap the items
+            const temp = updatedData[index];
+            updatedData[index] = updatedData[newIndex];
+            updatedData[newIndex] = temp;
 
-        return updatedData;
-    });
-};
+            // Sync the currentLabels array to reflect the new visual order
+            const labels = updatedData.map(kp => kp.label).filter(label => label);
+            setCurrentLabels(labels);
+
+            return updatedData;
+        });
+    };
     const checkPlotUsageInCurrentForm = (plotIdentifier, currentRowUniqueId) => {
         // Collect all rows from the current form, including saved (isExisting) ones
         const allRows = keyplotsData.flatMap(kp => kp.rows);
@@ -390,7 +390,7 @@ const handleMovePlot = (index, direction) => {
         // First check if this plot is already used in the current form
         const plotIdentifier = `${row.villageId}-${row.block}-${row.svNo}-${row.sub || ''}`;
         const existingUsageInForm = checkPlotUsageInCurrentForm(plotIdentifier, rowUniqueId);
-       
+
         if (existingUsageInForm.isUsed) {
             // Plot is already used in current form - show UI validation
             setValidationInfo({
@@ -440,7 +440,7 @@ const handleMovePlot = (index, direction) => {
             }
 
             if (response.status === 409 || response.ok) {
-              
+
 
                 if (response.status === 409) {
                     if (data.availableSubdivisions && data.availableSubdivisions.length > 0) {
@@ -519,7 +519,7 @@ const handleMovePlot = (index, direction) => {
             if (response.status === 409) {
                 const data = await response.json();
                 if (data.availableSubdivisions && data.availableSubdivisions.length > 0) {
-                
+
                     setAvailableSubdivisions(data.availableSubdivisions);
 
                     setPendingPlot({
@@ -590,7 +590,7 @@ const handleMovePlot = (index, direction) => {
             }
 
             const data = await response.json();
-    console.log('API CCE Crops Response:', data);
+            console.log('API CCE Crops Response:', data);
             setApiCropsData(data);
 
         } catch (error) {
@@ -709,7 +709,7 @@ const handleMovePlot = (index, direction) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-          
+
             const response = await fetch(`${BASE_URL}/btr-service/key-plots/get-keyplot/${id}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -796,31 +796,31 @@ const handleMovePlot = (index, direction) => {
                     });
                 }
 
-                
 
-               const fixed = ['K'];
-// Start with just the keyplot
-const mergedKeyplots = [
-  existingSidePlots['K'] || {
-    id: 'K',
-    label: 'K',
-    rows: []
-  },
-  // Add empty slots for 4 side plots
-  ...Array(4).fill(null).map((_, index) => {
-    // Try to use existing side plots first
-    const existingLabels = Object.keys(existingSidePlots).filter(l => l !== 'K');
-    if (index < existingLabels.length) {
-      return existingSidePlots[existingLabels[index]];
-    }
-    // Otherwise create empty slot
-    return {
-      id: `sideplot-${index}`,
-      label: '', // Empty label initially
-      rows: []
-    };
-  })
-].filter(Boolean);
+
+                const fixed = ['K'];
+                // Start with just the keyplot
+                const mergedKeyplots = [
+                    existingSidePlots['K'] || {
+                        id: 'K',
+                        label: 'K',
+                        rows: []
+                    },
+                    // Add empty slots for 4 side plots
+                    ...Array(4).fill(null).map((_, index) => {
+                        // Try to use existing side plots first
+                        const existingLabels = Object.keys(existingSidePlots).filter(l => l !== 'K');
+                        if (index < existingLabels.length) {
+                            return existingSidePlots[existingLabels[index]];
+                        }
+                        // Otherwise create empty slot
+                        return {
+                            id: `sideplot-${index}`,
+                            label: '', // Empty label initially
+                            rows: []
+                        };
+                    })
+                ].filter(Boolean);
 
                 setKeyplotsData(mergedKeyplots);
                 const initialLabels = mergedKeyplots.map(kp => kp.label);
@@ -913,35 +913,35 @@ const mergedKeyplots = [
         return { type: 'ABOVE_MEAN' };
     };
 
-  const handleSubmit = () => {
-  // First validate labels
-  const labelValidation = validateSidePlotLabels();
-  if (!labelValidation.isValid) {
-    setSnackbarMessage(labelValidation.message);
-    setSnackbarOpen(true);
-    return;
-  }
-  
-  // Then proceed with existing validation
-  const result = validateClusterLimits();
+    const handleSubmit = () => {
+        // First validate labels
+        const labelValidation = validateSidePlotLabels();
+        if (!labelValidation.isValid) {
+            setSnackbarMessage(labelValidation.message);
+            setSnackbarOpen(true);
+            return;
+        }
 
-  if (result.type === 'BLOCK') {
-    setOpenLimitDialog(true);
-    return;
-  }
-  setOpenLimitDialog(true);
-};
-const hasValidRow = (keyplot) => {
-  if (!keyplot || !Array.isArray(keyplot.rows)) return false;
+        // Then proceed with existing validation
+        const result = validateClusterLimits();
 
-  return keyplot.rows.some(row =>
-    row.villageName &&
-    row.block &&
-    row.svNo &&
-    row.area &&
-    row.enumeratedArea
-  );
-};
+        if (result.type === 'BLOCK') {
+            setOpenLimitDialog(true);
+            return;
+        }
+        setOpenLimitDialog(true);
+    };
+    const hasValidRow = (keyplot) => {
+        if (!keyplot || !Array.isArray(keyplot.rows)) return false;
+
+        return keyplot.rows.some(row =>
+            row.villageName &&
+            row.block &&
+            row.svNo &&
+            row.area &&
+            row.enumeratedArea
+        );
+    };
 
 
     const proceedSubmit = async (mode) => {
@@ -1082,13 +1082,13 @@ const hasValidRow = (keyplot) => {
             setSubmitSuccess(true);
             setSnackbarMessage('Cluster data saved successfully!');
             setSnackbarOpen(true);
-         
+
             if (mode === 'ON_GOING' || mode === 'SAVE') {
-                    setOpenLimitDialog(false)
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1500);
-                     
+                setOpenLimitDialog(false)
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+
             }
             if (mode === 'COMPLETED' || mode === 'Under Review') {
                 setTimeout(() => {
@@ -1126,7 +1126,7 @@ const hasValidRow = (keyplot) => {
                     throw new Error(`Failed to remove row ${removedRow.b_id}: ${response.status} - ${errorText}`);
                 }
 
-                
+
             } catch (error) {
                 console.error(`❌ Error removing row ${removedRow.b_id}:`, error);
                 throw new Error(`Failed to remove deleted plot: ${removedRow.villageName}-${removedRow.block}-${removedRow.svNo}-${removedRow.sub}`);
@@ -1135,7 +1135,7 @@ const hasValidRow = (keyplot) => {
 
         // Clear removed rows after successful deletion
         setRemovedRows([]);
-       
+
     };
 
     const getRemovedRowsInfo = () => {
@@ -1212,12 +1212,12 @@ const hasValidRow = (keyplot) => {
                     addedBy: authservice.userid(),
                     rejectedBy: null,
                     rejectedAt: null,
-                    agriYear:authservice.agriyear(),
+                    agriYear: authservice.agriyear(),
                     assignedOn: new Date().toISOString().slice(0, 19) // Format: YYYY-MM-DDTHH:mm:ss
                 };
             });
 
-          
+
 
             // Make the API call with proper error handling
             const response = await fetch(`${BASE_URL}/btr-service/crop-assignment-trail/save`, {
@@ -1229,13 +1229,13 @@ const hasValidRow = (keyplot) => {
                 body: JSON.stringify(cropAssignments)
             });
 
-          
+
 
             if (!response.ok) {
                 let errorMessage = `HTTP error! status: ${response.status}`;
                 try {
                     const errorText = await response.text();
-                 
+
 
                     try {
                         const errorData = JSON.parse(errorText);
@@ -1464,7 +1464,7 @@ const hasValidRow = (keyplot) => {
 
                 if (!response.ok) throw new Error('Failed to delete row from server');
 
-                
+
             }
 
             // Remove row from UI after successful deletion (or if it was never saved)
@@ -1569,43 +1569,43 @@ const hasValidRow = (keyplot) => {
     };
 
     const handleAddRow = (keyplotId) => {
-    const newData = JSON.parse(JSON.stringify(keyplotsData));
-    const keyplot = newData.find(k => k.id === keyplotId);
+        const newData = JSON.parse(JSON.stringify(keyplotsData));
+        const keyplot = newData.find(k => k.id === keyplotId);
 
-    const newRow = {
-        uniqueId: nextRowId.current++,
+        const newRow = {
+            uniqueId: nextRowId.current++,
 
-        // ✅ DEFAULT VALUES FROM KEYPLOT
-        villageName: defaultVillage || '',
-        villageId: defaultVillageId || null,
-        block: defaultBlock || '',
+            // ✅ DEFAULT VALUES FROM KEYPLOT
+            villageName: defaultVillage || '',
+            villageId: defaultVillageId || null,
+            block: defaultBlock || '',
 
-        svNo: '',
-        sub: '',
-        area: '',
-        enumeratedArea: '',
-        plot_id: '',
-        isNew: true
-    };
+            svNo: '',
+            sub: '',
+            area: '',
+            enumeratedArea: '',
+            plot_id: '',
+            isNew: true
+        };
 
-    // ✅ set block options automatically for this village
-    if (defaultVillageId) {
-        const selectedVillage = allVillageData.find(
-            v => v.villageId === defaultVillageId
-        );
+        // ✅ set block options automatically for this village
+        if (defaultVillageId) {
+            const selectedVillage = allVillageData.find(
+                v => v.villageId === defaultVillageId
+            );
 
-        if (selectedVillage) {
-            const rowKey = `${keyplotId}-${newRow.uniqueId}`;
-            setRowBlockOptions(prev => ({
-                ...prev,
-                [rowKey]: selectedVillage.blocks.map(b => b.blockCode)
-            }));
+            if (selectedVillage) {
+                const rowKey = `${keyplotId}-${newRow.uniqueId}`;
+                setRowBlockOptions(prev => ({
+                    ...prev,
+                    [rowKey]: selectedVillage.blocks.map(b => b.blockCode)
+                }));
+            }
         }
-    }
 
-    keyplot.rows.push(newRow);
-    setKeyplotsData(newData);
-};
+        keyplot.rows.push(newRow);
+        setKeyplotsData(newData);
+    };
 
     const [removedRows, setRemovedRows] = useState([]);
     const handleRemoveRow = (keyplotId, rowUniqueId) => {
@@ -1643,31 +1643,31 @@ const hasValidRow = (keyplot) => {
     }, [keyplotId]);
 
     // Update the handleLabelChange function
-  const handleLabelChange = (newLabel, keyplotId) => {
-  // If selecting empty option, don't allow
-  if (!newLabel.trim()) return;
-  
-  // Check if label is already used
-  const isAlreadyUsed = keyplotsData.some(kp => kp.label === newLabel && kp.id !== keyplotId);
-  if (isAlreadyUsed) {
-    setSnackbarMessage(`Label "${newLabel}" is already selected. Please choose a different label.`);
-    setSnackbarOpen(true);
-    return;
-  }
+    const handleLabelChange = (newLabel, keyplotId) => {
+        // If selecting empty option, don't allow
+        if (!newLabel.trim()) return;
 
-  
-  setKeyplotsData(prevData => {
-    const updatedData = prevData.map(kp =>
-      kp.id === keyplotId ? { ...kp, label: newLabel } : kp
-    );
+        // Check if label is already used
+        const isAlreadyUsed = keyplotsData.some(kp => kp.label === newLabel && kp.id !== keyplotId);
+        if (isAlreadyUsed) {
+            setSnackbarMessage(`Label "${newLabel}" is already selected. Please choose a different label.`);
+            setSnackbarOpen(true);
+            return;
+        }
 
-    // Update currentLabels with the new set of labels
-    const labels = updatedData.map(kp => kp.label).filter(label => label);
-    setCurrentLabels(labels);
 
-    return updatedData;
-  });
-};
+        setKeyplotsData(prevData => {
+            const updatedData = prevData.map(kp =>
+                kp.id === keyplotId ? { ...kp, label: newLabel } : kp
+            );
+
+            // Update currentLabels with the new set of labels
+            const labels = updatedData.map(kp => kp.label).filter(label => label);
+            setCurrentLabels(labels);
+
+            return updatedData;
+        });
+    };
 
     const hasAnyError = Object.values(errors).some(error => error !== null && error !== '');
 
@@ -1693,49 +1693,49 @@ const hasValidRow = (keyplot) => {
         return hasValidRow ? 'complete' : 'incomplete';
     };
 
-const isSubmitDisabled = () => {
-  if (hasAnyError || submitting || !isedit) return true;
+    const isSubmitDisabled = () => {
+        if (hasAnyError || submitting || !isedit) return true;
 
-  // ✅ Check K (Keyplot)
-  const kPlot = keyplotsData.find(kp => kp.label === 'K');
-  if (!hasValidRow(kPlot)) return true;
+        // ✅ Check K (Keyplot)
+        const kPlot = keyplotsData.find(kp => kp.label === 'K');
+        if (!hasValidRow(kPlot)) return true;
 
-  // ✅ Check if all 4 side plots have labels selected
-  const sidePlots = keyplotsData.filter(kp => kp.label !== 'K');
-  const sidePlotsWithLabels = sidePlots.filter(kp => kp.label && kp.label.trim() !== '');
-  
-  // Need exactly 4 side plots with labels
-  if (sidePlotsWithLabels.length < 4) return true;
-  
-  // ✅ Check side plots have valid rows
-  const validSidePlotCount = sidePlotsWithLabels.filter(kp => hasValidRow(kp)).length;
-  
-  // Need at least 4 side plots with valid rows
-  return validSidePlotCount < 4;
-};
-const validateSidePlotLabels = () => {
-  const sidePlots = keyplotsData.filter(kp => kp.label !== 'K');
-  const emptyLabelPlots = sidePlots.filter(kp => !kp.label || kp.label.trim() === '');
-  
-  if (emptyLabelPlots.length > 0) {
-    return {
-      isValid: false,
-      message: `${emptyLabelPlots.length} side plot(s) need label selection`
+        // ✅ Check if all 4 side plots have labels selected
+        const sidePlots = keyplotsData.filter(kp => kp.label !== 'K');
+        const sidePlotsWithLabels = sidePlots.filter(kp => kp.label && kp.label.trim() !== '');
+
+        // Need exactly 4 side plots with labels
+        if (sidePlotsWithLabels.length < 4) return true;
+
+        // ✅ Check side plots have valid rows
+        const validSidePlotCount = sidePlotsWithLabels.filter(kp => hasValidRow(kp)).length;
+
+        // Need at least 4 side plots with valid rows
+        return validSidePlotCount < 4;
     };
-  }
-  
-  // Check for duplicate labels
-  const labels = sidePlots.map(kp => kp.label).filter(label => label);
-  const uniqueLabels = new Set(labels);
-  if (labels.length !== uniqueLabels.size) {
-    return {
-      isValid: false,
-      message: 'Duplicate labels detected. Please use unique labels for each side plot.'
+    const validateSidePlotLabels = () => {
+        const sidePlots = keyplotsData.filter(kp => kp.label !== 'K');
+        const emptyLabelPlots = sidePlots.filter(kp => !kp.label || kp.label.trim() === '');
+
+        if (emptyLabelPlots.length > 0) {
+            return {
+                isValid: false,
+                message: `${emptyLabelPlots.length} side plot(s) need label selection`
+            };
+        }
+
+        // Check for duplicate labels
+        const labels = sidePlots.map(kp => kp.label).filter(label => label);
+        const uniqueLabels = new Set(labels);
+        if (labels.length !== uniqueLabels.size) {
+            return {
+                isValid: false,
+                message: 'Duplicate labels detected. Please use unique labels for each side plot.'
+            };
+        }
+
+        return { isValid: true };
     };
-  }
-  
-  return { isValid: true };
-};
     // Get labels that are missing valid rows
     const getMissingLabels = () => {
         const labelsWithValidRows = new Set();
@@ -1848,7 +1848,7 @@ const validateSidePlotLabels = () => {
 
             <Grid item xs={12}>
                 {/* {getMissingLabels().length > 0 && ( */}
-                    {/* <Box sx={{ position: 'fixed', top: '12%', left: 0, zIndex: 1000, borderRight: '4px solid #05307a', borderRadius: '0 1rem 0 1rem', backgroundColor: 'rgba(247, 236, 186, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
+                {/* <Box sx={{ position: 'fixed', top: '12%', left: 0, zIndex: 1000, borderRight: '4px solid #05307a', borderRadius: '0 1rem 0 1rem', backgroundColor: 'rgba(247, 236, 186, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
                         <Typography variant="h6" fontWeight="bold" gutterBottom>SidePlots Requirements</Typography>
                         <Typography variant="body2" color="textSecondary">
                             <strong>Requirements:</strong>
@@ -1869,72 +1869,72 @@ const validateSidePlotLabels = () => {
                             </Typography>
                         )} */}
 
-                        {/* Show progress */}
-                        {/* <Box sx={{ mt: 1 }}>
+                {/* Show progress */}
+                {/* <Box sx={{ mt: 1 }}>
                             <Typography variant="body2" color="textSecondary">
                                 <strong>Progress:</strong> K: {getLabelStatus('K') === 'complete' ? '✓' : '✗'} |
                                 Other plots: {[...currentLabels].filter(l => l !== 'K').filter(l => getLabelStatus(l) === 'complete').length}/4
                             </Typography>
 
                         </Box> */}
-                    {/* </Box>)} */}
-               {!showSummaryBox && (
-      <Box sx={{ position: 'fixed', top: '15%', right: 0, zIndex: 1000, borderRadius: '1rem 0 0 1rem', backgroundColor: 'rgba(212, 228, 231, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
-        <Grid container alignItems="center" justifyContent="space-between">
-        <Typography variant="subtitle1" fontWeight="bold">Cluster: {slNo} | {clusterInfo.localBody}</Typography>  
-         <IconButton 
-        size="small" 
-        onClick={() => setShowSummaryBox(true)}
-        sx={{ color: '#05307a' }}
-      >
-        <CloseIcon fontSize="small" />
-      </IconButton></Grid>
-        <Box sx={{ width: '100%', mt: 1 }}>
-          <Typography variant="subtitle1"><strong>Total Enumerated Area:</strong> {clusterInfo.totalArea.toFixed(2)} Cent</Typography>
-          <LinearProgress variant="determinate" value={totalAreaProgress} sx={{ height: 8, borderRadius: 4, mt: 0.5 }} />
-          <Typography variant="caption" display="block" sx={{ mt: 0.5, textAlign: 'right', color: 'text.secondary' }}>
-            {clusterInfo.totalArea.toFixed(2)} / {clusterInfo.maxArea} Cents
-          </Typography>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-            <Tooltip title="View FMB"><Button variant="contained" color="secondary"><MapIcon /></Button></Tooltip>
-            {/* <Tooltip title="Reject Cluster"><Button variant="contained" color="error"><WarningAmberIcon /></Button></Tooltip> */}
-            <Tooltip title="Submit">
-            <span>
-              {role === 'Field Data Collector' && (
-                <Button
-                  onClick={handleSubmit}
-                  variant="contained"
-                  color="primary"
-                  disabled={isSubmitDisabled()}
-                  startIcon={submitting ? <CircularProgress size={20} /> : <SaveIcon />}
-                >
-                  {submitting ? 'Saving...' : 'Submit'}
-                </Button>
-              )}</span>
-            </Tooltip>
-          </Box>
-        </Box>
-      </Box>
-)}
+                {/* </Box>)} */}
+                {!showSummaryBox && (
+                    <Box sx={{ position: 'fixed', top: '15%', right: 0, zIndex: 1000, borderRadius: '1rem 0 0 1rem', backgroundColor: 'rgba(212, 228, 231, 0.8)', p: 1.5, boxShadow: '0 2px 5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: '300px' }}>
+                        <Grid container alignItems="center" justifyContent="space-between">
+                            <Typography variant="subtitle1" fontWeight="bold">Cluster: {slNo} | {clusterInfo.localBody}</Typography>
+                            <IconButton
+                                size="small"
+                                onClick={() => setShowSummaryBox(true)}
+                                sx={{ color: '#05307a' }}
+                            >
+                                <CloseIcon fontSize="small" />
+                            </IconButton></Grid>
+                        <Box sx={{ width: '100%', mt: 1 }}>
+                            <Typography variant="subtitle1"><strong>Total Enumerated Area:</strong> {clusterInfo.totalArea.toFixed(2)} Cent</Typography>
+                            <LinearProgress variant="determinate" value={totalAreaProgress} sx={{ height: 8, borderRadius: 4, mt: 0.5 }} />
+                            <Typography variant="caption" display="block" sx={{ mt: 0.5, textAlign: 'right', color: 'text.secondary' }}>
+                                {clusterInfo.totalArea.toFixed(2)} / {clusterInfo.maxArea} Cents
+                            </Typography>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                                <Tooltip title="View FMB"><Button variant="contained" color="secondary"><MapIcon /></Button></Tooltip>
+                                {/* <Tooltip title="Reject Cluster"><Button variant="contained" color="error"><WarningAmberIcon /></Button></Tooltip> */}
+                                <Tooltip title="Submit">
+                                    <span>
+                                        {role === 'Field Data Collector' && (
+                                            <Button
+                                                onClick={handleSubmit}
+                                                variant="contained"
+                                                color="primary"
+                                                disabled={isSubmitDisabled()}
+                                                startIcon={submitting ? <CircularProgress size={20} /> : <SaveIcon />}
+                                            >
+                                                {submitting ? 'Saving...' : 'Submit'}
+                                            </Button>
+                                        )}</span>
+                                </Tooltip>
+                            </Box>
+                        </Box>
+                    </Box>
+                )}
 
                 <Typography variant="h4" align="center" gutterBottom color="primary" sx={{ mb: 2 }}>Cluster Land Form</Typography>
 
-<Box sx={{ position: 'fixed', top: '20%', right: 0, zIndex: 999 }}>
-  <Tooltip title={showSummaryBox ? "Hide Summary" : "Show Summary"}>
-    <IconButton
-      onClick={() => setShowSummaryBox(!showSummaryBox)}
-      sx={{
-        bgcolor: 'primary.main',
-        color: 'white',
-        '&:hover': { bgcolor: 'primary.dark' },
-        boxShadow: 2,
-        borderRadius: '8px 0 0 8px'
-      }}
-    >
-      {showSummaryBox ? <CloseIcon /> : <InfoIcon />}
-    </IconButton>
-  </Tooltip>
-</Box>
+                <Box sx={{ position: 'fixed', top: '20%', right: 0, zIndex: 999 }}>
+                    <Tooltip title={showSummaryBox ? "Hide Summary" : "Show Summary"}>
+                        <IconButton
+                            onClick={() => setShowSummaryBox(!showSummaryBox)}
+                            sx={{
+                                bgcolor: 'primary.main',
+                                color: 'white',
+                                '&:hover': { bgcolor: 'primary.dark' },
+                                boxShadow: 2,
+                                borderRadius: '8px 0 0 8px'
+                            }}
+                        >
+                            {showSummaryBox ? <CloseIcon /> : <InfoIcon />}
+                        </IconButton>
+                    </Tooltip>
+                </Box>
                 <Box sx={{ maxWidth: '1400px', mx: 'auto' }}>
                     {/* Cluster Info Section - ORIGINAL UI PRESERVED */}
                     <Box sx={{ bgcolor: '#05307a', color: 'white', p: 1, borderRadius: 1, mb: 2, fontWeight: 'bold', textAlign: 'center' }}>Cluster Info</Box>
@@ -1982,26 +1982,26 @@ const validateSidePlotLabels = () => {
                     {status == "Completed" && (
                         <Box sx={{ width: '100%', mt: 1, textAlign: 'center', color: 'warning.main' }}><WarningAmberIcon />
                             <Typography >This Cluster is Completed. Editing is not allowed</Typography></Box>)}
-{(
-  (
-    role === 'Super Admin' ||
-    role === 'IT Admin' ||
-    role === 'District Level Approver' ||
-    role === 'Taluk Level Approver'
-  ) &&
-  status === "Completed"
-) && (
-  <Grid container justifyContent="center" sx={{ mt: 2 }}>
-    <Button
-      variant="contained"
-      color="primary"
-      onClick={() => setOpenClusterManageDialog(true)}
-    >
-      <SettingsSuggestIcon sx={{ mr: 1 }} />
-      Cluster Manage 
-    </Button>
-  </Grid>
-)}
+                    {(
+                        (
+                            role === 'Super Admin' ||
+                            role === 'IT Admin' ||
+                            role === 'District Level Approver' ||
+                            role === 'Taluk Level Approver'
+                        ) &&
+                        status === "Completed"
+                    ) && (
+                            <Grid container justifyContent="center" sx={{ mt: 2 }}>
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={() => setOpenClusterManageDialog(true)}
+                                >
+                                    <SettingsSuggestIcon sx={{ mr: 1 }} />
+                                    Cluster Manage
+                                </Button>
+                            </Grid>
+                        )}
 
                     <Grid
                         container
@@ -2135,8 +2135,8 @@ const validateSidePlotLabels = () => {
                                         // Add API crops
                                         if (apiCropsData && apiCropsData.crops) {
                                             apiCropsData.crops.forEach(crop => {
-                                                if(crop.isActive) {
-                                                allCrops.push(crop.cropName);
+                                                if (crop.isActive) {
+                                                    allCrops.push(crop.cropName);
                                                 }
                                             });
                                         }
@@ -2173,7 +2173,7 @@ const validateSidePlotLabels = () => {
                     </Box>
 
                     {/* Keyplot Sections - ORIGINAL UI PRESERVED */}
-                   {keyplotsData.map((keyplot, index) => {
+                    {keyplotsData.map((keyplot, index) => {
 
                         const isNewRowIncomplete = keyplot.rows.filter(r => r.isNew).some(r => !r.villageName || !r.block || !r.svNo || !r.area || !r.enumeratedArea);
 
@@ -2210,97 +2210,97 @@ const validateSidePlotLabels = () => {
                                             </Paper>
                                         </Box>
                                     ) : (
-                                       
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="h6">Side Plot -</Typography>
-                        <FormControl size="small" sx={{ minWidth: 120 }} error={!keyplot.label}>
-                            <Select
-                                value={keyplot.label || ''}
-                                onChange={(e) => handleLabelChange(e.target.value, keyplot.id)}
-                                displayEmpty
-    //   label="Select Label"
-      sx={{
-        color: keyplot.label ? 'white' : 'rgba(255, 255, 255, 0.7)',
-        '& .MuiOutlinedInput-notchedOutline': { 
-          borderColor: keyplot.label ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.3)' 
-        },
-        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
-        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
-        '& .MuiSvgIcon-root': { color: 'white' },
-      }}
-    >
-      <MenuItem value="" disabled>
-        <em>Select a label</em>
-      </MenuItem>
-      {SIDE_PLOT_OPTIONS.map(option => {
-        const isDisabled = keyplotsData.some(kp => kp.label === option);
-        return (
-          <MenuItem key={option} value={option} disabled={isDisabled}>
-            {option} {isDisabled && option !== keyplot.label && ' (Already selected)'}
-          </MenuItem>
-        );
-      })}
-    </Select>
-    {/* {!keyplot.label && (
+
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Typography variant="h6">Side Plot -</Typography>
+                                            <FormControl size="small" sx={{ minWidth: 120 }} error={!keyplot.label}>
+                                                <Select
+                                                    value={keyplot.label || ''}
+                                                    onChange={(e) => handleLabelChange(e.target.value, keyplot.id)}
+                                                    displayEmpty
+                                                    //   label="Select Label"
+                                                    sx={{
+                                                        color: keyplot.label ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                                                        '& .MuiOutlinedInput-notchedOutline': {
+                                                            borderColor: keyplot.label ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.3)'
+                                                        },
+                                                        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
+                                                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
+                                                        '& .MuiSvgIcon-root': { color: 'white' },
+                                                    }}
+                                                >
+                                                    <MenuItem value="" disabled>
+                                                        <em>Select a label</em>
+                                                    </MenuItem>
+                                                    {SIDE_PLOT_OPTIONS.map(option => {
+                                                        const isDisabled = keyplotsData.some(kp => kp.label === option);
+                                                        return (
+                                                            <MenuItem key={option} value={option} disabled={isDisabled}>
+                                                                {option} {isDisabled && option !== keyplot.label && ' (Already selected)'}
+                                                            </MenuItem>
+                                                        );
+                                                    })}
+                                                </Select>
+                                                {/* {!keyplot.label && (
       <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.8)', mt: 0.5 }}>
         Please select a label
       </Typography>
     )} */}
-  </FormControl>
-  
-{/* 2. ENHANCED REORDER CONTROLS */}
-<Box 
-    sx={{ 
-        display: 'flex', 
-        ml: 3, 
-        backgroundColor: 'rgba(255, 255, 255, 0.1)', // Subtle light background
-        borderRadius: '6px', // Rounded corners
-        border: '1px solid rgba(255, 255, 255, 0.3)', // Light border
-        overflow: 'hidden' 
-    }}
->
-    <Tooltip title="Move Up">
-        <span>
-            <IconButton 
-                size="small" 
-                onClick={() => handleMovePlot(index, 'up')} 
-                disabled={index === 1} // Disabled if it's right below K
-                sx={{ 
-                    color: 'white',
-                    borderRadius: 0, // Remove default circle hover for a cleaner look
-                    padding: '4px 8px',
-                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
-                    '&.Mui-disabled': { color: 'rgba(255, 255, 255, 0.3)' }
-                }}
-            >
-                <ArrowUpward fontSize="small" />
-            </IconButton>
-        </span>
-    </Tooltip>
+                                            </FormControl>
 
-    {/* Vertical line separating the two buttons */}
-    <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255, 255, 255, 0.3)' }} />
-    
-    <Tooltip title="Move Down">
-        <span>
-            <IconButton 
-                size="small" 
-                onClick={() => handleMovePlot(index, 'down')} 
-                disabled={index === keyplotsData.length - 1} // Disabled if it's at the very bottom
-                sx={{ 
-                    color: 'white',
-                    borderRadius: 0,
-                    padding: '4px 8px',
-                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
-                    '&.Mui-disabled': { color: 'rgba(255, 255, 255, 0.3)' }
-                }}
-            >
-                <ArrowDownward fontSize="small" />
-            </IconButton>
-        </span>
-    </Tooltip>
-</Box>
-                    </Box>
+                                            {/* 2. ENHANCED REORDER CONTROLS */}
+                                            <Box
+                                                sx={{
+                                                    display: 'flex',
+                                                    ml: 3,
+                                                    backgroundColor: 'rgba(255, 255, 255, 0.1)', // Subtle light background
+                                                    borderRadius: '6px', // Rounded corners
+                                                    border: '1px solid rgba(255, 255, 255, 0.3)', // Light border
+                                                    overflow: 'hidden'
+                                                }}
+                                            >
+                                                <Tooltip title="Move Up">
+                                                    <span>
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => handleMovePlot(index, 'up')}
+                                                            disabled={index === 1} // Disabled if it's right below K
+                                                            sx={{
+                                                                color: 'white',
+                                                                borderRadius: 0, // Remove default circle hover for a cleaner look
+                                                                padding: '4px 8px',
+                                                                '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+                                                                '&.Mui-disabled': { color: 'rgba(255, 255, 255, 0.3)' }
+                                                            }}
+                                                        >
+                                                            <ArrowUpward fontSize="small" />
+                                                        </IconButton>
+                                                    </span>
+                                                </Tooltip>
+
+                                                {/* Vertical line separating the two buttons */}
+                                                <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255, 255, 255, 0.3)' }} />
+
+                                                <Tooltip title="Move Down">
+                                                    <span>
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => handleMovePlot(index, 'down')}
+                                                            disabled={index === keyplotsData.length - 1} // Disabled if it's at the very bottom
+                                                            sx={{
+                                                                color: 'white',
+                                                                borderRadius: 0,
+                                                                padding: '4px 8px',
+                                                                '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+                                                                '&.Mui-disabled': { color: 'rgba(255, 255, 255, 0.3)' }
+                                                            }}
+                                                        >
+                                                            <ArrowDownward fontSize="small" />
+                                                        </IconButton>
+                                                    </span>
+                                                </Tooltip>
+                                            </Box>
+                                        </Box>
                                     )}
 
                                     {/* RIGHT SIDE: Total enumerated area for this section */}
@@ -2404,8 +2404,8 @@ const validateSidePlotLabels = () => {
                                                         <Grid item xs={1}><TextField label="Sub Div" size="small" fullWidth value={row.sub} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'sub')}
                                                             onBlur={() => { if (row.villageId && row.block && row.svNo) { handlePlotValidation(keyplot.id, row.uniqueId); } }}
                                                         /></Grid>
-                                                        <Grid item xs={2}><TextField label="Area" size="small" fullWidth type="number" value={row.area} InputProps={{ readOnly: isAreaReadOnly }}  onWheel={(e) => e.target.blur()}   onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'area')} /></Grid>
-                                                        <Grid item xs={2}><TextField label="Enum. Area" size="small" fullWidth type="number" value={row.enumeratedArea}  onWheel={(e) => e.target.blur()}   onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')} onBlur={(e) => handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')} error={hasError} helperText={hasError ? errors[errorKey] : ''} /></Grid>
+                                                        <Grid item xs={2}><TextField label="Area" size="small" fullWidth type="number" value={row.area} InputProps={{ readOnly: isAreaReadOnly }} onWheel={(e) => e.target.blur()} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'area')} /></Grid>
+                                                        <Grid item xs={2}><TextField label="Enum. Area" size="small" fullWidth type="number" value={row.enumeratedArea} onWheel={(e) => e.target.blur()} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')} onBlur={(e) => handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')} error={hasError} helperText={hasError ? errors[errorKey] : ''} /></Grid>
                                                         <Grid item xs={2}><Tooltip title="Remove Row"><IconButton color="error" onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)}><RemoveCircleOutlineIcon /></IconButton></Tooltip></Grid>
                                                     </>
                                                 ) : (
@@ -2416,9 +2416,9 @@ const validateSidePlotLabels = () => {
                                                         <Grid item xs={1}><TextField value={row.sub} InputProps={{ readOnly: true }} fullWidth size="small" /></Grid>
                                                         <Grid item xs={2}><TextField value={row.area} InputProps={{ readOnly: !isKeyPlotFirstRow && isAreaReadOnly || row.isExisting }} fullWidth size="small" type="number" onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'area')} /></Grid>
                                                         <Grid item xs={2}><TextField label="Enum. Area" size="small" InputProps={{ readOnly: row.isExisting }} fullWidth type="number" value={row.enumeratedArea} onChange={(e) => handleInputChange(e, keyplot.id, row.uniqueId, 'enumeratedArea')} onBlur={(e) => handleInputBlur(e, keyplot.id, row.uniqueId, 'enumeratedArea')} error={hasError} helperText={hasError ? errors[errorKey] : ''} /></Grid>
-                                                         {(status != "Completed" && status != "Under Review") && (
-                                                        <Grid item xs={1}>{!isKeyPlotFirstRow && (<Tooltip title="Remove Row"><IconButton onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)} size="small" color="error"><RemoveCircleOutlineIcon /></IconButton></Tooltip>)}</Grid>
-                                                         )}
+                                                        {(status != "Completed" && status != "Under Review") && (
+                                                            <Grid item xs={1}>{!isKeyPlotFirstRow && (<Tooltip title="Remove Row"><IconButton onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)} size="small" color="error"><RemoveCircleOutlineIcon /></IconButton></Tooltip>)}</Grid>
+                                                        )}
                                                         <Grid item xs={1}>
                                                             {row.isExisting && (
                                                                 <Chip label="Saved" size="small" color="success" variant="outlined" />
@@ -2496,8 +2496,8 @@ const validateSidePlotLabels = () => {
                     </DialogContent>
 
                     <DialogActions>
-                        <Button onClick={() => setOpenLimitDialog(false)}  color="secondary"
-                             variant="contained">Cancel</Button>
+                        <Button onClick={() => setOpenLimitDialog(false)} color="secondary"
+                            variant="contained">Cancel</Button>
 
                         {/* BELOW MIN → Save only */}
                         {limitSeverity === 'info' && (
@@ -2527,16 +2527,16 @@ const validateSidePlotLabels = () => {
                         {limitSeverity === 'success' && (
                             <>
                                 <Button
-  onClick={() => proceedSubmit('SAVE')}
-  style={{
-    backgroundColor: '#1677ff', // primary blue
-    color: '#fff',
-    width: '7rem',
-    borderColor: '#1677ff',
-  }}
->
-  Save
-</Button>
+                                    onClick={() => proceedSubmit('SAVE')}
+                                    style={{
+                                        backgroundColor: '#1677ff', // primary blue
+                                        color: '#fff',
+                                        width: '7rem',
+                                        borderColor: '#1677ff',
+                                    }}
+                                >
+                                    Save
+                                </Button>
 
                                 <Button
                                     variant="contained"
@@ -2552,7 +2552,7 @@ const validateSidePlotLabels = () => {
 
 
                 <Dialog open={isCropsModalOpen} onClose={() => setCropsModalOpen(false)} maxWidth="md" fullWidth>
-                    <DialogTitle sx={{background:"#05307a", color: 'white'}}>
+                    <DialogTitle sx={{ background: "#05307a", color: 'white' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <GrassIcon />
                             <Typography variant="h6">Select CCE Crops</Typography>
@@ -2661,7 +2661,7 @@ const validateSidePlotLabels = () => {
                         <Button
                             onClick={() => setCropsModalOpen(false)}
                             color="secondary"
-                             variant="contained"
+                            variant="contained"
                         >
                             Close
                         </Button>
@@ -2755,8 +2755,8 @@ const validateSidePlotLabels = () => {
                         </DialogContentText>
                     </DialogContent>
                     <DialogActions>
-                        <Button onClick={handleCloseConfirmDialog}  color="secondary"
-                             variant="contained">
+                        <Button onClick={handleCloseConfirmDialog} color="secondary"
+                            variant="contained">
                             Cancel
                         </Button>
                         <Button onClick={handleConfirmDelete} color="error" autoFocus variant="contained">
@@ -2772,7 +2772,7 @@ const validateSidePlotLabels = () => {
                     maxWidth="xs"
                     fullWidth
                 >
-                    <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 ,background: '#05307a', color: 'white'}}>
+                    <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, background: '#05307a', color: 'white' }}>
                         <SettingsSuggestIcon color="primary" />
                         Cluster Edit Mode
                     </DialogTitle>
