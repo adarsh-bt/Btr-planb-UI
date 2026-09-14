@@ -19,12 +19,12 @@ import CancelIcon from '@mui/icons-material/Cancel';
 
 import mainapi from "api/mainapi";
 import api from "api/api";
+import AuthService from "pages/authentication/services/authservice";
 
 const themeColor = "#05307a";
 
 const CropsManagement = () => {
   const BASE_URL = mainapi.BASE_URL;
-  // Crops State
   const [crops, setCrops] = useState([]);
   const [allCrops, setAllCrops] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +35,6 @@ const CropsManagement = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalCropsCount, setTotalCropsCount] = useState(0);
   
-  // Units State
   const [units, setUnits] = useState([]);
   const [unitsLoading, setUnitsLoading] = useState(true);
   const [unitsSearchTerm, setUnitsSearchTerm] = useState("");
@@ -44,7 +43,6 @@ const CropsManagement = () => {
   const [unitsPage, setUnitsPage] = useState(0);
   const [unitsRowsPerPage, setUnitsRowsPerPage] = useState(10);
   
-  // Stands Per Hectare State
   const [standsData, setStandsData] = useState([]);
   const [standsLoading, setStandsLoading] = useState(true);
   const [standsSearchTerm, setStandsSearchTerm] = useState("");
@@ -53,7 +51,6 @@ const CropsManagement = () => {
   const [standsPage, setStandsPage] = useState(0);
   const [standsRowsPerPage, setStandsRowsPerPage] = useState(10);
   
-  // Irrigation Sources State
   const [irrigationData, setIrrigationData] = useState([]);
   const [irrigationLoading, setIrrigationLoading] = useState(true);
   const [irrigationSearchTerm, setIrrigationSearchTerm] = useState("");
@@ -62,7 +59,6 @@ const CropsManagement = () => {
   const [irrigationPage, setIrrigationPage] = useState(0);
   const [irrigationRowsPerPage, setIrrigationRowsPerPage] = useState(10);
   
-  // CCE Crops State
   const [cceCrops, setCceCrops] = useState([]);
   const [cceLoading, setCceLoading] = useState(true);
   const [cceSearchTerm, setCceSearchTerm] = useState("");
@@ -71,9 +67,8 @@ const CropsManagement = () => {
   const [ccePage, setCcePage] = useState(0);
   const [cceRowsPerPage, setCceRowsPerPage] = useState(10);
 
-  // Dropdown data states
   const [cropGroups, setCropGroups] = useState([]);
-  const [cropClassGroups, setCropClassGroups] = useState([]); // NEW: filtered for Food/Non-food only
+  const [cropClassGroups, setCropClassGroups] = useState([]);
   const [cropTypes, setCropTypes] = useState([]);
   const [unitsList, setUnitsList] = useState([]);
   const [districts, setDistricts] = useState([]);
@@ -85,14 +80,39 @@ const CropsManagement = () => {
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [loadingGrowthStages, setLoadingGrowthStages] = useState(false);
   
-  // Additional dropdown data for CCE
   const [frames, setFrames] = useState([]);
   const [loadingFrames, setLoadingFrames] = useState(false);
 
-  // Tab State
+const [cropYieldTypes, setCropYieldTypes] = useState([]);
+const [yieldLoading, setYieldLoading] = useState(true);
+const [yieldSearchTerm, setYieldSearchTerm] = useState("");
+const [yieldOrder, setYieldOrder] = useState("asc");
+const [yieldOrderBy, setYieldOrderBy] = useState("cropYieldNameEn");
+const [yieldPage, setYieldPage] = useState(0);
+const [yieldRowsPerPage, setYieldRowsPerPage] = useState(10);
+const [totalYieldCount, setTotalYieldCount] = useState(0);
+
+const [yieldDialogOpen, setYieldDialogOpen] = useState(false);
+const [editingYield, setEditingYield] = useState(null);
+const [yieldFormData, setYieldFormData] = useState({
+  cropYieldTypeId: "",
+  cropId: "",
+  cropYieldNameEn: "",
+  cropYieldNameMal: "",
+  resultType: "",
+  resultUnit: "",
+  isActive: true
+});
+
+const [yieldValidationErrors, setYieldValidationErrors] = useState({
+  cropYieldNameEn: "",
+  cropYieldNameMal: "",
+  resultType: "",
+  resultUnit: ""
+});
+
   const [activeTab, setActiveTab] = useState(0);
 
-  // Dialog State for Add Crop
   const [addCropDialogOpen, setAddCropDialogOpen] = useState(false);
   const [newCropFormData, setNewCropFormData] = useState({
     cropNameEn: "",
@@ -108,7 +128,6 @@ const CropsManagement = () => {
     classificationIds: []
   });
   
-  // Dialog State for Edit Crop
   const [editCropDialogOpen, setEditCropDialogOpen] = useState(false);
   const [editingCrop, setEditingCrop] = useState(null);
   const [editCropFormData, setEditCropFormData] = useState({
@@ -131,16 +150,16 @@ const CropsManagement = () => {
   seasonalClassificationName: ""
 };
   
-  // Dialog State for Unit
   const [unitDialogOpen, setUnitDialogOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState(null);
   const [unitFormData, setUnitFormData] = useState({
     unitId: "",
     unitName: "",
-    isActive: true
+    isActive: true,
+    addedBy: AuthService.userid()
   });
   
-  // Dialog State for Stands Per Hectare
+
   const [standsDialogOpen, setStandsDialogOpen] = useState(false);
   const [editingStands, setEditingStands] = useState(null);
   const [standsFormData, setStandsFormData] = useState({
@@ -150,10 +169,10 @@ const CropsManagement = () => {
     distId: "",
     standsPerHectare: "",
     centPerTree: "",
-    isActive: true
+    isActive: true,
+    addedBy: AuthService.userid()
   });
   
-  // Dialog State for Irrigation Source
   const [irrigationDialogOpen, setIrrigationDialogOpen] = useState(false);
   const [editingIrrigation, setEditingIrrigation] = useState(null);
   const [irrigationFormData, setIrrigationFormData] = useState({
@@ -163,7 +182,6 @@ const CropsManagement = () => {
     isActive: true
   });
 
-  // CCE Dialog State
   const [cceDialogOpen, setCceDialogOpen] = useState(false);
   const [editingCce, setEditingCce] = useState(null);
   const [cceFormData, setCceFormData] = useState({
@@ -191,14 +209,12 @@ const CropsManagement = () => {
     return numRegex.test(text);
   };
   
-  // Snackbar State
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
     severity: "success"
   });
 
-  // Validation error states
   const [validationErrors, setValidationErrors] = useState({
     cropNameEn: "",
     cropNameMal: "",
@@ -207,7 +223,6 @@ const CropsManagement = () => {
     irrigationType: ""
   });
 
-  // Fetch all crops and store them
   const fetchAllCrops = async () => {
     try {
       setLoading(true);
@@ -234,7 +249,6 @@ const CropsManagement = () => {
     }
   };
 
-  // Apply search filter and pagination
   const applySearchAndPagination = (cropsData, search, currentPage, pageSize) => {
     let filtered = cropsData;
     
@@ -255,7 +269,6 @@ const CropsManagement = () => {
     setCrops(paginatedData);
   };
 
-  // Validation helper functions
   const validateEnglishText = (text) => {
     if (!text) return true;
     const englishRegex = /^[A-Za-z\s\-\(\)]+$/;
@@ -310,7 +323,6 @@ const CropsManagement = () => {
     setLoadingGrowthStages(true);
     console.log("Fetching growth stages...");
     
-    // Use the correct endpoint from your backend
     const response = await api.get(`${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-crop-growth-stage`);
     const data = response.data;
     
@@ -467,7 +479,6 @@ const CropsManagement = () => {
     return false;
   };
 
-  // NEW: Fetch crop class groups (filtered to Food and Non-food only)
   const fetchCropClassGroups = async () => {
     try {
       const response = await api.get(`${BASE_URL}/earas-form1-entry/api/master-crop-group/fetch-all`);
@@ -580,25 +591,162 @@ const CropsManagement = () => {
     }
   };
 
+const fetchCropYieldTypes = async (page = yieldPage, size = yieldRowsPerPage) => {
+  try {
+    setYieldLoading(true);
+    
+    console.log(`Fetching yield types - page: ${page}, size: ${size}`);
+    
+    const response = await api.get(
+      `${BASE_URL}/earas-form1-entry/api/master/crop-yield-type/fetch-all?page=${page}&size=${size}`
+    );
+    const data = response.data;
+    
+    console.log("Yield Types API Response:", data);
+    
+    let yieldArray = [];
+    let totalElements = 0;
+    
+    if (data && data.payload) {
+      if (data.payload.content && Array.isArray(data.payload.content)) {
+        yieldArray = data.payload.content;
+        totalElements = data.payload.totalElements || 0;
+      } else if (Array.isArray(data.payload)) {
+        yieldArray = data.payload;
+        totalElements = data.payload.length;
+      }
+    } else if (Array.isArray(data)) {
+      yieldArray = data;
+      totalElements = data.length;
+    }
+    
+    console.log(`Received ${yieldArray.length} items, total: ${totalElements}`);
+    
+    setCropYieldTypes(yieldArray);
+    setTotalYieldCount(totalElements);
+    setYieldLoading(false);
+  } catch (error) {
+    console.error("Error fetching crop yield types:", error);
+    setSnackbar({ open: true, message: "Failed to load yield types", severity: "error" });
+    setCropYieldTypes([]);
+    setYieldLoading(false);
+  }
+};
+
+// Handle Add Yield
+const handleAddYield = () => {
+  fetchAllCrops(); // Fetch crops for dropdown
+  setEditingYield(null);
+  setYieldFormData({
+    cropYieldTypeId: "",
+    cropId: "",
+    cropYieldNameEn: "",
+    cropYieldNameMal: "",
+    resultType: "",
+    resultUnit: "",
+    isActive: true
+  });
+  setYieldValidationErrors({
+    cropYieldNameEn: "",
+    cropYieldNameMal: "",
+    resultType: "",
+    resultUnit: ""
+  });
+  setYieldDialogOpen(true);
+};
+
+const handleEditYield = (yieldType) => {
+  fetchAllCrops();
+  setEditingYield(yieldType);
+  setYieldFormData({
+    cropYieldTypeId: yieldType.cropYieldTypeId || "",
+    cropId: yieldType.cropId || "",
+    cropYieldNameEn: yieldType.cropYieldNameEn || "",
+    cropYieldNameMal: yieldType.cropYieldNameMal || "",
+    resultType: yieldType.resultType || "",
+    resultUnit: yieldType.resultUnit || "",
+    isActive: yieldType.isActive !== undefined ? yieldType.isActive : true
+  });
+  setYieldValidationErrors({
+    cropYieldNameEn: "",
+    cropYieldNameMal: "",
+    resultType: "",
+    resultUnit: ""
+  });
+  setYieldDialogOpen(true);
+};
+
+const handleSaveYield = async () => {
+
+  if (!yieldFormData.cropYieldNameEn.trim()) {
+    setSnackbar({ open: true, message: "Yield name is required", severity: "warning" });
+    return;
+  }
+  
+  if (!yieldFormData.cropId) {
+    setSnackbar({ open: true, message: "Please select a crop", severity: "warning" });
+    return;
+  }
+
+  try {
+    const payload = {
+      cropYieldTypeId: yieldFormData.cropYieldTypeId || null,
+      cropId: parseInt(yieldFormData.cropId),
+      cropYieldNameEn: yieldFormData.cropYieldNameEn.trim(),
+      cropYieldNameMal: yieldFormData.cropYieldNameMal || "",
+      resultType: yieldFormData.resultType || "",
+      resultUnit: yieldFormData.resultUnit || "",
+      isActive: yieldFormData.isActive,
+      addedBy: AuthService.userid()
+    };
+    
+    console.log("Saving yield payload:", payload);
+    
+    const response = await api.post(
+      `${BASE_URL}/earas-form1-entry/api/master/crop-yield-type/save`, 
+      payload
+    );
+    
+    if (response.status === 200 || response.status === 201) {
+      setSnackbar({ 
+        open: true, 
+        message: editingYield ? "Crop yield type updated successfully" : "Crop yield type added successfully", 
+        severity: "success" 
+      });
+      setYieldDialogOpen(false);
+      fetchCropYieldTypes();
+    } else {
+      throw new Error("Failed to save crop yield type");
+    }
+  } catch (error) {
+    console.error("Error saving crop yield type:", error);
+    setSnackbar({ 
+      open: true, 
+      message: error.response?.data?.message || "Failed to save crop yield type", 
+      severity: "error" 
+    });
+  }
+};
+
   useEffect(() => {
     fetchAllCrops();
     fetchUnits();
     fetchStandsData();
     fetchIrrigationData();
     fetchCropGroups();
-    fetchCropClassGroups(); // NEW: Fetch filtered crop class groups
+    fetchCropClassGroups();
     fetchCropTypes();
     fetchUnitsList();
     fetchDistricts();
     fetchCceCrops();
     fetchFrames();
     fetchGrowthStages();
+    fetchCropYieldTypes();
   }, []);
 
-  // Add Crop Handler
   const handleAddCrop = () => {
     fetchCropGroups();
-    fetchCropClassGroups(); // Refresh the filtered list
+    fetchCropClassGroups();
     fetchCropTypes();
     fetchUnitsList();
     fetchGrowthStages();
@@ -637,7 +785,8 @@ const CropsManagement = () => {
       hortiGroupId: newCropFormData.hortiGroupId ? parseInt(newCropFormData.hortiGroupId) : null,
       cropTypeId: newCropFormData.cropTypeId ? parseInt(newCropFormData.cropTypeId) : null,
       unitId: newCropFormData.unitId ? parseInt(newCropFormData.unitId) : null,
-      classificationIds: newCropFormData.classificationIds.map(id => parseInt(id))  // ← Add this
+      classificationIds: newCropFormData.classificationIds.map(id => parseInt(id)),
+      addedBy: AuthService.userid()
     });
     
     if (response.status === 200 || response.status === 201) {
@@ -653,10 +802,9 @@ const CropsManagement = () => {
   }
 };
 
-  // Edit Crop Handler
   const handleEditCrop = (crop) => {
     fetchCropGroups();
-    fetchCropClassGroups(); // Refresh the filtered list
+    fetchCropClassGroups();
     fetchCropTypes();
     fetchUnitsList();
     fetchGrowthStages();
@@ -708,7 +856,8 @@ const CropsManagement = () => {
       hortiGroupId: editCropFormData.hortiGroupId ? parseInt(editCropFormData.hortiGroupId) : null,
       cropTypeId: editCropFormData.cropTypeId ? parseInt(editCropFormData.cropTypeId) : null,
       unitId: editCropFormData.unitId ? parseInt(editCropFormData.unitId) : null,
-      classificationIds: editCropFormData.classificationIds.map(id => parseInt(id))  // ← Add this
+      classificationIds: editCropFormData.classificationIds.map(id => parseInt(id)),
+      addedBy: AuthService.userid()
     });
     
     if (response.status === 200 || response.status === 201) {
@@ -724,7 +873,6 @@ const CropsManagement = () => {
   }
 };
 
-  // Unit CRUD Operations
   const handleAddUnit = () => {
     setEditingUnit(null);
     setUnitFormData({ unitName: "", isActive: true });
@@ -764,7 +912,6 @@ const CropsManagement = () => {
     }
   };
 
-  // Stands Per Hectare CRUD Operations
   const handleAddStands = () => {
     fetchDistricts();
     setEditingStands(null);
@@ -815,7 +962,6 @@ const CropsManagement = () => {
     }
   };
 
-  // Irrigation Sources CRUD Operations
   const handleAddIrrigation = () => {
     setEditingIrrigation(null);
     setIrrigationFormData({
@@ -832,7 +978,7 @@ const CropsManagement = () => {
     sourceId: irrigation.sourceId || "",
     irrigationType: irrigation.irrigationType || "",
     irrigationCodeDes: irrigation.irrigationCodeDes || "",
-    isActive: irrigation.isActive === true || irrigation.isActive === 1 || irrigation.isActive === "true"  // ← Ensure boolean
+    isActive: irrigation.isActive === true || irrigation.isActive === 1 || irrigation.isActive === "true"
   });
   setIrrigationDialogOpen(true);
 };
@@ -844,20 +990,19 @@ const CropsManagement = () => {
   }
 
   try {
-    // Ensure isActive is a boolean
     const isActiveBoolean = irrigationFormData.isActive === true || 
                             irrigationFormData.isActive === "true" || 
                             irrigationFormData.isActive === 1;
     
-    // Build payload with proper types
     const payload = {
       sourceId: irrigationFormData.sourceId || null,
       irrigationType: irrigationFormData.irrigationType.trim(),
       irrigationCodeDes: irrigationFormData.irrigationCodeDes || null,
-      isActive: isActiveBoolean  // ← Ensure boolean
+      isActive: isActiveBoolean,
+      addedBy: AuthService.userid()
     };
     
-    console.log("Saving irrigation payload:", payload);  // Debug log
+    console.log("Saving irrigation payload:", payload);
     
     const response = await api.post(
       `${BASE_URL}/earas-form1-entry/irrigation-details/master-irrigation-source/add`, 
@@ -871,7 +1016,7 @@ const CropsManagement = () => {
         severity: "success" 
       });
       setIrrigationDialogOpen(false);
-      fetchIrrigationData(); // Refresh the list
+      fetchIrrigationData();
     } else {
       throw new Error("Failed to save irrigation source");
     }
@@ -881,7 +1026,6 @@ const CropsManagement = () => {
   }
 };
 
-  // CCE Crop CRUD Operations
   const handleAddCce = () => {
     fetchCropGroups();
     fetchUnitsList();
@@ -957,7 +1101,8 @@ const CropsManagement = () => {
         cropId: parseInt(cceFormData.cropId),
         cceUnitId: cceFormData.cceUnitId ? parseInt(cceFormData.cceUnitId) : null,
         frameUnitId: cceFormData.frameUnitId ? parseInt(cceFormData.frameUnitId) : null,
-        frameId: cceFormData.frameId ? parseInt(cceFormData.frameId) : null
+        frameId: cceFormData.frameId ? parseInt(cceFormData.frameId) : null,
+        addedBy: AuthService.userid()
       };
       
       const response = await api.post(`${BASE_URL}/earas-form1-entry/cce-crop-details/master-cce-crop/add`, payload);
@@ -985,11 +1130,47 @@ const CropsManagement = () => {
     );
   };
 
+const getFilteredYieldTypes = () => {
+  if (!Array.isArray(cropYieldTypes) || cropYieldTypes.length === 0) return [];
+
+  if (!yieldSearchTerm || !yieldSearchTerm.trim()) return cropYieldTypes;
+  
+  const searchLower = yieldSearchTerm.toLowerCase().trim();
+  
+  return cropYieldTypes.filter((yieldType) => {
+    if (yieldType.cropYieldNameEn && 
+        yieldType.cropYieldNameEn.toLowerCase().includes(searchLower)) {
+      return true;
+    }
+    
+    if (yieldType.cropYieldNameMal && 
+        yieldType.cropYieldNameMal.toLowerCase().includes(searchLower)) {
+      return true;
+    }
+    
+    if (yieldType.cropNameEn && 
+        yieldType.cropNameEn.toLowerCase().includes(searchLower)) {
+      return true;
+    }
+    
+    if (yieldType.resultType && 
+        yieldType.resultType.toLowerCase().includes(searchLower)) {
+      return true;
+    }
+    
+    if (yieldType.resultUnit && 
+        yieldType.resultUnit.toLowerCase().includes(searchLower)) {
+      return true;
+    }
+    
+    return false;
+  });
+};
+
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
   };
 
-  // Sorting functions
   const sortData = (array, comparator) => {
     if (!Array.isArray(array) || array.length === 0) return [];
     const stabilizedThis = array.map((el, index) => [el, index]);
@@ -1042,7 +1223,6 @@ const CropsManagement = () => {
 
 const getFilteredIrrigation = () => {
   if (!Array.isArray(irrigationData) || irrigationData.length === 0) return [];
-  // Show ALL irrigation sources (both active and inactive)
   if (!irrigationSearchTerm.trim()) return irrigationData;
   const searchLower = irrigationSearchTerm.toLowerCase();
   return irrigationData.filter((irr) =>
@@ -1069,7 +1249,6 @@ const getFilteredIrrigation = () => {
   const sortedCce = sortData(filteredCce, getComparator(cceOrder, cceOrderBy));
   const paginatedCce = sortedCce.slice(ccePage * cceRowsPerPage, ccePage * cceRowsPerPage + cceRowsPerPage);
 
-  // Table columns
   const cropColumns = [
     { id: "slNo", label: "Sl.No", minWidth: 70, sortable: false },
     { id: "cropNameEn", label: "Crop Name (English)", minWidth: 180 },
@@ -1125,29 +1304,45 @@ const getFilteredIrrigation = () => {
     { id: "actions", label: "Actions", minWidth: 100, sortable: false }
   ];
 
-  const handleRequestSort = (property, type) => {
-    if (type === 'crops') {
-      const isAsc = orderBy === property && order === "asc";
-      setOrder(isAsc ? "desc" : "asc");
-      setOrderBy(property);
-    } else if (type === 'units') {
-      const isAsc = unitsOrderBy === property && unitsOrder === "asc";
-      setUnitsOrder(isAsc ? "desc" : "asc");
-      setUnitsOrderBy(property);
-    } else if (type === 'stands') {
-      const isAsc = standsOrderBy === property && standsOrder === "asc";
-      setStandsOrder(isAsc ? "desc" : "asc");
-      setStandsOrderBy(property);
-    } else if (type === 'irrigation') {
-      const isAsc = irrigationOrderBy === property && irrigationOrder === "asc";
-      setIrrigationOrder(isAsc ? "desc" : "asc");
-      setIrrigationOrderBy(property);
-    } else if (type === 'cce') {
-      const isAsc = cceOrderBy === property && cceOrder === "asc";
-      setCceOrder(isAsc ? "desc" : "asc");
-      setCceOrderBy(property);
-    }
-  };
+const yieldColumns = [
+  { id: "slNo", label: "Sl.No", minWidth: 70, sortable: false },
+  { id: "cropYieldNameEn", label: "Yield Name (English)", minWidth: 180 },
+  { id: "cropYieldNameMal", label: "Yield Name (Malayalam)", minWidth: 180 },
+  { id: "cropName", label: "Crop Name", minWidth: 180 },
+  { id: "resultType", label: "Result Type", minWidth: 150 },
+  { id: "resultUnit", label: "Result Unit", minWidth: 150 },
+  { id: "isActive", label: "Status", minWidth: 100 },
+  { id: "actions", label: "Actions", minWidth: 100, sortable: false }
+];
+
+
+const handleRequestSort = (property, type) => {
+  if (type === 'crops') {
+    const isAsc = orderBy === property && order === "asc";
+    setOrder(isAsc ? "desc" : "asc");
+    setOrderBy(property);
+  } else if (type === 'units') {
+    const isAsc = unitsOrderBy === property && unitsOrder === "asc";
+    setUnitsOrder(isAsc ? "desc" : "asc");
+    setUnitsOrderBy(property);
+  } else if (type === 'stands') {
+    const isAsc = standsOrderBy === property && standsOrder === "asc";
+    setStandsOrder(isAsc ? "desc" : "asc");
+    setStandsOrderBy(property);
+  } else if (type === 'irrigation') {
+    const isAsc = irrigationOrderBy === property && irrigationOrder === "asc";
+    setIrrigationOrder(isAsc ? "desc" : "asc");
+    setIrrigationOrderBy(property);
+  } else if (type === 'cce') {
+    const isAsc = cceOrderBy === property && cceOrder === "asc";
+    setCceOrder(isAsc ? "desc" : "asc");
+    setCceOrderBy(property);
+  } else if (type === 'yield') {
+    const isAsc = yieldOrderBy === property && yieldOrder === "asc";
+    setYieldOrder(isAsc ? "desc" : "asc");
+    setYieldOrderBy(property);
+  }
+};
 
   return (
     <Grid container spacing={3}>
@@ -1164,6 +1359,7 @@ const getFilteredIrrigation = () => {
               <Tab label="Stands Per Hectare Management" />
               <Tab label="Irrigation Source Management" />
               <Tab label="CCE Crop Management" />
+              <Tab label="Crop Yield Management" />
             </Tabs>
 
             {/* Crops Tab */}
@@ -1178,8 +1374,9 @@ const getFilteredIrrigation = () => {
                     value={searchTerm}
                     onChange={handleSearchChange}
                     sx={{ width: '350px' }}
-                    InputProps={{
-                      startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>)
+                    inputProps={{ maxLength: 50 }}
+  InputProps={{
+    startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>)
                     }}
                   />
                   <Button
@@ -1193,12 +1390,18 @@ const getFilteredIrrigation = () => {
                 </Box>
 
                 {searchTerm && !loading && (
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="textSecondary">
-                      Showing results for: <strong>"{searchTerm}"</strong> ({totalCropsCount} crops found)
-                    </Typography>
-                  </Box>
-                )}
+  <Box sx={{ mb: 2 }}>
+    <Typography variant="body2" color="textSecondary">
+      <Typography
+        component="span"
+        variant="body2"
+        sx={{ color: `${themeColor} !important`, fontWeight: "bold" }}
+      >
+      </Typography>{" "}
+      ({totalCropsCount} crops found)
+    </Typography>
+  </Box>
+)}
 
                 <TableContainer component={Paper} sx={{ maxHeight: "70vh", overflow: "auto" }}>
                   <Table stickyHeader>
@@ -1207,9 +1410,18 @@ const getFilteredIrrigation = () => {
                         {cropColumns.map((column) => (
                           <TableCell key={column.id} style={{ minWidth: column.minWidth, backgroundColor: themeColor, color: "white", fontWeight: "bold" }}>
                             {column.sortable !== false ? (
-                              <TableSortLabel active={orderBy === column.id} direction={orderBy === column.id ? order : "asc"} onClick={() => handleRequestSort(column.id, 'crops')} sx={{ color: "white" }}>
-                                {column.label}
-                              </TableSortLabel>
+                              <TableSortLabel 
+  active={orderBy === column.id} 
+  direction={orderBy === column.id ? order : "asc"} 
+  onClick={() => handleRequestSort(column.id, 'crops')} 
+  sx={{ 
+    color: "white",
+    '&.Mui-active': { color: 'rgba(255, 255, 255, 0.7)' },
+    '& .MuiTableSortLabel-icon': { color: 'rgba(255, 255, 255, 0.7) !important' }
+  }}
+>
+  {column.label}
+</TableSortLabel>
                             ) : (column.label)}
                           </TableCell>
                         ))}
@@ -1303,7 +1515,7 @@ const getFilteredIrrigation = () => {
             {activeTab === 1 && (
               <>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                  <TextField variant="outlined" size="small" placeholder="Search units..." value={unitsSearchTerm} onChange={(e) => { setUnitsSearchTerm(e.target.value); setUnitsPage(0); }} sx={{ width: '300px' }} InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>) }} />
+                  <TextField variant="outlined" size="small" placeholder="Search units..." value={unitsSearchTerm} onChange={(e) => { setUnitsSearchTerm(e.target.value); setUnitsPage(0); }} sx={{ width: '300px' }} inputProps={{ maxLength: 50 }} InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>) }} />
                   <Box><Tooltip title="Refresh"><IconButton onClick={fetchUnits}><RefreshIcon /></IconButton></Tooltip><Button variant="contained" startIcon={<AddIcon />} onClick={handleAddUnit} sx={{ backgroundColor: themeColor }}>Add Unit</Button></Box>
                 </Box>
 
@@ -1313,7 +1525,18 @@ const getFilteredIrrigation = () => {
                       <TableRow>
                         {unitColumns.map((column) => (
                           <TableCell key={column.id} style={{ minWidth: column.minWidth, backgroundColor: themeColor, color: "white", fontWeight: "bold" }}>
-                            {column.sortable !== false ? (<TableSortLabel active={unitsOrderBy === column.id} direction={unitsOrderBy === column.id ? unitsOrder : "asc"} onClick={() => handleRequestSort(column.id, 'units')} sx={{ color: "white" }}>{column.label}</TableSortLabel>) : (column.label)}
+                            {column.sortable !== false ? (<TableSortLabel 
+  active={unitsOrderBy === column.id} 
+  direction={unitsOrderBy === column.id ? unitsOrder : "asc"} 
+  onClick={() => handleRequestSort(column.id, 'units')} 
+  sx={{ 
+    color: "white",
+    '&.Mui-active': { color: 'rgba(255, 255, 255, 0.7)' },
+    '& .MuiTableSortLabel-icon': { color: 'rgba(255, 255, 255, 0.7) !important' }
+  }}
+>
+  {column.label}
+</TableSortLabel>) : (column.label)}
                           </TableCell>
                         ))}
                       </TableRow>
@@ -1344,8 +1567,7 @@ const getFilteredIrrigation = () => {
             {activeTab === 2 && (
               <>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                  <TextField variant="outlined" size="small" placeholder="Search by crop or stands..." value={standsSearchTerm} onChange={(e) => { setStandsSearchTerm(e.target.value); setStandsPage(0); }} sx={{ width: '300px' }} InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>) }} />
-                  <Box><Tooltip title="Refresh"><IconButton onClick={fetchStandsData}><RefreshIcon /></IconButton></Tooltip><Button variant="contained" startIcon={<AddIcon />} onClick={handleAddStands} sx={{ backgroundColor: themeColor }}>Add Stands Data</Button></Box>
+                <TextField variant="outlined" size="small" placeholder="Search by crop or stands..." value={standsSearchTerm} onChange={(e) => { setStandsSearchTerm(e.target.value); setStandsPage(0); }} sx={{ width: '300px' }} inputProps={{ maxLength: 50 }} InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>) }} />                  <Box><Tooltip title="Refresh"><IconButton onClick={fetchStandsData}><RefreshIcon /></IconButton></Tooltip><Button variant="contained" startIcon={<AddIcon />} onClick={handleAddStands} sx={{ backgroundColor: themeColor }}>Add Stands Data</Button></Box>
                 </Box>
 
                 <TableContainer component={Paper} sx={{ maxHeight: "70vh", overflow: "auto" }}>
@@ -1354,7 +1576,18 @@ const getFilteredIrrigation = () => {
                       <TableRow>
                         {standsColumns.map((column) => (
                           <TableCell key={column.id} style={{ minWidth: column.minWidth, backgroundColor: themeColor, color: "white", fontWeight: "bold" }}>
-                            {column.sortable !== false ? (<TableSortLabel active={standsOrderBy === column.id} direction={standsOrderBy === column.id ? standsOrder : "asc"} onClick={() => handleRequestSort(column.id, 'stands')} sx={{ color: "white" }}>{column.label}</TableSortLabel>) : (column.label)}
+                            {column.sortable !== false ? (<TableSortLabel 
+  active={standsOrderBy === column.id} 
+  direction={standsOrderBy === column.id ? standsOrder : "asc"} 
+  onClick={() => handleRequestSort(column.id, 'stands')} 
+  sx={{ 
+    color: "white",
+    '&.Mui-active': { color: 'rgba(255, 255, 255, 0.7)' },
+    '& .MuiTableSortLabel-icon': { color: 'rgba(255, 255, 255, 0.7) !important' }
+  }}
+>
+  {column.label}
+</TableSortLabel>) : (column.label)}
                           </TableCell>
                         ))}
                       </TableRow>
@@ -1393,7 +1626,7 @@ const getFilteredIrrigation = () => {
             {activeTab === 3 && (
               <>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                  <TextField variant="outlined" size="small" placeholder="Search irrigation type..." value={irrigationSearchTerm} onChange={(e) => { setIrrigationSearchTerm(e.target.value); setIrrigationPage(0); }} sx={{ width: '300px' }} InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>) }} />
+                  <TextField variant="outlined" size="small" placeholder="Search irrigation type..." value={irrigationSearchTerm} onChange={(e) => { setIrrigationSearchTerm(e.target.value); setIrrigationPage(0); }} sx={{ width: '300px' }} inputProps={{ maxLength: 50 }} InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>) }} />
                   <Box><Tooltip title="Refresh"><IconButton onClick={fetchIrrigationData}><RefreshIcon /></IconButton></Tooltip><Button variant="contained" startIcon={<AddIcon />} onClick={handleAddIrrigation} sx={{ backgroundColor: themeColor }}>Add Irrigation Source</Button></Box>
                 </Box>
 
@@ -1403,7 +1636,18 @@ const getFilteredIrrigation = () => {
                       <TableRow>
                         {irrigationColumns.map((column) => (
                           <TableCell key={column.id} style={{ minWidth: column.minWidth, backgroundColor: themeColor, color: "white", fontWeight: "bold" }}>
-                            {column.sortable !== false ? (<TableSortLabel active={irrigationOrderBy === column.id} direction={irrigationOrderBy === column.id ? irrigationOrder : "asc"} onClick={() => handleRequestSort(column.id, 'irrigation')} sx={{ color: "white" }}>{column.label}</TableSortLabel>) : (column.label)}
+                            {column.sortable !== false ? (<TableSortLabel 
+  active={irrigationOrderBy === column.id} 
+  direction={irrigationOrderBy === column.id ? irrigationOrder : "asc"} 
+  onClick={() => handleRequestSort(column.id, 'irrigation')} 
+  sx={{ 
+    color: "white",
+    '&.Mui-active': { color: 'rgba(255, 255, 255, 0.7)' },
+    '& .MuiTableSortLabel-icon': { color: 'rgba(255, 255, 255, 0.7) !important' }
+  }}
+>
+  {column.label}
+</TableSortLabel>) : (column.label)}
                           </TableCell>
                         ))}
                       </TableRow>
@@ -1455,6 +1699,7 @@ const getFilteredIrrigation = () => {
                       setCcePage(0); 
                     }} 
                     sx={{ width: '350px' }} 
+                    inputProps={{ maxLength: 50 }}
                     InputProps={{ 
                       startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>) 
                     }} 
@@ -1492,13 +1737,17 @@ const getFilteredIrrigation = () => {
                           >
                             {column.sortable !== false ? (
                               <TableSortLabel 
-                                active={cceOrderBy === column.id} 
-                                direction={cceOrderBy === column.id ? cceOrder : "asc"} 
-                                onClick={() => handleRequestSort(column.id, 'cce')} 
-                                sx={{ color: "white" }}
-                              >
-                                {column.label}
-                              </TableSortLabel>
+  active={cceOrderBy === column.id} 
+  direction={cceOrderBy === column.id ? cceOrder : "asc"} 
+  onClick={() => handleRequestSort(column.id, 'cce')} 
+  sx={{ 
+    color: "white",
+    '&.Mui-active': { color: 'rgba(255, 255, 255, 0.7)' },
+    '& .MuiTableSortLabel-icon': { color: 'rgba(255, 255, 255, 0.7) !important' }
+  }}
+>
+  {column.label}
+</TableSortLabel>
                             ) : (
                               column.label
                             )}
@@ -1527,7 +1776,6 @@ const getFilteredIrrigation = () => {
         <TableCell>{cce.cropNameEn || "-"}</TableCell>
         <TableCell>{cce.noOfCce || "-"}</TableCell>
         
-        {/* Frame Details - CORRECTED */}
         <TableCell>
           {cce.frameId ? (
             (() => {
@@ -1539,7 +1787,6 @@ const getFilteredIrrigation = () => {
           )}
         </TableCell>
         
-        {/* Frame Measurements */}
         <TableCell>
           {cce.frameLength && cce.frameWidth 
             ? `${cce.frameLength} x ${cce.frameWidth} ${cce.frameUnitName || ''}`
@@ -1548,7 +1795,6 @@ const getFilteredIrrigation = () => {
         
         <TableCell>{cce.cceVisitLimit || "-"}</TableCell>
         
-        {/* Collection Settings */}
         <TableCell>
           <Grid container spacing={1} sx={{ minWidth: 200 }}>
             <Grid item xs={6}>
@@ -1638,18 +1884,156 @@ const getFilteredIrrigation = () => {
                 )}
               </>
             )}
+{/* Yield Management Tab */}
+{activeTab === 5 && (
+  <>
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <TextField 
+  variant="outlined" 
+  size="small" 
+  placeholder="Search by yield name or crop..." 
+  value={yieldSearchTerm} 
+  onChange={(e) => { 
+    setYieldSearchTerm(e.target.value); 
+    setYieldPage(0); 
+  }} 
+  sx={{ width: '350px' }} 
+  inputProps={{ maxLength: 50 }}
+  InputProps={{ 
+    startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>) 
+  }} 
+/>
+      <Box>
+        <Tooltip title="Refresh">
+          <IconButton onClick={fetchCropYieldTypes}>
+            <RefreshIcon />
+          </IconButton>
+        </Tooltip>
+        <Button 
+          variant="contained" 
+          startIcon={<AddIcon />} 
+          onClick={handleAddYield} 
+          sx={{ backgroundColor: themeColor, ml: 1 }}
+        >
+          Add Yield Type
+        </Button>
+      </Box>
+    </Box>
+
+    {yieldSearchTerm && !yieldLoading && (
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="body2" color="textSecondary">
+        </Typography>
+      </Box>
+    )}
+
+    <TableContainer component={Paper} sx={{ maxHeight: "70vh", overflow: "auto" }}>
+      <Table stickyHeader>
+        <TableHead>
+          <TableRow>
+            {yieldColumns.map((column) => (
+              <TableCell 
+                key={column.id} 
+                style={{ 
+                  minWidth: column.minWidth, 
+                  backgroundColor: themeColor, 
+                  color: "white", 
+                  fontWeight: "bold" 
+                }}
+              >
+                {column.sortable !== false ? (
+                  <TableSortLabel 
+  active={yieldOrderBy === column.id} 
+  direction={yieldOrderBy === column.id ? yieldOrder : "asc"} 
+  onClick={() => handleRequestSort(column.id, 'yield')} 
+  sx={{ 
+    color: "white",
+    '&.Mui-active': { color: 'rgba(255, 255, 255, 0.7)' },
+    '& .MuiTableSortLabel-icon': { color: 'rgba(255, 255, 255, 0.7) !important' }
+  }}
+>
+  {column.label}
+</TableSortLabel>
+                ) : (
+                  column.label
+                )}
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+<TableBody>
+  {yieldLoading ? (
+    <TableRow>
+      <TableCell colSpan={yieldColumns.length} align="center">
+        <CircularProgress />
+      </TableCell>
+    </TableRow>
+  ) : getFilteredYieldTypes().length === 0 ? (
+    <TableRow>
+      <TableCell colSpan={yieldColumns.length} align="center">
+        {yieldSearchTerm ? "No matching yield types found" : "No yield types available"}
+      </TableCell>
+    </TableRow>
+  ) : (
+    getFilteredYieldTypes().map((yieldType, index) => (
+      <TableRow hover key={yieldType.cropYieldTypeId || index}>
+        <TableCell>{yieldPage * yieldRowsPerPage + index + 1}</TableCell>
+        <TableCell>{yieldType.cropYieldNameEn || "-"}</TableCell>
+        <TableCell>{yieldType.cropYieldNameMal || "-"}</TableCell>
+        <TableCell>{yieldType.cropNameEn || "-"}</TableCell>
+        <TableCell>{yieldType.resultType || "-"}</TableCell>
+        <TableCell>{yieldType.resultUnit || "-"}</TableCell>
+        <TableCell>
+          <Chip 
+            label={yieldType.isActive ? "Active" : "Inactive"} 
+            color={yieldType.isActive ? "success" : "error"} 
+            size="small" 
+          />
+        </TableCell>
+        <TableCell>
+          <IconButton size="small" onClick={() => handleEditYield(yieldType)} color="primary">
+            <EditIcon />
+          </IconButton>
+        </TableCell>
+      </TableRow>
+    ))
+  )}
+</TableBody>
+      </Table>
+    </TableContainer>
+    
+    {!yieldLoading && (
+      <TablePagination 
+  rowsPerPageOptions={[5, 10, 25, 50]} 
+  component="div" 
+  count={totalYieldCount}
+  rowsPerPage={yieldRowsPerPage} 
+  page={yieldPage} 
+  onPageChange={(e, newPage) => {
+    setYieldPage(newPage);
+    fetchCropYieldTypes(newPage, yieldRowsPerPage); 
+  }} 
+  onRowsPerPageChange={(e) => { 
+    const newSize = parseInt(e.target.value, 10);
+    setYieldRowsPerPage(newSize); 
+    setYieldPage(0);
+    fetchCropYieldTypes(0, newSize); 
+  }} 
+  sx={{ mt: 2 }} 
+/>
+    )}
+  </>
+)}
           </Paper>
         </Box>
       </Grid>
 
-{/* Add Crop Dialog */}
 <Dialog open={addCropDialogOpen} onClose={() => setAddCropDialogOpen(false)} maxWidth="md" fullWidth>
   <DialogTitle sx={{ backgroundColor: themeColor, color: "white" }}>
     Add New Crop
   </DialogTitle>
   <DialogContent>
     <Grid container spacing={2} sx={{ mt: 1 }}>
-      {/* Crop Name (English) */}
       <Grid item xs={12} sm={6}>
         <TextField 
           label="Crop Name (English)" 
@@ -1673,7 +2057,6 @@ const getFilteredIrrigation = () => {
         />
       </Grid>
 
-      {/* Crop Name (Malayalam) */}
       <Grid item xs={12} sm={6}>
         <TextField 
           label="Crop Name (Malayalam)" 
@@ -1696,7 +2079,6 @@ const getFilteredIrrigation = () => {
         />
       </Grid>
 
-      {/* Scientific Name */}
       <Grid item xs={12} sm={6}>
         <TextField 
           label="Scientific Name" 
@@ -1719,7 +2101,6 @@ const getFilteredIrrigation = () => {
         />
       </Grid>
 
-      {/* Crop Group */}
       <Grid item xs={12} sm={6}>
         <FormControl fullWidth>
           <InputLabel>Crop Group</InputLabel>
@@ -1737,7 +2118,6 @@ const getFilteredIrrigation = () => {
         </FormControl>
       </Grid>
 
-      {/* Crop Class Group */}
       <Grid item xs={12} sm={6}>
         <FormControl fullWidth>
           <InputLabel>Crop Class Group</InputLabel>
@@ -1755,7 +2135,6 @@ const getFilteredIrrigation = () => {
         </FormControl>
       </Grid>
 
-      {/* Crop Type */}
       <Grid item xs={12} sm={6}>
         <FormControl fullWidth>
           <InputLabel>Crop Type</InputLabel>
@@ -1773,7 +2152,6 @@ const getFilteredIrrigation = () => {
         </FormControl>
       </Grid>
 
-      {/* Unit */}
       <Grid item xs={12} sm={6}>
         <FormControl fullWidth>
           <InputLabel>Unit</InputLabel>
@@ -1791,7 +2169,6 @@ const getFilteredIrrigation = () => {
         </FormControl>
       </Grid>
 
-      {/* Seasonal Classifications - Multi Select with Checkbox */}
       <Grid item xs={6}>
         <FormControl fullWidth>
           <InputLabel>Seasonal Classifications</InputLabel>
@@ -1825,8 +2202,8 @@ const getFilteredIrrigation = () => {
             MenuProps={{
               PaperProps: {
           style: {
-            maxHeight: 200,  // ← Limit dropdown height
-            width: 300,      // ← Set dropdown width
+            maxHeight: 200, 
+            width: 300,
           },
         },
         anchorOrigin: {
@@ -1852,7 +2229,6 @@ const getFilteredIrrigation = () => {
         </FormControl>
       </Grid>
 
-      {/* Horticulture Crop Toggle */}
       <Grid item xs={12}>
         <FormControlLabel 
           control={
@@ -1872,7 +2248,6 @@ const getFilteredIrrigation = () => {
         />
       </Grid>
 
-      {/* Horti Group - shown only when isHorti is true */}
       {newCropFormData.isHorti && (
         <Grid item xs={12} sm={6}>
           <FormControl fullWidth>
@@ -1892,7 +2267,6 @@ const getFilteredIrrigation = () => {
         </Grid>
       )}
 
-      {/* Active Toggle */}
       <Grid item xs={12}>
         <FormControlLabel 
           control={
@@ -1946,7 +2320,6 @@ const getFilteredIrrigation = () => {
         />
       </Grid>
 
-      {/* Crop Name (Malayalam) */}
       <Grid item xs={12} sm={6}>
         <TextField 
           label="Crop Name (Malayalam)" 
@@ -1969,7 +2342,6 @@ const getFilteredIrrigation = () => {
         />
       </Grid>
 
-      {/* Scientific Name */}
       <Grid item xs={12} sm={6}>
         <TextField 
           label="Scientific Name" 
@@ -1992,7 +2364,6 @@ const getFilteredIrrigation = () => {
         />
       </Grid>
 
-      {/* Crop Group */}
       <Grid item xs={12} sm={6}>
         <FormControl fullWidth>
           <InputLabel>Crop Group</InputLabel>
@@ -2010,7 +2381,6 @@ const getFilteredIrrigation = () => {
         </FormControl>
       </Grid>
 
-      {/* Crop Class Group */}
       <Grid item xs={12} sm={6}>
         <FormControl fullWidth>
           <InputLabel>Crop Class Group</InputLabel>
@@ -2028,7 +2398,6 @@ const getFilteredIrrigation = () => {
         </FormControl>
       </Grid>
 
-      {/* Crop Type */}
       <Grid item xs={12} sm={6}>
         <FormControl fullWidth>
           <InputLabel>Crop Type</InputLabel>
@@ -2046,7 +2415,6 @@ const getFilteredIrrigation = () => {
         </FormControl>
       </Grid>
 
-      {/* Unit */}
       <Grid item xs={12} sm={6}>
         <FormControl fullWidth>
           <InputLabel>Unit</InputLabel>
@@ -2064,7 +2432,6 @@ const getFilteredIrrigation = () => {
         </FormControl>
       </Grid>
 
-      {/* Seasonal Classifications - Multi Select with Checkbox */}
       <Grid item xs={6}>
         <FormControl fullWidth>
           <InputLabel>Seasonal Classifications</InputLabel>
@@ -2108,7 +2475,6 @@ const getFilteredIrrigation = () => {
         </FormControl>
       </Grid>
 
-      {/* Horticulture Crop Toggle */}
       <Grid item xs={12}>
         <FormControlLabel 
           control={
@@ -2128,7 +2494,6 @@ const getFilteredIrrigation = () => {
         />
       </Grid>
 
-      {/* Horti Group - shown only when isHorti is true */}
       {editCropFormData.isHorti && (
         <Grid item xs={12} sm={6}>
           <FormControl fullWidth>
@@ -2148,7 +2513,6 @@ const getFilteredIrrigation = () => {
         </Grid>
       )}
 
-      {/* Active Toggle */}
       <Grid item xs={12}>
         <FormControlLabel 
           control={
@@ -2171,7 +2535,6 @@ const getFilteredIrrigation = () => {
   </DialogActions>
 </Dialog>
 
-      {/* Unit Dialog */}
       <Dialog open={unitDialogOpen} onClose={() => setUnitDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ backgroundColor: themeColor, color: "white" }}>
           {editingUnit ? "Edit Unit" : "Add New Unit"}
@@ -2204,7 +2567,6 @@ const getFilteredIrrigation = () => {
         <DialogActions><Button onClick={() => setUnitDialogOpen(false)}>Cancel</Button><Button onClick={handleSaveUnit} variant="contained" sx={{ backgroundColor: themeColor }}>{editingUnit ? "Update" : "Save"}</Button></DialogActions>
       </Dialog>
 
-      {/* Stands Per Hectare Dialog */}
       <Dialog open={standsDialogOpen} onClose={() => setStandsDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ backgroundColor: themeColor, color: "white" }}>{editingStands ? "Edit Stands Data" : "Add Stands Data"}</DialogTitle>
         <DialogContent>
@@ -2233,7 +2595,6 @@ const getFilteredIrrigation = () => {
         <DialogActions><Button onClick={() => setStandsDialogOpen(false)}>Cancel</Button><Button onClick={handleSaveStands} variant="contained" sx={{ backgroundColor: themeColor }}>{editingStands ? "Update" : "Save"}</Button></DialogActions>
       </Dialog>
 
-      {/* Irrigation Sources Dialog */}
       <Dialog open={irrigationDialogOpen} onClose={() => setIrrigationDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ backgroundColor: themeColor, color: "white" }}>{editingIrrigation ? "Edit Irrigation Source" : "Add Irrigation Source"}</DialogTitle>
         <DialogContent>
@@ -2291,7 +2652,143 @@ const getFilteredIrrigation = () => {
         <DialogActions><Button onClick={() => setIrrigationDialogOpen(false)}>Cancel</Button><Button onClick={handleSaveIrrigation} variant="contained" sx={{ backgroundColor: themeColor }}>{editingIrrigation ? "Update" : "Save"}</Button></DialogActions>
       </Dialog>
 
-      {/* CCE Crop Dialog */}
+<Dialog open={yieldDialogOpen} onClose={() => setYieldDialogOpen(false)} maxWidth="md" fullWidth>
+  <DialogTitle sx={{ backgroundColor: themeColor, color: "white" }}>
+    {editingYield ? "Edit Crop Yield Type" : "Add Crop Yield Type"}
+  </DialogTitle>
+  <DialogContent>
+    <Grid container spacing={2} sx={{ mt: 1 }}>
+      {/* Crop Selection */}
+      <Grid item xs={12}>
+        <FormControl fullWidth required>
+          <InputLabel>Crop Name</InputLabel>
+          <Select 
+            value={yieldFormData.cropId} 
+            onChange={(e) => setYieldFormData({ ...yieldFormData, cropId: e.target.value })} 
+            label="Crop Name"
+          >
+            {allCrops.filter(crop => crop.isActive === true).map((crop) => (
+              <MenuItem key={crop.cropId} value={crop.cropId}>
+                {crop.cropNameEn}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Grid>
+
+      <Grid item xs={12} sm={6}>
+        <TextField 
+          label="Yield Name (English)" 
+          fullWidth 
+          required 
+          value={yieldFormData.cropYieldNameEn} 
+          onChange={(e) => {
+            const value = e.target.value;
+            if (validateEnglishText(value) && validateTextFieldLength(value, 100)) {
+              setYieldFormData({ ...yieldFormData, cropYieldNameEn: value });
+              setYieldValidationErrors({ ...yieldValidationErrors, cropYieldNameEn: "" });
+            } else if (!validateEnglishText(value)) {
+              setYieldValidationErrors({ ...yieldValidationErrors, cropYieldNameEn: "Only English alphabets allowed" });
+            } else if (!validateTextFieldLength(value, 100)) {
+              setYieldValidationErrors({ ...yieldValidationErrors, cropYieldNameEn: "Maximum 100 characters allowed" });
+            }
+          }}
+          error={!!yieldValidationErrors.cropYieldNameEn}
+          helperText={yieldValidationErrors.cropYieldNameEn}
+          inputProps={{ maxLength: 100 }}
+        />
+      </Grid>
+
+      <Grid item xs={12} sm={6}>
+        <TextField 
+          label="Yield Name (Malayalam)" 
+          fullWidth 
+          value={yieldFormData.cropYieldNameMal} 
+          onChange={(e) => {
+            const value = e.target.value;
+            if (validateMalayalamText(value) && validateTextFieldLength(value, 100)) {
+              setYieldFormData({ ...yieldFormData, cropYieldNameMal: value });
+              setYieldValidationErrors({ ...yieldValidationErrors, cropYieldNameMal: "" });
+            } else if (!validateMalayalamText(value)) {
+              setYieldValidationErrors({ ...yieldValidationErrors, cropYieldNameMal: "Only Malayalam characters allowed" });
+            } else if (!validateTextFieldLength(value, 100)) {
+              setYieldValidationErrors({ ...yieldValidationErrors, cropYieldNameMal: "Maximum 100 characters allowed" });
+            }
+          }}
+          error={!!yieldValidationErrors.cropYieldNameMal}
+          helperText={yieldValidationErrors.cropYieldNameMal}
+          inputProps={{ maxLength: 100 }}
+        />
+      </Grid>
+
+      <Grid item xs={12} sm={6}>
+        <TextField 
+          label="Result Type" 
+          fullWidth 
+          value={yieldFormData.resultType} 
+          onChange={(e) => {
+            const value = e.target.value;
+            if (validateEnglishText(value) && validateTextFieldLength(value, 50)) {
+              setYieldFormData({ ...yieldFormData, resultType: value });
+              setYieldValidationErrors({ ...yieldValidationErrors, resultType: "" });
+            } else if (!validateEnglishText(value)) {
+              setYieldValidationErrors({ ...yieldValidationErrors, resultType: "Only English alphabets allowed" });
+            } else if (!validateTextFieldLength(value, 50)) {
+              setYieldValidationErrors({ ...yieldValidationErrors, resultType: "Maximum 50 characters allowed" });
+            }
+          }}
+          error={!!yieldValidationErrors.resultType}
+          helperText={yieldValidationErrors.resultType}
+          inputProps={{ maxLength: 50 }}
+          placeholder="e.g., Quantity, Weight, etc."
+        />
+      </Grid>
+
+      <Grid item xs={12} sm={6}>
+        <TextField 
+          label="Result Unit" 
+          fullWidth 
+          value={yieldFormData.resultUnit} 
+          onChange={(e) => {
+            const value = e.target.value;
+            if (validateEnglishText(value) && validateTextFieldLength(value, 20)) {
+              setYieldFormData({ ...yieldFormData, resultUnit: value });
+              setYieldValidationErrors({ ...yieldValidationErrors, resultUnit: "" });
+            } else if (!validateEnglishText(value)) {
+              setYieldValidationErrors({ ...yieldValidationErrors, resultUnit: "Only English alphabets allowed" });
+            } else if (!validateTextFieldLength(value, 20)) {
+              setYieldValidationErrors({ ...yieldValidationErrors, resultUnit: "Maximum 20 characters allowed" });
+            }
+          }}
+          error={!!yieldValidationErrors.resultUnit}
+          helperText={yieldValidationErrors.resultUnit}
+          inputProps={{ maxLength: 20 }}
+          placeholder="e.g., Kg, Ton, etc."
+        />
+      </Grid>
+
+      <Grid item xs={12}>
+        <FormControlLabel 
+          control={
+            <Switch 
+              checked={yieldFormData.isActive} 
+              onChange={(e) => setYieldFormData({ ...yieldFormData, isActive: e.target.checked })} 
+              color="primary" 
+            />
+          } 
+          label="Active" 
+        />
+      </Grid>
+    </Grid>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setYieldDialogOpen(false)}>Cancel</Button>
+    <Button onClick={handleSaveYield} variant="contained" sx={{ backgroundColor: themeColor }}>
+      {editingYield ? "Update" : "Save"}
+    </Button>
+  </DialogActions>
+</Dialog>
+
       <Dialog open={cceDialogOpen} onClose={() => setCceDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle sx={{ backgroundColor: themeColor, color: "white" }}>
           {editingCce ? "Edit CCE Crop" : "Add CCE Crop"}
