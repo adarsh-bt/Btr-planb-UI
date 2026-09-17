@@ -319,21 +319,17 @@ const UserAdvancedTourDiaryDetail = () => {
 
     // Check if submitted
     let isSubmitted = false;
-    let verifiedStatus = '';
 
     if (half === "First Half") {
       isSubmitted = submissionDetails.firstHalfSubmitted;
-      verifiedStatus = submissionDetails.firstHalfVerifiedStatus;
     } else if (half === "Second Half") {
       isSubmitted = submissionDetails.secondHalfSubmitted;
-      verifiedStatus = submissionDetails.secondHalfVerifiedStatus;
     } else if (half === "Full Month") {
       isSubmitted = submissionDetails.fullMonthSubmitId;
-      verifiedStatus = submissionDetails.fullMonthVerifiedStatus;
     }
 
-    // Must be submitted and not already approved
-    return isSubmitted && verifiedStatus !== 'APPROVED';
+    // Must be submitted (allow verify or re-verify/reject at any time)
+    return Boolean(isSubmitted);
   };
 
   /**
@@ -360,22 +356,19 @@ const UserAdvancedTourDiaryDetail = () => {
       verifiedStatus = submissionDetails.fullMonthVerifiedStatus;
     }
 
-    // Must be submitted, not already approved, and verification must be approved (if verification is required)
-    if (!isSubmitted || adminStatus === 'APPROVED') return false;
+    // Must be submitted (allow approve or reject at any time regardless of current approval status)
+    if (!isSubmitted) return false;
 
     // Check verification requirement based on role
     if (roleName === "Field Data Collector") {
-      // First & Second Half need verification before approval
-      return verifiedStatus === 'APPROVED' || adminStatus === 'PENDING' || adminStatus === 'REJECTED';
+      return verifiedStatus === 'APPROVED' || adminStatus === 'PENDING' || adminStatus === 'REJECTED' || adminStatus === 'APPROVED';
     } else if (roleName === "Field Inspector") {
-      // Full Month needs verification before approval (by Taluk Level Approver)
-      return verifiedStatus === 'APPROVED';
+      return verifiedStatus === 'APPROVED' || adminStatus === 'APPROVED' || adminStatus === 'REJECTED';
     } else if (roleName === "Taluk Level Approver" || roleName === "District Level Approver" || roleName === "District Level Data Viewer") {
-      // No verification required for these roles
       return true;
     }
 
-    return false;
+    return true;
   };
 
   // ============================================================
@@ -859,16 +852,16 @@ const UserAdvancedTourDiaryDetail = () => {
                 )}
                 {/* Verification Status */}
                 {submissionDetails.firstHalfVerifiedStatus && (
-                    <Chip
-                      label={`Ver: ${submissionDetails.firstHalfVerifiedStatus}`}
-                      size="small"
-                      color={
-                        submissionDetails.firstHalfVerifiedStatus === "APPROVED" ? "success" :
-                          submissionDetails.firstHalfVerifiedStatus === "REJECTED" ? "error" : "warning"
-                      }
-                      sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
-                    />
-                  )}
+                  <Chip
+                    label={`Ver: ${submissionDetails.firstHalfVerifiedStatus}`}
+                    size="small"
+                    color={
+                      submissionDetails.firstHalfVerifiedStatus === "APPROVED" ? "success" :
+                        submissionDetails.firstHalfVerifiedStatus === "REJECTED" ? "error" : "warning"
+                    }
+                    sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
+                  />
+                )}
                 {/* Remarks Indicator */}
                 {(submissionDetails.firstHalfAdminRemark || submissionDetails.firstHalfVerificationRemark) && (
                   <Tooltip
@@ -932,16 +925,16 @@ const UserAdvancedTourDiaryDetail = () => {
                 )}
                 {/* Verification Status */}
                 {submissionDetails.secondHalfVerifiedStatus && (
-                    <Chip
-                      label={`Ver: ${submissionDetails.secondHalfVerifiedStatus}`}
-                      size="small"
-                      color={
-                        submissionDetails.secondHalfVerifiedStatus === "APPROVED" ? "success" :
-                          submissionDetails.secondHalfVerifiedStatus === "REJECTED" ? "error" : "warning"
-                      }
-                      sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
-                    />
-                  )}
+                  <Chip
+                    label={`Ver: ${submissionDetails.secondHalfVerifiedStatus}`}
+                    size="small"
+                    color={
+                      submissionDetails.secondHalfVerifiedStatus === "APPROVED" ? "success" :
+                        submissionDetails.secondHalfVerifiedStatus === "REJECTED" ? "error" : "warning"
+                    }
+                    sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
+                  />
+                )}
                 {/* Remarks Indicator */}
                 {(submissionDetails.secondHalfAdminRemark || submissionDetails.secondHalfVerificationRemark) && (
                   <Tooltip
@@ -1009,16 +1002,16 @@ const UserAdvancedTourDiaryDetail = () => {
             )}
             {/* Verification Status */}
             {submissionDetails.fullMonthVerifiedStatus && (
-                <Chip
-                  label={`Ver: ${submissionDetails.fullMonthVerifiedStatus}`}
-                  size="small"
-                  color={
-                    submissionDetails.fullMonthVerifiedStatus === "APPROVED" ? "success" :
-                      submissionDetails.fullMonthVerifiedStatus === "REJECTED" ? "error" : "warning"
-                  }
-                  sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
-                />
-              )}
+              <Chip
+                label={`Ver: ${submissionDetails.fullMonthVerifiedStatus}`}
+                size="small"
+                color={
+                  submissionDetails.fullMonthVerifiedStatus === "APPROVED" ? "success" :
+                    submissionDetails.fullMonthVerifiedStatus === "REJECTED" ? "error" : "warning"
+                }
+                sx={{ height: "20px", fontSize: "0.6rem", fontWeight: "bold" }}
+              />
+            )}
             {/* Remarks Indicator */}
             {(submissionDetails.fullMonthAdminRemark || submissionDetails.fullMonthVerificationRemark) && (
               <Tooltip
@@ -1731,7 +1724,7 @@ const UserAdvancedTourDiaryDetail = () => {
                                 <VisibilityIcon />
                               </IconButton>
                             </Tooltip>
-                            {entry.status === 'PENDING' && canApprove() && (
+                            {/* {canApprove() && (
                               <>
                                 <Tooltip title="Approve">
                                   <IconButton
@@ -1758,7 +1751,7 @@ const UserAdvancedTourDiaryDetail = () => {
                                   </IconButton>
                                 </Tooltip>
                               </>
-                            )}
+                            )} */}
                           </Stack>
                         </TableCell>
                       </TableRow>
@@ -1862,7 +1855,7 @@ const UserAdvancedTourDiaryDetail = () => {
                       <VisibilityIcon />
                     </IconButton>
                   </Tooltip>
-                  {event.status === 'PENDING' && canApprove() && (
+                  {canApprove() && (
                     <>
                       <Tooltip title="Approve">
                         <IconButton

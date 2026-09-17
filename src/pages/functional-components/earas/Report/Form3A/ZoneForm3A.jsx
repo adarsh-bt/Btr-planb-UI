@@ -22,7 +22,9 @@ import {
   Select,
   MenuItem,
   CircularProgress,
-  TablePagination
+  LinearProgress,
+  TablePagination,
+  IconButton
 } from '@mui/material';
 import { LocationOn, ArrowBack, Store } from '@mui/icons-material';
 import WaterDropIcon from '@mui/icons-material/WaterDrop';
@@ -69,29 +71,29 @@ const IRRIGATION_OPTIONS = [
 // Selected via the crop group dropdown; the index is kept as `activeTab` so the
 // value forwarded through navigate state stays compatible with the other pages.
 const CROP_GROUPS = [
-  { id: 1, name: 'Food crops' },
-  { id: 2, name: 'Non food crops' },
-  { id: 3, name: 'Trees' },
-  { id: 4, name: 'Aromatic plants' },
-  { id: 5, name: 'Drugs and Narcotics' },
+  // { id: 1, name: 'Food crops' },
+  // { id: 2, name: 'Non food crops' },
+  // { id: 3, name: 'Trees' },
+  // { id: 4, name: 'Aromatic plants' },
+  // { id: 5, name: 'Drugs and Narcotics' },
   { id: 6, name: 'Cereals' },
-  { id: 7, name: 'Fibre' },
-  { id: 8, name: 'Flowers' },
-  { id: 9, name: 'Fodder crops' },
-  { id: 10, name: 'Fruits' },
-  { id: 11, name: 'Grains' },
-  { id: 12, name: 'Green manure crops' },
-  { id: 13, name: 'Medicinal plants' },
-  { id: 14, name: 'Oil seeds' },
-  { id: 15, name: 'Other medicinal plants' },
+  // { id: 7, name: 'Fibre' },
+  // { id: 8, name: 'Flowers' },
+  // { id: 9, name: 'Fodder crops' },
+  // { id: 10, name: 'Fruits' },
+  // { id: 11, name: 'Grains' },
+  // { id: 12, name: 'Green manure crops' },
+  // { id: 13, name: 'Medicinal plants' },
+  // { id: 14, name: 'Oil seeds' },
+  // { id: 15, name: 'Other medicinal plants' },
   { id: 16, name: 'Other trees' },
-  { id: 17, name: 'Plantation crops' },
+  // { id: 17, name: 'Plantation crops' },
   { id: 18, name: 'Pulses' },
-  { id: 19, name: 'Spices' },
-  { id: 20, name: 'Sugar crops' },
+  // { id: 19, name: 'Spices' },
+  // { id: 20, name: 'Sugar crops' },
   { id: 21, name: 'Tubers' },
   { id: 22, name: 'Vegetables' },
-  { id: 23, name: 'Dry fruit' }
+  // { id: 23, name: 'Dry fruit' }
 ];
 
 // Crop group filter — 'ALL' is a synthetic option kept outside CROP_GROUPS so the
@@ -138,10 +140,19 @@ function mergeGroupResponses(responses) {
           blockName: z.blockName,
           zoneId: z.zoneId ?? null,
           zoneName: z.zoneName,
+          clusterArea: Number(z.clusterArea) || 0,
+          nucArea: Number(z.nucArea) || 0,
+          ffsArea: Number(z.ffsArea) || 0,
+          cosArea: Number(z.cosArea) || 0,
           crops: new Map()
         });
       }
       const entry = zones.get(key);
+      if (!entry.clusterArea && z.clusterArea) entry.clusterArea = Number(z.clusterArea) || 0;
+      if (!entry.nucArea && z.nucArea) entry.nucArea = Number(z.nucArea) || 0;
+      if (!entry.ffsArea && z.ffsArea) entry.ffsArea = Number(z.ffsArea) || 0;
+      if (!entry.cosArea && z.cosArea) entry.cosArea = Number(z.cosArea) || 0;
+
       (z.crops || []).forEach((c) => {
         const existing = entry.crops.get(c.cropId);
         if (existing) {
@@ -162,12 +173,17 @@ function mergeGroupResponses(responses) {
     blockName: z.blockName,
     zoneId: z.zoneId,
     zoneName: z.zoneName,
+    clusterArea: z.clusterArea,
+    nucArea: z.nucArea,
+    ffsArea: z.ffsArea,
+    cosArea: z.cosArea,
     crops: Array.from(z.crops.values())
   }));
 }
 
 const BLOCK_W = 160;
 const ZONE_W = 180;
+const AREA_W = 120;
 const CROP_COL_W = 150;
 
 const themeColor = '#05307a';
@@ -352,6 +368,10 @@ const ZoneForm3A = () => {
         blockName,
         zoneId: z.zoneId ?? null,
         zoneName: z.zoneName || 'Unassigned',
+        clusterArea: Number(z.clusterArea) || 0,
+        nucArea: Number(z.nucArea) || 0,
+        ffsArea: Number(z.ffsArea) || 0,
+        cosArea: Number(z.cosArea) || 0,
         byId,
         crops: z.crops || []
       });
@@ -363,18 +383,28 @@ const ZoneForm3A = () => {
     }));
   }, [apiData]);
 
-  // Per-block crop totals
+  // Per-block crop & area totals
   const blockTotals = useMemo(() => {
     const map = new Map();
     blocksData.forEach((b) => {
       const totals = {};
       cropColumns.forEach((c) => (totals[c.cropId] = 0));
+      let clusterArea = 0;
+      let nucArea = 0;
+      let ffsArea = 0;
+      let cosArea = 0;
+
       b.zones.forEach((z) => {
+        clusterArea += z.clusterArea || 0;
+        nucArea += z.nucArea || 0;
+        ffsArea += z.ffsArea || 0;
+        cosArea += z.cosArea || 0;
+
         cropColumns.forEach((c) => {
           if (z.byId && z.byId[c.cropId] !== undefined) totals[c.cropId] += z.byId[c.cropId];
         });
       });
-      map.set(b.blockName, totals);
+      map.set(b.blockName, { totals, clusterArea, nucArea, ffsArea, cosArea });
     });
     return map;
   }, [blocksData, cropColumns]);
@@ -383,17 +413,26 @@ const ZoneForm3A = () => {
   const grandTotals = useMemo(() => {
     const totals = {};
     cropColumns.forEach((c) => (totals[c.cropId] = 0));
+    let clusterArea = 0;
+    let nucArea = 0;
+    let ffsArea = 0;
+    let cosArea = 0;
+
     blocksData.forEach((b) => {
       const bt = blockTotals.get(b.blockName) || {};
+      clusterArea += bt.clusterArea || 0;
+      nucArea += bt.nucArea || 0;
+      ffsArea += bt.ffsArea || 0;
+      cosArea += bt.cosArea || 0;
+
       cropColumns.forEach((c) => {
-        totals[c.cropId] += bt[c.cropId] || 0;
+        totals[c.cropId] += bt.totals?.[c.cropId] || 0;
       });
     });
-    return totals;
+    return { totals, clusterArea, nucArea, ffsArea, cosArea };
   }, [blocksData, blockTotals, cropColumns]);
 
-
-  const TABLE_MIN_W = BLOCK_W + ZONE_W + Math.max(cropColumns.length, 1) * CROP_COL_W;
+  const TABLE_MIN_W = BLOCK_W + ZONE_W + 4 * AREA_W + Math.max(cropColumns.length, 1) * CROP_COL_W;
 
   const handleCropGroupChange = (event) => {
     setActiveTab(Number(event.target.value));
@@ -429,7 +468,7 @@ const ZoneForm3A = () => {
         } else if (roles.some(r => ['District Level Approver', 'District Level Data Viewer'].includes(r)) || des.includes('District')) {
           effectiveOfficeType = 'DISTRICT';
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     if (effectiveOfficeType === 'TALUK' || stateData.isDirectAccess) {
@@ -461,10 +500,10 @@ const ZoneForm3A = () => {
     [blocksData, page, rowsPerPage]
   );
 
-  // Drill down from a Zone row into its Panchayath-wise breakdown
+  // Drill down from a Zone row into its Cluster-wise breakdown
   const handleZoneClick = (blockId, blockName, zoneId, zoneName) => {
     if (zoneId == null) return; // skip the Unassigned / taluk-level bucket
-    navigate('/schemes/earas/Report/Form3A/Form3A', {
+    navigate('/schemes/earas/Report/Form3A/ClusterForm3A', {
       state: {
         officeType: stateData.officeType || 'DIRECTORATE',
         districtId,
@@ -510,8 +549,8 @@ const ZoneForm3A = () => {
     borderSpacing: 0
   });
 
-  // Block + Zone + crop columns + trailing spacer column.
-  const colSpanAll = cropColumns.length + 3;
+  // Block + Zone + 4 Area columns + crop columns + trailing spacer column.
+  const colSpanAll = cropColumns.length + 7;
 
   return (
     <Box>
@@ -521,195 +560,195 @@ const ZoneForm3A = () => {
       <Card sx={{ borderRadius: 3, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
         <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
 
-        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-          <Box
-            onClick={handleBack}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.5,
-              cursor: 'pointer',
-              color: themeColor,
-              '&:hover': { opacity: 0.7 }
-            }}
-          >
-            <ArrowBack />
-            <Typography variant="body2">Back</Typography>
+          {/* Header */}
+          <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <IconButton onClick={handleBack} size="small" sx={{ color: themeColor }}>
+              <ArrowBack />
+            </IconButton>
+            <LocationOn sx={{ fontSize: 32, color: themeColor }} />
+            <Typography variant="h5" sx={{ fontWeight: 'bold', color: themeColor }}>
+              {talukName} Taluk ({districtName} District) - Zone-wise Crop Area Report (Form 3A)
+            </Typography>
+            <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
+              (Click on any zone to view Panchayath-wise details) • Agricultural Year: {agriculturalYear} • Area in Cents
+              {cropGroupName && ` • ${cropGroupName}`}
+              {landTypeTab !== 'ALL' && ` • ${landTypeTab} Land`}
+              {seasonName && ` • ${seasonName} Season`}
+              {irrigation !== 'ALL' && ` • ${irrigationLabel}`}
+            </Typography>
           </Box>
-          <LocationOn sx={{ fontSize: 32, color: themeColor }} />
-          <Typography variant="h5" sx={{ fontWeight: 'bold', color: themeColor }}>
-            {talukName} Taluk ({districtName} District) - Zone-wise Crop Area Report (Form 3A)
-          </Typography>
-          <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
-            (Click on any zone to view Panchayath-wise details) • Agricultural Year: {agriculturalYear} • Area in Cents
-            {cropGroupName && ` • ${cropGroupName}`}
-            {landTypeTab !== 'ALL' && ` • ${landTypeTab} Land`}
-            {seasonName && ` • ${seasonName} Season`}
-            {irrigation !== 'ALL' && ` • ${irrigationLabel}`}
-          </Typography>
-        </Box>
 
-        {/* Filters — crop group + land type + season + irrigation */}
-        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-          {/* Land type filter — ALL / WET / DRY */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: 1,
-              borderRadius: 3,
-              border: `1px solid ${theme.palette.divider}`,
-              display: 'inline-block'
-            }}
-          >
-            <Tabs
-              value={landTypeTab}
-              onChange={handleLandTypeChange}
+          {/* Filters — crop group + land type + season + irrigation */}
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            {/* Land type filter — ALL / WET / DRY */}
+            <Paper
+              elevation={0}
               sx={{
-                minHeight: 40,
-                '& .MuiTab-root': {
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  minHeight: 40,
-                  '&.Mui-selected': { color: themeColor }
-                },
-                '& .MuiTabs-indicator': { backgroundColor: themeColor, height: 3 }
+                p: 1,
+                borderRadius: 3,
+                border: `1px solid ${theme.palette.divider}`,
+                display: 'inline-block'
               }}
             >
-              <Tab label="ALL" value="ALL" />
-              <Tab label="WET" value="WET" icon={<WaterDropIcon />} iconPosition="start" />
-              <Tab label="DRY" value="DRY" icon={<WbSunnyIcon />} iconPosition="start" />
-            </Tabs>
-          </Paper>
+              <Tabs
+                value={landTypeTab}
+                onChange={handleLandTypeChange}
+                sx={{
+                  minHeight: 40,
+                  '& .MuiTab-root': {
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    minHeight: 40,
+                    '&.Mui-selected': { color: themeColor }
+                  },
+                  '& .MuiTabs-indicator': { backgroundColor: themeColor, height: 3 }
+                }}
+              >
+                <Tab label="ALL" value="ALL" />
+                <Tab label="WET" value="WET" icon={<WaterDropIcon />} iconPosition="start" />
+                <Tab label="DRY" value="DRY" icon={<WbSunnyIcon />} iconPosition="start" />
+              </Tabs>
+            </Paper>
 
-          {/* Crop group filter — All + one entry per tbl_master_crop_group row */}
-          <FormControl size="small" sx={{ minWidth: 240 }}>
-            <InputLabel id="zone-form3a-cropgroup-label">Crop Group</InputLabel>
-            <Select
-              labelId="zone-form3a-cropgroup-label"
-              id="zone-form3a-cropgroup"
-              value={activeTab}
-              label="Crop Group"
-              onChange={handleCropGroupChange}
-              MenuProps={{ PaperProps: { sx: { maxHeight: 360 } } }}
-              renderValue={(value) => (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <GrassIcon sx={{ fontSize: 20, color: '#2e7d32' }} />
-                  {value === ALL_CROP_GROUPS ? ALL_CROP_GROUPS_LABEL : CROP_GROUPS[value]?.name || ''}
-                </Box>
-              )}
-            >
-              <MenuItem value={ALL_CROP_GROUPS}>All</MenuItem>
-              {CROP_GROUPS.map((g, index) => (
-                <MenuItem key={g.id} value={index}>
-                  {g.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+            {/* Crop group filter — All + one entry per tbl_master_crop_group row */}
+            <FormControl size="small" sx={{ minWidth: 240 }}>
+              <InputLabel id="zone-form3a-cropgroup-label">Crop Group</InputLabel>
+              <Select
+                labelId="zone-form3a-cropgroup-label"
+                id="zone-form3a-cropgroup"
+                value={activeTab}
+                label="Crop Group"
+                onChange={handleCropGroupChange}
+                MenuProps={{ PaperProps: { sx: { maxHeight: 360 } } }}
+                renderValue={(value) => (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <GrassIcon sx={{ fontSize: 20, color: '#2e7d32' }} />
+                    {value === ALL_CROP_GROUPS ? ALL_CROP_GROUPS_LABEL : CROP_GROUPS[value]?.name || ''}
+                  </Box>
+                )}
+              >
+                <MenuItem value={ALL_CROP_GROUPS}>All</MenuItem>
+                {CROP_GROUPS.map((g, index) => (
+                  <MenuItem key={g.id} value={index}>
+                    {g.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
-          {/* Season filter — Autumn / Winter / Summer */}
-          <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel id="zone-form3a-season-label">Season</InputLabel>
-            <Select
-              labelId="zone-form3a-season-label"
-              id="zone-form3a-season"
-              value={seasonId}
-              label="Season"
-              onChange={handleSeasonChange}
-              renderValue={(value) => (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <EnergySavingsLeafIcon sx={{ fontSize: 20, color: '#2e7d32' }} />
-                  {SEASONS.find((s) => s.id === value)?.name || ''}
-                </Box>
-              )}
-            >
-              {SEASONS.map((s) => (
-                <MenuItem key={s.id} value={s.id}>
-                  {s.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+            {/* Season filter — Autumn / Winter / Summer */}
+            <FormControl size="small" sx={{ minWidth: 180 }}>
+              <InputLabel id="zone-form3a-season-label">Season</InputLabel>
+              <Select
+                labelId="zone-form3a-season-label"
+                id="zone-form3a-season"
+                value={seasonId}
+                label="Season"
+                onChange={handleSeasonChange}
+                renderValue={(value) => (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <EnergySavingsLeafIcon sx={{ fontSize: 20, color: '#2e7d32' }} />
+                    {SEASONS.find((s) => s.id === value)?.name || ''}
+                  </Box>
+                )}
+              >
+                {SEASONS.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
-          {/* Irrigation filter — All / Irrigated / Unirrigated */}
-          <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel id="zone-form3a-irrigation-label">Irrigation</InputLabel>
-            <Select
-              labelId="zone-form3a-irrigation-label"
-              id="zone-form3a-irrigation"
-              value={irrigation}
-              label="Irrigation"
-              onChange={handleIrrigationChange}
-              renderValue={(value) => (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <WaterIcon sx={{ fontSize: 20, color: value === 'UNIRRIGATED' ? '#9e9e9e' : '#0288d1' }} />
-                  {IRRIGATION_OPTIONS.find((o) => o.value === value)?.label || ''}
-                </Box>
-              )}
-            >
-              {IRRIGATION_OPTIONS.map((o) => (
-                <MenuItem key={o.value} value={o.value}>
-                  {o.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Box>
+            {/* Irrigation filter — All / Irrigated / Unirrigated */}
+            <FormControl size="small" sx={{ minWidth: 180 }}>
+              <InputLabel id="zone-form3a-irrigation-label">Irrigation</InputLabel>
+              <Select
+                labelId="zone-form3a-irrigation-label"
+                id="zone-form3a-irrigation"
+                value={irrigation}
+                label="Irrigation"
+                onChange={handleIrrigationChange}
+                renderValue={(value) => (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <WaterIcon sx={{ fontSize: 20, color: value === 'UNIRRIGATED' ? '#9e9e9e' : '#0288d1' }} />
+                    {IRRIGATION_OPTIONS.find((o) => o.value === value)?.label || ''}
+                  </Box>
+                )}
+              >
+                {IRRIGATION_OPTIONS.map((o) => (
+                  <MenuItem key={o.value} value={o.value}>
+                    {o.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
 
-        {/* Error */}
-        {error && (
-          <Paper sx={{ p: 2, mb: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
-            <Typography color="error">Error: {error}</Typography>
-          </Paper>
-        )}
+          {/* Error */}
+          {error && (
+            <Paper sx={{ p: 2, mb: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
+              <Typography color="error">Error: {error}</Typography>
+            </Paper>
+          )}
 
-        <Paper elevation={2} sx={{ borderRadius: 2, overflow: 'hidden', border: `1px solid ${alpha(themeColor, 0.1)}` }}>
-          <TableContainer sx={{ maxHeight: 550, overflow: 'auto' }}>
-            <Table stickyHeader sx={tableSx(TABLE_MIN_W)}>
-              {/* colgroup is the ONLY place widths are defined.
+          <Paper elevation={2} sx={{ borderRadius: 2, overflow: 'hidden', border: `1px solid ${alpha(themeColor, 0.1)}`, position: 'relative' }}>
+            {loading && (
+              <LinearProgress
+                sx={{
+                  backgroundColor: alpha(themeColor, 0.15),
+                  '& .MuiLinearProgress-bar': { backgroundColor: themeColor }
+                }}
+              />
+            )}
+            <TableContainer sx={{ maxHeight: 550, overflow: 'auto' }}>
+              <Table stickyHeader sx={tableSx(TABLE_MIN_W)}>
+                {/* colgroup is the ONLY place widths are defined.
                   Trailing spacer col (width: auto) soaks up any leftover
                   container width so header/subtotal/grand-total bands run
                   edge-to-edge instead of stopping short with a blank gap. */}
-              <colgroup>
-                <col style={{ width: BLOCK_W }} />
-                <col style={{ width: ZONE_W }} />
-                {cropColumns.map((crop) => (
-                  <col key={crop.cropId} style={{ width: CROP_COL_W }} />
-                ))}
-                <col style={{ width: 'auto' }} />
-              </colgroup>
-
-              <TableHead>
-                <TableRow>
-                  <TableCell
-                    align="center"
-                    sx={{
-                      ...stickyCellSx(0, themeColor, { color: 'white' }),
-                      top: 0,
-                      fontWeight: 700,
-                      py: 1.5,
-                      borderRight: `1px solid ${alpha('#fff', 0.15)}`,
-                      zIndex: 4
-                    }}
-                  >
-                    Block
-                  </TableCell>
-                  <TableCell
-                    align="left"
-                    sx={{
-                      ...stickyCellSx(BLOCK_W, themeColor, { color: 'white' }),
-                      top: 0,
-                      fontWeight: 700,
-                      py: 1.5,
-                      borderRight: `1px solid ${alpha('#fff', 0.15)}`,
-                      zIndex: 4
-                    }}
-                  >
-                    Zone
-                  </TableCell>
+                <colgroup>
+                  <col style={{ width: BLOCK_W }} />
+                  <col style={{ width: ZONE_W }} />
+                  <col style={{ width: AREA_W }} />
+                  <col style={{ width: AREA_W }} />
+                  <col style={{ width: AREA_W }} />
+                  <col style={{ width: AREA_W }} />
                   {cropColumns.map((crop) => (
+                    <col key={crop.cropId} style={{ width: CROP_COL_W }} />
+                  ))}
+                  <col style={{ width: 'auto' }} />
+                </colgroup>
+
+                <TableHead>
+                  <TableRow>
                     <TableCell
-                      key={crop.cropId}
+                      align="center"
+                      sx={{
+                        ...stickyCellSx(0, themeColor, { color: 'white' }),
+                        top: 0,
+                        fontWeight: 700,
+                        py: 1.5,
+                        borderRight: `1px solid ${alpha('#fff', 0.15)}`,
+                        zIndex: 4
+                      }}
+                    >
+                      Block
+                    </TableCell>
+                    <TableCell
+                      align="left"
+                      sx={{
+                        ...stickyCellSx(BLOCK_W, themeColor, { color: 'white' }),
+                        top: 0,
+                        fontWeight: 700,
+                        py: 1.5,
+                        borderRight: `1px solid ${alpha('#fff', 0.15)}`,
+                        zIndex: 4
+                      }}
+                    >
+                      Zone
+                    </TableCell>
+                    <TableCell
                       align="right"
                       sx={{
                         bgcolor: themeColor,
@@ -720,112 +759,274 @@ const ZoneForm3A = () => {
                         position: 'sticky',
                         top: 0,
                         zIndex: 3,
-                        borderRight: `1px solid ${alpha('#fff', 0.15)}`,
-                        '&:last-child': { borderRight: 'none' }
+                        borderRight: `1px solid ${alpha('#fff', 0.15)}`
                       }}
                     >
-                      {crop.cropName}
+                      Cluster Area
                     </TableCell>
-                  ))}
-                  {/* spacer header cell — keeps the header color band full-width */}
-                  <TableCell
-                    aria-hidden
-                    sx={{
-                      bgcolor: themeColor,
-                      position: 'sticky',
-                      top: 0,
-                      zIndex: 3,
-                      p: 0
-                    }}
-                  />
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={colSpanAll} align="center" sx={{ py: 6 }}>
-                      <CircularProgress size={36} />
+                    <TableCell
+                      align="right"
+                      sx={{
+                        bgcolor: themeColor,
+                        color: 'white',
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                        py: 1.5,
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 3,
+                        borderRight: `1px solid ${alpha('#fff', 0.15)}`
+                      }}
+                    >
+                      Nuc Area
                     </TableCell>
+                    <TableCell
+                      align="right"
+                      sx={{
+                        bgcolor: themeColor,
+                        color: 'white',
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                        py: 1.5,
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 3,
+                        borderRight: `1px solid ${alpha('#fff', 0.15)}`
+                      }}
+                    >
+                      Ffs Area
+                    </TableCell>
+                    <TableCell
+                      align="right"
+                      sx={{
+                        bgcolor: themeColor,
+                        color: 'white',
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                        py: 1.5,
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 3,
+                        borderRight: `1px solid ${alpha('#fff', 0.15)}`
+                      }}
+                    >
+                      Cos Area
+                    </TableCell>
+                    {cropColumns.map((crop) => (
+                      <TableCell
+                        key={crop.cropId}
+                        align="right"
+                        sx={{
+                          bgcolor: themeColor,
+                          color: 'white',
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                          py: 1.5,
+                          position: 'sticky',
+                          top: 0,
+                          zIndex: 3,
+                          borderRight: `1px solid ${alpha('#fff', 0.15)}`,
+                          '&:last-child': { borderRight: 'none' }
+                        }}
+                      >
+                        {crop.cropName}
+                      </TableCell>
+                    ))}
+                    {/* spacer header cell — keeps the header color band full-width */}
+                    <TableCell
+                      aria-hidden
+                      sx={{
+                        bgcolor: themeColor,
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 3,
+                        p: 0
+                      }}
+                    />
                   </TableRow>
-                ) : blocksData.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={colSpanAll} align="center" sx={{ py: 6 }}>
-                      <Typography color="text.secondary">No data available for {cropGroupName}</Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  <>
-                    {paginatedBlocks.map((block) => {
-                      const trs = [];
-                      const blockKey = block.blockId ?? block.blockName;
+                </TableHead>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={Math.max(colSpanAll, 8)} align="center" sx={{ py: 10 }}>
+                        <Stack alignItems="center" spacing={2} sx={{ my: 2 }}>
+                          <CircularProgress size={44} thickness={4} sx={{ color: themeColor }} />
+                          <Box textAlign="center">
+                            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: themeColor }}>
+                              Loading Zone Form 3A Report...
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Please wait while we fetch the latest progress details.
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ) : blocksData.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={colSpanAll} align="center" sx={{ py: 6 }}>
+                        <Typography color="text.secondary">No data available for {cropGroupName}</Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    <>
+                      {paginatedBlocks.map((block) => {
+                        const trs = [];
+                        const blockKey = block.blockId ?? block.blockName;
 
-                      block.zones.forEach((zone, idx) => {
-                        const isLastInGroup = idx === block.zones.length - 1;
-                        const clickable = zone.zoneId != null;
-                        trs.push(
-                          <TableRow
-                            key={`${blockKey}-${zone.zoneId ?? zone.zoneName}`}
-                            hover={clickable}
-                            onClick={() => handleZoneClick(block.blockId, block.blockName, zone.zoneId, zone.zoneName)}
-                            sx={{
-                              cursor: clickable ? 'pointer' : 'default',
-                              '&:hover': clickable
-                                ? { backgroundColor: alpha(themeColor, 0.06), transition: '0.2s' }
-                                : undefined
-                            }}
-                          >
-                            {/*
+                        block.zones.forEach((zone, idx) => {
+                          const isLastInGroup = idx === block.zones.length - 1;
+                          const clickable = zone.zoneId != null;
+                          trs.push(
+                            <TableRow
+                              key={`${blockKey}-${zone.zoneId ?? zone.zoneName}`}
+                              hover={clickable}
+                              onClick={() => handleZoneClick(block.blockId, block.blockName, zone.zoneId, zone.zoneName)}
+                              sx={{
+                                cursor: clickable ? 'pointer' : 'default',
+                                '&:hover': clickable
+                                  ? { backgroundColor: alpha(themeColor, 0.06), transition: '0.2s' }
+                                  : undefined
+                              }}
+                            >
+                              {/*
                               NO rowSpan here. Every row owns its own sticky Block
                               cell (content only on the first row, bottom border
                               suppressed in between) so the "merged" look is kept
                               while sticky positioning stays perfectly aligned.
                             */}
+                              <TableCell
+                                align="center"
+                                sx={{
+                                  ...stickyCellSx(0, stickyTintLight),
+                                  verticalAlign: 'middle',
+                                  fontWeight: 700,
+                                  borderRight: `1px solid ${alpha(themeColor, 0.15)}`,
+                                  borderBottom: isLastInGroup ? undefined : 'none',
+                                  zIndex: 2
+                                }}
+                              >
+                                {idx === 0 && (
+                                  <Stack alignItems="center" spacing={0.5}>
+                                    <Store sx={{ fontSize: 26, color: themeColor, opacity: 0.8 }} />
+                                    <Typography fontWeight={700} color={themeColor} variant="subtitle2">
+                                      {block.blockName}
+                                    </Typography>
+                                    <Chip
+                                      label={`${block.zones.length} Zones`}
+                                      size="small"
+                                      sx={{ fontSize: '0.7rem', bgcolor: alpha(themeColor, 0.1), color: themeColor }}
+                                    />
+                                  </Stack>
+                                )}
+                              </TableCell>
+                              <TableCell
+                                align="left"
+                                sx={{
+                                  ...stickyCellSx(BLOCK_W, '#ffffff'),
+                                  zIndex: 1,
+                                  borderRight: `1px solid ${alpha(themeColor, 0.1)}`
+                                }}
+                              >
+                                <Chip
+                                  label={zone.zoneName}
+                                  size="small"
+                                  sx={{
+                                    bgcolor: alpha(themeColor, 0.1),
+                                    color: themeColor,
+                                    fontWeight: 600,
+                                    borderRadius: 1.5
+                                  }}
+                                />
+                              </TableCell>
+                              <TableCell
+                                align="right"
+                                sx={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', verticalAlign: 'middle' }}
+                              >
+                                {zone.clusterArea ? formatNumber(zone.clusterArea) : '—'}
+                              </TableCell>
+                              <TableCell
+                                align="right"
+                                sx={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', verticalAlign: 'middle' }}
+                              >
+                                {zone.nucArea ? formatNumber(zone.nucArea) : '—'}
+                              </TableCell>
+                              <TableCell
+                                align="right"
+                                sx={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', verticalAlign: 'middle' }}
+                              >
+                                {zone.ffsArea ? formatNumber(zone.ffsArea) : '—'}
+                              </TableCell>
+                              <TableCell
+                                align="right"
+                                sx={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', verticalAlign: 'middle' }}
+                              >
+                                {zone.cosArea ? formatNumber(zone.cosArea) : '—'}
+                              </TableCell>
+                              {cropColumns.map((crop) => {
+                                const val = zone.byId?.[crop.cropId];
+                                return (
+                                  <TableCell
+                                    key={crop.cropId}
+                                    align="right"
+                                    sx={{
+                                      fontVariantNumeric: 'tabular-nums',
+                                      whiteSpace: 'nowrap',
+                                      verticalAlign: 'middle'
+                                    }}
+                                  >
+                                    {val ? formatNumber(val) : '—'}
+                                  </TableCell>
+                                );
+                              })}
+                              {/* spacer body cell — keeps row height/alignment consistent, no visible content */}
+                              <TableCell aria-hidden sx={{ p: 0 }} />
+                            </TableRow>
+                          );
+                        });
+
+                        const bInfo = blockTotals.get(block.blockName) || {};
+
+                        trs.push(
+                          <TableRow key={`${blockKey}-subtotal`} sx={{ bgcolor: stickyTintSubtotal }}>
                             <TableCell
-                              align="center"
+                              colSpan={2}
                               sx={{
-                                ...stickyCellSx(0, stickyTintLight),
-                                verticalAlign: 'middle',
+                                ...stickyCellSx(0, stickyTintSubtotal),
                                 fontWeight: 700,
-                                borderRight: `1px solid ${alpha(themeColor, 0.15)}`,
-                                borderBottom: isLastInGroup ? undefined : 'none',
+                                color: themeColor,
+                                py: 1,
                                 zIndex: 2
                               }}
                             >
-                              {idx === 0 && (
-                                <Stack alignItems="center" spacing={0.5}>
-                                  <Store sx={{ fontSize: 26, color: themeColor, opacity: 0.8 }} />
-                                  <Typography fontWeight={700} color={themeColor} variant="subtitle2">
-                                    {block.blockName}
-                                  </Typography>
-                                  <Chip
-                                    label={`${block.zones.length} Zones`}
-                                    size="small"
-                                    sx={{ fontSize: '0.7rem', bgcolor: alpha(themeColor, 0.1), color: themeColor }}
-                                  />
-                                </Stack>
-                              )}
+                              <strong>📊 Total for {block.blockName}</strong>
                             </TableCell>
                             <TableCell
-                              align="left"
-                              sx={{
-                                ...stickyCellSx(BLOCK_W, '#ffffff'),
-                                zIndex: 1,
-                                borderRight: `1px solid ${alpha(themeColor, 0.1)}`
-                              }}
+                              align="right"
+                              sx={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', fontWeight: 700, bgcolor: stickyTintSubtotal }}
                             >
-                              <Chip
-                                label={zone.zoneName}
-                                size="small"
-                                sx={{
-                                  bgcolor: alpha(themeColor, 0.1),
-                                  color: themeColor,
-                                  fontWeight: 600,
-                                  borderRadius: 1.5
-                                }}
-                              />
+                              {bInfo.clusterArea ? formatNumber(bInfo.clusterArea) : '—'}
+                            </TableCell>
+                            <TableCell
+                              align="right"
+                              sx={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', fontWeight: 700, bgcolor: stickyTintSubtotal }}
+                            >
+                              {bInfo.nucArea ? formatNumber(bInfo.nucArea) : '—'}
+                            </TableCell>
+                            <TableCell
+                              align="right"
+                              sx={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', fontWeight: 700, bgcolor: stickyTintSubtotal }}
+                            >
+                              {bInfo.ffsArea ? formatNumber(bInfo.ffsArea) : '—'}
+                            </TableCell>
+                            <TableCell
+                              align="right"
+                              sx={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', fontWeight: 700, bgcolor: stickyTintSubtotal }}
+                            >
+                              {bInfo.cosArea ? formatNumber(bInfo.cosArea) : '—'}
                             </TableCell>
                             {cropColumns.map((crop) => {
-                              const val = zone.byId?.[crop.cropId];
+                              const val = bInfo.totals?.[crop.cropId];
                               return (
                                 <TableCell
                                   key={crop.cropId}
@@ -833,76 +1034,40 @@ const ZoneForm3A = () => {
                                   sx={{
                                     fontVariantNumeric: 'tabular-nums',
                                     whiteSpace: 'nowrap',
-                                    verticalAlign: 'middle'
+                                    fontWeight: 700,
+                                    bgcolor: stickyTintSubtotal
                                   }}
                                 >
                                   {val ? formatNumber(val) : '—'}
                                 </TableCell>
                               );
                             })}
-                            {/* spacer body cell — keeps row height/alignment consistent, no visible content */}
-                            <TableCell aria-hidden sx={{ p: 0 }} />
+                            {/* spacer subtotal cell — keeps the subtotal band full-width */}
+                            <TableCell aria-hidden sx={{ bgcolor: stickyTintSubtotal, p: 0 }} />
                           </TableRow>
                         );
-                      });
 
-                      trs.push(
-                        <TableRow key={`${blockKey}-subtotal`} sx={{ bgcolor: stickyTintSubtotal }}>
-                          <TableCell
-                            colSpan={2}
-                            sx={{
-                              ...stickyCellSx(0, stickyTintSubtotal),
-                              fontWeight: 700,
-                              color: themeColor,
-                              py: 1,
-                              zIndex: 2
-                            }}
-                          >
-                            <strong>📊 Total for {block.blockName}</strong>
-                          </TableCell>
-                          {cropColumns.map((crop) => {
-                            const val = blockTotals.get(block.blockName)?.[crop.cropId];
-                            return (
-                              <TableCell
-                                key={crop.cropId}
-                                align="right"
-                                sx={{
-                                  fontVariantNumeric: 'tabular-nums',
-                                  whiteSpace: 'nowrap',
-                                  fontWeight: 700,
-                                  bgcolor: stickyTintSubtotal
-                                }}
-                              >
-                                {val ? formatNumber(val) : '—'}
-                              </TableCell>
-                            );
-                          })}
-                          {/* spacer subtotal cell — keeps the subtotal band full-width */}
-                          <TableCell aria-hidden sx={{ bgcolor: stickyTintSubtotal, p: 0 }} />
-                        </TableRow>
-                      );
-
-                      return trs;
-                    })}
-                  </>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <TablePagination
-            component="div"
-            count={blocksData.length}
-            page={page}
-            onPageChange={handleChangePage}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            rowsPerPageOptions={[5, 10, 25]}
-            labelRowsPerPage="Blocks per page"
-            sx={{ borderTop: `1px solid ${alpha(themeColor, 0.1)}` }}
-          />
-        </Paper>
-      </CardContent>
-    </Card>
+                        return trs;
+                      })}
+                    </>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <TablePagination
+              component="div"
+              count={blocksData.length}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={[5, 10, 25]}
+              labelRowsPerPage="Blocks per page"
+              sx={{ borderTop: `1px solid ${alpha(themeColor, 0.1)}` }}
+            />
+          </Paper>
+        </CardContent>
+      </Card>
     </Box>
   );
 };

@@ -466,18 +466,19 @@ const Breadcrumb = () => {
     } else if (isForm3AReport) {
       const talukForm3ASessionState = getSavedSessionState(TALUK_FORM3A_SESSION_KEY);
       const zoneForm3ASessionState = getSavedSessionState(ZONE_FORM3A_SESSION_KEY);
+      const clusterForm3ASessionState = getSavedSessionState('clusterForm3AState');
       const form3ASessionState = getSavedSessionState(FORM3A_SESSION_KEY);
 
       const isStateLevel = location.pathname.toLowerCase().includes('keralaform3a') || location.pathname === '/schemes/earas/Report/Form3A/KeralaForm3A';
       const isDistrictLevel = location.pathname.toLowerCase().includes('talukform3a') || location.pathname === '/schemes/earas/Report/Form3A/TalukForm3A';
       const isTalukLevel = location.pathname.toLowerCase().includes('zoneform3a') || location.pathname === '/schemes/earas/Report/Form3A/ZoneForm3A';
-      const isForm3AOverviewPage = (location.pathname.toLowerCase().endsWith('/form3a') || location.pathname === '/schemes/earas/Report/Form3A/Form3A') && !isStateLevel && !isDistrictLevel && !isTalukLevel;
+      const isForm3AOverviewPage = (location.pathname.toLowerCase().includes('clusterform3a') || location.pathname.toLowerCase().endsWith('/form3a') || location.pathname === '/schemes/earas/Report/Form3A/Form3A') && !isStateLevel && !isDistrictLevel && !isTalukLevel;
 
-      const f3aDistrictId = location.state?.districtId || form3ASessionState.districtId || zoneForm3ASessionState.districtId || talukForm3ASessionState.districtId || (params.districtId && !isNaN(params.districtId) ? params.districtId : null);
-      const f3aDistrictName = location.state?.districtName || location.state?.selectedDistrict || form3ASessionState.districtName || zoneForm3ASessionState.districtName || talukForm3ASessionState.districtName || params.districtName || '';
-      const f3aTalukId = location.state?.talukId || form3ASessionState.talukId || zoneForm3ASessionState.talukId || talukForm3ASessionState.talukId || (params.talukId && !isNaN(params.talukId) ? params.talukId : null);
-      const f3aTalukName = location.state?.talukName || location.state?.selectedTaluk || form3ASessionState.talukName || zoneForm3ASessionState.talukName || talukForm3ASessionState.talukName || params.talukName || '';
-      const f3aZoneName = location.state?.zoneName || location.state?.selectedZone || form3ASessionState.zoneName || zoneForm3ASessionState.zoneName || '';
+      const f3aDistrictId = location.state?.districtId || clusterForm3ASessionState.districtId || form3ASessionState.districtId || zoneForm3ASessionState.districtId || talukForm3ASessionState.districtId || (params.districtId && !isNaN(params.districtId) ? params.districtId : null);
+      const f3aDistrictName = location.state?.districtName || location.state?.selectedDistrict || clusterForm3ASessionState.districtName || form3ASessionState.districtName || zoneForm3ASessionState.districtName || talukForm3ASessionState.districtName || params.districtName || '';
+      const f3aTalukId = location.state?.talukId || clusterForm3ASessionState.talukId || form3ASessionState.talukId || zoneForm3ASessionState.talukId || talukForm3ASessionState.talukId || (params.talukId && !isNaN(params.talukId) ? params.talukId : null);
+      const f3aTalukName = location.state?.talukName || location.state?.selectedTaluk || clusterForm3ASessionState.talukName || form3ASessionState.talukName || zoneForm3ASessionState.talukName || talukForm3ASessionState.talukName || params.talukName || '';
+      const f3aZoneName = location.state?.zoneName || location.state?.selectedZone || clusterForm3ASessionState.zoneName || form3ASessionState.zoneName || zoneForm3ASessionState.zoneName || '';
 
       // STATE segment (only for DIRECTORATE role)
       if (officeType === 'DIRECTORATE' && !isStateLevel) {

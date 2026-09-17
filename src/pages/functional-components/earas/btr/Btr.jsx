@@ -45,19 +45,23 @@ const columns = (handleEdit, handleView, handlePlotUsage, page, size) => [
     minWidth: '80px',
     allowOverflow: true,
     button: true,
-  }
-  ,
-
-  // { name: 'District', selector: (row) => row.dcode, sortable: true },
-  // { name: 'Taluk', selector: (row) => row.tcode, sortable: true },
-  // { name: 'Village', selector: (row) => row.vcode, sortable: true },
+  },
+  {
+    name: 'BTR Type',
+    selector: (row) => row.btr_type_name || (row.btr_type_id ? `Type ${row.btr_type_id}` : <span style={{ color: '#888' }}>NA</span>),
+    sortable: true,
+    sortKey: 'btr_type_name',
+    wrap: true,
+    width: '140px',
+    minWidth: '120px',
+  },
   {
     name: 'Local Body Name',
     selector: row => row.lbname?.toString() || 'NA',
     sortable: true,
     sortKey: 'lbname',
     wrap: true,
-    minWidth: '180px',
+    minWidth: '160px',
   },
   {
     name: 'Village',
@@ -69,18 +73,17 @@ const columns = (handleEdit, handleView, handlePlotUsage, page, size) => [
     },
     sortable: true,
     sortKey: 'villageName',
-    wrap: true, // Allow text wrapping
+    wrap: true,
     width: '140px',
-    minWidth: '50px', // Set minimum width
+    minWidth: '100px',
   },
-
   {
     name: 'Block No.',
     selector: (row) => row.bcode?.toString() || <span style={{ color: '#888' }}>NA</span>,
     sortable: true,
     sortKey: 'bcode',
-    width: '120px', // Fixed width
-    minWidth: '120px',
+    width: '110px',
+    minWidth: '100px',
   },
   {
     name: 'Re-Survey No',
@@ -90,18 +93,84 @@ const columns = (handleEdit, handleView, handlePlotUsage, page, size) => [
       row.resvno && row.resbdno ? (
         `${row.resvno} / ${row.resbdno}`
       ) : row.resvno ? (
-        `${row.resvno} / NA`
+        `${row.resvno}`
       ) : row.resbdno ? (
         `NA / ${row.resbdno}`
       ) : (
         <span style={{ color: '#888' }}>NA</span>
-      )
+      ),
+    width: '130px',
+    minWidth: '110px',
   },
-  // { name: 'Re-Survey No', selector: (row) => row.resvno?.toString() || <span style={{ color: '#888' }}>NA</span> },
-  // { name: 'Sub Div No', selector: (row) => row.resbdno?.toString() || <span style={{ color: '#888' }}>NA</span> },
-  // { name: 'Address', selector: (row) => row.lbname?.toString() || <span style={{ color: '#888' }}>NA</span> },
-  // { name: 'Address', selector: (row) => row.lbcode, sortable: true },
-
+  {
+    name: 'Old Survey No',
+    sortable: true,
+    sortKey: 'main_no',
+    selector: (row) =>
+      row.main_no && row.sub_main_no ? (
+        `${row.main_no} / ${row.sub_main_no}`
+      ) : row.main_no ? (
+        `${row.main_no}`
+      ) : row.sub_main_no ? (
+        `NA / ${row.sub_main_no}`
+      ) : (
+        <span style={{ color: '#888' }}>NA</span>
+      ),
+    width: '130px',
+    minWidth: '110px',
+  },
+  {
+    name: 'Thandaper No',
+    sortable: true,
+    sortKey: 'tp_no',
+    selector: (row) =>
+      row.tp_no && row.tp_subdivion_no ? (
+        `${row.tp_no} / ${row.tp_subdivion_no}`
+      ) : row.tp_no ? (
+        `${row.tp_no}`
+      ) : row.tp_subdivion_no ? (
+        `NA / ${row.tp_subdivion_no}`
+      ) : (
+        <span style={{ color: '#888' }}>NA</span>
+      ),
+    width: '130px',
+    minWidth: '110px',
+  },
+  {
+    name: 'Ward / House No',
+    sortable: true,
+    sortKey: 'ward_no',
+    selector: (row) =>
+      row.ward_no && row.house_no ? (
+        `${row.ward_no} / ${row.house_no}`
+      ) : row.ward_no ? (
+        `${row.ward_no}`
+      ) : row.house_no ? (
+        `NA / ${row.house_no}`
+      ) : (
+        <span style={{ color: '#888' }}>NA</span>
+      ),
+    width: '140px',
+    minWidth: '120px',
+  },
+  {
+    name: 'Cultivator Name',
+    sortable: true,
+    sortKey: 'owner_name',
+    selector: (row) => row.owner_name?.toString() || <span style={{ color: '#888' }}>NA</span>,
+    wrap: true,
+    width: '150px',
+    minWidth: '130px',
+  },
+  {
+    name: 'Address',
+    sortable: true,
+    sortKey: 'address',
+    selector: (row) => row.address?.toString() || <span style={{ color: '#888' }}>NA</span>,
+    wrap: true,
+    width: '160px',
+    minWidth: '140px',
+  },
   {
     name: 'Land Type',
     selector: (row) => row.ltype?.toString() || <span style={{ color: '#888' }}>NA</span>,
@@ -113,37 +182,31 @@ const columns = (handleEdit, handleView, handlePlotUsage, page, size) => [
     sortable: true,
     sortKey: 'totalCent',
     selector: (row) => row.totalCent?.toString() || <span style={{ color: '#888' }}>NA</span>,
-    wrap: true, // Allow text wrapping
-    width: '190px',
-    minWidth: '150px', // Set minimum width
+    wrap: true,
+    width: '170px',
+    minWidth: '140px',
   },
-
   {
     name: 'View Details',
     cell: (row) => (
       <Button color="success" onClick={() => handleView(row)}>
         <VisibilityIcon />
-
       </Button>
-
     ),
     style: {
       padding: '0px',
       textAlign: 'center',
     },
   },
-  // In your columns definition, add this column after the View Details column
   {
     name: 'Plot Edit',
     cell: (row) => (
       <Button
         color="primary"
         onClick={() => handlePlotUsage(row)}
-        // variant="outlined"
         size="small"
       >
         <EditIcon fontSize="small" />
-
       </Button>
     ),
     style: {
@@ -153,7 +216,6 @@ const columns = (handleEdit, handleView, handlePlotUsage, page, size) => [
       minWidth: '130px',
     },
   },
-
 ];
 
 const Btr = ({ zoneId }) => {
@@ -169,12 +231,21 @@ const Btr = ({ zoneId }) => {
 
 
   const [filterText, setFilterText] = useState('');
+  const [debouncedFilterText, setDebouncedFilterText] = useState('');
+
+  // Debounce search input by 300ms to avoid out-of-order intermediate requests
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedFilterText(filterText);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [filterText]);
   const [openEditModal, setOpenEditModal] = useState(false); // Not used in provided code, but kept
   const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
   const [data, setData] = useState([]);
   const [page, setPage] = useState(1); // Start with page 1 (react-data-table-component is 1-based)
-  const [size, setSize] = useState(10);
+  const [size, setSize] = useState(15);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalArea, setTotalArea] = useState(0);
   const [totalWetArea, setTotalWetArea] = useState(0);
@@ -234,8 +305,6 @@ const Btr = ({ zoneId }) => {
 
   // Function to handle view action
   const handleView = (row) => {
-    setSelectedRow(row);
-    setOpenViewModal(true);
     setSelectedRow(row);
     setOpenViewModal(true);
   };
@@ -347,68 +416,66 @@ const Btr = ({ zoneId }) => {
     setOpenEditModal(false);
     setOpenViewModal(false);
     setSelectedRow(null);
-    setSelectedRow(null);
   };
 
   const handlePageChange = (newPage) => {
     setPage(newPage);
-
   };
-
-  useEffect(() => {
-    if (!zoneId) {
-      console.warn("Zone ID is missing");
-      return;
-    }
-
-    fetchData(); // include zoneId in the API call
-  }, [zoneId, page, size, filterText]);
-
 
   const handleRowsPerPageChange = (newSize) => {
     setSize(newSize);
     setPage(1); // Reset to page 1 when rows per page changes
   };
 
-  // Fetch the data from the API
-  const fetchData = async () => {
+  // Single unified data fetching effect with stale response cancellation
+  useEffect(() => {
+    let isSubscribed = true;
+
     if (!resolvedZoneId) {
       console.warn("Missing zoneId");
       return;
     }
 
-    setLoading(true); // Set loading to true
-    try {
-      // Adjust page to 0-based if your API expects it
-      const apiPage = page - 1;
-      const response = await btrservice.btr_lists_data(apiPage, size, filterText, resolvedZoneId);
-      console.log(">>>>         >   ", response.payload.data)
-      if (response?.payload?.data) {
+    setLoading(true);
+    const apiPage = page - 1;
 
-        // after fetching data
-        const indexedData = response.payload.data.map((item, idx) => ({
-          ...item,
-          indexOffset: (page - 1) * size + idx + 1, // 1-based serial across pages
-        }));
-        setData(indexedData);
-        setData(indexedData);
-        setTotalRecords(response.payload.totalCount);
-        setTotalWetArea(response.payload.totalWetArea);
-        setTotalDryArea(response.payload.totalDryArea);
-        setTotalArea(response.payload.totalArea);
-      } else {
-        console.error("Failed to fetch data:", response.message);
-        setData([]); // Clear data on failure
-        setTotalRecords(0); // Reset total records
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      setData([]);
-      setTotalRecords(0);
-    } finally {
-      setLoading(false); // Set loading to false
-    }
-  };
+    btrservice
+      .btr_lists_data(apiPage, size, debouncedFilterText, resolvedZoneId)
+      .then((response) => {
+        if (!isSubscribed) return;
+
+        if (response?.payload?.data) {
+          const indexedData = response.payload.data.map((item, idx) => ({
+            ...item,
+            indexOffset: (page - 1) * size + idx + 1,
+          }));
+          setData(indexedData);
+          setTotalRecords(response.payload.totalCount || 0);
+          setTotalWetArea(response.payload.totalWetArea || 0);
+          setTotalDryArea(response.payload.totalDryArea || 0);
+          setTotalArea(response.payload.totalArea || 0);
+        } else {
+          console.error("Failed to fetch data:", response?.message);
+          setData([]);
+          setTotalRecords(0);
+        }
+      })
+      .catch((error) => {
+        if (!isSubscribed) return;
+        console.error("Error fetching data:", error);
+        setData([]);
+        setTotalRecords(0);
+      })
+      .finally(() => {
+        if (isSubscribed) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [resolvedZoneId, page, size, debouncedFilterText]);
 
   const handleDownloadExcel = async () => {
     setDownloading(true);
@@ -487,9 +554,7 @@ const Btr = ({ zoneId }) => {
     setOrderBy(key);
   };
 
-  useEffect(() => {
-    fetchData();
-  }, [page, size, filterText]);
+
 
   return (
     <Grid container spacing={3}>
@@ -571,8 +636,8 @@ const Btr = ({ zoneId }) => {
           paginationTotalRows={totalRecords}
           onChangeRowsPerPage={handleRowsPerPageChange}
           onChangePage={handlePageChange}
-          paginationPerPage={10}
-          paginationRowsPerPageOptions={[10, 25, 50, 100]}
+          paginationPerPage={15}
+          paginationRowsPerPageOptions={[15, 25, 50, 100]}
           paginationComponentOptions={{
             rowsPerPageText: 'Rows per page',
             rangeSeparatorText: 'of',
@@ -727,51 +792,61 @@ const Btr = ({ zoneId }) => {
                     <Grid container spacing={3}>
                       {/* === Dynamically Generated Fields === */}
                       {Object.keys(selectedRow)
-                        .filter((key) => key !== 'id' && key !== 'lbcode' && key !== 'resbdno' && key !== 'lbtype' && key !== 'indexOffset')
+                        .filter((key) => key !== 'id' && key !== 'lbcode' && key !== 'resbdno' && key !== 'lbtype' && key !== 'indexOffset' && key !== 'sub_main_no' && key !== 'tp_subdivion_no' && key !== 'house_no' && key !== 'btr_type_id')
                         .map((key) => {
                           let label = key;
                           let value = selectedRow[key] || 'NA';
                           let highlight = false;
                           let fieldIcon = null;
 
-                          // --- Custom Label/Value Logic (Copied from your original code) ---
+                          // --- Custom Label/Value Logic ---
                           if (key === 'villageName') {
                             label = 'Village Name';
                             fieldIcon = <LocationOnIcon sx={{ color: 'primary.main', fontSize: 18 }} />;
                           } else if (key === 'bcode') {
                             label = 'Block Code';
+                          } else if (key === 'btr_type_name') {
+                            label = 'BTR Type';
+                            value = selectedRow.btr_type_name || (selectedRow.btr_type_id ? `Type ${selectedRow.btr_type_id}` : 'NA');
                           } else if (key === 'resvno') {
                             // Combine resvno and resbdno
-                            const resvno = selectedRow.resvno || 'NA';
-                            const resbdno = selectedRow.resbdno || 'NA';
+                            const resvno = selectedRow.resvno ?? '';
+                            const resbdno = selectedRow.resbdno ?? '';
                             label = 'Re-Survey No.';
-                            value = `${resvno} / ${resbdno}`;
-                            highlight = true; // Highlight Survey Number
+                            value = (resvno || resbdno) ? `${resvno}${resbdno ? ` / ${resbdno}` : ''}` : 'NA';
+                            highlight = true;
                           } else if (key === 'lbname') {
-                            // Use only lbname, as lbtype is filtered out for the detailed view
                             label = 'Local Body Name';
                             value = selectedRow.lbname || 'NA';
                           } else if (key === 'ltype') {
                             label = 'Land Type';
-                            highlight = true; // Highlight Land Type
+                            highlight = true;
                           } else if (key === 'owner_name') {
-                            label = 'Owner Name';
+                            label = 'Cultivator Name';
+                            value = selectedRow.owner_name || 'NA';
                           } else if (key === 'address') {
                             label = 'Address';
+                            value = selectedRow.address || 'NA';
                           } else if (key === 'tp_no') {
-                            label = 'Thandaper No';
-                          } else if (key === 'tp_subdivion_no') {
-                            label = 'Thandaper Subdivision No';
+                            const tpNo = selectedRow.tp_no ?? '';
+                            const tpSub = selectedRow.tp_subdivion_no ?? '';
+                            label = 'Thandaper No.';
+                            value = (tpNo || tpSub) ? `${tpNo}${tpSub ? ` / ${tpSub}` : ''}` : 'NA';
                           } else if (key === 'main_no') {
-                            label = 'Old Survey No';
-                          } else if (key === 'sub_main_no') {
-                            label = 'Old Sub Division No';
+                            const mainNo = selectedRow.main_no ?? '';
+                            const subMainNo = selectedRow.sub_main_no ?? '';
+                            label = 'Old Survey No.';
+                            value = (mainNo || subMainNo) ? `${mainNo}${subMainNo ? ` / ${subMainNo}` : ''}` : 'NA';
+                          } else if (key === 'ward_no') {
+                            const wardNo = selectedRow.ward_no ?? '';
+                            const houseNo = selectedRow.house_no ?? '';
+                            label = 'Ward / House No.';
+                            value = (wardNo || houseNo) ? `${wardNo}${houseNo ? ` / ${houseNo}` : ''}` : 'NA';
                           } else if (key === 'totalCent') {
                             label = 'Total Area';
                             value = `${parseFloat(selectedRow.totalCent || 0).toFixed(2)} Cents`;
-                            highlight = true; // Highlight Area
+                            highlight = true;
                           } else {
-                            // Default cleaning for camelCase keys
                             label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                           }
 

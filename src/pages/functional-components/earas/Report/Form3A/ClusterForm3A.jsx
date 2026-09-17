@@ -21,9 +21,9 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  IconButton,
   CircularProgress,
   LinearProgress,
+  IconButton,
   TablePagination
 } from '@mui/material';
 import { LocationOn, ArrowBack } from '@mui/icons-material';
@@ -39,23 +39,18 @@ import AuthService from 'pages/authentication/services/authservice';
 import Breadcrumb from 'routes/Breadcrumb';
 
 const BASE_URL = mainapi.FORM_API;
+const SESSION_KEY = 'clusterForm3AState';
 
-const SESSION_KEY = 'talukForm3AState';
-
-const TALUK_W = 180;
+// Column widths
+const CLUSTER_W = 160;
 const AREA_W = 120;
-const SUB_CROP_W = 120;
-const CROP_W = SUB_CROP_W * 3;
+const CROP_W = 150;
 
-// Land type filter — WET / DRY / ALL. 'ALL' means the landType param is not
-// sent at all, so the backend returns both.
+// Land type filter — WET / DRY / ALL
 const DEFAULT_LAND_TYPE = 'ALL';
-
-// Backend expects title-case values (…&landType=Dry). 'ALL' has no entry here,
-// so the param is omitted entirely and both land types come back.
 const LAND_TYPE_PARAM = { WET: 'Wet', DRY: 'Dry' };
 
-// Season filter — always sent as seasonId. Defaults to Autumn.
+// Season filter
 const SEASONS = [
   { id: 1, name: 'Autumn' },
   { id: 2, name: 'Winter' },
@@ -63,8 +58,7 @@ const SEASONS = [
 ];
 const DEFAULT_SEASON_ID = 1;
 
-// Irrigation filter — ALL / IRRIGATED / UNIRRIGATED. 'ALL' means the
-// isIrrigated param is not sent at all, so the backend returns both.
+// Irrigation filter
 const DEFAULT_IRRIGATION = 'ALL';
 const IRRIGATION_PARAM = { IRRIGATED: 'true', UNIRRIGATED: 'false' };
 const IRRIGATION_OPTIONS = [
@@ -73,43 +67,35 @@ const IRRIGATION_OPTIONS = [
   { value: 'UNIRRIGATED', label: 'Unirrigated' }
 ];
 
-// Selected via the crop group dropdown; the index is kept as `activeTab` so the
-// value forwarded through navigate state stays compatible with the other pages.
+// Static crop groups
 const CROP_GROUPS = [
-  // { id: 1, name: 'Food crops' },
-  // { id: 2, name: 'Non food crops' },
-  // { id: 3, name: 'Trees' },
-  // { id: 4, name: 'Aromatic plants' },
-  // { id: 5, name: 'Drugs and Narcotics' },
+  { id: 1, name: 'Food crops' },
+  { id: 2, name: 'Non food crops' },
+  { id: 3, name: 'Trees' },
+  { id: 4, name: 'Aromatic plants' },
+  { id: 5, name: 'Drugs and Narcotics' },
   { id: 6, name: 'Cereals' },
-  // { id: 7, name: 'Fibre' },
-  // { id: 8, name: 'Flowers' },
-  // { id: 9, name: 'Fodder crops' },
-  // { id: 10, name: 'Fruits' },
-  // { id: 11, name: 'Grains' },
-  // { id: 12, name: 'Green manure crops' },
-  // { id: 13, name: 'Medicinal plants' },
-  // { id: 14, name: 'Oil seeds' },
-  // { id: 15, name: 'Other medicinal plants' },
+  { id: 7, name: 'Fibre' },
+  { id: 8, name: 'Flowers' },
+  { id: 9, name: 'Fodder crops' },
+  { id: 10, name: 'Fruits' },
+  { id: 11, name: 'Grains' },
+  { id: 12, name: 'Green manure crops' },
+  { id: 13, name: 'Medicinal plants' },
+  { id: 14, name: 'Oil seeds' },
+  { id: 15, name: 'Other medicinal plants' },
   { id: 16, name: 'Other trees' },
-  // { id: 17, name: 'Plantation crops' },
+  { id: 17, name: 'Plantation crops' },
   { id: 18, name: 'Pulses' },
-  // { id: 19, name: 'Spices' },
-  // { id: 20, name: 'Sugar crops' },
+  { id: 19, name: 'Spices' },
+  { id: 20, name: 'Sugar crops' },
   { id: 21, name: 'Tubers' },
   { id: 22, name: 'Vegetables' },
-  // { id: 23, name: 'Dry fruit' }
+  { id: 23, name: 'Dry fruit' }
 ];
 
-// Crop group filter — 'ALL' is a synthetic option kept outside CROP_GROUPS so the
-// index-based `activeTab` contract with the other pages stays intact. It is
-// represented by -1 (no valid CROP_GROUPS index) and fans out one request per
-// crop group, merging the responses taluk-by-taluk.
 const ALL_CROP_GROUPS = -1;
 const ALL_CROP_GROUPS_LABEL = 'All Crop Groups';
-
-// How many crop-group requests run at once when 'All' is selected, so the
-// report endpoint isn't hit with 23 concurrent calls.
 const FETCH_BATCH_SIZE = 6;
 
 const cleanName = (name) => (name || '').replace(/\s+/g, ' ').trim();
@@ -122,65 +108,62 @@ function getSavedState() {
   }
 }
 
-// Merge one or more crop-group responses into a single taluk list of the same
-// shape the API returns ({ talukId, talukName, crops: [...] }), so all the
-// derived data below works unchanged for both single-group and 'All'.
+// Merge one or more crop-group responses into a single cluster list
 function mergeGroupResponses(responses) {
-  const taluks = new Map();
+  const clusters = new Map();
 
   responses.forEach((rows) => {
-    (Array.isArray(rows) ? rows : []).forEach((t) => {
-      const key = t.talukId ?? `name:${t.talukName || 'Unassigned'}`;
-      if (!taluks.has(key)) {
-        taluks.set(key, {
-          talukId: t.talukId ?? null,
-          talukName: t.talukName,
-          clusterArea: Number(t.clusterArea) || 0,
-          nucArea: Number(t.nucArea) || 0,
-          ffsArea: Number(t.ffsArea) || 0,
-          cosArea: Number(t.cosArea) || 0,
+    (Array.isArray(rows) ? rows : []).forEach((c) => {
+      const key = c.clusterId ?? `num:${c.clusterNumber || 'Unassigned'}`;
+      if (!clusters.has(key)) {
+        clusters.set(key, {
+          clusterId: c.clusterId ?? null,
+          clusterNumber: c.clusterNumber,
+          clusterArea: Number(c.clusterArea) || 0,
+          nucArea: Number(c.nucArea) || 0,
+          ffsArea: Number(c.ffsArea) || 0,
+          cosArea: Number(c.cosArea) || 0,
           crops: new Map()
         });
       }
-      const entry = taluks.get(key);
-      if (!entry.clusterArea && t.clusterArea) entry.clusterArea = Number(t.clusterArea) || 0;
-      if (!entry.nucArea && t.nucArea) entry.nucArea = Number(t.nucArea) || 0;
-      if (!entry.ffsArea && t.ffsArea) entry.ffsArea = Number(t.ffsArea) || 0;
-      if (!entry.cosArea && t.cosArea) entry.cosArea = Number(t.cosArea) || 0;
+      const entry = clusters.get(key);
+      if (!entry.clusterArea && c.clusterArea) entry.clusterArea = Number(c.clusterArea) || 0;
+      if (!entry.nucArea && c.nucArea) entry.nucArea = Number(c.nucArea) || 0;
+      if (!entry.ffsArea && c.ffsArea) entry.ffsArea = Number(c.ffsArea) || 0;
+      if (!entry.cosArea && c.cosArea) entry.cosArea = Number(c.cosArea) || 0;
 
-      (t.crops || []).forEach((c) => {
-        const existing = entry.crops.get(c.cropId);
+      (c.crops || []).forEach((crop) => {
+        const existing = entry.crops.get(crop.cropId);
         if (existing) {
-          existing.areaInCents = (Number(existing.areaInCents) || 0) + (Number(c.areaInCents) || 0);
+          existing.areaInCents = (Number(existing.areaInCents) || 0) + (Number(crop.areaInCents) || 0);
         } else {
-          entry.crops.set(c.cropId, {
-            cropId: c.cropId,
-            cropName: c.cropName,
-            areaInCents: Number(c.areaInCents) || 0
+          entry.crops.set(crop.cropId, {
+            cropId: crop.cropId,
+            cropName: crop.cropName,
+            areaInCents: Number(crop.areaInCents) || 0
           });
         }
       });
     });
   });
 
-  return Array.from(taluks.values()).map((t) => ({
-    talukId: t.talukId,
-    talukName: t.talukName,
-    clusterArea: t.clusterArea,
-    nucArea: t.nucArea,
-    ffsArea: t.ffsArea,
-    cosArea: t.cosArea,
-    crops: Array.from(t.crops.values())
+  return Array.from(clusters.values()).map((c) => ({
+    clusterId: c.clusterId,
+    clusterNumber: c.clusterNumber,
+    clusterArea: c.clusterArea,
+    nucArea: c.nucArea,
+    ffsArea: c.ffsArea,
+    cosArea: c.cosArea,
+    crops: Array.from(c.crops.values())
   }));
 }
 
-const TalukForm3A = () => {
+const ClusterForm3A = () => {
   const theme = useTheme();
   const themeColor = '#05307a';
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Merge saved sessionStorage state with location.state (state wins on fresh nav).
   const stateData = useMemo(() => {
     const saved = getSavedState();
     return { ...saved, ...(location.state || {}) };
@@ -196,10 +179,15 @@ const TalukForm3A = () => {
 
   const districtId = stateData.districtId || officeInfo.districtOfficeId || officeInfo.districtId || null;
   const districtName = stateData.districtName || stateData.selectedDistrict || officeInfo.districtName || 'District';
+  const talukId = stateData.talukId || officeInfo.talukOfficeId || officeInfo.talukId || null;
+  const talukName = stateData.talukName || stateData.selectedTaluk || officeInfo.talukName || 'Taluk';
+  const blockId = stateData.blockId || null;
+  const blockName = stateData.blockName || stateData.selectedBlock || 'Block';
+  const zoneId = stateData.zoneId || null;
+  const zoneName = stateData.zoneName || stateData.selectedZone || 'Zone';
   const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
 
   const [activeTab, setActiveTab] = useState(stateData.activeTab ?? 0);
-  // Inherited from the state (Kerala) page on drill-down, or restored from session on refresh.
   const [landTypeTab, setLandTypeTab] = useState(stateData.landType ?? DEFAULT_LAND_TYPE);
   const [seasonId, setSeasonId] = useState(stateData.seasonId ?? DEFAULT_SEASON_ID);
   const [irrigation, setIrrigation] = useState(stateData.irrigation ?? DEFAULT_IRRIGATION);
@@ -220,72 +208,32 @@ const TalukForm3A = () => {
     whiteSpace: 'nowrap'
   };
 
-  // Role auto-redirection if TALUK user visits TalukForm3A directly
   useEffect(() => {
-    let currentOfficeType = stateData.officeType || officeInfo.officeType;
-    if (!currentOfficeType) {
-      try {
-        const tokenRole = AuthService.getrole();
-        const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
-        const des = localStorage.getItem('des') || '';
-        if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
-          currentOfficeType = 'TALUK';
-        }
-      } catch (e) { }
-    }
+    sessionStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({
+        officeType: stateData.officeType,
+        districtId,
+        districtName,
+        talukId,
+        talukName,
+        blockId,
+        blockName,
+        zoneId,
+        zoneName,
+        agriculturalYear,
+        activeTab,
+        landType: landTypeTab,
+        seasonId,
+        irrigation
+      })
+    );
+  }, [stateData.officeType, districtId, districtName, talukId, talukName, blockId, blockName, zoneId, zoneName, agriculturalYear, activeTab, landTypeTab, seasonId, irrigation]);
 
-    if (currentOfficeType === 'TALUK') {
-      const tId = stateData.talukId || officeInfo.talukOfficeId || officeInfo.talukId;
-      const tName = stateData.talukName || officeInfo.talukName || '';
-      if (tId) {
-        navigate('/schemes/earas/Report/Form3A/ZoneForm3A', {
-          replace: true,
-          state: {
-            officeType: 'TALUK',
-            viewLevel: 'taluk',
-            talukId: tId,
-            talukName: tName,
-            selectedTaluk: tName,
-            districtId,
-            districtName,
-            isDirectAccess: true,
-            landType: landTypeTab,
-            seasonId,
-            irrigation,
-            activeTab: stateData.activeTab || 0
-          }
-        });
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [officeInfo, stateData, districtId, districtName, navigate]);
-
-  /* ── persist district context so breadcrumb/refresh keeps working ── */
-  useEffect(() => {
-    if (districtId != null) {
-      sessionStorage.setItem(
-        SESSION_KEY,
-        JSON.stringify({
-          districtId,
-          districtName,
-          selectedDistrict: districtName,
-          agriculturalYear,
-          landType: landTypeTab,
-          seasonId,
-          irrigation,
-          activeTab: stateData.activeTab ?? 0
-        })
-      );
-    }
-  }, [districtId, districtName, agriculturalYear, landTypeTab, seasonId, irrigation, stateData.activeTab]);
-
-  /* ─────────────────── fetch (per crop group + land type + season + irrigation) ─────────────────── */
+  /* ─────────────────── fetch cluster report data ─────────────────── */
 
   useEffect(() => {
-    if (districtId == null) {
-      setError('District is required. Please navigate from the state (district) report page.');
-      return;
-    }
+    if (!zoneId) return;
     if (!isAllCropGroups && !cropGroupId) return;
 
     let cancelled = false;
@@ -293,19 +241,17 @@ const TalukForm3A = () => {
     const buildUrl = (groupId) => {
       const params = new URLSearchParams({
         agriYear: agriculturalYear,
-        districtId: String(districtId),
-        cropGroupId: String(groupId)
+        cropGroupId: String(groupId),
+        zoneId: String(zoneId)
       });
-      // 'ALL' is represented by omitting the param entirely.
       const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
       if (landTypeParam) params.append('landType', landTypeParam);
       params.append('seasonId', String(seasonId));
 
-      // 'ALL' is represented by omitting the param entirely.
       const irrigationParam = IRRIGATION_PARAM[irrigation];
       if (irrigationParam) params.append('isIrrigated', irrigationParam);
-
-      return `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/district?${params.toString()}`;
+      console.log("api >>  ", `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/cluster?${params.toString()}`)
+      return `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/cluster?${params.toString()}`;
     };
 
     const fetchGroupData = async () => {
@@ -316,9 +262,7 @@ const TalukForm3A = () => {
         if (!token) throw new Error('Authorization token missing');
 
         const headers = { Authorization: `Bearer ${token}` };
-        // 'All' fans out to every crop group; a single group keeps its one call.
         const groupIds = isAllCropGroups ? CROP_GROUPS.map((g) => g.id) : [cropGroupId];
-        console.log('Fetching Taluk Form 3A data for crop groups:', groupIds.join(', '), '→', buildUrl(groupIds[0]));
 
         const payloads = [];
         for (let i = 0; i < groupIds.length; i += FETCH_BATCH_SIZE) {
@@ -333,10 +277,10 @@ const TalukForm3A = () => {
         setApiData(mergeGroupResponses(payloads));
       } catch (err) {
         if (cancelled) return;
-        console.error('Error fetching Taluk Form 3A data:', err);
+        console.error('Error fetching Cluster Form 3A data:', err);
         if (err.response?.status === 401) setError('Session expired. Please login again.');
         else if (err.response?.status === 403) setError("You don't have permission to access this data.");
-        else if (err.response?.status === 404) setError('District not found.');
+        else if (err.response?.status === 404) setError('Zone data not found.');
         else setError(err.response?.data?.message || err.message || 'Failed to fetch data');
         setApiData([]);
       } finally {
@@ -349,70 +293,69 @@ const TalukForm3A = () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cropGroupId, isAllCropGroups, districtId, agriculturalYear, landTypeTab, seasonId, irrigation]);
+  }, [cropGroupId, isAllCropGroups, zoneId, agriculturalYear, landTypeTab, seasonId, irrigation]);
 
   /* ─────────────────────────── derived data ─────────────────────────── */
 
   const cropColumns = useMemo(() => {
     const map = new Map();
-    apiData.forEach((t) =>
-      (t.crops || []).forEach((c) => {
-        if (!map.has(c.cropId)) map.set(c.cropId, { cropId: c.cropId, cropName: cleanName(c.cropName) });
+    apiData.forEach((c) =>
+      (c.crops || []).forEach((crop) => {
+        if (!map.has(crop.cropId)) map.set(crop.cropId, { cropId: crop.cropId, cropName: cleanName(crop.cropName) });
       })
     );
     return Array.from(map.values()).sort((a, b) => a.cropName.localeCompare(b.cropName));
   }, [apiData]);
 
-  // Sorted alphabetically by taluk name, with Unassigned at the end.
-  const talukRows = useMemo(() => {
-    const list = apiData.map((t) => {
+  const clusterRows = useMemo(() => {
+    const list = apiData.map((c) => {
       const byId = {};
-      (t.crops || []).forEach((c) => {
-        byId[c.cropId] = Number(c.areaInCents) || 0;
+      (c.crops || []).forEach((crop) => {
+        byId[crop.cropId] = Number(crop.areaInCents) || 0;
       });
       return {
-        talukId: t.talukId ?? null,
-        taluk: t.talukName || 'Unassigned',
-        clusterArea: Number(t.clusterArea) || 0,
-        nucArea: Number(t.nucArea) || 0,
-        ffsArea: Number(t.ffsArea) || 0,
-        cosArea: Number(t.cosArea) || 0,
+        clusterId: c.clusterId ?? null,
+        clusterNumber: c.clusterNumber || 'Unassigned',
+        clusterArea: Number(c.clusterArea) || 0,
+        nucArea: Number(c.nucArea) || 0,
+        ffsArea: Number(c.ffsArea) || 0,
+        cosArea: Number(c.cosArea) || 0,
         byId
       };
     });
 
     return list.sort((a, b) => {
-      if (a.taluk === 'Unassigned') return 1;
-      if (b.taluk === 'Unassigned') return -1;
-      return a.taluk.localeCompare(b.taluk);
+      const numA = parseInt(a.clusterNumber, 10);
+      const numB = parseInt(b.clusterNumber, 10);
+      if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+      return a.clusterNumber.localeCompare(b.clusterNumber);
     });
   }, [apiData]);
 
-  // Column totals for Area types across taluks
   const areaTotals = useMemo(() => {
     let clusterArea = 0;
     let nucArea = 0;
     let ffsArea = 0;
     let cosArea = 0;
-    talukRows.forEach((row) => {
+    clusterRows.forEach((row) => {
       clusterArea += row.clusterArea || 0;
       nucArea += row.nucArea || 0;
       ffsArea += row.ffsArea || 0;
       cosArea += row.cosArea || 0;
     });
     return { clusterArea, nucArea, ffsArea, cosArea };
-  }, [talukRows]);
+  }, [clusterRows]);
 
   const cropTotals = useMemo(() => {
     const totals = {};
     cropColumns.forEach((c) => (totals[c.cropId] = 0));
-    talukRows.forEach((row) => {
+    clusterRows.forEach((row) => {
       cropColumns.forEach((c) => {
         if (row.byId[c.cropId] !== undefined) totals[c.cropId] += row.byId[c.cropId];
       });
     });
     return totals;
-  }, [talukRows, cropColumns]);
+  }, [clusterRows, cropColumns]);
 
   /* ─────────────────────────── handlers ─────────────────────────── */
 
@@ -446,34 +389,11 @@ const TalukForm3A = () => {
   };
 
   const paginatedRows = useMemo(
-    () => talukRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [talukRows, page, rowsPerPage]
+    () => clusterRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [clusterRows, page, rowsPerPage]
   );
 
   const handleBack = () => {
-    let effectiveOfficeType = stateData.officeType || officeInfo.officeType;
-    if (!effectiveOfficeType) {
-      try {
-        const tokenRole = AuthService.getrole();
-        const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
-        const des = localStorage.getItem('des') || '';
-        if (roles.some(r => ['District Level Approver', 'District Level Data Viewer'].includes(r)) || des.includes('District')) {
-          effectiveOfficeType = 'DISTRICT';
-        }
-      } catch (e) { }
-    }
-
-    if (effectiveOfficeType === 'DISTRICT' || stateData.isDirectAccess) {
-      navigate('/Report');
-    } else {
-      navigate('/schemes/earas/Report/Form3A/KeralaForm3A', {
-        state: { activeTab, landType: landTypeTab, seasonId, irrigation }
-      });
-    }
-  };
-
-  const handleTalukClick = (talukName, talukId) => {
-    if (talukId == null) return;
     navigate('/schemes/earas/Report/Form3A/ZoneForm3A', {
       state: {
         officeType: stateData.officeType || 'DIRECTORATE',
@@ -483,7 +403,10 @@ const TalukForm3A = () => {
         talukId,
         talukName,
         selectedTaluk: talukName,
-        cropGroupId, // null when 'All' is selected
+        blockId,
+        blockName,
+        selectedBlock: blockName,
+        cropGroupId,
         cropGroupName,
         agriculturalYear,
         landType: landTypeTab,
@@ -494,7 +417,7 @@ const TalukForm3A = () => {
     });
   };
 
-  const TABLE_MIN_W = TALUK_W + 4 * AREA_W + Math.max(cropColumns.length, 1) * CROP_W;
+  const TABLE_MIN_W = CLUSTER_W + 4 * AREA_W + Math.max(cropColumns.length, 1) * CROP_W;
 
   /* ─────────────────────────── render ─────────────────────────── */
 
@@ -520,10 +443,10 @@ const TalukForm3A = () => {
             </IconButton>
             <LocationOn sx={{ fontSize: 32, color: themeColor }} />
             <Typography variant="h5" sx={{ fontWeight: 'bold', color: themeColor }}>
-              {districtName} District - Taluk-wise Crop Area Report (Form 3A)
+              {zoneName} Zone ({blockName} Block, {talukName} Taluk, {districtName} District) - Cluster-wise Crop Area Report (Form 3A)
             </Typography>
             <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
-              (Click on any taluk to view Zone-wise details) • Agricultural Year: {agriculturalYear} • Area in Cents
+              Agricultural Year: {agriculturalYear} • Area in Cents
               {cropGroupName && ` • ${cropGroupName}`}
               {landTypeTab !== 'ALL' && ` • ${landTypeTab} Land`}
               {seasonName && ` • ${seasonName} Season`}
@@ -565,10 +488,10 @@ const TalukForm3A = () => {
 
             {/* Crop group filter — All + one entry per tbl_master_crop_group row */}
             <FormControl size="small" sx={{ minWidth: 240 }}>
-              <InputLabel id="taluk-form3a-cropgroup-label">Crop Group</InputLabel>
+              <InputLabel id="cluster-form3a-cropgroup-label">Crop Group</InputLabel>
               <Select
-                labelId="taluk-form3a-cropgroup-label"
-                id="taluk-form3a-cropgroup"
+                labelId="cluster-form3a-cropgroup-label"
+                id="cluster-form3a-cropgroup"
                 value={activeTab}
                 label="Crop Group"
                 onChange={handleCropGroupChange}
@@ -591,10 +514,10 @@ const TalukForm3A = () => {
 
             {/* Season filter — Autumn / Winter / Summer */}
             <FormControl size="small" sx={{ minWidth: 180 }}>
-              <InputLabel id="taluk-form3a-season-label">Season</InputLabel>
+              <InputLabel id="cluster-form3a-season-label">Season</InputLabel>
               <Select
-                labelId="taluk-form3a-season-label"
-                id="taluk-form3a-season"
+                labelId="cluster-form3a-season-label"
+                id="cluster-form3a-season"
                 value={seasonId}
                 label="Season"
                 onChange={handleSeasonChange}
@@ -615,10 +538,10 @@ const TalukForm3A = () => {
 
             {/* Irrigation filter — All / Irrigated / Unirrigated */}
             <FormControl size="small" sx={{ minWidth: 180 }}>
-              <InputLabel id="taluk-form3a-irrigation-label">Irrigation</InputLabel>
+              <InputLabel id="cluster-form3a-irrigation-label">Irrigation</InputLabel>
               <Select
-                labelId="taluk-form3a-irrigation-label"
-                id="taluk-form3a-irrigation"
+                labelId="cluster-form3a-irrigation-label"
+                id="cluster-form3a-irrigation"
                 value={irrigation}
                 label="Irrigation"
                 onChange={handleIrrigationChange}
@@ -645,7 +568,7 @@ const TalukForm3A = () => {
             </Paper>
           )}
 
-          {/* Table Section — Taluk, Cluster Area, Nuc Area, Ffs Area, Cos Area, <crop columns...> */}
+          {/* Table Section — Cluster Number, Cluster Area, Nuc Area, Ffs Area, Cos Area, <crop columns...> */}
           <Paper
             elevation={2}
             sx={{
@@ -671,7 +594,7 @@ const TalukForm3A = () => {
                   sx={{ width: '100%', minWidth: TABLE_MIN_W, tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0 }}
                 >
                   <colgroup>
-                    <col style={{ width: TALUK_W }} />
+                    <col style={{ width: CLUSTER_W }} />
                     <col style={{ width: AREA_W }} />
                     <col style={{ width: AREA_W }} />
                     <col style={{ width: AREA_W }} />
@@ -679,9 +602,6 @@ const TalukForm3A = () => {
                     {cropColumns.map((c) => (
                       <col key={c.cropId} style={{ width: CROP_W }} />
                     ))}
-                    {/* Spacer column absorbs any leftover width so the real
-                      columns keep a consistent, readable size instead of
-                      stretching when there are only one or two crop columns. */}
                     <col style={{ width: 'auto' }} />
                   </colgroup>
                   <TableHead>
@@ -699,7 +619,7 @@ const TalukForm3A = () => {
                           zIndex: 3
                         }}
                       >
-                        Taluk
+                        Cluster No.
                       </TableCell>
                       <TableCell
                         align="right"
@@ -775,7 +695,7 @@ const TalukForm3A = () => {
                             <CircularProgress size={44} thickness={4} sx={{ color: themeColor }} />
                             <Box textAlign="center">
                               <Typography variant="subtitle1" sx={{ fontWeight: 600, color: themeColor }}>
-                                Loading Taluk Form 3A Report...
+                                Loading Cluster Form 3A Report...
                               </Typography>
                               <Typography variant="body2" color="text.secondary">
                                 Please wait while we fetch the latest progress details.
@@ -784,7 +704,7 @@ const TalukForm3A = () => {
                           </Stack>
                         </TableCell>
                       </TableRow>
-                    ) : talukRows.length === 0 ? (
+                    ) : clusterRows.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={cropColumns.length + 6} align="center" sx={{ py: 6 }}>
                           <Typography color="text.secondary">No data available for {cropGroupName}</Typography>
@@ -792,58 +712,46 @@ const TalukForm3A = () => {
                       </TableRow>
                     ) : (
                       <>
-                        {paginatedRows.map((row, index) => {
-                          const clickable = row.talukId != null;
-                          return (
-                            <TableRow
-                              key={row.talukId ?? `row-${index}`}
-                              hover={clickable}
-                              onClick={() => handleTalukClick(row.taluk, row.talukId)}
-                              sx={{
-                                cursor: clickable ? 'pointer' : 'default',
-                                '&:hover': clickable ? { backgroundColor: alpha(themeColor, 0.08), transition: '0.2s' } : undefined
-                              }}
+                        {paginatedRows.map((row, index) => (
+                          <TableRow key={row.clusterId ?? `row-${index}`}>
+                            <TableCell
+                              align="left"
+                              sx={{ position: 'sticky', left: 0, zIndex: 1, backgroundColor: theme.palette.background.paper }}
                             >
-                              <TableCell
-                                align="left"
-                                sx={{ position: 'sticky', left: 0, zIndex: 1, backgroundColor: theme.palette.background.paper }}
-                              >
-                                <Chip
-                                  label={row.taluk}
-                                  size="small"
-                                  sx={{
-                                    backgroundColor: alpha(themeColor, 0.1),
-                                    color: themeColor,
-                                    fontWeight: 500,
-                                    borderRadius: 1.5,
-                                    '&:hover': clickable ? { backgroundColor: alpha(themeColor, 0.2) } : undefined
-                                  }}
-                                />
-                              </TableCell>
-                              <TableCell align="right" sx={numericCellSx}>
-                                {row.clusterArea ? formatNumber(row.clusterArea) : '—'}
-                              </TableCell>
-                              <TableCell align="right" sx={numericCellSx}>
-                                {row.nucArea ? formatNumber(row.nucArea) : '—'}
-                              </TableCell>
-                              <TableCell align="right" sx={numericCellSx}>
-                                {row.ffsArea ? formatNumber(row.ffsArea) : '—'}
-                              </TableCell>
-                              <TableCell align="right" sx={numericCellSx}>
-                                {row.cosArea ? formatNumber(row.cosArea) : '—'}
-                              </TableCell>
-                              {cropColumns.map((crop) => {
-                                const val = row.byId[crop.cropId];
-                                return (
-                                  <TableCell key={crop.cropId} align="right" sx={numericCellSx}>
-                                    {val ? formatNumber(val) : '—'}
-                                  </TableCell>
-                                );
-                              })}
-                              <TableCell aria-hidden />
-                            </TableRow>
-                          );
-                        })}
+                              <Chip
+                                label={`Cluster ${row.clusterNumber}`}
+                                size="small"
+                                sx={{
+                                  backgroundColor: alpha(themeColor, 0.1),
+                                  color: themeColor,
+                                  fontWeight: 600,
+                                  borderRadius: 1.5
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell align="right" sx={numericCellSx}>
+                              {row.clusterArea ? formatNumber(row.clusterArea) : '—'}
+                            </TableCell>
+                            <TableCell align="right" sx={numericCellSx}>
+                              {row.nucArea ? formatNumber(row.nucArea) : '—'}
+                            </TableCell>
+                            <TableCell align="right" sx={numericCellSx}>
+                              {row.ffsArea ? formatNumber(row.ffsArea) : '—'}
+                            </TableCell>
+                            <TableCell align="right" sx={numericCellSx}>
+                              {row.cosArea ? formatNumber(row.cosArea) : '—'}
+                            </TableCell>
+                            {cropColumns.map((crop) => {
+                              const val = row.byId[crop.cropId];
+                              return (
+                                <TableCell key={crop.cropId} align="right" sx={numericCellSx}>
+                                  {val ? formatNumber(val) : '—'}
+                                </TableCell>
+                              );
+                            })}
+                            <TableCell aria-hidden />
+                          </TableRow>
+                        ))}
                         {/* Total Row */}
                         <TableRow sx={{ backgroundColor: alpha(themeColor, 0.08) }}>
                           <TableCell
@@ -878,7 +786,7 @@ const TalukForm3A = () => {
               </TableContainer>
               <TablePagination
                 component="div"
-                count={talukRows.length}
+                count={clusterRows.length}
                 page={page}
                 onPageChange={handleChangePage}
                 rowsPerPage={rowsPerPage}
@@ -894,4 +802,4 @@ const TalukForm3A = () => {
   );
 };
 
-export default TalukForm3A;
+export default ClusterForm3A;

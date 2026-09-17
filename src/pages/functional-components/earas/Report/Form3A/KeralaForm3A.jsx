@@ -16,11 +16,13 @@ import {
   Tabs,
   Tab,
   Chip,
+  Stack,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
   CircularProgress,
+  LinearProgress,
   TablePagination
 } from '@mui/material';
 import { LocationOn } from '@mui/icons-material';
@@ -41,6 +43,7 @@ const SESSION_KEY = 'keralaForm3AState';
 
 // Sticky/column widths
 const DISTRICT_W = 180;
+const AREA_W = 120;
 const CROP_W = 150;
 
 // Land type filter — WET / DRY / ALL. 'ALL' means the landType param is not
@@ -73,29 +76,29 @@ const IRRIGATION_OPTIONS = [
 // dropdown; the index is kept as `activeTab` so the value forwarded through
 // navigate state stays compatible with the drill-down pages.
 const CROP_GROUPS = [
-  { id: 1, name: 'Food crops' },
-  { id: 2, name: 'Non food crops' },
-  { id: 3, name: 'Trees' },
-  { id: 4, name: 'Aromatic plants' },
-  { id: 5, name: 'Drugs and Narcotics' },
+  // { id: 1, name: 'Food crops' },
+  // { id: 2, name: 'Non food crops' },
+  // { id: 3, name: 'Trees' },
+  // { id: 4, name: 'Aromatic plants' },
+  // { id: 5, name: 'Drugs and Narcotics' },
   { id: 6, name: 'Cereals' },
-  { id: 7, name: 'Fibre' },
-  { id: 8, name: 'Flowers' },
-  { id: 9, name: 'Fodder crops' },
-  { id: 10, name: 'Fruits' },
-  { id: 11, name: 'Grains' },
-  { id: 12, name: 'Green manure crops' },
-  { id: 13, name: 'Medicinal plants' },
-  { id: 14, name: 'Oil seeds' },
-  { id: 15, name: 'Other medicinal plants' },
+  // { id: 7, name: 'Fibre' },
+  // { id: 8, name: 'Flowers' },
+  // { id: 9, name: 'Fodder crops' },
+  // { id: 10, name: 'Fruits' },
+  // { id: 11, name: 'Grains' },
+  // { id: 12, name: 'Green manure crops' },
+  // { id: 13, name: 'Medicinal plants' },
+  // { id: 14, name: 'Oil seeds' },
+  // { id: 15, name: 'Other medicinal plants' },
   { id: 16, name: 'Other trees' },
-  { id: 17, name: 'Plantation crops' },
+  // { id: 17, name: 'Plantation crops' },
   { id: 18, name: 'Pulses' },
-  { id: 19, name: 'Spices' },
-  { id: 20, name: 'Sugar crops' },
+  // { id: 19, name: 'Spices' },
+  // { id: 20, name: 'Sugar crops' },
   { id: 21, name: 'Tubers' },
   { id: 22, name: 'Vegetables' },
-  { id: 23, name: 'Dry fruit' }
+  // { id: 23, name: 'Dry fruit' }
 ];
 
 // Crop group filter — 'ALL' is a synthetic option kept outside CROP_GROUPS so the
@@ -133,10 +136,19 @@ function mergeGroupResponses(responses) {
         districts.set(key, {
           districtId: d.districtId ?? null,
           districtName: d.districtName,
+          clusterArea: Number(d.clusterArea) || 0,
+          nucArea: Number(d.nucArea) || 0,
+          ffsArea: Number(d.ffsArea) || 0,
+          cosArea: Number(d.cosArea) || 0,
           crops: new Map()
         });
       }
       const entry = districts.get(key);
+      if (!entry.clusterArea && d.clusterArea) entry.clusterArea = Number(d.clusterArea) || 0;
+      if (!entry.nucArea && d.nucArea) entry.nucArea = Number(d.nucArea) || 0;
+      if (!entry.ffsArea && d.ffsArea) entry.ffsArea = Number(d.ffsArea) || 0;
+      if (!entry.cosArea && d.cosArea) entry.cosArea = Number(d.cosArea) || 0;
+
       (d.crops || []).forEach((c) => {
         const existing = entry.crops.get(c.cropId);
         if (existing) {
@@ -155,6 +167,10 @@ function mergeGroupResponses(responses) {
   return Array.from(districts.values()).map((d) => ({
     districtId: d.districtId,
     districtName: d.districtName,
+    clusterArea: d.clusterArea,
+    nucArea: d.nucArea,
+    ffsArea: d.ffsArea,
+    cosArea: d.cosArea,
     crops: Array.from(d.crops.values())
   }));
 }
@@ -340,7 +356,7 @@ const KeralaForm3A = () => {
     return Array.from(map.values()).sort((a, b) => a.cropName.localeCompare(b.cropName));
   }, [apiData]);
 
-  // District rows: { districtId, district, byId: { [cropId]: areaInCents } }
+  // District rows: { districtId, district, clusterArea, nucArea, ffsArea, cosArea, byId: { [cropId]: areaInCents } }
   // Sorted alphabetically by district name, with Unassigned at the end.
   const districtRows = useMemo(() => {
     const list = apiData.map((d) => {
@@ -348,7 +364,15 @@ const KeralaForm3A = () => {
       (d.crops || []).forEach((c) => {
         byId[c.cropId] = Number(c.areaInCents) || 0;
       });
-      return { districtId: d.districtId ?? null, district: d.districtName || 'Unassigned', byId };
+      return {
+        districtId: d.districtId ?? null,
+        district: d.districtName || 'Unassigned',
+        clusterArea: Number(d.clusterArea) || 0,
+        nucArea: Number(d.nucArea) || 0,
+        ffsArea: Number(d.ffsArea) || 0,
+        cosArea: Number(d.cosArea) || 0,
+        byId
+      };
     });
 
     return list.sort((a, b) => {
@@ -357,6 +381,21 @@ const KeralaForm3A = () => {
       return a.district.localeCompare(b.district);
     });
   }, [apiData]);
+
+  // Column totals for Area types across districts
+  const areaTotals = useMemo(() => {
+    let clusterArea = 0;
+    let nucArea = 0;
+    let ffsArea = 0;
+    let cosArea = 0;
+    districtRows.forEach((row) => {
+      clusterArea += row.clusterArea || 0;
+      nucArea += row.nucArea || 0;
+      ffsArea += row.ffsArea || 0;
+      cosArea += row.cosArea || 0;
+    });
+    return { clusterArea, nucArea, ffsArea, cosArea };
+  }, [districtRows]);
 
   // Column totals across districts (only crops actually present in a district count).
   const cropTotals = useMemo(() => {
@@ -425,7 +464,7 @@ const KeralaForm3A = () => {
     });
   };
 
-  const TABLE_MIN_W = DISTRICT_W + Math.max(cropColumns.length, 1) * CROP_W;
+  const TABLE_MIN_W = DISTRICT_W + 4 * AREA_W + Math.max(cropColumns.length, 1) * CROP_W;
 
   /* ─────────────────────────── render ─────────────────────────── */
 
@@ -573,15 +612,24 @@ const KeralaForm3A = () => {
             </Paper>
           )}
 
-          {/* Table Section — District, <crop columns...> for the selected crop group */}
+          {/* Table Section — District, Cluster Area, Nuc Area, Ffs Area, Cos Area, <crop columns...> */}
           <Paper
             elevation={2}
             sx={{
               borderRadius: 3,
               overflow: 'hidden',
-              border: `1px solid ${alpha(themeColor, 0.1)}`
+              border: `1px solid ${alpha(themeColor, 0.1)}`,
+              position: 'relative'
             }}
           >
+            {loading && (
+              <LinearProgress
+                sx={{
+                  backgroundColor: alpha(themeColor, 0.15),
+                  '& .MuiLinearProgress-bar': { backgroundColor: themeColor }
+                }}
+              />
+            )}
             <Box sx={{ p: 0, position: 'relative' }}>
               <TableContainer sx={{ maxHeight: 600, overflowX: 'auto' }}>
                 <Table
@@ -591,6 +639,10 @@ const KeralaForm3A = () => {
                 >
                   <colgroup>
                     <col style={{ width: DISTRICT_W }} />
+                    <col style={{ width: AREA_W }} />
+                    <col style={{ width: AREA_W }} />
+                    <col style={{ width: AREA_W }} />
+                    <col style={{ width: AREA_W }} />
                     {cropColumns.map((c) => (
                       <col key={c.cropId} style={{ width: CROP_W }} />
                     ))}
@@ -616,6 +668,54 @@ const KeralaForm3A = () => {
                       >
                         District
                       </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          backgroundColor: themeColor,
+                          color: 'white',
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                          py: 1.5
+                        }}
+                      >
+                        Cluster Area
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          backgroundColor: themeColor,
+                          color: 'white',
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                          py: 1.5
+                        }}
+                      >
+                        Nuc Area
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          backgroundColor: themeColor,
+                          color: 'white',
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                          py: 1.5
+                        }}
+                      >
+                        Ffs Area
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          backgroundColor: themeColor,
+                          color: 'white',
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                          py: 1.5
+                        }}
+                      >
+                        Cos Area
+                      </TableCell>
                       {cropColumns.map((crop) => (
                         <TableCell
                           key={crop.cropId}
@@ -637,13 +737,23 @@ const KeralaForm3A = () => {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={cropColumns.length + 2} align="center" sx={{ py: 6 }}>
-                          <CircularProgress size={36} />
+                        <TableCell colSpan={Math.max(cropColumns.length + 6, 8)} align="center" sx={{ py: 10 }}>
+                          <Stack alignItems="center" spacing={2} sx={{ my: 2 }}>
+                            <CircularProgress size={44} thickness={4} sx={{ color: themeColor }} />
+                            <Box textAlign="center">
+                              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: themeColor }}>
+                                Loading Kerala State Form 3A Report...
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                Please wait while we fetch the latest progress details.
+                              </Typography>
+                            </Box>
+                          </Stack>
                         </TableCell>
                       </TableRow>
                     ) : districtRows.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={cropColumns.length + 2} align="center" sx={{ py: 6 }}>
+                        <TableCell colSpan={cropColumns.length + 6} align="center" sx={{ py: 6 }}>
                           <Typography color="text.secondary">No data available for {cropGroupName}</Typography>
                         </TableCell>
                       </TableRow>
@@ -677,6 +787,18 @@ const KeralaForm3A = () => {
                                   }}
                                 />
                               </TableCell>
+                              <TableCell align="right" sx={numericCellSx}>
+                                {row.clusterArea ? formatNumber(row.clusterArea) : '—'}
+                              </TableCell>
+                              <TableCell align="right" sx={numericCellSx}>
+                                {row.nucArea ? formatNumber(row.nucArea) : '—'}
+                              </TableCell>
+                              <TableCell align="right" sx={numericCellSx}>
+                                {row.ffsArea ? formatNumber(row.ffsArea) : '—'}
+                              </TableCell>
+                              <TableCell align="right" sx={numericCellSx}>
+                                {row.cosArea ? formatNumber(row.cosArea) : '—'}
+                              </TableCell>
                               {cropColumns.map((crop) => {
                                 const val = row.byId[crop.cropId];
                                 return (
@@ -696,6 +818,18 @@ const KeralaForm3A = () => {
                             sx={{ fontWeight: 700, color: themeColor, position: 'sticky', left: 0, zIndex: 1, backgroundColor: '#eef1f7' }}
                           >
                             TOTAL
+                          </TableCell>
+                          <TableCell align="right" sx={{ ...numericCellSx, fontWeight: 700 }}>
+                            {areaTotals.clusterArea ? formatNumber(areaTotals.clusterArea) : '—'}
+                          </TableCell>
+                          <TableCell align="right" sx={{ ...numericCellSx, fontWeight: 700 }}>
+                            {areaTotals.nucArea ? formatNumber(areaTotals.nucArea) : '—'}
+                          </TableCell>
+                          <TableCell align="right" sx={{ ...numericCellSx, fontWeight: 700 }}>
+                            {areaTotals.ffsArea ? formatNumber(areaTotals.ffsArea) : '—'}
+                          </TableCell>
+                          <TableCell align="right" sx={{ ...numericCellSx, fontWeight: 700 }}>
+                            {areaTotals.cosArea ? formatNumber(areaTotals.cosArea) : '—'}
                           </TableCell>
                           {cropColumns.map((crop) => (
                             <TableCell key={crop.cropId} align="right" sx={{ ...numericCellSx, fontWeight: 700 }}>

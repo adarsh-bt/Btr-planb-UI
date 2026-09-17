@@ -917,7 +917,7 @@ function Form1_menus() {
             <DetailItem label="Contact Number" value={keyplotData?.phone_number} />
             {renderBtrDetails()}
             <DetailItem label="Area" value={keyplotData?.area + " cent"} />
-            <DetailItem
+            {/* <DetailItem
               label="Location"
               value={
                 keyplotData?.geocoordinate ? (
@@ -936,7 +936,7 @@ function Form1_menus() {
                   </Box>
                 ) : 'N/A'
               }
-            />
+            /> */}
 
             <DetailItem label="Address" value={keyplotData?.address} />
           </Grid>
@@ -1990,7 +1990,8 @@ function Form1_menus() {
           title=""
           sx={{
             border: `1px solid #e0e0e0`,
-            boxShadow: 3
+            boxShadow: 3,
+            marginTop: 1
           }}
         >
           {/* {error && renderError()} */}
