@@ -526,7 +526,7 @@ function Earas_menus() {
       textShadow: '0 2px 4px rgba(0,0,0,0.2)'
     }}>
       <AssessmentIcon sx={{ fontSize: '2rem', color: '#4facfe' }} />
-      STATUS OVERVIEW
+      STATUS OVERVIEW (AGRI YEAR: {localStorage.getItem('activeAgriYear') || 'N/A'} under Process)
     </Typography>
     
     {/* Status Summary Cards */}
@@ -1803,116 +1803,138 @@ function Earas_menus() {
         </Box>
       </Card>
     </Grid>
+  )}
 
-    <Grid item xs={12} sm={4} md={3} lg={3}>              
-    <Cardr
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '1rem',
-          borderRadius: '1rem',
-          background: 'linear-gradient(135deg, rgba(255, 223, 138, 0.57), rgb(255, 193, 7))', // Gradient color
-          transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
-          '&:hover': {
-            transform: 'scale(1.05)', // Hover scale effect
-            // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
-            boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)', // Stronger shadow on hover
-          },
-        }}
-      >
-        <CardMedia
-          component="img"
-          sx={{
-            width: '5rem',
-            height: '5rem',
-            borderRadius: '.5rem',
-            marginRight: '1rem', // Space between image and text
-          }}
-          image="https://cdn-icons-png.flaticon.com/512/977/977464.png"
-          alt="Dashboard Icon"
-        />
+  {/* GCES View Card */}
+            {/* {role === 'Field Data Collector' && (
+              <Grid item xs={12} sm={6} md={4} lg={3}>
+                <Card
+                  component={Link}
+                  to="/schemes/earas/GCESDashboard"
+                  sx={{
+                    textDecoration: 'none',
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '1.5rem',
+                    borderRadius: '1.3rem',
+                    background: 'linear-gradient(135deg, #8fdb39ff 0%, #e04e00ff 100%)',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: '0 10px 20px rgba(0, 0, 0, 0.15)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    minHeight: '130px',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: '-100%',
+                      width: '100%',
+                      height: '100%',
+                      background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+                      transition: 'left 0.6s ease',
+                    },
+                    '&:hover': {
+                      transform: 'translateY(-8px)',
+                      boxShadow: '0 20px 30px rgba(0, 0, 0, 0.2)',
+                      '&::before': { left: '100%' },
+                    },
+                  }}
+                >
+                  <Box sx={{
+                    width: { xs: '4rem', sm: '5rem' },
+                    height: { xs: '4rem', sm: '5rem' },
+                    borderRadius: '1.2rem',
+                    marginRight: { xs: 0, sm: '1.5rem' },
+                    marginBottom: { xs: '1rem', sm: 0 },
+                    background: 'rgba(255,255,255,0.2)',
+                    backdropFilter: 'blur(10px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <AssignmentIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
+                  </Box>
+                  <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', mb: 0.5 }}>
+                      GCES
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                      View
+                    </Typography>
+                  </Box>
+                </Card>
+              </Grid>
+            )} */}
 
-        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-          <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-            <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-              EARAS
-            </Typography>
-            <Typography
-              variant="subtitle1"
-              component="div"
-              sx={{
-                color: '#f3f3f3',
-                fontStyle: 'italic',
-                fontWeight: 'lighter',
-                marginTop: '0.5rem',
-              }}
-            >
-              --- ----
-            </Typography>
-          </CardContent>
-        </Box>
-      </Card>
-    </Grid>
-
-
-    <Grid item xs={12} sm={4} md={3} lg={3}>              
-    <Card
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '1rem',
-          borderRadius: '1rem',
-          background: 'linear-gradient(135deg, rgba(123, 239, 178, 0.57), rgb(46, 204, 113))', // Gradient color
-          transition: 'transform 0.3s ease-in-out, background 0.3s ease-in-out', // Transition effect
-          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)', // Box shadow
-          '&:hover': {
-            transform: 'scale(1.05)', // Hover scale effect
-            // background: 'linear-gradient(135deg, #ff9a8b, #ff6f61)', // Darker gradient on hover
-            boxShadow: '0 8px 16px rgba(0, 0, 0, 0.3)', // Stronger shadow on hover
-          },
-        }}
-      >
-        <CardMedia
-          component="img"
-          sx={{
-            width: '5rem',
-            height: '5rem',
-            borderRadius: '.5rem',
-            marginRight: '1rem', // Space between image and text
-          }}
-          image="https://icons.veryicon.com/png/o/miscellaneous/common-face-icons-continuously-updated/scan-business-card.png"
-          alt="Dashboard Icon"
-        />
-
-        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-          <CardContent sx={{ flex: '1 0 auto', textAlign: 'center' }}>
-            <Typography component="div" variant="h5" sx={{ fontWeight: 'bold', color: '#fff' }}>
-              EARAS
-            </Typography>
-            <Typography
-              variant="subtitle1"
-              component="div"
-              sx={{
-                color: '#f3f3f3',
-                fontStyle: 'italic',
-                fontWeight: 'lighter',
-                marginTop: '0.5rem',
-              }}
-            >
-              --- ----
-            </Typography>
-          </CardContent>
-        </Box>
-      </Card>
-    </Grid>    */}
+           
+              <Grid item xs={12} sm={6} md={4} lg={3}>
+                <Card
+                  component={Link}
+                  to="/tourdiary"
+                  sx={{
+                    textDecoration: 'none',
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '1.5rem',
+                    borderRadius: '1.3rem',
+                    background: 'linear-gradient(135deg, #8fdb39ff 0%, #e04e00ff 100%)',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: '0 10px 20px rgba(0, 0, 0, 0.15)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    minHeight: '130px',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: '-100%',
+                      width: '100%',
+                      height: '100%',
+                      background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+                      transition: 'left 0.6s ease',
+                    },
+                    '&:hover': {
+                      transform: 'translateY(-8px)',
+                      boxShadow: '0 20px 30px rgba(0, 0, 0, 0.2)',
+                      '&::before': { left: '100%' },
+                    },
+                  }}
+                >
+                  <Box sx={{
+                    width: { xs: '4rem', sm: '5rem' },
+                    height: { xs: '4rem', sm: '5rem' },
+                    borderRadius: '1.2rem',
+                    marginRight: { xs: 0, sm: '1.5rem' },
+                    marginBottom: { xs: '1rem', sm: 0 },
+                    background: 'rgba(255,255,255,0.2)',
+                    backdropFilter: 'blur(10px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <AssignmentIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
+                  </Box>
+                  <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', mb: 0.5 }}>
+                      Tour Diary
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                      Entry
+                    </Typography>
+                  </Box>
+                </Card>
+              </Grid>
           </Grid>
-        </MainCard>
-      </Grid>
+      </MainCard>
     </Grid>
-  );
+  </Grid>
+);
 }
 
 export default Earas_menus;

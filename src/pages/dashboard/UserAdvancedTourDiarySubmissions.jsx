@@ -7,10 +7,6 @@ import {
   Card,
   CardContent,
   Chip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   CircularProgress,
   Alert,
   Button,
@@ -32,10 +28,13 @@ const UserAdvancedTourDiarySubmissions = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [submissions, setSubmissions] = useState([]);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [years, setYears] = useState([]);
 
-  // Fetch submissions when component mounts or year changes
+  const [roleName, setRoleName] = useState("");
+
+  // 1. Retrieve and parse the Agri Year from localStorage (e.g., "2025-2026")
+  const agriYear = localStorage.getItem("activeAgriYear") || "";
+  const [startYear, endYear] = agriYear ? agriYear.split('-').map(Number) : [null, null];
+
   useEffect(() => {
     if (!userId) {
       setError("No user selected");
@@ -43,27 +42,66 @@ const UserAdvancedTourDiarySubmissions = () => {
       return;
     }
 
+    if (!agriYear || !startYear || !endYear) {
+      setError("Active Agricultural Year is missing or invalid in local storage.");
+      setLoading(false);
+      return;
+    }
+
     const fetchSubmissions = async () => {
       setLoading(true);
       setError("");
-      
+
       try {
-        const response = await tourDiaryService.getAdminSubmissionView(userId, selectedYear);
-        
-        if (response.error) {
-          setError(response.message || "Failed to fetch submissions");
-          setSubmissions([]);
-        } else {
-          setSubmissions(response.data || []);
-          
-          // Extract unique years from the data if available
-          const uniqueYears = [...new Set((response.data || []).map(item => item.year))];
-          if (uniqueYears.length > 0) {
-            setYears(uniqueYears);
-          } else {
-            // Default to current year if no years in data
-            setYears([selectedYear]);
+        // Fetch user role
+        const roleResponse = await tourDiaryService.getUserRole(userId);
+
+        if (
+          !roleResponse.error &&
+          roleResponse.data?.payload?.roles?.length > 0
+        ) {
+          setRoleName(roleResponse.data.payload.roles[0].roleName);
+        }
+        // Fetch data for both calendar years spanning the agricultural year
+        const [startYearResponse, endYearResponse] = await Promise.all([
+          tourDiaryService.getAdminSubmissionView(userId, startYear),
+          tourDiaryService.getAdminSubmissionView(userId, endYear)
+        ]);
+
+        let combinedData = [];
+
+        if (!startYearResponse.error && startYearResponse.data) {
+          // Filter for July (7) to December (12) from the start year
+          const startYearMonths = startYearResponse.data.filter(
+            (item) => item.month >= 7 && item.month <= 12
+          );
+          combinedData = [...combinedData, ...startYearMonths];
+        }
+
+        if (!endYearResponse.error && endYearResponse.data) {
+          // Filter for January (1) to June (6) from the end year
+          const endYearMonths = endYearResponse.data.filter(
+            (item) => item.month >= 1 && item.month <= 6
+          );
+          combinedData = [...combinedData, ...endYearMonths];
+        }
+
+        // 2. Generate the sequential Agricultural sequence (July -> Dec, Jan -> Jun)
+        // This ensures the custom sort handles chronological ordering spanning across two calendar years
+        const getAgriMonthOrder = (month) => (month >= 7 ? month - 7 : month + 5);
+
+        combinedData.sort((a, b) => {
+          if (a.year !== b.year) {
+            return a.year - b.year;
           }
+          return getAgriMonthOrder(a.month) - getAgriMonthOrder(b.month);
+        });
+
+        setSubmissions(combinedData);
+
+        // Handle error responses if both calls fail
+        if (startYearResponse.error && endYearResponse.error) {
+          setError(startYearResponse.message || "Failed to fetch submissions");
         }
       } catch (err) {
         setError("An error occurred while fetching data");
@@ -74,24 +112,22 @@ const UserAdvancedTourDiarySubmissions = () => {
     };
 
     fetchSubmissions();
-  }, [userId, selectedYear]);
+  }, [userId, agriYear, startYear, endYear]);
 
   const handleBack = () => {
-    navigate(-1); // Go back to previous page
+    navigate(-1);
   };
 
-  const handleViewDetailedDiary = (month) => {
-  // Navigate to detailed calendar view for admin approval
-  navigate("/approval_manage/advancedtourdiary/user-details", { 
-    state: { 
-      userId: userId,
-      month: month,
-      year: selectedYear
-    } 
-  });
-};
+  const handleViewDetailedDiary = (month, targetYear) => {
+    navigate("/approval_manage/advancedtourdiary/user-details", {
+      state: {
+        userId: userId,
+        month: month,
+        year: targetYear
+      }
+    });
+  };
 
-  // If no userId, show error
   if (!userId) {
     return (
       <Grid container spacing={3}>
@@ -103,8 +139,8 @@ const UserAdvancedTourDiarySubmissions = () => {
             <Alert severity="error" sx={{ mb: 2 }}>
               No user selected. Please go back and select a user.
             </Alert>
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               startIcon={<ArrowBackIcon />}
               onClick={handleBack}
             >
@@ -121,8 +157,13 @@ const UserAdvancedTourDiarySubmissions = () => {
     "July", "August", "September", "October", "November", "December"
   ];
 
-  const getStatusChip = (submitted) => {
-    return submitted ? (
+  // In UserAdvancedTourDiarySubmissions.jsx
+  const getStatusChip = (submitted, submitId) => {
+    // Consider it submitted if either flag is true or submitId exists
+
+    const isSubmitted = submitted || submitId;
+
+    return isSubmitted ? (
       <Chip
         icon={<CheckCircleIcon />}
         label="Submitted"
@@ -143,13 +184,11 @@ const UserAdvancedTourDiarySubmissions = () => {
 
   return (
     <Grid container spacing={3}>
-        <Breadcrumb />
-      <Grid item xs={12}>
-      </Grid>
+      <Breadcrumb />
+      <Grid item xs={12}></Grid>
 
       <Grid item xs={12}>
         <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
-          {/* Header with back button */}
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Button
               variant="outlined"
@@ -159,40 +198,15 @@ const UserAdvancedTourDiarySubmissions = () => {
             >
               Back
             </Button>
-            
+
             <Typography variant="h4" sx={{ color: "#04255e", fontWeight: "bold" }}>
-              Advanced Tour Diary Submissions
+              ATP Submissions ({agriYear})
             </Typography>
-            
-            <FormControl sx={{ minWidth: 120 }} size="small">
-              <InputLabel>Year</InputLabel>
-              <Select
-                value={selectedYear}
-                label="Year"
-                onChange={(e) => setSelectedYear(e.target.value)}
-              >
-                {years.length > 0 ? (
-                  years.map((year) => (
-                    <MenuItem key={year} value={year}>{year}</MenuItem>
-                  ))
-                ) : (
-                  <MenuItem value={selectedYear}>{selectedYear}</MenuItem>
-                )}
-                {/* Add option to select other years if needed */}
-                <MenuItem value={2025}>2025</MenuItem>
-                <MenuItem value={2026}>2026</MenuItem>
-                <MenuItem value={2024}>2024</MenuItem>
-              </Select>
-            </FormControl>
+
+            <Box sx={{ minWidth: 120 }}></Box>
           </Box>
 
           <Divider sx={{ mb: 3 }} />
-
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-              {/* <strong>User ID:</strong> {userId} */}
-            </Typography>
-          </Box>
 
           {loading ? (
             <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -202,15 +216,15 @@ const UserAdvancedTourDiarySubmissions = () => {
             <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>
           ) : submissions.length === 0 ? (
             <Alert severity="info" sx={{ mt: 2 }}>
-              No tour diary submissions found for this user in {selectedYear}.
+              No tour diary submissions found for this user in the agricultural year {agriYear}.
             </Alert>
           ) : (
             <Grid container spacing={2} sx={{ mt: 1 }}>
               {submissions.map((item) => (
-                <Grid item xs={12} sm={6} md={4} lg={3} key={item.month}>
-                  <Card 
-                    elevation={2} 
-                    sx={{ 
+                <Grid item xs={12} sm={6} md={4} lg={3} key={`${item.year}-${item.month}`}>
+                  <Card
+                    elevation={2}
+                    sx={{
                       height: "100%",
                       transition: "transform 0.2s, box-shadow 0.2s",
                       "&:hover": {
@@ -218,16 +232,16 @@ const UserAdvancedTourDiarySubmissions = () => {
                         boxShadow: 4
                       },
                       position: "relative",
-                      border: item.firstHalfSubmitted && item.secondHalfSubmitted 
-                        ? "2px solid #4caf50" 
+                      border: item.firstHalfSubmitted && item.secondHalfSubmitted
+                        ? "2px solid #4caf50"
                         : "none"
                     }}
                   >
                     <CardContent>
-                      <Typography 
-                        variant="h6" 
-                        sx={{ 
-                          color: "#04255e", 
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          color: "#04255e",
                           fontWeight: "bold",
                           borderBottom: "2px solid #04255e",
                           pb: 1,
@@ -242,27 +256,38 @@ const UserAdvancedTourDiarySubmissions = () => {
                           <CheckCircleIcon color="success" fontSize="small" />
                         )}
                       </Typography>
-                      
+
                       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                        <Box>
-                          <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
-                            First Half (1st - 15th)
-                          </Typography>
-                          {getStatusChip(item.firstHalfSubmitted)}
-                        </Box>
-                        
-                        <Box>
-                          <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
-                            Second Half (16th - End)
-                          </Typography>
-                          {getStatusChip(item.secondHalfSubmitted)}
-                        </Box>
+                        {roleName === "Field Data Collector" ? (
+                          <>
+                            <Box>
+                              <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
+                                First Half (1st - 15th)
+                              </Typography>
+                              {getStatusChip(item.firstHalfSubmitted, item.firstHalfSubmitId)}
+                            </Box>
+
+                            <Box>
+                              <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
+                                Second Half (16th - End)
+                              </Typography>
+                              {getStatusChip(item.secondHalfSubmitted, item.secondHalfSubmitId)}
+                            </Box>
+                          </>
+                        ) : (
+                          <Box>
+                            <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: "bold" }}>
+                              Month Status
+                            </Typography>
+                            {getStatusChip(item.fullMonthSubmitted, item.fullMonthSubmitId)}
+                          </Box>
+                        )}
 
                         <Button
                           variant="outlined"
                           size="small"
                           startIcon={<VisibilityIcon />}
-                          onClick={() => handleViewDetailedDiary(item.month)}
+                          onClick={() => handleViewDetailedDiary(item.month, item.year)}
                           sx={{ mt: 1 }}
                         >
                           View Details

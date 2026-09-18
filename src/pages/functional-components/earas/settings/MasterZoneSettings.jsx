@@ -385,9 +385,9 @@ const MasterZoneSettings = () => {
   return (
     <Grid container spacing={3}>
       <Breadcrumb />
-       <Typography variant="h3" sx={{ marginBottom: 2 }}>
-          Crops Management
-        </Typography>
+      <Typography variant="h3" sx={{ marginBottom: 2 }}>
+        Crops Management
+      </Typography>
       <Box sx={{ p: 3, maxWidth: 1400, margin: "0 auto", width: "100%" }}>
         <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4, color: '#05307a' }}>
           Master Zone Management
@@ -528,7 +528,7 @@ const MasterZoneSettings = () => {
                   )}
                 </FormControl>
               </Grid>
-              
+
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth required error={!!addErrors.desTalukId}>
                   <InputLabel>Select Taluk</InputLabel>
@@ -551,7 +551,7 @@ const MasterZoneSettings = () => {
                   )}
                 </FormControl>
               </Grid>
-              
+
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth required error={!!addErrors.btrTypeId}>
                   <InputLabel>Select BTR Type</InputLabel>
@@ -574,7 +574,7 @@ const MasterZoneSettings = () => {
                   )}
                 </FormControl>
               </Grid>
-              
+
               <Grid item xs={12} sm={6}>
                 <TextField
                   label="Zone Name (English)"
@@ -587,7 +587,7 @@ const MasterZoneSettings = () => {
                   placeholder="e.g., North Zone"
                 />
               </Grid>
-              
+
               <Grid item xs={12} sm={6}>
                 <TextField
                   label="Zone Name (Malayalam)"
@@ -603,7 +603,7 @@ const MasterZoneSettings = () => {
                   placeholder="e.g., വടക്കൻ സോൺ"
                 />
               </Grid>
-              
+
               <Grid item xs={12} sm={6}>
                 <Paper variant="outlined" sx={{ p: 2, height: '100%', display: 'flex', alignItems: 'center' }}>
                   <FormControlLabel
@@ -676,7 +676,7 @@ const MasterZoneSettings = () => {
                   helperText={editErrors.zoneNameEn}
                 />
               </Grid>
-              
+
               <Grid item xs={12} sm={6}>
                 <TextField
                   label="Zone Name (Malayalam)"
@@ -691,7 +691,7 @@ const MasterZoneSettings = () => {
                   }}
                 />
               </Grid>
-              
+
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth required error={!!editErrors.distId}>
                   <InputLabel>Select District</InputLabel>
@@ -714,7 +714,7 @@ const MasterZoneSettings = () => {
                   )}
                 </FormControl>
               </Grid>
-              
+
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth required error={!!editErrors.desTalukId}>
                   <InputLabel>Select Taluk</InputLabel>
@@ -737,7 +737,7 @@ const MasterZoneSettings = () => {
                   )}
                 </FormControl>
               </Grid>
-              
+
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth required error={!!editErrors.btrTypeId}>
                   <InputLabel>Select BTR Type</InputLabel>
@@ -760,7 +760,7 @@ const MasterZoneSettings = () => {
                   )}
                 </FormControl>
               </Grid>
-              
+
               <Grid item xs={12} sm={6}>
                 <Paper variant="outlined" sx={{ p: 2, height: '100%', display: 'flex', alignItems: 'center' }}>
                   <FormControlLabel

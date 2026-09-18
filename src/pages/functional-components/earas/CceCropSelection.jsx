@@ -96,10 +96,11 @@ const CceCropSelection = () => {
       // Fetch already selected crops for the current year
       const selectedCropsResponse = await api.get(
         `${FORM_URL}/earas-form1-entry/cce-crop-details/cce-crops-selected/fetch-all`,
-         {
-    params: {
-      agriYear: agriYear,
-    }}
+        {
+          params: {
+            agriYear: agriYear,
+          }
+        }
       );
 
       console.log("Selected Crops API RESPONSE:", selectedCropsResponse.data);
@@ -107,7 +108,7 @@ const CceCropSelection = () => {
       // Create a Set of selected crop IDs for easy lookup
       const selectedCceIds = new Set();
       const selectedCropsMap = new Map(); // Store logId and other details
-      
+
       if (selectedCropsResponse.data && selectedCropsResponse.data.payload && Array.isArray(selectedCropsResponse.data.payload)) {
         selectedCropsResponse.data.payload.forEach(item => {
           selectedCceIds.add(item.cceId);
@@ -123,7 +124,7 @@ const CceCropSelection = () => {
         .map(item => {
           const isAlreadySelected = selectedCceIds.has(item.cceId);
           const selectedInfo = selectedCropsMap.get(item.cceId);
-          
+
           return {
             id: item.cceId,
             name: item.cropNameEn,
@@ -154,7 +155,8 @@ const CceCropSelection = () => {
         createPayload.push({
           cceId: row.id,
           addedBy: userId,
-          remarks: "CCE crop selected"
+          remarks: "CCE crop selected",
+          agriYear: AuthService.agriyear()
           // logId will be null for new records
         });
       }
@@ -170,7 +172,7 @@ const CceCropSelection = () => {
 
     // Combine both operations in the format expected by backend
     const payload = [...createPayload, ...deletePayload];
-    
+
     console.log("Final Payload:", payload);
     return payload;
   };
@@ -183,18 +185,11 @@ const CceCropSelection = () => {
       showSnackbar("No changes to save");
       return;
     }
-
+    console.log("payload   " + payload)
     try {
-      await axios.post(
+      await api.post(
         `${FORM_URL}/earas-form1-entry/cce-crop-details/saveOrUpdate`,
-        payload, // Send as array directly, not wrapped in another object
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
-        }
-      );
+        payload);
 
       setSnackbar({
         open: true,
@@ -249,7 +244,7 @@ const CceCropSelection = () => {
     <Grid container spacing={3}>
       <Breadcrumb />
       <Grid item xs={12}>
-       <Typography variant="h3" >
+        <Typography variant="h3" >
           Crop Selection
         </Typography>
         {/* Snackbar - Now positioned at top center */}
@@ -275,7 +270,7 @@ const CceCropSelection = () => {
             {snackbar.message}
           </Alert>
         </Snackbar>
-        
+
         <Box sx={{ p: 3 }}>
           {/* Table Section */}
           <Paper sx={{ p: 4, boxShadow: 4, borderRadius: 3 }}>
@@ -350,12 +345,12 @@ const CceCropSelection = () => {
             </Box>
 
             {/* Tabs for Major and Minor */}
-            <Tabs 
-              value={tabValue} 
-              onChange={handleTabChange} 
-              sx={{ 
+            <Tabs
+              value={tabValue}
+              onChange={handleTabChange}
+              sx={{
                 mb: 3,
-                borderBottom: 1, 
+                borderBottom: 1,
                 borderColor: 'divider',
                 '& .MuiTab-root': {
                   fontSize: '0.5 rem',
@@ -370,17 +365,17 @@ const CceCropSelection = () => {
                 }
               }}
             >
-              <Tab 
-                label={`Major Crops (${getTotalMajorCount()})`} 
-                sx={{ 
+              <Tab
+                label={`Major Crops (${getTotalMajorCount()})`}
+                sx={{
                   '&:hover': { color: themeColor }
-                }} 
+                }}
               />
-              <Tab 
-                label={`Minor Crops (${getTotalMinorCount()})`} 
-                sx={{ 
+              <Tab
+                label={`Minor Crops (${getTotalMinorCount()})`}
+                sx={{
                   '&:hover': { color: themeColor }
-                }} 
+                }}
               />
             </Tabs>
 
@@ -430,17 +425,17 @@ const CceCropSelection = () => {
                               checked={row.selected}
                               onChange={() => handleCheckboxChange(row.id)}
                               disabled={row.isAlreadySelected}
-                              sx={{ 
-                                color: themeColor, 
-                                "&.Mui-checked": { 
-                                  color: themeColor 
+                              sx={{
+                                color: themeColor,
+                                "&.Mui-checked": {
+                                  color: themeColor
                                 }
                               }}
                             />
                             {row.isAlreadySelected && (
-                              <Typography 
-                                variant="caption" 
-                                sx={{ 
+                              <Typography
+                                variant="caption"
+                                sx={{
                                   color: '#666',
                                   fontStyle: 'italic',
                                   fontSize: '0.7rem'
@@ -474,7 +469,7 @@ const CceCropSelection = () => {
               />
             )}
           </Paper>
-          
+
           <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3 }}>
             <Button
               variant="contained"

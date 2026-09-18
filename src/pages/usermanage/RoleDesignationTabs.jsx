@@ -27,10 +27,10 @@ const RoleDesignationTabs = () => {
         textColor="primary"
         indicatorColor="primary"
       >
-        <Tab
+        {/* <Tab
           label="Role Management"
           sx={{ fontSize: '1.2rem', fontWeight: 'bold' }}
-        />
+        /> */}
         <Tab
           label="Designation Management"
           sx={{ fontSize: '1.2rem', fontWeight: 'bold' }}
@@ -38,8 +38,8 @@ const RoleDesignationTabs = () => {
       </Tabs>
 
       <Box sx={{ mt: 3 }}>
-        {tabValue === 0 && <RoleManage />}
-        {tabValue === 1 && <DesignationManage />}
+        {/* {tabValue === 0 && <RoleManage />} */}
+        {tabValue === 0 && <DesignationManage />}
       </Box>
     </Box></Grid>
     </Grid>

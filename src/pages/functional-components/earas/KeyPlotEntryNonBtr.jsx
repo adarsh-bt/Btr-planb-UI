@@ -29,9 +29,9 @@ import {
   Divider
 } from "@mui/material";
 import InfoIcon from '@mui/icons-material/Info';
-import { 
-  AddCircle, 
-  Delete, 
+import {
+  AddCircle,
+  Delete,
   CheckCircle,
   Cancel,
   Lock,
@@ -60,14 +60,14 @@ const KeyPlotEntryNonBtr = () => {
   const [talukInfo, setTalukInfo] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [workAllocationStatus, setworkAllocationStatus] = useState(false);
-  
+
   const [activeBTypes, setActiveBTypes] = useState([]);
   const [listTypeOptions, setListTypeOptions] = useState([]);
   const [nonBtrTypeMapping, setNonBtrTypeMapping] = useState({});
   const [btypesLoading, setBtypesLoading] = useState(false);
   const [keyplotLimit, setKeyplotLimit] = useState(null);
   const [remainingKeyplots, setRemainingKeyplots] = useState(0);
-  
+
   const [globalEntryType, setGlobalEntryType] = useState("");
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -89,7 +89,7 @@ const KeyPlotEntryNonBtr = () => {
   const userId = authservice.userid();
 
   const hasAnyData = useMemo(() => {
-    return Object.values(localBodyData).some(lbData => 
+    return Object.values(localBodyData).some(lbData =>
       Object.values(lbData || {}).some(villageRows => villageRows && villageRows.length > 0)
     );
   }, [localBodyData]);
@@ -168,21 +168,21 @@ const KeyPlotEntryNonBtr = () => {
             },
           }
         );
-        
+
         if (response.ok) {
           const btypeData = await response.json();
           setActiveBTypes(btypeData);
-          
+
           const nonBtrOptions = btypeData
             .filter(btype => btype.btypeId !== 1)
             .map(btype => btype.btypeName);
-          
+
           setListTypeOptions(nonBtrOptions);
-          
+
           if (nonBtrOptions.length > 0) {
             setGlobalEntryType(nonBtrOptions[0]);
           }
-          
+
           const mapping = {};
           btypeData.forEach(btype => {
             mapping[btype.btypeName] = btype.btypeId;
@@ -262,7 +262,7 @@ const KeyPlotEntryNonBtr = () => {
       setLocalBodyData({});
       return;
     }
-    
+
     const fetchData = async () => {
       setLoading(true);
       setError("");
@@ -307,7 +307,7 @@ const KeyPlotEntryNonBtr = () => {
           });
           return next;
         });
-        
+
         setActiveTab((t) => lbData && lbData.length > 0 ? Math.min(t, lbData.length - 1) : 0);
       } catch (err) {
         setError(err.message);
@@ -326,7 +326,7 @@ const KeyPlotEntryNonBtr = () => {
 
   const checkPlotUsageInCurrentForm = (plotIdentifier, currentLbId, currentVillageName, currentRowId, btrTypeId) => {
     let duplicateRows = [];
-    
+
     Object.entries(localBodyData).forEach(([lbId, villageData]) => {
       Object.entries(villageData || {}).forEach(([villageName, rows]) => {
         rows.forEach(row => {
@@ -355,7 +355,7 @@ const KeyPlotEntryNonBtr = () => {
     const totalArea = parseFloat(duplicateRows[0].area) || 0;
     const usedArea = duplicateRows.reduce((sum, row) => sum + (parseFloat(row.area) || 0), 0);
     const remainingArea = Math.max(0, totalArea - usedArea);
-    
+
     return {
       isUsed: true,
       location: 'this form',
@@ -374,7 +374,10 @@ const KeyPlotEntryNonBtr = () => {
 
     if (btrTypeId === 2 && (!row.wardNo || !row.houseNo)) return;
     if (btrTypeId === 3 && (!row.name || !row.address || !row.area)) return;
-    if (btrTypeId === 4 && (!row.thandaperNo)) return;
+    if (btrTypeId === 4 && (!row.thandaperNo)) {
+      console.log("Thandaper No is missing:", row);
+      return;
+    }
     if (btrTypeId === 5 && (!row.oldsvno)) return;
 
     let plotIdentifier = '';
@@ -384,7 +387,7 @@ const KeyPlotEntryNonBtr = () => {
     else if (btrTypeId === 5) plotIdentifier = `${row.village}-${row.villageBlock}-${row.oldsvno}-${row.oldsubno || ''}`;
 
     const existingUsageInForm = checkPlotUsageInCurrentForm(plotIdentifier, lbId, villageName, rowId, btrTypeId);
-    
+
     if (existingUsageInForm.isUsed) {
       setValidationInfo({
         message: `This plot is already used in ${existingUsageInForm.location}.`,
@@ -423,14 +426,28 @@ const KeyPlotEntryNonBtr = () => {
         payload.address = row.address;
         payload.totCent = parseFloat(row.area);
       } else if (btrTypeId === 4) {
+        // ✅ FIX: Properly handle thandapersubNo - it can be empty or have a value
+        const thandapersubNoValue = row.thandapersubNo && row.thandapersubNo.trim() !== ""
+          ? row.thandapersubNo.trim()
+          : null;
+
+        console.log("Thandaper validation - row data:", {
+          thandaperNo: row.thandaperNo,
+          thandapersubNo: row.thandapersubNo,
+          thandapersubNoValue: thandapersubNoValue,
+          area: row.area
+        });
+
         payload.tpno = parseInt(row.thandaperNo);
-        payload.tbsubdivisionno = row.thandapersubNo ? row.thandapersubNo : null;
+        payload.tbsubdivisionno = thandapersubNoValue;  // ✅ Use the processed value
         payload.totCent = parseFloat(row.area) || 0;
       } else if (btrTypeId === 5) {
         payload.oldsvno = parseInt(row.oldsvno);
         payload.oldsubno = row.oldsubno ? row.oldsubno : null;
         payload.totCent = parseFloat(row.area) || 0;
       }
+
+      console.log("payload    ..   ", payload);
 
       const response = await fetch(`${BASE_URL}/btr-service/key-plots/validate-nonbtr-keyplots`, {
         method: 'POST',
@@ -441,42 +458,59 @@ const KeyPlotEntryNonBtr = () => {
       const responseText = await response.text();
       let data = responseText ? JSON.parse(responseText) : {};
 
-      if (response.status === 409 || data.remainingArea === 0 || (data.message && data.message.includes("already selected"))) {
-        if (data.availableSubdivisions && data.availableSubdivisions.length > 0) {
-          setAvailableSubdivisions(data.availableSubdivisions);
-          setPendingPlot({ lbId, villageName, rowId, validationInfo: data });
-          setSubdivisionDialogOpen(true);
-        } else {
-          setValidationInfo({
-            message: data.message || "This plot has already been used in current or previous agricultural year.",
-            totalcent: data.totalArea || data.totalcent || row.area || 0,
-            remainingArea: data.remainingArea || 0,
-            uiUsedRemaining: data.remainingArea || 0,
-            isFromCurrentForm: false,
-            plotId: data.id,
-            landType: data.landType
-          });
-          setValidatingRow({ lbId, villageName, rowId });
-          setIsValidationDialogOpen(true);
-        }
-      } else if (response.ok) {
+      // Check if the response indicates multiple subdivisions
+      if (data.availableSubdivisions && data.availableSubdivisions.length > 0) {
+        // Instead of showing subdivision dialog, show validation dialog with the message
+        setValidationInfo({
+          message: data.message || "Multiple subdivisions found. Please select one.",
+          totalcent: data.totalcent || row.area || 0,
+          remainingArea: data.totalcent || 0,
+          uiUsedRemaining: data.totalcent || 0,
+          isFromCurrentForm: false,
+          plotId: null,
+          landType: data.landType,
+          showSubdivisionOption: true, // Add a flag to indicate subdivisions are available
+          availableSubdivisions: data.availableSubdivisions // Store subdivisions for later use
+        });
+        setValidatingRow({ lbId, villageName, rowId });
+        setIsValidationDialogOpen(true);
+      }
+      // Check if it's a conflict (already used with remaining area 0 or other conflicts)
+      else if (response.status === 409 || data.remainingArea === 0 || (data.message && data.message.includes("already used"))) {
+        setValidationInfo({
+          message: data.message || "This plot has already been used in current or previous agricultural year.",
+          totalcent: data.totalArea || data.totalcent || row.area || 0,
+          remainingArea: data.remainingArea || 0,
+          uiUsedRemaining: data.remainingArea || 0,
+          isFromCurrentForm: false,
+          plotId: data.id,
+          landType: data.landType
+        });
+        setValidatingRow({ lbId, villageName, rowId });
+        setIsValidationDialogOpen(true);
+      }
+      // Success case (plot is available)
+      else if (response.ok) {
         if (data.id) {
           handleChange(lbId, villageName, rowId, 'btrId', data.id);
           handleChange(lbId, villageName, rowId, 'area', data.totalcent ? data.totalcent.toString() : row.area);
           handleChange(lbId, villageName, rowId, 'isLocked', true);
           if (data.landType) {
-             handleChange(lbId, villageName, rowId, 'landType', data.landType.charAt(0).toUpperCase() + data.landType.slice(1).toLowerCase());
+            handleChange(lbId, villageName, rowId, 'landType', data.landType.charAt(0).toUpperCase() + data.landType.slice(1).toLowerCase());
           }
           toast.success(data.message || "Existing plot linked. Fields are locked.");
         } else {
           handleChange(lbId, villageName, rowId, 'btrId', null);
           handleChange(lbId, villageName, rowId, 'isLocked', false);
         }
-      } else {
+      }
+      // Other errors
+      else {
         throw new Error(data.message || `Validation failed: ${response.status}`);
       }
     } catch (error) {
       console.error("Validation error:", error);
+      toast.error("Validation failed. Please try again.");
     }
   };
 
@@ -488,16 +522,16 @@ const KeyPlotEntryNonBtr = () => {
       ...prev,
       [lbId]: {
         ...prev[lbId],
-        [villageName]: prev[lbId][villageName].map(row => 
+        [villageName]: prev[lbId][villageName].map(row =>
           row.id === rowId ? {
             ...row,
             btrId: validationInfo.plotId || null,
-            area: type === 'remaining' && validationInfo.uiUsedRemaining > 0 
-              ? validationInfo.uiUsedRemaining.toFixed(2) 
+            area: type === 'remaining' && validationInfo.uiUsedRemaining > 0
+              ? validationInfo.uiUsedRemaining.toFixed(2)
               : row.area,
-            isLocked: true, 
-            landType: validationInfo.landType 
-              ? validationInfo.landType.charAt(0).toUpperCase() + validationInfo.landType.slice(1).toLowerCase() 
+            isLocked: true,
+            landType: validationInfo.landType
+              ? validationInfo.landType.charAt(0).toUpperCase() + validationInfo.landType.slice(1).toLowerCase()
               : row.landType
           } : row
         )
@@ -515,12 +549,12 @@ const KeyPlotEntryNonBtr = () => {
   const handleRejectPlot = () => {
     if (!validatingRow || !validatingRow.lbId) return;
     const { lbId, villageName, rowId } = validatingRow;
-    
+
     setLocalBodyData(prev => ({
       ...prev,
       [lbId]: {
         ...prev[lbId],
-        [villageName]: prev[lbId][villageName].map(row => 
+        [villageName]: prev[lbId][villageName].map(row =>
           row.id === rowId ? { ...row, name: '', address: '', wardNo: '', houseNo: '', thandaperNo: '', thandapersubNo: '', oldsvno: '', oldsubno: '', area: '', btrId: null, isLocked: false } : row
         )
       }
@@ -531,37 +565,100 @@ const KeyPlotEntryNonBtr = () => {
     toast.warn("Plot rejected. Please enter a different one.");
   };
 
-  const handleSubdivisionSelect = (selectedSub) => {
-    if (!pendingPlot || !selectedSub) return;
-    const { lbId, villageName, rowId, validationInfo } = pendingPlot;
+  const handleSubdivisionSelect = async (selectedSub) => {
+    if (!validatingRow || !selectedSub) return;
+    const { lbId, villageName, rowId } = validatingRow;
     const currentListType = getCurrentListType();
-    
-    setLocalBodyData(prev => ({
-      ...prev,
-      [lbId]: {
-        ...prev[lbId],
-        [villageName]: prev[lbId][villageName].map(row => 
-          row.id === rowId ? {
-            ...row,
-            thandapersubNo: currentListType === "Thandaper Number" ? selectedSub : row.thandapersubNo,
-            oldsubno: currentListType === "Old Survey Number" ? selectedSub : row.oldsubno,
-            subDivNo: (currentListType === "House List" || currentListType === "Cultivators List") ? selectedSub : row.subDivNo,
-            btrId: validationInfo?.id || null,
-            area: validationInfo?.totalcent ? validationInfo.totalcent.toString() : row.area,
-            isLocked: !!validationInfo?.totalcent,
-            landType: validationInfo?.landType 
-              ? validationInfo.landType.charAt(0).toUpperCase() + validationInfo.landType.slice(1).toLowerCase() 
-              : row.landType
-          } : row
-        )
+    const btrTypeId = nonBtrTypeMapping[currentListType];
+    const row = localBodyData[lbId]?.[villageName]?.find(r => r.id === rowId);
+    if (!row) return;
+
+    const villageData = villageInfoMap.get(row.village);
+    const lbData = localBodyInfoMap.get(parseInt(lbId));
+    const token = localStorage.getItem('token');
+
+    const payload = {
+      btrtype: btrTypeId,
+      vcode: villageData.vcode,
+      bcode: row.villageBlock,
+      lbcode: lbData.lbcode,
+      zoneId: parseInt(zoneId, 10),
+      agriYear: authservice.agriyear(),
+      resvno: row.surveyNo ? parseInt(row.surveyNo, 10) : null,
+      resbdno: (currentListType === "House List" || currentListType === "Cultivators List")
+        ? selectedSub
+        : (row.subDivNo?.trim() || null),
+      tpno: btrTypeId === 4 ? parseInt(row.thandaperNo) : undefined,
+      tbsubdivisionno: btrTypeId === 4 ? selectedSub : undefined,
+      oldsvno: btrTypeId === 5 ? parseInt(row.oldsvno) : undefined,
+      oldsubno: btrTypeId === 5 ? selectedSub : undefined,
+      totCent: parseFloat(row.area) || 0,
+    };
+
+    try {
+      const response = await fetch(`${BASE_URL}/btr-service/key-plots/validate-nonbtr-keyplots`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+
+      const responseText = await response.text();
+      const data = responseText ? JSON.parse(responseText) : {};
+
+      // Check if the subdivision is already used
+      if (data.remainingArea === 0 || (data.message && data.message.includes("already used"))) {
+        // Show validation dialog with the message
+        setValidationInfo({
+          message: data.message || "This subdivision is already used.",
+          totalcent: data.totalcent || row.area || 0,
+          remainingArea: data.remainingArea || 0,
+          uiUsedRemaining: data.remainingArea || 0,
+          isFromCurrentForm: false,
+          plotId: data.id,
+          landType: data.landType
+        });
+        setValidatingRow({ lbId, villageName, rowId });
+        setIsValidationDialogOpen(true);
+        return;
       }
-    }));
 
-    setSubdivisionDialogOpen(false);
-    setPendingPlot(null);
-    toast.success(`Subdivision ${selectedSub} selected. Fields locked.`);
+      // If the subdivision is available, update the row
+      setLocalBodyData(prev => ({
+        ...prev,
+        [lbId]: {
+          ...prev[lbId],
+          [villageName]: prev[lbId][villageName].map(r =>
+            r.id === rowId ? {
+              ...r,
+              thandapersubNo: currentListType === "Thandaper Number" ? selectedSub : r.thandapersubNo,
+              oldsubno: currentListType === "Old Survey Number" ? selectedSub : r.oldsubno,
+              subDivNo: (currentListType === "House List" || currentListType === "Cultivators List") ? selectedSub : r.subDivNo,
+              btrId: data.id || null,
+              area: data.totalcent ? data.totalcent.toString() : r.area,
+              isLocked: !!data.id,
+              landType: data.landType
+                ? data.landType.charAt(0).toUpperCase() + data.landType.slice(1).toLowerCase()
+                : r.landType
+            } : r
+          )
+        }
+      }));
+
+      // Close the validation dialog
+      setIsValidationDialogOpen(false);
+      setValidationInfo(null);
+      setValidatingRow({ lbId: null, villageName: null, rowId: null });
+
+      if (!data.id) {
+        toast.warn(data.message || `No exact plot found for subdivision ${selectedSub}.`);
+      } else {
+        toast.success(`Subdivision ${selectedSub} selected. Existing plot linked and locked.`);
+      }
+    } catch (err) {
+      console.error("Subdivision validation error:", err);
+      toast.error("Could not validate the selected subdivision. Please try again.");
+    }
   };
-
   const getRequiredFieldsForRow = (currentListType) => {
     switch (currentListType) {
       case "House List":
@@ -608,12 +705,12 @@ const KeyPlotEntryNonBtr = () => {
     const currentListType = getCurrentListType();
     const requiredFields = getRequiredFieldsForRow(currentListType);
     const lbVillageData = localBodyData[lbId] || {};
-    
+
     // Flatten rows inside this local body context across all structural villages
     const rows = Object.values(lbVillageData).flat();
     if (rows.length === 0) return true; // Accept first row addition unconditionally
-    
-    return rows.every((row) => 
+
+    return rows.every((row) =>
       requiredFields.every(({ field }) => String(row[field] || "").trim() !== "")
     );
   };
@@ -654,11 +751,11 @@ const KeyPlotEntryNonBtr = () => {
         [villageName]: (prev[lbId]?.[villageName] || []).map((row) =>
           row.id === id
             ? {
-                ...row,
-                village: newVillageName,
-                villageBlock: defaultBlock,
-                villageBlockOptions: blocks,
-              }
+              ...row,
+              village: newVillageName,
+              villageBlock: defaultBlock,
+              villageBlockOptions: blocks,
+            }
             : row
         ),
       },
@@ -670,16 +767,16 @@ const KeyPlotEntryNonBtr = () => {
       toast.warn(`Only ${remainingKeyplots} keyplots can be added for this zone`);
       return;
     }
-    
+
     setLocalBodyData((prev) => {
       const current = prev[lbId]?.[villageName] || [];
       const newId = current.length > 0 ? Math.max(...current.map((r) => r.id)) + 1 : 1;
       const newSlNo = current.length > 0 ? Math.max(...current.map((r) => r.slNo)) + 1 : 1;
-      
+
       const villageBlocks = villageToBlocks[villageName] || [];
       const defaultBlock = villageBlocks.length > 0 ? villageBlocks[0] : "";
       const allVillages = getVillagesForLocalBody(lbId).map(v => v.revenueVillageName);
-      
+
       return {
         ...prev,
         [lbId]: {
@@ -799,7 +896,7 @@ const KeyPlotEntryNonBtr = () => {
     try {
       const dtoList = [];
       const btrTypeId = nonBtrTypeMapping[currentListType];
-      
+
       Object.entries(localBodyData).forEach(([lbId, villageData]) => {
         Object.entries(villageData || {}).forEach(([villageName, rows]) => {
           rows.forEach(row => {
@@ -831,7 +928,7 @@ const KeyPlotEntryNonBtr = () => {
               }),
               ...(btrTypeId === 4 && {
                 tpno: row.thandaperNo ? parseInt(row.thandaperNo) : null,
-                tbsubdivisionno: row.thandapersubNo ? parseInt(row.thandapersubNo) : null
+                tbsubdivisionno: row.thandapersubNo ? String(row.thandapersubNo) : null
               }),
               ...(btrTypeId === 5 && {
                 oldsvno: row.oldsvno ? parseInt(row.oldsvno) : null,
@@ -841,7 +938,7 @@ const KeyPlotEntryNonBtr = () => {
           });
         });
       });
-
+      console.log("saveeee     ", dtoList)
       const response = await fetch(
         `${BASE_URL}/btr-service/api/btr-data/saveAll`,
         {
@@ -855,19 +952,75 @@ const KeyPlotEntryNonBtr = () => {
       );
 
       const result = await response.json();
-      if (response.ok && result.status === 'Success') {
-        setSavedCount(result.ids?.length || totalKeyplots);
+
+      console.log("Save response:", result);
+
+      if (response.ok && result.status === "COMPLETED") {
+
+        const saved = Number(result.savedCount || 0);
+        const duplicates = Number(result.duplicateCount || 0);
+        const failed = Number(result.errorCount || 0);
+
+        setSavedCount(saved);
+
+        // Only real failures should interrupt the user
+        if (failed > 0) {
+          setValidationErrors(
+            (result.errors || []).map(error => ({
+              message:
+                typeof error === "string"
+                  ? error
+                  : error.message || "Plot failed to save."
+            }))
+          );
+
+          setShowErrorModal(true);
+
+          toast.warning(
+            `${saved} plot(s) saved, ${failed} plot(s) failed.`
+          );
+
+          return;
+        }
+
+        // SUCCESS
+        // Duplicates are NOT errors.
         setShowSuccessModal(true);
-        toast.success(`Successfully saved ${result.ids?.length || totalKeyplots} keyplots!`);
+
+        let message = `${saved} plot(s) saved successfully.`;
+
+        if (duplicates > 0) {
+          message += ` ${duplicates} existing BTR plot(s) skipped.`;
+        }
+
+        toast.success(message);
+
         setLocalBodyData({});
-        setTimeout(() => { window.location.reload(); }, 1500);
-      } else if (result.status === 'Validation Failed') {
-        setValidationErrors(result.errors || []);
+
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+
+      } else if (result.status === "Validation Failed") {
+
+        setValidationErrors(
+          (result.errors || []).map(error => ({
+            message:
+              typeof error === "string"
+                ? error
+                : error.message || "Validation failed."
+          }))
+        );
+
         setShowErrorModal(true);
-        toast.error("Validation failed backend.");
+
+        toast.error("Validation failed.");
+
       } else {
-        setShowErrorModal(true);
-        toast.error(result.message || "Failed to save keyplots.");
+
+        toast.error(
+          result.message || "Failed to save keyplots."
+        );
       }
     } catch (error) {
       console.error("Save error:", error);
@@ -918,7 +1071,7 @@ const KeyPlotEntryNonBtr = () => {
 
   return (
     <Grid container spacing={3}>
-       <Breadcrumb></Breadcrumb>
+      <Breadcrumb></Breadcrumb>
       <Box sx={{ p: 3, maxWidth: 1600, margin: "0 auto", width: "100%", minHeight: 400 }}>
         <Typography variant="h4" align="center" gutterBottom sx={{ mb: 4 }}>
           Non-BTR Key Plot Entry
@@ -948,61 +1101,61 @@ const KeyPlotEntryNonBtr = () => {
                 </FormControl>
               </Box>
 
-             {keyplotLimit && (
-              <Paper 
-                elevation={0} 
-                variant="outlined" 
-                sx={{ 
-                  p: 2, 
-                  mb: 2, 
-                  bgcolor: '#f8fafc', 
-                  borderColor: '#e2e8f0', 
-                  borderRadius: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: 2
-                }}
-              >
-                {/* Left Side: Numeric Metrics */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
-                  <Typography variant="body1">
-                    Zone Limit: <strong style={{ color: '#05307a' }}>{keyplotLimit.allowedKeyplotsLimit}</strong>
-                  </Typography>
-                  <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
-                  <Typography variant="body1">
-                    Formed Count: <strong style={{ color: '#05307a' }}>{keyplotLimit.usedKeyplotsCount}</strong>
-                  </Typography>
-                  <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
-                  <Typography variant="body1">
-                    Remaining Available: <strong style={{ color: keyplotLimit.remainingKeyplots > 0 ? '#10b981' : '#dc2626' }}>{keyplotLimit.remainingKeyplots}</strong>
-                  </Typography>
-                </Box>
+              {keyplotLimit && (
+                <Paper
+                  elevation={0}
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    mb: 2,
+                    bgcolor: '#f8fafc',
+                    borderColor: '#e2e8f0',
+                    borderRadius: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 2
+                  }}
+                >
+                  {/* Left Side: Numeric Metrics */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+                    <Typography variant="body1">
+                      Zone Limit: <strong style={{ color: '#05307a' }}>{keyplotLimit.allowedKeyplotsLimit}</strong>
+                    </Typography>
+                    <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
+                    <Typography variant="body1">
+                      Formed Count: <strong style={{ color: '#05307a' }}>{keyplotLimit.usedKeyplotsCount}</strong>
+                    </Typography>
+                    <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
+                    <Typography variant="body1">
+                      Remaining Available: <strong style={{ color: keyplotLimit.remainingKeyplots > 0 ? '#10b981' : '#dc2626' }}>{keyplotLimit.remainingKeyplots}</strong>
+                    </Typography>
+                  </Box>
 
-                {/* Right Side: Dynamic Status Badge */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                    Work Allocation Status:
-                  </Typography>
-                  <Chip 
-                    label={getWorkAllocationStatusChip(keyplotLimit.status).label}
-                    color={getWorkAllocationStatusChip(keyplotLimit.status).color}
-                    variant={getWorkAllocationStatusChip(keyplotLimit.status).variant}
-                    size="medium"
-                    sx={{ fontWeight: 600, px: 1 }}
-                  />
-                </Box>
-              </Paper>
-            )}
+                  {/* Right Side: Dynamic Status Badge */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                      Work Allocation Status:
+                    </Typography>
+                    <Chip
+                      label={getWorkAllocationStatusChip(keyplotLimit.status).label}
+                      color={getWorkAllocationStatusChip(keyplotLimit.status).color}
+                      variant={getWorkAllocationStatusChip(keyplotLimit.status).variant}
+                      size="medium"
+                      sx={{ fontWeight: 600, px: 1 }}
+                    />
+                  </Box>
+                </Paper>
+              )}
 
             </Box>
           </Paper>
         )}
         {!workAllocationStatus && (
-          <Alert 
-            severity="error" 
-            icon={<ErrorIcon />} 
+          <Alert
+            severity="error"
+            icon={<ErrorIcon />}
             sx={{ mb: 3, borderRadius: 2, fontWeight: 500 }}
           >
             <strong>Keyplot Entry Disabled:</strong> The Work Allocation Statement for this Zone and Agricultural Year must be <strong>Approved</strong> by the administrator before you can record new keyplots.
@@ -1087,13 +1240,29 @@ const KeyPlotEntryNonBtr = () => {
                             </>
                           )}
 
+
                           {currentListType === "Thandaper Number" && (
                             <>
                               <TableCell align="center">
-                                <TextField value={row.thandaperNo} disabled={row.isLocked} onBlur={() => handlePlotValidation(lb.id, currentVillageName, row.id)} onChange={(e) => handleChange(lb.id, currentVillageName, row.id, "thandaperNo", e.target.value.replace(/\D/g, ""))} />
+                                <TextField
+                                  value={row.thandaperNo}
+                                  disabled={row.isLocked}
+                                  onBlur={() => handlePlotValidation(lb.id, currentVillageName, row.id)}
+                                  onChange={(e) => handleChange(lb.id, currentVillageName, row.id, "thandaperNo", e.target.value.replace(/\D/g, ""))}
+                                />
                               </TableCell>
                               <TableCell align="center">
-                                <TextField value={row.thandapersubNo} disabled={row.isLocked} onChange={(e) => handleChange(lb.id, currentVillageName, row.id, "thandapersubNo", e.target.value)} />
+                                <TextField
+                                  value={row.thandapersubNo}
+                                  disabled={row.isLocked}
+                                  onChange={(e) => handleChange(lb.id, currentVillageName, row.id, "thandapersubNo", e.target.value)}
+                                  onBlur={() => {
+                                    // ✅ Trigger validation when user leaves the Thandaper Sub No field
+                                    if (row.thandaperNo) {
+                                      handlePlotValidation(lb.id, currentVillageName, row.id);
+                                    }
+                                  }}
+                                />
                               </TableCell>
                             </>
                           )}
@@ -1116,7 +1285,7 @@ const KeyPlotEntryNonBtr = () => {
                             <TextField value={row.subDivNo} onChange={(e) => handleChange(lb.id, currentVillageName, row.id, "subDivNo", e.target.value)} />
                           </TableCell>
                           <TableCell align="center">
-                            <TextField value={row.area} disabled={row.isLocked} onBlur={() => { if(currentListType === "Cultivators List") handlePlotValidation(lb.id, currentVillageName, row.id); }} onChange={(e) => handleChange(lb.id, currentVillageName, row.id, "area", e.target.value)} />
+                            <TextField value={row.area} disabled={row.isLocked} onBlur={() => { if (currentListType === "Cultivators List") handlePlotValidation(lb.id, currentVillageName, row.id); }} onChange={(e) => handleChange(lb.id, currentVillageName, row.id, "area", e.target.value)} />
                           </TableCell>
                           <TableCell align="center">
                             <TextField select value={row.landType} disabled={row.isLocked} onChange={(e) => handleChange(lb.id, currentVillageName, row.id, "landType", e.target.value)} sx={{ minWidth: 90 }}>
@@ -1143,7 +1312,7 @@ const KeyPlotEntryNonBtr = () => {
                               onClick={() => handleAddRow(lb.id, currentVillageName)}
                               disabled={
                                 totalKeyplots >= remainingKeyplots ||
-                                !areAllFieldsFilled(lb.id) || 
+                                !areAllFieldsFilled(lb.id) ||
                                 !workAllocationStatus
                               }
                             >
@@ -1188,12 +1357,43 @@ const KeyPlotEntryNonBtr = () => {
                     {validationInfo.message}
                   </Typography>
                 </Box>
+
+                {/* Show subdivision selection if available */}
+                {validationInfo.showSubdivisionOption && validationInfo.availableSubdivisions && (
+                  <Box sx={{ mt: 2, mb: 3 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#475569' }}>
+                      Available Subdivisions:
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {validationInfo.availableSubdivisions.map((sub) => (
+                        <Button
+                          key={sub}
+                          variant="outlined"
+                          fullWidth
+                          onClick={() => {
+                            // Call handleSubdivisionSelect directly with the selected subdivision
+                            handleSubdivisionSelect(sub);
+                          }}
+                          sx={{
+                            justifyContent: 'flex-start',
+                            textTransform: 'none',
+                            borderColor: '#94a3b8',
+                            '&:hover': { borderColor: '#3b82f6', backgroundColor: '#eff6ff' }
+                          }}
+                        >
+                          Subdivision: {sub}
+                        </Button>
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', p: 1.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
                     <Typography variant="body2" sx={{ color: '#64748b' }}>Total Area</Typography>
                     <Typography variant="h6" sx={{ fontWeight: 600 }}>{validationInfo.totalcent || 0} cents</Typography>
                   </Box>
-                  {validationInfo.uiUsedRemaining !== undefined && (
+                  {validationInfo.uiUsedRemaining !== undefined && !validationInfo.showSubdivisionOption && (
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', p: 1.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
                       <Typography variant="body2" sx={{ color: '#64748b' }}>Remaining Available</Typography>
                       <Typography variant="h6" sx={{ fontWeight: 600, color: validationInfo.uiUsedRemaining > 0 ? '#10b981' : '#ef4444' }}>
@@ -1206,17 +1406,24 @@ const KeyPlotEntryNonBtr = () => {
             )}
           </DialogContent>
           <DialogActions sx={{ p: 3, pt: 0, gap: 2 }}>
-            {validationInfo && validationInfo.uiUsedRemaining > 0 && (
+            {validationInfo && validationInfo.uiUsedRemaining > 0 && !validationInfo.showSubdivisionOption && (
               <Button onClick={() => handleUseRecommendedPlot('remaining')} variant="contained" fullWidth sx={{ bgcolor: '#10b981', '&:hover': { bgcolor: '#059669' } }}>
                 Use Remaining Area ({validationInfo.uiUsedRemaining.toFixed(2)} cents)
               </Button>
             )}
-            <Button onClick={handleRejectPlot} variant="outlined" fullWidth color="error">
-              {validationInfo?.isFromCurrentForm ? 'Clear Entry' : 'Choose Different Plot'}
-            </Button>
+            {validationInfo?.showSubdivisionOption && (
+              <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', width: '100%' }}>
+                Please select a subdivision from the list above
+              </Typography>
+            )}
+            {!validationInfo?.showSubdivisionOption && (
+              <Button onClick={handleRejectPlot} variant="outlined" fullWidth color="error">
+                {validationInfo?.isFromCurrentForm ? 'Clear Entry' : 'Choose Different Plot'}
+              </Button>
+            )}
           </DialogActions>
         </Dialog>
-
+        {/* 
         <Dialog open={subdivisionDialogOpen} onClose={() => setSubdivisionDialogOpen(false)} maxWidth="xs" fullWidth>
           <DialogTitle>Select Subdivision</DialogTitle>
           <DialogContent>
@@ -1227,7 +1434,7 @@ const KeyPlotEntryNonBtr = () => {
             </Box>
           </DialogContent>
           <DialogActions><Button onClick={() => setSubdivisionDialogOpen(false)}>Cancel</Button></DialogActions>
-        </Dialog>
+        </Dialog> */}
 
         <Dialog open={showSuccessModal} onClose={() => setShowSuccessModal(false)} maxWidth="sm" fullWidth>
           <DialogContent sx={{ p: 4, textAlign: 'center' }}>

@@ -10,6 +10,12 @@ const Color = Loadable(lazy(() => import('pages/component-overview/color')));
 const WorkAllocation = Loadable(lazy(() => import('pages/component-overview/WorkAllocationForm')));
 const Shadow = Loadable(lazy(() => import('pages/component-overview/shadows')));
 const DashboardDefault = Loadable(lazy(() => import('pages/dashboard/index')));
+const ProjectOverview = Loadable(lazy(() => import('pages/Dashboard/ProjectOverview')));
+const TourDiaryPage = Loadable(lazy(() => import('pages/TourDiary/TourDiaryPage')));
+const ActualTourPage = Loadable(lazy(() => import('pages/ActualTour/ActualTourPage')));
+const WorkAllocationPage = Loadable(lazy(() => import('pages/WorkAllocation/WorkAllocationPage')));
+const KeyPlotPage = Loadable(lazy(() => import('pages/KeyPlot/KeyPlotPage')));
+const ReportsPage = Loadable(lazy(() => import('pages/Reports/ReportsPage')));
 const TourDiary = Loadable(lazy(() => import('pages/dashboard/TourDiary')));
 const TourDiaryMenu = Loadable(lazy(() => import('pages/dashboard/TourDiaryMenu')));
 const AdminTourDiaryApprovals = Loadable(lazy(() => import('pages/dashboard/AdminTourDiary')));
@@ -55,6 +61,7 @@ const ZoneList = Loadable(lazy(() => import('pages/functional-components/earas/M
 const ZoneManage = Loadable(lazy(() => import('pages/functional-components/earas/MappingSettings/ZoneManage')));
 
 const Form1_menus = Loadable(lazy(() => import('pages/functional-components/earas/form1/form1menus')));
+const GCESDashboard = Loadable(lazy(() => import('pages/functional-components/earas/Report/Cce/GCESDashboard')));
 
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
 
@@ -68,6 +75,9 @@ const ApprovelMenu = Loadable(lazy(() => import('pages/functional-components/app
 const ClusterApprovals = Loadable(lazy(() => import('pages/functional-components/approvels/Cluster_approvals')));
 const FormApprovals = Loadable(lazy(() => import('pages/functional-components/approvels/Form_approvals.jsx')));
 const WorkallocationsApprovals = Loadable(lazy(() => import('pages/functional-components/approvels/Workallocation_approvals')));
+
+const Form1Status = Loadable(lazy(() => import('pages/functional-components/approvels/Form1Status')));
+
 
 const CCE_menus = Loadable(lazy(() => import('pages/functional-components/earas/cce_menus')));
 
@@ -100,16 +110,37 @@ const TalukClusterReport = Loadable(lazy(() => import('pages/functional-componen
 const ZoneClusterReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/clusterReport/ZoneClusterReport')));
 const ReportMenu = Loadable(lazy(() => import('pages/functional-components/earas/Report/ReportMenu')));
 
-const KeralaFormReportList = Loadable(lazy(() => import('pages/functional-components/earas/Report/formReport/KeralaFormReportList')));
-const TalukFormReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/formReport/TalukFormReport')));
-const BlockFormReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/formReport/BlockFormReport')));
-const ZoneFormReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/formReport/ZoneFormReport')));
-const Form5 = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form5')));
+const KeralaFormReportList = Loadable(lazy(() => import('pages/functional-components/earas/Report/FormReport/KeralaFormReportList')));
+const TalukFormReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/FormReport/TalukFormReport')));
+const ZoneFormReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/FormReport/ZoneFormReport')));
 
 const KeralaForm2 = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form2/KeralaForm2')));
 const TalukForm2 = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form2/TalukForm2')));
 const ZoneForm2 = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form2/ZoneForm2')));
 const Form2 = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form2/Form2')));
+
+const KeralaForm3A = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3A/KeralaForm3A')));
+const TalukForm3A = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3A/TalukForm3A')));
+const ZoneForm3A = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3A/ZoneForm3A')));
+const Form3A = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3A/Form3A')));
+
+const KeralaForm3B = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3B/KeralaForm3B')));
+const TalukForm3B = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3B/TalukForm3B')));
+const ZoneForm3B = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3B/ZoneForm3B')));
+const Form3B = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3B/Form3B')));
+
+
+const KeralaForm5ReportList= Loadable(lazy(() => import('pages/functional-components/earas/Report/Form5Report/KeralaForm5ReportList')));
+const TalukForm5Report= Loadable(lazy(() => import('pages/functional-components/earas/Report/Form5Report/TalukForm5Report')));
+const ZoneForm5Report= Loadable(lazy(() => import('pages/functional-components/earas/Report/Form5Report/ZoneForm5Report')));
+const Form5 = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form5Report/Form5')));
+
+const CceDataView = Loadable(lazy(() => import('pages/functional-components/earas/Report/Cce/CceDataView')));
+const OutOfClusterList = Loadable(lazy(() => import('pages/functional-components/earas/Report/Cce/OutOfClusterList')));
+
+const KeralaCceReportList = Loadable(lazy(() => import('pages/functional-components/earas/Report/Cce/cceReport/KeralaCceReportList')));
+const TalukCceReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/Cce/cceReport/TalukCceReport')));
+const ZoneCceReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/Cce/cceReport/ZoneCceReport')));
 
 const SettingsTabsPage = Loadable(lazy(() => import('pages/functional-components/earas/SettingsTabsPage')));
 const DistrictSettingss = Loadable(lazy(() => import('pages/functional-components/earas/settings/DistrictSettings')));
@@ -117,7 +148,9 @@ const TalukSettings = Loadable(lazy(() => import('pages/functional-components/ea
 const VillageSettings = Loadable(lazy(() => import('pages/functional-components/earas/settings/VillageSettings')));
 const MasterZoneSettings = Loadable(lazy(() => import('pages/functional-components/earas/settings/MasterZoneSettings')));
 
-
+const KeralaWorkAllocationReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/workAllocationReport/KeralaWorkAllocationReport')));
+const TalukWorkAllocationReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/workAllocationReport/TalukWorkAllocationReport')));
+const ZoneWorkAllocationReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/workAllocationReport/ZoneWorkAllocationReport')));
 
 // ==============================|| MAIN ROUTING ||============================== //
 
@@ -134,6 +167,54 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <DashboardDefault />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'dashboard',
+      element: (
+        <PrivateRoute>
+          <DashboardDefault />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'tour-diary',
+      element: (
+        <PrivateRoute>
+          <TourDiaryPage />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'actual-tour',
+      element: (
+        <PrivateRoute>
+          <ActualTourPage />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'work-allocation',
+      element: (
+        <PrivateRoute>
+          <WorkAllocationPage />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'key-plot',
+      element: (
+        <PrivateRoute>
+          <KeyPlotPage />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'reports',
+      element: (
+        <PrivateRoute>
+          <ReportsPage />
         </PrivateRoute>
       )
     },
@@ -180,14 +261,22 @@ const MainRoutes = {
       )
     },
     {
-      path: 'kerala_cluster_report',
+      path: 'Report/kerala_cluster_report',
       element: (
         <PrivateRoute>
           <KeralaReportList />
         </PrivateRoute>
       )
     },
-    // DISTRICT direct access: /kerala_cluster_report/taluk_cluster_report/direct
+    // DISTRICT direct access: /Report/kerala_cluster_report/taluk_cluster_report/direct
+    {
+      path: 'Report/kerala_cluster_report/taluk_cluster_report/direct',
+      element: (
+        <PrivateRoute>
+          <TalukClusterReport />
+        </PrivateRoute>
+      )
+    },
     {
       path: 'kerala_cluster_report/taluk_cluster_report/direct',
       element: (
@@ -196,16 +285,24 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-    // Normal district→taluk navigation: /kerala_cluster_report/taluk_cluster_report/:districtId
+    // Normal district→taluk navigation: /Report/kerala_cluster_report/district/taluk_cluster_report/:districtId
     {
-      path: 'kerala_cluster_report/taluk_cluster_report/:districtId',
+      path: 'Report/kerala_cluster_report/district/taluk_cluster_report/:districtId',
       element: (
         <PrivateRoute>
           <TalukClusterReport />
         </PrivateRoute>
       )
     },
-    // TALUK direct access: /kerala_cluster_report/zone_cluster_report/direct/:talukId
+    // TALUK direct access: /Report/kerala_cluster_report/zone_cluster_report/direct/:talukId
+    {
+      path: 'Report/kerala_cluster_report/zone_cluster_report/direct/:talukId',
+      element: (
+        <PrivateRoute>
+          <ZoneClusterReport />
+        </PrivateRoute>
+      )
+    },
     {
       path: 'kerala_cluster_report/zone_cluster_report/direct/:talukId',
       element: (
@@ -214,7 +311,15 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
-    // Normal taluk→zone navigation: /kerala_cluster_report/taluk_cluster_report/zone_cluster_report/:districtName/:talukName
+    // Normal taluk→zone navigation: /Report/kerala_cluster_report/taluk_cluster_report/zone_cluster_report/:districtName/:talukName
+    {
+      path: 'Report/kerala_cluster_report/taluk_cluster_report/zone_cluster_report/:districtName/:talukName',
+      element: (
+        <PrivateRoute>
+          <ZoneClusterReport />
+        </PrivateRoute>
+      )
+    },
     {
       path: 'kerala_cluster_report/taluk_cluster_report/zone_cluster_report/:districtName/:talukName',
       element: (
@@ -224,13 +329,21 @@ const MainRoutes = {
       )
     },
     {
-  path: 'kerala_cluster_report/taluk_cluster_report/zone_cluster_report/:districtName/:talukName/clusters/:zoneId?', 
-  element: (
-    <PrivateRoute>
-       <ClustersWrapper />
-    </PrivateRoute>
-  )
-},
+      path: 'Report/kerala_cluster_report/taluk_cluster_report/zone_cluster_report/:districtName/:talukName/clusters/:zoneId?', 
+      element: (
+        <PrivateRoute>
+          <ClustersWrapper />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'kerala_cluster_report/taluk_cluster_report/zone_cluster_report/:districtName/:talukName/clusters/:zoneId?', 
+      element: (
+        <PrivateRoute>
+          <ClustersWrapper />
+        </PrivateRoute>
+      )
+    },
 
  {
       path: '/schemes/earas/Clusters/:zoneId/Manual_Entry',
@@ -263,13 +376,11 @@ const MainRoutes = {
       element: <PrivateRoute><TalukFormReport /></PrivateRoute>
     },
     {
-      path: 'kerala_form_report/block_form_report/:districtName/:talukName',
-      element: <PrivateRoute><BlockFormReport /></PrivateRoute>
-    },
-    {
-      path: 'kerala_form_report/zone_form_report/:districtName/:talukName/:blockName',
+      path: '/kerala_form_report/zone_form_report/:districtName/:talukName',
       element: <PrivateRoute><ZoneFormReport /></PrivateRoute>
     },
+
+    
     {
       path: 'tourdiary',
       element: (
@@ -296,6 +407,14 @@ const MainRoutes = {
     },
     {
       path: 'approval_manage/tourdiary',
+      element: (
+        <PrivateRoute>
+          <AdminTourDiaryApprovals />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'approval_manage/advancedtourdiary',
       element: (
         <PrivateRoute>
           <AdminTourDiaryApprovals />
@@ -534,6 +653,14 @@ const MainRoutes = {
         </PrivateRoute>
       )
     },
+       {
+      path: '/schemes/earas/Zone_Details/Work_Allocation/:zoneId',
+      element: (
+        <PrivateRoute>
+          <WorkAllocation />
+        </PrivateRoute>
+      )
+    },
     {
       path: '/schemes/earas/Clusters_Form',
       element: (
@@ -679,6 +806,14 @@ const MainRoutes = {
       )
     },
     {
+      path: 'approval_manage/form1_status_approvals',
+      element: (
+        <PrivateRoute>
+          <Form1Status />
+        </PrivateRoute>
+      )
+    },
+    {
       path: '/schemes/earas/cce/cceview',
       element: (
         <PrivateRoute>
@@ -688,7 +823,7 @@ const MainRoutes = {
       )
     },
     {
-  path: 'approval_manage/tourdiary/user-submissions',
+  path: 'approval_manage/advancedtourdiary/user-submissions',
   element: (
     <PrivateRoute>
       <UserAdvancedTourDiarySubmissions />
@@ -736,6 +871,31 @@ const MainRoutes = {
       )
     },
     {
+      path: '/schemes/earas/cce/KeralaForm5ReportList',
+      element: (
+        <PrivateRoute>
+          <KeralaForm5ReportList />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/kerala_form5_report/taluk_form5_report/:districtId',
+      element: <TalukForm5Report />
+    },
+    // TALUK direct access: /kerala_form5_report/zone_form5_report/direct/:talukId
+    {
+      path: '/kerala_form5_report/zone_form5_report/direct/:talukId',
+      element: (
+        <PrivateRoute>
+          <ZoneForm5Report />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/kerala_form5_report/taluk_form5_report/zone_form5_report/:districtName/:talukName',
+      element: <ZoneForm5Report />
+    },
+    {
       path: '/schemes/earas/cce/Form5',
       element: (
         <PrivateRoute>
@@ -768,10 +928,90 @@ const MainRoutes = {
       )
     },
     {
+      path: '/schemes/earas/cce/cceDataView',
+      element: (
+        <PrivateRoute>
+          <CceDataView />
+        </PrivateRoute>
+      )
+    },
+    {
       path: '/schemes/earas/cce/Form2',
       element: (
         <PrivateRoute>
           <Form2 />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3A/KeralaForm3A',
+      element: (
+        <PrivateRoute>
+          <KeralaForm3A />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3A/TalukForm3A',
+      element: (
+        <PrivateRoute>
+          <TalukForm3A />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3A/ZoneForm3A',
+      element: (
+        <PrivateRoute>
+          <ZoneForm3A />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3A/Form3A',
+      element: (
+        <PrivateRoute>
+          <Form3A />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3B/KeralaForm3B',
+      element: (
+        <PrivateRoute>
+          <KeralaForm3B />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3B/TalukForm3B',
+      element: (
+        <PrivateRoute>
+          <TalukForm3B />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3B/TalukForm3B',
+      element: (
+        <PrivateRoute>
+          <TalukForm3B />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3B/ZoneForm3B',
+      element: (
+        <PrivateRoute>
+          <ZoneForm3B />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3B/Form3B',
+      element: (
+        <PrivateRoute>
+          <Form3B />
         </PrivateRoute>
       )
     },
@@ -839,6 +1079,38 @@ const MainRoutes = {
     </PrivateRoute>
   )
   },
+  {
+      path: '/schemes/earas/outofcluster-list',
+      element: (
+        <PrivateRoute>
+          <OutOfClusterList />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/report/kerala_work_allocation_report',
+      element: (
+        <PrivateRoute>
+          <KeralaWorkAllocationReport />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/report/kerala_work_allocation_report/taluk/:districtName',
+      element: (
+        <PrivateRoute>
+          <TalukWorkAllocationReport />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/report/kerala_work_allocation_report/zone/:districtName/:talukName',
+      element: (
+        <PrivateRoute>
+          <ZoneWorkAllocationReport />
+        </PrivateRoute>
+      )
+    },
   ]
 };
 

@@ -25,6 +25,7 @@ const SettingService = {
         `${BASE_URL}/user-access/api/it-admin/get-all`,
         { headers }
       );
+
       return response.data;
     } catch (err) {
       if (err.response?.status === 403) {
@@ -116,6 +117,7 @@ const SettingService = {
     try {
       const headers = this.getAuthHeaders();
       const userId = authservice.userid();
+      console.log("Saving district office with data:", officeData, "and userId:", userId);
       const payload = {
         ...officeData,
         userId: userId,

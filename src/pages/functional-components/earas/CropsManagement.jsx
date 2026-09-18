@@ -178,6 +178,12 @@ const validateIntegerField = (text, allowEmpty = true) => {
   const numRegex = /^\d+$/;
   return numRegex.test(text);
 };
+
+const validateWordCount = (text, maxWords = 100) => {
+  if (!text) return true; // Empty is allowed
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  return words.length <= maxWords;
+};
   
   // Snackbar State
   const [snackbar, setSnackbar] = useState({
@@ -437,7 +443,7 @@ const normalizeActiveStatus = (status) => {
   const fetchCropGroups = async () => {
     try {
       setLoadingGroups(true);
-      const response = await api.get(`${BASE_URL}//earas-form1-entry/api/master-crop-group/fetch-all`);
+      const response = await api.get(`${BASE_URL}/earas-form1-entry/api/master-crop-group/fetch-all`);
       const data = response.data;
       
       let groupsArray = [];
@@ -559,7 +565,7 @@ const normalizeActiveStatus = (status) => {
     }
 
     try {
-      const response = await api.post("http://localhost:9114/earas-form1-entry/api/master-crop/add", {
+      const response = await api.post(`${BASE_URL}/earas-form1-entry/api/master-crop/add`, {
         cropNameEn: newCropFormData.cropNameEn,
         cropNameMal: newCropFormData.cropNameMal,
         isActive: newCropFormData.isActive,
@@ -624,7 +630,7 @@ const normalizeActiveStatus = (status) => {
     }
 
     try {
-      const response = await api.post("http://localhost:9114/earas-form1-entry/api/master-crop/add", {
+      const response = await api.post(`${BASE_URL}/earas-form1-entry/api/master-crop/add`, {
         cropId: editCropFormData.cropId,
         cropNameEn: editCropFormData.cropNameEn,
         cropNameMal: editCropFormData.cropNameMal,
@@ -675,7 +681,7 @@ const normalizeActiveStatus = (status) => {
     }
 
     try {
-      const response = await api.post("http://localhost:9114/earas-form1-entry/api/master-unit/add", unitFormData);
+      const response = await api.post(`${BASE_URL}/earas-form1-entry/api/master-unit/add`, unitFormData);
       
       if (response.status === 200 || response.status === 201) {
         setSnackbar({ open: true, message: editingUnit ? "Unit updated successfully" : "Unit added successfully", severity: "success" });
@@ -727,7 +733,7 @@ const normalizeActiveStatus = (status) => {
     }
 
     try {
-      const response = await api.post("http://localhost:9114/earas-form1-entry/api/master-stands-per-hectare/add", standsFormData);
+      const response = await api.post(`${BASE_URL}/earas-form1-entry/api/master-stands-per-hectare/add`, standsFormData);
       
       if (response.status === 200 || response.status === 201) {
         setSnackbar({ open: true, message: editingStands ? "Stands data updated successfully" : "Stands data added successfully", severity: "success" });
@@ -777,7 +783,7 @@ const normalizeActiveStatus = (status) => {
       isActive: irrigationFormData.isActive === true || irrigationFormData.isActive === "true" || irrigationFormData.isActive === 1
     };
     
-    const response = await api.post("http://localhost:9114/earas-form1-entry/irrigation-details/master-irrigation-source/add", payload);
+    const response = await api.post(`${BASE_URL}/earas-form1-entry/irrigation-details/master-irrigation-source/add`, payload);
     
     if (response.status === 200 || response.status === 201) {
       setSnackbar({ open: true, message: editingIrrigation ? "Irrigation source updated successfully" : "Irrigation source added successfully", severity: "success" });
@@ -871,7 +877,7 @@ const handleSaveCce = async () => {
       frameId: cceFormData.frameId ? parseInt(cceFormData.frameId) : null
     };
     
-    const response = await api.post("http://localhost:9114/earas-form1-entry/cce-crop-details/master-cce-crop/add", payload);
+    const response = await api.post(`${BASE_URL}/earas-form1-entry/cce-crop-details/master-cce-crop/add`, payload);
     
     if (response.status === 200 || response.status === 201) {
       setSnackbar({ open: true, message: editingCce ? "CCE Crop updated successfully" : "CCE Crop added successfully", severity: "success" });
@@ -1072,7 +1078,7 @@ const cceColumns = [
          
             
             <Tabs value={activeTab} onChange={handleTabChange} sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}>
-              <Tab label="Crops Management" />
+              <Tab label="Crop Management" />
               <Tab label="Unit Management" />
               <Tab label="Stands Per Hectare Management" />
               <Tab label="Irrigation Source Management" />
@@ -1511,16 +1517,16 @@ const cceColumns = [
     required 
     value={newCropFormData.cropNameEn} 
     onChange={(e) => {
-      const value = e.target.value;
-      if (validateEnglishText(value) && validateTextFieldLength(value, 100)) {
-        setNewCropFormData({ ...newCropFormData, cropNameEn: value });
-        setValidationErrors({ ...validationErrors, cropNameEn: "" });
-      } else if (!validateEnglishText(value)) {
-        setValidationErrors({ ...validationErrors, cropNameEn: "Only English alphabets allowed" });
-      } else if (!validateTextFieldLength(value, 100)) {
-        setValidationErrors({ ...validationErrors, cropNameEn: "Maximum 100 characters allowed" });
-      }
-    }}
+  const value = e.target.value;
+  if (validateEnglishText(value) && validateWordCount(value, 100)) {
+    setNewCropFormData({ ...newCropFormData, cropNameEn: value });
+    setValidationErrors({ ...validationErrors, cropNameEn: "" });
+  } else if (!validateEnglishText(value)) {
+    setValidationErrors({ ...validationErrors, cropNameEn: "Only English alphabets allowed" });
+  } else if (!validateWordCount(value, 100)) {
+    setValidationErrors({ ...validationErrors, cropNameEn: "Maximum 100 words allowed" });
+  }
+}}
     error={!!validationErrors.cropNameEn}
     helperText={validationErrors.cropNameEn}
     inputProps={{ maxLength: 100 }}
@@ -1533,16 +1539,16 @@ const cceColumns = [
     fullWidth 
     value={newCropFormData.cropNameMal} 
     onChange={(e) => {
-      const value = e.target.value;
-      if (validateMalayalamText(value) && validateTextFieldLength(value, 100)) {
-        setNewCropFormData({ ...newCropFormData, cropNameMal: value });
-        setValidationErrors({ ...validationErrors, cropNameMal: "" });
-      } else if (!validateMalayalamText(value)) {
-        setValidationErrors({ ...validationErrors, cropNameMal: "Only Malayalam characters allowed" });
-      } else if (!validateTextFieldLength(value, 100)) {
-        setValidationErrors({ ...validationErrors, cropNameMal: "Maximum 100 characters allowed" });
-      }
-    }}
+  const value = e.target.value;
+  if (validateMalayalamText(value) && validateWordCount(value, 100)) {
+    setNewCropFormData({ ...newCropFormData, cropNameMal: value });
+    setValidationErrors({ ...validationErrors, cropNameMal: "" });
+  } else if (!validateMalayalamText(value)) {
+    setValidationErrors({ ...validationErrors, cropNameMal: "Only Malayalam characters allowed" });
+  } else if (!validateWordCount(value, 100)) {
+    setValidationErrors({ ...validationErrors, cropNameMal: "Maximum 100 words allowed" });
+  }
+}}
     error={!!validationErrors.cropNameMal}
     helperText={validationErrors.cropNameMal}
     inputProps={{ maxLength: 100 }}
@@ -1555,16 +1561,16 @@ const cceColumns = [
     fullWidth 
     value={newCropFormData.scientificName} 
     onChange={(e) => {
-      const value = e.target.value;
-      if (validateScientificName(value) && validateTextFieldLength(value, 200)) {
-        setNewCropFormData({ ...newCropFormData, scientificName: value });
-        setValidationErrors({ ...validationErrors, scientificName: "" });
-      } else if (!validateScientificName(value)) {
-        setValidationErrors({ ...validationErrors, scientificName: "Only English letters, spaces, dots, and parentheses allowed" });
-      } else if (!validateTextFieldLength(value, 200)) {
-        setValidationErrors({ ...validationErrors, scientificName: "Maximum 200 characters allowed" });
-      }
-    }}
+  const value = e.target.value;
+  if (validateScientificName(value) && validateWordCount(value, 100)) {
+    setNewCropFormData({ ...newCropFormData, scientificName: value });
+    setValidationErrors({ ...validationErrors, scientificName: "" });
+  } else if (!validateScientificName(value)) {
+    setValidationErrors({ ...validationErrors, scientificName: "Only English letters, spaces, dots, and parentheses allowed" });
+  } else if (!validateWordCount(value, 100)) {
+    setValidationErrors({ ...validationErrors, scientificName: "Maximum 100 words allowed" });
+  }
+}}
     error={!!validationErrors.scientificName}
     helperText={validationErrors.scientificName}
     inputProps={{ maxLength: 200 }}
@@ -1877,18 +1883,25 @@ const cceColumns = [
     <Grid container spacing={2} sx={{ mt: 1 }}>
       <Grid item xs={12} sm={6}>
         <TextField 
-          label="CCE Crop Type" 
-          fullWidth 
-          required 
-          value={cceFormData.cceCropType} 
-          onChange={(e) => {
-            const value = e.target.value;
-            if (validateEnglishText(value) && validateTextFieldLength(value, 100)) {
-              setCceFormData({ ...cceFormData, cceCropType: value });
-            }
-          }}
-          inputProps={{ maxLength: 100 }}
-        />
+            label="CCE Crop Type" 
+            fullWidth 
+            required 
+            value={cceFormData.cceCropType} 
+            onChange={(e) => {
+              const value = e.target.value;
+              if (validateEnglishText(value) && validateTextFieldLength(value, 100)) {
+                setCceFormData({ ...cceFormData, cceCropType: value });
+                setValidationErrors({ ...validationErrors, cceCropType: "" });
+              } else if (!validateEnglishText(value)) {
+                setValidationErrors({ ...validationErrors, cceCropType: "Only English alphabets allowed" });
+              } else if (!validateTextFieldLength(value, 100)) {
+                setValidationErrors({ ...validationErrors, cceCropType: "Maximum 100 characters allowed" });
+              }
+            }}
+            error={!!validationErrors.cceCropType}
+            helperText={validationErrors.cceCropType}
+            inputProps={{ maxLength: 100 }}
+          />
       </Grid>
       
       <Grid item xs={12} sm={6}>

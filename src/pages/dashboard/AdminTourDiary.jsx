@@ -32,6 +32,10 @@ const AdminTourDiary = () => {
   const [taluk, setTaluk] = useState("");
   const [search, setSearch] = useState("");
 
+  // New state for month and year
+  const [month, setMonth] = useState(new Date().getMonth() + 1); // Current month (1-12)
+  const [year, setYear] = useState(new Date().getFullYear()); // Current year
+
   const [districts, setDistricts] = useState([]);
   const [taluks, setTaluks] = useState([]);
 
@@ -39,14 +43,19 @@ const AdminTourDiary = () => {
   const [loggedDistrictId, setLoggedDistrictId] = useState(null);
   const [loggedTalukId, setLoggedTalukId] = useState(null);
 
-
   // Modal state
   const [openModal, setOpenModal] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
 
   const role = authservice.getrole();
   const userId = authservice.userid();
+  const isTalukRole =
+    role === "Taluk Level Approver" ||
+    role === "Field Inspector";
 
+  const isDistrictRole =
+    role === "District Level Approver" ||
+    role === "District Level Data Viewer";
   // Handle modal close
   const handleCloseModal = () => {
     setOpenModal(false);
@@ -56,39 +65,73 @@ const AdminTourDiary = () => {
   // Handle menu selection for tour diary type
   const handleMenuSelect = (type) => {
     if (!selectedRow) return;
-    
+
+    // Get userId from the row - check all possible field names
     const selectedUserId = selectedRow.userId || selectedRow.id || selectedRow.user_id || selectedRow.empId;
-    
+
     console.log("Navigating with userId:", selectedUserId, "from row:", selectedRow);
-    
+
     if (!selectedUserId) {
       console.error("No valid user ID found in row:", selectedRow);
       alert("Cannot view tour diary: User ID not found");
       handleCloseModal();
       return;
     }
-    
+
     if (type === 'advanced') {
-      navigate("/approval_manage/tourdiary/user-submissions", { 
-        state: { userId: selectedUserId } 
+      navigate("/approval_manage/advancedtourdiary/user-submissions", {
+        state: { userId: selectedUserId }
       });
     } else if (type === 'regular') {
-      navigate("/approval_manage/tourdiary/user-submissions", { 
-        state: { userId: selectedUserId } 
+      navigate("/approval_manage/tourdiary/user-submissions", {
+        state: { userId: selectedUserId }
       });
     }
-    
+
     handleCloseModal();
   };
 
-  // Columns
+  // Columns - updated to match the tour API response fields
   const columns = [
     { name: "SL.NO", selector: (row, idx) => idx + 1 + page * size, width: "90px" },
     { name: "Name", selector: row => row.name ?? "NA" },
     { name: "Email", selector: row => row.email ?? "NA" },
-    { name: "PEN No", selector: row => row.empNumber ?? row.penNo ?? "NA" },
-    { name: "Designation", selector: row => row.designation ?? row.roles ?? "NA" },
+    { name: "PEN No", selector: row => row.empNumber ?? "NA" },
+    { name: "Designation", selector: row => row.designation ?? "NA" },
     { name: "Office Location", selector: row => row.officelocation ?? "NA" },
+    {
+      name: "District",
+      selector: row => row.distict ?? "NA",
+      omit: role !== "DIRECTORATE" // Only show for directorate level
+    },
+    {
+      name: "Taluk",
+      selector: row => row.taluk ?? "NA"
+    },
+    // {
+    //   name: "1st Half Status",
+    //   selector: row => row.firstHalfStatus ?? "NOT_SUBMITTED",
+    //   cell: row => (
+    //     <span style={{
+    //       color: row.firstHalfStatus === "SUBMITTED" ? "green" : 
+    //              row.firstHalfStatus === "PENDING" ? "orange" : "red"
+    //     }}>
+    //       {row.firstHalfStatus ?? "NOT_SUBMITTED"}
+    //     </span>
+    //   )
+    // },
+    // {
+    //   name: "2nd Half Status",
+    //   selector: row => row.secondHalfStatus ?? "NOT_SUBMITTED",
+    //   cell: row => (
+    //     <span style={{
+    //       color: row.secondHalfStatus === "SUBMITTED" ? "green" : 
+    //              row.secondHalfStatus === "PENDING" ? "orange" : "red"
+    //     }}>
+    //       {row.secondHalfStatus ?? "NOT_SUBMITTED"}
+    //     </span>
+    //   )
+    // },
     {
       name: "Action",
       cell: (row) => (
@@ -113,26 +156,48 @@ const AdminTourDiary = () => {
     },
   ];
 
-  // Fetch USERS
+  // Fetch USERS using the tour API
   const fetchUsers = async () => {
     setLoading(true);
 
-    const res = await ApprovedUserService.fetchPagedApprovedUsers({
-      page,
-      size,
-      level: level === "ALL" ? null : level,
-      districtId: district || null,
-      talukId: taluk || null,
-      search: search || null,
-    });
+    try {
+      const params = {};
+      if (page !== undefined && page !== null) params.page = page;
+      if (size !== undefined && size !== null) params.size = size;
+      if (level && level !== "ALL") params.level = level;
+      if (district) params.districtId = district;
+      if (taluk) params.talukId = taluk;
+      if (search && search.trim() !== "") params.search = search.trim();
+      if (month) params.month = month;
+      if (year) params.year = year.toString();
 
-    if (!res.error && res.payload) {
-      console.log("Fetched Users:", res.payload);
-      setUsers(res.payload.content);
-      setTotalRows(res.payload.totalElements);
-      setLoggedDistrictId(res.payload.distId || null);
-      setLoggedTalukId(res.payload.talukId || null);
-    } else {
+      console.log("Fetching tour users with params:", params);
+
+      const res = await ApprovedUserService.fetchTourApprovedUsers(params);
+
+      if (!res.error && res.payload) {
+        console.log("Fetched Tour Users:", res.payload);
+
+        const payload = res.payload;
+        const contentData = Array.isArray(payload)
+          ? payload
+          : (payload.content || payload.data || payload.users || []);
+
+        const totalElements = Array.isArray(payload)
+          ? payload.length
+          : (payload.totalElements ?? payload.totalCount ?? payload.total ?? payload.total_elements ?? contentData.length);
+
+        setUsers(contentData);
+        setTotalRows(totalElements);
+        setLoggedDistrictId(payload.distId || null);
+        setLoggedTalukId(payload.talukId || null);
+      } else {
+        console.error("Error fetching users:", res?.message);
+        setUsers([]);
+        setTotalRows(0);
+      }
+    } catch (error) {
+      console.error("Error in fetchUsers:", error);
       setUsers([]);
       setTotalRows(0);
     }
@@ -147,7 +212,7 @@ const AdminTourDiary = () => {
 
   useEffect(() => {
     setPage(0);
-  }, [search]);
+  }, [level, district, taluk, search, month, year]); // Reset page when any filter changes
 
   // Auto-set level when district or taluk changes
   useEffect(() => {
@@ -162,7 +227,7 @@ const AdminTourDiary = () => {
 
   // Reset district/taluk when level changes
   useEffect(() => {
-    if (role !== "District Level Approver") {
+    if (!isDistrictRole) {
       if (level === "ALL" || level === "DIRECTORATE") {
         setDistrict("");
         setTaluk("");
@@ -176,7 +241,7 @@ const AdminTourDiary = () => {
 
   useEffect(() => {
     if (
-      role === "District Level Approver" &&
+      isDistrictRole &&
       loggedDistrictId &&
       !district
     ) {
@@ -187,8 +252,12 @@ const AdminTourDiary = () => {
 
   // Fetch district list
   const loadDistricts = async () => {
-    const res = await ApprovedUserService.getDistricts();
-    if (res.payload) setDistricts(res.payload);
+    try {
+      const res = await ApprovedUserService.getDistricts();
+      if (res.payload) setDistricts(res.payload);
+    } catch (error) {
+      console.error("Error loading districts:", error);
+    }
   };
 
   // Fetch taluks when district changes
@@ -198,8 +267,12 @@ const AdminTourDiary = () => {
       setTaluk("");
       return;
     }
-    const res = await ApprovedUserService.getTaluks(district);
-    if (res.payload) setTaluks(res.payload);
+    try {
+      const res = await ApprovedUserService.getTaluks(district);
+      if (res.payload) setTaluks(res.payload);
+    } catch (error) {
+      console.error("Error loading taluks:", error);
+    }
   };
 
   useEffect(() => {
@@ -212,11 +285,34 @@ const AdminTourDiary = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, [page, size, level, district, taluk, search]);
+  }, [page, size, level, district, taluk, search, month, year]);
+
+  // Generate month options
+  const monthOptions = [
+    { value: 1, label: "January" },
+    { value: 2, label: "February" },
+    { value: 3, label: "March" },
+    { value: 4, label: "April" },
+    { value: 5, label: "May" },
+    { value: 6, label: "June" },
+    { value: 7, label: "July" },
+    { value: 8, label: "August" },
+    { value: 9, label: "September" },
+    { value: 10, label: "October" },
+    { value: 11, label: "November" },
+    { value: 12, label: "December" }
+  ];
+
+  // Generate year options (last 5 years to next 2 years)
+  const currentYear = new Date().getFullYear();
+  const yearOptions = [];
+  for (let y = currentYear - 5; y <= currentYear + 2; y++) {
+    yearOptions.push({ value: y, label: y.toString() });
+  }
 
   return (
     <Grid container spacing={3}>
-        <Breadcrumb />
+      <Breadcrumb />
       <Grid item xs={12}>
       </Grid>
       <Grid item xs={12}>
@@ -231,10 +327,42 @@ const AdminTourDiary = () => {
             spacing={2}
             justifyContent="center"
             alignItems="center"
-            style={{ width: "90%" }}
+            style={{ flexWrap: "wrap", gap: "10px" }}
           >
-            {/* LEVEL */}
-            {(role !== "Taluk Level Approver" && role !== "District Level Approver") &&
+            {/* MONTH */}
+            {/* <TextField
+              label="Month"
+              select
+              size="small"
+              value={month}
+              onChange={(e) => setMonth(parseInt(e.target.value))}
+              style={{ width: "150px" }}
+            >
+              {monthOptions.map((m) => (
+                <MenuItem key={m.value} value={m.value}>
+                  {m.label}
+                </MenuItem>
+              ))}
+            </TextField> */}
+
+            {/* YEAR */}
+            {/* <TextField
+              label="Year"
+              select
+              size="small"
+              value={year}
+              onChange={(e) => setYear(parseInt(e.target.value))}
+              style={{ width: "120px" }}
+            >
+              {yearOptions.map((y) => (
+                <MenuItem key={y.value} value={y.value}>
+                  {y.label}
+                </MenuItem>
+              ))}
+            </TextField> */}
+
+            {/* LEVEL - Only show for non-district/taluk approvers */}
+            {(!isTalukRole && !isDistrictRole) &&
               <TextField
                 label="Office Type"
                 select
@@ -249,8 +377,8 @@ const AdminTourDiary = () => {
                 <MenuItem value="TALUK">Taluk</MenuItem>
               </TextField>}
 
-            {/* DISTRICT */}
-            {role !== "Taluk Level Approver" && (
+            {/* DISTRICT - Hide for taluk level */}
+            {!isTalukRole && (
               <TextField
                 label="District"
                 select
@@ -260,26 +388,26 @@ const AdminTourDiary = () => {
                 style={{ width: "180px" }}
                 disabled={
                   level === "DIRECTORATE" ||
-                  role === "District Level Approver"
+                  isDistrictRole
                 }
               >
-                {role !== "District Level Approver" && (
+                {!isDistrictRole && (
                   <MenuItem value="">All</MenuItem>
                 )}
 
                 {districts.map((d) => (
                   <MenuItem
-                    key={d.districtOfficeId}
-                    value={d.districtOfficeId}
+                    key={d.districtOfficeId || d.distId}
+                    value={d.districtOfficeId || d.distId}
                   >
-                    {d.districtOfficeNameEn}
+                    {d.districtOfficeNameEn || d.distOfficeNameEn}
                   </MenuItem>
                 ))}
               </TextField>
             )}
 
             {/* TALUK */}
-            {role !== "Taluk Level Approver" &&
+            {!isTalukRole &&
               <TextField
                 label="Taluk"
                 select
@@ -289,13 +417,13 @@ const AdminTourDiary = () => {
                 style={{ width: "180px" }}
                 disabled={!district || level === "DIRECTORATE"}
               >
-                {role !== "District Level Approver" && (
+                {!isDistrictRole && (
                   <MenuItem value="">All</MenuItem>
                 )}
 
                 {taluks.map((t) => (
-                  <MenuItem key={t.desTalukId} value={t.desTalukId}>
-                    {t.talukOfficeNameEn}
+                  <MenuItem key={t.desTalukId || t.talukId} value={t.desTalukId || t.talukId}>
+                    {t.talukOfficeNameEn || t.talukNameEn}
                   </MenuItem>
                 ))}
               </TextField>}
@@ -320,8 +448,14 @@ const AdminTourDiary = () => {
             pagination
             paginationServer
             paginationTotalRows={totalRows}
+            paginationDefaultPage={page + 1}
+            paginationPerPage={size}
+            paginationRowsPerPageOptions={[10, 15, 20, 25, 30, 50]}
             onChangePage={(pg) => setPage(pg - 1)}
-            onChangeRowsPerPage={(perPage) => setSize(perPage)}
+            onChangeRowsPerPage={(perPage) => {
+              setSize(perPage);
+              setPage(0);
+            }}
             customStyles={{
               headCells: {
                 style: {
@@ -333,6 +467,7 @@ const AdminTourDiary = () => {
             }}
           />
         </Box>
+
         {/* Modal for Tour Diary Selection */}
         <Modal
           open={openModal}
@@ -359,10 +494,11 @@ const AdminTourDiary = () => {
                 onClick={() => handleMenuSelect('advanced')}
                 sx={{ backgroundColor: '#1976d2' }}
               >
-                Advanced Tour Diary
+                Advance Tour Program
               </Button>
               <Button
                 variant="contained"
+                // disabled
                 onClick={() => handleMenuSelect('regular')}
                 sx={{ backgroundColor: '#2e7d32' }}
               >

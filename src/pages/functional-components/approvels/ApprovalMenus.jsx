@@ -99,7 +99,8 @@ function ApprovalMenus() {
   </Grid>
 )}
 
-{/* Zone Cluster Approvals Card */}
+{(role === 'IT Admin' || role === 'District Level Approver' || role === 'Taluk Level Approver') && (
+
 <Grid item xs={12} sm={6} md={4} lg={3}>
   <Card
     component={Link}
@@ -166,6 +167,7 @@ function ApprovalMenus() {
     </Box>
   </Card>
 </Grid>
+)}
 
 <Grid item xs={12} sm={6} md={4} lg={3}>
   <Card
@@ -301,11 +303,10 @@ function ApprovalMenus() {
   </Card>
 </Grid>
 
-{/*Form Approvals Card */}
 <Grid item xs={12} sm={6} md={4} lg={3}>
   <Card
     component={Link}
-    to="form_approvals"
+    to="form1_status_approvals"
     sx={{
       textDecoration: 'none',
       display: 'flex',
@@ -314,7 +315,7 @@ function ApprovalMenus() {
       justifyContent: 'center',
       padding: { xs: '1.2rem', sm: '1.5rem' },
       borderRadius: '1.5rem',
-      background: 'linear-gradient(135deg, #996e11 0%, #efcd38 100%)',
+      background: 'linear-gradient(135deg, #11998E 0%, #38EF7D 100%)',
       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       boxShadow: '0 10px 20px rgba(0, 0, 0, 0.1)',
       border: '1px solid rgba(255, 255, 255, 0.2)',
@@ -353,14 +354,14 @@ function ApprovalMenus() {
         justifyContent: 'center',
       }}
     >
-      <WorkHistoryIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
+      <EventNoteIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
     </Box>
     <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
       <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' }, mb: 0.5 }}>
-        Form Approval
+        Form satus
       </Typography>
       {/* <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' }, mb: 0.5 }}>
-       
+        Approvals
       </Typography> */}
       <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: { xs: '0.65rem', sm: '0.7rem' } }}>
         Pending Approval

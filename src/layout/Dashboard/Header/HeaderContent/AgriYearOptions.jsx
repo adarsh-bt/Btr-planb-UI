@@ -46,59 +46,22 @@ const navigate = useNavigate();
 
   }, []);
 
-  const generateAgriYears = () => {
+const generateAgriYears = () => {
+  const APP_START_YEAR = 2025;
 
-    const startYear = 2025;
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth() + 1; // July is month 7 (1-indexed)
 
-    // ==================================
-    // TEMP TEST MODE
-    // ==================================
+  const currentAgriStartYear = month >= 7 ? year : year - 1;
+  const endYear = Math.max(APP_START_YEAR, currentAgriStartYear);
 
-    const TEST_MODE = true;
-
-    const MOCK_CURRENT_YEAR = 2026;
-
-    // ==================================
-
-    let currentYear;
-
-    if (TEST_MODE) {
-
-      currentYear = MOCK_CURRENT_YEAR;
-
-    } else {
-
-      const today = new Date();
-
-      currentYear = today.getFullYear();
-
-      const currentMonth =
-        today.getMonth() + 1;
-
-      // Before July → previous agri year
-
-      if (currentMonth < 7) {
-
-        currentYear =
-          currentYear - 1;
-      }
-    }
-
-    const years = [];
-
-    for (
-      let year = startYear;
-      year <= currentYear;
-      year++
-    ) {
-
-      years.push(
-        `${year}-${year + 1}`
-      );
-    }
-
-    return years;
-  };
+  const yearsList = [];
+  for (let y = APP_START_YEAR; y <= endYear; y++) {
+    yearsList.push(`${y}-${y + 1}`);
+  }
+  return yearsList;
+};
 
   const handleChange = (event) => {
 
