@@ -127,6 +127,7 @@ const Form3A = Loadable(lazy(() => import('pages/functional-components/earas/Rep
 const KeralaForm3B = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3B/KeralaForm3B')));
 const TalukForm3B = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3B/TalukForm3B')));
 const ZoneForm3B = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3B/ZoneForm3B')));
+const ClusterForm3B = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3B/ClusterForm3B')));
 const Form3B = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form3B/Form3B')));
 
 
@@ -1006,6 +1007,14 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <ZoneForm3B />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Report/Form3B/ClusterForm3B',
+      element: (
+        <PrivateRoute>
+          <ClusterForm3B />
         </PrivateRoute>
       )
     },

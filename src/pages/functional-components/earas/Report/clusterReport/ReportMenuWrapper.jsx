@@ -410,12 +410,14 @@ function ReportMenuWrapper({ children }) {
       const districtName = currentOfficeInfo.districtName;
       const talukName = currentOfficeInfo.talukName;
 
-      if (!officeType) {
-        try {
-          const tokenRole = AuthService.getrole();
-          const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
-          const des = localStorage.getItem('des') || '';
+      const tokenRole = AuthService.getrole();
+      const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+      const des = localStorage.getItem('des') || '';
 
+      if (roles.includes('Field Data Collector') || des.includes('Field Data Collector')) {
+        officeType = 'FIELD_DATA_COLLECTOR';
+      } else if (!officeType) {
+        try {
           if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
             officeType = 'TALUK';
           } else if (roles.some(r => ['District Level Approver', 'District Level Data Viewer'].includes(r)) || des.includes('District')) {
@@ -430,12 +432,34 @@ function ReportMenuWrapper({ children }) {
 
       console.log('Form 3A Navigation - Office Type:', officeType);
 
+      // ── FIELD DATA COLLECTOR ── Jump straight to Cluster-wise Form 3A
+      if (officeType === 'FIELD_DATA_COLLECTOR') {
+        const zoneId = currentOfficeInfo.zoneId || AuthService.getzone();
+        navigate('/schemes/earas/Report/Form3A/ClusterForm3A', {
+          state: {
+            officeType,
+            viewLevel: 'cluster',
+            zoneId,
+            zoneName: currentOfficeInfo.zoneName || '',
+            talukId: talukOfficeId || talukId,
+            talukName: talukName || '',
+            districtId: districtOfficeId || districtId || localStorage.getItem('dis') || null,
+            districtName: districtName || '',
+            isDirectAccess: true,
+            irrigation: 'ALL',
+            activeTab: -1
+          },
+        });
+      }
+
       // ── DIRECTORATE ── State-level view
-      if (officeType === 'DIRECTORATE') {
+      else if (officeType === 'DIRECTORATE') {
         navigate('/schemes/earas/Report/Form3A/KeralaForm3A', {
           state: {
             officeType,
             viewLevel: 'state',
+            isDirectAccess: true,
+            irrigation: 'ALL',
           },
         });
       }
@@ -459,6 +483,7 @@ function ReportMenuWrapper({ children }) {
             districtName: districtName || '',
             selectedDistrict: districtName || '',
             isDirectAccess: true,
+            irrigation: 'ALL',
             activeTab: 0,
           },
         });
@@ -485,6 +510,7 @@ function ReportMenuWrapper({ children }) {
             districtId: districtOfficeId || districtId || localStorage.getItem('dis') || null,
             districtName: districtName || '',
             isDirectAccess: true,
+            irrigation: 'ALL',
             activeTab: 0,
           },
         });
@@ -505,12 +531,14 @@ function ReportMenuWrapper({ children }) {
       const districtName = currentOfficeInfo.districtName;
       const talukName = currentOfficeInfo.talukName;
 
-      if (!officeType) {
-        try {
-          const tokenRole = AuthService.getrole();
-          const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
-          const des = localStorage.getItem('des') || '';
+      const tokenRole = AuthService.getrole();
+      const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+      const des = localStorage.getItem('des') || '';
 
+      if (roles.includes('Field Data Collector') || des.includes('Field Data Collector')) {
+        officeType = 'FIELD_DATA_COLLECTOR';
+      } else if (!officeType) {
+        try {
           if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
             officeType = 'TALUK';
           } else if (roles.some(r => ['District Level Approver', 'District Level Data Viewer'].includes(r)) || des.includes('District')) {
@@ -525,8 +553,27 @@ function ReportMenuWrapper({ children }) {
 
       console.log('Form 3B Navigation - Office Type:', officeType);
 
+      // ── FIELD DATA COLLECTOR ── Jump straight to Cluster-wise Form 3B
+      if (officeType === 'FIELD_DATA_COLLECTOR') {
+        const zoneId = currentOfficeInfo.zoneId || AuthService.getzone();
+        navigate('/schemes/earas/Report/Form3B/ClusterForm3B', {
+          state: {
+            officeType,
+            viewLevel: 'cluster',
+            zoneId,
+            zoneName: currentOfficeInfo.zoneName || '',
+            talukId: talukOfficeId || talukId,
+            talukName: talukName || '',
+            districtId: districtOfficeId || districtId || localStorage.getItem('dis') || null,
+            districtName: districtName || '',
+            isDirectAccess: true,
+            activeTab: -1
+          },
+        });
+      }
+
       // ── DIRECTORATE ── State-level view
-      if (officeType === 'DIRECTORATE') {
+      else if (officeType === 'DIRECTORATE') {
         navigate('/schemes/earas/Report/Form3B/KeralaForm3B', {
           state: {
             officeType,

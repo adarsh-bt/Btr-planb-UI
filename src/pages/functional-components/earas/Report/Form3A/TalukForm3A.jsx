@@ -1,61 +1,39 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Card,
-  CardContent,
-  Box,
-  Typography,
-  useTheme,
-  alpha,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Tabs,
-  Tab,
-  Chip,
-  Stack,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  IconButton,
-  CircularProgress,
-  LinearProgress,
-  TablePagination
+  Card, CardContent, Box, Typography, useTheme, alpha, Paper,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  Tabs, Tab, Chip, Stack, FormControl, InputLabel, Select, MenuItem,
+  IconButton, CircularProgress, LinearProgress, TablePagination,
+  Tooltip, Divider, Avatar, Grid, Button, TextField, InputAdornment
 } from '@mui/material';
-import { LocationOn, ArrowBack } from '@mui/icons-material';
-import WaterDropIcon from '@mui/icons-material/WaterDrop';
-import WbSunnyIcon from '@mui/icons-material/WbSunny';
-import EnergySavingsLeafIcon from '@mui/icons-material/EnergySavingsLeaf';
-import WaterIcon from '@mui/icons-material/Water';
-import GrassIcon from '@mui/icons-material/Grass';
+import {
+  LocationOn, ArrowBack, WaterDrop as WaterDropIcon,
+  WbSunny as WbSunnyIcon, EnergySavingsLeaf as EnergySavingsLeafIcon,
+  Water as WaterIcon, Grass as GrassIcon, Store as StoreIcon,
+  Assessment as AssessmentIcon, CheckCircle as CheckCircleIcon,
+  VisibilityOff as VisibilityOffIcon, Download as DownloadIcon,
+  Search as SearchIcon, Clear as ClearIcon
+} from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import mainapi from 'api/mainapi';
 import AuthService from 'pages/authentication/services/authservice';
 import Breadcrumb from 'routes/Breadcrumb';
+import api from 'api/api';
 
 const BASE_URL = mainapi.FORM_API;
-
+const BTR_BASE_URL = mainapi.BTR_API;
 const SESSION_KEY = 'talukForm3AState';
 
-const TALUK_W = 180;
+const TALUK_W = 220;
 const AREA_W = 120;
 const SUB_CROP_W = 120;
 const CROP_W = SUB_CROP_W * 3;
 
-// Land type filter — WET / DRY / ALL. 'ALL' means the landType param is not
-// sent at all, so the backend returns both.
 const DEFAULT_LAND_TYPE = 'ALL';
-
-// Backend expects title-case values (…&landType=Dry). 'ALL' has no entry here,
-// so the param is omitted entirely and both land types come back.
 const LAND_TYPE_PARAM = { WET: 'Wet', DRY: 'Dry' };
 
-// Season filter — always sent as seasonId. Defaults to Autumn.
 const SEASONS = [
   { id: 1, name: 'Autumn' },
   { id: 2, name: 'Winter' },
@@ -63,8 +41,6 @@ const SEASONS = [
 ];
 const DEFAULT_SEASON_ID = 1;
 
-// Irrigation filter — ALL / IRRIGATED / UNIRRIGATED. 'ALL' means the
-// isIrrigated param is not sent at all, so the backend returns both.
 const DEFAULT_IRRIGATION = 'ALL';
 const IRRIGATION_PARAM = { IRRIGATED: 'true', UNIRRIGATED: 'false' };
 const IRRIGATION_OPTIONS = [
@@ -73,43 +49,16 @@ const IRRIGATION_OPTIONS = [
   { value: 'UNIRRIGATED', label: 'Unirrigated' }
 ];
 
-// Selected via the crop group dropdown; the index is kept as `activeTab` so the
-// value forwarded through navigate state stays compatible with the other pages.
 const CROP_GROUPS = [
-  // { id: 1, name: 'Food crops' },
-  // { id: 2, name: 'Non food crops' },
-  // { id: 3, name: 'Trees' },
-  // { id: 4, name: 'Aromatic plants' },
-  // { id: 5, name: 'Drugs and Narcotics' },
   { id: 6, name: 'Cereals' },
-  // { id: 7, name: 'Fibre' },
-  // { id: 8, name: 'Flowers' },
-  // { id: 9, name: 'Fodder crops' },
-  // { id: 10, name: 'Fruits' },
-  // { id: 11, name: 'Grains' },
-  // { id: 12, name: 'Green manure crops' },
-  // { id: 13, name: 'Medicinal plants' },
-  // { id: 14, name: 'Oil seeds' },
-  // { id: 15, name: 'Other medicinal plants' },
   { id: 16, name: 'Other trees' },
-  // { id: 17, name: 'Plantation crops' },
   { id: 18, name: 'Pulses' },
-  // { id: 19, name: 'Spices' },
-  // { id: 20, name: 'Sugar crops' },
   { id: 21, name: 'Tubers' },
-  { id: 22, name: 'Vegetables' },
-  // { id: 23, name: 'Dry fruit' }
+  { id: 22, name: 'Vegetables' }
 ];
 
-// Crop group filter — 'ALL' is a synthetic option kept outside CROP_GROUPS so the
-// index-based `activeTab` contract with the other pages stays intact. It is
-// represented by -1 (no valid CROP_GROUPS index) and fans out one request per
-// crop group, merging the responses taluk-by-taluk.
 const ALL_CROP_GROUPS = -1;
 const ALL_CROP_GROUPS_LABEL = 'All Crop Groups';
-
-// How many crop-group requests run at once when 'All' is selected, so the
-// report endpoint isn't hit with 23 concurrent calls.
 const FETCH_BATCH_SIZE = 6;
 
 const cleanName = (name) => (name || '').replace(/\s+/g, ' ').trim();
@@ -122,12 +71,29 @@ function getSavedState() {
   }
 }
 
-// Merge one or more crop-group responses into a single taluk list of the same
-// shape the API returns ({ talukId, talukName, crops: [...] }), so all the
-// derived data below works unchanged for both single-group and 'All'.
+// Fallback taluks per district (used only if master API fails)
+function getFallbackTaluks(districtId) {
+  const map = {
+    1: ['Thiruvananthapuran', 'Neyyattinkara', 'Nedumangad', 'Chirayinkeezhu'],
+    2: ['Kollam', 'Karunagappally', 'Kottarakkara', 'Pathanapuram', 'Punalur'],
+    3: ['Pathanamthitta', 'Kozhencherry', 'Ranni', 'Mallappally', 'Thiruvalla', 'Adoor'],
+    4: ['Alappuzha', 'Chengannur', 'Mavelikkara', 'Kuttanad', 'Ambalappuzha'],
+    5: ['Kottayam', 'Changanassery', 'Meenachil', 'Vaikom', 'Kanjirappally'],
+    6: ['Idukki', 'Udumbanchola', 'Thodupuzha', 'Peermade', 'Devikulam'],
+    7: ['Ernakulam', 'Aluva', 'Kothamangalam', 'Muvattupuzha', 'Kochi', 'Paravur', 'Kanayannur'],
+    8: ['Thrissur', 'Chalakudy', 'Kodungallur', 'Mukundapuram', 'Talappilly'],
+    9: ['Palakkad', 'Alathur', 'Chittur', 'Mannarkkad', 'Ottapalam'],
+    10: ['Malappuram', 'Eranad', 'Perinthalmanna', 'Tirur', 'Ponnani', 'Nilambur', 'Kondotty'],
+    11: ['Kozhikode', 'Vadakara', 'Quilandy', 'Thamarassery', 'Koyilandy'],
+    12: ['Wayanad', 'Mananthavady', 'Sulthan Bathery', 'Vythiri'],
+    13: ['Kannur', 'Thalassery', 'Payyanur', 'Iritty', 'Taliparamba'],
+    14: ['Kasaragod', 'Hosdurg', 'Vellarikundu']
+  };
+  return (map[districtId] || []).map((name, i) => ({ id: i + 1, talukNameEn: name }));
+}
+
 function mergeGroupResponses(responses) {
   const taluks = new Map();
-
   responses.forEach((rows) => {
     (Array.isArray(rows) ? rows : []).forEach((t) => {
       const key = t.talukId ?? `name:${t.talukName || 'Unassigned'}`;
@@ -143,7 +109,9 @@ function mergeGroupResponses(responses) {
         });
       }
       const entry = taluks.get(key);
-      if (!entry.clusterArea && t.clusterArea) entry.clusterArea = Number(t.clusterArea) || 0;
+      if (Number(t.clusterArea) > 0) {
+        entry.clusterArea = Number(t.clusterArea);
+      }
       if (!entry.nucArea && t.nucArea) entry.nucArea = Number(t.nucArea) || 0;
       if (!entry.ffsArea && t.ffsArea) entry.ffsArea = Number(t.ffsArea) || 0;
       if (!entry.cosArea && t.cosArea) entry.cosArea = Number(t.cosArea) || 0;
@@ -162,7 +130,6 @@ function mergeGroupResponses(responses) {
       });
     });
   });
-
   return Array.from(taluks.values()).map((t) => ({
     talukId: t.talukId,
     talukName: t.talukName,
@@ -177,10 +144,10 @@ function mergeGroupResponses(responses) {
 const TalukForm3A = () => {
   const theme = useTheme();
   const themeColor = '#05307a';
+  const themeColorAlt = '#0b4ea2';
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Merge saved sessionStorage state with location.state (state wins on fresh nav).
   const stateData = useMemo(() => {
     const saved = getSavedState();
     return { ...saved, ...(location.state || {}) };
@@ -198,16 +165,18 @@ const TalukForm3A = () => {
   const districtName = stateData.districtName || stateData.selectedDistrict || officeInfo.districtName || 'District';
   const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
 
-  const [activeTab, setActiveTab] = useState(stateData.activeTab ?? 0);
-  // Inherited from the state (Kerala) page on drill-down, or restored from session on refresh.
+  const [activeTab, setActiveTab] = useState(stateData.activeTab ?? ALL_CROP_GROUPS);
   const [landTypeTab, setLandTypeTab] = useState(stateData.landType ?? DEFAULT_LAND_TYPE);
   const [seasonId, setSeasonId] = useState(stateData.seasonId ?? DEFAULT_SEASON_ID);
   const [irrigation, setIrrigation] = useState(stateData.irrigation ?? DEFAULT_IRRIGATION);
   const [apiData, setApiData] = useState([]);
+  const [taluksList, setTaluksList] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [masterLoading, setMasterLoading] = useState(true);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const isAllCropGroups = activeTab === ALL_CROP_GROUPS;
   const cropGroupId = isAllCropGroups ? null : CROP_GROUPS[activeTab]?.id;
@@ -220,14 +189,64 @@ const TalukForm3A = () => {
     whiteSpace: 'nowrap'
   };
 
-  // Role auto-redirection if TALUK user visits TalukForm3A directly
+  // ── Fetch master taluks ──
+  useEffect(() => {
+    const fetchMasterTaluks = async () => {
+      if (districtId == null) {
+        setMasterLoading(false);
+        return;
+      }
+      setMasterLoading(true);
+      try {
+        const res = await api.get(`${BTR_BASE_URL}/btr-service/btr-api/taluks?distId=${districtId}`);
+        const rows = res.data?.data;
+        if (Array.isArray(rows) && rows.length > 0) {
+          setTaluksList(
+            rows.map((t) => ({
+              id: t.id ?? t.talukId,
+              talukNameEn: t.talukNameEn || t.talukName || t.name || ''
+            }))
+          );
+        } else {
+          setTaluksList(getFallbackTaluks(districtId));
+        }
+      } catch (e) {
+        console.error('Error fetching master taluks:', e);
+        setTaluksList(getFallbackTaluks(districtId));
+      } finally {
+        setMasterLoading(false);
+      }
+    };
+    fetchMasterTaluks();
+  }, [districtId]);
+
+  // ── Role auto-redirection ──
   useEffect(() => {
     let currentOfficeType = stateData.officeType || officeInfo.officeType;
+    const tokenRole = AuthService.getrole();
+    const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+    const des = localStorage.getItem('des') || '';
+
+    if (roles.includes('Field Data Collector') || des.includes('Field Data Collector')) {
+      const zoneId = officeInfo.zoneId || AuthService.getzone();
+      navigate('/schemes/earas/Report/Form3A/ClusterForm3A', {
+        replace: true,
+        state: {
+          officeType: 'FIELD_DATA_COLLECTOR', viewLevel: 'cluster', zoneId,
+          zoneName: officeInfo.zoneName || '',
+          talukId: officeInfo.talukOfficeId || officeInfo.talukId,
+          talukName: officeInfo.talukName || '',
+          districtId: officeInfo.districtOfficeId || officeInfo.districtId || districtId,
+          districtName: officeInfo.districtName || districtName || '',
+          isDirectAccess: true, landType: landTypeTab, seasonId, irrigation,
+          activeTab: ALL_CROP_GROUPS
+        }
+      });
+      return;
+    }
+
     if (!currentOfficeType) {
       try {
-        const tokenRole = AuthService.getrole();
-        const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
-        const des = localStorage.getItem('des') || '';
         if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
           currentOfficeType = 'TALUK';
         }
@@ -241,18 +260,11 @@ const TalukForm3A = () => {
         navigate('/schemes/earas/Report/Form3A/ZoneForm3A', {
           replace: true,
           state: {
-            officeType: 'TALUK',
-            viewLevel: 'taluk',
-            talukId: tId,
-            talukName: tName,
-            selectedTaluk: tName,
-            districtId,
-            districtName,
-            isDirectAccess: true,
-            landType: landTypeTab,
-            seasonId,
-            irrigation,
-            activeTab: stateData.activeTab || 0
+            officeType: 'TALUK', viewLevel: 'taluk',
+            talukId: tId, talukName: tName, selectedTaluk: tName,
+            districtId, districtName, isDirectAccess: true,
+            landType: landTypeTab, seasonId, irrigation,
+            activeTab: stateData.activeTab ?? ALL_CROP_GROUPS
           }
         });
       }
@@ -260,27 +272,16 @@ const TalukForm3A = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [officeInfo, stateData, districtId, districtName, navigate]);
 
-  /* ── persist district context so breadcrumb/refresh keeps working ── */
   useEffect(() => {
     if (districtId != null) {
-      sessionStorage.setItem(
-        SESSION_KEY,
-        JSON.stringify({
-          districtId,
-          districtName,
-          selectedDistrict: districtName,
-          agriculturalYear,
-          landType: landTypeTab,
-          seasonId,
-          irrigation,
-          activeTab: stateData.activeTab ?? 0
-        })
-      );
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+        districtId, districtName, selectedDistrict: districtName, agriculturalYear,
+        landType: landTypeTab, seasonId, irrigation, activeTab: stateData.activeTab ?? 0
+      }));
     }
   }, [districtId, districtName, agriculturalYear, landTypeTab, seasonId, irrigation, stateData.activeTab]);
 
-  /* ─────────────────── fetch (per crop group + land type + season + irrigation) ─────────────────── */
-
+  // ── Fetch Form 3A data ──
   useEffect(() => {
     if (districtId == null) {
       setError('District is required. Please navigate from the state (district) report page.');
@@ -296,15 +297,12 @@ const TalukForm3A = () => {
         districtId: String(districtId),
         cropGroupId: String(groupId)
       });
-      // 'ALL' is represented by omitting the param entirely.
       const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
       if (landTypeParam) params.append('landType', landTypeParam);
       params.append('seasonId', String(seasonId));
-
-      // 'ALL' is represented by omitting the param entirely.
       const irrigationParam = IRRIGATION_PARAM[irrigation];
       if (irrigationParam) params.append('isIrrigated', irrigationParam);
-
+      console.log(`${BASE_URL}/earas-form1-entry/api/progress-report/form3A/district?${params.toString()}`)
       return `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/district?${params.toString()}`;
     };
 
@@ -314,11 +312,8 @@ const TalukForm3A = () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('Authorization token missing');
-
         const headers = { Authorization: `Bearer ${token}` };
-        // 'All' fans out to every crop group; a single group keeps its one call.
         const groupIds = isAllCropGroups ? CROP_GROUPS.map((g) => g.id) : [cropGroupId];
-        console.log('Fetching Taluk Form 3A data for crop groups:', groupIds.join(', '), '→', buildUrl(groupIds[0]));
 
         const payloads = [];
         for (let i = 0; i < groupIds.length; i += FETCH_BATCH_SIZE) {
@@ -328,7 +323,6 @@ const TalukForm3A = () => {
           if (cancelled) return;
           responses.forEach((r) => payloads.push(r.data));
         }
-
         if (cancelled) return;
         setApiData(mergeGroupResponses(payloads));
       } catch (err) {
@@ -344,15 +338,11 @@ const TalukForm3A = () => {
       }
     };
     fetchGroupData();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cropGroupId, isAllCropGroups, districtId, agriculturalYear, landTypeTab, seasonId, irrigation]);
 
-  /* ─────────────────────────── derived data ─────────────────────────── */
-
+  // ── Crop columns ──
   const cropColumns = useMemo(() => {
     const map = new Map();
     apiData.forEach((t) =>
@@ -363,91 +353,87 @@ const TalukForm3A = () => {
     return Array.from(map.values()).sort((a, b) => a.cropName.localeCompare(b.cropName));
   }, [apiData]);
 
-  // Sorted alphabetically by taluk name, with Unassigned at the end.
+  // ── Merge master taluks with API data (master order preserved) ──
   const talukRows = useMemo(() => {
-    const list = apiData.map((t) => {
+    const apiById = new Map();
+    const apiByName = new Map();
+    apiData.forEach((t) => {
+      if (t.talukId != null) apiById.set(t.talukId, t);
+      if (t.talukName) apiByName.set(t.talukName.toLowerCase().trim(), t);
+    });
+
+    const buildRow = (talukId, talukName, api) => {
       const byId = {};
-      (t.crops || []).forEach((c) => {
-        byId[c.cropId] = Number(c.areaInCents) || 0;
-      });
+      (api?.crops || []).forEach((c) => { byId[c.cropId] = Number(c.areaInCents) || 0; });
+      const clusterArea = Number(api?.clusterArea) || 0;
+      const nucArea = Number(api?.nucArea) || 0;
+      const ffsArea = Number(api?.ffsArea) || 0;
+      const cosArea = Number(api?.cosArea) || 0;
+      const hasData = clusterArea > 0 || nucArea > 0 || ffsArea > 0 || cosArea > 0 || Object.keys(byId).length > 0;
       return {
-        talukId: t.talukId ?? null,
-        taluk: t.talukName || 'Unassigned',
-        clusterArea: Number(t.clusterArea) || 0,
-        nucArea: Number(t.nucArea) || 0,
-        ffsArea: Number(t.ffsArea) || 0,
-        cosArea: Number(t.cosArea) || 0,
-        byId
+        talukId: talukId ?? api?.talukId ?? null,
+        taluk: talukName || api?.talukName || 'Unknown',
+        clusterArea, nucArea, ffsArea, cosArea, byId, hasData
       };
-    });
+    };
 
-    return list.sort((a, b) => {
-      if (a.taluk === 'Unassigned') return 1;
-      if (b.taluk === 'Unassigned') return -1;
-      return a.taluk.localeCompare(b.taluk);
-    });
-  }, [apiData]);
+    if (taluksList && taluksList.length > 0) {
+      return taluksList.map((t) => {
+        const api = apiById.get(t.id) || apiByName.get(t.talukNameEn?.toLowerCase().trim());
+        return buildRow(t.id, t.talukNameEn, api);
+      });
+    }
+    return apiData.map((t) => buildRow(t.talukId, t.talukName, t));
+  }, [apiData, taluksList]);
 
-  // Column totals for Area types across taluks
+  // ── Search-filtered rows ──
+  const searchFilteredRows = useMemo(() => {
+    if (!searchTerm.trim()) return talukRows;
+    const q = searchTerm.toLowerCase().trim();
+    return talukRows.filter((r) => r.taluk?.toLowerCase().includes(q));
+  }, [talukRows, searchTerm]);
+
+  const taluksWithNoData = useMemo(
+    () => talukRows.filter((r) => !r.hasData && r.talukId != null).length,
+    [talukRows]
+  );
+
+  // ── Totals (based on search-filtered rows so table + Excel agree) ──
   const areaTotals = useMemo(() => {
-    let clusterArea = 0;
-    let nucArea = 0;
-    let ffsArea = 0;
-    let cosArea = 0;
-    talukRows.forEach((row) => {
+    let clusterArea = 0, nucArea = 0, ffsArea = 0, cosArea = 0;
+    searchFilteredRows.forEach((row) => {
       clusterArea += row.clusterArea || 0;
       nucArea += row.nucArea || 0;
       ffsArea += row.ffsArea || 0;
       cosArea += row.cosArea || 0;
     });
     return { clusterArea, nucArea, ffsArea, cosArea };
-  }, [talukRows]);
+  }, [searchFilteredRows]);
 
   const cropTotals = useMemo(() => {
     const totals = {};
     cropColumns.forEach((c) => (totals[c.cropId] = 0));
-    talukRows.forEach((row) => {
+    searchFilteredRows.forEach((row) => {
       cropColumns.forEach((c) => {
         if (row.byId[c.cropId] !== undefined) totals[c.cropId] += row.byId[c.cropId];
       });
     });
     return totals;
-  }, [talukRows, cropColumns]);
+  }, [searchFilteredRows, cropColumns]);
 
-  /* ─────────────────────────── handlers ─────────────────────────── */
-
-  const handleCropGroupChange = (event) => {
-    setActiveTab(Number(event.target.value));
-    setPage(0);
-  };
-
-  const handleLandTypeChange = (event, newValue) => {
-    if (newValue === null || newValue === undefined) return;
-    setLandTypeTab(newValue);
-    setPage(0);
-  };
-
-  const handleSeasonChange = (event) => {
-    setSeasonId(Number(event.target.value));
-    setPage(0);
-  };
-
-  const handleIrrigationChange = (event) => {
-    setIrrigation(event.target.value);
-    setPage(0);
-  };
-
+  // ── Handlers ──
+  const handleCropGroupChange = (e) => { setActiveTab(Number(e.target.value)); setPage(0); };
+  const handleLandTypeChange = (_, v) => { if (v != null) { setLandTypeTab(v); setPage(0); } };
+  const handleSeasonChange = (e) => { setSeasonId(Number(e.target.value)); setPage(0); };
+  const handleIrrigationChange = (e) => { setIrrigation(e.target.value); setPage(0); };
   const formatNumber = (num) => Number(num || 0).toFixed(2);
-
-  const handleChangePage = (event, newPage) => setPage(newPage);
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
+  const handleChangePage = (_, p) => setPage(p);
+  const handleChangeRowsPerPage = (e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); };
+  const handleClearSearch = () => { setSearchTerm(''); setPage(0); };
 
   const paginatedRows = useMemo(
-    () => talukRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [talukRows, page, rowsPerPage]
+    () => searchFilteredRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [searchFilteredRows, page, rowsPerPage]
   );
 
   const handleBack = () => {
@@ -462,7 +448,6 @@ const TalukForm3A = () => {
         }
       } catch (e) { }
     }
-
     if (effectiveOfficeType === 'DISTRICT' || stateData.isDirectAccess) {
       navigate('/Report');
     } else {
@@ -472,187 +457,432 @@ const TalukForm3A = () => {
     }
   };
 
-  const handleTalukClick = (talukName, talukId) => {
-    if (talukId == null) return;
+  const handleTalukClick = (talukName, talukId, hasData) => {
+    if (talukId == null || !hasData) return;
     navigate('/schemes/earas/Report/Form3A/ZoneForm3A', {
       state: {
         officeType: stateData.officeType || 'DIRECTORATE',
-        districtId,
-        districtName,
-        selectedDistrict: districtName,
-        talukId,
-        talukName,
-        selectedTaluk: talukName,
-        cropGroupId, // null when 'All' is selected
-        cropGroupName,
-        agriculturalYear,
-        landType: landTypeTab,
-        seasonId,
-        irrigation,
-        activeTab
+        districtId, districtName, selectedDistrict: districtName,
+        talukId, talukName, selectedTaluk: talukName,
+        cropGroupId, cropGroupName, agriculturalYear,
+        landType: landTypeTab, seasonId, irrigation, activeTab
       }
     });
   };
 
+  // ── Excel export ──
+  const generateExcelFileName = () => {
+    const parts = ['Form3A_TalukReport', districtName?.replace(/\s+/g, '_') || 'District'];
+    parts.push((cropGroupName || 'All').replace(/\s+/g, '_'));
+    if (landTypeTab !== 'ALL') parts.push(landTypeTab);
+    if (seasonName) parts.push(seasonName);
+    if (irrigation !== 'ALL') parts.push(irrigationLabel.replace(/\s+/g, '_'));
+    parts.push(agriculturalYear);
+    if (searchTerm.trim()) parts.push(`Search-${searchTerm.trim().replace(/\s+/g, '_')}`);
+    parts.push(new Date().toISOString().slice(0, 10));
+    return `${parts.join('_')}.xlsx`;
+  };
+
+  const handleExportExcel = () => {
+    if (!searchFilteredRows || searchFilteredRows.length === 0) return;
+
+    const headerMeta = [
+      ['Form 3A — Taluk-wise Seasonal Crop Report'],
+      ['District', districtName],
+      ['Agricultural Year', agriculturalYear],
+      ['Crop Group', cropGroupName || '—'],
+      ['Land Type', landTypeTab === 'ALL' ? 'All' : landTypeTab],
+      ['Season', seasonName || '—'],
+      ['Irrigation', irrigationLabel || '—'],
+      ['Area Unit', 'Cents'],
+      ['Exported On', new Date().toLocaleString()],
+      []
+    ];
+
+    const headerRow = [
+      '#', 'Taluk', 'Cluster Area', 'NUC Area', 'FFS Area', 'COS Area',
+      ...cropColumns.map((c) => c.cropName)
+    ];
+
+    let serial = 0;
+    const dataRows = searchFilteredRows.map((row) => {
+      serial += 1;
+      const cells = [serial, row.taluk];
+      if (!row.hasData) {
+        cells.push('NA', 'NA', 'NA', 'NA');
+        cropColumns.forEach(() => cells.push('NA'));
+      } else {
+        cells.push(
+          row.clusterArea ? Number(row.clusterArea) : '—',
+          row.nucArea ? Number(row.nucArea) : '—',
+          row.ffsArea ? Number(row.ffsArea) : '—',
+          row.cosArea ? Number(row.cosArea) : '—'
+        );
+        cropColumns.forEach((c) => {
+          const v = row.byId[c.cropId];
+          cells.push(v ? Number(v) : '—');
+        });
+      }
+      return cells;
+    });
+
+    const totalsRow = [
+      '', 'GRAND TOTAL',
+      Number(areaTotals.clusterArea.toFixed(2)),
+      Number(areaTotals.nucArea.toFixed(2)),
+      Number(areaTotals.ffsArea.toFixed(2)),
+      Number(areaTotals.cosArea.toFixed(2)),
+      ...cropColumns.map((c) => Number((cropTotals[c.cropId] || 0).toFixed(2)))
+    ];
+
+    const aoa = [...headerMeta, headerRow, ...dataRows, totalsRow];
+    const worksheet = XLSX.utils.aoa_to_sheet(aoa);
+
+    worksheet['!cols'] = [
+      { wch: 5 }, { wch: 24 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
+      ...cropColumns.map(() => ({ wch: 16 }))
+    ];
+    worksheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Taluk Form 3A');
+    XLSX.writeFile(workbook, generateExcelFileName());
+  };
+
   const TABLE_MIN_W = TALUK_W + 4 * AREA_W + Math.max(cropColumns.length, 1) * CROP_W;
+  const exportDisabled = searchFilteredRows.length === 0 || loading;
 
   /* ─────────────────────────── render ─────────────────────────── */
 
   return (
     <Box>
-      <Box sx={{ mb: 2 }}>
-        <Breadcrumb />
-      </Box>
+      <Box sx={{ mb: 2 }}><Breadcrumb /></Box>
+
       <Card
         elevation={0}
         sx={{
           borderRadius: 4,
           overflow: 'visible',
           background: theme.palette.background.paper,
-          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          boxShadow: '0 4px 20px rgba(5,48,122,0.06)'
         }}
       >
-        <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-          {/* Header */}
-          <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            <IconButton onClick={handleBack} size="small" sx={{ color: themeColor }}>
-              <ArrowBack />
-            </IconButton>
-            <LocationOn sx={{ fontSize: 32, color: themeColor }} />
-            <Typography variant="h5" sx={{ fontWeight: 'bold', color: themeColor }}>
-              {districtName} District - Taluk-wise Crop Area Report (Form 3A)
-            </Typography>
-            <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
-              (Click on any taluk to view Zone-wise details) • Agricultural Year: {agriculturalYear} • Area in Cents
-              {cropGroupName && ` • ${cropGroupName}`}
-              {landTypeTab !== 'ALL' && ` • ${landTypeTab} Land`}
-              {seasonName && ` • ${seasonName} Season`}
-              {irrigation !== 'ALL' && ` • ${irrigationLabel}`}
-            </Typography>
-          </Box>
-
-          {/* Filters — crop group + land type + season + irrigation */}
-          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-            {/* Land type filter — ALL / WET / DRY */}
-            <Paper
-              elevation={0}
+        {/* ── Header gradient band ── */}
+        <Box
+          sx={{
+            background: `linear-gradient(120deg, ${themeColor} 0%, ${themeColorAlt} 55%, #1a6fc4 100%)`,
+            color: '#fff',
+            px: { xs: 2, sm: 3, md: 4 },
+            py: { xs: 2.5, sm: 3 },
+            borderRadius: '16px 16px 0 0',
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            alignItems: { xs: 'flex-start', md: 'center' },
+            justifyContent: 'space-between',
+            gap: 2
+          }}
+        >
+          <Stack direction="row" spacing={2} alignItems="center">
+            <IconButton
+              onClick={handleBack}
+              size="small"
               sx={{
-                p: 1,
-                borderRadius: 3,
-                border: `1px solid ${theme.palette.divider}`,
-                display: 'inline-block'
+                bgcolor: 'rgba(255,255,255,0.16)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.3)',
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.28)' }
               }}
             >
-              <Tabs
-                value={landTypeTab}
-                onChange={handleLandTypeChange}
-                sx={{
-                  minHeight: 40,
-                  '& .MuiTab-root': {
-                    textTransform: 'none',
-                    fontWeight: 600,
+              <ArrowBack fontSize="small" />
+            </IconButton>
+            <Avatar
+              sx={{
+                bgcolor: 'rgba(255,255,255,0.16)',
+                border: '1px solid rgba(255,255,255,0.35)',
+                width: 54, height: 54
+              }}
+            >
+              <AssessmentIcon sx={{ fontSize: 30 }} />
+            </Avatar>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: 0.2, lineHeight: 1.2 }}>
+                Form 3A — Taluk-wise Seasonal Crop Report {agriculturalYear}
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.85, mt: 0.5 }}>
+                {districtName} District • Agricultural Year {agriculturalYear} • Area in Cents
+              </Typography>
+            </Box>
+          </Stack>
+
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            {cropGroupName && (
+              <Chip
+                icon={<GrassIcon sx={{ fontSize: 16, color: '#fff !important' }} />}
+                label={cropGroupName}
+                size="small"
+                sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }}
+              />
+            )}
+            {landTypeTab !== 'ALL' && (
+              <Chip label={`${landTypeTab} Land`} size="small"
+                sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }} />
+            )}
+            {seasonName && (
+              <Chip
+                icon={<EnergySavingsLeafIcon sx={{ fontSize: 16, color: '#fff !important' }} />}
+                label={seasonName}
+                size="small"
+                sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }}
+              />
+            )}
+            {irrigation !== 'ALL' && (
+              <Chip
+                icon={<WaterIcon sx={{ fontSize: 16, color: '#fff !important' }} />}
+                label={irrigationLabel}
+                size="small"
+                sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }}
+              />
+            )}
+          </Stack>
+        </Box>
+
+        <CardContent sx={{ p: { xs: 2, sm: 3, md: 3.5 } }}>
+          {/* ── KPI strip ── */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            {[
+              { label: 'Taluks', value: talukRows.length, icon: <LocationOn />, color: '#1565c0' },
+              { label: 'Cluster Area', value: formatNumber(areaTotals.clusterArea), icon: <StoreIcon />, color: '#2e7d32' },
+              { label: 'Nuc Area', value: formatNumber(areaTotals.nucArea), icon: <GrassIcon />, color: '#6a1b9a' },
+              { label: 'FFS Area', value: formatNumber(areaTotals.ffsArea), icon: <EnergySavingsLeafIcon />, color: '#ef6c00' },
+              { label: 'CoS Area', value: formatNumber(areaTotals.cosArea), icon: <CheckCircleIcon />, color: '#0277bd' }
+            ].map((k) => (
+              <Grid item xs={6} sm={4} md={2.4} key={k.label}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 1.75,
+                    borderRadius: 2.5,
+                    border: `1px solid ${alpha(k.color, 0.15)}`,
+                    background: `linear-gradient(135deg, ${alpha(k.color, 0.06)} 0%, ${alpha(k.color, 0.02)} 100%)`,
+                    transition: 'transform 0.18s, box-shadow 0.18s',
+                    '&:hover': { transform: 'translateY(-2px)', boxShadow: `0 6px 16px ${alpha(k.color, 0.14)}` }
+                  }}
+                >
+                  <Stack direction="row" alignItems="center" spacing={1.5}>
+                    <Avatar sx={{ bgcolor: alpha(k.color, 0.12), color: k.color, width: 38, height: 38 }}>
+                      {React.cloneElement(k.icon, { sx: { fontSize: 20 } })}
+                    </Avatar>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, letterSpacing: 0.4 }}>
+                        {k.label.toUpperCase()}
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 800, color: k.color, lineHeight: 1.1 }}>
+                        {loading ? <CircularProgress size={16} /> : k.value}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
+
+          {/* ── Filters ── */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              mb: 3,
+              borderRadius: 3,
+              border: `1px solid ${alpha(themeColor, 0.12)}`,
+              bgcolor: alpha(themeColor, 0.015)
+            }}
+          >
+            <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2} alignItems={{ xs: 'stretch', lg: 'center' }} flexWrap="wrap">
+              <Box sx={{ minWidth: 260 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, letterSpacing: 0.6 }}>
+                  LAND TYPE
+                </Typography>
+                <Tabs
+                  value={landTypeTab}
+                  onChange={handleLandTypeChange}
+                  variant="fullWidth"
+                  sx={{
                     minHeight: 40,
-                    '&.Mui-selected': { color: themeColor }
-                  },
-                  '& .MuiTabs-indicator': { backgroundColor: themeColor, height: 3 }
-                }}
-              >
-                <Tab label="ALL" value="ALL" />
-                <Tab label="WET" value="WET" icon={<WaterDropIcon />} iconPosition="start" />
-                <Tab label="DRY" value="DRY" icon={<WbSunnyIcon />} iconPosition="start" />
-              </Tabs>
-            </Paper>
+                    mt: 0.5,
+                    border: `1px solid ${alpha(themeColor, 0.2)}`,
+                    borderRadius: 2,
+                    '& .MuiTab-root': {
+                      textTransform: 'none', fontWeight: 700, minHeight: 40, color: 'text.secondary',
+                      '&.Mui-selected': { color: themeColor }
+                    },
+                    '& .MuiTabs-indicator': { backgroundColor: themeColor, height: 3, borderRadius: '3px 3px 0 0' }
+                  }}
+                >
+                  <Tab label="ALL" value="ALL" />
+                  <Tab label="WET" value="WET" icon={<WaterDropIcon sx={{ fontSize: 18 }} />} iconPosition="start" />
+                  <Tab label="DRY" value="DRY" icon={<WbSunnyIcon sx={{ fontSize: 18 }} />} iconPosition="start" />
+                </Tabs>
+              </Box>
 
-            {/* Crop group filter — All + one entry per tbl_master_crop_group row */}
-            <FormControl size="small" sx={{ minWidth: 240 }}>
-              <InputLabel id="taluk-form3a-cropgroup-label">Crop Group</InputLabel>
-              <Select
-                labelId="taluk-form3a-cropgroup-label"
-                id="taluk-form3a-cropgroup"
-                value={activeTab}
-                label="Crop Group"
-                onChange={handleCropGroupChange}
-                MenuProps={{ PaperProps: { sx: { maxHeight: 360 } } }}
-                renderValue={(value) => (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <GrassIcon sx={{ fontSize: 20, color: '#2e7d32' }} />
-                    {value === ALL_CROP_GROUPS ? ALL_CROP_GROUPS_LABEL : CROP_GROUPS[value]?.name || ''}
-                  </Box>
-                )}
-              >
-                <MenuItem value={ALL_CROP_GROUPS}>All</MenuItem>
-                {CROP_GROUPS.map((g, index) => (
-                  <MenuItem key={g.id} value={index}>
-                    {g.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+              <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', lg: 'block' } }} />
 
-            {/* Season filter — Autumn / Winter / Summer */}
-            <FormControl size="small" sx={{ minWidth: 180 }}>
-              <InputLabel id="taluk-form3a-season-label">Season</InputLabel>
-              <Select
-                labelId="taluk-form3a-season-label"
-                id="taluk-form3a-season"
-                value={seasonId}
-                label="Season"
-                onChange={handleSeasonChange}
-                renderValue={(value) => (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <EnergySavingsLeafIcon sx={{ fontSize: 20, color: '#2e7d32' }} />
-                    {SEASONS.find((s) => s.id === value)?.name || ''}
-                  </Box>
-                )}
-              >
-                {SEASONS.map((s) => (
-                  <MenuItem key={s.id} value={s.id}>
-                    {s.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+              <FormControl size="small" sx={{ minWidth: 240 }}>
+                <InputLabel id="taluk-crop-group-label">Crop Group</InputLabel>
+                <Select
+                  labelId="taluk-crop-group-label"
+                  value={activeTab}
+                  label="Crop Group"
+                  onChange={handleCropGroupChange}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 360 } } }}
+                  renderValue={(v) => (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <GrassIcon sx={{ fontSize: 18, color: '#2e7d32' }} />
+                      {v === ALL_CROP_GROUPS ? ALL_CROP_GROUPS_LABEL : CROP_GROUPS[v]?.name || ''}
+                    </Box>
+                  )}
+                >
+                  <MenuItem value={ALL_CROP_GROUPS}>All</MenuItem>
+                  {CROP_GROUPS.map((g, i) => (
+                    <MenuItem key={g.id} value={i}>{g.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
-            {/* Irrigation filter — All / Irrigated / Unirrigated */}
-            <FormControl size="small" sx={{ minWidth: 180 }}>
-              <InputLabel id="taluk-form3a-irrigation-label">Irrigation</InputLabel>
-              <Select
-                labelId="taluk-form3a-irrigation-label"
-                id="taluk-form3a-irrigation"
-                value={irrigation}
-                label="Irrigation"
-                onChange={handleIrrigationChange}
-                renderValue={(value) => (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <WaterIcon sx={{ fontSize: 20, color: value === 'UNIRRIGATED' ? '#9e9e9e' : '#0288d1' }} />
-                    {IRRIGATION_OPTIONS.find((o) => o.value === value)?.label || ''}
-                  </Box>
-                )}
-              >
-                {IRRIGATION_OPTIONS.map((o) => (
-                  <MenuItem key={o.value} value={o.value}>
-                    {o.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
+              <FormControl size="small" sx={{ minWidth: 180 }}>
+                <InputLabel id="taluk-season-label">Season</InputLabel>
+                <Select
+                  labelId="taluk-season-label"
+                  value={seasonId}
+                  label="Season"
+                  onChange={handleSeasonChange}
+                  renderValue={(v) => (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <EnergySavingsLeafIcon sx={{ fontSize: 18, color: '#2e7d32' }} />
+                      {SEASONS.find((s) => s.id === v)?.name || ''}
+                    </Box>
+                  )}
+                >
+                  {SEASONS.map((s) => (<MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>))}
+                </Select>
+              </FormControl>
 
-          {/* Error */}
+              <FormControl size="small" sx={{ minWidth: 180 }}>
+                <InputLabel id="taluk-irrigation-label">Irrigation</InputLabel>
+                <Select
+                  labelId="taluk-irrigation-label"
+                  value={irrigation}
+                  label="Irrigation"
+                  onChange={handleIrrigationChange}
+                  renderValue={(v) => (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <WaterIcon sx={{ fontSize: 18, color: v === 'UNIRRIGATED' ? '#9e9e9e' : '#0288d1' }} />
+                      {IRRIGATION_OPTIONS.find((o) => o.value === v)?.label || ''}
+                    </Box>
+                  )}
+                >
+                  {IRRIGATION_OPTIONS.map((o) => (<MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>))}
+                </Select>
+              </FormControl>
+            </Stack>
+
+            {taluksWithNoData > 0 && !loading && (
+              <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Chip
+                  icon={<VisibilityOffIcon sx={{ fontSize: 14 }} />}
+                  label={`${taluksWithNoData} taluk${taluksWithNoData > 1 ? 's' : ''} with no data`}
+                  size="small"
+                  sx={{ bgcolor: alpha('#ff9800', 0.14), color: '#e65100', fontWeight: 600 }}
+                />
+              </Box>
+            )}
+          </Paper>
+
+          {/* ── Error ── */}
           {error && (
             <Paper sx={{ p: 2, mb: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
               <Typography color="error">Error: {error}</Typography>
             </Paper>
           )}
 
-          {/* Table Section — Taluk, Cluster Area, Nuc Area, Ffs Area, Cos Area, <crop columns...> */}
+          {/* ── Search + Export toolbar ── */}
           <Paper
-            elevation={2}
+            elevation={0}
+            sx={{
+              p: 1.5,
+              mb: 2,
+              borderRadius: 3,
+              border: `1px solid ${alpha(themeColor, 0.12)}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 2,
+              flexWrap: 'wrap'
+            }}
+          >
+            <TextField
+              placeholder="Search taluk..."
+              size="small"
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
+              sx={{ width: 280 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>
+                ),
+                endAdornment: searchTerm && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch} edge="end">
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }}
+            />
+
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Chip
+                label={`${searchFilteredRows.length} row${searchFilteredRows.length !== 1 ? 's' : ''}`}
+                size="small"
+                sx={{ bgcolor: alpha(themeColor, 0.08), color: themeColor, fontWeight: 600 }}
+              />
+              <Tooltip
+                title={
+                  exportDisabled
+                    ? 'No data available to export'
+                    : `Download ${searchFilteredRows.length} row${searchFilteredRows.length > 1 ? 's' : ''} as Excel`
+                }
+              >
+                <span>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<DownloadIcon />}
+                    onClick={handleExportExcel}
+                    disabled={exportDisabled}
+                    sx={{
+                      borderRadius: 2, bgcolor: themeColor, textTransform: 'none',
+                      fontWeight: 600, whiteSpace: 'nowrap', px: 2,
+                      '&:hover': { bgcolor: themeColorAlt },
+                      '&.Mui-disabled': { bgcolor: alpha(themeColor, 0.3), color: '#fff' }
+                    }}
+                  >
+                    Download Excel
+                  </Button>
+                </span>
+              </Tooltip>
+            </Stack>
+          </Paper>
+
+          {/* ── Table ── */}
+          <Paper
+            elevation={0}
             sx={{
               borderRadius: 3,
               overflow: 'hidden',
-              border: `1px solid ${alpha(themeColor, 0.1)}`,
-              position: 'relative'
+              border: `1px solid ${alpha(themeColor, 0.12)}`,
+              position: 'relative',
+              boxShadow: '0 2px 12px rgba(5,48,122,0.05)'
             }}
           >
             {loading && (
@@ -663,12 +893,18 @@ const TalukForm3A = () => {
                 }}
               />
             )}
-            <Box sx={{ p: 0 }}>
+            <Box sx={{ p: 0, position: 'relative' }}>
               <TableContainer sx={{ maxHeight: 600, overflowX: 'auto' }}>
                 <Table
                   stickyHeader
                   size="small"
-                  sx={{ width: '100%', minWidth: TABLE_MIN_W, tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0 }}
+                  sx={{
+                    width: '100%',
+                    minWidth: TABLE_MIN_W,
+                    tableLayout: 'fixed',
+                    borderCollapse: 'separate',
+                    borderSpacing: 0
+                  }}
                 >
                   <colgroup>
                     <col style={{ width: TALUK_W }} />
@@ -676,105 +912,71 @@ const TalukForm3A = () => {
                     <col style={{ width: AREA_W }} />
                     <col style={{ width: AREA_W }} />
                     <col style={{ width: AREA_W }} />
-                    {cropColumns.map((c) => (
-                      <col key={c.cropId} style={{ width: CROP_W }} />
-                    ))}
-                    {/* Spacer column absorbs any leftover width so the real
-                      columns keep a consistent, readable size instead of
-                      stretching when there are only one or two crop columns. */}
+                    {cropColumns.map((c) => (<col key={c.cropId} style={{ width: CROP_W }} />))}
                     <col style={{ width: 'auto' }} />
                   </colgroup>
+
                   <TableHead>
                     <TableRow>
-                      <TableCell
-                        align="left"
-                        sx={{
-                          backgroundColor: themeColor,
-                          color: 'white',
-                          fontWeight: 700,
-                          whiteSpace: 'nowrap',
-                          py: 1.5,
-                          position: 'sticky',
-                          left: 0,
-                          zIndex: 3
-                        }}
-                      >
-                        Taluk
-                      </TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          backgroundColor: themeColor,
-                          color: 'white',
-                          fontWeight: 700,
-                          whiteSpace: 'nowrap',
-                          py: 1.5
-                        }}
-                      >
-                        Cluster Area
-                      </TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          backgroundColor: themeColor,
-                          color: 'white',
-                          fontWeight: 700,
-                          whiteSpace: 'nowrap',
-                          py: 1.5
-                        }}
-                      >
-                        Nuc Area
-                      </TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          backgroundColor: themeColor,
-                          color: 'white',
-                          fontWeight: 700,
-                          whiteSpace: 'nowrap',
-                          py: 1.5
-                        }}
-                      >
-                        Ffs Area
-                      </TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          backgroundColor: themeColor,
-                          color: 'white',
-                          fontWeight: 700,
-                          whiteSpace: 'nowrap',
-                          py: 1.5
-                        }}
-                      >
-                        Cos Area
-                      </TableCell>
+                      {[
+                        { key: 'taluk', label: 'Taluk', align: 'left' },
+                        { key: 'cluster', label: 'Cluster Area', align: 'right' },
+                        { key: 'nuc', label: 'NUC Area', align: 'right' },
+                        { key: 'ffs', label: 'FFS Area', align: 'right' },
+                        { key: 'cos', label: 'CoS Area', align: 'right' }
+                      ].map((h) => {
+                        const isTaluk = h.key === 'taluk';
+                        return (
+                          <TableCell
+                            key={h.key}
+                            align={h.align}
+                            sx={{
+                              backgroundColor: themeColor,
+                              color: '#fff',
+                              fontWeight: 700,
+                              whiteSpace: 'nowrap',
+                              py: 1.6,
+                              fontSize: '0.82rem',
+                              letterSpacing: 0.3,
+                              borderBottom: `2px solid ${alpha('#fff', 0.15)}`,
+                              ...(isTaluk && {
+                                position: 'sticky',
+                                left: 0,
+                                zIndex: 6,
+                                backgroundColor: themeColor
+                              })
+                            }}
+                          >
+                            {h.label}
+                          </TableCell>
+                        );
+                      })}
                       {cropColumns.map((crop) => (
                         <TableCell
                           key={crop.cropId}
                           align="right"
                           sx={{
-                            backgroundColor: themeColor,
-                            color: 'white',
-                            fontWeight: 700,
-                            whiteSpace: 'nowrap',
-                            py: 1.5
+                            backgroundColor: themeColor, color: '#fff', fontWeight: 700,
+                            whiteSpace: 'nowrap', py: 1.6, fontSize: '0.82rem', letterSpacing: 0.3,
+                            borderBottom: `2px solid ${alpha('#fff', 0.15)}`,
+                            zIndex: 3
                           }}
                         >
                           {crop.cropName}
                         </TableCell>
                       ))}
-                      <TableCell aria-hidden sx={{ backgroundColor: themeColor, padding: 0 }} />
+                      <TableCell aria-hidden sx={{ backgroundColor: themeColor, padding: 0, zIndex: 3 }} />
                     </TableRow>
                   </TableHead>
+
                   <TableBody>
                     {loading ? (
                       <TableRow>
                         <TableCell colSpan={Math.max(cropColumns.length + 6, 8)} align="center" sx={{ py: 10 }}>
-                          <Stack alignItems="center" spacing={2} sx={{ my: 2 }}>
+                          <Stack alignItems="center" spacing={2}>
                             <CircularProgress size={44} thickness={4} sx={{ color: themeColor }} />
                             <Box textAlign="center">
-                              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: themeColor }}>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: themeColor }}>
                                 Loading Taluk Form 3A Report...
                               </Typography>
                               <Typography variant="body2" color="text.secondary">
@@ -784,59 +986,102 @@ const TalukForm3A = () => {
                           </Stack>
                         </TableCell>
                       </TableRow>
-                    ) : talukRows.length === 0 ? (
+                    ) : paginatedRows.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={cropColumns.length + 6} align="center" sx={{ py: 6 }}>
-                          <Typography color="text.secondary">No data available for {cropGroupName}</Typography>
+                          <Typography color="text.secondary">
+                            {searchTerm
+                              ? `No taluks found matching "${searchTerm}"`
+                              : `No data available for ${cropGroupName}`}
+                          </Typography>
                         </TableCell>
                       </TableRow>
                     ) : (
                       <>
                         {paginatedRows.map((row, index) => {
-                          const clickable = row.talukId != null;
+                          const clickable = row.talukId != null && row.hasData;
                           return (
                             <TableRow
                               key={row.talukId ?? `row-${index}`}
                               hover={clickable}
-                              onClick={() => handleTalukClick(row.taluk, row.talukId)}
+                              onClick={() => handleTalukClick(row.taluk, row.talukId, row.hasData)}
                               sx={{
                                 cursor: clickable ? 'pointer' : 'default',
-                                '&:hover': clickable ? { backgroundColor: alpha(themeColor, 0.08), transition: '0.2s' } : undefined
+                                backgroundColor: !row.hasData
+                                  ? alpha('#ff9800', 0.03)
+                                  : (index % 2 === 1 ? alpha(themeColor, 0.015) : 'transparent'),
+                                '&:hover': clickable
+                                  ? { backgroundColor: alpha(themeColor, 0.08), transition: '0.2s' }
+                                  : undefined
                               }}
                             >
                               <TableCell
                                 align="left"
-                                sx={{ position: 'sticky', left: 0, zIndex: 1, backgroundColor: theme.palette.background.paper }}
+                                sx={{
+                                  position: 'sticky',
+                                  left: 0,
+                                  zIndex: 2,
+                                  backgroundColor: !row.hasData
+                                    ? '#fffaf2'
+                                    : (index % 2 === 1 ? '#f8fafc' : '#ffffff'),
+                                  borderRight: `1px solid ${alpha(themeColor, 0.06)}`
+                                }}
                               >
-                                <Chip
-                                  label={row.taluk}
-                                  size="small"
-                                  sx={{
-                                    backgroundColor: alpha(themeColor, 0.1),
-                                    color: themeColor,
-                                    fontWeight: 500,
-                                    borderRadius: 1.5,
-                                    '&:hover': clickable ? { backgroundColor: alpha(themeColor, 0.2) } : undefined
-                                  }}
-                                />
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                  <Avatar
+                                    sx={{
+                                      width: 26, height: 26, fontSize: '0.72rem', fontWeight: 700,
+                                      bgcolor: row.hasData ? alpha(themeColor, 0.1) : alpha('#ff9800', 0.15),
+                                      color: row.hasData ? themeColor : '#e65100'
+                                    }}
+                                  >
+                                    {row.taluk?.charAt(0)?.toUpperCase()}
+                                  </Avatar>
+                                  <Typography
+                                    variant="body2"
+                                    sx={{
+                                      fontWeight: row.hasData ? 600 : 400,
+                                      color: row.hasData ? 'text.primary' : 'text.secondary'
+                                    }}
+                                  >
+                                    {row.taluk}
+                                  </Typography>
+                                  {!row.hasData && row.talukId != null && (
+                                    <Chip
+                                      label="NA"
+                                      size="small"
+                                      sx={{
+                                        height: 18, fontSize: '0.62rem',
+                                        bgcolor: alpha('#ff9800', 0.15), color: '#e65100', fontWeight: 700
+                                      }}
+                                    />
+                                  )}
+                                </Stack>
                               </TableCell>
-                              <TableCell align="right" sx={numericCellSx}>
-                                {row.clusterArea ? formatNumber(row.clusterArea) : '—'}
-                              </TableCell>
-                              <TableCell align="right" sx={numericCellSx}>
-                                {row.nucArea ? formatNumber(row.nucArea) : '—'}
-                              </TableCell>
-                              <TableCell align="right" sx={numericCellSx}>
-                                {row.ffsArea ? formatNumber(row.ffsArea) : '—'}
-                              </TableCell>
-                              <TableCell align="right" sx={numericCellSx}>
-                                {row.cosArea ? formatNumber(row.cosArea) : '—'}
-                              </TableCell>
+
+                              {['clusterArea', 'nucArea', 'ffsArea', 'cosArea'].map((key) => (
+                                <TableCell key={key} align="right" sx={numericCellSx}>
+                                  {!row.hasData ? (
+                                    <Typography variant="body2" color="text.secondary">NA</Typography>
+                                  ) : row[key] ? (
+                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>{formatNumber(row[key])}</Typography>
+                                  ) : (
+                                    <Typography variant="body2" color="text.secondary">—</Typography>
+                                  )}
+                                </TableCell>
+                              ))}
+
                               {cropColumns.map((crop) => {
                                 const val = row.byId[crop.cropId];
                                 return (
                                   <TableCell key={crop.cropId} align="right" sx={numericCellSx}>
-                                    {val ? formatNumber(val) : '—'}
+                                    {!row.hasData ? (
+                                      <Typography variant="body2" color="text.secondary">NA</Typography>
+                                    ) : val ? (
+                                      <Typography variant="body2" sx={{ fontWeight: 500 }}>{formatNumber(val)}</Typography>
+                                    ) : (
+                                      <Typography variant="body2" color="text.secondary">—</Typography>
+                                    )}
                                   </TableCell>
                                 );
                               })}
@@ -844,47 +1089,58 @@ const TalukForm3A = () => {
                             </TableRow>
                           );
                         })}
-                        {/* Total Row */}
-                        <TableRow sx={{ backgroundColor: alpha(themeColor, 0.08) }}>
+
+                        {/* Grand Total */}
+                        <TableRow
+                          sx={{
+                            backgroundColor: alpha(themeColor, 0.09),
+                            '& .MuiTableCell-root': {
+                              borderTop: `2px solid ${alpha(themeColor, 0.35)}`,
+                              fontWeight: 800,
+                              color: themeColor
+                            }
+                          }}
+                        >
                           <TableCell
                             align="left"
-                            sx={{ fontWeight: 700, color: themeColor, position: 'sticky', left: 0, zIndex: 1, backgroundColor: '#eef1f7' }}
+                            sx={{
+                              position: 'sticky', left: 0, zIndex: 2,
+                              backgroundColor: '#eef1f7',
+                              fontWeight: 800, color: themeColor, letterSpacing: 0.5,
+                              borderRight: `1px solid ${alpha(themeColor, 0.15)}`
+                            }}
                           >
-                            TOTAL
+                            GRAND TOTAL
                           </TableCell>
-                          <TableCell align="right" sx={{ ...numericCellSx, fontWeight: 700 }}>
-                            {areaTotals.clusterArea ? formatNumber(areaTotals.clusterArea) : '—'}
-                          </TableCell>
-                          <TableCell align="right" sx={{ ...numericCellSx, fontWeight: 700 }}>
-                            {areaTotals.nucArea ? formatNumber(areaTotals.nucArea) : '—'}
-                          </TableCell>
-                          <TableCell align="right" sx={{ ...numericCellSx, fontWeight: 700 }}>
-                            {areaTotals.ffsArea ? formatNumber(areaTotals.ffsArea) : '—'}
-                          </TableCell>
-                          <TableCell align="right" sx={{ ...numericCellSx, fontWeight: 700 }}>
-                            {areaTotals.cosArea ? formatNumber(areaTotals.cosArea) : '—'}
-                          </TableCell>
+                          <TableCell align="right" sx={numericCellSx}>{formatNumber(areaTotals.clusterArea)}</TableCell>
+                          <TableCell align="right" sx={numericCellSx}>{formatNumber(areaTotals.nucArea)}</TableCell>
+                          <TableCell align="right" sx={numericCellSx}>{formatNumber(areaTotals.ffsArea)}</TableCell>
+                          <TableCell align="right" sx={numericCellSx}>{formatNumber(areaTotals.cosArea)}</TableCell>
                           {cropColumns.map((crop) => (
-                            <TableCell key={crop.cropId} align="right" sx={{ ...numericCellSx, fontWeight: 700 }}>
+                            <TableCell key={crop.cropId} align="right" sx={numericCellSx}>
                               {cropTotals[crop.cropId] ? formatNumber(cropTotals[crop.cropId]) : '—'}
                             </TableCell>
                           ))}
-                          <TableCell aria-hidden sx={{ backgroundColor: alpha(themeColor, 0.08) }} />
+                          <TableCell aria-hidden sx={{ backgroundColor: alpha(themeColor, 0.09) }} />
                         </TableRow>
                       </>
                     )}
                   </TableBody>
                 </Table>
               </TableContainer>
+
               <TablePagination
                 component="div"
-                count={talukRows.length}
+                count={searchFilteredRows.length}
                 page={page}
                 onPageChange={handleChangePage}
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
                 rowsPerPageOptions={[10, 25, 50]}
-                sx={{ borderTop: `1px solid ${alpha(themeColor, 0.1)}` }}
+                sx={{
+                  borderTop: `1px solid ${alpha(themeColor, 0.1)}`,
+                  '& .MuiTablePagination-toolbar': { minHeight: 48 }
+                }}
               />
             </Box>
           </Paper>

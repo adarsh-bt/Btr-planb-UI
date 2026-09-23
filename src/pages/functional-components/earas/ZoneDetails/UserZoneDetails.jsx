@@ -14,7 +14,7 @@ import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import mainapi from 'api/mainapi';
 import api from 'api/api';
 
-function UserZoneDetails({zoneId}) {
+function UserZoneDetails({ zoneId }) {
   const BTR_URL = mainapi.BTR_API
   const theme = useTheme();
   const [data, setData] = useState([]); // State to store API data
@@ -27,101 +27,101 @@ function UserZoneDetails({zoneId}) {
   const [result, setResult] = useState(null);
   const [zoneName, setZoneName] = useState('')
 
-     const BASE_URL = mainapi.BASE_URL;
+  const BASE_URL = mainapi.BASE_URL;
 
   const [resolvedZoneId, setResolvedZoneId] = useState(() => {
-  const role = authservice.getrole(); // Get the role
-  return role === 'Field Data Collector'
-    ? authservice.getzone()  // For Field Data Collector
-    : zoneId;                         // For Admin or other roles
-});
+    const role = authservice.getrole(); // Get the role
+    return role === 'Field Data Collector'
+      ? authservice.getzone()  // For Field Data Collector
+      : zoneId;                         // For Admin or other roles
+  });
 
 
-useEffect(() => {
+  // useEffect(() => {
 
-  const fetchData = async () => {
-    try {
+  //   const fetchData = async () => {
+  //     try {
 
-      const user_id = authservice.userid(); // ✅ fixed method
+  //       const user_id = authservice.userid(); // ✅ fixed method
 
-      const response = await api.get(
-        `/btr-service/btr-api/zone-details/${resolvedZoneId}`
-      );
+  //       const response = await api.get(
+  //         `/btr-service/btr-api/zone-details/${resolvedZoneId}`
+  //       );
 
-      const result = response.data;
+  //       const result = response.data;
 
-      console.log('API response:', result);
+  //       console.log('API response:', result);
 
-      // ✅ Business logic handling
-      if (result?.response === "No value present") {
-        setError("No zones are currently assigned to you.");
-        return;
-      }
+  //       // ✅ Business logic handling
+  //       if (result?.response === "No value present") {
+  //         setError("No zones are currently assigned to you.");
+  //         return;
+  //       }
 
-      // ✅ Success
-      setResult(result.payload);
-      setZoneName(result.payload.zone_name);
-      setData(result.payload.data);
+  //       // ✅ Success
+  //       setResult(result.payload);
+  //       setZoneName(result.payload.zone_name);
+  //       setData(result.payload.data);
 
-    } catch (error) {
+  //     } catch (error) {
 
-      console.error("Fetch error:", error);
+  //       console.error("Fetch error:", error);
 
-      // ❗ IMPORTANT: 401 is already handled by interceptor
-      // So here we only handle OTHER errors
+  //       // ❗ IMPORTANT: 401 is already handled by interceptor
+  //       // So here we only handle OTHER errors
 
-      if (error.response) {
-        setError(
-          error.response.data?.message ||
-          "Failed to fetch data. Please try again."
-        );
-      } else {
-        setError("Network error. Please check your connection.");
-      }
+  //       if (error.response) {
+  //         setError(
+  //           error.response.data?.message ||
+  //           "Failed to fetch data. Please try again."
+  //         );
+  //       } else {
+  //         setError("Network error. Please check your connection.");
+  //       }
 
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
 
-  fetchData();
+  //   fetchData();
 
-}, [resolvedZoneId]);
+  // }, [resolvedZoneId]);
 
- if (loading) {
-  return <LoadingScreen message="Fetching zone details..." />;
-}
+  // if (loading) {
+  //   return <LoadingScreen message="Fetching zone details..." />;
+  // }
 
-if (error) {
-  return (
-    <Box sx={{ textAlign: 'center', mt: 6 }}>
-      
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          mb: 2,
-        }}
-      >
-        <DotLottieReact
-          style={{ width: '50rem', maxWidth: '100%' }}
-          src="https://lottie.host/ae6ba3d5-ea79-454d-ae28-fbcb986a5f7b/9vhgZMKvHq.lottie"
-          loop
-          autoplay
-        />
-      </Box>
-      <Typography variant="h5" gutterBottom>
-        Oops! Something went wrong.
-      </Typography>
-      <Typography variant="body1" sx={{ mb: 2 }}>
-        {error} 
-      </Typography>
-      <Button variant="contained" color="error" onClick={() => window.location.reload()}>
-        Retry
-      </Button>
-    </Box>
-  );
-}
+  // if (error) {
+  //   return (
+  //     <Box sx={{ textAlign: 'center', mt: 6 }}>
+
+  //       <Box
+  //         sx={{
+  //           display: 'flex',
+  //           justifyContent: 'center',
+  //           mb: 2,
+  //         }}
+  //       >
+  //         <DotLottieReact
+  //           style={{ width: '50rem', maxWidth: '100%' }}
+  //           src="https://lottie.host/ae6ba3d5-ea79-454d-ae28-fbcb986a5f7b/9vhgZMKvHq.lottie"
+  //           loop
+  //           autoplay
+  //         />
+  //       </Box>
+  //       <Typography variant="h5" gutterBottom>
+  //         Oops! Something went wrong.
+  //       </Typography>
+  //       <Typography variant="body1" sx={{ mb: 2 }}>
+  //         {error}
+  //       </Typography>
+  //       <Button variant="contained" color="error" onClick={() => window.location.reload()}>
+  //         Retry
+  //       </Button>
+  //     </Box>
+  //   );
+  // }
 
 
   return (
@@ -129,13 +129,21 @@ if (error) {
       <Breadcrumb></Breadcrumb>
       <Grid item xs={12}>
         <Grid container sx={{ marginBottom: 2 }} alignItems="center">
-          <Grid item xs={6}>
-            <Typography variant="h3" sx={{ marginBottom: 2 }}>
+          {/* <Grid item xs={6}> */}
+          {/* <Typography variant="h3" sx={{ marginBottom: 2 }}>
               Zone Details : {zoneName}
-            </Typography>
-          </Grid>
+            </Typography> */}
+
+          <Typography
+            variant="body2"
+            align="center"
+            sx={{ py: 4, color: 'text.secondary', fontSize: '1.5rem', fontWeight: 500 }}
+          >
+            This Details Currently Unavailable
+          </Typography>
+          {/* </Grid> */}
         </Grid>
-        <MainCard>
+        {/* <MainCard>
           <Box className="bar-container">
             <Paper className="bar-paper">
               <Grid container spacing={2}>
@@ -150,16 +158,16 @@ if (error) {
                 </Grid>
 
 
-                    <Grid item xs={6} sm={3} className="bar-grid-item">
+                <Grid item xs={6} sm={3} className="bar-grid-item">
                   <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
-                   {result.localbodyType}:
+                    {result.localbodyType}:
                   </Typography>
                   <Typography variant="body1" align="center" sx={{ color: '#00796b' }}>
-                     {result.local_name}
+                    {result.local_name}
                   </Typography>
                 </Grid>
 
-                 <Grid item xs={6} sm={3} className="bar-grid-item">
+                <Grid item xs={6} sm={3} className="bar-grid-item">
                   <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
                     Taluk:
                   </Typography>
@@ -167,7 +175,7 @@ if (error) {
                     {result.taluk}
                   </Typography>
                 </Grid>
-                 <Grid item xs={6} sm={3} >
+                <Grid item xs={6} sm={3} >
                   <Typography variant="h6" align="center" sx={{ fontWeight: 'bold' }}>
                     Zone:
                   </Typography>
@@ -176,20 +184,20 @@ if (error) {
                   </Typography>
                 </Grid>
 
-                
-               
 
-              
+
+
+
               </Grid>
             </Paper>
           </Box>
-        </MainCard>
+        </MainCard> */}
 
-        <MainCard title="">
+        {/* <MainCard title="">
           <TableContainer component={Paper}>
             <Table sx={{ border: 1, borderColor: 'grey.300' }}>
               <TableHead>
-                {/* Main Header Row */}
+
                 <TableRow>
                   <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>
                     Sl.No
@@ -199,75 +207,72 @@ if (error) {
                   </TableCell>
                   <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>
                     Village Name
-                  
+
                   </TableCell>
                   <TableCell rowSpan={2} sx={{ border: 1, borderColor: 'grey.300' }}>
                     Block Code
-                  
+
                   </TableCell>
                   <TableCell colSpan={3} align="center" sx={{ border: 1, borderColor: 'grey.300' }}>
-                     Number of Plots
+                    Number of Plots
                   </TableCell>
                   <TableCell colSpan={3} align="center" sx={{ border: 1, borderColor: 'grey.300' }}>
-                   Area in cents
+                    Area in cents
                   </TableCell>
                 </TableRow>
 
-                {/* Sub-header Row */}
                 <TableRow>
-              
-                  {/* Plots Sub-columns */}
+
                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Wet Plots</TableCell>
                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Dry Plots</TableCell>
                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Total Plots</TableCell>
 
-                  {/* Area Sub-columns */}
                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Wet Area</TableCell>
                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Dry Area</TableCell>
                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>Total Area</TableCell>
                 </TableRow>
               </TableHead>
 
-            <TableBody>
-              {/* Loop over the fetched data */}
-              {data.map((row, index) => (
-                <TableRow key={index}>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
-                    {index + 1}
-                  </TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.p_name} {row.localbodytype}</TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+              <TableBody>
+
+                {data.map((row, index) => (
+                  <TableRow key={index}>
+                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                      {index + 1}
+                    </TableCell>
+                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>{row.p_name} {row.localbodytype}</TableCell>
+                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
                       {row.villages ? row.villages.map(village => village.charAt(0).toUpperCase() + village.slice(1).toLowerCase()).join(', ') : 'N/A'}
 
-                      </TableCell>
+                    </TableCell>
                     <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
-                    {row.blocks ? row.blocks.join(', ') : 'N/A'}
-                   </TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
-                    {row.Wet_plot || 0}
-                  </TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
-                    {row.dry_plot || 0}
-                  </TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
-                    {row.t_plot || 0}
-                  </TableCell>
-                   <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
-                    {row.Wet_area || 0}
-                  </TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
-                    {row.Dry_area || 0}
-                  </TableCell>
-                  <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
-                    {row.Total_area || 0}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </MainCard>
-    </Grid>
+                      {row.blocks ? row.blocks.join(', ') : 'N/A'}
+                    </TableCell>
+                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                      {row.Wet_plot || 0}
+                    </TableCell>
+                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                      {row.dry_plot || 0}
+                    </TableCell>
+                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                      {row.t_plot || 0}
+                    </TableCell>
+                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                      {row.Wet_area || 0}
+                    </TableCell>
+                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                      {row.Dry_area || 0}
+                    </TableCell>
+                    <TableCell sx={{ border: 1, borderColor: 'grey.300' }}>
+                      {row.Total_area || 0}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </MainCard> */}
+      </Grid>
     </Grid>
   );
 }

@@ -1,18 +1,52 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Card, CardContent, Box, Typography, useTheme, alpha, Paper,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Tabs, Tab, Chip, Stack, FormControl, InputLabel, Select, MenuItem,
-  CircularProgress, LinearProgress, IconButton, TablePagination,
-  Tooltip, Divider, Avatar, Grid, Button, TextField, InputAdornment
+  Card,
+  CardContent,
+  Box,
+  Typography,
+  useTheme,
+  alpha,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tabs,
+  Tab,
+  Chip,
+  Stack,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  CircularProgress,
+  LinearProgress,
+  IconButton,
+  TablePagination,
+  Tooltip,
+  Divider,
+  Avatar,
+  Grid,
+  Button,
+  TextField,
+  InputAdornment
 } from '@mui/material';
 import {
-  LocationOn, ArrowBack, Store as StoreIcon,
-  WaterDrop as WaterDropIcon, WbSunny as WbSunnyIcon,
-  EnergySavingsLeaf as EnergySavingsLeafIcon, Water as WaterIcon,
-  Grass as GrassIcon, Assessment as AssessmentIcon,
-  CheckCircle as CheckCircleIcon, VisibilityOff as VisibilityOffIcon,
-  Download as DownloadIcon, Search as SearchIcon, Clear as ClearIcon
+  LocationOn,
+  ArrowBack,
+  WaterDrop as WaterDropIcon,
+  WbSunny as WbSunnyIcon,
+  Water as WaterIcon,
+  Grass as GrassIcon,
+  Assessment as AssessmentIcon,
+  Store as StoreIcon,
+  CheckCircle as CheckCircleIcon,
+  VisibilityOff as VisibilityOffIcon,
+  Download as DownloadIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
@@ -22,22 +56,19 @@ import AuthService from 'pages/authentication/services/authservice';
 import Breadcrumb from 'routes/Breadcrumb';
 
 const BASE_URL = mainapi.FORM_API;
-const SESSION_KEY = 'clusterForm3AState';
+const BTR_BASE_URL = mainapi.BTR_API;
+const SESSION_KEY = 'clusterForm3BState';
 
-const CLUSTER_W = 220;
-const AREA_W = 120;
+// Column widths
+const CLUSTER_W = 180;
+const AREA_W = 140;
 const CROP_W = 150;
 
+// Land type filter — WET / DRY / ALL
 const DEFAULT_LAND_TYPE = 'ALL';
-const LAND_TYPE_PARAM = { WET: 'Wet', DRY: 'Dry' };
+const LAND_TYPE_PARAM = { WET: 'wet', DRY: 'dry' };
 
-const SEASONS = [
-  { id: 1, name: 'Autumn' },
-  { id: 2, name: 'Winter' },
-  { id: 3, name: 'Summer' }
-];
-const DEFAULT_SEASON_ID = 1;
-
+// Irrigation filter — ALL / IRRIGATED / UNIRRIGATED
 const DEFAULT_IRRIGATION = 'ALL';
 const IRRIGATION_PARAM = { IRRIGATED: 'true', UNIRRIGATED: 'false' };
 const IRRIGATION_OPTIONS = [
@@ -46,20 +77,18 @@ const IRRIGATION_OPTIONS = [
   { value: 'UNIRRIGATED', label: 'Unirrigated' }
 ];
 
-const CROP_GROUPS = [
-  { id: 6, name: 'Cereals' },
-  { id: 16, name: 'Other trees' },
-  { id: 18, name: 'Pulses' },
-  { id: 21, name: 'Tubers' },
-  { id: 22, name: 'Vegetables' }
-];
-
-const ALL_CROP_GROUPS = -1;
-const ALL_CROP_GROUPS_LABEL = 'All Crop Groups';
-const FETCH_BATCH_SIZE = 6;
-
 const themeColor = '#05307a';
 const themeColorAlt = '#0b4ea2';
+
+// Static crop types
+const CROP_TYPES = [
+  { id: 2, name: 'Annual' },
+  { id: 3, name: 'Perennial' }
+];
+
+const ALL_CROP_TYPES = -1;
+const ALL_CROP_TYPES_LABEL = 'All Type';
+const FETCH_BATCH_SIZE = 6;
 
 const cleanName = (name) => (name || '').replace(/\s+/g, ' ').trim();
 
@@ -71,24 +100,28 @@ function getSavedState() {
   }
 }
 
-// Merge report responses + master cluster list (already master-merged — kept as-is)
+// Merge one or more crop-type responses with master cluster list into a single cluster list
 function mergeGroupResponses(responses, masterClusterList = [], landTypeTab = 'ALL') {
   const clusters = new Map();
 
+  // 1. Populate clusters Map using masterClusterList (if available)
   (Array.isArray(masterClusterList) ? masterClusterList : []).forEach((mc) => {
     const mcLandType = (mc.landType || '').toUpperCase();
-    if (landTypeTab !== 'ALL' && mcLandType && mcLandType !== landTypeTab.toUpperCase()) return;
+    if (landTypeTab !== 'ALL' && mcLandType && mcLandType !== landTypeTab.toUpperCase()) {
+      return;
+    }
 
     const key = mc.clusterId != null ? String(mc.clusterId) : `num:${mc.clusterNumber}`;
     clusters.set(key, {
       clusterId: mc.clusterId ?? null,
       clusterNumber: mc.clusterNumber,
       landType: mc.landType || null,
-      clusterArea: 0, nucArea: 0, ffsArea: 0, cosArea: 0,
+      clusterArea: 0,
       crops: new Map()
     });
   });
 
+  // 2. Process report API responses
   responses.forEach((rows) => {
     (Array.isArray(rows) ? rows : []).forEach((c) => {
       let key = c.clusterId != null ? String(c.clusterId) : `num:${c.clusterNumber || 'Unassigned'}`;
@@ -96,50 +129,57 @@ function mergeGroupResponses(responses, masterClusterList = [], landTypeTab = 'A
 
       if (!entry && c.clusterNumber != null) {
         for (const [k, item] of clusters.entries()) {
-          if (String(item.clusterNumber) === String(c.clusterNumber)) { entry = item; key = k; break; }
+          if (String(item.clusterNumber) === String(c.clusterNumber)) {
+            entry = item;
+            key = k;
+            break;
+          }
         }
       }
 
       if (!entry) {
         const cLandType = (c.landType || '').toUpperCase();
-        if (landTypeTab !== 'ALL' && cLandType && cLandType !== landTypeTab.toUpperCase()) return;
+        if (landTypeTab !== 'ALL' && cLandType && cLandType !== landTypeTab.toUpperCase()) {
+          return;
+        }
         entry = {
           clusterId: c.clusterId ?? null,
           clusterNumber: c.clusterNumber,
           landType: c.landType || null,
           clusterArea: Number(c.clusterArea) || 0,
-          nucArea: Number(c.nucArea) || 0,
-          ffsArea: Number(c.ffsArea) || 0,
-          cosArea: Number(c.cosArea) || 0,
           crops: new Map()
         };
         clusters.set(key, entry);
       }
 
       if (!entry.clusterArea && c.clusterArea) entry.clusterArea = Number(c.clusterArea) || 0;
-      if (!entry.nucArea && c.nucArea) entry.nucArea = Number(c.nucArea) || 0;
-      if (!entry.ffsArea && c.ffsArea) entry.ffsArea = Number(c.ffsArea) || 0;
-      if (!entry.cosArea && c.cosArea) entry.cosArea = Number(c.cosArea) || 0;
       if (!entry.landType && c.landType) entry.landType = c.landType;
 
       (c.crops || []).forEach((crop) => {
         const existing = entry.crops.get(crop.cropId);
-        if (existing) existing.areaInCents = (Number(existing.areaInCents) || 0) + (Number(crop.areaInCents) || 0);
-        else entry.crops.set(crop.cropId, {
-          cropId: crop.cropId, cropName: crop.cropName, areaInCents: Number(crop.areaInCents) || 0
-        });
+        if (existing) {
+          existing.areaInCents = (Number(existing.areaInCents) || 0) + (Number(crop.areaInCents) || 0);
+        } else {
+          entry.crops.set(crop.cropId, {
+            cropId: crop.cropId,
+            cropName: crop.cropName,
+            areaInCents: Number(crop.areaInCents) || 0
+          });
+        }
       });
     });
   });
 
   return Array.from(clusters.values()).map((c) => ({
-    clusterId: c.clusterId, clusterNumber: c.clusterNumber, landType: c.landType,
-    clusterArea: c.clusterArea, nucArea: c.nucArea, ffsArea: c.ffsArea, cosArea: c.cosArea,
+    clusterId: c.clusterId,
+    clusterNumber: c.clusterNumber,
+    landType: c.landType,
+    clusterArea: c.clusterArea,
     crops: Array.from(c.crops.values())
   }));
 }
 
-const ClusterForm3A = () => {
+const ClusterForm3B = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -147,7 +187,7 @@ const ClusterForm3A = () => {
   const stateData = useMemo(() => {
     const saved = getSavedState();
     return { ...saved, ...(location.state || {}) };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const officeInfo = useMemo(() => {
     try {
@@ -167,10 +207,9 @@ const ClusterForm3A = () => {
   const zoneName = stateData.zoneName || stateData.selectedZone || officeInfo.zoneName || 'Zone';
   const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
 
-  const [activeTab, setActiveTab] = useState(() => (location.state?.isDirectAccess ? ALL_CROP_GROUPS : (location.state?.activeTab ?? stateData.activeTab ?? ALL_CROP_GROUPS)));
-  const [landTypeTab, setLandTypeTab] = useState(() => (location.state?.isDirectAccess ? DEFAULT_LAND_TYPE : (location.state?.landType ?? stateData.landType ?? DEFAULT_LAND_TYPE)));
-  const [seasonId, setSeasonId] = useState(() => (location.state?.isDirectAccess ? DEFAULT_SEASON_ID : (location.state?.seasonId ?? stateData.seasonId ?? DEFAULT_SEASON_ID)));
-  const [irrigation, setIrrigation] = useState(() => location.state?.irrigation ?? DEFAULT_IRRIGATION);
+  const [activeTab, setActiveTab] = useState(stateData.activeTab ?? ALL_CROP_TYPES);
+  const [landTypeTab, setLandTypeTab] = useState(stateData.landType ?? DEFAULT_LAND_TYPE);
+  const [irrigation, setIrrigation] = useState(stateData.irrigation ?? DEFAULT_IRRIGATION);
   const [apiData, setApiData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -178,11 +217,9 @@ const ClusterForm3A = () => {
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const isAllCropGroups = activeTab === ALL_CROP_GROUPS;
-  const cropGroupId = isAllCropGroups ? null : CROP_GROUPS[activeTab]?.id;
-  const cropGroupName = isAllCropGroups ? ALL_CROP_GROUPS_LABEL : CROP_GROUPS[activeTab]?.name;
-  const seasonName = SEASONS.find((s) => s.id === seasonId)?.name || '';
-  const irrigationLabel = IRRIGATION_OPTIONS.find((o) => o.value === irrigation)?.label || '';
+  const isAllCropTypes = activeTab === ALL_CROP_TYPES;
+  const cropTypeId = isAllCropTypes ? null : CROP_TYPES[activeTab]?.id;
+  const cropTypeName = isAllCropTypes ? ALL_CROP_TYPES_LABEL : CROP_TYPES[activeTab]?.name;
 
   const numericCellSx = {
     fontVariantNumeric: 'tabular-nums',
@@ -190,32 +227,59 @@ const ClusterForm3A = () => {
   };
 
   useEffect(() => {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-      officeType: stateData.officeType, districtId, districtName,
-      talukId, talukName, blockId, blockName, zoneId, zoneName,
-      agriculturalYear, activeTab, landType: landTypeTab, seasonId, irrigation
-    }));
-  }, [stateData.officeType, districtId, districtName, talukId, talukName, blockId, blockName, zoneId, zoneName, agriculturalYear, activeTab, landTypeTab, seasonId, irrigation]);
+    sessionStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({
+        officeType: stateData.officeType,
+        districtId,
+        districtName,
+        talukId,
+        talukName,
+        blockId,
+        blockName,
+        zoneId,
+        zoneName,
+        agriculturalYear,
+        activeTab,
+        landType: landTypeTab,
+        irrigation
+      })
+    );
+  }, [
+    stateData.officeType,
+    districtId,
+    districtName,
+    talukId,
+    talukName,
+    blockId,
+    blockName,
+    zoneId,
+    zoneName,
+    agriculturalYear,
+    activeTab,
+    landTypeTab,
+    irrigation
+  ]);
 
   // ── Fetch cluster report data ──
   useEffect(() => {
     if (!zoneId) return;
-    if (!isAllCropGroups && !cropGroupId) return;
+    if (!isAllCropTypes && !cropTypeId) return;
 
     let cancelled = false;
 
-    const buildUrl = (groupId) => {
+    const buildUrl = (typeId) => {
       const params = new URLSearchParams({
         agriYear: agriculturalYear,
-        cropGroupId: String(groupId),
+        cropTypeId: String(typeId),
         zoneId: String(zoneId)
       });
       const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
       if (landTypeParam) params.append('landType', landTypeParam);
-      params.append('seasonId', String(seasonId));
+
       const irrigationParam = IRRIGATION_PARAM[irrigation];
       if (irrigationParam) params.append('isIrrigated', irrigationParam);
-      return `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/cluster?${params.toString()}`;
+      return `${BASE_URL}/earas-form1-entry/api/progress-report/form3B/cluster?${params.toString()}`;
     };
 
     const fetchGroupData = async () => {
@@ -224,22 +288,27 @@ const ClusterForm3A = () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('Authorization token missing');
+
         const headers = { Authorization: `Bearer ${token}` };
 
-        // Master cluster list (already handled)
+        // 1. Fetch master cluster list
         let masterClusters = [];
         try {
-          const clusterListUrl = `${mainapi.BTR_API}/btr-service/cluster-api/cluster-list?zoneId=${zoneId}&agriYear=${agriculturalYear}`;
+          const clusterListUrl = `${BTR_BASE_URL}/btr-service/cluster-api/cluster-list?zoneId=${zoneId}&agriYear=${agriculturalYear}`;
           const clusterListRes = await axios.get(clusterListUrl, { headers });
-          if (Array.isArray(clusterListRes.data)) masterClusters = clusterListRes.data;
+          if (Array.isArray(clusterListRes.data)) {
+            masterClusters = clusterListRes.data;
+          }
         } catch (e) {
           console.warn('Could not fetch master cluster list:', e);
         }
 
-        const groupIds = isAllCropGroups ? CROP_GROUPS.map((g) => g.id) : [cropGroupId];
+        // 2. Fetch progress report payloads
+        const typeIds = isAllCropTypes ? CROP_TYPES.map((g) => g.id) : [cropTypeId];
+
         const payloads = [];
-        for (let i = 0; i < groupIds.length; i += FETCH_BATCH_SIZE) {
-          const batch = groupIds.slice(i, i + FETCH_BATCH_SIZE);
+        for (let i = 0; i < typeIds.length; i += FETCH_BATCH_SIZE) {
+          const batch = typeIds.slice(i, i + FETCH_BATCH_SIZE);
           // eslint-disable-next-line no-await-in-loop
           const responses = await Promise.all(batch.map((id) => axios.get(buildUrl(id), { headers })));
           if (cancelled) return;
@@ -250,7 +319,7 @@ const ClusterForm3A = () => {
         setApiData(mergeGroupResponses(payloads, masterClusters, landTypeTab));
       } catch (err) {
         if (cancelled) return;
-        console.error('Error fetching Cluster Form 3A data:', err);
+        console.error('Error fetching Cluster Form 3B data:', err);
         if (err.response?.status === 401) setError('Session expired. Please login again.');
         else if (err.response?.status === 403) setError("You don't have permission to access this data.");
         else if (err.response?.status === 404) setError('Zone data not found.');
@@ -261,9 +330,11 @@ const ClusterForm3A = () => {
       }
     };
     fetchGroupData();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cropGroupId, isAllCropGroups, zoneId, agriculturalYear, landTypeTab, seasonId, irrigation]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cropTypeId, isAllCropTypes, zoneId, agriculturalYear, landTypeTab, irrigation]);
 
   // ── Derived data ──
   const cropColumns = useMemo(() => {
@@ -282,20 +353,13 @@ const ClusterForm3A = () => {
       (c.crops || []).forEach((crop) => {
         byId[crop.cropId] = Number(crop.areaInCents) || 0;
       });
-      const hasData =
-        (Number(c.clusterArea) || 0) > 0 ||
-        (Number(c.nucArea) || 0) > 0 ||
-        (Number(c.ffsArea) || 0) > 0 ||
-        (Number(c.cosArea) || 0) > 0 ||
-        Object.keys(byId).length > 0;
+      const clusterArea = Number(c.clusterArea) || 0;
+      const hasData = clusterArea > 0 || Object.keys(byId).length > 0;
       return {
         clusterId: c.clusterId ?? null,
         clusterNumber: c.clusterNumber || 'Unassigned',
         landType: c.landType || '',
-        clusterArea: Number(c.clusterArea) || 0,
-        nucArea: Number(c.nucArea) || 0,
-        ffsArea: Number(c.ffsArea) || 0,
-        cosArea: Number(c.cosArea) || 0,
+        clusterArea,
         byId,
         hasData
       };
@@ -309,29 +373,21 @@ const ClusterForm3A = () => {
     });
   }, [apiData]);
 
+  // Search filter
   const searchFilteredRows = useMemo(() => {
     if (!searchTerm.trim()) return clusterRows;
     const q = searchTerm.toLowerCase().trim();
-    return clusterRows.filter((r) =>
-      String(r.clusterNumber).toLowerCase().includes(q) ||
-      (r.landType || '').toLowerCase().includes(q)
-    );
+    return clusterRows.filter((r) => String(r.clusterNumber).toLowerCase().includes(q));
   }, [clusterRows, searchTerm]);
 
-  const clustersWithNoData = useMemo(
-    () => clusterRows.filter((r) => !r.hasData && r.clusterId != null).length,
-    [clusterRows]
-  );
+  const clustersWithNoData = useMemo(() => clusterRows.filter((r) => !r.hasData).length, [clusterRows]);
 
   const areaTotals = useMemo(() => {
-    let clusterArea = 0, nucArea = 0, ffsArea = 0, cosArea = 0;
+    let clusterArea = 0;
     searchFilteredRows.forEach((row) => {
       clusterArea += row.clusterArea || 0;
-      nucArea += row.nucArea || 0;
-      ffsArea += row.ffsArea || 0;
-      cosArea += row.cosArea || 0;
     });
-    return { clusterArea, nucArea, ffsArea, cosArea };
+    return { clusterArea };
   }, [searchFilteredRows]);
 
   const cropTotals = useMemo(() => {
@@ -346,14 +402,33 @@ const ClusterForm3A = () => {
   }, [searchFilteredRows, cropColumns]);
 
   // ── Handlers ──
-  const handleCropGroupChange = (e) => { setActiveTab(Number(e.target.value)); setPage(0); };
-  const handleLandTypeChange = (_, v) => { if (v != null) { setLandTypeTab(v); setPage(0); } };
-  const handleSeasonChange = (e) => { setSeasonId(Number(e.target.value)); setPage(0); };
-  const handleIrrigationChange = (e) => { setIrrigation(e.target.value); setPage(0); };
+  const handleCropTypeChange = (event) => {
+    setActiveTab(Number(event.target.value));
+    setPage(0);
+  };
+
+  const handleLandTypeChange = (event, newValue) => {
+    if (newValue === null || newValue === undefined) return;
+    setLandTypeTab(newValue);
+    setPage(0);
+  };
+
+  const handleIrrigationChange = (event) => {
+    setIrrigation(event.target.value);
+    setPage(0);
+  };
+
   const formatNumber = (num) => Number(num || 0).toFixed(2);
-  const handleChangePage = (_, p) => setPage(p);
-  const handleChangeRowsPerPage = (e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); };
-  const handleClearSearch = () => { setSearchTerm(''); setPage(0); };
+
+  const handleChangePage = (event, newPage) => setPage(newPage);
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setPage(0);
+  };
 
   const paginatedRows = useMemo(
     () => searchFilteredRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
@@ -366,27 +441,39 @@ const ClusterForm3A = () => {
     const des = localStorage.getItem('des') || '';
     const isFdc = roles.includes('Field Data Collector') || des.includes('Field Data Collector') || stateData.officeType === 'FIELD_DATA_COLLECTOR';
 
-    if (isFdc) { navigate('/Report'); return; }
+    if (isFdc) {
+      navigate('/Report');
+      return;
+    }
 
-    navigate('/schemes/earas/Report/Form3A/ZoneForm3A', {
+    navigate('/schemes/earas/Report/Form3B/ZoneForm3B', {
       state: {
         officeType: stateData.officeType || 'DIRECTORATE',
-        districtId, districtName, selectedDistrict: districtName,
-        talukId, talukName, selectedTaluk: talukName,
-        blockId, blockName, selectedBlock: blockName,
-        cropGroupId, cropGroupName, agriculturalYear,
-        landType: landTypeTab, seasonId, irrigation, activeTab
+        districtId,
+        districtName,
+        selectedDistrict: districtName,
+        talukId,
+        talukName,
+        selectedTaluk: talukName,
+        blockId,
+        blockName,
+        selectedBlock: blockName,
+        cropTypeId,
+        cropTypeName,
+        agriculturalYear,
+        landType: landTypeTab,
+        irrigation,
+        activeTab
       }
     });
   };
 
   // ── Excel export ──
   const generateExcelFileName = () => {
-    const parts = ['Form3A_ClusterReport', (zoneName || 'Zone').replace(/\s+/g, '_')];
-    parts.push((cropGroupName || 'All').replace(/\s+/g, '_'));
+    const parts = ['Form3B_ClusterReport', (zoneName || 'Zone').replace(/\s+/g, '_')];
+    parts.push((cropTypeName || 'AllType').replace(/\s+/g, '_'));
     if (landTypeTab !== 'ALL') parts.push(landTypeTab);
-    if (seasonName) parts.push(seasonName);
-    if (irrigation !== 'ALL') parts.push(irrigationLabel.replace(/\s+/g, '_'));
+    if (irrigation !== 'ALL') parts.push(irrigation.replace(/\s+/g, '_'));
     parts.push(agriculturalYear);
     if (searchTerm.trim()) parts.push(`Search-${searchTerm.trim().replace(/\s+/g, '_')}`);
     parts.push(new Date().toISOString().slice(0, 10));
@@ -397,40 +484,31 @@ const ClusterForm3A = () => {
     if (!searchFilteredRows || searchFilteredRows.length === 0) return;
 
     const headerMeta = [
-      ['Form 3A — Cluster-wise Seasonal Crop Report'],
+      ['Form 3B — Cluster-wise Crop Area Report'],
       ['District', districtName],
       ['Taluk', talukName],
       ['Block', blockName],
       ['Zone', zoneName],
       ['Agricultural Year', agriculturalYear],
-      ['Crop Group', cropGroupName || '—'],
+      ['Crop Type', cropTypeName || '—'],
       ['Land Type', landTypeTab === 'ALL' ? 'All' : landTypeTab],
-      ['Season', seasonName || '—'],
-      ['Irrigation', irrigationLabel || '—'],
+      ['Irrigation', IRRIGATION_OPTIONS.find((o) => o.value === irrigation)?.label || '—'],
       ['Area Unit', 'Cents'],
       ['Exported On', new Date().toLocaleString()],
       []
     ];
 
-    const headerRow = [
-      '#', 'Cluster No.', 'Land Type', 'Cluster Area', 'NUC Area', 'FFS Area', 'CoS Area',
-      ...cropColumns.map((c) => c.cropName)
-    ];
+    const headerRow = ['#', 'Cluster No.', 'Land Type', 'Cluster Area', ...cropColumns.map((c) => c.cropName)];
 
     let serial = 0;
     const dataRows = searchFilteredRows.map((row) => {
       serial += 1;
       const cells = [serial, `Cluster ${row.clusterNumber}`, row.landType || '—'];
       if (!row.hasData) {
-        cells.push('NA', 'NA', 'NA', 'NA');
+        cells.push('NA');
         cropColumns.forEach(() => cells.push('NA'));
       } else {
-        cells.push(
-          row.clusterArea ? Number(row.clusterArea) : '—',
-          row.nucArea ? Number(row.nucArea) : '—',
-          row.ffsArea ? Number(row.ffsArea) : '—',
-          row.cosArea ? Number(row.cosArea) : '—'
-        );
+        cells.push(row.clusterArea ? Number(row.clusterArea) : '—');
         cropColumns.forEach((c) => {
           const v = row.byId[c.cropId];
           cells.push(v ? Number(v) : '—');
@@ -440,35 +518,33 @@ const ClusterForm3A = () => {
     });
 
     const totalsRow = [
-      '', '', 'GRAND TOTAL',
+      '',
+      'TOTAL',
+      '',
       Number(areaTotals.clusterArea.toFixed(2)),
-      Number(areaTotals.nucArea.toFixed(2)),
-      Number(areaTotals.ffsArea.toFixed(2)),
-      Number(areaTotals.cosArea.toFixed(2)),
       ...cropColumns.map((c) => Number((cropTotals[c.cropId] || 0).toFixed(2)))
     ];
 
     const aoa = [...headerMeta, headerRow, ...dataRows, totalsRow];
     const worksheet = XLSX.utils.aoa_to_sheet(aoa);
-    worksheet['!cols'] = [
-      { wch: 5 }, { wch: 22 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
-      ...cropColumns.map(() => ({ wch: 16 }))
-    ];
-    worksheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }];
+    worksheet['!cols'] = [{ wch: 5 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, ...cropColumns.map(() => ({ wch: 16 }))];
+    worksheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Cluster Form 3A');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Form 3B Cluster');
     XLSX.writeFile(workbook, generateExcelFileName());
   };
 
-  const TABLE_MIN_W = CLUSTER_W + 4 * AREA_W + Math.max(cropColumns.length, 1) * CROP_W;
+  const TABLE_MIN_W = CLUSTER_W + AREA_W + Math.max(cropColumns.length, 1) * CROP_W;
   const exportDisabled = searchFilteredRows.length === 0 || loading;
 
   // ─────────────────────────── RENDER ───────────────────────────
 
   return (
     <Box>
-      <Box sx={{ mb: 2 }}><Breadcrumb /></Box>
+      <Box sx={{ mb: 2 }}>
+        <Breadcrumb />
+      </Box>
 
       <Card
         elevation={0}
@@ -480,7 +556,7 @@ const ClusterForm3A = () => {
           boxShadow: '0 4px 20px rgba(5,48,122,0.06)'
         }}
       >
-        {/* ── Header band ── */}
+        {/* ── Header Band ── */}
         <Box
           sx={{
             background: `linear-gradient(120deg, ${themeColor} 0%, ${themeColorAlt} 55%, #1a6fc4 100%)`,
@@ -500,7 +576,8 @@ const ClusterForm3A = () => {
               onClick={handleBack}
               size="small"
               sx={{
-                bgcolor: 'rgba(255,255,255,0.16)', color: '#fff',
+                bgcolor: 'rgba(255,255,255,0.16)',
+                color: '#fff',
                 border: '1px solid rgba(255,255,255,0.3)',
                 '&:hover': { bgcolor: 'rgba(255,255,255,0.28)' }
               }}
@@ -511,46 +588,38 @@ const ClusterForm3A = () => {
               sx={{
                 bgcolor: 'rgba(255,255,255,0.16)',
                 border: '1px solid rgba(255,255,255,0.35)',
-                width: 54, height: 54
+                width: 54,
+                height: 54
               }}
             >
               <AssessmentIcon sx={{ fontSize: 30 }} />
             </Avatar>
             <Box>
               <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: 0.2, lineHeight: 1.2 }}>
-                Form 3A — Cluster-wise Crop Area Report {agriculturalYear}
+                Form 3B — Annual & Perennial Cluster-wise Crop Area Report - {agriculturalYear}
               </Typography>
               <Typography variant="body2" sx={{ opacity: 0.85, mt: 0.5 }}>
-                {zoneName} Zone • {blockName} Block • {talukName} Taluk • {districtName} District • AY {agriculturalYear}
+                {zoneName} Zone ({blockName} Block, {talukName} Taluk, {districtName} District) • AY {agriculturalYear} • Area in Cents
               </Typography>
             </Box>
           </Stack>
 
           <Stack direction="row" spacing={1} flexWrap="wrap">
-            {cropGroupName && (
+            {cropTypeName && (
               <Chip
                 icon={<GrassIcon sx={{ fontSize: 16, color: '#fff !important' }} />}
-                label={cropGroupName}
+                label={cropTypeName}
                 size="small"
                 sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }}
               />
             )}
             {landTypeTab !== 'ALL' && (
-              <Chip label={`${landTypeTab} Land`} size="small"
-                sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }} />
-            )}
-            {seasonName && (
-              <Chip
-                icon={<EnergySavingsLeafIcon sx={{ fontSize: 16, color: '#fff !important' }} />}
-                label={seasonName}
-                size="small"
-                sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }}
-              />
+              <Chip label={`${landTypeTab} Land`} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }} />
             )}
             {irrigation !== 'ALL' && (
               <Chip
                 icon={<WaterIcon sx={{ fontSize: 16, color: '#fff !important' }} />}
-                label={irrigationLabel}
+                label={IRRIGATION_OPTIONS.find((o) => o.value === irrigation)?.label || ''}
                 size="small"
                 sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }}
               />
@@ -562,17 +631,18 @@ const ClusterForm3A = () => {
           {/* ── KPI strip ── */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             {[
-              { label: 'Clusters', value: clusterRows.length, icon: <StoreIcon />, color: '#1565c0' },
+              { label: 'Clusters', value: clusterRows.length, icon: <LocationOn />, color: '#1565c0' },
               { label: 'Cluster Area', value: formatNumber(areaTotals.clusterArea), icon: <StoreIcon />, color: '#2e7d32' },
-              { label: 'Nuc Area', value: formatNumber(areaTotals.nucArea), icon: <GrassIcon />, color: '#6a1b9a' },
-              { label: 'FFS Area', value: formatNumber(areaTotals.ffsArea), icon: <EnergySavingsLeafIcon />, color: '#ef6c00' },
-              { label: 'COS Area', value: formatNumber(areaTotals.cosArea), icon: <CheckCircleIcon />, color: '#0277bd' }
+              { label: 'Crops', value: cropColumns.length, icon: <GrassIcon />, color: '#6a1b9a' },
+              { label: 'With Data', value: clusterRows.filter((r) => r.hasData).length, icon: <CheckCircleIcon />, color: '#0277bd' },
+              { label: 'No Data', value: clustersWithNoData, icon: <VisibilityOffIcon />, color: '#ef6c00' }
             ].map((k) => (
               <Grid item xs={6} sm={4} md={2.4} key={k.label}>
                 <Paper
                   elevation={0}
                   sx={{
-                    p: 1.75, borderRadius: 2.5,
+                    p: 1.75,
+                    borderRadius: 2.5,
                     border: `1px solid ${alpha(k.color, 0.15)}`,
                     background: `linear-gradient(135deg, ${alpha(k.color, 0.06)} 0%, ${alpha(k.color, 0.02)} 100%)`,
                     transition: 'transform 0.18s, box-shadow 0.18s',
@@ -597,11 +667,13 @@ const ClusterForm3A = () => {
             ))}
           </Grid>
 
-          {/* ── Filters ── */}
+          {/* ── Filters Toolbar ── */}
           <Paper
             elevation={0}
             sx={{
-              p: 2, mb: 3, borderRadius: 3,
+              p: 2,
+              mb: 3,
+              borderRadius: 3,
               border: `1px solid ${alpha(themeColor, 0.12)}`,
               bgcolor: alpha(themeColor, 0.015)
             }}
@@ -616,11 +688,15 @@ const ClusterForm3A = () => {
                   onChange={handleLandTypeChange}
                   variant="fullWidth"
                   sx={{
-                    minHeight: 40, mt: 0.5,
+                    minHeight: 40,
+                    mt: 0.5,
                     border: `1px solid ${alpha(themeColor, 0.2)}`,
                     borderRadius: 2,
                     '& .MuiTab-root': {
-                      textTransform: 'none', fontWeight: 700, minHeight: 40, color: 'text.secondary',
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      minHeight: 40,
+                      color: 'text.secondary',
                       '&.Mui-selected': { color: themeColor }
                     },
                     '& .MuiTabs-indicator': { backgroundColor: themeColor, height: 3, borderRadius: '3px 3px 0 0' }
@@ -635,60 +711,50 @@ const ClusterForm3A = () => {
               <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', lg: 'block' } }} />
 
               <FormControl size="small" sx={{ minWidth: 240 }}>
-                <InputLabel id="cluster-crop-group-label">Crop Group</InputLabel>
+                <InputLabel id="cluster-form3b-croptype-label">Crop Type</InputLabel>
                 <Select
-                  labelId="cluster-crop-group-label"
+                  labelId="cluster-form3b-croptype-label"
+                  id="cluster-form3b-croptype"
                   value={activeTab}
-                  label="Crop Group"
-                  onChange={handleCropGroupChange}
+                  label="Crop Type"
+                  onChange={handleCropTypeChange}
                   MenuProps={{ PaperProps: { sx: { maxHeight: 360 } } }}
-                  renderValue={(v) => (
+                  renderValue={(value) => (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <GrassIcon sx={{ fontSize: 18, color: '#2e7d32' }} />
-                      {v === ALL_CROP_GROUPS ? ALL_CROP_GROUPS_LABEL : CROP_GROUPS[v]?.name || ''}
+                      {value === ALL_CROP_TYPES ? ALL_CROP_TYPES_LABEL : CROP_TYPES[value]?.name || ''}
                     </Box>
                   )}
                 >
-                  <MenuItem value={ALL_CROP_GROUPS}>All</MenuItem>
-                  {CROP_GROUPS.map((g, i) => (
-                    <MenuItem key={g.id} value={i}>{g.name}</MenuItem>
+                  <MenuItem value={ALL_CROP_TYPES}>All Type</MenuItem>
+                  {CROP_TYPES.map((g, index) => (
+                    <MenuItem key={g.id} value={index}>
+                      {g.name}
+                    </MenuItem>
                   ))}
                 </Select>
               </FormControl>
 
-              <FormControl size="small" sx={{ minWidth: 180 }}>
-                <InputLabel id="cluster-season-label">Season</InputLabel>
+              <FormControl size="small" sx={{ minWidth: 200 }}>
+                <InputLabel id="cluster-form3b-irrigation-label">Irrigation</InputLabel>
                 <Select
-                  labelId="cluster-season-label"
-                  value={seasonId}
-                  label="Season"
-                  onChange={handleSeasonChange}
-                  renderValue={(v) => (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <EnergySavingsLeafIcon sx={{ fontSize: 18, color: '#2e7d32' }} />
-                      {SEASONS.find((s) => s.id === v)?.name || ''}
-                    </Box>
-                  )}
-                >
-                  {SEASONS.map((s) => (<MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>))}
-                </Select>
-              </FormControl>
-
-              <FormControl size="small" sx={{ minWidth: 180 }}>
-                <InputLabel id="cluster-irrigation-label">Irrigation</InputLabel>
-                <Select
-                  labelId="cluster-irrigation-label"
+                  labelId="cluster-form3b-irrigation-label"
+                  id="cluster-form3b-irrigation"
                   value={irrigation}
                   label="Irrigation"
                   onChange={handleIrrigationChange}
-                  renderValue={(v) => (
+                  renderValue={(value) => (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <WaterIcon sx={{ fontSize: 18, color: v === 'UNIRRIGATED' ? '#9e9e9e' : '#0288d1' }} />
-                      {IRRIGATION_OPTIONS.find((o) => o.value === v)?.label || ''}
+                      <WaterIcon sx={{ fontSize: 18, color: value === 'UNIRRIGATED' ? '#9e9e9e' : '#0288d1' }} />
+                      {IRRIGATION_OPTIONS.find((o) => o.value === value)?.label || ''}
                     </Box>
                   )}
                 >
-                  {IRRIGATION_OPTIONS.map((o) => (<MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>))}
+                  {IRRIGATION_OPTIONS.map((o) => (
+                    <MenuItem key={o.value} value={o.value}>
+                      {o.label}
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
             </Stack>
@@ -712,25 +778,35 @@ const ClusterForm3A = () => {
             </Paper>
           )}
 
-          {/* ── Search + Export toolbar ── */}
+          {/* ── Search & Download Toolbar ── */}
           <Paper
             elevation={0}
             sx={{
-              p: 1.5, mb: 2, borderRadius: 3,
+              p: 1.5,
+              mb: 2,
+              borderRadius: 3,
               border: `1px solid ${alpha(themeColor, 0.12)}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              gap: 2, flexWrap: 'wrap'
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 2,
+              flexWrap: 'wrap'
             }}
           >
             <TextField
-              placeholder="Search cluster..."
+              placeholder="Search cluster number..."
               size="small"
               value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(0);
+              }}
               sx={{ width: 280 }}
               InputProps={{
                 startAdornment: (
-                  <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
                 ),
                 endAdornment: searchTerm && (
                   <InputAdornment position="end">
@@ -744,7 +820,7 @@ const ClusterForm3A = () => {
 
             <Stack direction="row" spacing={1} alignItems="center">
               <Chip
-                label={`${searchFilteredRows.length} row${searchFilteredRows.length !== 1 ? 's' : ''}`}
+                label={`${searchFilteredRows.length} cluster${searchFilteredRows.length !== 1 ? 's' : ''}`}
                 size="small"
                 sx={{ bgcolor: alpha(themeColor, 0.08), color: themeColor, fontWeight: 600 }}
               />
@@ -752,7 +828,7 @@ const ClusterForm3A = () => {
                 title={
                   exportDisabled
                     ? 'No data available to export'
-                    : `Download ${searchFilteredRows.length} row${searchFilteredRows.length > 1 ? 's' : ''} as Excel`
+                    : `Download ${searchFilteredRows.length} cluster${searchFilteredRows.length > 1 ? 's' : ''} as Excel`
                 }
               >
                 <span>
@@ -763,8 +839,12 @@ const ClusterForm3A = () => {
                     onClick={handleExportExcel}
                     disabled={exportDisabled}
                     sx={{
-                      borderRadius: 2, bgcolor: themeColor, textTransform: 'none',
-                      fontWeight: 600, whiteSpace: 'nowrap', px: 2,
+                      borderRadius: 2,
+                      bgcolor: themeColor,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                      px: 2,
                       '&:hover': { bgcolor: themeColorAlt },
                       '&.Mui-disabled': { bgcolor: alpha(themeColor, 0.3), color: '#fff' }
                     }}
@@ -776,11 +856,12 @@ const ClusterForm3A = () => {
             </Stack>
           </Paper>
 
-          {/* ── Table ── */}
+          {/* ── Table Section ── */}
           <Paper
             elevation={0}
             sx={{
-              borderRadius: 3, overflow: 'hidden',
+              borderRadius: 3,
+              overflow: 'hidden',
               border: `1px solid ${alpha(themeColor, 0.12)}`,
               position: 'relative',
               boxShadow: '0 2px 12px rgba(5,48,122,0.05)'
@@ -794,196 +875,159 @@ const ClusterForm3A = () => {
                 }}
               />
             )}
-            <Box sx={{ p: 0, position: 'relative' }}>
+            <Box sx={{ p: 0 }}>
               <TableContainer sx={{ maxHeight: 600, overflowX: 'auto' }}>
                 <Table
                   stickyHeader
                   size="small"
-                  sx={{
-                    width: '100%',
-                    minWidth: TABLE_MIN_W,
-                    tableLayout: 'fixed',
-                    borderCollapse: 'separate',
-                    borderSpacing: 0
-                  }}
+                  sx={{ width: '100%', minWidth: TABLE_MIN_W, tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0 }}
                 >
                   <colgroup>
                     <col style={{ width: CLUSTER_W }} />
                     <col style={{ width: AREA_W }} />
-                    <col style={{ width: AREA_W }} />
-                    <col style={{ width: AREA_W }} />
-                    <col style={{ width: AREA_W }} />
-                    {cropColumns.map((c) => (<col key={c.cropId} style={{ width: CROP_W }} />))}
+                    {cropColumns.map((c) => (
+                      <col key={c.cropId} style={{ width: CROP_W }} />
+                    ))}
                     <col style={{ width: 'auto' }} />
                   </colgroup>
-
                   <TableHead>
                     <TableRow>
-                      {[
-                        { key: 'cluster', label: 'Cluster No.', align: 'left', sticky: true },
-                        { key: 'clusterArea', label: 'Cluster Area', align: 'right' },
-                        { key: 'nuc', label: 'NUC Area', align: 'right' },
-                        { key: 'ffs', label: 'FFS Area', align: 'right' },
-                        { key: 'cos', label: 'CoS Area', align: 'right' }
-                      ].map((h) => (
-                        <TableCell
-                          key={h.key}
-                          align={h.align}
-                          sx={{
-                            backgroundColor: themeColor,
-                            color: '#fff',
-                            fontWeight: 700,
-                            whiteSpace: 'nowrap',
-                            py: 1.6,
-                            fontSize: '0.82rem',
-                            letterSpacing: 0.3,
-                            borderBottom: `2px solid ${alpha('#fff', 0.15)}`,
-                            ...(h.sticky && {
-                              position: 'sticky',
-                              left: 0,
-                              zIndex: 6
-                            })
-                          }}
-                        >
-                          {h.label}
-                        </TableCell>
-                      ))}
+                      <TableCell
+                        align="left"
+                        sx={{
+                          backgroundColor: themeColor,
+                          color: 'white',
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                          py: 1.5,
+                          position: 'sticky',
+                          left: 0,
+                          zIndex: 3
+                        }}
+                      >
+                        Cluster No.
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          backgroundColor: themeColor,
+                          color: 'white',
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                          py: 1.5
+                        }}
+                      >
+                        Cluster Area
+                      </TableCell>
                       {cropColumns.map((crop) => (
                         <TableCell
                           key={crop.cropId}
                           align="right"
                           sx={{
                             backgroundColor: themeColor,
-                            color: '#fff',
+                            color: 'white',
                             fontWeight: 700,
                             whiteSpace: 'nowrap',
-                            py: 1.6,
-                            fontSize: '0.82rem',
-                            letterSpacing: 0.3,
-                            borderBottom: `2px solid ${alpha('#fff', 0.15)}`,
-                            zIndex: 3
+                            py: 1.5
                           }}
                         >
                           {crop.cropName}
                         </TableCell>
                       ))}
-                      <TableCell aria-hidden sx={{ backgroundColor: themeColor, padding: 0, zIndex: 3 }} />
+                      <TableCell aria-hidden sx={{ backgroundColor: themeColor, padding: 0 }} />
                     </TableRow>
                   </TableHead>
-
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={Math.max(cropColumns.length + 6, 8)} align="center" sx={{ py: 10 }}>
+                        <TableCell colSpan={Math.max(cropColumns.length + 3, 5)} align="center" sx={{ py: 8 }}>
                           <Stack alignItems="center" spacing={2}>
                             <CircularProgress size={44} thickness={4} sx={{ color: themeColor }} />
                             <Box textAlign="center">
-                              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: themeColor }}>
-                                Loading Cluster Form 3A Report...
+                              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: themeColor }}>
+                                Loading Cluster Form 3B Report...
                               </Typography>
                               <Typography variant="body2" color="text.secondary">
-                                Please wait while we fetch the latest progress details.
+                                Please wait while we fetch progress details.
                               </Typography>
                             </Box>
                           </Stack>
                         </TableCell>
                       </TableRow>
-                    ) : paginatedRows.length === 0 ? (
+                    ) : searchFilteredRows.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={cropColumns.length + 6} align="center" sx={{ py: 6 }}>
-                          <Typography color="text.secondary">
-                            {searchTerm
-                              ? `No clusters found matching "${searchTerm}"`
-                              : `No data available for ${cropGroupName}`}
-                          </Typography>
+                        <TableCell colSpan={cropColumns.length + 3} align="center" sx={{ py: 6 }}>
+                          <Typography color="text.secondary">No data available for {cropTypeName}</Typography>
                         </TableCell>
                       </TableRow>
                     ) : (
                       <>
                         {paginatedRows.map((row, index) => (
-                          <TableRow
-                            key={row.clusterId ?? `row-${index}`}
-                            sx={{
-                              backgroundColor: !row.hasData
-                                ? alpha('#ff9800', 0.03)
-                                : (index % 2 === 1 ? alpha(themeColor, 0.015) : 'transparent')
-                            }}
-                          >
+                          <TableRow key={row.clusterId ?? `row-${index}`}>
                             <TableCell
                               align="left"
                               sx={{
                                 position: 'sticky',
                                 left: 0,
-                                zIndex: 2,
-                                backgroundColor: !row.hasData
-                                  ? '#fffaf2'
-                                  : (index % 2 === 1 ? '#f8fafc' : '#ffffff'),
-                                borderRight: `1px solid ${alpha(themeColor, 0.06)}`
+                                zIndex: 1,
+                                backgroundColor: theme.palette.background.paper,
+                                borderRight: `1px solid ${alpha(themeColor, 0.1)}`
                               }}
                             >
                               <Stack direction="row" spacing={1} alignItems="center">
-                                <Avatar
+                                <Chip
+                                  label={`Cluster ${row.clusterNumber}`}
+                                  size="small"
                                   sx={{
-                                    width: 26, height: 26, fontSize: '0.72rem', fontWeight: 700,
-                                    bgcolor: row.hasData ? alpha(themeColor, 0.1) : alpha('#ff9800', 0.15),
-                                    color: row.hasData ? themeColor : '#e65100'
+                                    backgroundColor: row.hasData ? alpha(themeColor, 0.1) : alpha('#9e9e9e', 0.15),
+                                    color: row.hasData ? themeColor : 'text.secondary',
+                                    fontWeight: 600,
+                                    borderRadius: 1.5
                                   }}
-                                >
-                                  {String(row.clusterNumber).charAt(0)}
-                                </Avatar>
-                                <Typography
-                                  variant="body2"
-                                  sx={{
-                                    fontWeight: row.hasData ? 600 : 400,
-                                    color: row.hasData ? 'text.primary' : 'text.secondary'
-                                  }}
-                                >
-                                  Cluster {row.clusterNumber}
-                                </Typography>
+                                />
                                 {row.landType && (
                                   <Chip
                                     label={row.landType}
                                     size="small"
                                     color={row.landType.toUpperCase() === 'WET' ? 'info' : 'warning'}
                                     variant="outlined"
-                                    sx={{ fontWeight: 600, height: 20, fontSize: '0.65rem' }}
+                                    sx={{ fontWeight: 600, height: 22, fontSize: '0.7rem' }}
                                   />
                                 )}
-                                {!row.hasData && row.clusterId != null && (
+                                {!row.hasData && (
                                   <Chip
                                     label="NA"
                                     size="small"
                                     sx={{
-                                      height: 18, fontSize: '0.62rem',
-                                      bgcolor: alpha('#ff9800', 0.15), color: '#e65100', fontWeight: 700
+                                      height: 18,
+                                      fontSize: '0.65rem',
+                                      fontWeight: 700,
+                                      bgcolor: alpha('#ff9800', 0.15),
+                                      color: '#e65100'
                                     }}
                                   />
                                 )}
                               </Stack>
                             </TableCell>
-
-                            {['clusterArea', 'nucArea', 'ffsArea', 'cosArea'].map((key) => (
-                              <TableCell key={key} align="right" sx={numericCellSx}>
-                                {!row.hasData ? (
-                                  <Typography variant="body2" color="text.secondary">NA</Typography>
-                                ) : row[key] ? (
-                                  <Typography variant="body2" sx={{ fontWeight: 500 }}>{formatNumber(row[key])}</Typography>
-                                ) : (
-                                  <Typography variant="body2" color="text.secondary">—</Typography>
-                                )}
-                              </TableCell>
-                            ))}
-
+                            <TableCell align="right" sx={numericCellSx}>
+                              {!row.hasData ? (
+                                <Chip label="NA" size="small" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
+                              ) : row.clusterArea ? (
+                                formatNumber(row.clusterArea)
+                              ) : (
+                                '—'
+                              )}
+                            </TableCell>
                             {cropColumns.map((crop) => {
                               const val = row.byId[crop.cropId];
                               return (
                                 <TableCell key={crop.cropId} align="right" sx={numericCellSx}>
                                   {!row.hasData ? (
-                                    <Typography variant="body2" color="text.secondary">NA</Typography>
+                                    <Chip label="NA" size="small" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
                                   ) : val ? (
-                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>{formatNumber(val)}</Typography>
+                                    formatNumber(val)
                                   ) : (
-                                    <Typography variant="body2" color="text.secondary">—</Typography>
+                                    '—'
                                   )}
                                 </TableCell>
                               );
@@ -991,39 +1035,31 @@ const ClusterForm3A = () => {
                             <TableCell aria-hidden />
                           </TableRow>
                         ))}
-
-                        {/* Grand Total */}
-                        <TableRow
-                          sx={{
-                            backgroundColor: alpha(themeColor, 0.09),
-                            '& .MuiTableCell-root': {
-                              borderTop: `2px solid ${alpha(themeColor, 0.35)}`,
-                              fontWeight: 800,
-                              color: themeColor
-                            }
-                          }}
-                        >
+                        {/* Total Row */}
+                        <TableRow sx={{ backgroundColor: alpha(themeColor, 0.08) }}>
                           <TableCell
                             align="left"
                             sx={{
-                              position: 'sticky', left: 0, zIndex: 2,
+                              fontWeight: 800,
+                              color: themeColor,
+                              position: 'sticky',
+                              left: 0,
+                              zIndex: 1,
                               backgroundColor: '#eef1f7',
-                              fontWeight: 800, color: themeColor, letterSpacing: 0.5,
                               borderRight: `1px solid ${alpha(themeColor, 0.15)}`
                             }}
                           >
-                            GRAND TOTAL
+                            🏆 TOTAL
                           </TableCell>
-                          <TableCell align="right" sx={numericCellSx}>{formatNumber(areaTotals.clusterArea)}</TableCell>
-                          <TableCell align="right" sx={numericCellSx}>{formatNumber(areaTotals.nucArea)}</TableCell>
-                          <TableCell align="right" sx={numericCellSx}>{formatNumber(areaTotals.ffsArea)}</TableCell>
-                          <TableCell align="right" sx={numericCellSx}>{formatNumber(areaTotals.cosArea)}</TableCell>
+                          <TableCell align="right" sx={{ ...numericCellSx, fontWeight: 800 }}>
+                            {areaTotals.clusterArea ? formatNumber(areaTotals.clusterArea) : '—'}
+                          </TableCell>
                           {cropColumns.map((crop) => (
-                            <TableCell key={crop.cropId} align="right" sx={numericCellSx}>
+                            <TableCell key={crop.cropId} align="right" sx={{ ...numericCellSx, fontWeight: 800 }}>
                               {cropTotals[crop.cropId] ? formatNumber(cropTotals[crop.cropId]) : '—'}
                             </TableCell>
                           ))}
-                          <TableCell aria-hidden sx={{ backgroundColor: alpha(themeColor, 0.09) }} />
+                          <TableCell aria-hidden sx={{ backgroundColor: alpha(themeColor, 0.08) }} />
                         </TableRow>
                       </>
                     )}
@@ -1038,10 +1074,7 @@ const ClusterForm3A = () => {
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
                 rowsPerPageOptions={[10, 25, 50]}
-                sx={{
-                  borderTop: `1px solid ${alpha(themeColor, 0.1)}`,
-                  '& .MuiTablePagination-toolbar': { minHeight: 48 }
-                }}
+                sx={{ borderTop: `1px solid ${alpha(themeColor, 0.1)}` }}
               />
             </Box>
           </Paper>
@@ -1051,4 +1084,4 @@ const ClusterForm3A = () => {
   );
 };
 
-export default ClusterForm3A;
+export default ClusterForm3B;
