@@ -374,16 +374,11 @@ function TalukFormReport() {
       const formStatusUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/district?${formParams.toString()}`;
       const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/dashboard/completed/taluk?${btrParams.toString()}`;
 
-      console.log('Taluk API Request:', formStatusUrl);
-      console.log('BTR Taluk Completed-Clusters Request:', completedClustersUrl);
 
       const [formStatusRes, completedClustersRes] = await Promise.all([
         axios.get(formStatusUrl, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(completedClustersUrl, { headers: { Authorization: `Bearer ${token}` } })
       ]);
-
-      console.log('Taluk API Response:', formStatusRes.data);
-      console.log('BTR Taluk Completed-Clusters Response:', completedClustersRes.data);
 
       setApiData(formStatusRes.data || null);
       setBtrData(completedClustersRes.data || null);

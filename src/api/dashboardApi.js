@@ -1,13 +1,5 @@
 import axiosInstance from './axiosInstance';
-import {
-  MOCK_SUMMARY,
-  MOCK_MONTHLY_ADVANCE_VS_ACTUAL,
-  MOCK_MONTHLY_TREND,
-  MOCK_DISTRICT_PERFORMANCE,
-  MOCK_ZONE_PERFORMANCE,
-  MOCK_RECENT_SUBMISSIONS,
-  MOCK_USERS_LIST
-} from './mockData';
+
 
 // Helper to simulate asynchronous API delay
 const delay = (ms = 350) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -69,7 +61,7 @@ export const getDashboardSummary = async (filters = {}) => {
       const submittedUsers = filteredUsers.filter(u => u.overallStatus === 'Completed');
       const partialUsers = filteredUsers.filter(u => u.overallStatus === 'Partial / Pending');
       const notSubmittedUsers = filteredUsers.filter(u => u.overallStatus === 'Not Submitted');
-      
+
       return {
         totalUsers: { total: totalCount, active: Math.floor(totalCount * 0.98), inactive: Math.ceil(totalCount * 0.02) },
         tourDiary: { submitted: Math.floor(totalCount * 0.88), target: totalCount, pending: Math.ceil(totalCount * 0.12), achievement: 88, submittedUsers: submittedUsers.length, pendingUsers: pendingUsers.length },
@@ -146,7 +138,7 @@ export const getSubmissionMatrix = async (filters = {}, page = 1, pageSize = 10)
 export const getPendingUsers = async (filters = {}, quickFilter = 'All', page = 1, pageSize = 10) => {
   await delay(350);
   let pendingUsers = MOCK_USERS_LIST.filter(u => u.isPending || u.tourDiary !== 'SUBMITTED' || u.actualTour !== 'SUBMITTED' || u.workAllocation !== 'SUBMITTED');
-  
+
   if (filters.district && filters.district !== 'All') {
     pendingUsers = pendingUsers.filter(u => u.district === filters.district);
   }
