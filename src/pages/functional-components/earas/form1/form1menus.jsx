@@ -418,7 +418,7 @@ function Form1_menus() {
       setDistrictId(districtId);
       setZonename(response.data?.payload?.zoneName || 'N/A');
 
-      console.log(">>>>>>>>>>>>>>>>>>>>>>>>>> ", data.payload)
+
       if (data && data.payload) {
         setKeyplotData({
           ...data.payload,
@@ -448,7 +448,7 @@ function Form1_menus() {
 
     // Prevent duplicate requests
     if (!currentClusterId || !currentDistrictId || !targetSeason) {
-      console.log('Missing required params:', { clusterId: currentClusterId, districtId: currentDistrictId, seasonId: targetSeason });
+
       return;
     }
 
@@ -459,8 +459,7 @@ function Form1_menus() {
       const token = localStorage.getItem('token');
       const BASE_URL = mainapi.BASE_URL;
 
-      console.log('Fetching crop details:', { clusterId: currentClusterId, seasonId: targetSeason, districtId: currentDistrictId });
-      console.log(`=========${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${currentClusterId}/season/${targetSeason}/district/${currentDistrictId}`)
+
       const response = await axios.get(
         `${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${currentClusterId}/season/${targetSeason}/district/${currentDistrictId}`,
         {
@@ -473,7 +472,7 @@ function Form1_menus() {
       );
 
       const data = response.data;
-      console.log('Crop Details API response:', data);
+
 
       // Verify we're still on the same season before updating state
       if (seasonOverride !== null ? seasonOverride === seasonId : true) {
@@ -628,7 +627,6 @@ function Form1_menus() {
       });
 
       const data = response.data;
-      console.log('Irrigation Details API response:', data);
       if (data && Array.isArray(data.payload)) {
         setIrrigationData(data.payload);
       } else {

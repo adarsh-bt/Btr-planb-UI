@@ -226,7 +226,7 @@ function TalukForm5Report() {
       // Try 1: BTR API endpoint
       try {
         response = await api.get(`${mainapi.BTR_API}/btr-service/btr-api/taluks?distId=${districtId}`);
-        console.log('Master Taluks Response (attempt 1):', response.data);
+
       } catch (err) {
         console.log('Attempt 1 failed, trying alternative endpoint...');
       }
@@ -235,7 +235,7 @@ function TalukForm5Report() {
       if (!response || !response.data) {
         try {
           response = await api.get(`${BASE_URL}/earas-form1-entry/api/taluks?districtId=${districtId}`);
-          console.log('Master Taluks Response (attempt 2):', response.data);
+
         } catch (err) {
           console.log('Attempt 2 failed, trying alternative endpoint...');
         }
@@ -256,7 +256,7 @@ function TalukForm5Report() {
         }
 
         if (taluks.length > 0) {
-          console.log('Setting taluks list:', taluks);
+
           setTaluksList(taluks);
         } else {
           console.warn('No taluks found in response, using fallback');
@@ -319,7 +319,7 @@ function TalukForm5Report() {
       }
 
       url += `?${params.toString()}`;
-      console.log('Fetching taluk Form 5 data from:', url);
+
 
       const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
@@ -346,18 +346,18 @@ function TalukForm5Report() {
   };
 
   // Fetch crop list for the dropdown filter
-const fetchCropsList = async () => {
-  try {
-    const response = await api.get(
-      `${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-logs?agriYear=${agriculturalYear}`
-    );
-    if (response.data && Array.isArray(response.data)) {
-      setCropOptions(response.data); // { cropId, cropName, ... } objects
+  const fetchCropsList = async () => {
+    try {
+      const response = await api.get(
+        `${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-logs?agriYear=${agriculturalYear}`
+      );
+      if (response.data && Array.isArray(response.data)) {
+        setCropOptions(response.data); // { cropId, cropName, ... } objects
+      }
+    } catch (err) {
+      console.error('Error fetching crops list:', err);
     }
-  } catch (err) {
-    console.error('Error fetching crops list:', err);
-  }
-};
+  };
 
   /* ─────────────────────────── effects ─────────────────────────── */
 
@@ -388,10 +388,6 @@ const fetchCropsList = async () => {
       apiDataMap[key] = t;
     });
 
-    // Log for debugging
-    console.log('Taluks List:', taluksList);
-    console.log('API Taluks:', apiTaluks);
-
     // If we have master taluks list, merge with API data
     if (taluksList && taluksList.length > 0) {
       const merged = taluksList.map((taluk) => {
@@ -421,12 +417,10 @@ const fetchCropsList = async () => {
         };
       });
 
-      console.log('Merged Taluks:', merged);
+
       return merged;
     }
 
-    // Fallback: use only API data if master list is not available
-    console.log('Using API taluks only');
     return apiTaluks.map((t) => ({
       id: t.talukId || `taluk_${Math.random()}`,
       taluk: t.talukName || 'Unknown Taluk',
@@ -556,7 +550,7 @@ const fetchCropsList = async () => {
 
     // Reasonable column widths so it doesn't open looking cramped
     worksheet['!cols'] = [
-      { wch: 5 },  { wch: 25 }, { wch: 12 },
+      { wch: 5 }, { wch: 25 }, { wch: 12 },
       { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }
     ];
 

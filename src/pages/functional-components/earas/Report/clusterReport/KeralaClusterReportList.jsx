@@ -240,10 +240,10 @@ function KeralaClusterReportList() {
         url += `?${queryString}`;
       }
 
-      console.log('Fetching data from:', url);
+
 
       const response = await api.get(url);
-      console.log('Response data:', response.data);
+
 
       if (response.data) {
         setApiData(response.data);
@@ -544,7 +544,7 @@ function KeralaClusterReportList() {
 
     // Reasonable column widths so it doesn't open looking cramped
     worksheet['!cols'] = [
-      { wch: 5 },  { wch: 25 }, { wch: 10 },
+      { wch: 5 }, { wch: 25 }, { wch: 10 },
       { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
     ];
 
@@ -833,84 +833,84 @@ function KeralaClusterReportList() {
 
       {/* Main Table */}
       {/* Main Table */}
-<Grid item xs={12}>
-  <Box
-    sx={{
-      position: 'relative',
-      border: `1px solid ${alpha('#04255e', 0.15)}`,
-      borderRadius: 3,
-      pt: 3,
-      bgcolor: '#fff'
-    }}
-  >
-    <Chip
-      label="District Report Summary"
-      color="primary"
-      size="small"
-      sx={{
-        position: 'absolute',
-        top: -12,
-        left: 20,
-        zIndex: 10,
-        fontWeight: 600,
-        bgcolor: '#04255e',
-        color: '#fff',
-        px: 1
-      }}
-    />
-
-    {/* Search + Export row */}
-    <Stack
-      direction={{ xs: 'column', sm: 'row' }}
-      justifyContent="flex-end"
-      alignItems="center"
-      spacing={1.5}
-      sx={{ px: 2, pb: 2 }}
-    >
-      <TextField
-        placeholder="Search district..."
-        size="small"
-        value={searchTerm}
-        onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
-        sx={{ width: 250 }}
-        InputProps={{
-          startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
-          endAdornment: searchTerm && (
-            <InputAdornment position="end">
-              <IconButton size="small" onClick={handleClearSearch} edge="end">
-                <ClearIcon fontSize="small" />
-              </IconButton>
-            </InputAdornment>
-          )
-        }}
-      />
-      <Tooltip
-        title={
-          filteredData.length === 0
-            ? 'No data available to export'
-            : `Export ${filteredData.length} district${filteredData.length > 1 ? 's' : ''} to Excel`
-        }
-      >
-        <span>
-          <Button
-            variant="outlined"
+      <Grid item xs={12}>
+        <Box
+          sx={{
+            position: 'relative',
+            border: `1px solid ${alpha('#04255e', 0.15)}`,
+            borderRadius: 3,
+            pt: 3,
+            bgcolor: '#fff'
+          }}
+        >
+          <Chip
+            label="District Report Summary"
+            color="primary"
             size="small"
-            startIcon={<DownloadIcon />}
-            onClick={handleExportExcel}
-            disabled={filteredData.length === 0 || loading}
-            sx={{ borderRadius: 2, whiteSpace: 'nowrap' }}
-          >
-            Download Excel
-          </Button>
-        </span>
-      </Tooltip>
-    </Stack>
+            sx={{
+              position: 'absolute',
+              top: -12,
+              left: 20,
+              zIndex: 10,
+              fontWeight: 600,
+              bgcolor: '#04255e',
+              color: '#fff',
+              px: 1
+            }}
+          />
 
-    <MainCard
-      title="District-wise Status"
-      sx={{ borderRadius: 3 }}
-    >
-      {/* ...TableContainer, Table, TablePagination — all unchanged, same as before... */}
+          {/* Search + Export row */}
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            justifyContent="flex-end"
+            alignItems="center"
+            spacing={1.5}
+            sx={{ px: 2, pb: 2 }}
+          >
+            <TextField
+              placeholder="Search district..."
+              size="small"
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
+              sx={{ width: 250 }}
+              InputProps={{
+                startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+                endAdornment: searchTerm && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch} edge="end">
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }}
+            />
+            <Tooltip
+              title={
+                filteredData.length === 0
+                  ? 'No data available to export'
+                  : `Export ${filteredData.length} district${filteredData.length > 1 ? 's' : ''} to Excel`
+              }
+            >
+              <span>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<DownloadIcon />}
+                  onClick={handleExportExcel}
+                  disabled={filteredData.length === 0 || loading}
+                  sx={{ borderRadius: 2, whiteSpace: 'nowrap' }}
+                >
+                  Download Excel
+                </Button>
+              </span>
+            </Tooltip>
+          </Stack>
+
+          <MainCard
+            title="District-wise Status"
+            sx={{ borderRadius: 3 }}
+          >
+            {/* ...TableContainer, Table, TablePagination — all unchanged, same as before... */}
             <TableContainer>
               <Table>
                 <TableHead>

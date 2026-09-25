@@ -321,12 +321,12 @@ const CropsManagement = () => {
   const fetchGrowthStages = async () => {
     try {
       setLoadingGrowthStages(true);
-      console.log("Fetching growth stages...");
+
 
       const response = await api.get(`${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-crop-growth-stage`);
       const data = response.data;
 
-      console.log("Full API Response:", data);
+
 
       let stagesArray = [];
       if (data && data.payload && Array.isArray(data.payload)) {
@@ -335,7 +335,7 @@ const CropsManagement = () => {
         stagesArray = data;
       }
 
-      console.log("Processed growth stages:", stagesArray);
+
       setGrowthStages(stagesArray);
       setLoadingGrowthStages(false);
     } catch (error) {
@@ -595,14 +595,12 @@ const CropsManagement = () => {
     try {
       setYieldLoading(true);
 
-      console.log(`Fetching yield types - page: ${page}, size: ${size}`);
-
       const response = await api.get(
         `${BASE_URL}/earas-form1-entry/api/master/crop-yield-type/fetch-all?page=${page}&size=${size}`
       );
       const data = response.data;
 
-      console.log("Yield Types API Response:", data);
+
 
       let yieldArray = [];
       let totalElements = 0;
@@ -620,7 +618,6 @@ const CropsManagement = () => {
         totalElements = data.length;
       }
 
-      console.log(`Received ${yieldArray.length} items, total: ${totalElements}`);
 
       setCropYieldTypes(yieldArray);
       setTotalYieldCount(totalElements);
@@ -700,7 +697,7 @@ const CropsManagement = () => {
         addedBy: AuthService.userid()
       };
 
-      console.log("Saving yield payload:", payload);
+
 
       const response = await api.post(
         `${BASE_URL}/earas-form1-entry/api/master/crop-yield-type/save`,
@@ -1002,7 +999,7 @@ const CropsManagement = () => {
         addedBy: AuthService.userid()
       };
 
-      console.log("Saving irrigation payload:", payload);
+
 
       const response = await api.post(
         `${BASE_URL}/earas-form1-entry/irrigation-details/master-irrigation-source/add`,

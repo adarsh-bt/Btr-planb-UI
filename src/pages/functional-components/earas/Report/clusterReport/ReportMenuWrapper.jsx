@@ -14,7 +14,7 @@ function ReportMenuWrapper({ children }) {
     const fetchOfficeInfo = async () => {
       try {
         const info = await AuthService.getUserOfficeInfo();
-        console.log('Office Info received:', info);
+
         if (info) {
           sessionStorage.setItem('userOfficeInfo', JSON.stringify(info));
         }
@@ -49,7 +49,7 @@ function ReportMenuWrapper({ children }) {
 
       const currentMonth = getCurrentMonthFormatted();
 
-      console.log('Navigation - Office Type:', officeType);
+
 
       // ── DIRECTORATE ── State-level view
       if (officeType === 'DIRECTORATE') {
@@ -71,7 +71,7 @@ function ReportMenuWrapper({ children }) {
           return;
         }
 
-        console.log('Navigating to TalukClusterReport with districtId:', districtIdValue);
+
 
         navigate('/Report/kerala_cluster_report/taluk_cluster_report/direct', {
           state: {
@@ -101,7 +101,7 @@ function ReportMenuWrapper({ children }) {
           return;
         }
 
-        console.log('Navigating to ZoneClusterReport with talukId:', talukIdValue);
+
 
         // Use the same route pattern that MainRoutes already defines:
         // 'Report/kerala_cluster_report/zone_cluster_report/direct/:talukId'
@@ -145,7 +145,7 @@ function ReportMenuWrapper({ children }) {
 
       const currentMonth = getAgriMonthFormatted();
 
-      console.log('Form Report Navigation - Office Type:', officeType);
+
 
       // ── DIRECTORATE ── State-level view
       if (officeType === 'DIRECTORATE') {
@@ -166,7 +166,7 @@ function ReportMenuWrapper({ children }) {
           return;
         }
 
-        console.log('Navigating to TalukFormReport with districtId:', districtIdValue);
+
 
         navigate('/kerala_form_report/taluk_form_report/direct', {
           state: {
@@ -196,7 +196,7 @@ function ReportMenuWrapper({ children }) {
           return;
         }
 
-        console.log('Navigating to ZoneFormReport with talukId:', talukIdValue);
+
 
         // Route already defined in MainRoutes:
         // 'kerala_form_report/zone_form_report/direct/:talukId'
@@ -232,7 +232,7 @@ function ReportMenuWrapper({ children }) {
 
       const { officeType, districtOfficeId, districtId, talukOfficeId, talukId, districtName, talukName } = officeInfo;
 
-      console.log('Form 5 Navigation - Office Type:', officeType);
+
 
       // ── DIRECTORATE ── State-level list
       if (officeType === 'DIRECTORATE') {
@@ -253,7 +253,7 @@ function ReportMenuWrapper({ children }) {
           return;
         }
 
-        console.log('Navigating to TalukForm5Report with districtId:', districtIdValue);
+
 
         // Matches MainRoutes: '/kerala_form5_report/taluk_form5_report/:districtId'
         // (TalukForm5Report.resolveDistrictId reads state.districtId first, then the param)
@@ -278,7 +278,7 @@ function ReportMenuWrapper({ children }) {
           return;
         }
 
-        console.log('Navigating to ZoneForm5Report with talukId:', talukIdValue);
+
 
         const dName = districtName || 'district';
         const tName = talukName || 'taluk';
@@ -331,7 +331,7 @@ function ReportMenuWrapper({ children }) {
 
       const { districtOfficeId, districtId, talukOfficeId, talukId, districtName, talukName } = info;
 
-      console.log('Form 2 Navigation - Office Type:', officeType);
+
 
       // ── DIRECTORATE ── State-level view
       if (officeType === 'DIRECTORATE') {
@@ -352,7 +352,7 @@ function ReportMenuWrapper({ children }) {
           return;
         }
 
-        console.log('Navigating to TalukForm2 with districtId:', districtIdValue);
+
 
         navigate('/schemes/earas/cce/TalukForm2', {
           state: {
@@ -376,7 +376,7 @@ function ReportMenuWrapper({ children }) {
           return;
         }
 
-        console.log('Navigating to ZoneForm2 with talukId:', talukIdValue);
+
 
         navigate('/schemes/earas/cce/ZoneForm2', {
           state: {
@@ -430,7 +430,7 @@ function ReportMenuWrapper({ children }) {
         }
       }
 
-      console.log('Form 3A Navigation - Office Type:', officeType);
+
 
       // ── FIELD DATA COLLECTOR ── Jump straight to Cluster-wise Form 3A
       if (officeType === 'FIELD_DATA_COLLECTOR') {
@@ -473,7 +473,6 @@ function ReportMenuWrapper({ children }) {
           return;
         }
 
-        console.log('Navigating to TalukForm3A with districtId:', districtIdValue);
 
         navigate('/schemes/earas/Report/Form3A/TalukForm3A', {
           state: {
@@ -498,7 +497,7 @@ function ReportMenuWrapper({ children }) {
           return;
         }
 
-        console.log('Navigating to ZoneForm3A with talukId:', talukIdValue);
+
 
         navigate('/schemes/earas/Report/Form3A/ZoneForm3A', {
           state: {
@@ -551,7 +550,7 @@ function ReportMenuWrapper({ children }) {
         }
       }
 
-      console.log('Form 3B Navigation - Office Type:', officeType);
+
 
       // ── FIELD DATA COLLECTOR ── Jump straight to Cluster-wise Form 3B
       if (officeType === 'FIELD_DATA_COLLECTOR') {
@@ -591,7 +590,6 @@ function ReportMenuWrapper({ children }) {
           return;
         }
 
-        console.log('Navigating to TalukForm3B with districtId:', districtIdValue);
 
         navigate('/schemes/earas/Report/Form3B/TalukForm3B', {
           state: {
@@ -615,7 +613,7 @@ function ReportMenuWrapper({ children }) {
           return;
         }
 
-        console.log('Navigating to ZoneForm3B with talukId:', talukIdValue);
+
 
         navigate('/schemes/earas/Report/Form3B/ZoneForm3B', {
           state: {

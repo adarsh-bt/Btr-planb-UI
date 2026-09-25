@@ -194,7 +194,6 @@ function KeralaFormReportList() {
     try {
       // Use the BTR API endpoint directly
       const response = await api.get(`${mainapi.BTR_API}/btr-service/btr-api/districts`);
-      console.log('Master Districts Response:', response.data);
 
       if (response.data && response.data.data && Array.isArray(response.data.data)) {
         // Map the districts to use distId and distNameEn
@@ -202,10 +201,8 @@ function KeralaFormReportList() {
           distId: d.distId,
           distNameEn: d.distNameEn || d.districtName || d.name || ''
         }));
-        console.log('Mapped Districts:', mappedDistricts);
         setDistrictsList(mappedDistricts);
       } else {
-        console.warn('No districts found, using fallback');
         setDistrictsList(getFallbackDistricts());
       }
     } catch (err) {
@@ -260,8 +257,6 @@ function KeralaFormReportList() {
       const formStatusUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/state?${formStatusParams.toString()}`;
       const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/completed-clusters?${btrParams.toString()}`;
 
-      console.log('Fetching Form1 status data from:', formStatusUrl);
-      console.log('Fetching BTR completed-clusters data from:', completedClustersUrl);
 
       const [formStatusRes, completedClustersRes] = await Promise.all([
         axios.get(formStatusUrl, { headers: { Authorization: `Bearer ${token}` } }),
@@ -486,7 +481,7 @@ function KeralaFormReportList() {
 
     // Reasonable column widths so it doesn't open looking cramped
     worksheet['!cols'] = [
-      { wch: 5 },  { wch: 12 }, { wch: 25 }, { wch: 10 },
+      { wch: 5 }, { wch: 12 }, { wch: 25 }, { wch: 10 },
       { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
     ];
 

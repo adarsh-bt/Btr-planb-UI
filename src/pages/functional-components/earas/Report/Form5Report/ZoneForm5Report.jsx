@@ -196,7 +196,7 @@ function ZoneForm5Report() {
 
       try {
         response = await api.get(`${mainapi.BTR_API}/btr-service/btr-api/zones?desTalukId=${talukId}`);
-        console.log('Master Zones Response (attempt 1):', response.data);
+
       } catch (err) {
         console.log('Attempt 1 failed, trying alternative endpoint...');
       }
@@ -224,7 +224,7 @@ function ZoneForm5Report() {
         }
 
         if (zones.length > 0) {
-          console.log('Setting zones list:', zones);
+
           setZonesList(zones);
         } else {
           console.warn('No zones found in response, using fallback');
@@ -282,12 +282,10 @@ function ZoneForm5Report() {
       }
 
       url += `?${params.toString()}`;
-      console.log('Fetching zone Form 5 data from:', url);
 
       const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      console.log('API response:', response.data);
 
       if (response.data) {
         setApiData(response.data);
@@ -309,18 +307,18 @@ function ZoneForm5Report() {
   };
 
   // Fetch crop list for the dropdown filter
-const fetchCropsList = async () => {
-  try {
-    const response = await api.get(
-      `${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-logs?agriYear=${agriculturalYear}`
-    );
-    if (response.data && Array.isArray(response.data)) {
-      setCropOptions(response.data); // { cropId, cropName, ... } objects
+  const fetchCropsList = async () => {
+    try {
+      const response = await api.get(
+        `${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-logs?agriYear=${agriculturalYear}`
+      );
+      if (response.data && Array.isArray(response.data)) {
+        setCropOptions(response.data); // { cropId, cropName, ... } objects
+      }
+    } catch (err) {
+      console.error('Error fetching crops list:', err);
     }
-  } catch (err) {
-    console.error('Error fetching crops list:', err);
-  }
-};
+  };
 
   /* ─────────────────────────── effects ─────────────────────────── */
 
@@ -486,61 +484,61 @@ const fetchCropsList = async () => {
 
   // Flatten table data - only zones, no subtotals
   const flattenedTableData = useMemo(() => {
-  const result = [];
-  processedData.forEach((block) => {
-    let bAllowtedCce = 0, bSelectedCce = 0, bCompleted = 0, bOngoing = 0, bNotAvailable = 0, bNotStarted = 0, bUnderReview = 0;
+    const result = [];
+    processedData.forEach((block) => {
+      let bAllowtedCce = 0, bSelectedCce = 0, bCompleted = 0, bOngoing = 0, bNotAvailable = 0, bNotStarted = 0, bUnderReview = 0;
 
-    block.zones.forEach((zone) => {
-      bAllowtedCce += zone.allowtedCce;
-      bSelectedCce += zone.selectedCce;
-      bCompleted += zone.completed;
-      bOngoing += zone.ongoing;
-      bNotAvailable += zone.notAvailable;
-      bNotStarted += zone.notStarted;
-      bUnderReview += zone.underReview;
+      block.zones.forEach((zone) => {
+        bAllowtedCce += zone.allowtedCce;
+        bSelectedCce += zone.selectedCce;
+        bCompleted += zone.completed;
+        bOngoing += zone.ongoing;
+        bNotAvailable += zone.notAvailable;
+        bNotStarted += zone.notStarted;
+        bUnderReview += zone.underReview;
+
+        result.push({
+          type: 'zone',
+          id: `${block.blockId || 'nb'}_zone_${zone.zoneId}`,
+          blockId: block.blockId,
+          blockName: block.blockName,
+          zoneName: zone.zoneName,
+          allowtedCce: zone.allowtedCce,
+          selectedCce: zone.selectedCce,
+          completed: zone.completed,
+          ongoing: zone.ongoing,
+          notAvailable: zone.notAvailable,
+          notStarted: zone.notStarted,
+          underReview: zone.underReview,
+          zoneId: zone.zoneId,
+          hasData: zone.hasData,
+          isUnassigned: block.isUnassigned || false,
+          isMunicipality: block.isMunicipality || false,
+          isCorporation: block.isCorporation || false
+        });
+      });
 
       result.push({
-        type: 'zone',
-        id: `${block.blockId || 'nb'}_zone_${zone.zoneId}`,
+        type: 'subtotal',
+        id: `block_${block.blockId || 'nb'}_sub`,
         blockId: block.blockId,
         blockName: block.blockName,
-        zoneName: zone.zoneName,
-        allowtedCce: zone.allowtedCce,
-        selectedCce: zone.selectedCce,
-        completed: zone.completed,
-        ongoing: zone.ongoing,
-        notAvailable: zone.notAvailable,
-        notStarted: zone.notStarted,
-        underReview: zone.underReview,
-        zoneId: zone.zoneId,
-        hasData: zone.hasData,
-        isUnassigned: block.isUnassigned || false,
-        isMunicipality: block.isMunicipality || false,
-        isCorporation: block.isCorporation || false
+        zoneName: `Total for ${block.blockName}`,
+        allowtedCce: bAllowtedCce,
+        selectedCce: bSelectedCce,
+        completed: bCompleted,
+        ongoing: bOngoing,
+        notAvailable: bNotAvailable,
+        notStarted: bNotStarted,
+        underReview: bUnderReview,
+        isSubtotal: true,
+        hasData:
+          bAllowtedCce > 0 || bSelectedCce > 0 || bCompleted > 0 ||
+          bOngoing > 0 || bNotAvailable > 0 || bNotStarted > 0 || bUnderReview > 0
       });
     });
-
-    result.push({
-      type: 'subtotal',
-      id: `block_${block.blockId || 'nb'}_sub`,
-      blockId: block.blockId,
-      blockName: block.blockName,
-      zoneName: `Total for ${block.blockName}`,
-      allowtedCce: bAllowtedCce,
-      selectedCce: bSelectedCce,
-      completed: bCompleted,
-      ongoing: bOngoing,
-      notAvailable: bNotAvailable,
-      notStarted: bNotStarted,
-      underReview: bUnderReview,
-      isSubtotal: true,
-      hasData:
-        bAllowtedCce > 0 || bSelectedCce > 0 || bCompleted > 0 ||
-        bOngoing > 0 || bNotAvailable > 0 || bNotStarted > 0 || bUnderReview > 0
-    });
-  });
-  return result;
-}, [processedData]);
+    return result;
+  }, [processedData]);
 
   const searchFilteredData = useMemo(() => {
     if (!searchTerm.trim()) return flattenedTableData;
@@ -635,7 +633,7 @@ const fetchCropsList = async () => {
 
     // Reasonable column widths so it doesn't open looking cramped
     worksheet['!cols'] = [
-      { wch: 5 },  { wch: 20 }, { wch: 22 }, { wch: 12 },
+      { wch: 5 }, { wch: 20 }, { wch: 22 }, { wch: 12 },
       { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }
     ];
 
@@ -796,7 +794,7 @@ const fetchCropsList = async () => {
             </Stack>
             <FormControl size="small" sx={{ minWidth: 220 }}>
               <InputLabel>Crop Name</InputLabel>
-                            <Select value={cropName} label="Crop Name" onChange={handleCropNameChange}>
+              <Select value={cropName} label="Crop Name" onChange={handleCropNameChange}>
                 <MenuItem value="ALL">ALL</MenuItem>
                 {cropOptions.map((crop) => (
                   <MenuItem key={crop.cropId} value={crop.cropName}>
@@ -1049,213 +1047,213 @@ const fetchCropsList = async () => {
                     </TableRow>
                   ) : paginatedData.length > 0 ? (
                     (() => {
-  const rows = [];
-  let lastBlockName = '';
-  let serialNumber = page * rowsPerPage;
+                      const rows = [];
+                      let lastBlockName = '';
+                      let serialNumber = page * rowsPerPage;
 
-  for (let i = 0; i < paginatedData.length; i++) {
-    const row = paginatedData[i];
-    const isSubtotalRow = row.type === 'subtotal';
-    const isNewBlock = row.blockName !== lastBlockName;
-    const hasNoData = !row.hasData;
+                      for (let i = 0; i < paginatedData.length; i++) {
+                        const row = paginatedData[i];
+                        const isSubtotalRow = row.type === 'subtotal';
+                        const isNewBlock = row.blockName !== lastBlockName;
+                        const hasNoData = !row.hasData;
 
-    if (isNewBlock) lastBlockName = row.blockName;
-    if (!isSubtotalRow) serialNumber++;
+                        if (isNewBlock) lastBlockName = row.blockName;
+                        if (!isSubtotalRow) serialNumber++;
 
-    const blockRowCount = isSubtotalRow
-      ? 0
-      : paginatedData.filter((r) => r.blockName === row.blockName && r.type !== 'subtotal').length;
+                        const blockRowCount = isSubtotalRow
+                          ? 0
+                          : paginatedData.filter((r) => r.blockName === row.blockName && r.type !== 'subtotal').length;
 
-    rows.push(
-      <TableRow
-        key={row.id}
-        hover
-        sx={{
-          '&:hover': { bgcolor: alpha('#04255e', 0.04) },
-          transition: '0.2s',
-          '& td': {
-            borderBottom: isSubtotalRow ? `1px solid ${theme.palette.primary.main}` : 'none',
-            borderTop: isSubtotalRow ? `0.01px solid ${theme.palette.primary.main}` : 'none',
-            backgroundColor: isSubtotalRow ? alpha('#728ab4', 0.08) : 'transparent'
-          },
-          ...(hasNoData && !isSubtotalRow && {
-            bgcolor: alpha('#ff9800', 0.03),
-            '&:hover': { bgcolor: alpha('#ff9800', 0.08) }
-          })
-        }}
-      >
-        {/* Serial number — subtotal rows have no Block cell, so this cell
+                        rows.push(
+                          <TableRow
+                            key={row.id}
+                            hover
+                            sx={{
+                              '&:hover': { bgcolor: alpha('#04255e', 0.04) },
+                              transition: '0.2s',
+                              '& td': {
+                                borderBottom: isSubtotalRow ? `1px solid ${theme.palette.primary.main}` : 'none',
+                                borderTop: isSubtotalRow ? `0.01px solid ${theme.palette.primary.main}` : 'none',
+                                backgroundColor: isSubtotalRow ? alpha('#728ab4', 0.08) : 'transparent'
+                              },
+                              ...(hasNoData && !isSubtotalRow && {
+                                bgcolor: alpha('#ff9800', 0.03),
+                                '&:hover': { bgcolor: alpha('#ff9800', 0.08) }
+                              })
+                            }}
+                          >
+                            {/* Serial number — subtotal rows have no Block cell, so this cell
             absorbs that column, keeping the row's border running full width */}
-        <TableCell align="center" colSpan={isSubtotalRow ? 2 : 1} sx={{ border: 'none' }}>
-          {!isSubtotalRow && (
-            <Typography variant="body2" color="text.secondary" fontWeight={500}>
-              {serialNumber}
-            </Typography>
-          )}
-        </TableCell>
+                            <TableCell align="center" colSpan={isSubtotalRow ? 2 : 1} sx={{ border: 'none' }}>
+                              {!isSubtotalRow && (
+                                <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                                  {serialNumber}
+                                </Typography>
+                              )}
+                            </TableCell>
 
-        {isNewBlock && !isSubtotalRow ? (
-          <TableCell
-            rowSpan={blockRowCount}
-            align="center"
-            sx={{
-              verticalAlign: 'middle',
-              backgroundColor: alpha('#04255e', 0.04),
-              fontWeight: 'bold',
-              color: '#04255e',
-              fontSize: '1rem',
-              border: 'none'
-            }}
-          >
-            <Stack direction="column" spacing={1} alignItems="center">
-              <LocationOnIcon sx={{ fontSize: 24, color: '#04255e', opacity: 0.7 }} />
-              <Typography fontWeight={700} sx={{ color: '#04255e' }}>
-                {row.blockName}
-              </Typography>
-            </Stack>
-          </TableCell>
-        ) : null}
+                            {isNewBlock && !isSubtotalRow ? (
+                              <TableCell
+                                rowSpan={blockRowCount}
+                                align="center"
+                                sx={{
+                                  verticalAlign: 'middle',
+                                  backgroundColor: alpha('#04255e', 0.04),
+                                  fontWeight: 'bold',
+                                  color: '#04255e',
+                                  fontSize: '1rem',
+                                  border: 'none'
+                                }}
+                              >
+                                <Stack direction="column" spacing={1} alignItems="center">
+                                  <LocationOnIcon sx={{ fontSize: 24, color: '#04255e', opacity: 0.7 }} />
+                                  <Typography fontWeight={700} sx={{ color: '#04255e' }}>
+                                    {row.blockName}
+                                  </Typography>
+                                </Stack>
+                              </TableCell>
+                            ) : null}
 
-        <TableCell sx={{ border: 'none' }}>
-          {isSubtotalRow ? (
-            <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#04255e', fontStyle: 'italic' }}>
-              {row.zoneName}
-            </Typography>
-          ) : (
-            <Stack direction="row" spacing={1} alignItems="center">
-              <StoreIcon sx={{ fontSize: 18, color: hasNoData ? '#ff9800' : '#04255e', opacity: 0.7 }} />
-              <Typography fontWeight={hasNoData ? 400 : 500} color={hasNoData ? 'text.secondary' : 'text.primary'}>
-                {row.zoneName}
-                {hasNoData && (
-                  <Chip
-                    label="No Data"
-                    size="small"
-                    sx={{ ml: 1, height: 18, fontSize: '0.6rem', bgcolor: alpha('#ff9800', 0.15), color: '#e65100', fontWeight: 600 }}
-                  />
-                )}
-              </Typography>
-            </Stack>
-          )}
-        </TableCell>
+                            <TableCell sx={{ border: 'none' }}>
+                              {isSubtotalRow ? (
+                                <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#04255e', fontStyle: 'italic' }}>
+                                  {row.zoneName}
+                                </Typography>
+                              ) : (
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                  <StoreIcon sx={{ fontSize: 18, color: hasNoData ? '#ff9800' : '#04255e', opacity: 0.7 }} />
+                                  <Typography fontWeight={hasNoData ? 400 : 500} color={hasNoData ? 'text.secondary' : 'text.primary'}>
+                                    {row.zoneName}
+                                    {hasNoData && (
+                                      <Chip
+                                        label="No Data"
+                                        size="small"
+                                        sx={{ ml: 1, height: 18, fontSize: '0.6rem', bgcolor: alpha('#ff9800', 0.15), color: '#e65100', fontWeight: 600 }}
+                                      />
+                                    )}
+                                  </Typography>
+                                </Stack>
+                              )}
+                            </TableCell>
 
-        <TableCell align="center" sx={{ border: 'none' }}>
-          {hasNoData && !isSubtotalRow ? (
-            <Typography variant="body2" color="text.secondary">NA</Typography>
-          ) : (
-            <Chip
-              label={row.allowtedCce}
-              size="small"
-              variant={isSubtotalRow ? 'filled' : 'outlined'}
-              sx={{
-                fontWeight: isSubtotalRow ? 700 : 600,
-                bgcolor: isSubtotalRow ? alpha('#04255e', 0.15) : undefined,
-                color: isSubtotalRow ? '#04255e' : undefined
-              }}
-            />
-          )}
-        </TableCell>
+                            <TableCell align="center" sx={{ border: 'none' }}>
+                              {hasNoData && !isSubtotalRow ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : (
+                                <Chip
+                                  label={row.allowtedCce}
+                                  size="small"
+                                  variant={isSubtotalRow ? 'filled' : 'outlined'}
+                                  sx={{
+                                    fontWeight: isSubtotalRow ? 700 : 600,
+                                    bgcolor: isSubtotalRow ? alpha('#04255e', 0.15) : undefined,
+                                    color: isSubtotalRow ? '#04255e' : undefined
+                                  }}
+                                />
+                              )}
+                            </TableCell>
 
-        <TableCell align="center" sx={{ border: 'none' }}>
-          {hasNoData && !isSubtotalRow ? (
-            <Typography variant="body2" color="text.secondary">NA</Typography>
-          ) : row.selectedCce > 0 ? (
-            <Chip
-              label={row.selectedCce}
-              size="small"
-              variant={isSubtotalRow ? 'filled' : 'outlined'}
-              sx={{
-                color: '#04255e',
-                borderColor: alpha('#04255e', 0.4),
-                fontWeight: isSubtotalRow ? 700 : 600,
-                bgcolor: isSubtotalRow ? alpha('#04255e', 0.15) : undefined
-              }}
-            />
-          ) : (
-            <Typography variant="body2" color="text.secondary">{row.selectedCce}</Typography>
-          )}
-        </TableCell>
+                            <TableCell align="center" sx={{ border: 'none' }}>
+                              {hasNoData && !isSubtotalRow ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : row.selectedCce > 0 ? (
+                                <Chip
+                                  label={row.selectedCce}
+                                  size="small"
+                                  variant={isSubtotalRow ? 'filled' : 'outlined'}
+                                  sx={{
+                                    color: '#04255e',
+                                    borderColor: alpha('#04255e', 0.4),
+                                    fontWeight: isSubtotalRow ? 700 : 600,
+                                    bgcolor: isSubtotalRow ? alpha('#04255e', 0.15) : undefined
+                                  }}
+                                />
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">{row.selectedCce}</Typography>
+                              )}
+                            </TableCell>
 
-        <TableCell align="center" sx={{ border: 'none' }}>
-          {hasNoData && !isSubtotalRow ? (
-            <Typography variant="body2" color="text.secondary">NA</Typography>
-          ) : row.completed > 0 ? (
-            <Chip label={row.completed} size="small" color="success" variant={isSubtotalRow ? 'filled' : 'outlined'} sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
-          ) : (
-            <Typography variant="body2" color="text.secondary">{row.completed}</Typography>
-          )}
-        </TableCell>
+                            <TableCell align="center" sx={{ border: 'none' }}>
+                              {hasNoData && !isSubtotalRow ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : row.completed > 0 ? (
+                                <Chip label={row.completed} size="small" color="success" variant={isSubtotalRow ? 'filled' : 'outlined'} sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">{row.completed}</Typography>
+                              )}
+                            </TableCell>
 
-        <TableCell align="center" sx={{ border: 'none' }}>
-          {hasNoData && !isSubtotalRow ? (
-            <Typography variant="body2" color="text.secondary">NA</Typography>
-          ) : row.ongoing > 0 ? (
-            <Chip label={row.ongoing} size="small" color="primary" variant={isSubtotalRow ? 'filled' : 'outlined'} sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
-          ) : (
-            <Typography variant="body2" color="text.secondary">{row.ongoing}</Typography>
-          )}
-        </TableCell>
+                            <TableCell align="center" sx={{ border: 'none' }}>
+                              {hasNoData && !isSubtotalRow ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : row.ongoing > 0 ? (
+                                <Chip label={row.ongoing} size="small" color="primary" variant={isSubtotalRow ? 'filled' : 'outlined'} sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">{row.ongoing}</Typography>
+                              )}
+                            </TableCell>
 
-        <TableCell align="center" sx={{ border: 'none' }}>
-          {hasNoData && !isSubtotalRow ? (
-            <Typography variant="body2" color="text.secondary">NA</Typography>
-          ) : row.notAvailable > 0 ? (
-            <Chip label={row.notAvailable} size="small" color="error" variant={isSubtotalRow ? 'filled' : 'outlined'} sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
-          ) : (
-            <Typography variant="body2" color="text.secondary">{row.notAvailable}</Typography>
-          )}
-        </TableCell>
+                            <TableCell align="center" sx={{ border: 'none' }}>
+                              {hasNoData && !isSubtotalRow ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : row.notAvailable > 0 ? (
+                                <Chip label={row.notAvailable} size="small" color="error" variant={isSubtotalRow ? 'filled' : 'outlined'} sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">{row.notAvailable}</Typography>
+                              )}
+                            </TableCell>
 
-        <TableCell align="center" sx={{ border: 'none' }}>
-          {hasNoData && !isSubtotalRow ? (
-            <Typography variant="body2" color="text.secondary">NA</Typography>
-          ) : row.notStarted > 0 ? (
-            <Chip
-              label={row.notStarted}
-              size="small"
-              variant={isSubtotalRow ? 'filled' : 'outlined'}
-              sx={{ fontWeight: isSubtotalRow ? 700 : 500, bgcolor: isSubtotalRow ? alpha('#757575', 0.15) : undefined }}
-            />
-          ) : (
-            <Typography variant="body2" color="text.secondary">{row.notStarted}</Typography>
-          )}
-        </TableCell>
+                            <TableCell align="center" sx={{ border: 'none' }}>
+                              {hasNoData && !isSubtotalRow ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : row.notStarted > 0 ? (
+                                <Chip
+                                  label={row.notStarted}
+                                  size="small"
+                                  variant={isSubtotalRow ? 'filled' : 'outlined'}
+                                  sx={{ fontWeight: isSubtotalRow ? 700 : 500, bgcolor: isSubtotalRow ? alpha('#757575', 0.15) : undefined }}
+                                />
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">{row.notStarted}</Typography>
+                              )}
+                            </TableCell>
 
-        <TableCell align="center" sx={{ border: 'none' }}>
-          {hasNoData && !isSubtotalRow ? (
-            <Typography variant="body2" color="text.secondary">NA</Typography>
-          ) : row.underReview > 0 ? (
-            <Chip label={row.underReview} size="small" color="warning" variant={isSubtotalRow ? 'filled' : 'outlined'} sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
-          ) : (
-            <Typography variant="body2" color="text.secondary">{row.underReview}</Typography>
-          )}
-        </TableCell>
+                            <TableCell align="center" sx={{ border: 'none' }}>
+                              {hasNoData && !isSubtotalRow ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : row.underReview > 0 ? (
+                                <Chip label={row.underReview} size="small" color="warning" variant={isSubtotalRow ? 'filled' : 'outlined'} sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">{row.underReview}</Typography>
+                              )}
+                            </TableCell>
 
-        <TableCell align="center" sx={{ border: 'none' }}>
-          {!isSubtotalRow && (
-            row.hasData ? (
-              <Tooltip title="View CCE Details">
-                <IconButton
-                  size="small"
-                  onClick={() => handleViewZoneDetails(row.zoneName, row.zoneId, row.hasData)}
-                  sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
-                >
-                  <VisibilityIcon />
-                </IconButton>
-              </Tooltip>
-            ) : (
-              <Tooltip title="No data available - View disabled">
-                <IconButton size="small" disabled sx={{ color: '#bdbdbd', cursor: 'not-allowed' }}>
-                  <VisibilityOffIcon />
-                </IconButton>
-              </Tooltip>
-            )
-          )}
-        </TableCell>
-      </TableRow>
-    );
-  }
-  return rows;
-})()
+                            <TableCell align="center" sx={{ border: 'none' }}>
+                              {!isSubtotalRow && (
+                                row.hasData ? (
+                                  <Tooltip title="View CCE Details">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleViewZoneDetails(row.zoneName, row.zoneId, row.hasData)}
+                                      sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
+                                    >
+                                      <VisibilityIcon />
+                                    </IconButton>
+                                  </Tooltip>
+                                ) : (
+                                  <Tooltip title="No data available - View disabled">
+                                    <IconButton size="small" disabled sx={{ color: '#bdbdbd', cursor: 'not-allowed' }}>
+                                      <VisibilityOffIcon />
+                                    </IconButton>
+                                  </Tooltip>
+                                )
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }
+                      return rows;
+                    })()
                   ) : (
                     <TableRow>
                       <TableCell colSpan={11} align="center" sx={{ py: 6 }}>

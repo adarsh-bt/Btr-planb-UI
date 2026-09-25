@@ -273,10 +273,9 @@ function ZoneFormReport() {
     setMasterZonesLoading(true);
     try {
       const response = await api.get(`${mainapi.BTR_API}/btr-service/btr-api/zones?desTalukId=${talukIdValue}`);
-      console.log('Master Zones Response:', response.data);
+
 
       if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        console.log('Setting zones list:', response.data.data);
         setZonesList(response.data.data);
       } else {
         console.warn('No zones found, using fallback');
@@ -340,19 +339,15 @@ function ZoneFormReport() {
       const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/taluk?${params.toString()}`;
       const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/dashboard/completed/zone?${btrParams.toString()}`;
 
-      console.log('Zone API Request:', url);
-      console.log('BTR Zone Completed-Clusters Request:', completedClustersUrl);
+
 
       const [formStatusRes, completedClustersRes] = await Promise.all([
         axios.get(url, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(completedClustersUrl, { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
-      console.log('Zone API Response:', formStatusRes.data);
-      console.log('BTR Zone Completed-Clusters Response:', completedClustersRes.data);
-
       setApiData(formStatusRes.data || null);
-      console.log("resposne dataaaa  " + formStatusRes.data)
+
       setBtrData(completedClustersRes.data || null);
     } catch (err) {
       console.error('API Error:', err);
@@ -381,10 +376,6 @@ function ZoneFormReport() {
   const processedData = useMemo(() => {
     const apiZones = apiData?.allSubDetails || {};
     const btrZones = btrData?.allSubDetails || {};
-
-    console.log('API Zones:', apiZones);
-    console.log('Master Zones List:', zonesList);
-    console.log('BTR Zones:', btrZones);
 
     const apiDataMapById = {};
     const apiDataMapByName = {};
@@ -755,8 +746,6 @@ function ZoneFormReport() {
   const handleViewZoneDetails = (zoneName, zoneId, hasData) => {
     // Only navigate if zone has data
     if (!hasData) return;
-
-    console.log(`View details for ${zoneName}`, zoneId);
     navigate(`/kerala_form_report/zone-details/${zoneId}`, {
       state: {
         zoneName,

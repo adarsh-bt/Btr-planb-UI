@@ -310,13 +310,10 @@ function TalukFormReport() {
     setMasterTaluksLoading(true);
     try {
       const response = await api.get(`${mainapi.BTR_API}/btr-service/btr-api/taluks?distId=${districtIdValue}`);
-      console.log('Master Taluks Response:', response.data);
 
       if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        console.log('Setting taluks list:', response.data.data);
         setTaluksList(response.data.data);
       } else {
-        console.warn('No taluks found, using fallback');
         setTaluksList(getFallbackTaluks(districtIdValue));
       }
     } catch (err) {

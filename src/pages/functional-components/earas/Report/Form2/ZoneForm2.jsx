@@ -191,10 +191,10 @@ const ZoneForm2 = () => {
     setMasterZonesLoading(true);
     try {
       const response = await api.get(`${BTR_BASE_URL}/btr-service/btr-api/zones?desTalukId=${talukIdValue}`);
-      console.log('Master Zones Response:', response.data);
+
 
       if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        console.log('Setting zones list:', response.data.data);
+
         setZonesList(response.data.data);
       } else {
         console.warn('No zones found, using fallback');
@@ -253,8 +253,6 @@ const ZoneForm2 = () => {
 
         const [landRes, irrRes] = await Promise.all([axios.get(landUrl, { headers }), axios.get(irrUrl, { headers })]);
 
-        console.log('Land Zones API Response:', landRes.data);
-        console.log('Irrigation Zones API Response:', irrRes.data);
 
         setLandZonesApi(Array.isArray(landRes.data) ? landRes.data : []);
         setIrrZonesApi(Array.isArray(irrRes.data) ? irrRes.data : []);

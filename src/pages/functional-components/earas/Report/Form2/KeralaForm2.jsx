@@ -123,14 +123,14 @@ const KeralaForm2 = () => {
     setMasterDistrictsLoading(true);
     try {
       const response = await api.get(`${BTR_BASE_URL}/btr-service/btr-api/districts`);
-      console.log('Master Districts Response:', response.data);
+
 
       if (response.data && response.data.data && Array.isArray(response.data.data)) {
         const mappedDistricts = response.data.data.map(d => ({
           distId: d.distId,
           distNameEn: d.distNameEn || d.districtName || d.name || ''
         }));
-        console.log('Mapped Districts:', mappedDistricts);
+
         setDistrictsList(mappedDistricts);
       } else {
         console.warn('No districts found, using fallback');
@@ -226,9 +226,6 @@ const KeralaForm2 = () => {
         const irrigationUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/district-irrigation?agriYear=${agriculturalYear}`;
 
         const [landRes, irrRes] = await Promise.all([axios.get(landUrl, { headers }), axios.get(irrigationUrl, { headers })]);
-
-        console.log('Land Data Response:', landRes.data);
-        console.log('Irrigation Data Response:', irrRes.data);
 
         setLandData(Array.isArray(landRes.data) ? landRes.data : []);
         setIrrigationApiData(Array.isArray(irrRes.data) ? irrRes.data : []);

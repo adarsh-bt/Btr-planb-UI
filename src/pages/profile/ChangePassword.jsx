@@ -21,37 +21,37 @@ const ChangePassword = () => {
   const [loading, setLoading] = useState(false);
   const [otpVerifiedToken, setOtpVerifiedToken] = useState(null);
 
-const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showOldPassword, setShowOldPassword] = useState(false);
 
 
 
   // Step 1: Email Verification
- const handleEmailSubmit = async (e) => {
-  e.preventDefault();
+  const handleEmailSubmit = async (e) => {
+    e.preventDefault();
 
-  if (!email) {
-    setError('Please enter your email address.');
-    return;
-  }
-
-  setLoading(true); // start loading
-
-  try {
-    const response = await profileService.emailVerification(email);
-    console.log(response);
-    
-    if (response.status === 200) {
-      setError('');
-      setStep(2);
-    } else {
-      setError(response.message);
+    if (!email) {
+      setError('Please enter your email address.');
+      return;
     }
-  } catch (error) {
-    setError('Failed to send OTP.');
-  } finally {
-    setLoading(false); // stop loading regardless of result
-  }
-};
+
+    setLoading(true); // start loading
+
+    try {
+      const response = await profileService.emailVerification(email);
+      console.log(response);
+
+      if (response.status === 200) {
+        setError('');
+        setStep(2);
+      } else {
+        setError(response.message);
+      }
+    } catch (error) {
+      setError('Failed to send OTP.');
+    } finally {
+      setLoading(false); // stop loading regardless of result
+    }
+  };
 
 
   // Step 2: Handle OTP Submission
@@ -68,19 +68,19 @@ const [showOldPassword, setShowOldPassword] = useState(false);
       const userId = decodedToken.sub;
 
       const response = await profileService.verifyOtp(userId, otpValue);
-     if (
-  response.statusCode === 200 &&
-  response.data &&
-  response.data.resetToken
-) {
-  setOtpVerifiedToken(response.data.resetToken);
+      if (
+        response.statusCode === 200 &&
+        response.data &&
+        response.data.resetToken
+      ) {
+        setOtpVerifiedToken(response.data.resetToken);
 
-  setSuccess('OTP Verified');
-  setError('');
-  setStep(3);
-} else {
-  setError('OTP verification failed');
-}
+        setSuccess('OTP Verified');
+        setError('');
+        setStep(3);
+      } else {
+        setError('OTP verification failed');
+      }
     } catch (error) {
       setError('Error verifying OTP.');
     }
@@ -109,22 +109,21 @@ const [showOldPassword, setShowOldPassword] = useState(false);
 
       const decodedToken = jwtDecode(token);
       const userId = decodedToken.sub; // Extract userId from the decoded token
-if (!otpVerifiedToken) {
-  setError('OTP verification required.');
-  return;
-}
+      if (!otpVerifiedToken) {
+        setError('OTP verification required.');
+        return;
+      }
       // Create the password change request payload
-      console.log('userId :', oldPassword);
-  const passwordCheckRequest = {
-  userId: userId,
-  currentPassword: oldPassword,
-  newPassword: newPassword,
-  confirmPassword: confirmPassword,
-  resetToken: otpVerifiedToken
-};
+
+      const passwordCheckRequest = {
+        userId: userId,
+        currentPassword: oldPassword,
+        newPassword: newPassword,
+        confirmPassword: confirmPassword,
+        resetToken: otpVerifiedToken
+      };
 
       const response = await profileService.changePassword(passwordCheckRequest); // Calling the backend service
-      console.log('Backend response:', response); // Log the full response
 
       // Handling the response from the backend
       if (response.status === 200) {
@@ -136,7 +135,7 @@ if (!otpVerifiedToken) {
       }
     } catch (error) {
       console.error('Error details:', error); // Log the error details
-        setSuccess('');
+      setSuccess('');
       setError('Error updating password.');
     }
   };
@@ -152,9 +151,9 @@ if (!otpVerifiedToken) {
         {success && <Alert severity="success">{success}</Alert>}
 
         {/* Step 1: Email Verification */}
-      {step === 1 && (
-              <>
-              <TextField
+        {step === 1 && (
+          <>
+            <TextField
               variant="outlined"
               label="Email Address"
               value={email}
@@ -165,81 +164,81 @@ if (!otpVerifiedToken) {
             />
 
 
-    {loading ? (
-      <CircularProgress size={24} sx={{ mt: 2 }} />
-    ) : (
-      <Button variant="contained" color="primary" onClick={handleEmailSubmit}>
-        Send OTP
-      </Button>
-    )}
-  </>
-)}
+            {loading ? (
+              <CircularProgress size={24} sx={{ mt: 2 }} />
+            ) : (
+              <Button variant="contained" color="primary" onClick={handleEmailSubmit}>
+                Send OTP
+              </Button>
+            )}
+          </>
+        )}
 
 
         {/* Step 2: OTP Verification */}
         {step === 2 && (
-  <>
-    <Typography variant="body2">Enter the OTP sent to your email.</Typography>
-    <Grid container spacing={1} justifyContent="center">
-      {otp.map((digit, index) => (
-        <Grid item key={index}>
-          <TextField
-            variant="outlined"
-            value={digit}
-            onChange={(e) => {
-              const newOtp = [...otp];
-              newOtp[index] = e.target.value.slice(-1); // Accept only one digit
-              setOtp(newOtp);
+          <>
+            <Typography variant="body2">Enter the OTP sent to your email.</Typography>
+            <Grid container spacing={1} justifyContent="center">
+              {otp.map((digit, index) => (
+                <Grid item key={index}>
+                  <TextField
+                    variant="outlined"
+                    value={digit}
+                    onChange={(e) => {
+                      const newOtp = [...otp];
+                      newOtp[index] = e.target.value.slice(-1); // Accept only one digit
+                      setOtp(newOtp);
 
-              // Move to the next input if the current one is filled
-              if (e.target.value && index < otp.length - 1) {
-                document.getElementById(`otp-${index + 1}`)?.focus();
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Backspace' && !otp[index] && index > 0) {
-                document.getElementById(`otp-${index - 1}`)?.focus();
-              }
-            }}
-            inputProps={{
-              maxLength: 1,
-              style: { textAlign: 'center', width: '20px', fontSize: '15px' },
-            }}
-            id={`otp-${index}`}
-          />
-        </Grid>
-      ))}
-    </Grid>
-    <Button variant="contained" color="primary" onClick={handleOtpSubmit}>
-      Verify OTP
-    </Button>
-  </>
-)}
+                      // Move to the next input if the current one is filled
+                      if (e.target.value && index < otp.length - 1) {
+                        document.getElementById(`otp-${index + 1}`)?.focus();
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Backspace' && !otp[index] && index > 0) {
+                        document.getElementById(`otp-${index - 1}`)?.focus();
+                      }
+                    }}
+                    inputProps={{
+                      maxLength: 1,
+                      style: { textAlign: 'center', width: '20px', fontSize: '15px' },
+                    }}
+                    id={`otp-${index}`}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+            <Button variant="contained" color="primary" onClick={handleOtpSubmit}>
+              Verify OTP
+            </Button>
+          </>
+        )}
 
 
         {/* Step 3: Change Password */}
         {step === 3 && (
           <>
-<TextField
-  fullWidth
-  variant="outlined"
-  type={showOldPassword ? "text" : "password"}
-  label="Old Password"
-  value={oldPassword}
-  onChange={(e) => setOldPassword(e.target.value)}
-  InputProps={{
-    endAdornment: (
-      <InputAdornment position="end">
-        <IconButton
-          onClick={() => setShowOldPassword(!showOldPassword)}
-          edge="end"
-        >
-          {showOldPassword ? <VisibilityOff /> : <Visibility />}
-        </IconButton>
-      </InputAdornment>
-    ),
-  }}
-/>
+            <TextField
+              fullWidth
+              variant="outlined"
+              type={showOldPassword ? "text" : "password"}
+              label="Old Password"
+              value={oldPassword}
+              onChange={(e) => setOldPassword(e.target.value)}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowOldPassword(!showOldPassword)}
+                      edge="end"
+                    >
+                      {showOldPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
             <TextField
               fullWidth
               variant="outlined"

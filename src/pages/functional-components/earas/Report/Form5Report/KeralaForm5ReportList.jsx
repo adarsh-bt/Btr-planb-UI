@@ -140,7 +140,6 @@ function KeralaForm5ReportList() {
       // Try 1: Standard endpoint
       try {
         response = await api.get(`${BASE_URL}/earas-form1-entry/api/districts`);
-        console.log('Master Districts Response (attempt 1):', response.data);
       } catch (err) {
         console.log('Attempt 1 failed, trying alternative endpoint...');
       }
@@ -149,7 +148,7 @@ function KeralaForm5ReportList() {
       if (!response || !response.data) {
         try {
           response = await api.get(`${mainapi.BTR_API}/btr-service/btr-api/districts`);
-          console.log('Master Districts Response (attempt 2):', response.data);
+
         } catch (err) {
           console.log('Attempt 2 failed, trying alternative endpoint...');
         }
@@ -159,7 +158,7 @@ function KeralaForm5ReportList() {
       if (!response || !response.data) {
         try {
           response = await api.get(`/api/districts`);
-          console.log('Master Districts Response (attempt 3):', response.data);
+
         } catch (err) {
           console.log('Attempt 3 failed');
         }
@@ -180,7 +179,7 @@ function KeralaForm5ReportList() {
         }
 
         if (districts.length > 0) {
-          console.log('Setting districts list:', districts);
+
           setDistrictsList(districts);
         } else {
           console.warn('No districts found in response');
@@ -222,18 +221,18 @@ function KeralaForm5ReportList() {
   };
 
   // Fetch crop list for the dropdown filter
-const fetchCropsList = async () => {
-  try {
-    const response = await api.get(
-      `${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-logs?agriYear=${agriculturalYear}`
-    );
-    if (response.data && Array.isArray(response.data)) {
-      setCropOptions(response.data); // now holds { cropId, cropName, ... } objects
+  const fetchCropsList = async () => {
+    try {
+      const response = await api.get(
+        `${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-logs?agriYear=${agriculturalYear}`
+      );
+      if (response.data && Array.isArray(response.data)) {
+        setCropOptions(response.data); // now holds { cropId, cropName, ... } objects
+      }
+    } catch (err) {
+      console.error('Error fetching crops list:', err);
     }
-  } catch (err) {
-    console.error('Error fetching crops list:', err);
-  }
-};
+  };
 
   // Fetch data from API
   const fetchDashboardData = async () => {
@@ -275,7 +274,7 @@ const fetchCropsList = async () => {
       }
 
       url += `?${params.toString()}`;
-      console.log('Fetching data from:', url);
+
 
       const response = await api.get(url);
 
@@ -321,9 +320,7 @@ const fetchCropsList = async () => {
       apiDataMap[key] = d;
     });
 
-    // Log for debugging
-    console.log('Districts List:', districtsList);
-    console.log('API Districts:', apiDistricts);
+
 
     // If we have master districts list, merge with API data
     if (districtsList && districtsList.length > 0) {
@@ -354,12 +351,11 @@ const fetchCropsList = async () => {
         };
       });
 
-      console.log('Merged Districts:', merged);
+
       return merged;
     }
 
-    // Fallback: use only API data if master list is not available
-    console.log('Using API districts only');
+
     return apiDistricts.map((d) => ({
       id: d.districtId || `dist_${Math.random()}`,
       district: d.districtName || 'Unknown District',
@@ -490,7 +486,7 @@ const fetchCropsList = async () => {
 
     // Reasonable column widths so it doesn't open looking cramped
     worksheet['!cols'] = [
-      { wch: 5 },  { wch: 25 }, { wch: 12 },
+      { wch: 5 }, { wch: 25 }, { wch: 12 },
       { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }
     ];
 

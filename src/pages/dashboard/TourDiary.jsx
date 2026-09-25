@@ -69,7 +69,7 @@ const TourDiary = () => {
         if (isFieldDataCollector) {
             openSubmitMenu(event);
         } else {
-            console.log("Submission view:", submissionView);
+
             if (submissionView?.fullMonthAdminStatus === 'APPROVED') {
                 showNotification('info', `Entry already submitted on ${new Date(submissionView.fullMonthSubmittedDate).toLocaleString()}`);
                 return;
@@ -548,7 +548,7 @@ const TourDiary = () => {
         setSubmissionStatus(prev => ({ ...prev, loading: true }));
         try {
             const response = await tourDiaryService.getAdminSubmissionDetails(userId, year, month);
-            console.log("Submission Details API Response:", response);
+
             if (!response.error && response.data) {
                 setSubmissionStatus({
                     firstHalf: {
@@ -592,7 +592,7 @@ const TourDiary = () => {
             if (Array.isArray(response)) {
                 const currentMonth = currentDate.getMonth() + 1;
                 const monthData = response.find(item => item.month === currentMonth);
-                console.log("Current Month Data:", monthData);
+
                 setSubmissionView(monthData || null);
             }
         } catch (error) {
@@ -679,7 +679,7 @@ const TourDiary = () => {
             closeSubmitMenu();
             return;
         }
-        console.log("Opening submit dialog for half:", submissionStatus);
+
         setSubmitDialog({ open: true, half });
         closeSubmitMenu();
     };
@@ -699,7 +699,7 @@ const TourDiary = () => {
 
         if (isFieldDataCollector) {
             submissionType = submitDialog.half === 'First Half' ? 'FIRST_HALF' : 'SECOND_HALF';
-            console.log("Submitting half:", submitDialog);
+
             zoneId = Number(authservice.getzone());
             if (!zoneId) {
                 showNotification('error', 'No zone assigned.');
@@ -720,7 +720,7 @@ const TourDiary = () => {
             ...(zoneId ? { zoneId } : {})
             , submitId: submitDialog.half === 'First Half' ? submissionStatus.firstHalf?.id : submissionStatus.secondHalf?.id
         };
-        console.log("Submitting payload:", payload);
+
         try {
             setSubmitLoading(true);
             const response = await tourDiaryService.submitTourHalf(payload);
@@ -787,7 +787,7 @@ const TourDiary = () => {
             const defaultZoneId = getDefaultZoneId();
             if (defaultZoneId) {
                 setSelectedZoneId(defaultZoneId);
-                console.log("Default zone set in openAddModal:", defaultZoneId);
+
             }
         }
 
@@ -870,12 +870,7 @@ const TourDiary = () => {
     const saveEvent = async () => {
         if (!selectedDate) return;
 
-        console.log("=== saveEvent called ===");
-        console.log("selectedDate:", selectedDate);
-        console.log("formData:", formData);
-        console.log("selectedZoneId (from state):", selectedZoneId);
-        console.log("selectedScheme:", selectedScheme);
-        console.log("entryType:", entryType);
+
 
         // Check if the selected purpose requires a zone
         const selectedPurpose = allPurposes.find(p => p.id === Number(formData.purpose));
@@ -892,7 +887,7 @@ const TourDiary = () => {
             const zoneExists = availableZones.some(z => z.zoneId === Number(selectedZoneId));
             if (zoneExists) {
                 zoneIdToUse = Number(selectedZoneId);
-                console.log("Using selected zone from state:", zoneIdToUse);
+
             }
         }
 
@@ -903,7 +898,7 @@ const TourDiary = () => {
                 const zoneExists = availableZones.some(z => z.zoneId === Number(storedZoneId));
                 if (zoneExists) {
                     zoneIdToUse = Number(storedZoneId);
-                    console.log("Using stored zone as fallback:", zoneIdToUse);
+
                 }
             }
         }
@@ -911,10 +906,8 @@ const TourDiary = () => {
         // If still no zone and only one zone available, use it
         if (!zoneIdToUse && requiresZone && availableZones.length === 1) {
             zoneIdToUse = availableZones[0].zoneId;
-            console.log("Using single available zone:", zoneIdToUse);
-        }
 
-        console.log("Final zoneIdToUse:", zoneIdToUse);
+        }
 
         // Validation
         if (entryType === 'WORKING') {
@@ -951,8 +944,7 @@ const TourDiary = () => {
         const shouldSendZoneId = entryType === 'WORKING' && selectedScheme !== 10 && requiresZone;
         const finalZoneId = shouldSendZoneId ? zoneIdToUse : null;
 
-        console.log("shouldSendZoneId:", shouldSendZoneId);
-        console.log("finalZoneId:", finalZoneId);
+
 
         const payload = {
             purposeId: entryType === 'WORKING' && selectedScheme !== 10 ? Number(formData.purpose) : null,
@@ -965,12 +957,12 @@ const TourDiary = () => {
             entryType
         };
 
-        console.log("Final payload:", payload);
+
 
         try {
             setLoading(true);
             const response = await tourDiaryService.saveOrUpdateTour(payload);
-            console.log("Response:", response);
+
             if (response.id) {
                 const completeEvent = {
                     id: response.id,
@@ -1540,21 +1532,21 @@ const TourDiary = () => {
 
                                                         {/* Verification Status Chip */}
                                                         {submissionView?.firstHalfSubmitted && submissionView?.firstHalfVerifiedStatus && (
-                                                                <Chip
-                                                                    label={`Ver: ${submissionView.firstHalfVerifiedStatus}`}
-                                                                    size="small"
-                                                                    color={
-                                                                        submissionView.firstHalfVerifiedStatus === 'APPROVED' ? 'success' :
-                                                                            submissionView.firstHalfVerifiedStatus === 'REJECTED' ? 'error' : 'warning'
-                                                                    }
-                                                                    sx={{
-                                                                        height: '20px',
-                                                                        fontSize: '0.6rem',
-                                                                        fontWeight: 'bold',
-                                                                        ml: 0.5
-                                                                    }}
-                                                                />
-                                                            )}
+                                                            <Chip
+                                                                label={`Ver: ${submissionView.firstHalfVerifiedStatus}`}
+                                                                size="small"
+                                                                color={
+                                                                    submissionView.firstHalfVerifiedStatus === 'APPROVED' ? 'success' :
+                                                                        submissionView.firstHalfVerifiedStatus === 'REJECTED' ? 'error' : 'warning'
+                                                                }
+                                                                sx={{
+                                                                    height: '20px',
+                                                                    fontSize: '0.6rem',
+                                                                    fontWeight: 'bold',
+                                                                    ml: 0.5
+                                                                }}
+                                                            />
+                                                        )}
 
                                                         {/* Remarks Indicator - Blinking/Animated */}
                                                         {(submissionView?.firstHalfAdminRemark || submissionView?.firstHalfVerificationRemark) && (
@@ -1632,21 +1624,21 @@ const TourDiary = () => {
 
                                                         {/* Verification Status Chip */}
                                                         {submissionView?.secondHalfSubmitted && submissionView?.secondHalfVerifiedStatus && (
-                                                                <Chip
-                                                                    label={`Ver: ${submissionView.secondHalfVerifiedStatus}`}
-                                                                    size="small"
-                                                                    color={
-                                                                        submissionView.secondHalfVerifiedStatus === 'APPROVED' ? 'success' :
-                                                                            submissionView.secondHalfVerifiedStatus === 'REJECTED' ? 'error' : 'warning'
-                                                                    }
-                                                                    sx={{
-                                                                        height: '20px',
-                                                                        fontSize: '0.6rem',
-                                                                        fontWeight: 'bold',
-                                                                        ml: 0.5
-                                                                    }}
-                                                                />
-                                                            )}
+                                                            <Chip
+                                                                label={`Ver: ${submissionView.secondHalfVerifiedStatus}`}
+                                                                size="small"
+                                                                color={
+                                                                    submissionView.secondHalfVerifiedStatus === 'APPROVED' ? 'success' :
+                                                                        submissionView.secondHalfVerifiedStatus === 'REJECTED' ? 'error' : 'warning'
+                                                                }
+                                                                sx={{
+                                                                    height: '20px',
+                                                                    fontSize: '0.6rem',
+                                                                    fontWeight: 'bold',
+                                                                    ml: 0.5
+                                                                }}
+                                                            />
+                                                        )}
 
                                                         {/* Remarks Indicator - Blinking/Animated */}
                                                         {(submissionView?.secondHalfAdminRemark || submissionView?.secondHalfVerificationRemark) && (
@@ -1745,21 +1737,21 @@ const TourDiary = () => {
 
                                                     {/* Verification Status Chip */}
                                                     {submissionView?.fullMonthSubmitId && submissionView?.fullMonthVerifiedStatus && (
-                                                            <Chip
-                                                                label={`Ver: ${submissionView.fullMonthVerifiedStatus}`}
-                                                                size="small"
-                                                                color={
-                                                                    submissionView.fullMonthVerifiedStatus === 'APPROVED' ? 'success' :
-                                                                        submissionView.fullMonthVerifiedStatus === 'REJECTED' ? 'error' : 'warning'
-                                                                }
-                                                                sx={{
-                                                                    height: '20px',
-                                                                    fontSize: '0.6rem',
-                                                                    fontWeight: 'bold',
-                                                                    ml: 0.5
-                                                                }}
-                                                            />
-                                                        )}
+                                                        <Chip
+                                                            label={`Ver: ${submissionView.fullMonthVerifiedStatus}`}
+                                                            size="small"
+                                                            color={
+                                                                submissionView.fullMonthVerifiedStatus === 'APPROVED' ? 'success' :
+                                                                    submissionView.fullMonthVerifiedStatus === 'REJECTED' ? 'error' : 'warning'
+                                                            }
+                                                            sx={{
+                                                                height: '20px',
+                                                                fontSize: '0.6rem',
+                                                                fontWeight: 'bold',
+                                                                ml: 0.5
+                                                            }}
+                                                        />
+                                                    )}
 
                                                     {/* Remarks Indicator */}
                                                     {(submissionView?.fullMonthAdminRemark || submissionView?.fullMonthVerificationRemark) && (
@@ -2223,16 +2215,16 @@ const TourDiary = () => {
                                                             const zoneExists = assignedZones.some(z => z.zoneId === Number(storedZoneId));
                                                             if (zoneExists) {
                                                                 setSelectedZoneId(Number(storedZoneId));
-                                                                console.log("Auto-selected zone from localStorage:", storedZoneId);
+
                                                             } else {
                                                                 // If stored zone not in assigned zones, select first
                                                                 setSelectedZoneId(assignedZones[0].zoneId);
-                                                                console.log("Auto-selected first zone:", assignedZones[0].zoneId);
+
                                                             }
                                                         } else {
                                                             // If no stored zone, select first
                                                             setSelectedZoneId(assignedZones[0].zoneId);
-                                                            console.log("Auto-selected first zone (no stored):", assignedZones[0].zoneId);
+
                                                         }
                                                     }
                                                 }
@@ -2312,7 +2304,7 @@ const TourDiary = () => {
                                                                         label="Zone"
                                                                         onChange={(e) => {
                                                                             const zoneId = e.target.value;
-                                                                            console.log("Zone selected in dropdown:", zoneId);
+
                                                                             setSelectedZoneId(zoneId);
                                                                         }}
                                                                     >
@@ -2351,7 +2343,7 @@ const TourDiary = () => {
                                                         label="Zone"
                                                         onChange={(e) => {
                                                             const zoneId = e.target.value;
-                                                            console.log("Zone selected in dropdown:", zoneId);
+
                                                             setSelectedZoneId(zoneId);
                                                         }}
                                                     >
@@ -2380,7 +2372,7 @@ const TourDiary = () => {
                                                         label="Zone"
                                                         onChange={(e) => {
                                                             const zoneId = e.target.value;
-                                                            console.log("Zone selected in dropdown:", zoneId);
+
                                                             setSelectedZoneId(zoneId);
                                                         }}
                                                     >
@@ -2629,7 +2621,7 @@ const TourDiary = () => {
                                                                         label="Zone"
                                                                         onChange={(e) => {
                                                                             const zoneId = e.target.value;
-                                                                            console.log("Zone selected in edit dropdown:", zoneId);
+
                                                                             setEditSelectedZoneId(zoneId);
                                                                         }}
                                                                     >
@@ -2662,7 +2654,7 @@ const TourDiary = () => {
                                                         label="Zone"
                                                         onChange={(e) => {
                                                             const zoneId = e.target.value;
-                                                            console.log("Zone selected in edit dropdown:", zoneId);
+
                                                             setEditSelectedZoneId(zoneId);
                                                         }}
                                                     >
@@ -2691,7 +2683,7 @@ const TourDiary = () => {
                                                         label="Zone"
                                                         onChange={(e) => {
                                                             const zoneId = e.target.value;
-                                                            console.log("Zone selected in edit dropdown:", zoneId);
+
                                                             setEditSelectedZoneId(zoneId);
                                                         }}
                                                     >

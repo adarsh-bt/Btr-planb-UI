@@ -297,7 +297,7 @@ function TalukClusterReport() {
       if (!token) return;
 
       const response = await api.get(`${BASE_URL}/btr-service/btr-api/taluks?distId=${districtId}`);
-      console.log('Master Taluks Response:', response.data);
+
 
       if (response.data && response.data.data) {
         setTaluksList(response.data.data);
@@ -374,10 +374,9 @@ function TalukClusterReport() {
         url += `&endMonth=${endM}`;
       }
 
-      console.log('Fetching taluk data from:', url);
+
 
       const response = await api.get(url);
-      console.log('Taluk API Response:', response.data);
 
       if (response.data) {
         setApiData(response.data);
@@ -667,7 +666,7 @@ function TalukClusterReport() {
 
     // Reasonable column widths so it doesn't open looking cramped
     worksheet['!cols'] = [
-      { wch: 5 },  { wch: 25 }, { wch: 10 },
+      { wch: 5 }, { wch: 25 }, { wch: 10 },
       { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
     ];
 

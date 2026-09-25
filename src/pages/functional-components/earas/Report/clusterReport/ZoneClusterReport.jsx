@@ -332,7 +332,7 @@ function ZoneClusterReport() {
       if (!token) return;
 
       const response = await api.get(`${BASE_URL}/btr-service/btr-api/zones?desTalukId=${talukId}`);
-      console.log('Master Zones Response:', response.data);
+
 
       if (response.data && response.data.data) {
         setZonesList(response.data.data);
@@ -403,10 +403,10 @@ function ZoneClusterReport() {
       }
 
       const url = `${BASE_URL}/btr-service/api/report/clusters/taluk/${talukIdValue}/zones?${params.toString()}`;
-      console.log('Fetching zone data from:', url);
+
 
       const response = await api.get(url);
-      console.log('Zone API Response:', response.data);
+
 
       if (response.data) {
         setApiData(response.data);
