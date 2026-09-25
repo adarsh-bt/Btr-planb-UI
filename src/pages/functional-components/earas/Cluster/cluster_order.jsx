@@ -47,62 +47,62 @@ function ClusterSeatMap({ zoneId }) {
 
   const BASE_URL = mainapi.BASE_URL;
 
-useEffect(() => {
+  useEffect(() => {
 
-  if (!resolvedZoneId) return;
+    if (!resolvedZoneId) return;
 
-  setLoading(true);
+    setLoading(true);
 
-  const fetchClusterData = async () => {
-    try {
-      const agriYear = authservice.agriyear();
-      const res = await api.get(
-        `/btr-service/cluster-api/user-cluster-summary/${resolvedZoneId}/${agriYear}`
-      );
-
-      const data = res.data;
-
-      setClusters(data.payload || []);
-
-      setSummary({
-        completed: data.completed || 0,
-        ongoing: data.ongoing || 0,
-        notStarted: data.notStarted || 0,
-        underreview: data.underreview || 0,
-      });
-
-      setError(null);
-
-    } catch (err) {
-
-      console.error('Failed to fetch data:', err);
-
-      // ❗ 401 handled globally by interceptor
-      if (err.response) {
-        setError(
-          err.response.data?.message ||
-          'Failed to load cluster data. Please try again.'
+    const fetchClusterData = async () => {
+      try {
+        const agriYear = authservice.agriyear();
+        const res = await api.get(
+          `/btr-service/cluster-api/user-cluster-summary/${resolvedZoneId}/${agriYear}`
         );
-      } else {
-        setError('Network error. Please check your connection.');
+
+        const data = res.data;
+
+        setClusters(data.payload || []);
+
+        setSummary({
+          completed: data.completed || 0,
+          ongoing: data.ongoing || 0,
+          notStarted: data.notStarted || 0,
+          underreview: data.underreview || 0,
+        });
+
+        setError(null);
+
+      } catch (err) {
+
+        console.error('Failed to fetch data:', err);
+
+        // ❗ 401 handled globally by interceptor
+        if (err.response) {
+          setError(
+            err.response.data?.message ||
+            'Failed to load cluster data. Please try again.'
+          );
+        } else {
+          setError('Network error. Please check your connection.');
+        }
+
+        setClusters([]);
+        setSummary({
+          completed: 0,
+          ongoing: 0,
+          notStarted: 0,
+          underreview: 0,
+        });
+
+      } finally {
+        setLoading(false);
       }
+    };
 
-      setClusters([]);
-      setSummary({
-        completed: 0,
-        ongoing: 0,
-        notStarted: 0,
-        underreview: 0,
-      });
+    fetchClusterData();
 
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  fetchClusterData();
-
-}, [resolvedZoneId]);
+  }, [resolvedZoneId]);
 
   // Calculate crop counts
   const getCropCounts = () => {
@@ -166,27 +166,27 @@ useEffect(() => {
     }
   };
 
-// Filter clusters by selected crop
-const getFilteredClusters = () => {
-  let filtered = clusters;
-  
-  // Filter by status
-  if (selectedStatus !== 'All') {
-    filtered = filtered.filter(cluster => cluster.status === selectedStatus);
-  }
-  
-  // Filter by crop
-  if (selectedCrop !== 'All') {
-    filtered = filtered.filter(cluster => 
-      cluster.cceCrops && Array.isArray(cluster.cceCrops) && 
-      cluster.cceCrops.includes(selectedCrop)
-    );
-  }
-  
-  return filtered;
-};
+  // Filter clusters by selected crop
+  const getFilteredClusters = () => {
+    let filtered = clusters;
 
-const filteredClusters = getFilteredClusters();
+    // Filter by status
+    if (selectedStatus !== 'All') {
+      filtered = filtered.filter(cluster => cluster.status === selectedStatus);
+    }
+
+    // Filter by crop
+    if (selectedCrop !== 'All') {
+      filtered = filtered.filter(cluster =>
+        cluster.cceCrops && Array.isArray(cluster.cceCrops) &&
+        cluster.cceCrops.includes(selectedCrop)
+      );
+    }
+
+    return filtered;
+  };
+
+  const filteredClusters = getFilteredClusters();
 
   const navigate = useNavigate();
 
@@ -194,7 +194,7 @@ const filteredClusters = getFilteredClusters();
     const encodedSyNo = encodeURIComponent(syNo);
     const encodedSlNo = encodeURIComponent(slNo);
     // const encodedDistrictId = encodeURIComponent(districtName);
-   
+
     const zoneQuery = resolvedZoneId ? `&zoneId=${resolvedZoneId}` : '';
     // if (encodedDistrictId !== 'undefined') {
     // }else {
@@ -255,35 +255,35 @@ const filteredClusters = getFilteredClusters();
   };
 
   // Crop Chip component
-const CropChip = ({ crop, count, isActive, onClick }) => (
-  <Chip
-    icon={<AgricultureIcon sx={{ fontSize: 16 }} />}
-    label={`${crop === 'All' ? 'All Crops' : `${crop}: ${count}`}`}
-    onClick={onClick}
-    sx={{
-      cursor: 'pointer',
-      fontWeight: 'bold',
-      fontSize: '0.9rem',
-      padding: '8px 16px',
-      borderRadius: '20px',
-      backgroundColor: isActive ? '#4caf50' : '#e8f5e8',
-      color: isActive ? 'white' : '#2e7d32',
-      border: `2px solid #4caf50`,
-      transition: 'all 0.3s ease',
-      boxShadow: isActive
-        ? '0 4px 12px rgba(76, 175, 80, 0.4)'
-        : '0 2px 8px rgba(0,0,0,0.1)',
-      '&:hover': {
-        transform: 'translateY(-2px)',
-        boxShadow: '0 6px 16px rgba(76, 175, 80, 0.3)',
-        backgroundColor: isActive ? '#4caf50' : 'rgba(76, 175, 80, 0.1)',
-      },
-      '& .MuiChip-icon': {
+  const CropChip = ({ crop, count, isActive, onClick }) => (
+    <Chip
+      icon={<AgricultureIcon sx={{ fontSize: 16 }} />}
+      label={`${crop === 'All' ? 'All Crops' : `${crop}: ${count}`}`}
+      onClick={onClick}
+      sx={{
+        cursor: 'pointer',
+        fontWeight: 'bold',
+        fontSize: '0.9rem',
+        padding: '8px 16px',
+        borderRadius: '20px',
+        backgroundColor: isActive ? '#4caf50' : '#e8f5e8',
         color: isActive ? 'white' : '#2e7d32',
-      }
-    }}
-  />
-);
+        border: `2px solid #4caf50`,
+        transition: 'all 0.3s ease',
+        boxShadow: isActive
+          ? '0 4px 12px rgba(76, 175, 80, 0.4)'
+          : '0 2px 8px rgba(0,0,0,0.1)',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          boxShadow: '0 6px 16px rgba(76, 175, 80, 0.3)',
+          backgroundColor: isActive ? '#4caf50' : 'rgba(76, 175, 80, 0.1)',
+        },
+        '& .MuiChip-icon': {
+          color: isActive ? 'white' : '#2e7d32',
+        }
+      }}
+    />
+  );
 
   return (
     <Grid container spacing={3}>
@@ -453,54 +453,54 @@ const CropChip = ({ crop, count, isActive, onClick }) => (
           </Paper> */}
 
             {/* Crop Filter Section */}
-  {Object.keys(cropCounts).length > 0 && (
-  <Paper
-    sx={{
-      p: 3,
-      mb: 4,
-      borderRadius: 3,
-      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-      backgroundColor: '#f8f9fa',
-    }}
-  >
-    <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: '600', color: 'text.primary' }}>
-      Filter by Crops (CCE)
-    </Typography>
+            {Object.keys(cropCounts).length > 0 && (
+              <Paper
+                sx={{
+                  p: 3,
+                  mb: 4,
+                  borderRadius: 3,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                  backgroundColor: '#f8f9fa',
+                }}
+              >
+                <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: '600', color: 'text.primary' }}>
+                  Filter by Crops (CCE)
+                </Typography>
 
- <Stack
-  direction={{ xs: 'column', sm: 'row' }}
-  spacing={2}
-  sx={{
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 1.5,  // This adds consistent spacing between chips
-    '& > *': {
-      mb: 1  // Adds bottom margin to each child chip
-    }
-  }}
->
-  {/* All Crops option */}
-  <CropChip
-    crop="All"
-    count={totalCrops}
-    isActive={selectedCrop === 'All'}
-    onClick={() => setSelectedCrop('All')}
-  />
-  
-  {/* Individual crop chips */}
-  {Object.entries(cropCounts).map(([crop, count]) => (
-    <CropChip
-      key={crop}
-      crop={crop}
-      count={count}
-      isActive={selectedCrop === crop}
-      onClick={() => setSelectedCrop(crop)}
-    />
-  ))}
-</Stack>
-  </Paper>
-)}
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={2}
+                  sx={{
+                    justifyContent: 'flex-start',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: 1.5,  // This adds consistent spacing between chips
+                    '& > *': {
+                      mb: 1  // Adds bottom margin to each child chip
+                    }
+                  }}
+                >
+                  {/* All Crops option */}
+                  <CropChip
+                    crop="All"
+                    count={totalCrops}
+                    isActive={selectedCrop === 'All'}
+                    onClick={() => setSelectedCrop('All')}
+                  />
+
+                  {/* Individual crop chips */}
+                  {Object.entries(cropCounts).map(([crop, count]) => (
+                    <CropChip
+                      key={crop}
+                      crop={crop}
+                      count={count}
+                      isActive={selectedCrop === crop}
+                      onClick={() => setSelectedCrop(crop)}
+                    />
+                  ))}
+                </Stack>
+              </Paper>
+            )}
 
             {/* Cluster Grid Section */}
             <Paper
@@ -514,155 +514,155 @@ const CropChip = ({ crop, count, isActive, onClick }) => (
               <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: '600', color: 'text.primary' }}>
                 {selectedStatus === 'All' ? 'All Clusters' : `${selectedStatus} Clusters`}
                 <Typography component="span" sx={{ ml: 1, color: 'text.secondary' }}>
-                 ({filteredClusters.length})
+                  ({filteredClusters.length})
                 </Typography>
               </Typography>
 
               <Grid container spacing={2} justifyContent="flex-start">
-              {filteredClusters.map((cluster, index) => {
-                    const cardBackgroundColor = getClusterTypeBackgroundColor(cluster.clusterType);
-                    const cardBorderColor = getStatusBorderColor(cluster.status);
-                    const statusConfig = statusColors[cluster.status];
+                {filteredClusters.map((cluster, index) => {
+                  const cardBackgroundColor = getClusterTypeBackgroundColor(cluster.clusterType);
+                  const cardBorderColor = getStatusBorderColor(cluster.status);
+                  const statusConfig = statusColors[cluster.status];
 
-                    return (
-                      <Grid item xs={6} sm={4} md={3} lg={2} xl={1} key={cluster.keyplotId}>
-                        <Tooltip
-                          title={
-                            <Box sx={{ p: 1 }}>
-                              <Typography variant="subtitle2" sx={{ color: 'white', mb: 1 }}>
-                                Cluster {cluster.clusterNo}
-                              </Typography>
-                              <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>
-                                Type: <strong>{cluster.clusterType}</strong>
-                              </Typography>
-                              <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>
-                                Local Body: <strong>{cluster.localbody}</strong>
-                              </Typography>
-                              <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>
-                                Crops: <strong>{cluster.cceCrops?.join(', ') || 'N/A'}</strong>
-                              </Typography>
-                              <Typography variant="caption" sx={{ display: 'block', color: 'rgba(255,255,255,0.8)' }}>
-                                Status: <strong>{cluster.status}</strong>
+                  return (
+                    <Grid item xs={6} sm={4} md={3} lg={2} xl={1} key={cluster.keyplotId}>
+                      <Tooltip
+                        title={
+                          <Box sx={{ p: 1 }}>
+                            <Typography variant="subtitle2" sx={{ color: 'white', mb: 1 }}>
+                              Cluster {cluster.clusterNo}
+                            </Typography>
+                            <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>
+                              Type: <strong>{cluster.clusterType}</strong>
+                            </Typography>
+                            <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>
+                              Local Body: <strong>{cluster.localbody}</strong>
+                            </Typography>
+                            <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>
+                              Crops: <strong>{cluster.cceCrops?.join(', ') || 'N/A'}</strong>
+                            </Typography>
+                            <Typography variant="caption" sx={{ display: 'block', color: 'rgba(255,255,255,0.8)' }}>
+                              Status: <strong>{cluster.status}</strong>
+                            </Typography>
+                          </Box>
+                        }
+                        arrow
+                        placement="top"
+                      >
+                        <Card
+                          sx={{
+                            background: cardBackgroundColor,
+                            border: `3px solid ${cardBorderColor}`,
+                            borderRadius: 2,
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                            ...((cluster.status === 'Ongoing' || cluster.status === 'On Going') && ongoingBorderAnimation),
+                            '&:hover': {
+                              transform: 'translateY(-4px)',
+                              boxShadow: `0 8px 24px ${alpha(cardBorderColor, 0.3)}`,
+                            },
+                            height: '120px', // Fixed height for all boxes
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                          }}
+                          onClick={() => handleClusterClick(cluster.keyplotId, cluster.clusterNo)}
+                        >
+                          <CardContent sx={{
+                            p: 2,
+                            '&:last-child': { pb: 2 },
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              {statusConfig?.icon}
+                              <Typography
+                                variant="h6"
+                                component="div"
+                                sx={{
+                                  fontWeight: 'bold',
+                                  color: '#2C3E50',
+                                  ml: 0.5,
+                                }}
+                              >
+                                {cluster.clusterNo}
                               </Typography>
                             </Box>
-                          }
-                          arrow
-                          placement="top"
-                        >
-                          <Card
-                            sx={{
-                              background: cardBackgroundColor,
-                              border: `3px solid ${cardBorderColor}`,
-                              borderRadius: 2,
-                              textAlign: 'center',
-                              cursor: 'pointer',
-                              transition: 'all 0.3s ease',
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                              ...((cluster.status === 'Ongoing' || cluster.status === 'On Going') && ongoingBorderAnimation),
-                              '&:hover': {
-                                transform: 'translateY(-4px)',
-                                boxShadow: `0 8px 24px ${alpha(cardBorderColor, 0.3)}`,
-                              },
-                              height: '120px', // Fixed height for all boxes
-                              display: 'flex',
-                              flexDirection: 'column',
-                              justifyContent: 'center',
-                            }}
-                            onClick={() => handleClusterClick(cluster.keyplotId, cluster.clusterNo) }
-                          >
-                            <CardContent sx={{
-                              p: 2,
-                              '&:last-child': { pb: 2 },
-                              height: '100%',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              justifyContent: 'space-between',
-                              alignItems: 'center'
-                            }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                {statusConfig?.icon}
-                                <Typography
-                                  variant="h6"
-                                  component="div"
-                                  sx={{
-                                    fontWeight: 'bold',
-                                    color: '#2C3E50',
-                                    ml: 0.5,
-                                  }}
-                                >
-                                  {cluster.clusterNo}
-                                </Typography>
-                              </Box>
 
-                              <Box sx={{ textAlign: 'center' }}>
-                                <Typography
-                                  variant="caption"
-                                  sx={{
-                                    display: 'block',
-                                    color: statusConfig?.main,
-                                    borderRadius: '12px',
-                                    padding: '2px 8px',
-                                    fontSize: '0.65rem',
-                                    fontWeight: 'bold',
-                                    textTransform: 'uppercase',
-                                    backgroundColor: alpha(statusConfig?.main, 0.1),
-                                    mb: 0.5,
-                                  }}
-                                >
-                                  {cluster.clusterType}
-                                </Typography>
+                            <Box sx={{ textAlign: 'center' }}>
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  display: 'block',
+                                  color: statusConfig?.main,
+                                  borderRadius: '12px',
+                                  padding: '2px 8px',
+                                  fontSize: '0.65rem',
+                                  fontWeight: 'bold',
+                                  textTransform: 'uppercase',
+                                  backgroundColor: alpha(statusConfig?.main, 0.1),
+                                  mb: 0.5,
+                                }}
+                              >
+                                {cluster.clusterType}
+                              </Typography>
 
-                                {cluster.cce && (
-                                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-                                    <LocalFloristIcon
-                                      sx={{
-                                        fontSize: 14,
-                                        color: statusConfig?.main,
-                                      }}
-                                    />
-                                    <Typography
-                                      variant="caption"
-                                      sx={{
-                                        fontSize: '0.6rem',
-                                        color: statusConfig?.main,
-                                        fontWeight: 'bold'
-                                      }}
-                                    >
-                                      CCE
-                                    </Typography>
-                                  </Box>
-                                )}
-                              </Box>
-
-                              {/* Crop badges for multiple crops */}
-                              {/* {cluster.cceCrops && cluster.cceCrops.length > 0 && ( */}
-                              <Box sx={{
-                                display: 'flex',
-                                justifyContent: 'center',
-                                flexWrap: 'wrap',
-                                gap: 0.5,
-                                mt: 0.5
-                              }}>
-                                <Box
-
-                                  sx={{
-                                    backgroundColor: alpha('#4caf50', 0.2),
-                                    borderRadius: '8px',
-                                    padding: '1px 6px',
-                                  }}
-                                >
+                              {cluster.cce && (
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                                  <LocalFloristIcon
+                                    sx={{
+                                      fontSize: 14,
+                                      color: statusConfig?.main,
+                                    }}
+                                  />
                                   <Typography
                                     variant="caption"
                                     sx={{
-                                      fontSize: '0.55rem',
-                                      color: '#2e7d32',
+                                      fontSize: '0.6rem',
+                                      color: statusConfig?.main,
                                       fontWeight: 'bold'
                                     }}
                                   >
-                                    {cluster.area} cents
+                                    CCE
                                   </Typography>
                                 </Box>
-                                {/* {cluster.cceCrops.slice(0, 2).map((crop, idx) => (
+                              )}
+                            </Box>
+
+                            {/* Crop badges for multiple crops */}
+                            {/* {cluster.cceCrops && cluster.cceCrops.length > 0 && ( */}
+                            <Box sx={{
+                              display: 'flex',
+                              justifyContent: 'center',
+                              flexWrap: 'wrap',
+                              gap: 0.5,
+                              mt: 0.5
+                            }}>
+                              <Box
+
+                                sx={{
+                                  backgroundColor: alpha('#4caf50', 0.2),
+                                  borderRadius: '8px',
+                                  padding: '1px 6px',
+                                }}
+                              >
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    fontSize: '0.55rem',
+                                    color: '#2e7d32',
+                                    fontWeight: 'bold'
+                                  }}
+                                >
+                                  {cluster.area} cents
+                                </Typography>
+                              </Box>
+                              {/* {cluster.cceCrops.slice(0, 2).map((crop, idx) => (
                                   <Box
                                     key={idx}
                                     sx={{
@@ -683,7 +683,7 @@ const CropChip = ({ crop, count, isActive, onClick }) => (
                                     </Typography>
                                   </Box>
                                 ))} */}
-                                {/* {cluster.cceCrops.length > 2 && (
+                              {/* {cluster.cceCrops.length > 2 && (
                                   <Box
                                     sx={{
                                       backgroundColor: alpha('#757575', 0.2),
@@ -703,14 +703,14 @@ const CropChip = ({ crop, count, isActive, onClick }) => (
                                     </Typography>
                                   </Box>
                                 )} */}
-                              </Box>
-                              {/* )} */}
-                            </CardContent>
-                          </Card>
-                        </Tooltip>
-                      </Grid>
-                    );
-                  })}
+                            </Box>
+                            {/* )} */}
+                          </CardContent>
+                        </Card>
+                      </Tooltip>
+                    </Grid>
+                  );
+                })}
               </Grid>
 
               {filteredClusters.length === 0 && (

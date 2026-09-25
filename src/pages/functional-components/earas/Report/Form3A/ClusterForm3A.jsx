@@ -215,6 +215,7 @@ const ClusterForm3A = () => {
       params.append('seasonId', String(seasonId));
       const irrigationParam = IRRIGATION_PARAM[irrigation];
       if (irrigationParam) params.append('isIrrigated', irrigationParam);
+      console.log(`${BASE_URL}/earas-form1-entry/api/progress-report/form3A/cluster?${params.toString()}`)
       return `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/cluster?${params.toString()}`;
     };
 
@@ -741,7 +742,7 @@ const ClusterForm3A = () => {
                 )
               }}
             />
-
+            <Chip label="All area in Cents" size="small" sx={{ bgcolor: alpha('#2e7d32', 0.08), color: '#2e7d32', fontWeight: 600 }} />
             <Stack direction="row" spacing={1} alignItems="center">
               <Chip
                 label={`${searchFilteredRows.length} row${searchFilteredRows.length !== 1 ? 's' : ''}`}
@@ -922,7 +923,7 @@ const ClusterForm3A = () => {
                               }}
                             >
                               <Stack direction="row" spacing={1} alignItems="center">
-                                <Avatar
+                                {/* <Avatar
                                   sx={{
                                     width: 26, height: 26, fontSize: '0.72rem', fontWeight: 700,
                                     bgcolor: row.hasData ? alpha(themeColor, 0.1) : alpha('#ff9800', 0.15),
@@ -930,7 +931,7 @@ const ClusterForm3A = () => {
                                   }}
                                 >
                                   {String(row.clusterNumber).charAt(0)}
-                                </Avatar>
+                                </Avatar> */}
                                 <Typography
                                   variant="body2"
                                   sx={{

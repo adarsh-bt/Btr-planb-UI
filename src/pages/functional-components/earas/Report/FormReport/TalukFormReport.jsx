@@ -361,9 +361,10 @@ function TalukFormReport() {
 
       // seasonId is mandatory — guard against it ever reaching the URL empty.
       const effectiveSeasonId = normalizeSeasonId(seasonId);
+      const agriYear = AuthService.agriyear() || '2025-2026';
 
-      // form1-status: district + month range + land type + season.
-      const formParams = new URLSearchParams({ districtId: districtIdValue, startMonth: startMonthVal });
+      // form1-status: agriYear + district + month range + land type + season.
+      const formParams = new URLSearchParams({ agriYear, districtId: districtIdValue, startMonth: startMonthVal });
       if (endMonthVal) formParams.append('endMonth', endMonthVal);
       if (landTypeTab && landTypeTab !== 'ALL') formParams.append('landType', landTypeTab);
       formParams.append('seasonId', String(effectiveSeasonId));
@@ -371,7 +372,7 @@ function TalukFormReport() {
       // BTR taluk completed-clusters: agri-year scoped now. No months, no seasonId.
       const btrParams = new URLSearchParams({ districtId: districtIdValue });
       if (landTypeTab && landTypeTab !== 'ALL') btrParams.append('landType', landTypeTab);
-      btrParams.append('agriYear', AuthService.agriyear() || '2025-2026');
+      btrParams.append('agriYear', agriYear);
 
       const formStatusUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/district?${formParams.toString()}`;
       const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/dashboard/completed/taluk?${btrParams.toString()}`;
@@ -628,6 +629,7 @@ function TalukFormReport() {
         seasonTab: landTypeTab, // legacy key
         landType: landTypeTab,
         seasonId: normalizeSeasonId(seasonId),
+        agriYear: AuthService.agriyear() || '2025-2026',
         filterType,
         singleMonth
       }
@@ -653,6 +655,7 @@ function TalukFormReport() {
         seasonTab: landTypeTab, // legacy key
         landType: landTypeTab,
         seasonId: normalizeSeasonId(seasonId),
+        agriYear: AuthService.agriyear() || '2025-2026',
         filterType,
         singleMonth
       }

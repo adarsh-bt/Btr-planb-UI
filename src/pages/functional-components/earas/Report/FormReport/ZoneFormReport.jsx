@@ -324,9 +324,10 @@ function ZoneFormReport() {
 
       // seasonId is mandatory — guard against it ever reaching the URL empty.
       const effectiveSeasonId = normalizeSeasonId(seasonId);
+      const agriYear = AuthService.agriyear() || '2025-2026';
 
-      // form1-status: taluk + month range + land type + season.
-      const params = new URLSearchParams({ talukId: targetQueryId, startMonth: startMonthVal });
+      // form1-status: agriYear + taluk + month range + land type + season.
+      const params = new URLSearchParams({ agriYear, talukId: targetQueryId, startMonth: startMonthVal });
       if (endMonthVal) params.append('endMonth', endMonthVal);
       if (landTypeTab && landTypeTab !== 'ALL') params.append('landType', landTypeTab);
       params.append('seasonId', String(effectiveSeasonId));
@@ -334,7 +335,7 @@ function ZoneFormReport() {
       // BTR zone completed-clusters: agri-year scoped now. No months, no seasonId.
       const btrParams = new URLSearchParams({ talukId: targetQueryId });
       if (landTypeTab && landTypeTab !== 'ALL') btrParams.append('landType', landTypeTab);
-      btrParams.append('agriYear', AuthService.agriyear() || '2025-2026');
+      btrParams.append('agriYear', agriYear);
 
       const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/taluk?${params.toString()}`;
       const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/dashboard/completed/zone?${btrParams.toString()}`;

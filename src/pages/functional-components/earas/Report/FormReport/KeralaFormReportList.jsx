@@ -244,9 +244,10 @@ function KeralaFormReportList() {
 
       // seasonId is mandatory, so guard against it ever being cleared by a UI change.
       const effectiveSeasonId = Number(seasonId) || DEFAULT_SEASON_ID;
+      const agriYear = AuthService.agriyear() || '2025-2026';
 
-      // form1-status: month range + land type + season.
-      const formStatusParams = new URLSearchParams({ startMonth: startMonthVal });
+      // form1-status: agriYear + month range + land type + season.
+      const formStatusParams = new URLSearchParams({ agriYear, startMonth: startMonthVal });
       if (endMonthVal) formStatusParams.append('endMonth', endMonthVal);
       if (landTypeTab && landTypeTab !== 'ALL') formStatusParams.append('landType', landTypeTab);
       formStatusParams.append('seasonId', String(effectiveSeasonId));
@@ -254,7 +255,7 @@ function KeralaFormReportList() {
       // BTR completed-clusters: agri-year scoped now. No months, no seasonId.
       const btrParams = new URLSearchParams();
       if (landTypeTab && landTypeTab !== 'ALL') btrParams.append('landType', landTypeTab);
-      btrParams.append('agriYear', AuthService.agriyear() || '2025-2026');
+      btrParams.append('agriYear', agriYear);
 
       const formStatusUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/state?${formStatusParams.toString()}`;
       const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/completed-clusters?${btrParams.toString()}`;
@@ -508,6 +509,7 @@ function KeralaFormReportList() {
         seasonTab: landTypeTab,
         landType: landTypeTab,
         seasonId: Number(seasonId) || DEFAULT_SEASON_ID,
+        agriYear: AuthService.agriyear() || '2025-2026',
         filterType,
         singleMonth
       }

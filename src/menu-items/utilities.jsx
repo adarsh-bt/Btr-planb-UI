@@ -159,7 +159,7 @@ if (role == 'Super Admin' || role === 'IT Admin' || role === 'District Level App
   );
 } else if (role === 'Field Data Collector') {
   utilities.children.push(
-    zoneDetails,
+    // zoneDetails,
     viewBtr,
     keyPlot,
     clusterFormation,

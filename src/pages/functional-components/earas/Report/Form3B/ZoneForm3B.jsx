@@ -84,8 +84,8 @@ const stickyTintSubtotal = '#e4e9f2';
 const stickyTintGrand = '#d2dbe9';
 
 const CROP_TYPES = [
-  { id: 2, name: 'Annual' },
-  { id: 3, name: 'Perennial' }
+  { id: 3, name: 'Annual' },
+  { id: 2, name: 'Perennial' }
 ];
 
 const ALL_CROP_TYPES = -1;
@@ -275,7 +275,7 @@ const ZoneForm3B = () => {
           }
         });
       }
-    } catch (e) {}
+    } catch (e) { }
   }, [officeInfo, stateData, districtId, districtName, talukId, talukName, navigate]);
 
   // ── Persist session state ──

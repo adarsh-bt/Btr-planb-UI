@@ -839,7 +839,7 @@ const TalukForm3A = () => {
                 )
               }}
             />
-
+            <Chip label="All area in Cents" size="small" sx={{ bgcolor: alpha('#2e7d32', 0.08), color: '#2e7d32', fontWeight: 600 }} />
             <Stack direction="row" spacing={1} alignItems="center">
               <Chip
                 label={`${searchFilteredRows.length} row${searchFilteredRows.length !== 1 ? 's' : ''}`}
@@ -1028,7 +1028,7 @@ const TalukForm3A = () => {
                                 }}
                               >
                                 <Stack direction="row" spacing={1} alignItems="center">
-                                  <Avatar
+                                  {/* <Avatar
                                     sx={{
                                       width: 26, height: 26, fontSize: '0.72rem', fontWeight: 700,
                                       bgcolor: row.hasData ? alpha(themeColor, 0.1) : alpha('#ff9800', 0.15),
@@ -1036,7 +1036,7 @@ const TalukForm3A = () => {
                                     }}
                                   >
                                     {row.taluk?.charAt(0)?.toUpperCase()}
-                                  </Avatar>
+                                  </Avatar> */}
                                   <Typography
                                     variant="body2"
                                     sx={{

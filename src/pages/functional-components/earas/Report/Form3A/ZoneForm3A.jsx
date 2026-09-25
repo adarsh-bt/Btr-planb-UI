@@ -927,13 +927,13 @@ const ZoneForm3A = () => {
                 )
               }}
             />
-
+            <Chip label="All area in Cents" size="small" sx={{ bgcolor: alpha('#2e7d32', 0.08), color: '#2e7d32', fontWeight: 600 }} />
             <Stack direction="row" spacing={1} alignItems="center">
-              <Chip
+              {/* <Chip
                 label={`${filteredBlocks.length} block${filteredBlocks.length !== 1 ? 's' : ''}`}
                 size="small"
                 sx={{ bgcolor: alpha(themeColor, 0.08), color: themeColor, fontWeight: 600 }}
-              />
+              /> */}
               <Tooltip
                 title={
                   exportDisabled

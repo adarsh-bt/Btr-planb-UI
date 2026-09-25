@@ -41,8 +41,8 @@ const IRRIGATION_OPTIONS = [
 ];
 
 const CROP_TYPES = [
-  { id: 2, name: 'Annual' },
-  { id: 3, name: 'Perennial' }
+  { id: 3, name: 'Annual' },
+  { id: 2, name: 'Perennial' }
 ];
 
 const ALL_CROP_TYPES = -1;
@@ -907,7 +907,7 @@ const TalukForm3B = () => {
                                 }}
                               >
                                 <Stack direction="row" spacing={1} alignItems="center">
-                                  <Avatar
+                                  {/* <Avatar
                                     sx={{
                                       width: 26, height: 26, fontSize: '0.72rem', fontWeight: 700,
                                       bgcolor: row.hasData ? alpha(themeColor, 0.1) : alpha('#ff9800', 0.15),
@@ -915,7 +915,7 @@ const TalukForm3B = () => {
                                     }}
                                   >
                                     {row.taluk?.charAt(0)?.toUpperCase()}
-                                  </Avatar>
+                                  </Avatar> */}
                                   <Typography
                                     variant="body2"
                                     sx={{

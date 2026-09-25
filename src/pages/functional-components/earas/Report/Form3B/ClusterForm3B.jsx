@@ -82,8 +82,8 @@ const themeColorAlt = '#0b4ea2';
 
 // Static crop types
 const CROP_TYPES = [
-  { id: 2, name: 'Annual' },
-  { id: 3, name: 'Perennial' }
+  { id: 3, name: 'Annual' },
+  { id: 2, name: 'Perennial' }
 ];
 
 const ALL_CROP_TYPES = -1;

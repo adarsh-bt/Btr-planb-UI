@@ -825,7 +825,8 @@ const KeralaForm3A = () => {
                 )
               }}
             />
-            <Typography variant="p" color="text.secondary" sx={{ fontSize: '0.8rem' }}>All area in Cents</Typography>
+
+            <Chip label="All area in Cents" size="small" sx={{ bgcolor: alpha('#2e7d32', 0.08), color: '#2e7d32', fontWeight: 600 }} />
             <Stack direction="row" spacing={1} alignItems="center">
               <Chip
                 label={`${searchFilteredRows.length} row${searchFilteredRows.length !== 1 ? 's' : ''}`}
@@ -911,7 +912,7 @@ const KeralaForm3A = () => {
                         { key: 'cluster', label: 'Cluster Area', align: 'right' },
                         { key: 'nuc', label: 'NUC Area', align: 'right' },
                         { key: 'ffs', label: 'FFS Area', align: 'right' },
-                        { key: 'cos', label: 'CoS Area', align: 'right' }
+                        { key: 'cos', label: 'COS Area', align: 'right' }
                       ].map((h) => {
                         const isDistrict = h.key === 'district';
                         return (
