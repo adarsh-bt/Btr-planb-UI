@@ -128,7 +128,7 @@ function KeralaForm5ReportList() {
   // UI states
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
 
   // Fetch master districts list
   const fetchMasterDistricts = async () => {
@@ -222,18 +222,18 @@ function KeralaForm5ReportList() {
   };
 
   // Fetch crop list for the dropdown filter
-const fetchCropsList = async () => {
-  try {
-    const response = await api.get(
-      `${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-logs?agriYear=${agriculturalYear}`
-    );
-    if (response.data && Array.isArray(response.data)) {
-      setCropOptions(response.data); // now holds { cropId, cropName, ... } objects
+  const fetchCropsList = async () => {
+    try {
+      const response = await api.get(
+        `${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-logs?agriYear=${agriculturalYear}`
+      );
+      if (response.data && Array.isArray(response.data)) {
+        setCropOptions(response.data); // now holds { cropId, cropName, ... } objects
+      }
+    } catch (err) {
+      console.error('Error fetching crops list:', err);
     }
-  } catch (err) {
-    console.error('Error fetching crops list:', err);
-  }
-};
+  };
 
   // Fetch data from API
   const fetchDashboardData = async () => {
@@ -380,20 +380,26 @@ const fetchCropsList = async () => {
     }));
   }, [apiData, districtsList]);
 
-  // State-level stats come straight from the top-level totals returned by the API
-  // (authoritative — do not re-sum the district rows).
-  const stats = useMemo(
-    () => ({
-      allowtedCce: apiData?.allowedCCECrops || 0,
-      selectedCce: apiData?.selectedCce || 0,
-      completed: apiData?.completed || 0,
-      ongoing: apiData?.ongoing || 0,
-      notAvailable: apiData?.notAvailable || 0,
-      notStarted: apiData?.notStarted || 0,
-      underReview: apiData?.underReview || 0
-    }),
-    [apiData]
-  );
+  // Dynamic summary stats derived from transformed district data
+  const stats = useMemo(() => {
+    const allowtedCceSum = transformApiDataToDistricts.reduce((sum, d) => sum + (d.allowtedCce || 0), 0);
+    const selectedCceSum = transformApiDataToDistricts.reduce((sum, d) => sum + (d.selectedCce || 0), 0);
+    const completedSum = transformApiDataToDistricts.reduce((sum, d) => sum + (d.completed || 0), 0);
+    const ongoingSum = transformApiDataToDistricts.reduce((sum, d) => sum + (d.ongoing || 0), 0);
+    const notAvailableSum = transformApiDataToDistricts.reduce((sum, d) => sum + (d.notAvailable || 0), 0);
+    const notStartedSum = transformApiDataToDistricts.reduce((sum, d) => sum + (d.notStarted || 0), 0);
+    const underReviewSum = transformApiDataToDistricts.reduce((sum, d) => sum + (d.underReview || 0), 0);
+
+    return {
+      allowtedCce: allowtedCceSum > 0 ? allowtedCceSum : (apiData?.allowedCCECrops || 0),
+      selectedCce: selectedCceSum > 0 ? selectedCceSum : (apiData?.selectedCce || 0),
+      completed: completedSum,
+      ongoing: ongoingSum,
+      notAvailable: notAvailableSum,
+      notStarted: notStartedSum,
+      underReview: underReviewSum
+    };
+  }, [apiData, transformApiDataToDistricts]);
 
   // Count districts with no data
   const districtsWithNoData = useMemo(() => {
@@ -490,7 +496,7 @@ const fetchCropsList = async () => {
 
     // Reasonable column widths so it doesn't open looking cramped
     worksheet['!cols'] = [
-      { wch: 5 },  { wch: 25 }, { wch: 12 },
+      { wch: 5 }, { wch: 25 }, { wch: 12 },
       { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }
     ];
 
@@ -1132,7 +1138,7 @@ const fetchCropsList = async () => {
                 onPageChange={handleChangePage}
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
-                rowsPerPageOptions={[5, 10, 25]}
+                rowsPerPageOptions={[15, 25, 50, 100]}
                 sx={{ borderTop: `1px solid ${theme.palette.divider}` }}
               />
             )}

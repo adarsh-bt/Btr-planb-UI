@@ -194,7 +194,7 @@ function TalukForm5Report() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
 
   /* ── persist district context to sessionStorage so breadcrumb back works ── */
   useEffect(() => {
@@ -452,20 +452,26 @@ const fetchCropsList = async () => {
     return talukData.filter(d => !d.hasData).length;
   }, [talukData]);
 
-  // District-level stats come straight from the top-level totals returned by the
-  // API (authoritative — do not re-sum the taluk rows).
-  const stats = useMemo(
-    () => ({
-      allowtedCce: apiData?.allowedCCECrops || 0,
-      selectedCce: apiData?.selectedCce || 0,
-      completed: apiData?.completed || 0,
-      ongoing: apiData?.ongoing || 0,
-      notAvailable: apiData?.notAvailable || 0,
-      notStarted: apiData?.notStarted || 0,
-      underReview: apiData?.underReview || 0
-    }),
-    [apiData]
-  );
+  // Dynamic summary stats derived from taluk data
+  const stats = useMemo(() => {
+    const allowtedCceSum = talukData.reduce((sum, t) => sum + (t.allowtedCce || 0), 0);
+    const selectedCceSum = talukData.reduce((sum, t) => sum + (t.selectedCce || 0), 0);
+    const completedSum = talukData.reduce((sum, t) => sum + (t.completed || 0), 0);
+    const ongoingSum = talukData.reduce((sum, t) => sum + (t.ongoing || 0), 0);
+    const notAvailableSum = talukData.reduce((sum, t) => sum + (t.notAvailable || 0), 0);
+    const notStartedSum = talukData.reduce((sum, t) => sum + (t.notStarted || 0), 0);
+    const underReviewSum = talukData.reduce((sum, t) => sum + (t.underReview || 0), 0);
+
+    return {
+      allowtedCce: allowtedCceSum > 0 ? allowtedCceSum : (apiData?.allowedCCECrops || 0),
+      selectedCce: selectedCceSum > 0 ? selectedCceSum : (apiData?.selectedCce || 0),
+      completed: completedSum,
+      ongoing: ongoingSum,
+      notAvailable: notAvailableSum,
+      notStarted: notStartedSum,
+      underReview: underReviewSum
+    };
+  }, [apiData, talukData]);
 
   const searchFilteredData = useMemo(() => {
     if (!searchTerm.trim()) return talukData;
@@ -1133,7 +1139,7 @@ const fetchCropsList = async () => {
                   setRowsPerPage(parseInt(e.target.value, 10));
                   setPage(0);
                 }}
-                rowsPerPageOptions={[5, 10, 25]}
+                rowsPerPageOptions={[15, 25, 50, 100]}
                 sx={{ borderTop: `1px solid ${theme.palette.divider}` }}
               />
             )}

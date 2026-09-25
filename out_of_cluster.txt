@@ -1,0 +1,1892 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:get/get.dart';
+import 'package:intl/intl.dart';
+
+import '../../../controller/cce/cce_data_entry/out_of_cluster.dart';
+
+// ─── Theme constants ───────────────────────────────────────────────────────────
+const _primary   = Color(0xFF1E88E5);
+const _secondary = Color(0xFF43A047);
+const _accent    = Color(0xFFFF6F00);
+const _surface   = Color(0xFFF5F7FA);
+const _card      = Colors.white;
+
+// add this near your theme constants, or import from non_btr.dart
+enum NonBtrType { houseList, cultivatorList, thandapperNumber, oldSurveyNumber }
+
+extension NonBtrTypeX on NonBtrType {
+  String get label {
+    switch (this) {
+      case NonBtrType.houseList:        return 'House List';
+      case NonBtrType.cultivatorList:   return 'Cultivator List';
+      case NonBtrType.thandapperNumber: return 'Thandapper Number';
+      case NonBtrType.oldSurveyNumber:  return 'Old Survey Number';
+    }
+  }
+  int get btrId {
+    switch (this) {
+      case NonBtrType.houseList:        return 2;
+      case NonBtrType.cultivatorList:   return 3;
+      case NonBtrType.thandapperNumber: return 4;
+      case NonBtrType.oldSurveyNumber:  return 5;
+    }
+  }
+  IconData get icon {
+    switch (this) {
+      case NonBtrType.houseList:        return Icons.home_outlined;
+      case NonBtrType.cultivatorList:   return Icons.agriculture_outlined;
+      case NonBtrType.thandapperNumber: return Icons.format_list_numbered;
+      case NonBtrType.oldSurveyNumber:  return Icons.history_edu_outlined;
+    }
+  }
+}
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAGE
+// ═══════════════════════════════════════════════════════════════════════════════
+class LandRecordEntryPage extends StatelessWidget {
+  const LandRecordEntryPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final ctrl = Get.put(LandRecordController());
+    final small = MediaQuery.of(context).size.width < 600;
+
+    return Scaffold(
+      backgroundColor: _surface,
+      resizeToAvoidBottomInset: true,
+      body: SafeArea(
+        child: Form(
+          key: ctrl.formKey,
+          child: Column(
+            children: [
+              _Header(small: small, ctrl: ctrl),
+              Expanded(
+                child: Scrollbar(
+                  thumbVisibility: true,
+                  thickness: 4,
+                  radius: const Radius.circular(8),
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: EdgeInsets.fromLTRB(
+                      small ? 16 : 24, small ? 16 : 20,
+                      small ? 16 : 24, small ? 16 : 20,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+
+                        // ── 1. Location Details ──────────────────────────────
+                        _SectionCard(child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _CardHeader('Location Details', small),
+                            const SizedBox(height: 16),
+
+                            // Village Dropdown
+                            _FieldLabel('Village', Icons.holiday_village_outlined, small),
+                            Obx(() {
+                              final village = ctrl.selectedVillage.value;
+                              return _SearchableDropdown<VillageItem>(
+                                value: village,
+                                items: ctrl.villages,
+                                hint: 'Select village',
+                                icon: Icons.holiday_village_outlined,
+                                small: small,
+                                displayText: (v) => v.name,
+                                onChanged: (v) => ctrl.onVillageChanged(v),
+                                validator: (v) => v == null ? 'Village is required' : null,
+                              );
+                            }),
+
+                            SizedBox(height: small ? 16 : 20),
+
+                            // Village Block Dropdown (depends on village)
+                            _FieldLabel('Village Block', Icons.domain_rounded, small),
+                            Obx(() {
+                              final village = ctrl.selectedVillage.value;
+                              final block   = ctrl.selectedVillageBlock.value;
+                              final blocks  = ctrl.villageBlocks.toList();
+                              return _SearchableDropdown<VillageBlockItem>(
+                                value: block,
+                                items: blocks,
+                                hint: village == null
+                                    ? 'Select village first'
+                                    : 'Select village block',
+                                icon: Icons.domain_rounded,
+                                small: small,
+                                displayText: (b) => b.name,
+                                onChanged: (b) => ctrl.onVillageBlockChanged(b),
+                                validator: (v) => v == null ? 'Village block is required' : null,
+                                enabled: village != null,
+                              );
+                            }),
+
+                            SizedBox(height: small ? 16 : 20),
+
+                            // Panchayath Dropdown (depends on village block)
+                            _FieldLabel('Panchayath', Icons.account_balance_outlined, small),
+                            Obx(() {
+                              final block       = ctrl.selectedVillageBlock.value;
+                              final panchayath  = ctrl.selectedPanchayath.value;
+                              final panchayaths = ctrl.panchayaths.toList();
+                              return _SearchableDropdown<PanchayathItem>(
+                                value: panchayath,
+                                items: panchayaths,
+                                hint: block == null
+                                    ? 'Select village block first'
+                                    : 'Select panchayath',
+                                icon: Icons.account_balance_outlined,
+                                small: small,
+                                displayText: (p) => p.name,
+                                onChanged: (p) => ctrl.selectedPanchayath.value = p,
+                                validator: (v) => v == null ? 'Panchayath is required' : null,
+                                enabled: block != null,
+                              );
+                            }),
+                          ],
+                        )),
+
+                        SizedBox(height: small ? 16 : 20),
+
+                        // ── 2. Plot Details ──────────────────────────────────
+                        _SectionCard(child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _CardHeader('Plot Details', small),
+                            const SizedBox(height: 16),
+                            small
+                                ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              _FieldLabel('Survey Number', Icons.format_list_numbered, small),
+                              Obx(() {
+                                final suggestions = ctrl.surveySuggestions.toList();
+                                return _AutocompleteField(
+                                  controller: ctrl.surveyNoCtrl,
+                                  suggestions: suggestions,
+                                  hint: 'e.g. 42',
+                                  icon: Icons.format_list_numbered,
+                                  small: small,
+                                  keyboardType: TextInputType.number,
+                                  formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9/]'))],
+                                  onChanged: ctrl.onSurveyNoChanged,
+                                  validator: (v) => (v == null || v.trim().isEmpty)
+                                      ? 'Survey number is required'
+                                      : null,
+                                );
+                              }),
+                              const SizedBox(height: 16),
+                              _FieldLabel('Sub Division No.', Icons.call_split_rounded, small),
+                              Obx(() {
+                                final suggestions = ctrl.subDivSuggestions.toList();
+                                return _AutocompleteField(
+                                  controller: ctrl.subDivCtrl,
+                                  suggestions: suggestions,
+                                  hint: 'e.g. 1',
+                                  icon: Icons.call_split_rounded,
+                                  small: small,
+                                  keyboardType: TextInputType.number,
+                                  formatters: [FilteringTextInputFormatter.digitsOnly],
+                                  onChanged: ctrl.onSubDivChanged,
+                                );
+                              }),
+                            ])
+                                : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Expanded(flex: 3, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                _FieldLabel('Survey Number', Icons.format_list_numbered, small),
+                                Obx(() {
+                                  final suggestions = ctrl.surveySuggestions.toList();
+                                  return _AutocompleteField(
+                                    controller: ctrl.surveyNoCtrl,
+                                    suggestions: suggestions,
+                                    hint: 'e.g. 42',
+                                    icon: Icons.format_list_numbered,
+                                    small: small,
+                                    keyboardType: TextInputType.number,
+                                    formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9/]'))],
+                                    onChanged: ctrl.onSurveyNoChanged,
+                                    validator: (v) => (v == null || v.trim().isEmpty)
+                                        ? 'Survey number is required'
+                                        : null,
+                                  );
+                                }),
+                              ])),
+                              const SizedBox(width: 12),
+                              Expanded(flex: 2, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                _FieldLabel('Sub Division', Icons.call_split_rounded, small),
+                                Obx(() {
+                                  final suggestions = ctrl.subDivSuggestions.toList();
+                                  return _AutocompleteField(
+                                    controller: ctrl.subDivCtrl,
+                                    suggestions: suggestions,
+                                    hint: 'e.g. 1',
+                                    icon: Icons.call_split_rounded,
+                                    small: small,
+                                    keyboardType: TextInputType.number,
+                                    formatters: [FilteringTextInputFormatter.digitsOnly],
+                                    onChanged: ctrl.onSubDivChanged,
+                                  );
+                                }),
+                              ])),
+                            ]),
+
+                            SizedBox(height: small ? 16 : 20),
+
+                            // Cultivated Area + Actual Area side by side
+                            small
+                                ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              _FieldLabel('Cultivated Area (cents)', Icons.straighten_rounded, small),
+                              _InputField(
+                                controller: ctrl.areaCtrl,
+                                hint: 'Enter area in cents',
+                                icon: Icons.crop_landscape_outlined,
+                                small: small,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                formatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$'))],
+                                suffix: 'cents',
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) return 'Area is required';
+                                  final n = double.tryParse(v);
+                                  if (n == null || n <= 0) return 'Enter a valid positive number';
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              _FieldLabel('Actual Land Area (cents)', Icons.landscape_outlined, small),
+                              _InputField(
+                                controller: ctrl.actualAreaCtrl,
+                                hint: 'Enter actual area',
+                                icon: Icons.landscape_outlined,
+                                small: small,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                formatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$'))],
+                                suffix: 'cents',
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) return 'Actual area is required';
+                                  final n = double.tryParse(v);
+                                  if (n == null || n <= 0) return 'Enter a valid positive number';
+                                  return null;
+                                },
+                              ),
+                            ])
+                                : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                _FieldLabel('Cultivated Area', Icons.straighten_rounded, small),
+                                _InputField(
+                                  controller: ctrl.areaCtrl,
+                                  hint: 'Area in cents',
+                                  icon: Icons.crop_landscape_outlined,
+                                  small: small,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  formatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$'))],
+                                  suffix: 'cents',
+                                  validator: (v) {
+                                    if (v == null || v.trim().isEmpty) return 'Required';
+                                    final n = double.tryParse(v);
+                                    if (n == null || n <= 0) return 'Invalid';
+                                    return null;
+                                  },
+                                ),
+                              ])),
+                              const SizedBox(width: 12),
+                              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                _FieldLabel('Actual Land Area', Icons.landscape_outlined, small),
+                                _InputField(
+                                  controller: ctrl.actualAreaCtrl,
+                                  hint: 'Actual area in cents',
+                                  icon: Icons.landscape_outlined,
+                                  small: small,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  formatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$'))],
+                                  suffix: 'cents',
+                                  validator: (v) {
+                                    if (v == null || v.trim().isEmpty) return 'Required';
+                                    final n = double.tryParse(v);
+                                    if (n == null || n <= 0) return 'Invalid';
+                                    return null;
+                                  },
+                                ),
+                              ])),
+                            ]),
+                          ],
+                        )),
+
+                        SizedBox(height: small ? 16 : 20),
+
+                        // ── 3. Classification ────────────────────────────────
+                        _SectionCard(child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _CardHeader('Classification', small),
+                            const SizedBox(height: 16),
+                            _FieldLabel('Season', Icons.wb_sunny_outlined, small),
+                            Obx(() => _SeasonSelector(
+                              selected: ctrl.selectedSeason.value,
+                              onChanged: (s) => ctrl.selectedSeason.value = s,
+                              small: small,
+                            )),
+                            SizedBox(height: small ? 16 : 20),
+                            _FieldLabel('Land Type', Icons.layers_outlined, small),
+                            Obx(() => _LandTypeSelector(
+                              selected: ctrl.selectedLandType.value,
+                              onChanged: (t) => ctrl.selectedLandType.value = t,
+                              small: small,
+                            )),
+                          ],
+                        )),
+
+                        SizedBox(height: small ? 16 : 20),
+
+                        // ── 4. Cultivator Details ────────────────────────────
+                        _SectionCard(child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _CardHeader('Cultivator Details', small),
+                            const SizedBox(height: 16),
+                            _FieldLabel('Cultivator Name', Icons.person_outline_rounded, small),
+                            _InputField(
+                              controller: ctrl.cultivatorCtrl,
+                              hint: 'Enter cultivator name',
+                              icon: Icons.person_outline_rounded,
+                              small: small,
+                              formatters: [FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z ]'))],
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) return 'Cultivator name is required';
+                                if (!RegExp(r'^[a-zA-Z ]+$').hasMatch(v)) return 'Letters and spaces only';
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            _FieldLabel('Address', Icons.home_outlined, small),
+                            _InputField(
+                              controller: ctrl.addressCtrl,
+                              hint: 'Enter full address',
+                              icon: Icons.home_outlined,
+                              small: small,
+                              maxLines: 2,
+                              formatters: [FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9 .,\-/\\#&()@]'))],
+                              validator: (v) => (v == null || v.trim().isEmpty) ? 'Address is required' : null,
+                            ),
+                          ],
+                        )),
+                        SizedBox(height: small ? 16 : 20),
+
+// ── 5. Non-BTR Type ──────────────────────────────────────────────────
+                        _SectionCard(child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _CardHeader('Non-BTR Type', small),
+                            const SizedBox(height: 16),
+
+                            // ── Type dropdown ──────────────────────────────────────────
+                            _FieldLabel('Non-BTR Type', Icons.category_outlined, small),
+                            Obx(() => FormField<NonBtrType>(
+                              initialValue: ctrl.selectedNonBtrType.value,
+                              validator: (_) => null, // optional — remove if you want to require it
+                              builder: (state) => Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: ctrl.selectedNonBtrType.value != null
+                                            ? _secondary
+                                            : Colors.grey.shade300,
+                                        width: ctrl.selectedNonBtrType.value != null ? 2 : 1.5,
+                                      ),
+                                    ),
+                                    child: DropdownButtonFormField<NonBtrType>(
+                                      value: ctrl.selectedNonBtrType.value,
+                                      decoration: const InputDecoration(
+                                        border: InputBorder.none,
+                                        contentPadding:
+                                        EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        prefixIcon:
+                                        Icon(Icons.category_outlined, color: _secondary, size: 20),
+                                      ),
+                                      hint: Text('Select Non-BTR type',
+                                          style: TextStyle(
+                                              color: Colors.grey.shade400, fontSize: small ? 13 : 14)),
+                                      isExpanded: true,
+                                      icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                                      items: NonBtrType.values.map((type) {
+                                        return DropdownMenuItem<NonBtrType>(
+                                          value: type,
+                                          child: Row(children: [
+                                            Icon(type.icon,
+                                                size: 18, color: Colors.blueGrey.shade600),
+                                            const SizedBox(width: 10),
+                                            Text(type.label,
+                                                style: const TextStyle(
+                                                    fontSize: 14, fontWeight: FontWeight.w500)),
+                                          ]),
+                                        );
+                                      }).toList(),
+                                      onChanged: ctrl.onNonBtrTypeChanged,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )),
+
+                            // ── Placeholder when nothing selected ─────────────────────
+                            Obx(() {
+                              if (ctrl.selectedNonBtrType.value != null) return const SizedBox.shrink();
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 20),
+                                child: Center(
+                                  child: Column(children: [
+                                    Icon(Icons.touch_app_outlined,
+                                        size: 40, color: Colors.grey.shade300),
+                                    const SizedBox(height: 8),
+                                    Text('Select a Non-BTR type to load fields',
+                                        style: TextStyle(
+                                            color: Colors.grey.shade400, fontSize: 13)),
+                                  ]),
+                                ),
+                              );
+                            }),
+
+                            // ── Conditional fields ─────────────────────────────────────
+                            Obx(() {
+                              final type = ctrl.selectedNonBtrType.value;
+                              if (type == null) return const SizedBox.shrink();
+                              final btrId = type.btrId;
+                              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+                                // Type badge
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blueGrey.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.blueGrey.shade200),
+                                  ),
+                                  child: Row(children: [
+                                    Icon(type.icon, size: 16, color: Colors.blueGrey.shade700),
+                                    const SizedBox(width: 8),
+                                    Text(type.label,
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.blueGrey.shade700)),
+                                  ]),
+                                ),
+                                const SizedBox(height: 16),
+
+                                // ── House List fields (btrId == 2)
+                                if (btrId == 2) ...[
+                                  _FieldLabel('Ward Number', Icons.grid_view_rounded, small),
+                                  _InputField(
+                                    controller: ctrl.wardNoCtrl,
+                                    hint: 'Enter ward number',
+                                    icon: Icons.grid_view_rounded,
+                                    small: small,
+                                    keyboardType: TextInputType.number,
+                                    formatters: [FilteringTextInputFormatter.digitsOnly],
+                                    validator: (v) => (v == null || v.trim().isEmpty)
+                                        ? 'Ward number is required'
+                                        : null,
+                                  ),
+                                  SizedBox(height: small ? 16 : 20),
+                                  _FieldLabel('House Number', Icons.home_outlined, small),
+                                  _InputField(
+                                    controller: ctrl.houseNoCtrl,
+                                    hint: 'Enter house number',
+                                    icon: Icons.home_outlined,
+                                    small: small,
+                                    keyboardType: TextInputType.number,
+                                    formatters: [FilteringTextInputFormatter.digitsOnly],
+                                    validator: (v) => (v == null || v.trim().isEmpty)
+                                        ? 'House number is required'
+                                        : null,
+                                  ),
+                                  SizedBox(height: small ? 16 : 20),
+                                ],
+
+                                // ── Survey + Sub Div (House List & Cultivator List)
+                                if (btrId == 2 || btrId == 3) ...[
+                                  small
+                                      ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    _FieldLabel('Survey Number (Non-BTR)', Icons.format_list_numbered, small),
+                                    _InputField(
+                                      controller: ctrl.surveyNoCtrl,
+                                      hint: 'Optional',
+                                      icon: Icons.format_list_numbered,
+                                      small: small,
+                                      keyboardType: TextInputType.number,
+                                      formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9/]'))],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _FieldLabel('Sub Division (Non-BTR)', Icons.call_split_rounded, small),
+                                    _InputField(
+                                      controller: ctrl.subDivCtrl,
+                                      hint: 'Optional',
+                                      icon: Icons.call_split_rounded,
+                                      small: small,
+                                      keyboardType: TextInputType.number,
+                                      formatters: [FilteringTextInputFormatter.digitsOnly],
+                                    ),
+                                  ])
+                                      : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      _FieldLabel('Survey Number', Icons.format_list_numbered, small),
+                                      _InputField(
+                                        controller: ctrl.surveyNoCtrl,
+                                        hint: 'Optional',
+                                        icon: Icons.format_list_numbered,
+                                        small: small,
+                                        keyboardType: TextInputType.number,
+                                        formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9/]'))],
+                                      ),
+                                    ])),
+                                    const SizedBox(width: 12),
+                                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      _FieldLabel('Sub Division', Icons.call_split_rounded, small),
+                                      _InputField(
+                                        controller: ctrl.subDivCtrl,
+                                        hint: 'Optional',
+                                        icon: Icons.call_split_rounded,
+                                        small: small,
+                                        keyboardType: TextInputType.number,
+                                        formatters: [FilteringTextInputFormatter.digitsOnly],
+                                      ),
+                                    ])),
+                                  ]),
+                                  SizedBox(height: small ? 16 : 20),
+                                ],
+
+                                // ── Cultivator List fields (btrId == 3)
+                                if (btrId == 3) ...[
+                                  _FieldLabel('Name of Cultivator', Icons.person_outline_rounded, small),
+                                  _InputField(
+                                    controller: ctrl.cultivatorCtrl,
+                                    hint: 'Enter cultivator name',
+                                    icon: Icons.person_outline_rounded,
+                                    small: small,
+                                    formatters: [FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z ]'))],
+                                    validator: (v) => (v == null || v.trim().isEmpty)
+                                        ? 'Cultivator name is required'
+                                        : null,
+                                  ),
+                                  SizedBox(height: small ? 16 : 20),
+                                  _FieldLabel('Address', Icons.home_outlined, small),
+                                  _InputField(
+                                    controller: ctrl.addressCtrl,
+                                    hint: 'Enter full address',
+                                    icon: Icons.home_outlined,
+                                    small: small,
+                                    maxLines: 2,
+                                    validator: (v) => (v == null || v.trim().isEmpty)
+                                        ? 'Address is required'
+                                        : null,
+                                  ),
+                                  SizedBox(height: small ? 16 : 20),
+                                ],
+
+                                // ── Thandapper Number fields (btrId == 4)
+                                if (btrId == 4) ...[
+                                  small
+                                      ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    _FieldLabel('Thandapper Number', Icons.format_list_numbered, small),
+                                    _InputField(
+                                      controller: ctrl.thandapperNoCtrl,
+                                      hint: 'Enter thandapper number',
+                                      icon: Icons.format_list_numbered,
+                                      small: small,
+                                      keyboardType: TextInputType.number,
+                                      formatters: [FilteringTextInputFormatter.digitsOnly],
+                                      validator: (v) => (v == null || v.trim().isEmpty)
+                                          ? 'Thandapper number is required'
+                                          : null,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _FieldLabel('Thandapper Sub Number', Icons.subdirectory_arrow_right, small),
+                                    _InputField(
+                                      controller: ctrl.thandapperSubNoCtrl,
+                                      hint: 'Optional',
+                                      icon: Icons.subdirectory_arrow_right,
+                                      small: small,
+                                      keyboardType: TextInputType.number,
+                                      formatters: [FilteringTextInputFormatter.digitsOnly],
+                                    ),
+                                  ])
+                                      : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      _FieldLabel('Thandapper No.', Icons.format_list_numbered, small),
+                                      _InputField(
+                                        controller: ctrl.thandapperNoCtrl,
+                                        hint: 'Required',
+                                        icon: Icons.format_list_numbered,
+                                        small: small,
+                                        keyboardType: TextInputType.number,
+                                        formatters: [FilteringTextInputFormatter.digitsOnly],
+                                        validator: (v) => (v == null || v.trim().isEmpty)
+                                            ? 'Required'
+                                            : null,
+                                      ),
+                                    ])),
+                                    const SizedBox(width: 12),
+                                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      _FieldLabel('Sub Number', Icons.subdirectory_arrow_right, small),
+                                      _InputField(
+                                        controller: ctrl.thandapperSubNoCtrl,
+                                        hint: 'Optional',
+                                        icon: Icons.subdirectory_arrow_right,
+                                        small: small,
+                                        keyboardType: TextInputType.number,
+                                        formatters: [FilteringTextInputFormatter.digitsOnly],
+                                      ),
+                                    ])),
+                                  ]),
+                                  SizedBox(height: small ? 16 : 20),
+                                ],
+
+                                // ── Old Survey Number fields (btrId == 5)
+                                if (btrId == 5) ...[
+                                  small
+                                      ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    _FieldLabel('Old Survey Number', Icons.history_edu_outlined, small),
+                                    _InputField(
+                                      controller: ctrl.oldSurveyNoCtrl,
+                                      hint: 'Enter old survey number',
+                                      icon: Icons.history_edu_outlined,
+                                      small: small,
+                                      keyboardType: TextInputType.number,
+                                      formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9/]'))],
+                                      validator: (v) => (v == null || v.trim().isEmpty)
+                                          ? 'Old survey number is required'
+                                          : null,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _FieldLabel('Sub Division', Icons.call_split_rounded, small),
+                                    _InputField(
+                                      controller: ctrl.oldSurveySubDivCtrl,
+                                      hint: 'Enter sub division',
+                                      icon: Icons.call_split_rounded,
+                                      small: small,
+                                      keyboardType: TextInputType.number,
+                                      formatters: [FilteringTextInputFormatter.digitsOnly],
+                                      validator: (v) => (v == null || v.trim().isEmpty)
+                                          ? 'Sub division is required'
+                                          : null,
+                                    ),
+                                  ])
+                                      : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      _FieldLabel('Old Survey No.', Icons.history_edu_outlined, small),
+                                      _InputField(
+                                        controller: ctrl.oldSurveyNoCtrl,
+                                        hint: 'Required',
+                                        icon: Icons.history_edu_outlined,
+                                        small: small,
+                                        keyboardType: TextInputType.number,
+                                        formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9/]'))],
+                                        validator: (v) => (v == null || v.trim().isEmpty)
+                                            ? 'Required'
+                                            : null,
+                                      ),
+                                    ])),
+                                    const SizedBox(width: 12),
+                                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      _FieldLabel('Sub Division', Icons.call_split_rounded, small),
+                                      _InputField(
+                                        controller: ctrl.oldSurveySubDivCtrl,
+                                        hint: 'Required',
+                                        icon: Icons.call_split_rounded,
+                                        small: small,
+                                        keyboardType: TextInputType.number,
+                                        formatters: [FilteringTextInputFormatter.digitsOnly],
+                                        validator: (v) => (v == null || v.trim().isEmpty)
+                                            ? 'Required'
+                                            : null,
+                                      ),
+                                    ])),
+                                  ]),
+                                  SizedBox(height: small ? 16 : 20),
+                                ],
+
+                                // ── Actual + Enumerated area (all types)
+                                small
+                                    ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  _FieldLabel('Actual Area (cents)', Icons.landscape_outlined, small),
+                                  _InputField(
+                                    controller: ctrl.actualAreaNonBtrCtrl,
+                                    hint: btrId == 3 ? 'Required' : 'Optional',
+                                    icon: Icons.landscape_outlined,
+                                    small: small,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    formatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$'))],
+                                    suffix: 'cents',
+                                    validator: (v) {
+                                      if (btrId == 3 && (v == null || v.trim().isEmpty)) return 'Required for Cultivator List';
+                                      if (v != null && v.trim().isNotEmpty) {
+                                        final n = double.tryParse(v);
+                                        if (n == null || n <= 0) return 'Enter a valid positive number';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _FieldLabel('Enumerated Area (cents)', Icons.straighten_rounded, small),
+                                  _InputField(
+                                    controller: ctrl.enumeratedAreaCtrl,
+                                    hint: 'Optional',
+                                    icon: Icons.straighten_rounded,
+                                    small: small,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    formatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$'))],
+                                    suffix: 'cents',
+                                  ),
+                                ])
+                                    : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    _FieldLabel('Actual Area', Icons.landscape_outlined, small),
+                                    _InputField(
+                                      controller: ctrl.actualAreaNonBtrCtrl,
+                                      hint: btrId == 3 ? 'Required' : 'Optional',
+                                      icon: Icons.landscape_outlined,
+                                      small: small,
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      formatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$'))],
+                                      suffix: 'cents',
+                                      validator: (v) {
+                                        if (btrId == 3 && (v == null || v.trim().isEmpty)) return 'Required';
+                                        if (v != null && v.trim().isNotEmpty) {
+                                          final n = double.tryParse(v);
+                                          if (n == null || n <= 0) return 'Invalid';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  ])),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    _FieldLabel('Enumerated Area', Icons.straighten_rounded, small),
+                                    _InputField(
+                                      controller: ctrl.enumeratedAreaCtrl,
+                                      hint: 'Optional',
+                                      icon: Icons.straighten_rounded,
+                                      small: small,
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      formatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$'))],
+                                      suffix: 'cents',
+                                    ),
+                                  ])),
+                                ]),
+                              ]);
+                            }),
+                          ],
+                        )),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // ── Footer ────────────────────────────────────────────────────
+              Obx(() => _Footer(
+                isSaving: ctrl.isSaving.value,
+                small: small,
+                onCancel: () {
+                  ctrl.clearAll();
+                  Get.back();
+                },
+                onSave: ctrl.submit,
+              )),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SEARCHABLE DROPDOWN (generic)
+// ═══════════════════════════════════════════════════════════════════════════════
+class _SearchableDropdown<T> extends StatelessWidget {
+  final T? value;
+  final List<T> items;
+  final String hint;
+  final IconData icon;
+  final bool small;
+  final String Function(T) displayText;
+  final ValueChanged<T?> onChanged;
+  final String? Function(T?)? validator;
+  final bool enabled;
+
+  const _SearchableDropdown({
+    required this.value,
+    required this.items,
+    required this.hint,
+    required this.icon,
+    required this.small,
+    required this.displayText,
+    required this.onChanged,
+    this.validator,
+    this.enabled = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final borderRadius = BorderRadius.circular(12);
+    final disabledColor = Colors.grey.shade200;
+    final fillColor = enabled ? Colors.white : disabledColor;
+
+    return FormField<T>(
+      initialValue: value,
+      validator: validator,
+      builder: (state) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            GestureDetector(
+              onTap: enabled
+                  ? () => _showBottomSheet(context, state)
+                  : null,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                decoration: BoxDecoration(
+                  color: fillColor,
+                  borderRadius: borderRadius,
+                  border: Border.all(
+                    color: state.hasError
+                        ? Colors.red.shade400
+                        : (value != null ? _secondary : Colors.grey.shade300),
+                    width: value != null ? 2 : 1.5,
+                  ),
+                ),
+                padding: EdgeInsets.symmetric(
+                    horizontal: small ? 14 : 16,
+                    vertical: small ? 13 : 14),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(7),
+                      decoration: BoxDecoration(
+                        color: _secondary.withValues(alpha: enabled ? 0.1 : 0.05),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(icon,
+                          size: small ? 16 : 18,
+                          color: enabled ? _secondary : Colors.grey.shade400),
+                    ),
+                    SizedBox(width: small ? 10 : 12),
+                    Expanded(
+                      child: Text(
+                        value != null ? displayText(value as T) : hint,
+                        style: TextStyle(
+                          fontSize: small ? 14 : 15,
+                          fontWeight: value != null ? FontWeight.w500 : FontWeight.w400,
+                          color: value != null
+                              ? Colors.black87
+                              : (enabled ? Colors.grey.shade400 : Colors.grey.shade400),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: enabled ? Colors.grey.shade500 : Colors.grey.shade300,
+                      size: 22,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (state.hasError)
+              Padding(
+                padding: const EdgeInsets.only(top: 6, left: 12),
+                child: Text(
+                  state.errorText!,
+                  style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showBottomSheet(BuildContext context, FormFieldState<T> state) {
+    final searchCtrl = TextEditingController();
+    final RxList<T> filtered = RxList<T>.from(items);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (_, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              // Handle
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Title
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                child: Row(
+                  children: [
+                    Icon(icon, color: _primary, size: 20),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Select $hint'.replaceAll('Select Select ', 'Select '),
+                      style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87),
+                    ),
+                  ],
+                ),
+              ),
+              // Search bar
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: TextField(
+                  controller: searchCtrl,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'Search…',
+                    hintStyle: TextStyle(color: Colors.grey.shade400),
+                    prefixIcon: Icon(Icons.search, color: Colors.grey.shade400),
+                    filled: true,
+                    fillColor: _surface,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                  ),
+                  onChanged: (q) {
+                    final lower = q.toLowerCase();
+                    filtered.value = items
+                        .where((item) =>
+                        displayText(item).toLowerCase().contains(lower))
+                        .toList();
+                  },
+                ),
+              ),
+              const Divider(height: 1),
+              // List
+              Expanded(
+                child: Obx(() => filtered.isEmpty
+                    ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.search_off_rounded,
+                          size: 40, color: Colors.grey.shade300),
+                      const SizedBox(height: 8),
+                      Text('No results found',
+                          style: TextStyle(color: Colors.grey.shade400)),
+                    ],
+                  ),
+                )
+                    : ListView.builder(
+                  controller: scrollController,
+                  itemCount: filtered.length,
+                  itemBuilder: (_, i) {
+                    final item = filtered[i];
+                    final isSelected = value != null &&
+                        displayText(value as T) == displayText(item);
+                    return ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? _secondary.withValues(alpha: 0.12)
+                              : _surface,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(icon,
+                            size: 18,
+                            color: isSelected ? _secondary : Colors.grey.shade400),
+                      ),
+                      title: Text(
+                        displayText(item),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: isSelected ? _secondary : Colors.black87,
+                        ),
+                      ),
+                      trailing: isSelected
+                          ? const Icon(Icons.check_circle_rounded,
+                          color: _secondary, size: 20)
+                          : null,
+                      onTap: () {
+                        onChanged(item);
+                        state.didChange(item);
+                        Navigator.pop(ctx);
+                      },
+                    );
+                  },
+                )),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUTOCOMPLETE FIELD (survey no / sub div suggestions)
+// ═══════════════════════════════════════════════════════════════════════════════
+class _AutocompleteField extends StatefulWidget {
+  final TextEditingController controller;
+  final List<String> suggestions;
+  final String hint;
+  final IconData icon;
+  final bool small;
+  final TextInputType keyboardType;
+  final List<TextInputFormatter>? formatters;
+  final ValueChanged<String>? onChanged;
+  final String? Function(String?)? validator;
+
+  const _AutocompleteField({
+    required this.controller,
+    required this.suggestions,
+    required this.hint,
+    required this.icon,
+    required this.small,
+    this.keyboardType = TextInputType.text,
+    this.formatters,
+    this.onChanged,
+    this.validator,
+  });
+
+  @override
+  State<_AutocompleteField> createState() => _AutocompleteFieldState();
+}
+
+class _AutocompleteFieldState extends State<_AutocompleteField> {
+  final _layerLink = LayerLink();
+  OverlayEntry? _overlay;
+  final _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(() {
+      if (!_focusNode.hasFocus) _removeOverlay();
+    });
+  }
+
+  @override
+  void dispose() {
+    _removeOverlay();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _removeOverlay() {
+    _overlay?.remove();
+    _overlay = null;
+  }
+
+  void _showOverlay(List<String> items) {
+    _removeOverlay();
+    if (items.isEmpty) return;
+
+    final renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+    final size = renderBox.size;
+
+    _overlay = OverlayEntry(
+      builder: (_) => Positioned(
+        width: size.width,
+        child: CompositedTransformFollower(
+          link: _layerLink,
+          showWhenUnlinked: false,
+          offset: Offset(0, size.height + 4),
+          child: Material(
+            elevation: 8,
+            borderRadius: BorderRadius.circular(12),
+            color: Colors.white,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 200),
+                child: ListView.builder(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  itemCount: items.length,
+                  itemBuilder: (_, i) => InkWell(
+                    onTap: () {
+                      widget.controller.text = items[i];
+                      widget.onChanged?.call(items[i]);
+                      _removeOverlay();
+                      _focusNode.unfocus();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          Icon(widget.icon,
+                              size: 16, color: _secondary.withValues(alpha: 0.7)),
+                          const SizedBox(width: 10),
+                          Text(items[i],
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black87)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(_overlay!);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: TextFormField(
+        controller: widget.controller,
+        focusNode: _focusNode,
+        keyboardType: widget.keyboardType,
+        inputFormatters: widget.formatters,
+        validator: widget.validator,
+        style: TextStyle(
+            fontSize: widget.small ? 14 : 15,
+            fontWeight: FontWeight.w500,
+            color: Colors.black87),
+        onChanged: (val) {
+          widget.onChanged?.call(val);
+          final filtered = widget.suggestions
+              .where((s) => s.toLowerCase().contains(val.toLowerCase()))
+              .toList();
+          if (val.isEmpty) {
+            _removeOverlay();
+          } else {
+            _showOverlay(filtered);
+          }
+        },
+        decoration: InputDecoration(
+          hintText: widget.hint,
+          hintStyle: TextStyle(
+              color: Colors.grey.shade400, fontSize: widget.small ? 13 : 14),
+          filled: true,
+          fillColor: Colors.white,
+          prefixIcon: Container(
+            margin: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: _secondary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(widget.icon,
+                size: widget.small ? 16 : 18, color: _secondary),
+          ),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none),
+          enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide:
+              BorderSide(color: Colors.grey.shade300, width: 1.5)),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: _secondary, width: 2)),
+          errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.red.shade400, width: 1.5)),
+          focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.red.shade600, width: 2)),
+          contentPadding: EdgeInsets.symmetric(
+              horizontal: widget.small ? 14 : 16,
+              vertical: widget.small ? 13 : 14),
+        ),
+      ),
+    );
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SEASON SELECTOR  (Autumn / Winter / Summer)
+// ═══════════════════════════════════════════════════════════════════════════════
+class _SeasonSelector extends StatelessWidget {
+  final Season? selected;
+  final ValueChanged<Season> onChanged;
+  final bool small;
+  const _SeasonSelector({
+    required this.selected,
+    required this.onChanged,
+    required this.small,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: small ? 52 : 56,
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200, width: 1.5),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: Season.values.map((s) {
+          final isSelected = selected == s;
+          final color = s.color;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => onChanged(s),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                decoration: BoxDecoration(
+                  color: isSelected ? color : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: isSelected
+                      ? [BoxShadow(
+                      color: color.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2))]
+                      : [],
+                ),
+                child: Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(s.icon,
+                          size: small ? 15 : 16,
+                          color: isSelected
+                              ? Colors.white
+                              : Colors.grey.shade500),
+                      const SizedBox(width: 5),
+                      Flexible(
+                        child: Text(
+                          s.label,
+                          style: TextStyle(
+                            fontSize: small ? 12 : 13,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w600,
+                            color: isSelected
+                                ? Colors.white
+                                : Colors.grey.shade600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LAND TYPE SELECTOR  (Wet / Dry only — two equal tiles)
+// ═══════════════════════════════════════════════════════════════════════════════
+class _LandTypeSelector extends StatelessWidget {
+  final LandType? selected;
+  final ValueChanged<LandType> onChanged;
+  final bool small;
+  const _LandTypeSelector({
+    required this.selected,
+    required this.onChanged,
+    required this.small,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Only wetland and dryland
+    final types = [LandType.wetland, LandType.dryland];
+    return Row(
+      children: types.asMap().entries.map((e) {
+        final isLast = e.key == types.length - 1;
+        final t = e.value;
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(right: isLast ? 0 : 8),
+            child: _LandTile(
+              type: t,
+              isSelected: selected == t,
+              onTap: () => onChanged(t),
+              small: small,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HEADER
+// ═══════════════════════════════════════════════════════════════════════════════
+class _Header extends StatelessWidget {
+  final bool small;
+  final LandRecordController ctrl;
+  const _Header({required this.small, required this.ctrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        small ? 16 : 20, small ? 16 : 20,
+        small ? 8  : 12, small ? 16 : 20,
+      ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [_primary, _primary.withValues(alpha: 0.8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+              color: _primary.withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Material(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+                child: InkWell(
+                  onTap: () { ctrl.clearAll(); Get.back(); },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Icon(Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white, size: small ? 20 : 22),
+                  ),
+                ),
+              ),
+              SizedBox(width: small ? 12 : 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Land Record Entry',
+                        style: TextStyle(
+                            fontSize: small ? 18 : 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 0.5)),
+                    const SizedBox(height: 2),
+                    Text('New Record',
+                        style: TextStyle(
+                            fontSize: small ? 12 : 13,
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.edit_document,
+                        size: 13,
+                        color: Colors.white.withValues(alpha: 0.9)),
+                    const SizedBox(width: 5),
+                    Text(
+                      DateFormat('dd MMM yyyy').format(DateTime.now()),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: const [
+                _HeaderChip(Icons.map_outlined,        'Land Record'),
+                SizedBox(width: 8),
+                _HeaderChip(Icons.agriculture_rounded, 'Cultivator Info'),
+                SizedBox(width: 8),
+                _HeaderChip(Icons.grass_rounded,       'Season & Type'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeaderChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _HeaderChip(this.icon, this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(8),
+        border:
+        Border.all(color: Colors.white.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon,
+              size: 13, color: Colors.white.withValues(alpha: 0.9)),
+          const SizedBox(width: 5),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION CARD + CARD HEADER
+// ═══════════════════════════════════════════════════════════════════════════════
+class _SectionCard extends StatelessWidget {
+  final Widget child;
+  const _SectionCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _primary.withValues(alpha: 0.1)),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 4)),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _CardHeader extends StatelessWidget {
+  final String title;
+  final bool small;
+  const _CardHeader(this.title, this.small);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            _primary.withValues(alpha: 0.1),
+            _secondary.withValues(alpha: 0.05)
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(8),
+        border: const Border(left: BorderSide(color: _primary, width: 3)),
+      ),
+      child: Text(title,
+          style: TextStyle(
+              fontSize: small ? 15 : 16,
+              fontWeight: FontWeight.bold,
+              color: _primary,
+              letterSpacing: 0.2)),
+    );
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FIELD LABEL
+// ═══════════════════════════════════════════════════════════════════════════════
+class _FieldLabel extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool small;
+  const _FieldLabel(this.label, this.icon, this.small);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: _secondary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon,
+                size: small ? 16 : 18, color: _secondary),
+          ),
+          const SizedBox(width: 8),
+          Text(label,
+              style: TextStyle(
+                  fontSize: small ? 14 : 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade800)),
+        ],
+      ),
+    );
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INPUT FIELD
+// ═══════════════════════════════════════════════════════════════════════════════
+class _InputField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final IconData icon;
+  final bool small;
+  final TextInputType keyboardType;
+  final int maxLines;
+  final List<TextInputFormatter>? formatters;
+  final String? Function(String?)? validator;
+  final String? suffix;
+
+  const _InputField({
+    required this.controller,
+    required this.hint,
+    required this.icon,
+    required this.small,
+    this.keyboardType = TextInputType.text,
+    this.maxLines     = 1,
+    this.formatters,
+    this.validator,
+    this.suffix,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      inputFormatters: formatters,
+      validator: validator,
+      style: TextStyle(
+          fontSize: small ? 14 : 15,
+          fontWeight: FontWeight.w500,
+          color: Colors.black87),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(
+            color: Colors.grey.shade400, fontSize: small ? 13 : 14),
+        filled: true,
+        fillColor: Colors.white,
+        prefixIcon: Container(
+          margin: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(7),
+          decoration: BoxDecoration(
+            color: _secondary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: small ? 16 : 18, color: _secondary),
+        ),
+        suffixText: suffix,
+        suffixStyle: TextStyle(
+            fontSize: small ? 13 : 14,
+            color: _secondary,
+            fontWeight: FontWeight.w600),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide:
+            BorderSide(color: Colors.grey.shade300, width: 1.5)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide:
+            const BorderSide(color: _secondary, width: 2)),
+        errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide:
+            BorderSide(color: Colors.red.shade400, width: 1.5)),
+        focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide:
+            BorderSide(color: Colors.red.shade600, width: 2)),
+        contentPadding: EdgeInsets.symmetric(
+            horizontal: small ? 14 : 16,
+            vertical: small ? 13 : 14),
+      ),
+    );
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LAND TILE (unchanged from original)
+// ═══════════════════════════════════════════════════════════════════════════════
+class _LandTile extends StatelessWidget {
+  final LandType type;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final bool small;
+  const _LandTile({
+    required this.type,
+    required this.isSelected,
+    required this.onTap,
+    required this.small,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = type.color;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.symmetric(
+            vertical: small ? 12 : 14, horizontal: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? color : color.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? color : color.withValues(alpha: 0.25),
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: isSelected
+              ? [
+            BoxShadow(
+                color: color.withValues(alpha: 0.28),
+                blurRadius: 10,
+                offset: const Offset(0, 3))
+          ]
+              : [],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(type.icon,
+                size: small ? 22 : 26,
+                color: isSelected ? Colors.white : color),
+            const SizedBox(height: 6),
+            Text(
+              type.label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: small ? 10 : 11,
+                fontWeight:
+                isSelected ? FontWeight.w700 : FontWeight.w600,
+                color: isSelected
+                    ? Colors.white
+                    : color.withValues(alpha: 0.85),
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FOOTER
+// ═══════════════════════════════════════════════════════════════════════════════
+class _Footer extends StatelessWidget {
+  final bool isSaving;
+  final bool small;
+  final VoidCallback onCancel;
+  final VoidCallback onSave;
+  const _Footer({
+    required this.isSaving,
+    required this.small,
+    required this.onCancel,
+    required this.onSave,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        small ? 16 : 24, 12,
+        small ? 16 : 24, small ? 16 : 20,
+      ),
+      decoration: BoxDecoration(
+        color: _card,
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 10,
+              offset: const Offset(0, -3)),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onCancel,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  height: small ? 48 : 52,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                        color: Colors.grey.shade300, width: 1.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.close_rounded,
+                          size: small ? 18 : 20,
+                          color: Colors.grey.shade700),
+                      const SizedBox(width: 6),
+                      Text('Cancel',
+                          style: TextStyle(
+                              fontSize: small ? 14 : 15,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.grey.shade700)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: isSaving ? null : onSave,
+                borderRadius: BorderRadius.circular(12),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  height: small ? 48 : 52,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        _secondary,
+                        _secondary.withValues(alpha: 0.8)
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                          color: _secondary.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2)),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: isSaving
+                        ? [
+                      const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2.5)),
+                      const SizedBox(width: 10),
+                      Text('Saving…',
+                          style: TextStyle(
+                              fontSize: small ? 14 : 15,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white)),
+                    ]
+                        : [
+                      Icon(Icons.check_circle_outline,
+                          size: small ? 18 : 20,
+                          color: Colors.white),
+                      const SizedBox(width: 6),
+                      Text('Save Record',
+                          style: TextStyle(
+                              fontSize: small ? 14 : 15,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              letterSpacing: 0.3)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -41,6 +41,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PendingIcon from '@mui/icons-material/Pending';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import RateReviewIcon from '@mui/icons-material/RateReview';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -132,6 +133,17 @@ function resolveMonthValue(val, monthOptions) {
   return monthOptions[0]?.value || '';
 }
 
+function getCurrentMonthValue(monthOptions) {
+  if (!monthOptions || monthOptions.length === 0) return '';
+  const now = new Date();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yyyy = now.getFullYear();
+  const currentVal = `${mm}-${yyyy}`;
+  const exists = monthOptions.find((o) => o.value === currentVal);
+  if (exists) return exists.value;
+  return monthOptions[monthOptions.length - 1]?.value || monthOptions[0]?.value || '';
+}
+
 // Per-zone metrics come split into wet*/dry* fields.
 // NOTE: `landType` here is WET / DRY / ALL — land type, NOT crop season.
 // Crop season is the separate, mandatory seasonId (Autumn / Winter / Summer).
@@ -220,10 +232,10 @@ function ZoneFormReport() {
     return {
       districtId: stateData.districtId || null,
       talukId: resolvedTalukId.current,
-      filterType: stateData.filterType || 'single',
-      fromMonth: resolveMonthValue(stateData.fromMonth, MONTH_OPTIONS),
-      toMonth: stateData.toMonth ? resolveMonthValue(stateData.toMonth, MONTH_OPTIONS) : '',
-      singleMonth: resolveMonthValue(stateData.singleMonth, MONTH_OPTIONS),
+      filterType: stateData.filterType || 'range',
+      fromMonth: stateData.fromMonth ? resolveMonthValue(stateData.fromMonth, MONTH_OPTIONS) : (MONTH_OPTIONS[0]?.value || ''),
+      toMonth: stateData.toMonth ? resolveMonthValue(stateData.toMonth, MONTH_OPTIONS) : getCurrentMonthValue(MONTH_OPTIONS),
+      singleMonth: resolveMonthValue(stateData.singleMonth, MONTH_OPTIONS) || getCurrentMonthValue(MONTH_OPTIONS),
       // `landType` is the new key; `seasonTab` is the legacy key still sent by
       // older callers. Both carry WET / DRY / ALL.
       landTypeTab: stateData.landType || stateData.seasonTab || 'ALL',
@@ -248,13 +260,14 @@ function ZoneFormReport() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
 
   // API states
   const [loading, setLoading] = useState(false);
   const [masterZonesLoading, setMasterZonesLoading] = useState(true);
   const [error, setError] = useState(null);
   const [apiData, setApiData] = useState(null);
+  const [lastMonthApiData, setLastMonthApiData] = useState(null);
   const [zonesList, setZonesList] = useState([]);
 
   // Fetch master zones list
@@ -319,11 +332,16 @@ function ZoneFormReport() {
       if (endMonthVal) params.append('endMonth', endMonthVal);
       if (landTypeTab && landTypeTab !== 'ALL') params.append('landType', landTypeTab);
       params.append('seasonId', String(effectiveSeasonId));
+      params.append('season', String(effectiveSeasonId));
+      params.append('cropSeasonId', String(effectiveSeasonId));
 
-      // BTR zone completed-clusters: agri-year scoped now. No months, no seasonId.
+      // BTR zone completed-clusters: agri-year scoped + season parameters.
       const btrParams = new URLSearchParams({ talukId: targetQueryId });
       if (landTypeTab && landTypeTab !== 'ALL') btrParams.append('landType', landTypeTab);
       btrParams.append('agriYear', AuthService.agriyear() || '2025-2026');
+      btrParams.append('seasonId', String(effectiveSeasonId));
+      btrParams.append('season', String(effectiveSeasonId));
+      btrParams.append('cropSeasonId', String(effectiveSeasonId));
 
       const url = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/taluk?${params.toString()}`;
       const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/dashboard/completed/zone?${btrParams.toString()}`;
@@ -341,6 +359,34 @@ function ZoneFormReport() {
 
       setApiData(formStatusRes.data || null);
       setBtrData(completedClustersRes.data || null);
+
+      // If range filter is active, fetch single-month data for the last month of the range
+      if (filterType === 'range') {
+        const lastMonthVal = toMonth
+          ? resolveMonthValue(toMonth, MONTH_OPTIONS)
+          : fromMonth
+            ? resolveMonthValue(fromMonth, MONTH_OPTIONS)
+            : resolveMonthValue(singleMonth, MONTH_OPTIONS);
+        if (lastMonthVal) {
+          const lmParams = new URLSearchParams({ talukId: targetQueryId, startMonth: lastMonthVal, endMonth: lastMonthVal });
+          if (landTypeTab && landTypeTab !== 'ALL') lmParams.append('landType', landTypeTab);
+          lmParams.append('seasonId', String(effectiveSeasonId));
+          lmParams.append('season', String(effectiveSeasonId));
+          lmParams.append('cropSeasonId', String(effectiveSeasonId));
+          const lmUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/taluk?${lmParams.toString()}`;
+          try {
+            const lmRes = await axios.get(lmUrl, { headers: { Authorization: `Bearer ${token}` } });
+            setLastMonthApiData(lmRes.data || null);
+          } catch (lmErr) {
+            console.error('Error fetching last month zone data:', lmErr);
+            setLastMonthApiData(null);
+          }
+        } else {
+          setLastMonthApiData(null);
+        }
+      } else {
+        setLastMonthApiData(null);
+      }
     } catch (err) {
       console.error('API Error:', err);
       setError(err.response?.data?.message || err.message || 'Failed to fetch data');
@@ -367,6 +413,7 @@ function ZoneFormReport() {
   const processedData = useMemo(() => {
     const apiZones = apiData?.allSubDetails || {};
     const btrZones = btrData?.allSubDetails || {};
+    const lastMonthSubDetailsMap = (filterType === 'range' && lastMonthApiData) ? (lastMonthApiData.allSubDetails || {}) : null;
 
     console.log('API Zones:', apiZones);
     console.log('Master Zones List:', zonesList);
@@ -399,6 +446,35 @@ function ZoneFormReport() {
       return findUniqueLooseMatch(btrMapByName, key) || {};
     };
 
+    const getLastMonthMetrics = (zoneId, zoneName) => {
+      if (!lastMonthSubDetailsMap) return { count: 0, area: 0 };
+      let lmDetails = null;
+      const lmMapById = {};
+      const lmMapByName = {};
+      Object.entries(lastMonthSubDetailsMap).forEach(([key, details]) => {
+        if (details.zoneId) lmMapById[details.zoneId] = details;
+        const name = details.zoneName || key;
+        const nameKey = name?.toLowerCase()?.trim() || '';
+        if (nameKey) lmMapByName[nameKey] = details;
+      });
+      if (zoneId && lmMapById[zoneId]) lmDetails = lmMapById[zoneId];
+      if (!lmDetails) {
+        const key = zoneName?.toLowerCase()?.trim() || '';
+        if (key && lmMapByName[key]) lmDetails = lmMapByName[key];
+      }
+      if (!lmDetails) {
+        const searchKey = zoneName?.toLowerCase()?.trim() || '';
+        lmDetails = findUniqueLooseMatch(lmMapByName, searchKey);
+      }
+      if (!lmDetails) return { count: 0, area: 0 };
+      const count = pickMetric(lmDetails, 'Completed', landTypeTab);
+      const rawArea = pickMetric(lmDetails, 'ClusterArea', landTypeTab);
+      return {
+        count,
+        area: count > 0 ? rawArea : 0
+      };
+    };
+
     let mergedZones = [];
 
     if (zonesList && zonesList.length > 0) {
@@ -422,7 +498,9 @@ function ZoneFormReport() {
         const completed = apiDetails ? pickMetric(apiDetails, 'Completed', landTypeTab) : 0;
         const ongoing = apiDetails ? pickMetric(apiDetails, 'Ongoing', landTypeTab) : 0;
         const underReview = apiDetails ? pickMetric(apiDetails, 'UnderReview', landTypeTab) : 0;
-        const area = apiDetails ? pickMetric(apiDetails, 'ClusterArea', landTypeTab) : 0;
+        const rawArea = apiDetails ? pickMetric(apiDetails, 'ClusterArea', landTypeTab) : 0;
+        const area = completed > 0 ? rawArea : 0;
+        const lmMetrics = getLastMonthMetrics(zoneId, zoneName);
 
         // Total from BTR completed-clusters API, Not Started derived from it
         const btrDetails = resolveBtrDetails(zoneId, zoneName);
@@ -442,6 +520,8 @@ function ZoneFormReport() {
           blockName: resolvedBlock,
           total,
           completed,
+          currentMonthCompleted: lmMetrics?.count || 0,
+          currentMonthArea: lmMetrics?.area || 0,
           ongoing,
           notStarted,
           underReview,
@@ -458,10 +538,12 @@ function ZoneFormReport() {
         const completed = pickMetric(details, 'Completed', landTypeTab);
         const ongoing = pickMetric(details, 'Ongoing', landTypeTab);
         const underReview = pickMetric(details, 'UnderReview', landTypeTab);
-        const area = pickMetric(details, 'ClusterArea', landTypeTab);
+        const rawArea = pickMetric(details, 'ClusterArea', landTypeTab);
+        const area = completed > 0 ? rawArea : 0;
 
         const zoneName = details.zoneName || key;
         const zoneIdVal = details.zoneId;
+        const lmMetrics = getLastMonthMetrics(zoneIdVal, zoneName);
 
         const btrDetails = resolveBtrDetails(zoneIdVal, zoneName);
         const total = pickMetric(btrDetails, 'Completed', landTypeTab);
@@ -480,6 +562,8 @@ function ZoneFormReport() {
           blockName: resolvedBlock,
           total,
           completed,
+          currentMonthCompleted: lmMetrics?.count || 0,
+          currentMonthArea: lmMetrics?.area || 0,
           ongoing,
           notStarted,
           underReview,
@@ -502,6 +586,8 @@ function ZoneFormReport() {
         zoneName: zone.zoneName,
         total: zone.total,
         completed: zone.completed,
+        currentMonthCompleted: zone.currentMonthCompleted,
+        currentMonthArea: zone.currentMonthArea,
         ongoing: zone.ongoing,
         notStarted: zone.notStarted,
         underReview: zone.underReview,
@@ -550,7 +636,7 @@ function ZoneFormReport() {
     }
 
     return blocks;
-  }, [apiData, btrData, zonesList, landTypeTab]);
+  }, [apiData, btrData, zonesList, landTypeTab, filterType, lastMonthApiData]);
 
   // Count zones with no data
   const zonesWithNoData = useMemo(() => {
@@ -565,26 +651,41 @@ function ZoneFormReport() {
 
   // Overall statistics
   const stats = useMemo(() => {
-    if (!apiData) {
-      return { total: 0, completed: 0, ongoing: 0, notStarted: 0, underReview: 0, completedArea: 0 };
-    }
-    const completedArea = processedData.reduce(
-      (sum, block) => sum + block.zones.reduce((s, z) => s + z.area, 0),
-      0
-    );
+    let totalClustersSum = 0;
+    let completedSum = 0;
+    let ongoingSum = 0;
+    let notStartedSum = 0;
+    let underReviewSum = 0;
+    let completedArea = 0;
+    let currentMonthCompleted = 0;
+    let currentMonthArea = 0;
 
-    const totalCompletedClusters = btrData?.totalClusterCompleted || 0; // source for "Total Clusters"
-    const existingCompleted = apiData.completed || 0;
+    processedData.forEach((block) => {
+      block.zones.forEach((z) => {
+        totalClustersSum += (z.total || 0);
+        completedSum += (z.completed || 0);
+        ongoingSum += (z.ongoing || 0);
+        notStartedSum += (z.notStarted || 0);
+        underReviewSum += (z.underReview || 0);
+        completedArea += (z.area || 0);
+        currentMonthCompleted += (z.currentMonthCompleted || 0);
+        currentMonthArea += (z.currentMonthArea || 0);
+      });
+    });
+
+    const totalCompletedClusters = totalClustersSum > 0 ? totalClustersSum : (btrData?.totalClusterCompleted || 0);
 
     return {
       total: totalCompletedClusters,
-      completed: existingCompleted,
-      ongoing: apiData.ongoing || 0,
-      notStarted: Math.max(totalCompletedClusters - existingCompleted, 0),
-      underReview: apiData.underView || 0,
+      completed: completedSum,
+      currentMonthCompleted,
+      currentMonthArea,
+      ongoing: ongoingSum,
+      notStarted: notStartedSum,
+      underReview: underReviewSum,
       completedArea
     };
-  }, [apiData, btrData, processedData]);
+  }, [btrData, processedData]);
 
   // Flatten data for table display with subtotals
   const flattenedTableData = useMemo(() => {
@@ -593,6 +694,8 @@ function ZoneFormReport() {
     processedData.forEach((block) => {
       let blockTotal = 0;
       let blockCompleted = 0;
+      let blockCurrentMonthCompleted = 0;
+      let blockCurrentMonthArea = 0;
       let blockOngoing = 0;
       let blockNotStarted = 0;
       let blockUnderReview = 0;
@@ -603,6 +706,8 @@ function ZoneFormReport() {
 
         blockTotal += zoneTotal;
         blockCompleted += zone.completed;
+        blockCurrentMonthCompleted += (zone.currentMonthCompleted || 0);
+        blockCurrentMonthArea += (zone.currentMonthArea || 0);
         blockOngoing += zone.ongoing;
         blockNotStarted += zone.notStarted;
         blockUnderReview += zone.underReview;
@@ -617,6 +722,8 @@ function ZoneFormReport() {
           zoneName: zone.zoneName,
           total: zoneTotal,
           completed: zone.completed,
+          currentMonthCompleted: zone.currentMonthCompleted,
+          currentMonthArea: zone.currentMonthArea,
           ongoing: zone.ongoing,
           notStarted: zone.notStarted,
           underReview: zone.underReview,
@@ -636,6 +743,8 @@ function ZoneFormReport() {
         zoneName: `Total for ${block.blockName}`,
         total: blockTotal,
         completed: blockCompleted,
+        currentMonthCompleted: blockCurrentMonthCompleted,
+        currentMonthArea: blockCurrentMonthArea,
         ongoing: blockOngoing,
         notStarted: blockNotStarted,
         underReview: blockUnderReview,
@@ -679,17 +788,17 @@ function ZoneFormReport() {
 
   const handleClearFilters = () => {
     setFromMonth(MONTH_OPTIONS[0]?.value || '');
-    setToMonth('');
-    setSingleMonth(MONTH_OPTIONS[0]?.value || '');
+    setToMonth(getCurrentMonthValue(MONTH_OPTIONS));
+    setSingleMonth(getCurrentMonthValue(MONTH_OPTIONS));
     setLandTypeTab('ALL');
     setSeasonId(DEFAULT_SEASON_ID); // reset to Autumn, never blank
-    setFilterType('single');
+    setFilterType('range');
     setPage(0);
   };
 
   const filtersAreDirty =
-    fromMonth !== MONTH_OPTIONS[0]?.value ||
-    Boolean(toMonth) ||
+    fromMonth !== (MONTH_OPTIONS[0]?.value || '') ||
+    toMonth !== getCurrentMonthValue(MONTH_OPTIONS) ||
     landTypeTab !== 'ALL' ||
     Number(seasonId) !== DEFAULT_SEASON_ID;
 
@@ -708,9 +817,12 @@ function ZoneFormReport() {
   const handleFilterTypeChange = (event, newValue) => {
     if (newValue !== null) {
       setFilterType(newValue);
-      setFromMonth(MONTH_OPTIONS[0]?.value || '');
-      setToMonth('');
-      setSingleMonth(MONTH_OPTIONS[0]?.value || '');
+      if (newValue === 'range') {
+        if (!fromMonth) setFromMonth(MONTH_OPTIONS[0]?.value || '');
+        if (!toMonth) setToMonth(getCurrentMonthValue(MONTH_OPTIONS));
+      } else {
+        if (!singleMonth) setSingleMonth(getCurrentMonthValue(MONTH_OPTIONS));
+      }
       setPage(0);
     }
   };
@@ -773,25 +885,37 @@ function ZoneFormReport() {
 
       const hasNoData = !row.hasData && !isSubtotalRow;
 
-      return {
+      const rowObj = {
         '#': isSubtotalRow ? '' : serial,
         Season: seasonLabel,
         Block: row.blockName,
         Zone: row.zoneName,
-        Total: hasNoData ? 'NA' : row.total,
-        Completed: hasNoData ? 'NA' : row.completed,
-        'Area Completed': hasNoData ? 'NA' : row.area,
-        Ongoing: hasNoData ? 'NA' : row.ongoing,
-        'Not Started': hasNoData ? 'NA' : row.notStarted,
-        'Under Review': hasNoData ? 'NA' : row.underReview
+        Total: hasNoData ? 'NA' : row.total
       };
+
+      if (filterType === 'range') {
+        rowObj['During the Month'] = hasNoData ? 'NA' : row.currentMonthCompleted;
+        rowObj['During Month Area'] = hasNoData ? 'NA' : (row.currentMonthCompleted > 0 ? row.currentMonthArea : 0);
+      }
+
+      rowObj['Up to the Month'] = hasNoData ? 'NA' : row.completed;
+
+      rowObj['Area Completed'] = hasNoData ? 'NA' : (row.completed > 0 ? row.area : 0);
+      rowObj['Ongoing'] = hasNoData ? 'NA' : row.ongoing;
+      rowObj['Not Started'] = hasNoData ? 'NA' : row.notStarted;
+      rowObj['Under Review'] = hasNoData ? 'NA' : row.underReview;
+
+      return rowObj;
     });
 
     const worksheet = XLSX.utils.json_to_sheet(exportRows);
 
     // Reasonable column widths so it doesn't open looking cramped
-    worksheet['!cols'] = [
-      { wch: 5 },  { wch: 12 }, { wch: 20 }, { wch: 22 }, { wch: 10 },
+    worksheet['!cols'] = filterType === 'range' ? [
+      { wch: 5 }, { wch: 12 }, { wch: 20 }, { wch: 22 }, { wch: 10 },
+      { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
+    ] : [
+      { wch: 5 }, { wch: 12 }, { wch: 20 }, { wch: 22 }, { wch: 10 },
       { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
     ];
 
@@ -819,41 +943,50 @@ function ZoneFormReport() {
     });
   };
 
-  const StatCard = ({ label, value, color, bgColor, icon, areaValue }) => (
-    <Card sx={{
-      bgcolor: bgColor,
-      borderRadius: 3,
-      transition: 'transform 0.2s, box-shadow 0.2s',
-      '&:hover': {
-        transform: 'translateY(-4px)',
-        boxShadow: theme.shadows[4]
-      }
-    }}>
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Box>
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
-                {loading ? <CircularProgress size={24} /> : value}
+  const StatCard = ({ label, value, color, bgColor, icon, subtext, areaValue, tooltip }) => {
+    const cardContent = (
+      <Card sx={{
+        bgcolor: bgColor,
+        borderRadius: 3,
+        height: '100%',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+        '&:hover': {
+          transform: 'translateY(-4px)',
+          boxShadow: theme.shadows[4]
+        }
+      }}>
+        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Box>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
+                  {loading ? <CircularProgress size={24} /> : value}
+                </Typography>
+                {!loading && areaValue !== undefined && areaValue > 0 && (
+                  <Chip
+                    label={`${formatArea(areaValue)} cents`}
+                    size="small"
+                    variant="outlined"
+                    sx={{ fontSize: '0.7rem', height: 22, borderColor: alpha(color, 0.4), color }}
+                  />
+                )}
+              </Stack>
+              <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>
+                {label}
               </Typography>
-              {!loading && areaValue !== undefined && areaValue > 0 && (
-                <Chip
-                  label={`${formatArea(areaValue)} cents`}
-                  size="small"
-                  variant="outlined"
-                  sx={{ fontSize: '0.7rem', height: 22, borderColor: alpha(color, 0.4), color }}
-                />
-              )}
-            </Stack>
-            <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>
-              {label}
-            </Typography>
-          </Box>
-          {icon}
-        </Stack>
-      </CardContent>
-    </Card>
-  );
+            </Box>
+            {icon}
+          </Stack>
+        </CardContent>
+      </Card>
+    );
+
+    return tooltip ? (
+      <Tooltip title={tooltip} arrow placement="top">
+        {cardContent}
+      </Tooltip>
+    ) : cardContent;
+  };
 
   // Show loading state
   if ((loading || masterZonesLoading) && !apiData && zonesList.length === 0) {
@@ -1067,54 +1200,73 @@ function ZoneFormReport() {
           />
 
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
               <StatCard
                 label="Total Clusters"
                 value={stats.total}
                 color="#1565c0"
                 bgColor={alpha('#1565c0', 0.08)}
                 icon={<StoreIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />}
+                tooltip="Total clusters allocated for survey in selected season"
               />
             </Grid>
 
-            <Grid item xs={12} sm={6} md={2.4}>
+            {filterType === 'range' && (
+              <Grid item xs={12} sm={6} md={2}>
+                <StatCard
+                  label="During the Month"
+                  value={stats.currentMonthCompleted}
+                  color="#0288d1"
+                  bgColor={alpha('#0288d1', 0.08)}
+                  icon={<CalendarMonthIcon sx={{ fontSize: 32, color: '#0288d1', opacity: 0.7 }} />}
+                  areaValue={stats.currentMonthArea}
+                  tooltip={`Clusters completed during the selected end month \n Area : ${formatArea(stats.currentMonthArea)} cents`}
+                />
+              </Grid>
+            )}
+
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
               <StatCard
-                label="Completed"
+                label="Up to the Month"
                 value={stats.completed}
                 color="#2e7d32"
                 bgColor={alpha('#2e7d32', 0.08)}
                 icon={<CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />}
                 areaValue={stats.completedArea}
+                tooltip={`Cumulative clusters completed up to the selected month \n Area : ${formatArea(stats.completedArea)} cents`}
               />
             </Grid>
 
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
               <StatCard
                 label="Ongoing"
                 value={stats.ongoing}
                 color="#ed6c02"
                 bgColor={alpha('#ed6c02', 0.08)}
                 icon={<PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} />}
+                tooltip="Clusters currently ongoing"
               />
             </Grid>
 
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
               <StatCard
                 label="Not Started"
                 value={stats.notStarted}
                 color="#757575"
                 bgColor={alpha('#757575', 0.08)}
                 icon={<ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} />}
+                tooltip="Clusters not yet started"
               />
             </Grid>
 
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
               <StatCard
                 label="Under Review"
                 value={stats.underReview}
                 color="#b76e00"
                 bgColor={alpha('#b76e00', 0.08)}
                 icon={<RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} />}
+                tooltip="Clusters currently under review"
               />
             </Grid>
           </Grid>
@@ -1213,18 +1365,46 @@ function ZoneFormReport() {
             ) : (
               <>
                 <TableContainer>
-                  <Table sx={{ borderCollapse: 'collapse' }}>
+                  <Table
+                    sx={{
+                      borderCollapse: 'collapse',
+                      '& .MuiTableCell-root': {
+                        borderRight: `1px solid ${alpha('#04255e', 0.12)}`,
+                        borderBottom: `1px solid ${alpha('#04255e', 0.12)}`
+                      },
+                      '& .MuiTableHead-root .MuiTableCell-root': {
+                        borderRight: '1px solid rgba(255, 255, 255, 0.2)',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+                      },
+                      '& .MuiTableCell-root:last-child': {
+                        borderRight: 'none'
+                      }
+                    }}
+                  >
                     <TableHead>
                       <TableRow sx={{ bgcolor: '#04255e' }}>
-                        <TableCell sx={{ color: 'white', fontWeight: 600, py: 1.5, minWidth: 60, textAlign: 'center', border: 'none' }}>#</TableCell>
-                        <TableCell sx={{ color: 'white', fontWeight: 600, py: 1.5, minWidth: 180, textAlign: 'center', border: 'none' }}>Block</TableCell>
-                        <TableCell sx={{ color: 'white', fontWeight: 600, py: 1.5, minWidth: 180, border: 'none' }}>Zone</TableCell>
-                        <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5, border: 'none' }}>Total</TableCell>
-                        <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5, border: 'none' }}>Completed</TableCell>
-                        <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5, border: 'none' }}>Ongoing</TableCell>
-                        <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5, border: 'none' }}>Not Started</TableCell>
-                        <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5, border: 'none' }}>Under Review</TableCell>
-                        <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5, border: 'none' }}>Actions</TableCell>
+                        <TableCell rowSpan={2} sx={{ color: 'white', fontWeight: 600, py: 1.5, minWidth: 60, textAlign: 'center' }}>#</TableCell>
+                        <TableCell rowSpan={2} sx={{ color: 'white', fontWeight: 600, py: 1.5, minWidth: 180, textAlign: 'center' }}>Block</TableCell>
+                        <TableCell rowSpan={2} sx={{ color: 'white', fontWeight: 600, py: 1.5, minWidth: 180 }}>Zone</TableCell>
+                        <TableCell rowSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>Total</TableCell>
+                        {filterType === 'range' && (
+                          <TableCell colSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.2)' }}>During the Month</TableCell>
+                        )}
+                        <TableCell colSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.2)' }}>Up to the Month</TableCell>
+                        <TableCell rowSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>Ongoing</TableCell>
+                        <TableCell rowSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>Not Started</TableCell>
+                        <TableCell rowSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>Under Review</TableCell>
+                        <TableCell rowSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>Actions</TableCell>
+                      </TableRow>
+                      <TableRow sx={{ bgcolor: '#04255e' }}>
+                        {filterType === 'range' && (
+                          <>
+                            <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1, fontSize: '0.8rem' }}>Count</TableCell>
+                            <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1, fontSize: '0.8rem' }}>Area (cents)</TableCell>
+                          </>
+                        )}
+                        <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1, fontSize: '0.8rem' }}>Count</TableCell>
+                        <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1, fontSize: '0.8rem' }}>Area (cents)</TableCell>
                       </TableRow>
                     </TableHead>
 
@@ -1308,22 +1488,22 @@ function ZoneFormReport() {
 
                                 {/* Zone Column */}
                                 <TableCell
-                                    colSpan={isCurrentRowSubtotal ? 2 : 1}
-                                    sx={{ borderRight: 'none', borderLeft: 'none' }}
-                                  >
-                                    {row.type === 'subtotal' ? (
-                                      <Typography
-                                        variant="body2"
-                                        sx={{
-                                          fontWeight: 'bold',
-                                          color: '#04255e',
-                                          fontStyle: 'italic'
-                                        }}
-                                      >
-                                        {row.zoneName}
-                                      </Typography>
-                                    ) : (
-                                      <Stack direction="row" spacing={1} alignItems="center">
+                                  colSpan={isCurrentRowSubtotal ? 2 : 1}
+                                  sx={{ borderRight: 'none', borderLeft: 'none' }}
+                                >
+                                  {row.type === 'subtotal' ? (
+                                    <Typography
+                                      variant="body2"
+                                      sx={{
+                                        fontWeight: 'bold',
+                                        color: '#04255e',
+                                        fontStyle: 'italic'
+                                      }}
+                                    >
+                                      {row.zoneName}
+                                    </Typography>
+                                  ) : (
+                                    <Stack direction="row" spacing={1} alignItems="center">
                                       <StoreIcon sx={{ fontSize: 18, color: hasNoData ? '#ff9800' : '#04255e', opacity: 0.7 }} />
                                       <Typography fontWeight={hasNoData ? 400 : 500} color={hasNoData ? 'text.secondary' : 'text.primary'}>
                                         {row.zoneName}
@@ -1364,32 +1544,69 @@ function ZoneFormReport() {
                                   )}
                                 </TableCell>
 
-                                {/* Completed */}
-                                <TableCell align="center" sx={{ borderRight: 'none', borderLeft: 'none' }}>
-                                  {hasNoData ? (
-                                    <Typography variant="body2" color="text.secondary">NA</Typography>
-                                  ) : (
-                                    <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
-                                      {row.completed > 0 ? (
+                                {/* During the Month */}
+                                {filterType === 'range' && (
+                                  <>
+                                    <TableCell align="center" sx={{ borderRight: 'none', borderLeft: 'none' }}>
+                                      {hasNoData ? (
+                                        <Typography variant="body2" color="text.secondary">NA</Typography>
+                                      ) : row.currentMonthCompleted > 0 ? (
                                         <Chip
-                                          label={row.completed}
+                                          label={row.currentMonthCompleted}
                                           size="small"
                                           color="success"
                                           variant={row.type === 'subtotal' ? "filled" : "outlined"}
                                           sx={{ fontWeight: row.type === 'subtotal' ? 700 : 500 }}
                                         />
                                       ) : (
-                                        <Typography variant="body2" color="text.secondary">{row.completed}</Typography>
+                                        <Typography variant="body2" color="text.secondary">{row.currentMonthCompleted}</Typography>
                                       )}
-                                      {row.area > 0 && (
+                                    </TableCell>
+                                    <TableCell align="center" sx={{ borderRight: 'none', borderLeft: 'none' }}>
+                                      {hasNoData ? (
+                                        <Typography variant="body2" color="text.secondary">NA</Typography>
+                                      ) : row.currentMonthArea > 0 ? (
                                         <Chip
-                                          label={formatArea(row.area)}
+                                          label={formatArea(row.currentMonthArea)}
                                           size="small"
                                           variant="outlined"
-                                          sx={{ fontSize: '0.65rem', height: 20, borderColor: alpha('#04255e', 0.3), color: '#04255e' }}
+                                          sx={{ fontSize: '0.75rem', height: 22, borderColor: alpha('#04255e', 0.3), color: '#04255e' }}
                                         />
+                                      ) : (
+                                        <Typography variant="body2" color="text.secondary">0.00</Typography>
                                       )}
-                                    </Stack>
+                                    </TableCell>
+                                  </>
+                                )}
+
+                                {/* Up to the Month */}
+                                <TableCell align="center" sx={{ borderRight: 'none', borderLeft: 'none' }}>
+                                  {hasNoData ? (
+                                    <Typography variant="body2" color="text.secondary">NA</Typography>
+                                  ) : row.completed > 0 ? (
+                                    <Chip
+                                      label={row.completed}
+                                      size="small"
+                                      color="success"
+                                      variant={row.type === 'subtotal' ? "filled" : "outlined"}
+                                      sx={{ fontWeight: row.type === 'subtotal' ? 700 : 500 }}
+                                    />
+                                  ) : (
+                                    <Typography variant="body2" color="text.secondary">{row.completed}</Typography>
+                                  )}
+                                </TableCell>
+                                <TableCell align="center" sx={{ borderRight: 'none', borderLeft: 'none' }}>
+                                  {hasNoData ? (
+                                    <Typography variant="body2" color="text.secondary">NA</Typography>
+                                  ) : row.area > 0 ? (
+                                    <Chip
+                                      label={formatArea(row.area)}
+                                      size="small"
+                                      variant="outlined"
+                                      sx={{ fontSize: '0.75rem', height: 22, borderColor: alpha('#04255e', 0.3), color: '#04255e' }}
+                                    />
+                                  ) : (
+                                    <Typography variant="body2" color="text.secondary">0.00</Typography>
                                   )}
                                 </TableCell>
 
@@ -1483,7 +1700,7 @@ function ZoneFormReport() {
                         })()
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                          <TableCell colSpan={filterType === 'range' ? 10 : 9} align="center" sx={{ py: 6 }}>
                             <Typography color="text.secondary">
                               {searchTerm
                                 ? `No blocks/zones found matching "${searchTerm}"`
@@ -1504,7 +1721,7 @@ function ZoneFormReport() {
                     onPageChange={handleChangePage}
                     rowsPerPage={rowsPerPage}
                     onRowsPerPageChange={handleChangeRowsPerPage}
-                    rowsPerPageOptions={[5, 10, 25, 50]}
+                    rowsPerPageOptions={[15, 25, 50, 100]}
                     sx={{ borderTop: `1px solid ${theme.palette.divider}` }}
                   />
                 )}

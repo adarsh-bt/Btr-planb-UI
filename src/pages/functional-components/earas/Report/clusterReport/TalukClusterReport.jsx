@@ -40,6 +40,7 @@ import PendingIcon from '@mui/icons-material/Pending';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -246,14 +247,14 @@ function TalukClusterReport() {
   /* ── filter state ── */
   const [seasonTab, setSeasonTab] = useState(stateData.seasonTab || 'ALL');
   const [landType, setLandType] = useState(stateData.landType || null);
-  const [filterType, setFilterType] = useState(stateData.filterType || 'single');
+  const [filterType, setFilterType] = useState(stateData.filterType || 'range');
   const [fromMonth, setFromMonth] = useState(() => {
     const raw = stateData.fromMonth || stateData.startMonth;
-    return formatMonthForApi(raw, agriculturalYear.current, agriYearMonths.current) || '';
+    return formatMonthForApi(raw, agriculturalYear.current, agriYearMonths.current) || agriYearMonths.current[0]?.value || '';
   });
   const [toMonth, setToMonth] = useState(() => {
     const raw = stateData.toMonth || stateData.endMonth;
-    return formatMonthForApi(raw, agriculturalYear.current, agriYearMonths.current) || '';
+    return formatMonthForApi(raw, agriculturalYear.current, agriYearMonths.current) || getDefaultMonth(agriYearMonths.current);
   });
   const [singleMonth, setSingleMonth] = useState(() => {
     const raw = stateData.singleMonth;
@@ -263,12 +264,13 @@ function TalukClusterReport() {
 
   /* ── ui state ── */
   const [apiData, setApiData] = useState(null);
+  const [lastMonthApiData, setLastMonthApiData] = useState(null);
   const [taluksList, setTaluksList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
 
   /* ── persist district context to sessionStorage ── */
   useEffect(() => {
@@ -382,6 +384,28 @@ function TalukClusterReport() {
       if (response.data) {
         setApiData(response.data);
       }
+
+      // If range filter active, fetch single-month stats for the last month of range
+      if (effectiveFilterType === 'range') {
+        const lastM = endM || startM;
+        if (lastM) {
+          let lmUrl = `${BASE_URL}/btr-service/api/report/clusters/district/taluk-wise?districtId=${districtIdValue}&startMonth=${lastM}&endMonth=${lastM}`;
+          if (effectiveLandType && effectiveSeasonTab !== 'ALL') {
+            lmUrl += `&landType=${effectiveLandType.toLowerCase()}`;
+          }
+          try {
+            const lmResponse = await api.get(lmUrl);
+            setLastMonthApiData(lmResponse.data);
+          } catch (lmErr) {
+            console.error('Error fetching last month taluk data:', lmErr);
+            setLastMonthApiData(null);
+          }
+        } else {
+          setLastMonthApiData(null);
+        }
+      } else {
+        setLastMonthApiData(null);
+      }
     } catch (err) {
       console.error('Error fetching taluk data:', err);
       if (err.response?.status === 401) setError('Session expired. Please login again.');
@@ -449,6 +473,7 @@ function TalukClusterReport() {
           taluk: taluk.talukNameEn || taluk.name || taluk.talukName || `Taluk ${taluk.id}`,
           total: 0,
           completed: 0,
+          currentMonthCompleted: 0,
           ongoing: 0,
           notStarted: 0,
           underReview: 0,
@@ -459,7 +484,24 @@ function TalukClusterReport() {
     }
 
     const subDetailsMap = apiData.allSubDetails || {};
+    const lastMonthSubDetailsMap = (filterType === 'range' && lastMonthApiData) ? (lastMonthApiData.allSubDetails || {}) : null;
     const normalizeName = (name) => (name ? String(name).toLowerCase().replace(/[^a-z0-9]/g, '') : '');
+
+    const getLastMonthCompleted = (talukId, talukName) => {
+      if (!lastMonthSubDetailsMap) return 0;
+      const matchedKey = Object.keys(lastMonthSubDetailsMap).find((key) => {
+        const details = lastMonthSubDetailsMap[key];
+        return (
+          (details && (details.id === talukId || details.talukId === talukId)) ||
+          normalizeName(key) === normalizeName(talukName)
+        );
+      });
+      if (matchedKey && lastMonthSubDetailsMap[matchedKey]) {
+        const stats = getTalukStats(lastMonthSubDetailsMap[matchedKey]);
+        return stats.completed;
+      }
+      return 0;
+    };
 
     if (taluksList && taluksList.length > 0) {
       return taluksList.map((taluk) => {
@@ -474,6 +516,8 @@ function TalukClusterReport() {
           );
         });
 
+        const currentMonthCompleted = getLastMonthCompleted(talukId, talukName);
+
         if (matchedKey && subDetailsMap[matchedKey]) {
           const details = subDetailsMap[matchedKey];
           const stats = getTalukStats(details);
@@ -482,6 +526,7 @@ function TalukClusterReport() {
             taluk: talukName,
             total: stats.completed + stats.ongoing + stats.notStarted + stats.underReview,
             completed: stats.completed,
+            currentMonthCompleted,
             ongoing: stats.ongoing,
             notStarted: stats.notStarted,
             underReview: stats.underReview,
@@ -493,6 +538,7 @@ function TalukClusterReport() {
             taluk: talukName,
             total: 0,
             completed: 0,
+            currentMonthCompleted: 0,
             ongoing: 0,
             notStarted: 0,
             underReview: 0,
@@ -504,22 +550,25 @@ function TalukClusterReport() {
 
     return Object.entries(subDetailsMap).map(([talukName, details]) => {
       const stats = getTalukStats(details);
+      const currentMonthCompleted = getLastMonthCompleted(details.id || details.talukId, talukName);
       return {
         id: details.id || details.talukId,
         taluk: talukName,
         total: stats.completed + stats.ongoing + stats.notStarted + stats.underReview,
         completed: stats.completed,
+        currentMonthCompleted,
         ongoing: stats.ongoing,
         notStarted: stats.notStarted,
         underReview: stats.underReview,
         hasData: stats.hasData
       };
     });
-  }, [apiData, taluksList, landType]);
+  }, [apiData, lastMonthApiData, taluksList, landType, filterType]);
 
   const stats = useMemo(() => ({
     total: talukData.reduce((sum, r) => sum + r.total, 0),
     completed: talukData.reduce((sum, r) => sum + r.completed, 0),
+    currentMonthCompleted: talukData.reduce((sum, r) => sum + (r.currentMonthCompleted || 0), 0),
     ongoing: talukData.reduce((sum, r) => sum + r.ongoing, 0),
     notStarted: talukData.reduce((sum, r) => sum + r.notStarted, 0),
     underReview: talukData.reduce((sum, r) => sum + r.underReview, 0),
@@ -555,9 +604,10 @@ function TalukClusterReport() {
       setFromMonth('');
       setToMonth('');
     } else {
+      const defaultMonth = getDefaultMonth(agriYearMonths.current);
       setFromMonth(agriYearMonths.current[0]?.value || '');
+      setToMonth(defaultMonth);
       setSingleMonth('');
-      setToMonth('');
     }
     setPage(0);
   };
@@ -578,12 +628,13 @@ function TalukClusterReport() {
   };
 
   const handleClearFilters = () => {
-    setSingleMonth(getDefaultMonth(agriYearMonths.current));
-    setFromMonth('');
-    setToMonth('');
+    const defaultMonth = getDefaultMonth(agriYearMonths.current);
+    setSingleMonth(defaultMonth);
+    setFromMonth(agriYearMonths.current[0]?.value || '');
+    setToMonth(defaultMonth);
     setSeasonTab('ALL');
     setLandType(null);
-    setFilterType('single');
+    setFilterType('range');
     setPage(0);
     setSearchTerm('');
   };
@@ -653,23 +704,31 @@ function TalukClusterReport() {
   const handleExportExcel = () => {
     if (!searchFilteredData || searchFilteredData.length === 0) return;
 
-    const exportRows = searchFilteredData.map((row, index) => ({
-      '#': index + 1,
-      Taluk: row.taluk,
-      Total: row.hasData ? row.total : 'NA',
-      Completed: row.hasData ? row.completed : 'NA',
-      Ongoing: row.hasData ? row.ongoing : 'NA',
-      'Not Started': row.hasData ? row.notStarted : 'NA',
-      'Under Review': row.hasData ? row.underReview : 'NA'
-    }));
+    const exportRows = searchFilteredData.map((row, index) => {
+      const rowObj = {
+        '#': index + 1,
+        Taluk: row.taluk,
+        Total: row.hasData ? row.total : 'NA'
+      };
+
+      if (filterType === 'range') {
+        rowObj['During the Month'] = row.hasData ? row.currentMonthCompleted : 'NA';
+      }
+
+      rowObj['Up to the Month'] = row.hasData ? row.completed : 'NA';
+      rowObj['Ongoing'] = row.hasData ? row.ongoing : 'NA';
+      rowObj['Not Started'] = row.hasData ? row.notStarted : 'NA';
+      rowObj['Under Review'] = row.hasData ? row.underReview : 'NA';
+
+      return rowObj;
+    });
 
     const worksheet = XLSX.utils.json_to_sheet(exportRows);
 
     // Reasonable column widths so it doesn't open looking cramped
-    worksheet['!cols'] = [
-      { wch: 5 },  { wch: 25 }, { wch: 10 },
-      { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
-    ];
+    worksheet['!cols'] = filterType === 'range'
+      ? [{ wch: 5 }, { wch: 25 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 14 }]
+      : [{ wch: 5 }, { wch: 25 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 14 }];
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'District Report');
@@ -677,25 +736,41 @@ function TalukClusterReport() {
     XLSX.writeFile(workbook, generateExcelFileName());
   };
 
+  const tableHeaders = useMemo(() => {
+    if (filterType === 'range') {
+      return ['#', 'Taluk', 'Total', 'During the Month', 'Up to the Month', 'Ongoing', 'Not Started', 'Under Review', 'Actions'];
+    }
+    return ['#', 'Taluk', 'Total', 'Up to the Month', 'Ongoing', 'Not Started', 'Under Review', 'Actions'];
+  }, [filterType]);
+
   /* ─────────────────────────── sub-components ─────────────────────────── */
 
-  const StatCard = ({ label, value, color, bgColor, icon }) => (
-    <Card sx={{
-      bgcolor: bgColor, borderRadius: 3,
-      transition: 'transform 0.2s, box-shadow 0.2s',
-      '&:hover': { transform: 'translateY(-4px)', boxShadow: theme.shadows[4] },
-    }}>
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Box>
-            <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>{value}</Typography>
-            <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>{label}</Typography>
-          </Box>
-          {icon}
-        </Stack>
-      </CardContent>
-    </Card>
-  );
+  const StatCard = ({ label, value, color, bgColor, icon, tooltip }) => {
+    const cardContent = (
+      <Card sx={{
+        bgcolor: bgColor, borderRadius: 3,
+        height: '100%',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+        '&:hover': { transform: 'translateY(-4px)', boxShadow: theme.shadows[4] },
+      }}>
+        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Box>
+              <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>{value}</Typography>
+              <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>{label}</Typography>
+            </Box>
+            {icon}
+          </Stack>
+        </CardContent>
+      </Card>
+    );
+
+    return tooltip ? (
+      <Tooltip title={tooltip} arrow placement="top">
+        {cardContent}
+      </Tooltip>
+    ) : cardContent;
+  };
 
   /* ─────────────────────────── display name ─────────────────────────── */
 
@@ -704,18 +779,20 @@ function TalukClusterReport() {
     (apiData && Object.keys(apiData.allSubDetails || {})[0]?.replace(/[^a-zA-Z\s]/g, '')) ||
     'District';
 
-  /* ─────────────────────────── render ─────────────────────────── */
+  /* ─────────────────────────── loading state ─────────────────────────── */
 
-  if (loading && !apiData && taluksList.length === 0) {
+  if (loading && !apiData) {
     return (
       <Grid container spacing={3} justifyContent="center" alignItems="center" sx={{ minHeight: '400px' }}>
         <Grid item>
           <CircularProgress />
-          <Typography sx={{ mt: 2 }}>Loading taluk data...</Typography>
+          <Typography sx={{ mt: 2 }}>Loading dashboard data...</Typography>
         </Grid>
       </Grid>
     );
   }
+
+  /* ─────────────────────────── render ─────────────────────────── */
 
   return (
     <Grid container spacing={3}>
@@ -723,13 +800,12 @@ function TalukClusterReport() {
 
       {/* Header */}
       <Grid item xs={12}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between"
-          alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
           <Stack direction="row" spacing={1} alignItems="center">
-            <LocationOnIcon sx={{ fontSize: 40, color: '#1a237e' }} />
+            <AssessmentIcon sx={{ fontSize: 40, color: '#1a237e' }} />
             <Box>
               <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1a237e' }}>
-                {displayDistrictName} – Taluk wise Cluster Progress Report
+                District Cluster Progress Report: {displayDistrictName}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {agriculturalYear.current && `Agricultural Year: ${agriculturalYear.current.display}`}
@@ -743,20 +819,19 @@ function TalukClusterReport() {
               </Typography>
             </Box>
           </Stack>
-          {(fromMonth || toMonth || singleMonth || seasonTab !== 'ALL') && (
-            <Button variant="outlined" onClick={handleClearFilters}
-              startIcon={<ClearIcon />} size="small" sx={{ borderRadius: 2 }}>
+          {(fromMonth || toMonth || (filterType === 'single' && singleMonth !== getDefaultMonth(agriYearMonths.current)) || seasonTab !== 'ALL') && (
+            <Button variant="outlined" onClick={handleClearFilters} startIcon={<ClearIcon />} size="small" sx={{ borderRadius: 2 }}>
               Clear All Filters
             </Button>
           )}
         </Stack>
       </Grid>
 
-      {/* Error */}
+      {/* Error Message */}
       {error && (
         <Grid item xs={12}>
           <Paper sx={{ p: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
-            <Typography color="error">{error}</Typography>
+            <Typography color="error">Error: {error}</Typography>
           </Paper>
         </Grid>
       )}
@@ -764,17 +839,7 @@ function TalukClusterReport() {
       {/* Info Banner for taluks with no data */}
       {stats.taluksWithoutData > 0 && !loading && (
         <Grid item xs={12}>
-          <Paper
-            sx={{
-              p: 1.5,
-              bgcolor: alpha('#ff9800', 0.08),
-              borderRadius: 2,
-              border: `1px solid ${alpha('#ff9800', 0.3)}`,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1
-            }}
-          >
+          <Paper sx={{ p: 1.5, bgcolor: alpha('#ff9800', 0.08), borderRadius: 2, border: `1px solid ${alpha('#ff9800', 0.3)}`, display: 'flex', alignItems: 'center', gap: 1 }}>
             <InfoOutlinedIcon sx={{ color: '#ff9800', fontSize: 20 }} />
             <Typography variant="body2" color="text.secondary">
               <strong>{stats.taluksWithoutData}</strong> taluk{stats.taluksWithoutData > 1 ? 's' : ''} have no data available for the selected filters.
@@ -787,67 +852,53 @@ function TalukClusterReport() {
       {/* Filters */}
       <Grid item xs={12}>
         <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
-            <Tabs value={seasonTab} onChange={handleSeasonTabChange} sx={{ minHeight: 40 }}>
-              <Tab label="ALL" value="ALL" />
-              <Tab label="WET" value="WET" icon={<WaterDropIcon />} iconPosition="start" />
-              <Tab label="DRY" value="DRY" icon={<WbSunnyIcon />} iconPosition="start" />
-            </Tabs>
+          <Stack spacing={2}>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
+              <Tabs value={seasonTab} onChange={handleSeasonTabChange} sx={{ minHeight: 40 }}>
+                <Tab label="ALL" value="ALL" />
+                <Tab label="WET" value="WET" icon={<WaterDropIcon />} iconPosition="start" />
+                <Tab label="DRY" value="DRY" icon={<WbSunnyIcon />} iconPosition="start" />
+              </Tabs>
 
-            <ToggleButtonGroup value={filterType} exclusive onChange={handleFilterTypeChange} size="small">
-              <ToggleButton value="range"><ViewWeekIcon sx={{ mr: 0.5, fontSize: 18 }} />Month Range</ToggleButton>
-              <ToggleButton value="single"><ViewModuleIcon sx={{ mr: 0.5, fontSize: 18 }} />Single Month</ToggleButton>
-            </ToggleButtonGroup>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <ToggleButtonGroup value={filterType} exclusive onChange={handleFilterTypeChange} size="small">
+                  <ToggleButton value="range"><ViewWeekIcon sx={{ mr: 0.5, fontSize: 18 }} />Month Range</ToggleButton>
+                  <ToggleButton value="single"><ViewModuleIcon sx={{ mr: 0.5, fontSize: 18 }} />Single Month</ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
 
-            {filterType === 'range' ? (
-              <>
-                <FormControl size="small" sx={{ minWidth: 170 }}>
-                  <InputLabel>From Month</InputLabel>
-                  <Select
-                    value={fromMonth}
-                    label="From Month"
-                    onChange={handleFromMonthChange}
-                  >
+              {filterType === 'range' ? (
+                <>
+                  <FormControl size="small" sx={{ minWidth: 170 }}>
+                    <InputLabel>From Month</InputLabel>
+                    <Select value={fromMonth} label="From Month" onChange={handleFromMonthChange}>
+                      {agriYearMonths.current.map((m) => (
+                        <MenuItem key={m.value} value={m.value}>{m.label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <Typography variant="body2" color="text.secondary">→</Typography>
+                  <FormControl size="small" sx={{ minWidth: 170 }}>
+                    <InputLabel>To Month</InputLabel>
+                    <Select value={toMonth} label="To Month" onChange={handleToMonthChange}>
+                      <MenuItem value="">None</MenuItem>
+                      {agriYearMonths.current.map((m) => (
+                        <MenuItem key={m.value} value={m.value}>{m.label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </>
+              ) : (
+                <FormControl size="small" sx={{ minWidth: 200 }}>
+                  <InputLabel>Select Month</InputLabel>
+                  <Select value={singleMonth} label="Select Month" onChange={handleSingleMonthChange}>
                     {agriYearMonths.current.map((m) => (
-                      <MenuItem key={m.value} value={m.value}>
-                        {m.label}
-                      </MenuItem>
+                      <MenuItem key={m.value} value={m.value}>{m.label}</MenuItem>
                     ))}
                   </Select>
                 </FormControl>
-                <Typography variant="body2" color="text.secondary">→</Typography>
-                <FormControl size="small" sx={{ minWidth: 170 }}>
-                  <InputLabel>To Month</InputLabel>
-                  <Select
-                    value={toMonth}
-                    label="To Month"
-                    onChange={handleToMonthChange}
-                  >
-                    <MenuItem value="">None</MenuItem>
-                    {agriYearMonths.current.map((m) => (
-                      <MenuItem key={m.value} value={m.value}>
-                        {m.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </>
-            ) : (
-              <FormControl size="small" sx={{ minWidth: 200 }}>
-                <InputLabel>Select Month</InputLabel>
-                <Select
-                  value={singleMonth}
-                  label="Select Month"
-                  onChange={handleSingleMonthChange}
-                >
-                  {agriYearMonths.current.map((m) => (
-                    <MenuItem key={m.value} value={m.value}>
-                      {m.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
+              )}
+            </Stack>
           </Stack>
         </Paper>
       </Grid>
@@ -855,75 +906,69 @@ function TalukClusterReport() {
       {/* Stats Cards */}
       <Grid item xs={12}>
         <Box sx={{ position: 'relative', border: `1px solid ${alpha('#04255e', 0.15)}`, borderRadius: 3, p: 2, pt: 3, bgcolor: '#fff' }}>
-          <Chip label={`${displayDistrictName} – District Report Summary`} size="small"
-            sx={{ position: 'absolute', top: -12, left: 20, zIndex: 10, fontWeight: 600, bgcolor: '#04255e', color: '#fff', px: 1 }} />
+          <Chip label={`District Report Summary: ${displayDistrictName}`} color="primary" size="small"
+            sx={{ position: 'absolute', top: -12, left: 20, fontWeight: 600, bgcolor: '#04255e', color: '#fff', px: 1 }} />
           <Grid container spacing={2}>
-            {[
-              { label: 'Total Clusters', value: stats.total, color: '#1565c0', icon: <AssessmentIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} /> },
-              { label: 'Completed', value: stats.completed, color: '#2e7d32', icon: <CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} /> },
-              { label: 'Ongoing', value: stats.ongoing, color: '#ed6c02', icon: <PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} /> },
-              { label: 'Not Started', value: stats.notStarted, color: '#757575', icon: <ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} /> },
-              { label: 'Under Review', value: stats.underReview, color: '#b76e00', icon: <RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} /> },
-            ].map(({ label, value, color, icon }) => (
-              <Grid item xs={12} sm={6} md={2.4} key={label}>
-                <StatCard label={label} value={value} color={color} bgColor={alpha(color, 0.08)} icon={icon} />
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
+              <StatCard label="Total Clusters" value={stats.total} color="#1565c0" bgColor={alpha('#1565c0', 0.08)}
+                icon={<AssessmentIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />}
+                tooltip="Total clusters allocated for survey in selected season" />
+            </Grid>
+            {filterType === 'range' && (
+              <Grid item xs={12} sm={6} md={2}>
+                <StatCard label="During the Month" value={stats.currentMonthCompleted} color="#0288d1" bgColor={alpha('#0288d1', 0.08)}
+                  icon={<CalendarMonthIcon sx={{ fontSize: 32, color: '#0288d1', opacity: 0.7 }} />}
+                  tooltip="Clusters completed during the selected end month" />
               </Grid>
-            ))}
+            )}
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
+              <StatCard label="Up to the Month" value={stats.completed} color="#2e7d32" bgColor={alpha('#2e7d32', 0.08)}
+                icon={<CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />}
+                tooltip="Cumulative clusters completed up to the selected month" />
+            </Grid>
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
+              <StatCard label="Ongoing" value={stats.ongoing} color="#ed6c02" bgColor={alpha('#ed6c02', 0.08)}
+                icon={<PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} />}
+                tooltip="Clusters currently ongoing" />
+            </Grid>
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
+              <StatCard label="Not Started" value={stats.notStarted} color="#757575" bgColor={alpha('#757575', 0.08)}
+                icon={<ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} />}
+                tooltip="Clusters not yet started" />
+            </Grid>
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
+              <StatCard label="Under Review" value={stats.underReview} color="#b76e00" bgColor={alpha('#b76e00', 0.08)}
+                icon={<RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} />}
+                tooltip="Clusters currently under review" />
+            </Grid>
           </Grid>
         </Box>
       </Grid>
 
-      {/* Taluk Table */}
+      {/* Main Table */}
       <Grid item xs={12}>
-        <Box
-          sx={{
-            position: 'relative',
-            border: `1px solid ${alpha('#04255e', 0.15)}`,
-            borderRadius: 3,
-            pt: 3,
-            bgcolor: '#fff'
-          }}
-        >
-          <Chip label="Taluk Report Summary" size="small"
-            sx={{ position: 'absolute', top: -12, left: 20, zIndex: 10, fontWeight: 600, bgcolor: '#04255e', color: '#fff', px: 1, boxShadow: 2 }} />
+        <Box sx={{ position: 'relative', border: `1px solid ${alpha('#04255e', 0.15)}`, borderRadius: 3, pt: 3, bgcolor: '#fff' }}>
+          <Chip label="Taluk Report Summary" color="primary" size="small"
+            sx={{ position: 'absolute', top: -12, left: 20, zIndex: 10, fontWeight: 600, bgcolor: '#04255e', color: '#fff', px: 1 }} />
 
-          {/* Search + Export row — sits inside the same bordered box, above MainCard */}
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            justifyContent="flex-end"
-            alignItems="center"
-            spacing={1.5}
-            sx={{ px: 2, pb: 2 }}
-          >
+          {/* Search + Export row */}
+          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="flex-end" alignItems="center" spacing={1.5} sx={{ px: 2, pb: 2 }}>
             <TextField placeholder="Search taluk..." size="small" value={searchTerm}
-              onChange={e => { setSearchTerm(e.target.value); setPage(0); }} sx={{ width: 250 }}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
+              sx={{ width: 250 }}
               InputProps={{
                 startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
                 endAdornment: searchTerm && (
                   <InputAdornment position="end">
-                    <IconButton size="small" onClick={handleClearSearch} edge="end">
-                      <ClearIcon fontSize="small" />
-                    </IconButton>
+                    <IconButton size="small" onClick={handleClearSearch} edge="end"><ClearIcon fontSize="small" /></IconButton>
                   </InputAdornment>
-                ),
-              }}
-            />
-            <Tooltip
-              title={
-                searchFilteredData.length === 0
-                  ? 'No data available to export'
-                  : `Export ${searchFilteredData.length} taluk${searchFilteredData.length > 1 ? 's' : ''} to Excel`
-              }
-            >
+                )
+              }} />
+            <Tooltip title={searchFilteredData.length === 0 ? 'No data available to export' : `Export ${searchFilteredData.length} taluk${searchFilteredData.length > 1 ? 's' : ''} to Excel`}>
               <span>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<DownloadIcon />}
-                  onClick={handleExportExcel}
+                <Button variant="outlined" size="small" startIcon={<DownloadIcon />} onClick={handleExportExcel}
                   disabled={searchFilteredData.length === 0 || loading}
-                  sx={{ borderRadius: 2, whiteSpace: 'nowrap' }}
-                >
+                  sx={{ borderRadius: 2, whiteSpace: 'nowrap' }}>
                   Download Excel
                 </Button>
               </span>
@@ -935,10 +980,25 @@ function TalukClusterReport() {
             sx={{ borderRadius: 3 }}
           >
             <TableContainer>
-              <Table>
+              <Table
+                sx={{
+                  borderCollapse: 'collapse',
+                  '& .MuiTableCell-root': {
+                    borderRight: `1px solid ${alpha('#04255e', 0.12)}`,
+                    borderBottom: `1px solid ${alpha('#04255e', 0.12)}`
+                  },
+                  '& .MuiTableHead-root .MuiTableCell-root': {
+                    borderRight: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+                  },
+                  '& .MuiTableCell-root:last-child': {
+                    borderRight: 'none'
+                  }
+                }}
+              >
                 <TableHead>
                   <TableRow sx={{ bgcolor: '#04255e' }}>
-                    {['#', 'Taluk', 'Total', 'Completed', 'Ongoing', 'Not Started', 'Under Review', 'Actions'].map((label, idx) => (
+                    {tableHeaders.map((label, idx) => (
                       <TableCell key={idx} align={idx === 0 ? 'center' : idx === 1 ? 'left' : 'center'}
                         sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>{label}</TableCell>
                     ))}
@@ -947,7 +1007,7 @@ function TalukClusterReport() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={8} align="center" sx={{ py: 6 }}><CircularProgress size={40} /></TableCell>
+                      <TableCell colSpan={filterType === 'range' ? 9 : 8} align="center" sx={{ py: 6 }}><CircularProgress size={40} /></TableCell>
                     </TableRow>
                   ) : paginatedData.length > 0 ? (
                     paginatedData.map((row, index) => {
@@ -1002,6 +1062,17 @@ function TalukClusterReport() {
                                 sx={{ fontWeight: 600, bgcolor: alpha('#04255e', 0.1) }} />
                             )}
                           </TableCell>
+                          {filterType === 'range' && (
+                            <TableCell align="center">
+                              {hasNoData ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : row.currentMonthCompleted > 0 ? (
+                                <Chip label={row.currentMonthCompleted} size="small" color="success" variant="outlined" />
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">0</Typography>
+                              )}
+                            </TableCell>
+                          )}
                           <TableCell align="center">
                             {hasNoData ? (
                               <Typography variant="body2" color="text.secondary">NA</Typography>
@@ -1058,7 +1129,7 @@ function TalukClusterReport() {
                     })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={filterType === 'range' ? 9 : 8} align="center" sx={{ py: 6 }}>
                         <Typography color="text.secondary">
                           {searchTerm ? `No taluks found matching "${searchTerm}"` : 'No data available for selected filters'}
                         </Typography>
@@ -1074,7 +1145,7 @@ function TalukClusterReport() {
                 page={page} onPageChange={(_, p) => setPage(p)}
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
-                rowsPerPageOptions={[5, 10, 25]}
+                rowsPerPageOptions={[15, 25, 50, 100]}
                 sx={{ borderTop: `1px solid ${theme.palette.divider}` }} />
             )}
           </MainCard>

@@ -530,6 +530,45 @@ function ReportMenuWrapper({ children }) {
       }
     }
 
+    // ═══════════════════ INSPECTION REPORT ═══════════════════
+    else if (reportPath === '/Report/kerala_inspection_report' || reportPath === '/schemes/earas/kerala_inspection_report') {
+      if (!officeInfo) {
+        navigate('/Report/kerala_inspection_report');
+        return;
+      }
+
+      let { officeType, districtName, talukName } = officeInfo;
+      if (!officeType) {
+        try {
+          const userStr = localStorage.getItem('user');
+          if (userStr) {
+            const userObj = JSON.parse(userStr);
+            const userRole = userObj?.role || '';
+            if (userRole.toLowerCase().includes('district')) officeType = 'DISTRICT';
+            else if (userRole.toLowerCase().includes('taluk')) officeType = 'TALUK';
+            else officeType = 'DIRECTORATE';
+          }
+        } catch (e) {
+          officeType = 'DIRECTORATE';
+        }
+      }
+
+      if (officeType === 'DIRECTORATE') {
+        navigate('/Report/kerala_inspection_report');
+      } else if (officeType === 'DISTRICT') {
+        const distName = districtName || localStorage.getItem('userDistrict') || 'thiruvananthapuram';
+        navigate(`/kerala_inspection_report/taluk_inspection_report/${encodeURIComponent(distName.toLowerCase())}`, {
+          state: { officeType, viewLevel: 'district', districtName: distName, isDirectAccess: true }
+        });
+      } else if (officeType === 'TALUK') {
+        const distName = districtName || localStorage.getItem('userDistrict') || 'thiruvananthapuram';
+        const tName = talukName || localStorage.getItem('userTaluk') || 'neyyattinkara';
+        navigate(`/kerala_inspection_report/zone_inspection_report/${encodeURIComponent(distName.toLowerCase())}/${encodeURIComponent(tName.toLowerCase())}`, {
+          state: { officeType, viewLevel: 'taluk', districtName: distName, talukName: tName, isDirectAccess: true }
+        });
+      }
+    }
+
     // ═══════════════════ EVERYTHING ELSE ═══════════════════
     else {
       navigate(reportPath);

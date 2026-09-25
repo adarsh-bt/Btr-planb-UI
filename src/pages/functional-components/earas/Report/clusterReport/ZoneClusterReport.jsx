@@ -41,6 +41,7 @@ import PendingIcon from '@mui/icons-material/Pending';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import SearchIcon from '@mui/icons-material/Search';
@@ -302,22 +303,27 @@ function ZoneClusterReport() {
   /* ── filter state ── */
   const [seasonTab, setSeasonTab] = useState(stateData.seasonTab || 'ALL');
   const [landType, setLandType] = useState(stateData.landType || null);
-  const [filterType, setFilterType] = useState(stateData.filterType || 'single');
-  const [fromMonth, setFromMonth] = useState(() => toMonthOptionValue(stateData.fromMonth, agriculturalYear.current));
-  const [toMonth, setToMonth] = useState(() => toMonthOptionValue(stateData.toMonth, agriculturalYear.current));
+  const [filterType, setFilterType] = useState(stateData.filterType || 'range');
+  const [fromMonth, setFromMonth] = useState(() =>
+    toMonthOptionValue(stateData.fromMonth, agriculturalYear.current) || toMonthOptionValue('July', agriculturalYear.current)
+  );
+  const [toMonth, setToMonth] = useState(() =>
+    toMonthOptionValue(stateData.toMonth, agriculturalYear.current) || toMonthOptionValue(getCurrentMonthName(), agriculturalYear.current)
+  );
   const [singleMonth, setSingleMonth] = useState(() =>
     toMonthOptionValue(stateData.singleMonth || getCurrentMonthName(), agriculturalYear.current)
   );
 
   /* ── ui state ── */
   const [apiData, setApiData] = useState(null);
+  const [lastMonthApiData, setLastMonthApiData] = useState(null);
   const [zonesList, setZonesList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [totalElements, setTotalElements] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
 
   /* ─────────────────────────── fetch master zones ─────────────────────────── */
 
@@ -376,20 +382,31 @@ function ZoneClusterReport() {
         params.append('landType', effectiveLandType.toLowerCase());
       }
 
+      let startM = null;
+      let endM = null;
+
       if (effectiveFilterType === 'single') {
         const fmt = formatMonthForApi(effectiveSingleMonth || getCurrentMonthName(), agriculturalYear.current);
         if (fmt) {
+          startM = fmt;
+          endM = fmt;
           params.append('startMonth', fmt);
           params.append('endMonth', fmt);
         }
       } else if (effectiveFilterType === 'range') {
         if (effectiveFromMonth) {
           const fmt = formatMonthForApi(effectiveFromMonth, agriculturalYear.current);
-          if (fmt) params.append('startMonth', fmt);
+          if (fmt) {
+            startM = fmt;
+            params.append('startMonth', fmt);
+          }
         }
         if (effectiveToMonth) {
           const fmt = formatMonthForApi(effectiveToMonth, agriculturalYear.current);
-          if (fmt) params.append('endMonth', fmt);
+          if (fmt) {
+            endM = fmt;
+            params.append('endMonth', fmt);
+          }
         }
       }
 
@@ -397,6 +414,8 @@ function ZoneClusterReport() {
       if (!params.has('startMonth')) {
         const fallbackFmt = formatMonthForApi(getCurrentMonthName(), agriculturalYear.current);
         if (fallbackFmt) {
+          startM = fallbackFmt;
+          endM = fallbackFmt;
           params.append('startMonth', fallbackFmt);
           params.append('endMonth', fallbackFmt);
         }
@@ -414,6 +433,33 @@ function ZoneClusterReport() {
           response.data.totalElements ||
           Object.keys(response.data.allSubDetails || {}).length
         );
+      }
+
+      // If range filter active, fetch single-month stats for last month of range
+      if (effectiveFilterType === 'range') {
+        const lastM = endM || startM;
+        if (lastM) {
+          const lmParams = new URLSearchParams();
+          lmParams.append('page', 0);
+          lmParams.append('size', 100);
+          lmParams.append('startMonth', lastM);
+          lmParams.append('endMonth', lastM);
+          if (effectiveLandType && effectiveSeasonTab !== 'ALL') {
+            lmParams.append('landType', effectiveLandType.toLowerCase());
+          }
+          let lmUrl = `${BASE_URL}/btr-service/api/report/clusters/taluk/${talukIdValue}/zones?${lmParams.toString()}`;
+          try {
+            const lmResponse = await api.get(lmUrl);
+            setLastMonthApiData(lmResponse.data);
+          } catch (lmErr) {
+            console.error('Error fetching last month zone data:', lmErr);
+            setLastMonthApiData(null);
+          }
+        } else {
+          setLastMonthApiData(null);
+        }
+      } else {
+        setLastMonthApiData(null);
       }
     } catch (err) {
       console.error('Error fetching zone data:', err);
@@ -485,6 +531,7 @@ function ZoneClusterReport() {
    */
   const processedData = useMemo(() => {
     const subDetailsMap = apiData?.allSubDetails || {};
+    const lastMonthSubDetailsMap = (filterType === 'range' && lastMonthApiData) ? (lastMonthApiData.allSubDetails || {}) : null;
     const apiEntries = Object.entries(subDetailsMap).filter(([, details]) => !!details);
 
     // Stat lookups: zoneId is authoritative, name is only a fallback
@@ -496,6 +543,28 @@ function ZoneClusterReport() {
       }
       byZoneName.set(normalizeZoneName(zoneName), { zoneName, details });
     });
+
+    const lmByZoneId = new Map();
+    const lmByZoneName = new Map();
+    if (lastMonthSubDetailsMap) {
+      Object.entries(lastMonthSubDetailsMap).forEach(([zName, details]) => {
+        if (!details) return;
+        if (details.zoneId !== undefined && details.zoneId !== null) {
+          lmByZoneId.set(String(details.zoneId), details);
+        }
+        lmByZoneName.set(normalizeZoneName(zName), details);
+      });
+    }
+
+    const getLastMonthCompleted = (zId, zName) => {
+      if (!lastMonthSubDetailsMap) return 0;
+      const match = (zId !== undefined && zId !== null ? lmByZoneId.get(String(zId)) : null) || lmByZoneName.get(normalizeZoneName(zName));
+      if (match) {
+        const stats = getZoneStats(match);
+        return stats.completed;
+      }
+      return 0;
+    };
 
     const blockMap = new Map();
 
@@ -527,6 +596,7 @@ function ZoneClusterReport() {
         if (match) matchedApiKeys.add(match.zoneName);
 
         const stats = getZoneStats(match ? match.details : null);
+        const currentMonthCompleted = getLastMonthCompleted(zoneId, zoneName);
 
         // Block comes from the API when this zone reported; master list otherwise
         const blockNameRaw = (match && match.details.blockName) || zone.blockName || 'Unassigned';
@@ -536,6 +606,7 @@ function ZoneClusterReport() {
           zoneId,
           zoneName,
           completed: stats.completed,
+          currentMonthCompleted,
           ongoing: stats.ongoing,
           notStarted: stats.notStarted,
           underReview: stats.underReview,
@@ -548,10 +619,12 @@ function ZoneClusterReport() {
       apiEntries.forEach(([zoneName, details]) => {
         if (matchedApiKeys.has(zoneName)) return;
         const stats = getZoneStats(details);
+        const currentMonthCompleted = getLastMonthCompleted(details.zoneId, zoneName);
         addZone(details.blockName || 'Unassigned', details.blockId ?? null, {
           zoneId: details.zoneId,
           zoneName,
           completed: stats.completed,
+          currentMonthCompleted,
           ongoing: stats.ongoing,
           notStarted: stats.notStarted,
           underReview: stats.underReview,
@@ -562,10 +635,12 @@ function ZoneClusterReport() {
       // No skeleton available — group straight from the API response
       apiEntries.forEach(([zoneName, details]) => {
         const stats = getZoneStats(details);
+        const currentMonthCompleted = getLastMonthCompleted(details.zoneId, zoneName);
         addZone(details.blockName || 'Unassigned', details.blockId ?? null, {
           zoneId: details.zoneId,
           zoneName,
           completed: stats.completed,
+          currentMonthCompleted,
           ongoing: stats.ongoing,
           notStarted: stats.notStarted,
           underReview: stats.underReview,
@@ -584,16 +659,17 @@ function ZoneClusterReport() {
     });
 
     return blocks.sort((a, b) => a.blockName.localeCompare(b.blockName));
-  }, [apiData, zonesList, landType]);
+  }, [apiData, lastMonthApiData, zonesList, landType, filterType]);
 
   const stats = useMemo(() => {
-    let total = 0, completed = 0, ongoing = 0, notStarted = 0, underReview = 0;
+    let total = 0, completed = 0, currentMonthCompleted = 0, ongoing = 0, notStarted = 0, underReview = 0;
     let zonesWithData = 0, zonesWithoutData = 0;
 
     processedData.forEach(block => {
       block.zones.forEach(zone => {
         total += zone.completed + zone.ongoing + zone.notStarted + zone.underReview;
         completed += zone.completed;
+        currentMonthCompleted += (zone.currentMonthCompleted || 0);
         ongoing += zone.ongoing;
         notStarted += zone.notStarted;
         underReview += zone.underReview;
@@ -607,7 +683,7 @@ function ZoneClusterReport() {
     });
 
     return {
-      total, completed, ongoing, notStarted, underReview,
+      total, completed, currentMonthCompleted, ongoing, notStarted, underReview,
       zonesWithData, zonesWithoutData,
       totalZones: processedData.reduce((sum, block) => sum + block.zones.length, 0)
     };
@@ -616,12 +692,13 @@ function ZoneClusterReport() {
   const flattenedTableData = useMemo(() => {
     const result = [];
     processedData.forEach(block => {
-      let bTotal = 0, bCompleted = 0, bOngoing = 0, bNotStarted = 0, bUnderReview = 0;
+      let bTotal = 0, bCompleted = 0, bCurrentMonthCompleted = 0, bOngoing = 0, bNotStarted = 0, bUnderReview = 0;
 
       block.zones.forEach((zone, idx) => {
         const zTotal = zone.completed + zone.ongoing + zone.notStarted + zone.underReview;
         bTotal += zTotal;
         bCompleted += zone.completed;
+        bCurrentMonthCompleted += (zone.currentMonthCompleted || 0);
         bOngoing += zone.ongoing;
         bNotStarted += zone.notStarted;
         bUnderReview += zone.underReview;
@@ -636,6 +713,7 @@ function ZoneClusterReport() {
           zoneName: zone.zoneName,
           total: zTotal,
           completed: zone.completed,
+          currentMonthCompleted: zone.currentMonthCompleted || 0,
           ongoing: zone.ongoing,
           notStarted: zone.notStarted,
           underReview: zone.underReview,
@@ -653,6 +731,7 @@ function ZoneClusterReport() {
         zoneName: `Total for ${block.blockName}`,
         total: bTotal,
         completed: bCompleted,
+        currentMonthCompleted: bCurrentMonthCompleted,
         ongoing: bOngoing,
         notStarted: bNotStarted,
         underReview: bUnderReview,
@@ -695,19 +774,21 @@ function ZoneClusterReport() {
       setToMonth('');
     } else {
       setFromMonth(toMonthOptionValue('July', agriculturalYear.current));
+      setToMonth(toMonthOptionValue(getCurrentMonthName(), agriculturalYear.current));
       setSingleMonth('');
-      setToMonth('');
     }
     setPage(0);
   };
 
   const handleClearFilters = () => {
-    setSingleMonth(toMonthOptionValue(getCurrentMonthName(), agriculturalYear.current));
-    setFromMonth('');
-    setToMonth('');
+    const curMonthVal = toMonthOptionValue(getCurrentMonthName(), agriculturalYear.current);
+    const julyVal = toMonthOptionValue('July', agriculturalYear.current);
+    setSingleMonth(curMonthVal);
+    setFromMonth(julyVal);
+    setToMonth(curMonthVal);
     setSeasonTab('ALL');
     setLandType(null);
-    setFilterType('single');
+    setFilterType('range');
     setPage(0);
   };
 
@@ -758,25 +839,32 @@ function ZoneClusterReport() {
 
       const hasNoData = !row.hasData && row.total === 0;
 
-      return {
+      const rowObj = {
         '#': isSubtotalRow ? '' : serial,
         Block: row.blockName,
         Zone: row.zoneName,
-        Total: hasNoData && !isSubtotalRow ? 'NA' : row.total,
-        Completed: hasNoData && !isSubtotalRow ? 'NA' : row.completed,
-        Ongoing: hasNoData && !isSubtotalRow ? 'NA' : row.ongoing,
-        'Not Started': hasNoData && !isSubtotalRow ? 'NA' : row.notStarted,
-        'Under Review': hasNoData && !isSubtotalRow ? 'NA' : row.underReview
+        Total: hasNoData && !isSubtotalRow ? 'NA' : row.total
       };
+
+      if (filterType === 'range') {
+        rowObj['During the Month'] = hasNoData && !isSubtotalRow ? 'NA' : row.currentMonthCompleted;
+      }
+
+      rowObj['Up to the Month'] = hasNoData && !isSubtotalRow ? 'NA' : row.completed;
+
+      rowObj['Ongoing'] = hasNoData && !isSubtotalRow ? 'NA' : row.ongoing;
+      rowObj['Not Started'] = hasNoData && !isSubtotalRow ? 'NA' : row.notStarted;
+      rowObj['Under Review'] = hasNoData && !isSubtotalRow ? 'NA' : row.underReview;
+
+      return rowObj;
     });
 
     const worksheet = XLSX.utils.json_to_sheet(exportRows);
 
     // Reasonable column widths so it doesn't open looking cramped
-    worksheet['!cols'] = [
-      { wch: 5 },  { wch: 20 }, { wch: 22 }, { wch: 10 },
-      { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
-    ];
+    worksheet['!cols'] = filterType === 'range'
+      ? [{ wch: 5 }, { wch: 20 }, { wch: 22 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 14 }]
+      : [{ wch: 5 }, { wch: 20 }, { wch: 22 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 14 }];
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'District Report');
@@ -786,23 +874,32 @@ function ZoneClusterReport() {
 
   /* ─────────────────────────── sub-components ─────────────────────────── */
 
-  const StatCard = ({ label, value, color, bgColor, icon }) => (
-    <Card sx={{
-      bgcolor: bgColor, borderRadius: 3,
-      transition: 'transform 0.2s, box-shadow 0.2s',
-      '&:hover': { transform: 'translateY(-4px)', boxShadow: theme.shadows[4] },
-    }}>
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Box>
-            <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>{value}</Typography>
-            <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>{label}</Typography>
-          </Box>
-          {icon}
-        </Stack>
-      </CardContent>
-    </Card>
-  );
+  const StatCard = ({ label, value, color, bgColor, icon, tooltip }) => {
+    const cardContent = (
+      <Card sx={{
+        bgcolor: bgColor, borderRadius: 3,
+        height: '100%',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+        '&:hover': { transform: 'translateY(-4px)', boxShadow: theme.shadows[4] },
+      }}>
+        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Box>
+              <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>{value}</Typography>
+              <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>{label}</Typography>
+            </Box>
+            {icon}
+          </Stack>
+        </CardContent>
+      </Card>
+    );
+
+    return tooltip ? (
+      <Tooltip title={tooltip} arrow placement="top">
+        {cardContent}
+      </Tooltip>
+    ) : cardContent;
+  };
 
   /* ─────────────────────────── display name ─────────────────────────── */
 
@@ -955,16 +1052,24 @@ function ZoneClusterReport() {
           <Chip label={`${formattedTaluk} – Taluk Report Summary`} size="small"
             sx={{ position: 'absolute', top: -12, left: 20, zIndex: 10, fontWeight: 600, bgcolor: '#04255e', color: '#fff', px: 1, boxShadow: 2 }} />
           <Grid container spacing={2}>
-            {[
-              { label: 'Total Zones', value: stats.totalZones, color: '#1565c0', icon: <StoreIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} /> },
-              { label: 'Total Clusters', value: stats.total, color: '#1565c0', icon: <AssessmentIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} /> },
-              { label: 'Completed', value: stats.completed, color: '#2e7d32', icon: <CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} /> },
-              { label: 'Ongoing', value: stats.ongoing, color: '#ed6c02', icon: <PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} /> },
-              { label: 'Not Started', value: stats.notStarted, color: '#757575', icon: <ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} /> },
-              { label: 'Under Review', value: stats.underReview, color: '#b76e00', icon: <RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} /> },
-            ].map(({ label, value, color, icon }) => (
-              <Grid item xs={12} sm={6} md={2} key={label}>
-                <StatCard label={label} value={value} color={color} bgColor={alpha(color, 0.08)} icon={icon} />
+            {(filterType === 'range' ? [
+              { label: 'Total Zones', value: stats.totalZones, color: '#1565c0', icon: <StoreIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />, tooltip: 'Total zones in selected taluk' },
+              { label: 'Total Clusters', value: stats.total, color: '#1565c0', icon: <AssessmentIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />, tooltip: 'Total clusters allocated for survey' },
+              { label: 'During the Month', value: stats.currentMonthCompleted, color: '#0288d1', icon: <CalendarMonthIcon sx={{ fontSize: 32, color: '#0288d1', opacity: 0.7 }} />, tooltip: 'Clusters completed during the selected end month' },
+              { label: 'Up to the Month', value: stats.completed, color: '#2e7d32', icon: <CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />, tooltip: 'Cumulative clusters completed up to the selected month' },
+              { label: 'Ongoing', value: stats.ongoing, color: '#ed6c02', icon: <PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} />, tooltip: 'Clusters currently ongoing' },
+              { label: 'Not Started', value: stats.notStarted, color: '#757575', icon: <ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} />, tooltip: 'Clusters not yet started' },
+              { label: 'Under Review', value: stats.underReview, color: '#b76e00', icon: <RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} />, tooltip: 'Clusters currently under review' },
+            ] : [
+              { label: 'Total Zones', value: stats.totalZones, color: '#1565c0', icon: <StoreIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />, tooltip: 'Total zones in selected taluk' },
+              { label: 'Total Clusters', value: stats.total, color: '#1565c0', icon: <AssessmentIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />, tooltip: 'Total clusters allocated for survey' },
+              { label: 'Up to the Month', value: stats.completed, color: '#2e7d32', icon: <CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />, tooltip: 'Cumulative clusters completed up to the selected month' },
+              { label: 'Ongoing', value: stats.ongoing, color: '#ed6c02', icon: <PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} />, tooltip: 'Clusters currently ongoing' },
+              { label: 'Not Started', value: stats.notStarted, color: '#757575', icon: <ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} />, tooltip: 'Clusters not yet started' },
+              { label: 'Under Review', value: stats.underReview, color: '#b76e00', icon: <RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} />, tooltip: 'Clusters currently under review' },
+            ]).map(({ label, value, color, icon, tooltip }) => (
+              <Grid item xs={12} sm={6} md={filterType === 'range' ? 1.71 : 2} key={label}>
+                <StatCard label={label} value={value} color={color} bgColor={alpha(color, 0.08)} icon={icon} tooltip={tooltip} />
               </Grid>
             ))}
           </Grid>
@@ -1033,10 +1138,28 @@ function ZoneClusterReport() {
             sx={{ borderRadius: 3 }}
           >
             <TableContainer>
-              <Table sx={{ borderCollapse: 'collapse' }}>
+              <Table
+                sx={{
+                  borderCollapse: 'collapse',
+                  '& .MuiTableCell-root': {
+                    borderRight: `1px solid ${alpha('#04255e', 0.12)}`,
+                    borderBottom: `1px solid ${alpha('#04255e', 0.12)}`
+                  },
+                  '& .MuiTableHead-root .MuiTableCell-root': {
+                    borderRight: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+                  },
+                  '& .MuiTableCell-root:last-child': {
+                    borderRight: 'none'
+                  }
+                }}
+              >
                 <TableHead>
                   <TableRow sx={{ bgcolor: '#04255e' }}>
-                    {['#', 'Block', 'Zone', 'Total', 'Completed', 'Ongoing', 'Not Started', 'Under Review', 'Actions'].map((label, idx) => (
+                    {(filterType === 'range'
+                      ? ['#', 'Block', 'Zone', 'Total', 'During the Month', 'Up to the Month', 'Ongoing', 'Not Started', 'Under Review', 'Actions']
+                      : ['#', 'Block', 'Zone', 'Total', 'Up to the Month', 'Ongoing', 'Not Started', 'Under Review', 'Actions']
+                    ).map((label, idx) => (
                       <TableCell key={idx}
                         align={idx === 0 ? 'center' : idx === 1 ? 'center' : idx === 2 ? 'left' : 'center'}
                         sx={{
@@ -1053,7 +1176,7 @@ function ZoneClusterReport() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={9} align="center" sx={{ py: 6 }}><CircularProgress size={40} /></TableCell>
+                      <TableCell colSpan={filterType === 'range' ? 10 : 9} align="center" sx={{ py: 6 }}><CircularProgress size={40} /></TableCell>
                     </TableRow>
                   ) : paginatedData.length > 0 ? (() => {
                     const rows = [];
@@ -1094,7 +1217,7 @@ function ZoneClusterReport() {
                         }}>
                           {/* Serial Number
                               Subtotal rows have no Block cell, so this cell absorbs
-                              that column — keeps all 9 columns filled and the
+                              that column — keeps all columns filled and the
                               subtotal border running the full table width. */}
                           <TableCell
                             align="center"
@@ -1171,7 +1294,22 @@ function ZoneClusterReport() {
                             )}
                           </TableCell>
 
-                          {/* Completed */}
+                          {/* During the Month */}
+                          {filterType === 'range' && (
+                            <TableCell align="center" sx={{ border: 'none' }}>
+                              {hasNoData && !isSubtotalRow ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : row.currentMonthCompleted > 0 ? (
+                                <Chip label={row.currentMonthCompleted} size="small" color="success"
+                                  variant={isSubtotalRow ? 'filled' : 'outlined'}
+                                  sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">{row.currentMonthCompleted}</Typography>
+                              )}
+                            </TableCell>
+                          )}
+
+                          {/* Up to the Month */}
                           <TableCell align="center" sx={{ border: 'none' }}>
                             {hasNoData && !isSubtotalRow ? (
                               <Typography variant="body2" color="text.secondary">NA</Typography>
@@ -1278,7 +1416,7 @@ function ZoneClusterReport() {
                 page={page} onPageChange={(_, p) => setPage(p)}
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
-                rowsPerPageOptions={[5, 10, 25, 50]}
+                rowsPerPageOptions={[15, 25, 50, 100]}
                 sx={{ borderTop: `1px solid ${theme.palette.divider}` }} />
             )}
           </MainCard>

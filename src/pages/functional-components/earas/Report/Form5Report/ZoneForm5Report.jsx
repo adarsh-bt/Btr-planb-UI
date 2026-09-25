@@ -165,7 +165,7 @@ function ZoneForm5Report() {
   const [totalElements, setTotalElements] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
 
   useEffect(() => {
     if (resolvedTalukId.current) {
@@ -471,18 +471,38 @@ const fetchCropsList = async () => {
     return count;
   }, [processedData]);
 
-  const stats = useMemo(
-    () => ({
-      allowtedCce: apiData?.allowedCCECrops || 0,
-      selectedCce: apiData?.selectedCce || 0,
-      completed: apiData?.completed || 0,
-      ongoing: apiData?.ongoing || 0,
-      notAvailable: apiData?.notAvailable || 0,
-      notStarted: apiData?.notStarted || 0,
-      underReview: apiData?.underReview || 0
-    }),
-    [apiData]
-  );
+  // Dynamic summary stats derived from zone data
+  const stats = useMemo(() => {
+    let allowtedCceSum = 0;
+    let selectedCceSum = 0;
+    let completedSum = 0;
+    let ongoingSum = 0;
+    let notAvailableSum = 0;
+    let notStartedSum = 0;
+    let underReviewSum = 0;
+
+    processedData.forEach((block) => {
+      block.zones.forEach((z) => {
+        allowtedCceSum += (z.allowtedCce || 0);
+        selectedCceSum += (z.selectedCce || 0);
+        completedSum += (z.completed || 0);
+        ongoingSum += (z.ongoing || 0);
+        notAvailableSum += (z.notAvailable || 0);
+        notStartedSum += (z.notStarted || 0);
+        underReviewSum += (z.underReview || 0);
+      });
+    });
+
+    return {
+      allowtedCce: allowtedCceSum > 0 ? allowtedCceSum : (apiData?.allowedCCECrops || 0),
+      selectedCce: selectedCceSum > 0 ? selectedCceSum : (apiData?.selectedCce || 0),
+      completed: completedSum,
+      ongoing: ongoingSum,
+      notAvailable: notAvailableSum,
+      notStarted: notStartedSum,
+      underReview: underReviewSum
+    };
+  }, [apiData, processedData]);
 
   // Flatten table data - only zones, no subtotals
   const flattenedTableData = useMemo(() => {
@@ -1280,7 +1300,7 @@ const fetchCropsList = async () => {
                   setRowsPerPage(parseInt(e.target.value, 10));
                   setPage(0);
                 }}
-                rowsPerPageOptions={[5, 10, 25, 50]}
+                rowsPerPageOptions={[15, 25, 50, 100]}
                 sx={{ borderTop: `1px solid ${theme.palette.divider}` }}
               />
             )}

@@ -145,6 +145,10 @@ const KeralaWorkAllocationReport = Loadable(lazy(() => import('pages/functional-
 const TalukWorkAllocationReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/workAllocationReport/TalukWorkAllocationReport')));
 const ZoneWorkAllocationReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/workAllocationReport/ZoneWorkAllocationReport')));
 
+const KeralaInspectionReportList = Loadable(lazy(() => import('pages/functional-components/earas/Report/inspectionReport/KeralaInspectionReportList')));
+const TalukInspectionReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/inspectionReport/TalukInspectionReport')));
+const ZoneInspectionReport = Loadable(lazy(() => import('pages/functional-components/earas/Report/inspectionReport/ZoneInspectionReport')));
+
 // ==============================|| MAIN ROUTING ||============================== //
 
 const MainRoutes = {
@@ -233,6 +237,22 @@ const MainRoutes = {
     // Normal district→taluk navigation: /Report/kerala_cluster_report/district/taluk_cluster_report/:districtId
     {
       path: 'Report/kerala_cluster_report/district/taluk_cluster_report/:districtId',
+      element: (
+        <PrivateRoute>
+          <TalukClusterReport />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'Report/kerala_cluster_report/taluk_cluster_report/:districtId',
+      element: (
+        <PrivateRoute>
+          <TalukClusterReport />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'kerala_cluster_report/taluk_cluster_report/:districtId',
       element: (
         <PrivateRoute>
           <TalukClusterReport />
@@ -1037,6 +1057,38 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <ZoneWorkAllocationReport />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/Report/kerala_inspection_report',
+      element: (
+        <PrivateRoute>
+          <KeralaInspectionReportList />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/kerala_inspection_report',
+      element: (
+        <PrivateRoute>
+          <KeralaInspectionReportList />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/kerala_inspection_report/taluk_inspection_report/:districtName',
+      element: (
+        <PrivateRoute>
+          <TalukInspectionReport />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/kerala_inspection_report/zone_inspection_report/:districtName/:talukName',
+      element: (
+        <PrivateRoute>
+          <ZoneInspectionReport />
         </PrivateRoute>
       )
     },

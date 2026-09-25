@@ -40,6 +40,7 @@ import PendingIcon from '@mui/icons-material/Pending';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -144,6 +145,17 @@ function resolveMonthValue(val, monthOptions) {
   return monthOptions[0]?.value || '';
 }
 
+function getCurrentMonthValue(monthOptions) {
+  if (!monthOptions || monthOptions.length === 0) return '';
+  const now = new Date();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yyyy = now.getFullYear();
+  const currentVal = `${mm}-${yyyy}`;
+  const exists = monthOptions.find((o) => o.value === currentVal);
+  if (exists) return exists.value;
+  return monthOptions[monthOptions.length - 1]?.value || monthOptions[0]?.value || '';
+}
+
 // Per-taluk metrics come split into wet*/dry* fields (e.g. wetCompleted,
 // dryCompleted). This picks the right one — or sums both — based on the
 // active WET / DRY / ALL tab. `metric` is one of:
@@ -225,10 +237,10 @@ function TalukFormReport() {
   const getInitialFilters = () => {
     return {
       districtId: resolvedDistrictId.current,
-      filterType: stateData.filterType || 'single',
-      fromMonth: resolveMonthValue(stateData.fromMonth, MONTH_OPTIONS),
-      toMonth: stateData.toMonth ? resolveMonthValue(stateData.toMonth, MONTH_OPTIONS) : '',
-      singleMonth: resolveMonthValue(stateData.singleMonth, MONTH_OPTIONS),
+      filterType: stateData.filterType || 'range',
+      fromMonth: stateData.fromMonth ? resolveMonthValue(stateData.fromMonth, MONTH_OPTIONS) : (MONTH_OPTIONS[0]?.value || ''),
+      toMonth: stateData.toMonth ? resolveMonthValue(stateData.toMonth, MONTH_OPTIONS) : getCurrentMonthValue(MONTH_OPTIONS),
+      singleMonth: resolveMonthValue(stateData.singleMonth, MONTH_OPTIONS) || getCurrentMonthValue(MONTH_OPTIONS),
       // `landType` is the new key; `seasonTab` is the legacy key still sent by
       // the state-level page. Both carry WET / DRY / ALL.
       landTypeTab: stateData.landType || stateData.seasonTab || 'ALL',
@@ -252,6 +264,7 @@ function TalukFormReport() {
 
   // State for API data
   const [apiData, setApiData] = useState(null);
+  const [lastMonthApiData, setLastMonthApiData] = useState(null);
   const [taluksList, setTaluksList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [masterTaluksLoading, setMasterTaluksLoading] = useState(true);
@@ -259,7 +272,7 @@ function TalukFormReport() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
 
   /* ── display name ── */
   const displayDistrictName =
@@ -357,11 +370,16 @@ function TalukFormReport() {
       if (endMonthVal) formParams.append('endMonth', endMonthVal);
       if (landTypeTab && landTypeTab !== 'ALL') formParams.append('landType', landTypeTab);
       formParams.append('seasonId', String(effectiveSeasonId));
+      formParams.append('season', String(effectiveSeasonId));
+      formParams.append('cropSeasonId', String(effectiveSeasonId));
 
-      // BTR taluk completed-clusters: agri-year scoped now. No months, no seasonId.
+      // BTR taluk completed-clusters: agri-year scoped + season parameters.
       const btrParams = new URLSearchParams({ districtId: districtIdValue });
       if (landTypeTab && landTypeTab !== 'ALL') btrParams.append('landType', landTypeTab);
       btrParams.append('agriYear', AuthService.agriyear() || '2025-2026');
+      btrParams.append('seasonId', String(effectiveSeasonId));
+      btrParams.append('season', String(effectiveSeasonId));
+      btrParams.append('cropSeasonId', String(effectiveSeasonId));
 
       const formStatusUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/district?${formParams.toString()}`;
       const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/dashboard/completed/taluk?${btrParams.toString()}`;
@@ -379,6 +397,34 @@ function TalukFormReport() {
 
       setApiData(formStatusRes.data || null);
       setBtrData(completedClustersRes.data || null);
+
+      // If range filter is active, fetch single-month data for the last month of the range
+      if (filterType === 'range') {
+        const lastMonthVal = toMonth
+          ? resolveMonthValue(toMonth, MONTH_OPTIONS)
+          : fromMonth
+            ? resolveMonthValue(fromMonth, MONTH_OPTIONS)
+            : resolveMonthValue(singleMonth, MONTH_OPTIONS);
+        if (lastMonthVal) {
+          const lmParams = new URLSearchParams({ districtId: districtIdValue, startMonth: lastMonthVal, endMonth: lastMonthVal });
+          if (landTypeTab && landTypeTab !== 'ALL') lmParams.append('landType', landTypeTab);
+          lmParams.append('seasonId', String(effectiveSeasonId));
+          lmParams.append('season', String(effectiveSeasonId));
+          lmParams.append('cropSeasonId', String(effectiveSeasonId));
+          const lmUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/district?${lmParams.toString()}`;
+          try {
+            const lmRes = await axios.get(lmUrl, { headers: { Authorization: `Bearer ${token}` } });
+            setLastMonthApiData(lmRes.data || null);
+          } catch (lmErr) {
+            console.error('Error fetching last month taluk data:', lmErr);
+            setLastMonthApiData(null);
+          }
+        } else {
+          setLastMonthApiData(null);
+        }
+      } else {
+        setLastMonthApiData(null);
+      }
     } catch (err) {
       console.error('Error fetching taluk data:', err);
       setError(err.response?.data?.message || err.message || 'Failed to fetch taluk data');
@@ -405,6 +451,7 @@ function TalukFormReport() {
   const talukData = useMemo(() => {
     const apiTaluks = apiData?.allSubDetails || {};
     const btrTaluks = btrData?.allSubDetails || {};
+    const lastMonthSubDetailsMap = (filterType === 'range' && lastMonthApiData) ? (lastMonthApiData.allSubDetails || {}) : null;
 
     const apiDataMapById = {};
     const apiDataMapByName = {};
@@ -429,6 +476,31 @@ function TalukFormReport() {
       return {};
     };
 
+    const getLastMonthMetrics = (talukId, talukName) => {
+      if (!lastMonthSubDetailsMap) return { count: 0, area: 0 };
+      let lmMatch = null;
+      const lmMapById = {};
+      const lmMapByName = {};
+      Object.entries(lastMonthSubDetailsMap).forEach(([name, details]) => {
+        if (details.id) lmMapById[details.id] = details;
+        const key = name?.toLowerCase()?.trim() || '';
+        if (key) lmMapByName[key] = details;
+      });
+      if (talukId && lmMapById[talukId]) lmMatch = lmMapById[talukId];
+      if (!lmMatch) {
+        const key = talukName?.toLowerCase()?.trim() || '';
+        if (key && lmMapByName[key]) lmMatch = lmMapByName[key];
+      }
+      if (!lmMatch) return { count: 0, area: 0 };
+
+      const count = pickMetric(lmMatch, 'Completed', landTypeTab);
+      const rawArea = pickMetric(lmMatch, 'ClusterArea', landTypeTab);
+      return {
+        count,
+        area: count > 0 ? rawArea : 0
+      };
+    };
+
     if (taluksList && taluksList.length > 0) {
       return taluksList.map((taluk) => {
         const talukId = taluk.id;
@@ -445,7 +517,9 @@ function TalukFormReport() {
         const completed = pickMetric(apiDetails, 'Completed', landTypeTab);
         const ongoing = pickMetric(apiDetails, 'Ongoing', landTypeTab);
         const underReview = pickMetric(apiDetails, 'UnderReview', landTypeTab);
-        const area = pickMetric(apiDetails, 'ClusterArea', landTypeTab);
+        const rawArea = pickMetric(apiDetails, 'ClusterArea', landTypeTab);
+        const area = completed > 0 ? rawArea : 0;
+        const lmMetrics = getLastMonthMetrics(talukId, talukName);
 
         // Total comes from the BTR taluk completed-clusters API
         const btrDetails = resolveBtrDetails(talukId, talukName);
@@ -461,6 +535,8 @@ function TalukFormReport() {
           taluk: talukName || apiMatch?.name || 'Unknown Taluk',
           total,
           completed,
+          currentMonthCompleted: lmMetrics.count,
+          currentMonthArea: lmMetrics.area,
           ongoing,
           notStarted,
           underReview,
@@ -475,7 +551,9 @@ function TalukFormReport() {
       const completed = pickMetric(t, 'Completed', landTypeTab);
       const ongoing = pickMetric(t, 'Ongoing', landTypeTab);
       const underReview = pickMetric(t, 'UnderReview', landTypeTab);
-      const area = pickMetric(t, 'ClusterArea', landTypeTab);
+      const rawArea = pickMetric(t, 'ClusterArea', landTypeTab);
+      const area = completed > 0 ? rawArea : 0;
+      const lmMetrics = getLastMonthMetrics(t.id, talukName);
 
       const btrDetails = resolveBtrDetails(t.id, talukName);
       const total = pickMetric(btrDetails, 'Completed', landTypeTab);
@@ -487,6 +565,8 @@ function TalukFormReport() {
         taluk: talukName || 'Unknown Taluk',
         total,
         completed,
+        currentMonthCompleted: lmMetrics.count,
+        currentMonthArea: lmMetrics.area,
         ongoing,
         notStarted,
         underReview,
@@ -494,27 +574,34 @@ function TalukFormReport() {
         hasData
       };
     });
-  }, [apiData, btrData, taluksList, landTypeTab]);
+  }, [apiData, btrData, taluksList, landTypeTab, filterType, lastMonthApiData]);
 
   // Count taluks with no data
   const taluksWithNoData = useMemo(() => {
     return talukData.filter(d => !d.hasData).length;
   }, [talukData]);
 
-  // Stats from API
+  // Stats from API & talukData
   const stats = useMemo(() => {
-    const totalCompletedClusters = btrData?.totalClusterCompleted || 0; // source for "Total Clusters"
-    const existingCompleted = apiData?.completed || 0;
+    const totalClustersSum = talukData.reduce((sum, t) => sum + (t.total || 0), 0);
+    const totalCompletedClusters = totalClustersSum > 0 ? totalClustersSum : (btrData?.totalClusterCompleted || 0);
+
+    const completedSum = talukData.reduce((sum, t) => sum + (t.completed || 0), 0);
+    const ongoingSum = talukData.reduce((sum, t) => sum + (t.ongoing || 0), 0);
+    const notStartedSum = talukData.reduce((sum, t) => sum + (t.notStarted || 0), 0);
+    const underReviewSum = talukData.reduce((sum, t) => sum + (t.underReview || 0), 0);
 
     return {
       total: totalCompletedClusters,
-      completed: existingCompleted,
-      ongoing: apiData?.ongoing || 0,
-      notStarted: Math.max(totalCompletedClusters - existingCompleted, 0),
-      underReview: apiData?.underView || 0,
-      completedArea: talukData.reduce((sum, t) => sum + t.area, 0)
+      completed: completedSum,
+      currentMonthCompleted: talukData.reduce((sum, t) => sum + (t.currentMonthCompleted || 0), 0),
+      currentMonthArea: talukData.reduce((sum, t) => sum + (t.currentMonthArea || 0), 0),
+      ongoing: ongoingSum,
+      notStarted: notStartedSum,
+      underReview: underReviewSum,
+      completedArea: talukData.reduce((sum, t) => sum + (t.area || 0), 0)
     };
-  }, [apiData, btrData, talukData]);
+  }, [btrData, talukData]);
 
   const searchFilteredData = useMemo(() => {
     if (!searchTerm.trim()) return talukData;
@@ -527,6 +614,15 @@ function TalukFormReport() {
     const startIndex = page * rowsPerPage;
     return searchFilteredData.slice(startIndex, startIndex + rowsPerPage);
   }, [searchFilteredData, page, rowsPerPage]);
+
+  const tableHeaders = useMemo(() => {
+    const baseHeaders = ['#', 'Taluk', 'Total'];
+    if (filterType === 'range') {
+      baseHeaders.push('During the Month');
+    }
+    baseHeaders.push('Up to the Month');
+    return [...baseHeaders, 'Ongoing', 'Not Started', 'Under Review', 'Actions'];
+  }, [filterType]);
 
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
@@ -541,17 +637,17 @@ function TalukFormReport() {
 
   const handleClearFilters = () => {
     setFromMonth(MONTH_OPTIONS[0]?.value || '');
-    setToMonth('');
-    setSingleMonth(MONTH_OPTIONS[0]?.value || '');
+    setToMonth(getCurrentMonthValue(MONTH_OPTIONS));
+    setSingleMonth(getCurrentMonthValue(MONTH_OPTIONS));
     setLandTypeTab('ALL');
     setSeasonId(DEFAULT_SEASON_ID); // reset to Autumn, never blank
-    setFilterType('single');
+    setFilterType('range');
     setPage(0);
   };
 
   const filtersAreDirty =
-    fromMonth !== MONTH_OPTIONS[0]?.value ||
-    Boolean(toMonth) ||
+    fromMonth !== (MONTH_OPTIONS[0]?.value || '') ||
+    toMonth !== getCurrentMonthValue(MONTH_OPTIONS) ||
     landTypeTab !== 'ALL' ||
     Number(seasonId) !== DEFAULT_SEASON_ID;
 
@@ -582,23 +678,36 @@ function TalukFormReport() {
   const handleExportExcel = () => {
     if (!searchFilteredData || searchFilteredData.length === 0) return;
 
-    const exportRows = searchFilteredData.map((row, index) => ({
-      '#': index + 1,
-      Season: getSeasonLabel(seasonId),
-      Taluk: row.taluk,
-      Total: row.hasData ? row.total : 'NA',
-      Completed: row.hasData ? row.completed : 'NA',
-      'Area Completed': row.hasData ? row.area : 'NA',
-      Ongoing: row.hasData ? row.ongoing : 'NA',
-      'Not Started': row.hasData ? row.notStarted : 'NA',
-      'Under Review': row.hasData ? row.underReview : 'NA'
-    }));
+    const exportRows = searchFilteredData.map((row, index) => {
+      const rowObj = {
+        '#': index + 1,
+        Season: getSeasonLabel(seasonId),
+        Taluk: row.taluk,
+        Total: row.hasData ? row.total : 'NA'
+      };
+
+      if (filterType === 'range') {
+        rowObj['During the Month'] = row.hasData ? row.currentMonthCompleted : 'NA';
+        rowObj['During Month Area'] = row.hasData ? (row.currentMonthCompleted > 0 ? row.currentMonthArea : 0) : 'NA';
+      }
+
+      rowObj['Up to the Month'] = row.hasData ? row.completed : 'NA';
+      rowObj['Area Completed'] = row.hasData ? (row.completed > 0 ? row.area : 0) : 'NA';
+      rowObj['Ongoing'] = row.hasData ? row.ongoing : 'NA';
+      rowObj['Not Started'] = row.hasData ? row.notStarted : 'NA';
+      rowObj['Under Review'] = row.hasData ? row.underReview : 'NA';
+
+      return rowObj;
+    });
 
     const worksheet = XLSX.utils.json_to_sheet(exportRows);
 
     // Reasonable column widths so it doesn't open looking cramped
-    worksheet['!cols'] = [
-      { wch: 5 },  { wch: 12 }, { wch: 25 }, { wch: 10 },
+    worksheet['!cols'] = filterType === 'range' ? [
+      { wch: 5 }, { wch: 12 }, { wch: 25 }, { wch: 10 },
+      { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
+    ] : [
+      { wch: 5 }, { wch: 12 }, { wch: 25 }, { wch: 10 },
       { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
     ];
 
@@ -647,46 +756,55 @@ function TalukFormReport() {
     });
   };
 
-  const StatCard = ({ label, value, color, bgColor, icon, subtext, areaValue }) => (
-    <Card sx={{
-      bgcolor: bgColor,
-      borderRadius: 3,
-      transition: 'transform 0.2s, box-shadow 0.2s',
-      '&:hover': {
-        transform: 'translateY(-4px)',
-        boxShadow: theme.shadows[4]
-      }
-    }}>
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Box>
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
-                {loading ? <CircularProgress size={24} /> : value}
+  const StatCard = ({ label, value, color, bgColor, icon, subtext, areaValue, tooltip }) => {
+    const cardContent = (
+      <Card sx={{
+        bgcolor: bgColor,
+        borderRadius: 3,
+        height: '100%',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+        '&:hover': {
+          transform: 'translateY(-4px)',
+          boxShadow: theme.shadows[4]
+        }
+      }}>
+        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Box>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
+                  {loading ? <CircularProgress size={24} /> : value}
+                </Typography>
+                {!loading && areaValue !== undefined && areaValue > 0 && (
+                  <Chip
+                    label={`${formatArea(areaValue)} cents`}
+                    size="small"
+                    variant="outlined"
+                    sx={{ fontSize: '0.7rem', height: 22, borderColor: alpha(color, 0.4), color }}
+                  />
+                )}
+              </Stack>
+              <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>
+                {label}
+                {subtext && (
+                  <span style={{ marginLeft: '8px', fontSize: '0.75rem', opacity: 0.7 }}>
+                    | {subtext}
+                  </span>
+                )}
               </Typography>
-              {!loading && areaValue !== undefined && areaValue > 0 && (
-                <Chip
-                  label={`${formatArea(areaValue)} cents`}
-                  size="small"
-                  variant="outlined"
-                  sx={{ fontSize: '0.7rem', height: 22, borderColor: alpha(color, 0.4), color }}
-                />
-              )}
-            </Stack>
-            <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>
-              {label}
-              {subtext && (
-                <span style={{ marginLeft: '8px', fontSize: '0.75rem', opacity: 0.7 }}>
-                  | {subtext}
-                </span>
-              )}
-            </Typography>
-          </Box>
-          {icon}
-        </Stack>
-      </CardContent>
-    </Card>
-  );
+            </Box>
+            {icon}
+          </Stack>
+        </CardContent>
+      </Card>
+    );
+
+    return tooltip ? (
+      <Tooltip title={tooltip} arrow placement="top">
+        {cardContent}
+      </Tooltip>
+    ) : cardContent;
+  };
 
   // Show loading state
   if ((loading || masterTaluksLoading) && !apiData && taluksList.length === 0) {
@@ -818,9 +936,12 @@ function TalukFormReport() {
                 onChange={(e, newValue) => {
                   if (newValue !== null) {
                     setFilterType(newValue);
-                    setFromMonth(MONTH_OPTIONS[0]?.value || '');
-                    setToMonth('');
-                    setSingleMonth(MONTH_OPTIONS[0]?.value || '');
+                    if (newValue === 'range') {
+                      if (!fromMonth) setFromMonth(MONTH_OPTIONS[0]?.value || '');
+                      if (!toMonth) setToMonth(getCurrentMonthValue(MONTH_OPTIONS));
+                    } else {
+                      if (!singleMonth) setSingleMonth(getCurrentMonthValue(MONTH_OPTIONS));
+                    }
                     setPage(0);
                   }
                 }}
@@ -906,50 +1027,68 @@ function TalukFormReport() {
             }}
           />
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
               <StatCard
                 label="Total Clusters"
                 value={stats.total}
                 color="#1565c0"
                 bgColor={alpha('#1565c0', 0.08)}
                 icon={<AssessmentIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />}
+                tooltip="Total clusters allocated for survey in selected season"
               />
             </Grid>
-            <Grid item xs={12} sm={6} md={2.4}>
+            {filterType === 'range' && (
+              <Grid item xs={12} sm={6} md={2}>
+                <StatCard
+                  label="During the Month"
+                  value={stats.currentMonthCompleted}
+                  color="#0288d1"
+                  bgColor={alpha('#0288d1', 0.08)}
+                  icon={<CalendarMonthIcon sx={{ fontSize: 32, color: '#0288d1', opacity: 0.7 }} />}
+                  areaValue={stats.currentMonthArea}
+                  tooltip="Clusters completed during the selected end month"
+                />
+              </Grid>
+            )}
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
               <StatCard
-                label="Completed"
+                label="Up to the Month"
                 value={stats.completed}
                 color="#2e7d32"
                 bgColor={alpha('#2e7d32', 0.08)}
                 icon={<CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />}
                 areaValue={stats.completedArea}
+                tooltip="Cumulative clusters completed up to the selected month"
               />
             </Grid>
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
               <StatCard
                 label="Ongoing"
                 value={stats.ongoing}
                 color="#ed6c02"
                 bgColor={alpha('#ed6c02', 0.08)}
                 icon={<PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} />}
+                tooltip="Clusters currently ongoing"
               />
             </Grid>
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
               <StatCard
                 label="Not Started"
                 value={stats.notStarted}
                 color="#757575"
                 bgColor={alpha('#757575', 0.08)}
                 icon={<ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} />}
+                tooltip="Clusters not yet started"
               />
             </Grid>
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
               <StatCard
                 label="Under Review"
                 value={stats.underReview}
                 color="#b76e00"
                 bgColor={alpha('#b76e00', 0.08)}
                 icon={<RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} />}
+                tooltip="Clusters currently under review"
               />
             </Grid>
           </Grid>
@@ -1041,14 +1180,49 @@ function TalukFormReport() {
             ) : (
               <>
                 <TableContainer>
-                  <Table>
+                  <Table
+                    sx={{
+                      borderCollapse: 'collapse',
+                      '& .MuiTableCell-root': {
+                        borderRight: `1px solid ${alpha('#04255e', 0.12)}`,
+                        borderBottom: `1px solid ${alpha('#04255e', 0.12)}`
+                      },
+                      '& .MuiTableHead-root .MuiTableCell-root': {
+                        borderRight: '1px solid rgba(255, 255, 255, 0.2)',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+                      },
+                      '& .MuiTableCell-root:last-child': {
+                        borderRight: 'none'
+                      }
+                    }}
+                  >
                     <TableHead>
                       <TableRow sx={{ bgcolor: '#04255e' }}>
-                        {['#', 'Taluk', 'Total', 'Completed', 'Ongoing', 'Not Started', 'Under Review', 'Actions'].map((label, idx) => (
-                          <TableCell key={idx} align={idx === 0 ? 'center' : idx === 1 ? 'left' : 'center'} sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>
-                            {label}
+                        <TableCell rowSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>#</TableCell>
+                        <TableCell rowSpan={2} align="left" sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>Taluk</TableCell>
+                        <TableCell rowSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>Total</TableCell>
+                        {filterType === 'range' && (
+                          <TableCell colSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
+                            During the Month
                           </TableCell>
-                        ))}
+                        )}
+                        <TableCell colSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
+                          Up to the Month
+                        </TableCell>
+                        <TableCell rowSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>Ongoing</TableCell>
+                        <TableCell rowSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>Not Started</TableCell>
+                        <TableCell rowSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>Under Review</TableCell>
+                        <TableCell rowSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>Actions</TableCell>
+                      </TableRow>
+                      <TableRow sx={{ bgcolor: '#04255e' }}>
+                        {filterType === 'range' && (
+                          <>
+                            <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1, fontSize: '0.8rem' }}>Count</TableCell>
+                            <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1, fontSize: '0.8rem' }}>Area (cents)</TableCell>
+                          </>
+                        )}
+                        <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1, fontSize: '0.8rem' }}>Count</TableCell>
+                        <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1, fontSize: '0.8rem' }}>Area (cents)</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -1104,21 +1278,54 @@ function TalukFormReport() {
                                   <Chip label={row.total} size="small" variant="filled" sx={{ fontWeight: 600, bgcolor: alpha('#04255e', 0.1) }} />
                                 )}
                               </TableCell>
+                              {filterType === 'range' && (
+                                <>
+                                  <TableCell align="center">
+                                    {hasNoData ? (
+                                      <Typography variant="body2" color="text.secondary">NA</Typography>
+                                    ) : row.currentMonthCompleted > 0 ? (
+                                      <Chip label={row.currentMonthCompleted} size="small" color="success" variant="outlined" />
+                                    ) : (
+                                      row.currentMonthCompleted
+                                    )}
+                                  </TableCell>
+                                  <TableCell align="center">
+                                    {hasNoData ? (
+                                      <Typography variant="body2" color="text.secondary">NA</Typography>
+                                    ) : row.currentMonthArea > 0 ? (
+                                      <Chip
+                                        label={formatArea(row.currentMonthArea)}
+                                        size="small"
+                                        variant="outlined"
+                                        sx={{ fontSize: '0.75rem', height: 22, borderColor: alpha('#04255e', 0.3), color: '#04255e' }}
+                                      />
+                                    ) : (
+                                      <Typography variant="body2" color="text.secondary">0.00</Typography>
+                                    )}
+                                  </TableCell>
+                                </>
+                              )}
                               <TableCell align="center">
                                 {hasNoData ? (
                                   <Typography variant="body2" color="text.secondary">NA</Typography>
+                                ) : row.completed > 0 ? (
+                                  <Chip label={row.completed} size="small" color="success" variant="outlined" />
                                 ) : (
-                                  <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
-                                    {row.completed > 0 ? <Chip label={row.completed} size="small" color="success" variant="outlined" /> : row.completed}
-                                    {row.area > 0 && (
-                                      <Chip
-                                        label={formatArea(row.area)}
-                                        size="small"
-                                        variant="outlined"
-                                        sx={{ fontSize: '0.65rem', height: 20, borderColor: alpha('#04255e', 0.3), color: '#04255e' }}
-                                      />
-                                    )}
-                                  </Stack>
+                                  row.completed
+                                )}
+                              </TableCell>
+                              <TableCell align="center">
+                                {hasNoData ? (
+                                  <Typography variant="body2" color="text.secondary">NA</Typography>
+                                ) : row.area > 0 ? (
+                                  <Chip
+                                    label={formatArea(row.area)}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{ fontSize: '0.75rem', height: 22, borderColor: alpha('#04255e', 0.3), color: '#04255e' }}
+                                  />
+                                ) : (
+                                  <Typography variant="body2" color="text.secondary">0.00</Typography>
                                 )}
                               </TableCell>
                               <TableCell align="center">
@@ -1176,7 +1383,7 @@ function TalukFormReport() {
                         })
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                          <TableCell colSpan={filterType === 'range' ? 9 : 8} align="center" sx={{ py: 6 }}>
                             <Typography color="text.secondary">
                               {searchTerm
                                 ? `No taluks found matching "${searchTerm}"`
@@ -1196,7 +1403,7 @@ function TalukFormReport() {
                     onPageChange={handleChangePage}
                     rowsPerPage={rowsPerPage}
                     onRowsPerPageChange={handleChangeRowsPerPage}
-                    rowsPerPageOptions={[5, 10, 25]}
+                    rowsPerPageOptions={[15, 25, 50, 100]}
                     sx={{ borderTop: `1px solid ${theme.palette.divider}` }}
                   />
                 )}

@@ -40,6 +40,7 @@ import PendingIcon from '@mui/icons-material/Pending';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -70,6 +71,7 @@ function KeralaClusterReportList() {
 
   // State for API data
   const [apiData, setApiData] = useState(null);
+  const [lastMonthApiData, setLastMonthApiData] = useState(null);
   const [districtsList, setDistrictsList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -77,7 +79,7 @@ function KeralaClusterReportList() {
   // Filter states
   const [seasonTab, setSeasonTab] = useState('ALL');
   const [landType, setLandType] = useState(null);
-  const [filterType, setFilterType] = useState('single');
+  const [filterType, setFilterType] = useState('range');
   const [fromMonth, setFromMonth] = useState(''); // 'YYYY-MM' format
   const [toMonth, setToMonth] = useState(''); // 'YYYY-MM' format
   const [singleMonth, setSingleMonth] = useState(''); // 'YYYY-MM' format
@@ -248,6 +250,28 @@ function KeralaClusterReportList() {
       if (response.data) {
         setApiData(response.data);
       }
+
+      // If range filter is active, fetch single-month data for the last month of the range
+      if (filterType === 'range') {
+        const lastMonth = toMonth || fromMonth || singleMonth || getDefaultMonth(agriYearMonths);
+        if (lastMonth) {
+          let lmUrl = `${BASE_URL}/btr-service/api/report/clusters/AllDistricts?startMonth=${lastMonth}&endMonth=${lastMonth}`;
+          if (landType && seasonTab !== 'ALL') {
+            lmUrl += `&landType=${landType.toLowerCase()}`;
+          }
+          try {
+            const lmResponse = await api.get(lmUrl);
+            setLastMonthApiData(lmResponse.data);
+          } catch (lmErr) {
+            console.error('Error fetching last month data:', lmErr);
+            setLastMonthApiData(null);
+          }
+        } else {
+          setLastMonthApiData(null);
+        }
+      } else {
+        setLastMonthApiData(null);
+      }
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
 
@@ -272,7 +296,24 @@ function KeralaClusterReportList() {
     }
 
     const subDetailsMap = apiData.allSubDetails || {};
+    const lastMonthSubDetailsMap = (filterType === 'range' && lastMonthApiData) ? (lastMonthApiData.allSubDetails || {}) : null;
     const normalizeName = (name) => (name ? String(name).toLowerCase().replace(/[^a-z0-9]/g, '') : '');
+
+    const getLastMonthCompleted = (distId, distName) => {
+      if (!lastMonthSubDetailsMap) return 0;
+      const matchedKey = Object.keys(lastMonthSubDetailsMap).find((key) => {
+        const details = lastMonthSubDetailsMap[key];
+        return (
+          (details && (details.id === distId || details.distId === distId)) ||
+          normalizeName(key) === normalizeName(distName)
+        );
+      });
+      if (matchedKey && lastMonthSubDetailsMap[matchedKey]) {
+        const stats = getDistrictStats(lastMonthSubDetailsMap[matchedKey]);
+        return stats.completed;
+      }
+      return 0;
+    };
 
     if (districtsList && districtsList.length > 0) {
       return districtsList.map((dist) => {
@@ -287,6 +328,8 @@ function KeralaClusterReportList() {
           );
         });
 
+        const currentMonthCompleted = getLastMonthCompleted(distId, distName);
+
         if (matchedKey && subDetailsMap[matchedKey]) {
           const details = subDetailsMap[matchedKey];
           const stats = getDistrictStats(details);
@@ -295,6 +338,7 @@ function KeralaClusterReportList() {
             district: distName || matchedKey,
             total: stats.completed + stats.ongoing + stats.notStarted + stats.underReview,
             completed: stats.completed,
+            currentMonthCompleted,
             ongoing: stats.ongoing,
             notStarted: stats.notStarted,
             underReview: stats.underReview,
@@ -306,6 +350,7 @@ function KeralaClusterReportList() {
             district: distName,
             total: 0,
             completed: 0,
+            currentMonthCompleted: 0,
             ongoing: 0,
             notStarted: 0,
             underReview: 0,
@@ -318,23 +363,26 @@ function KeralaClusterReportList() {
     // Fallback if master districtsList is not loaded
     return Object.entries(subDetailsMap).map(([districtName, details]) => {
       const stats = getDistrictStats(details);
+      const currentMonthCompleted = getLastMonthCompleted(details.id, districtName);
       return {
         id: details.id,
         district: districtName,
         total: stats.completed + stats.ongoing + stats.notStarted + stats.underReview,
         completed: stats.completed,
+        currentMonthCompleted,
         ongoing: stats.ongoing,
         notStarted: stats.notStarted,
         underReview: stats.underReview,
         hasData: stats.hasData
       };
     });
-  }, [apiData, districtsList, landType]);
+  }, [apiData, lastMonthApiData, districtsList, landType, filterType]);
 
   // Stats calculation
   const stats = useMemo(() => ({
     all: transformApiDataToDistricts.reduce((sum, row) => sum + row.total, 0),
     completed: transformApiDataToDistricts.reduce((sum, row) => sum + row.completed, 0),
+    currentMonthCompleted: transformApiDataToDistricts.reduce((sum, row) => sum + (row.currentMonthCompleted || 0), 0),
     ongoing: transformApiDataToDistricts.reduce((sum, row) => sum + row.ongoing, 0),
     notStarted: transformApiDataToDistricts.reduce((sum, row) => sum + row.notStarted, 0),
     underReview: transformApiDataToDistricts.reduce((sum, row) => sum + row.underReview, 0),
@@ -378,9 +426,10 @@ function KeralaClusterReportList() {
         setFromMonth('');
         setToMonth('');
       } else {
+        const defaultMonth = getDefaultMonth(agriYearMonths);
         setFromMonth(agriYearMonths[0]?.value || '');
+        setToMonth(defaultMonth);
         setSingleMonth('');
-        setToMonth('');
       }
       setPage(0);
     }
@@ -408,12 +457,12 @@ function KeralaClusterReportList() {
 
   const handleClearFilters = () => {
     const defaultMonth = getDefaultMonth(agriYearMonths);
-    setFromMonth('');
-    setToMonth('');
+    setFromMonth(agriYearMonths[0]?.value || '');
+    setToMonth(defaultMonth);
     setSingleMonth(defaultMonth);
     setSeasonTab('ALL');
     setLandType(null);
-    setFilterType('single');
+    setFilterType('range');
     setPage(0);
     setSearchTerm('');
   };
@@ -423,38 +472,24 @@ function KeralaClusterReportList() {
     const startMonthParam = filterType === 'single' ? singleMonth : fromMonth;
     const endMonthParam = filterType === 'single' ? singleMonth : toMonth;
 
-    if (district) {
-      navigate(`/Report/kerala_cluster_report/district/taluk_cluster_report/${district.id}`, {
+    navigate(
+      `/Report/kerala_cluster_report/taluk_cluster_report/${districtName.toLowerCase().replace(/\s+/g, '-')}`,
+      {
         state: {
-          districtId: district.id,
-          districtName: districtName,
-          landType: landType,
-          seasonTab: seasonTab,
-          startMonth: startMonthParam,
-          endMonth: endMonthParam,
-          filterType,
-          fromMonth,
-          toMonth,
-          singleMonth,
-          agriculturalYear: agriculturalYear
-        }
-      });
-    } else {
-      navigate(`/Report/kerala_cluster_report/taluk_cluster_report/${districtName.toLowerCase()}`, {
-        state: {
+          districtId: district?.id,
           districtName,
-          landType: landType,
-          seasonTab: seasonTab,
+          landType,
+          seasonTab,
           startMonth: startMonthParam,
           endMonth: endMonthParam,
-          filterType,
           fromMonth,
           toMonth,
           singleMonth,
+          filterType,
           agriculturalYear: agriculturalYear
         }
-      });
-    }
+      }
+    );
   };
 
   // Initialize agricultural year and months
@@ -469,6 +504,7 @@ function KeralaClusterReportList() {
       const defaultMonth = getDefaultMonth(months);
       setSingleMonth(defaultMonth);
       setFromMonth(months[0]?.value || '');
+      setToMonth(defaultMonth);
     }
 
     localStorage.setItem('agriculturalYear', JSON.stringify(agriYear));
@@ -530,23 +566,31 @@ function KeralaClusterReportList() {
   const handleExportExcel = () => {
     if (!filteredData || filteredData.length === 0) return;
 
-    const exportRows = filteredData.map((row, index) => ({
-      '#': index + 1,
-      District: row.district,
-      Total: row.hasData ? row.total : 'NA',
-      Completed: row.hasData ? row.completed : 'NA',
-      Ongoing: row.hasData ? row.ongoing : 'NA',
-      'Not Started': row.hasData ? row.notStarted : 'NA',
-      'Under Review': row.hasData ? row.underReview : 'NA'
-    }));
+    const exportRows = filteredData.map((row, index) => {
+      const rowObj = {
+        '#': index + 1,
+        District: row.district,
+        Total: row.hasData ? row.total : 'NA'
+      };
+
+      if (filterType === 'range') {
+        rowObj['During the Month'] = row.hasData ? row.currentMonthCompleted : 'NA';
+      }
+
+      rowObj['Up to the Month'] = row.hasData ? row.completed : 'NA';
+      rowObj['Ongoing'] = row.hasData ? row.ongoing : 'NA';
+      rowObj['Not Started'] = row.hasData ? row.notStarted : 'NA';
+      rowObj['Under Review'] = row.hasData ? row.underReview : 'NA';
+
+      return rowObj;
+    });
 
     const worksheet = XLSX.utils.json_to_sheet(exportRows);
 
     // Reasonable column widths so it doesn't open looking cramped
-    worksheet['!cols'] = [
-      { wch: 5 },  { wch: 25 }, { wch: 10 },
-      { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
-    ];
+    worksheet['!cols'] = filterType === 'range'
+      ? [{ wch: 5 }, { wch: 25 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 14 }]
+      : [{ wch: 5 }, { wch: 25 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 14 }];
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'District Report');
@@ -554,31 +598,47 @@ function KeralaClusterReportList() {
     XLSX.writeFile(workbook, generateExcelFileName());
   };
 
-  const StatCard = ({ label, value, color, bgColor, icon }) => (
-    <Card sx={{
-      bgcolor: bgColor,
-      borderRadius: 3,
-      transition: 'transform 0.2s, box-shadow 0.2s',
-      '&:hover': {
-        transform: 'translateY(-4px)',
-        boxShadow: theme.shadows[4]
-      }
-    }}>
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Box>
-            <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
-              {value}
-            </Typography>
-            <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>
-              {label}
-            </Typography>
-          </Box>
-          {icon}
-        </Stack>
-      </CardContent>
-    </Card>
-  );
+  const tableHeaders = useMemo(() => {
+    if (filterType === 'range') {
+      return ['#', 'District', 'Total', 'During the Month', 'Up to the Month', 'Ongoing', 'Not Started', 'Under Review', 'Actions'];
+    }
+    return ['#', 'District', 'Total', 'During the Month', 'Ongoing', 'Not Started', 'Under Review', 'Actions'];
+  }, [filterType]);
+
+  const StatCard = ({ label, value, color, bgColor, icon, tooltip }) => {
+    const cardContent = (
+      <Card sx={{
+        bgcolor: bgColor,
+        borderRadius: 3,
+        height: '100%',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+        '&:hover': {
+          transform: 'translateY(-4px)',
+          boxShadow: theme.shadows[4]
+        }
+      }}>
+        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Box>
+              <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
+                {value}
+              </Typography>
+              <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>
+                {label}
+              </Typography>
+            </Box>
+            {icon}
+          </Stack>
+        </CardContent>
+      </Card>
+    );
+
+    return tooltip ? (
+      <Tooltip title={tooltip} arrow placement="top">
+        {cardContent}
+      </Tooltip>
+    ) : cardContent;
+  };
 
   // Loading state
   if (loading && !apiData) {
@@ -778,53 +838,71 @@ function KeralaClusterReportList() {
           />
 
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
               <StatCard
                 label="Total Clusters"
                 value={stats.all}
                 color="#1565c0"
                 bgColor={alpha('#1565c0', 0.08)}
                 icon={<AssessmentIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />}
+                tooltip="Total clusters allocated for survey in selected season"
               />
             </Grid>
 
-            <Grid item xs={12} sm={6} md={2.4}>
+            {filterType === 'range' && (
+              <Grid item xs={12} sm={6} md={2}>
+                <StatCard
+                  label="During the Month"
+                  value={stats.currentMonthCompleted}
+                  color="#0288d1"
+                  bgColor={alpha('#0288d1', 0.08)}
+                  icon={<CalendarMonthIcon sx={{ fontSize: 32, color: '#0288d1', opacity: 0.7 }} />}
+                  tooltip="Clusters completed during the selected end month"
+                />
+              </Grid>
+            )}
+
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
               <StatCard
-                label="Completed"
+                label="During the Month"
                 value={stats.completed}
                 color="#2e7d32"
                 bgColor={alpha('#2e7d32', 0.08)}
                 icon={<CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />}
+                tooltip="Cumulative clusters completed up to the selected month"
               />
             </Grid>
 
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
               <StatCard
                 label="Ongoing"
                 value={stats.ongoing}
                 color="#ed6c02"
                 bgColor={alpha('#ed6c02', 0.08)}
                 icon={<PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} />}
+                tooltip="Clusters currently ongoing"
               />
             </Grid>
 
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
               <StatCard
                 label="Not Started"
                 value={stats.notStarted}
                 color="#757575"
                 bgColor={alpha('#757575', 0.08)}
                 icon={<ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} />}
+                tooltip="Clusters not yet started"
               />
             </Grid>
 
-            <Grid item xs={12} sm={6} md={2.4}>
+            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
               <StatCard
                 label="Under Review"
                 value={stats.underReview}
                 color="#b76e00"
                 bgColor={alpha('#b76e00', 0.08)}
                 icon={<RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} />}
+                tooltip="Clusters currently under review"
               />
             </Grid>
           </Grid>
@@ -832,90 +910,103 @@ function KeralaClusterReportList() {
       </Grid>
 
       {/* Main Table */}
-      {/* Main Table */}
-<Grid item xs={12}>
-  <Box
-    sx={{
-      position: 'relative',
-      border: `1px solid ${alpha('#04255e', 0.15)}`,
-      borderRadius: 3,
-      pt: 3,
-      bgcolor: '#fff'
-    }}
-  >
-    <Chip
-      label="District Report Summary"
-      color="primary"
-      size="small"
-      sx={{
-        position: 'absolute',
-        top: -12,
-        left: 20,
-        zIndex: 10,
-        fontWeight: 600,
-        bgcolor: '#04255e',
-        color: '#fff',
-        px: 1
-      }}
-    />
-
-    {/* Search + Export row */}
-    <Stack
-      direction={{ xs: 'column', sm: 'row' }}
-      justifyContent="flex-end"
-      alignItems="center"
-      spacing={1.5}
-      sx={{ px: 2, pb: 2 }}
-    >
-      <TextField
-        placeholder="Search district..."
-        size="small"
-        value={searchTerm}
-        onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
-        sx={{ width: 250 }}
-        InputProps={{
-          startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
-          endAdornment: searchTerm && (
-            <InputAdornment position="end">
-              <IconButton size="small" onClick={handleClearSearch} edge="end">
-                <ClearIcon fontSize="small" />
-              </IconButton>
-            </InputAdornment>
-          )
-        }}
-      />
-      <Tooltip
-        title={
-          filteredData.length === 0
-            ? 'No data available to export'
-            : `Export ${filteredData.length} district${filteredData.length > 1 ? 's' : ''} to Excel`
-        }
-      >
-        <span>
-          <Button
-            variant="outlined"
+      <Grid item xs={12}>
+        <Box
+          sx={{
+            position: 'relative',
+            border: `1px solid ${alpha('#04255e', 0.15)}`,
+            borderRadius: 3,
+            pt: 3,
+            bgcolor: '#fff'
+          }}
+        >
+          <Chip
+            label="District Report Summary"
+            color="primary"
             size="small"
-            startIcon={<DownloadIcon />}
-            onClick={handleExportExcel}
-            disabled={filteredData.length === 0 || loading}
-            sx={{ borderRadius: 2, whiteSpace: 'nowrap' }}
-          >
-            Download Excel
-          </Button>
-        </span>
-      </Tooltip>
-    </Stack>
+            sx={{
+              position: 'absolute',
+              top: -12,
+              left: 20,
+              zIndex: 10,
+              fontWeight: 600,
+              bgcolor: '#04255e',
+              color: '#fff',
+              px: 1
+            }}
+          />
 
-    <MainCard
-      title="District-wise Status"
-      sx={{ borderRadius: 3 }}
-    >
-      {/* ...TableContainer, Table, TablePagination — all unchanged, same as before... */}
+          {/* Search + Export row */}
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            justifyContent="flex-end"
+            alignItems="center"
+            spacing={1.5}
+            sx={{ px: 2, pb: 2 }}
+          >
+            <TextField
+              placeholder="Search district..."
+              size="small"
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
+              sx={{ width: 250 }}
+              InputProps={{
+                startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+                endAdornment: searchTerm && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClearSearch} edge="end">
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }}
+            />
+            <Tooltip
+              title={
+                filteredData.length === 0
+                  ? 'No data available to export'
+                  : `Export ${filteredData.length} district${filteredData.length > 1 ? 's' : ''} to Excel`
+              }
+            >
+              <span>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<DownloadIcon />}
+                  onClick={handleExportExcel}
+                  disabled={filteredData.length === 0 || loading}
+                  sx={{ borderRadius: 2, whiteSpace: 'nowrap' }}
+                >
+                  Download Excel
+                </Button>
+              </span>
+            </Tooltip>
+          </Stack>
+
+          <MainCard
+            title="District-wise Status"
+            sx={{ borderRadius: 3 }}
+          >
             <TableContainer>
-              <Table>
+              <Table
+                sx={{
+                  borderCollapse: 'collapse',
+                  '& .MuiTableCell-root': {
+                    borderRight: `1px solid ${alpha('#04255e', 0.12)}`,
+                    borderBottom: `1px solid ${alpha('#04255e', 0.12)}`
+                  },
+                  '& .MuiTableHead-root .MuiTableCell-root': {
+                    borderRight: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+                  },
+                  '& .MuiTableCell-root:last-child': {
+                    borderRight: 'none'
+                  }
+                }}
+              >
                 <TableHead>
                   <TableRow sx={{ bgcolor: '#04255e' }}>
-                    {['#', 'District', 'Total', 'Completed', 'Ongoing', 'Not Started', 'Under Review', 'Actions'].map((label, idx) => (
+                    {tableHeaders.map((label, idx) => (
                       <TableCell key={idx} align={idx === 0 ? 'center' : idx === 1 ? 'left' : 'center'} sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>
                         {label}
                       </TableCell>
@@ -925,7 +1016,7 @@ function KeralaClusterReportList() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={filterType === 'range' ? 9 : 8} align="center" sx={{ py: 6 }}>
                         <CircularProgress size={40} />
                       </TableCell>
                     </TableRow>
@@ -981,6 +1072,17 @@ function KeralaClusterReportList() {
                               <Chip label={row.total} size="small" variant="filled" sx={{ fontWeight: 600, bgcolor: alpha('#04255e', 0.1) }} />
                             )}
                           </TableCell>
+                          {filterType === 'range' && (
+                            <TableCell align="center">
+                              {hasNoData ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : row.currentMonthCompleted > 0 ? (
+                                <Chip label={row.currentMonthCompleted} size="small" color="success" variant="outlined" />
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">0</Typography>
+                              )}
+                            </TableCell>
+                          )}
                           <TableCell align="center">
                             {hasNoData ? (
                               <Typography variant="body2" color="text.secondary">NA</Typography>
@@ -1037,7 +1139,7 @@ function KeralaClusterReportList() {
                     })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={filterType === 'range' ? 9 : 8} align="center" sx={{ py: 6 }}>
                         <Typography color="text.secondary">No districts found</Typography>
                       </TableCell>
                     </TableRow>
@@ -1053,7 +1155,7 @@ function KeralaClusterReportList() {
                 onPageChange={handleChangePage}
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
-                rowsPerPageOptions={[5, 10, 15, 25, 50]}
+                rowsPerPageOptions={[15, 25, 50, 100]}
                 sx={{ borderTop: `1px solid ${theme.palette.divider}` }}
               />
             )}
