@@ -455,9 +455,20 @@ function ZoneForm5Report() {
         isUnassigned: true,
         zones: unassignedZones.sort((a, b) => a.zoneName.localeCompare(b.zoneName))
       });
+    const targetZoneId = location.state?.zoneId || (location.state?.officeType === 'FIELD_DATA_COLLECTOR' ? AuthService.getzone() : null)
+    if (targetZoneId) {
+      const filteredBlocks = [];
+      blocks.forEach((block) => {
+        const matchingZones = block.zones.filter((z) => String(z.zoneId) === String(targetZoneId));
+        if (matchingZones.length > 0) {
+          filteredBlocks.push({ ...block, zones: matchingZones });
+        }
+      });
+      return filteredBlocks;
+    }
 
     return blocks;
-  }, [apiData, zonesList]);
+  }, [apiData, zonesList, location.state]);
 
   const zonesWithNoData = useMemo(() => {
     let count = 0;

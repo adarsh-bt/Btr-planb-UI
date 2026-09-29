@@ -131,8 +131,8 @@ function ClusterSeatForm({ zoneId }) {
 
   const getClusterTypeColor = (type) => {
     switch (type?.toLowerCase()) {
-      case 'wet': return { bg: '#F1F8E9', color: '#33691E', border: '#C5E1A5' };
-      case 'dry': return { bg: '#FFFDE7', color: '#F57F17', border: '#FFF59D' };
+      case 'wet': return { bg: '#a7d472ff', color: '#1b078dff', border: '#C5E1A5' };
+      case 'dry': return { bg: '#f5c070ff', color: '#1b078dff', border: '#FFF59D' };
       default: return { bg: '#FFFFFF', color: '#424242', border: '#E0E0E0' };
     }
   };
@@ -422,7 +422,7 @@ function ClusterSeatForm({ zoneId }) {
                         elevation={0}
                         sx={{
                           border: `1px solid ${typeStyles.border}`,
-                          background: `linear-gradient(180deg, ${typeStyles.bg} 0%, #ffffff 60%)`,
+                          background: `linear-gradient(135deg, ${typeStyles.bg} 0%, #ffffff 60%)`,
                           borderRadius: 3,
                           height: '100%',
                           display: 'flex',

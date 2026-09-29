@@ -649,7 +649,7 @@ function ZoneClusterReport() {
       });
     }
 
-    const blocks = Array.from(blockMap.values());
+    let blocks = Array.from(blockMap.values());
 
     // Natural sort inside a block so Chalakkudy1 … Chalakkudy5 stay in order
     blocks.forEach((block) => {
@@ -658,8 +658,20 @@ function ZoneClusterReport() {
       );
     });
 
+    const targetZoneId = stateData.zoneId || (stateData.officeType === 'FIELD_DATA_COLLECTOR' ? AuthService.getzone() : null);
+    if (targetZoneId) {
+      const filteredBlocks = [];
+      blocks.forEach((block) => {
+        const matchingZones = block.zones.filter((z) => String(z.zoneId) === String(targetZoneId));
+        if (matchingZones.length > 0) {
+          filteredBlocks.push({ ...block, zones: matchingZones });
+        }
+      });
+      blocks = filteredBlocks;
+    }
+
     return blocks.sort((a, b) => a.blockName.localeCompare(b.blockName));
-  }, [apiData, lastMonthApiData, zonesList, landType, filterType]);
+  }, [apiData, lastMonthApiData, zonesList, landType, filterType, stateData.zoneId, stateData.officeType]);
 
   const stats = useMemo(() => {
     let total = 0, completed = 0, currentMonthCompleted = 0, ongoing = 0, notStarted = 0, underReview = 0;

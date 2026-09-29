@@ -326,6 +326,11 @@ const ZoneForm2 = () => {
       });
     }
 
+    const targetZoneId = location.state?.zoneId || (location.state?.officeType === 'FIELD_DATA_COLLECTOR' ? AuthService.getzone() : null);
+    if (targetZoneId) {
+      mergedData = mergedData.filter((r) => String(r.zoneId) === String(targetZoneId));
+    }
+
     // Sort by block then zone
     return mergedData.sort((a, b) => {
       if (a.block === 'Unassigned') return 1;
@@ -333,7 +338,7 @@ const ZoneForm2 = () => {
       if (a.block === b.block) return a.zone.localeCompare(b.zone);
       return a.block.localeCompare(b.block);
     });
-  }, [landZonesApi, zonesList]);
+  }, [landZonesApi, zonesList, location.state]);
 
   // Check if a zone has any land data
   const hasLandData = (row) => {
@@ -434,6 +439,11 @@ const ZoneForm2 = () => {
       });
     }
 
+    const targetZoneId = location.state?.zoneId || (location.state?.officeType === 'FIELD_DATA_COLLECTOR' ? AuthService.getzone() : null);
+    if (targetZoneId) {
+      mergedData = mergedData.filter((r) => String(r.zoneId) === String(targetZoneId));
+    }
+
     // Sort by block then zone
     return mergedData.sort((a, b) => {
       if (a.block === 'Unassigned') return 1;
@@ -441,7 +451,7 @@ const ZoneForm2 = () => {
       if (a.block === b.block) return a.zone.localeCompare(b.zone);
       return a.block.localeCompare(b.block);
     });
-  }, [irrZonesApi, zonesList]);
+  }, [irrZonesApi, zonesList, location.state]);
 
   // Check if a zone has any irrigation data
   const hasIrrData = (row) => {

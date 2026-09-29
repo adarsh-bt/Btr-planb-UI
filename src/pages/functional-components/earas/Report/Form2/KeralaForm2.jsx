@@ -221,7 +221,8 @@ const KeralaForm2 = () => {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('Authorization token missing');
         const headers = { Authorization: `Bearer ${token}` };
-
+        console.log(`${BASE_URL}/earas-form1-entry/api/progress-report/district-wise?agriYear=${agriculturalYear}`)
+        console.log(`${BASE_URL}/earas-form1-entry/api/progress-report/district-irrigation?agriYear=${agriculturalYear}`)
         const landUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/district-wise?agriYear=${agriculturalYear}`;
         const irrigationUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/district-irrigation?agriYear=${agriculturalYear}`;
 

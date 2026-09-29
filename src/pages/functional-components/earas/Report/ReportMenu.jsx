@@ -16,6 +16,15 @@ import Breadcrumb from 'routes/Breadcrumb';
 function ReportMenu({ onReportNavigation, officeInfo }) {
   const navigate = useNavigate();
 
+  const handleWorkAllocationReportClick = (e) => {
+    e.preventDefault();
+    if (onReportNavigation) {
+      onReportNavigation('/report/kerala_work_allocation_report');
+    } else {
+      navigate('/report/kerala_work_allocation_report');
+    }
+  };
+
   const handleInspectionReportClick = (e) => {
     e.preventDefault();
     if (onReportNavigation) {
@@ -84,6 +93,7 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
       title: 'Work Allocation Abstract',
       subtitle: 'Progress Report',
       to: '/report/kerala_work_allocation_report',
+      onClick: handleWorkAllocationReportClick,
       icon: AssessmentIcon,
       gradient: 'linear-gradient(135deg, #1E3C72 0%, #2A5298 100%)',
       glowColor: 'rgba(30, 60, 114, 0.35)'
@@ -107,8 +117,8 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
       glowColor: 'rgba(190, 18, 60, 0.35)'
     },
     {
-      title: 'CCE Progress Report',
-      subtitle: 'CCE Form',
+      title: 'CCE Progress',
+      subtitle: 'cce report',
       to: '/schemes/earas/cce/KeralaForm5ReportList',
       onClick: handleForm5Click,
       icon: DescriptionIcon,
@@ -117,7 +127,7 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
     },
     {
       title: 'Form 3A',
-      subtitle: 'CCE Form',
+      subtitle: 'Seasonal Crop report',
       to: '/schemes/earas/Report/Form3A/KeralaForm3A',
       onClick: handleForm3AClick,
       icon: DescriptionIcon,
@@ -126,7 +136,7 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
     },
     {
       title: 'Form 3B',
-      subtitle: 'CCE Form',
+      subtitle: 'Annual & Perennial crop report',
       to: '/schemes/earas/Report/Form3B/KeralaForm3B',
       onClick: handleForm3BClick,
       icon: DescriptionIcon,
@@ -135,22 +145,22 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
     },
     {
       title: 'Form 2',
-      subtitle: 'CCE Form',
+      subtitle: 'Land Utilization & irrigation Report',
       to: '/schemes/earas/cce/KeralaForm2',
       onClick: handleForm2Click,
       icon: DescriptionIcon,
       gradient: 'linear-gradient(135deg, #A21CAF 0%, #86198F 100%)',
       glowColor: 'rgba(162, 28, 175, 0.35)'
     },
-    {
-      title: 'Inspection Reports',
-      subtitle: 'Form 1 & CCE Inspections',
-      to: '/Report/kerala_inspection_report',
-      onClick: handleInspectionReportClick,
-      icon: AssignmentTurnedInIcon,
-      gradient: 'linear-gradient(135deg, #334155 0%, #0F172A 100%)',
-      glowColor: 'rgba(51, 65, 85, 0.4)'
-    }
+    // {
+    //   title: 'Inspection Reports',
+    //   subtitle: 'Form 1 & CCE Inspections',
+    //   to: '/Report/kerala_inspection_report',
+    //   onClick: handleInspectionReportClick,
+    //   icon: AssignmentTurnedInIcon,
+    //   gradient: 'linear-gradient(135deg, #334155 0%, #0F172A 100%)',
+    //   glowColor: 'rgba(51, 65, 85, 0.4)'
+    // }
   ];
 
   return (

@@ -166,7 +166,7 @@ if (role == 'Super Admin' || role === 'IT Admin' || role === 'District Level App
     ClusterFormView,
     workallocation,
     // cceview,
-    ccereport
+    // ccereport
   );
 } else if (role === 'EARAS Admin') {
   utilities.children.push(

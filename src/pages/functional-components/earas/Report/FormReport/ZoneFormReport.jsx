@@ -665,8 +665,20 @@ function ZoneFormReport() {
       });
     }
 
+    const targetZoneId = location.state?.zoneId || (location.state?.officeType === 'FIELD_DATA_COLLECTOR' ? AuthService.getzone() : null);
+    if (targetZoneId) {
+      const filteredBlocks = [];
+      blocks.forEach((block) => {
+        const matchingZones = block.zones.filter((z) => String(z.zoneId) === String(targetZoneId));
+        if (matchingZones.length > 0) {
+          filteredBlocks.push({ ...block, zones: matchingZones });
+        }
+      });
+      return filteredBlocks;
+    }
+
     return blocks;
-  }, [apiData, btrData, zonesList, landTypeTab, filterType, lastMonthApiData]);
+  }, [apiData, btrData, zonesList, landTypeTab, filterType, lastMonthApiData, location.state]);
 
   // Count zones with no data
   const zonesWithNoData = useMemo(() => {

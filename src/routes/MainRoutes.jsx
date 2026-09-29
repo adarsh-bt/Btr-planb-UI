@@ -137,6 +137,7 @@ const ZoneForm5Report = Loadable(lazy(() => import('pages/functional-components/
 const Form5 = Loadable(lazy(() => import('pages/functional-components/earas/Report/Form5Report/Form5')));
 
 const CceDataView = Loadable(lazy(() => import('pages/functional-components/earas/Report/Cce/CceDataView')));
+
 const OutOfClusterList = Loadable(lazy(() => import('pages/functional-components/earas/Report/Cce/OutOfClusterList')));
 
 const KeralaCceReportList = Loadable(lazy(() => import('pages/functional-components/earas/Report/Cce/cceReport/KeralaCceReportList')));
