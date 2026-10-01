@@ -1,11 +1,11 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Link } from 'react-router-dom';
-import Grid from '@mui/material/Grid';
-import Typography from '@mui/material/Typography';
-import Card from '@mui/material/Card';
-import Box from '@mui/material/Box';
-import CardContent from '@mui/material/CardContent';
+import { useNavigate, Link } from 'react-router-dom';
+import {
+  Grid,
+  Typography,
+  Card,
+  Box
+} from '@mui/material';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import DescriptionIcon from '@mui/icons-material/Description';
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
@@ -39,11 +39,10 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
     if (onReportNavigation) {
       onReportNavigation('/FormReport/Kerala');
     } else {
-      navigate('/FormReport/Kerala'); // fallback if opened outside the wrapper
+      navigate('/FormReport/Kerala');
     }
   };
 
-  // CCE Progress Report (Form 5) — role-based direct access via the wrapper.
   const handleForm5Click = (e) => {
     e.preventDefault();
     if (onReportNavigation) {
@@ -53,7 +52,6 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
     }
   };
 
-  // Form 2 (Land Utilization & Irrigation) — role-based direct access.
   const handleForm2Click = (e) => {
     e.preventDefault();
     if (onReportNavigation) {
@@ -63,7 +61,6 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
     }
   };
 
-  // Form 3A (Crop Area Report) — role-based direct access.
   const handleForm3AClick = (e) => {
     e.preventDefault();
     if (onReportNavigation) {
@@ -73,7 +70,6 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
     }
   };
 
-  // Form 3B (Crop Area Report) — role-based direct access.
   const handleForm3BClick = (e) => {
     e.preventDefault();
     if (onReportNavigation) {
@@ -83,544 +79,180 @@ function ReportMenu({ onReportNavigation, officeInfo }) {
     }
   };
 
+  const reportItems = [
+    {
+      title: 'Work Allocation Abstract',
+      subtitle: 'Progress Report',
+      to: '/report/kerala_work_allocation_report',
+      icon: AssessmentIcon,
+      gradient: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
+      glowColor: 'rgba(30, 60, 114, 0.35)'
+    },
+    {
+      title: 'Cluster Formation',
+      subtitle: 'Progress Report',
+      to: '/kerala_cluster_report',
+      onClick: handleClusterReportClick,
+      icon: AssessmentIcon,
+      gradient: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)',
+      glowColor: 'rgba(13, 148, 136, 0.35)'
+    },
+    {
+      title: 'Cluster Enumeration',
+      subtitle: 'Progress Report',
+      to: '/FormReport/Kerala',
+      onClick: handleFormReportClick,
+      icon: DescriptionIcon,
+      gradient: 'linear-gradient(135deg, #be123c 0%, #9f1239 100%)',
+      glowColor: 'rgba(190, 18, 60, 0.35)'
+    },
+    {
+      title: 'CCE Progress Report',
+      subtitle: 'CCE Form',
+      to: '/schemes/earas/cce/KeralaForm5ReportList',
+      onClick: handleForm5Click,
+      icon: DescriptionIcon,
+      gradient: 'linear-gradient(135deg, #15803d 0%, #166534 100%)',
+      glowColor: 'rgba(21, 128, 61, 0.35)'
+    },
+    {
+      title: 'Form 3A',
+      subtitle: 'CCE Form',
+      to: '/schemes/earas/Report/Form3A/KeralaForm3A',
+      onClick: handleForm3AClick,
+      icon: DescriptionIcon,
+      gradient: 'linear-gradient(135deg, #7e22ce 0%, #6b21a8 100%)',
+      glowColor: 'rgba(126, 34, 206, 0.35)'
+    },
+    {
+      title: 'Form 3B',
+      subtitle: 'CCE Form',
+      to: '/schemes/earas/Report/Form3B/KeralaForm3B',
+      onClick: handleForm3BClick,
+      icon: DescriptionIcon,
+      gradient: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+      glowColor: 'rgba(217, 119, 6, 0.35)'
+    },
+    {
+      title: 'Form 2',
+      subtitle: 'CCE Form',
+      to: '/schemes/earas/cce/KeralaForm2',
+      onClick: handleForm2Click,
+      icon: DescriptionIcon,
+      gradient: 'linear-gradient(135deg, #a21caf 0%, #86198f 100%)',
+      glowColor: 'rgba(162, 28, 175, 0.35)'
+    },
+    {
+      title: 'Inspection Reports',
+      subtitle: 'Form 1 & CCE Inspections',
+      to: '/Report/kerala_inspection_report',
+      onClick: handleInspectionReportClick,
+      icon: AssignmentTurnedInIcon,
+      gradient: 'linear-gradient(135deg, #334155 0%, #0f172a 100%)',
+      glowColor: 'rgba(51, 65, 85, 0.4)'
+    }
+  ];
+
   return (
     <Grid container spacing={3}>
       <Breadcrumb />
 
       <Grid item xs={12}>
-        <Typography variant="h3" sx={{ marginBottom: 2 }}>
+        <Typography variant="h3" sx={{ marginBottom: 2, fontWeight: 700, color: 'text.primary' }}>
           Report Menu
         </Typography>
 
         <MainCard title="">
           <Grid container spacing={3} alignItems="stretch">
-            {/* Cluster Report Card */}
-            <Grid item xs={12} sm={6} md={4} lg={3}>
-              <Card
-                component={Link}
-                to="/kerala_cluster_report"
-                onClick={handleClusterReportClick}
-                sx={{
-                  textDecoration: 'none',
-                  display: 'flex',
-                  flexDirection: { xs: 'column', sm: 'row' },
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: { xs: '1.2rem', sm: '1.5rem' },
-                  borderRadius: '1.5rem',
-                  background: 'linear-gradient(135deg, #4FACFE 0%, #00F2FE 100%)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0 10px 20px rgba(0, 0, 0, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  height: '100%',
-                  minHeight: { xs: '120px', sm: '130px' },
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: '-100%',
-                    width: '100%',
-                    height: '100%',
-                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                    transition: 'left 0.5s ease',
-                  },
-                  '&:hover': {
-                    transform: 'translateY(-6px)',
-                    boxShadow: '0 15px 30px rgba(0, 0, 0, 0.2)',
-                    '&::before': { left: '100%' },
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    width: { xs: '4rem', sm: '5rem' },
-                    height: { xs: '4rem', sm: '5rem' },
-                    borderRadius: '1rem',
-                    marginRight: { xs: 0, sm: '1.2rem' },
-                    marginBottom: { xs: '0.8rem', sm: 0 },
-                    background: 'rgba(255, 255, 255, 0.15)',
-                    backdropFilter: 'blur(10px)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <AssessmentIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
-                </Box>
-                <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
-                  <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' }, mb: 0.5 }}>
-                    Cluster Formation
-                  </Typography>
-                  <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: { xs: '0.65rem', sm: '0.7rem' } }}>
-                    Progress Report
-                  </Typography>
-                </Box>
-              </Card>
-            </Grid>
-
-            {/* Cluster Enumeration Report Card */}
-            <Grid item xs={12} sm={6} md={4} lg={3}>
-              <Card
-                component={Link}
-                to="/FormReport/Kerala"
-                onClick={handleFormReportClick}
-                sx={{
-                  textDecoration: 'none',
-                  display: 'flex',
-                  flexDirection: { xs: 'column', sm: 'row' },
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: { xs: '1.2rem', sm: '1.5rem' },
-                  borderRadius: '1.5rem',
-                  background: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0 10px 20px rgba(0, 0, 0, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  height: '100%',
-                  minHeight: { xs: '120px', sm: '130px' },
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: '-100%',
-                    width: '100%',
-                    height: '100%',
-                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                    transition: 'left 0.5s ease',
-                  },
-                  '&:hover': {
-                    transform: 'translateY(-6px)',
-                    boxShadow: '0 15px 30px rgba(0, 0, 0, 0.2)',
-                    '&::before': { left: '100%' },
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    width: { xs: '4rem', sm: '5rem' },
-                    height: { xs: '4rem', sm: '5rem' },
-                    borderRadius: '1rem',
-                    marginRight: { xs: 0, sm: '1.2rem' },
-                    marginBottom: { xs: '0.8rem', sm: 0 },
-                    background: 'rgba(255, 255, 255, 0.15)',
-                    backdropFilter: 'blur(10px)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <DescriptionIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
-                </Box>
-                <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
-                  <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' }, mb: 0.5 }}>
-                    Cluster Enumeration
-                  </Typography>
-                  <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: { xs: '0.65rem', sm: '0.7rem' } }}>
-                    Progress Report
-                  </Typography>
-                </Box>
-              </Card>
-            </Grid>
-
-            {/* Form 5 Card — role-based direct access */}
-            <Grid item xs={12} sm={6} md={4} lg={3}>
-              <Card
-                component={Link}
-                to="/schemes/earas/cce/KeralaForm5ReportList"
-                onClick={handleForm5Click}
-                sx={{
-                  textDecoration: 'none',
-                  display: 'flex',
-                  flexDirection: { xs: 'column', sm: 'row' },
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: { xs: '1.2rem', sm: '1.5rem' },
-                  borderRadius: '1.5rem',
-                  background: 'linear-gradient(135deg, #11998E 0%, #38EF7D 100%)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0 10px 20px rgba(0, 0, 0, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  height: '100%',
-                  minHeight: { xs: '120px', sm: '130px' },
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: '-100%',
-                    width: '100%',
-                    height: '100%',
-                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                    transition: 'left 0.5s ease',
-                  },
-                  '&:hover': {
-                    transform: 'translateY(-6px)',
-                    boxShadow: '0 15px 30px rgba(0, 0, 0, 0.2)',
-                    '&::before': { left: '100%' },
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    width: { xs: '4rem', sm: '5rem' },
-                    height: { xs: '4rem', sm: '5rem' },
-                    borderRadius: '1rem',
-                    marginRight: { xs: 0, sm: '1.2rem' },
-                    marginBottom: { xs: '0.8rem', sm: 0 },
-                    background: 'rgba(255, 255, 255, 0.15)',
-                    backdropFilter: 'blur(10px)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <DescriptionIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
-                </Box>
-                <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
-                  <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1.1rem', sm: '1.25rem' }, mb: 0.5 }}>
-                    CCE Progress Report
-                  </Typography>
-                  <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: { xs: '0.65rem', sm: '0.7rem' } }}>
-                    CCE Form
-                  </Typography>
-                </Box>
-              </Card>
-            </Grid>
-
-            {/* Form 2 Card — role-based direct access */}
-            <Grid item xs={12} sm={6} md={4} lg={3}>
-              <Card
-                component={Link}
-                to="/schemes/earas/cce/KeralaForm2"
-                onClick={handleForm2Click}
-                sx={{
-                  textDecoration: 'none',
-                  display: 'flex',
-                  flexDirection: { xs: 'column', sm: 'row' },
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: { xs: '1.2rem', sm: '1.5rem' },
-                  borderRadius: '1.5rem',
-                  background: 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0 10px 20px rgba(0, 0, 0, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  height: '100%',
-                  minHeight: { xs: '120px', sm: '130px' },
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: '-100%',
-                    width: '100%',
-                    height: '100%',
-                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                    transition: 'left 0.5s ease',
-                  },
-                  '&:hover': {
-                    transform: 'translateY(-6px)',
-                    boxShadow: '0 15px 30px rgba(0, 0, 0, 0.2)',
-                    '&::before': { left: '100%' },
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    width: { xs: '4rem', sm: '5rem' },
-                    height: { xs: '4rem', sm: '5rem' },
-                    borderRadius: '1rem',
-                    marginRight: { xs: 0, sm: '1.2rem' },
-                    marginBottom: { xs: '0.8rem', sm: 0 },
-                    background: 'rgba(255, 255, 255, 0.15)',
-                    backdropFilter: 'blur(10px)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <DescriptionIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
-                </Box>
-                <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
-                  <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1.1rem', sm: '1.25rem' }, mb: 0.5 }}>
-                    Form 2
-                  </Typography>
-                  <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: { xs: '0.65rem', sm: '0.7rem' } }}>
-                    CCE Form
-                  </Typography>
-                </Box>
-              </Card>
-            </Grid>
-
-            {/* Form 3A Card — role-based direct access */}
-            <Grid item xs={12} sm={6} md={4} lg={3}>
-              <Card
-                component={Link}
-                to="/schemes/earas/Report/Form3A/KeralaForm3A"
-                onClick={handleForm3AClick}
-                sx={{
-                  textDecoration: 'none',
-                  display: 'flex',
-                  flexDirection: { xs: 'column', sm: 'row' },
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: { xs: '1.2rem', sm: '1.5rem' },
-                  borderRadius: '1.5rem',
-                  background: 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0 10px 20px rgba(0, 0, 0, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  height: '100%',
-                  minHeight: { xs: '120px', sm: '130px' },
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: '-100%',
-                    width: '100%',
-                    height: '100%',
-                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                    transition: 'left 0.5s ease',
-                  },
-                  '&:hover': {
-                    transform: 'translateY(-6px)',
-                    boxShadow: '0 15px 30px rgba(0, 0, 0, 0.2)',
-                    '&::before': { left: '100%' },
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    width: { xs: '4rem', sm: '5rem' },
-                    height: { xs: '4rem', sm: '5rem' },
-                    borderRadius: '1rem',
-                    marginRight: { xs: 0, sm: '1.2rem' },
-                    marginBottom: { xs: '0.8rem', sm: 0 },
-                    background: 'rgba(199, 34, 34, 0.15)',
-                    backdropFilter: 'blur(10px)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <DescriptionIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
-                </Box>
-                <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
-                  <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1.1rem', sm: '1.25rem' }, mb: 0.5 }}>
-                    Form 3A
-                  </Typography>
-                  <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: { xs: '0.65rem', sm: '0.7rem' } }}>
-                    CCE Form
-                  </Typography>
-                </Box>
-              </Card>
-            </Grid>
-
-            {/* Form 3B Card — role-based direct access */}
-            <Grid item xs={12} sm={6} md={4} lg={3}>
-              <Card
-                component={Link}
-                to="/schemes/earas/Report/Form3B/KeralaForm3B"
-                onClick={handleForm3BClick}
-                sx={{
-                  textDecoration: 'none',
-                  display: 'flex',
-                  flexDirection: { xs: 'column', sm: 'row' },
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: { xs: '1.2rem', sm: '1.5rem' },
-                  borderRadius: '1.5rem',
-                  background: 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0 10px 20px rgba(0, 0, 0, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  height: '100%',
-                  minHeight: { xs: '120px', sm: '130px' },
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: '-100%',
-                    width: '100%',
-                    height: '100%',
-                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                    transition: 'left 0.5s ease',
-                  },
-                  '&:hover': {
-                    transform: 'translateY(-6px)',
-                    boxShadow: '0 15px 30px rgba(0, 0, 0, 0.2)',
-                    '&::before': { left: '100%' },
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    width: { xs: '4rem', sm: '5rem' },
-                    height: { xs: '4rem', sm: '5rem' },
-                    borderRadius: '1rem',
-                    marginRight: { xs: 0, sm: '1.2rem' },
-                    marginBottom: { xs: '0.8rem', sm: 0 },
-                    background: 'rgba(199, 34, 34, 0.15)',
-                    backdropFilter: 'blur(10px)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <DescriptionIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
-                </Box>
-                <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
-                  <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1.1rem', sm: '1.25rem' }, mb: 0.5 }}>
-                    Form 3B
-                  </Typography>
-                  <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: { xs: '0.65rem', sm: '0.7rem' } }}>
-                    CCE Form
-                  </Typography>
-                </Box>
-              </Card>
-            </Grid>
-
-            {/* Work Allocation Abstract Card */}
-            <Grid item xs={12} sm={6} md={4} lg={3}>
-              <Card
-                component={Link}
-                to="/report/kerala_work_allocation_report"
-                sx={{
-                  textDecoration: 'none',
-                  display: 'flex',
-                  flexDirection: { xs: 'column', sm: 'row' },
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: { xs: '1.2rem', sm: '1.5rem' },
-                  borderRadius: '1.5rem',
-                  background: 'linear-gradient(135deg, #0F2027 0%, #203A43 50%, #2C5364 100%)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0 10px 20px rgba(0, 0, 0, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  height: '100%',
-                  minHeight: { xs: '120px', sm: '130px' },
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: '-100%',
-                    width: '100%',
-                    height: '100%',
-                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                    transition: 'left 0.5s ease',
-                  },
-                  '&:hover': {
-                    transform: 'translateY(-6px)',
-                    boxShadow: '0 15px 30px rgba(0, 0, 0, 0.2)',
-                    '&::before': { left: '100%' },
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    width: { xs: '4rem', sm: '5rem' },
-                    height: { xs: '4rem', sm: '5rem' },
-                    borderRadius: '1rem',
-                    marginRight: { xs: 0, sm: '1.2rem' },
-                    marginBottom: { xs: '0.8rem', sm: 0 },
-                    background: 'rgba(255, 255, 255, 0.15)',
-                    backdropFilter: 'blur(10px)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <AssessmentIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
-                </Box>
-                <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
-                  <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' }, mb: 0.5 }}>
-                    Work Allocation Abstract
-                  </Typography>
-                  <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: { xs: '0.65rem', sm: '0.7rem' } }}>
-                    Progress Report
-                  </Typography>
-                </Box>
-              </Card>
-            </Grid>
-
-            {/* Inspection Reports Card */}
-            <Grid item xs={12} sm={6} md={4} lg={3}>
-              <Card
-                component={Link}
-                to="/Report/kerala_inspection_report"
-                onClick={handleInspectionReportClick}
-                sx={{
-                  textDecoration: 'none',
-                  display: 'flex',
-                  flexDirection: { xs: 'column', sm: 'row' },
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: { xs: '1.2rem', sm: '1.5rem' },
-                  borderRadius: '1.5rem',
-                  background: 'linear-gradient(135deg, #1A237E 0%, #3F51B5 100%)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0 10px 20px rgba(0, 0, 0, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  height: '100%',
-                  minHeight: { xs: '120px', sm: '130px' },
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: '-100%',
-                    width: '100%',
-                    height: '100%',
-                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                    transition: 'left 0.5s ease',
-                  },
-                  '&:hover': {
-                    transform: 'translateY(-6px)',
-                    boxShadow: '0 15px 30px rgba(0, 0, 0, 0.2)',
-                    '&::before': { left: '100%' },
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    width: { xs: '4rem', sm: '5rem' },
-                    height: { xs: '4rem', sm: '5rem' },
-                    borderRadius: '1rem',
-                    marginRight: { xs: 0, sm: '1.2rem' },
-                    marginBottom: { xs: '0.8rem', sm: 0 },
-                    background: 'rgba(255, 255, 255, 0.15)',
-                    backdropFilter: 'blur(10px)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <AssignmentTurnedInIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
-                </Box>
-                <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
-                  <Typography sx={{ fontWeight: 'bold', color: '#fff', fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' }, mb: 0.5 }}>
-                    Inspection Reports
-                  </Typography>
-                  <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: { xs: '0.65rem', sm: '0.7rem' } }}>
-                    Form 1 & CCE Inspections
-                  </Typography>
-                </Box>
-              </Card>
-            </Grid>
-
+            {reportItems.map((item, index) => {
+              const IconComponent = item.icon;
+              return (
+                <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
+                  <Card
+                    component={Link}
+                    to={item.to}
+                    onClick={item.onClick}
+                    sx={{
+                      textDecoration: 'none',
+                      display: 'flex',
+                      flexDirection: { xs: 'column', sm: 'row' },
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: { xs: '1.2rem', sm: '1.5rem' },
+                      borderRadius: '1.25rem',
+                      background: item.gradient,
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      boxShadow: `0 8px 18px ${item.glowColor}`,
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      height: '100%',
+                      minHeight: { xs: '120px', sm: '130px' },
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: '-100%',
+                        width: '100%',
+                        height: '100%',
+                        background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent)',
+                        transition: 'left 0.5s ease'
+                      },
+                      '&:hover': {
+                        transform: 'translateY(-6px)',
+                        boxShadow: `0 16px 32px ${item.glowColor}`,
+                        border: '1px solid rgba(255, 255, 255, 0.35)',
+                        '&::before': { left: '100%' }
+                      }
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: { xs: '3.8rem', sm: '4.5rem' },
+                        height: { xs: '3.8rem', sm: '4.5rem' },
+                        borderRadius: '1rem',
+                        marginRight: { xs: 0, sm: '1.2rem' },
+                        marginBottom: { xs: '0.8rem', sm: 0 },
+                        background: 'rgba(255, 255, 255, 0.18)',
+                        backdropFilter: 'blur(10px)',
+                        border: '1px solid rgba(255, 255, 255, 0.25)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}
+                    >
+                      <IconComponent sx={{ fontSize: { xs: '2.2rem', sm: '2.6rem' }, color: '#fff' }} />
+                    </Box>
+                    <Box sx={{ textAlign: { xs: 'center', sm: 'left' }, flex: 1 }}>
+                      <Typography
+                        sx={{
+                          fontWeight: 700,
+                          color: '#fff',
+                          fontSize: { xs: '1rem', sm: '1.1rem', md: '1.15rem' },
+                          lineHeight: 1.25,
+                          mb: 0.6
+                        }}
+                      >
+                        {item.title}
+                      </Typography>
+                      <Typography
+                        variant="subtitle2"
+                        sx={{
+                          color: 'rgba(255,255,255,0.85)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.8px',
+                          fontSize: { xs: '0.65rem', sm: '0.7rem' },
+                          fontWeight: 600
+                        }}
+                      >
+                        {item.subtitle}
+                      </Typography>
+                    </Box>
+                  </Card>
+                </Grid>
+              );
+            })}
           </Grid>
         </MainCard>
       </Grid>

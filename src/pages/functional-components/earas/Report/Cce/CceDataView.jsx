@@ -733,7 +733,14 @@ const CceDataView = () => {
     return visitNumbers.map((visitNo) => {
       const harvestDates = yieldDetailsList.map((tree) => {
         const v = (tree.visitListResponses || []).find((vis) => vis.noOfVisit === visitNo);
-        return v?.harvestDate ? formatDate(v.harvestDate) : 'N/A';
+        const rawDate =
+          v?.harvestDate ||
+          v?.dateOfHarvest ||
+          v?.harvestDateString ||
+          tree?.harvestDate ||
+          tree?.dateOfHarvest ||
+          (v?.yieldTypeResponses && v.yieldTypeResponses[0]?.harvestDate);
+        return rawDate ? formatDate(rawDate) : 'N/A';
       });
 
       const yieldTypesMap = new Map();
@@ -854,7 +861,7 @@ const CceDataView = () => {
 
       doc.setFontSize(8.5);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Plot ID: ${targetPlotId} | Generated: ${new Date().toLocaleString()}`, 18, y + 16);
+      doc.text(` Generated: ${new Date().toLocaleString()}`, 18, y + 16);
 
       y += 28;
 
@@ -966,11 +973,10 @@ const CceDataView = () => {
 
         applyAutoTable({
           startY: y,
-          head: [['S.No', unitLabel, `${unitLabel} Entry ID`, 'Random Number', 'Growth Stage Locked']],
+          head: [['S.No', unitLabel, 'Random Number', 'Growth Stage Locked']],
           body: selectedTrees.map((item, idx) => [
             idx + 1,
             `${unitLabel} ${idx + 1}`,
-            item.cceDataEntryPerTreeId || 'N/A',
             item.randomNo ?? 'N/A',
             item.isGrowthStageLocked ? 'Yes' : 'No'
           ]),
@@ -980,33 +986,33 @@ const CceDataView = () => {
         });
       }
 
-      // All Plants Coordinates Table
-      if (allCoordinates.length > 0) {
-        checkPageBreak(25);
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(15, 23, 42);
-        doc.text(`All ${unitLabelPlural} Coordinates Summary (${allCoordinates.length})`, 14, y);
-        y += 4;
+      // // All Plants Coordinates Table
+      // if (allCoordinates.length > 0) {
+      //   checkPageBreak(25);
+      //   doc.setFontSize(9);
+      //   doc.setFont('helvetica', 'bold');
+      //   doc.setTextColor(15, 23, 42);
+      //   doc.text(`All ${unitLabelPlural} Coordinates Summary (${allCoordinates.length})`, 14, y);
+      //   y += 4;
 
-        applyAutoTable({
-          startY: y,
-          head: [['S.No', unitLabel, 'Coordinate X', 'Coordinate Y', 'Selection Status']],
-          body: allCoordinates.map((coord, idx) => {
-            const isSelected = !!(coord.isSelectedTree ?? coord.isSelected ?? coord.selected);
-            return [
-              idx + 1,
-              `${unitLabel} ${idx + 1}`,
-              coord.coordinateX ?? coord.x ?? 0,
-              coord.coordinateY ?? coord.y ?? 0,
-              isSelected ? 'Selected (Orange)' : 'Unselected'
-            ];
-          }),
-          theme: 'grid',
-          headStyles: { fillColor: [5, 48, 122], textColor: 255, fontSize: 8 },
-          styles: { fontSize: 7.5, cellPadding: 2 }
-        });
-      }
+      //   applyAutoTable({
+      //     startY: y,
+      //     head: [['S.No', unitLabel, 'Coordinate X', 'Coordinate Y', 'Selection Status']],
+      //     body: allCoordinates.map((coord, idx) => {
+      //       const isSelected = !!(coord.isSelectedTree ?? coord.isSelected ?? coord.selected);
+      //       return [
+      //         idx + 1,
+      //         `${unitLabel} ${idx + 1}`,
+      //         coord.coordinateX ?? coord.x ?? 0,
+      //         coord.coordinateY ?? coord.y ?? 0,
+      //         isSelected ? 'Selected (Orange)' : 'Unselected'
+      //       ];
+      //     }),
+      //     theme: 'grid',
+      //     headStyles: { fillColor: [5, 48, 122], textColor: 255, fontSize: 8 },
+      //     styles: { fontSize: 7.5, cellPadding: 2 }
+      //   });
+      // }
 
       // SECTION 3: Seed Details
       checkPageBreak(35);
@@ -1019,12 +1025,11 @@ const CceDataView = () => {
       if (seedDetailsList && seedDetailsList.length > 0) {
         applyAutoTable({
           startY: y,
-          head: [['S.No', unitLabel, 'Random No', 'Entry ID', 'Seed Type', 'Source', 'Quantity', 'Sowing Method', 'Age', 'Planted Date']],
+          head: [['S.No', unitLabel, 'Random No', 'Seed Type', 'Source', 'Quantity', 'Sowing Method', 'Age', 'Planted Date']],
           body: seedDetailsList.map((item, idx) => [
             idx + 1,
             `${unitLabel} ${idx + 1}`,
             `#${item.randomNo ?? 'N/A'}`,
-            item.cceDataEntryPerTreeId || 'N/A',
             item.seedTypeName || 'N/A',
             item.seedSourceName || 'N/A',
             item.seedQuantity ?? 'N/A',
@@ -1057,10 +1062,9 @@ const CceDataView = () => {
       if (commonDetails?.irrigationSources && commonDetails.irrigationSources.length > 0) {
         applyAutoTable({
           startY: y,
-          head: [['S.No', 'Source ID', 'Irrigation Type', 'Source Name', 'Percentage Covered']],
+          head: [['S.No', 'Irrigation Type', 'Source Name', 'Percentage Covered']],
           body: commonDetails.irrigationSources.map((source, idx) => [
             idx + 1,
-            source.cceIrrigationSourceId || 'N/A',
             source.irrigationType || 'N/A',
             source.irrigationSourceName || 'N/A',
             source.percentageCovered !== undefined ? `${source.percentageCovered}%` : 'N/A'
@@ -1075,12 +1079,11 @@ const CceDataView = () => {
       if (irrigationDetailsList && irrigationDetailsList.length > 0) {
         applyAutoTable({
           startY: y,
-          head: [['S.No', unitLabel, 'Random No', 'Entry ID', 'Irrigated', 'Drainage', 'Schedule', 'Frequency']],
+          head: [['S.No', unitLabel, 'Random No', 'Irrigated', 'Drainage', 'Schedule', 'Frequency']],
           body: irrigationDetailsList.map((item, idx) => [
             idx + 1,
             `${unitLabel} ${idx + 1}`,
             `#${item.randomNo ?? 'N/A'}`,
-            item.cceDataEntryPerTreeId || 'N/A',
             item.isIrrigated ? 'Irrigated' : 'Unirrigated',
             item.isDrainageAvailable ? 'Yes' : 'No',
             item.isIrrigationScheduleRegular ? 'Regular' : 'Irregular',
@@ -1092,13 +1095,14 @@ const CceDataView = () => {
         });
       }
 
-      // SECTION 5: Yield & Production
+      // SECTION 5: Yield 
       checkPageBreak(35);
       doc.setFontSize(10.5);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(5, 48, 122);
-      doc.text('5. Yield & Production', 14, y);
-      y += 4;
+      doc.text('5. Yield ', 14, y);
+
+      y += 6;
 
       if (yieldMatrix && yieldMatrix.length > 0) {
         yieldMatrix.forEach((vGroup) => {
@@ -1106,14 +1110,16 @@ const CceDataView = () => {
           doc.setFontSize(9);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(15, 23, 42);
+
+          y += 6;
           doc.text(`Visit ${vGroup.visitNo}`, 14, y);
           y += 4;
 
-          const headRow = ['Parameter / Yield Type', ...yieldDetailsList.map((_, tIdx) => `${unitLabel} ${tIdx + 1}`), 'Total Yield'];
+          const headRow = ['Yield Type', ...yieldDetailsList.map((_, tIdx) => `${unitLabel} ${tIdx + 1}`), 'Total Yield'];
           const bodyRows = [
             ['Harvest Date', ...vGroup.harvestDates, '-'],
             ...vGroup.yieldRows.map((yRow) => [
-              yRow.yType.nameEn + (yRow.yType.nameMal ? ` (${yRow.yType.nameMal})` : ''),
+              yRow.yType.nameEn,
               ...yRow.treeResults,
               yRow.totalYield
             ])
@@ -1166,7 +1172,7 @@ const CceDataView = () => {
       if (diseaseDetailsList && diseaseDetailsList.length > 0) {
         applyAutoTable({
           startY: y,
-          head: [['S.No', unitLabel, 'Random No', 'Entry ID', 'Infected', 'Diseases', 'Pesticide', 'Purpose', 'Control Result', 'Fertilizers']],
+          head: [['S.No', unitLabel, 'Random No', 'Infected', 'Diseases', 'Pesticide', 'Purpose', 'Control Result', 'Fertilizers']],
           body: diseaseDetailsList.map((item, idx) => {
             const diseaseNames = (item.diseases || []).map((d) => d.diseaseName).filter(Boolean).join(', ') || 'None';
             const fertilizerList = (item.fertilizers || []).map((f) => `${f.fertilizerName || 'Fertilizer'} (${f.quantityUsedKg ?? 0}kg)`).join(', ') || 'None';
@@ -1174,7 +1180,6 @@ const CceDataView = () => {
               idx + 1,
               `${unitLabel} ${idx + 1}`,
               `#${item.randomNo ?? 'N/A'}`,
-              item.cceDataEntryPerTreeId || 'N/A',
               item.isInfectedByAnyDisease ? 'Yes' : 'No',
               diseaseNames,
               item.isPesticideUsed ? `${item.typeOfPesticide || 'Yes'}` : 'No',
@@ -1206,7 +1211,7 @@ const CceDataView = () => {
         doc.setTextColor(100, 116, 139);
 
         if (i > 1) {
-          doc.text(`EARAS CCE Crop Data Report — Plot ID: ${targetPlotId}`, 14, 10);
+          doc.text('EARAS CCE Crop Data Report', 14, 10);
           doc.setDrawColor(226, 232, 240);
           doc.line(14, 12, 196, 12);
         }
@@ -1217,7 +1222,7 @@ const CceDataView = () => {
         doc.text(`Page ${i} of ${pageCount}`, 196, 290, { align: 'right' });
       }
 
-      doc.save(`CCE_Report_${targetPlotId}_${cropName.replace(/\s+/g, '_')}.pdf`);
+      doc.save(`CCE_Report_${cropName.replace(/\s+/g, '_')}.pdf`);
     } catch (err) {
       console.error('Error generating PDF report:', err);
       alert('Failed to generate PDF report. Please try again.');
@@ -1692,7 +1697,6 @@ const CceDataView = () => {
                           <TableRow>
                             <TableCell sx={{ fontWeight: 600 }}>S.No</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>{unitLabel}</TableCell>
-                            <TableCell sx={{ fontWeight: 600 }}>{unitLabel} Entry ID (cceDataEntryPerTreeId)</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Random Number</TableCell>
                             <TableCell sx={{ fontWeight: 600 }} align="center">Growth Stage Locked</TableCell>
                           </TableRow>
@@ -1710,9 +1714,6 @@ const CceDataView = () => {
                                     sx={{ fontWeight: 700 }}
                                   />
                                 </TableCell>
-                                <TableCell sx={{ fontWeight: 500, fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                                  {item.cceDataEntryPerTreeId || 'N/A'}
-                                </TableCell>
                                 <TableCell sx={{ fontWeight: 600 }}>
                                   {item.randomNo ?? 'N/A'}
                                 </TableCell>
@@ -1723,7 +1724,7 @@ const CceDataView = () => {
                             ))
                           ) : (
                             <TableRow>
-                              <TableCell colSpan={5} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                              <TableCell colSpan={4} align="center" sx={{ py: 3, color: 'text.secondary' }}>
                                 No selected {unitLabelPlural.toLowerCase()} available.
                               </TableCell>
                             </TableRow>
@@ -2030,7 +2031,6 @@ const CceDataView = () => {
                       <TableCell sx={{ fontWeight: 600 }}>S.No</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>{unitLabel}</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Random Number</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>{unitLabel} Entry ID</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Seed Type</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Source</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Quantity</TableCell>
@@ -2059,9 +2059,6 @@ const CceDataView = () => {
                             color="warning"
                             sx={{ fontWeight: 700 }}
                           />
-                        </TableCell>
-                        <TableCell sx={{ fontWeight: 500, fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                          {item.cceDataEntryPerTreeId || 'N/A'}
                         </TableCell>
                         <TableCell>
                           <Chip
@@ -2209,7 +2206,6 @@ const CceDataView = () => {
                         <TableCell sx={{ fontWeight: 600 }}>S.No</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>{unitLabel}</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>Random Number</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>{unitLabel} Entry ID</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>Irrigated</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>Drainage Available</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>Irrigation Schedule</TableCell>
@@ -2237,9 +2233,6 @@ const CceDataView = () => {
                                 color="warning"
                                 sx={{ fontWeight: 700 }}
                               />
-                            </TableCell>
-                            <TableCell sx={{ fontWeight: 500, fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                              {item.cceDataEntryPerTreeId || 'N/A'}
                             </TableCell>
                             <TableCell>
                               {item.isIrrigated !== undefined && item.isIrrigated !== null ? (
@@ -2287,7 +2280,7 @@ const CceDataView = () => {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={8} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                          <TableCell colSpan={7} align="center" sx={{ py: 3, color: 'text.secondary' }}>
                             No irrigation details recorded.
                           </TableCell>
                         </TableRow>
@@ -2303,7 +2296,7 @@ const CceDataView = () => {
         {/* TAB 5: YIELD */}
         <TabPanel value={tabValue} index={4}>
           <Box sx={{ mb: 4 }}>
-            <SectionTitle icon={AgricultureIcon} title="Yield & Production" />
+            <SectionTitle icon={AgricultureIcon} title="Yield " />
             {isYieldLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 5 }}>
                 <CircularProgress size={32} />
@@ -2322,11 +2315,11 @@ const CceDataView = () => {
                     <Table>
                       <TableHead sx={{ backgroundColor: alpha(theme.palette.divider, 0.05) }}>
                         <TableRow>
-                          <TableCell sx={{ fontWeight: 700, minWidth: 180 }}>Parameter / Yield Type</TableCell>
+                          <TableCell sx={{ fontWeight: 700, minWidth: 180 }}> Yield Type</TableCell>
                           {yieldDetailsList.map((_, tIdx) => (
                             <TableCell key={tIdx} align="center" sx={{ fontWeight: 700 }}>
                               <Chip
-                                label={`${unitLabel} ${tIdx + 1} Result`}
+                                label={`${unitLabel} ${tIdx + 1} `}
                                 size="small"
                                 color="primary"
                                 sx={{ fontWeight: 700 }}
@@ -2485,7 +2478,6 @@ const CceDataView = () => {
                       <TableCell sx={{ fontWeight: 600 }}>S.No</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>{unitLabel}</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Random Number</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>{unitLabel} Entry ID</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Disease Infection</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Diseases Reported</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Pesticide Used</TableCell>
@@ -2516,9 +2508,6 @@ const CceDataView = () => {
                               color="warning"
                               sx={{ fontWeight: 700 }}
                             />
-                          </TableCell>
-                          <TableCell sx={{ fontWeight: 500, fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                            {item.cceDataEntryPerTreeId || 'N/A'}
                           </TableCell>
                           <TableCell>
                             {item.isInfectedByAnyDisease !== undefined && item.isInfectedByAnyDisease !== null ? (
@@ -2600,7 +2589,7 @@ const CceDataView = () => {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={11} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                        <TableCell colSpan={10} align="center" sx={{ py: 3, color: 'text.secondary' }}>
                           No disease or pest control details recorded.
                         </TableCell>
                       </TableRow>

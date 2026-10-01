@@ -1,99 +1,87 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Grid,
-  Typography,
-  Paper,
+  Alert,
   Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Divider,
+  FormControl,
+  Grid,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  Tab,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
-  TableRow,
-  Chip,
-  Card,
-  CardContent,
-  IconButton,
-  Tooltip,
-  Button,
-  TextField,
-  Stack,
-  InputAdornment,
   TablePagination,
-  alpha,
+  TableRow,
   Tabs,
-  Tab,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
+  TextField,
   ToggleButton,
   ToggleButtonGroup,
-  CircularProgress
+  Tooltip,
+  Typography,
+  alpha,
+  useMediaQuery
 } from '@mui/material';
-import MainCard from 'components/MainCard';
 import { useTheme } from '@mui/material/styles';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import PendingIcon from '@mui/icons-material/Pending';
-import ScheduleIcon from '@mui/icons-material/Schedule';
-import RateReviewIcon from '@mui/icons-material/RateReview';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import SearchIcon from '@mui/icons-material/Search';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ClearIcon from '@mui/icons-material/Clear';
-import WaterDropIcon from '@mui/icons-material/WaterDrop';
-import WbSunnyIcon from '@mui/icons-material/WbSunny';
-import ViewWeekIcon from '@mui/icons-material/ViewWeek';
-import ViewModuleIcon from '@mui/icons-material/ViewModule';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
 import GrassIcon from '@mui/icons-material/Grass';
-import * as XLSX from 'xlsx';
-import Breadcrumb from 'routes/Breadcrumb';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import PendingIcon from '@mui/icons-material/Pending';
+import RateReviewIcon from '@mui/icons-material/RateReview';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import SearchIcon from '@mui/icons-material/Search';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import WaterDropIcon from '@mui/icons-material/WaterDrop';
+import WbSunnyIcon from '@mui/icons-material/WbSunny';
+import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import ViewWeekIcon from '@mui/icons-material/ViewWeek';
+
 import axios from 'axios';
-import AuthService from 'pages/authentication/services/authservice';
-import mainapi from 'api/mainapi';
 import api from 'api/api';
+import mainapi from 'api/mainapi';
+import AuthService from 'pages/authentication/services/authservice';
+import Breadcrumb from 'routes/Breadcrumb';
 
-/* ─────────────────────────── season (crop season) ─────────────────────────── */
-
-// Crop seasons supported by the backend. seasonId is MANDATORY on the
-// form1-status endpoints, so there is deliberately no "ALL"/empty option.
-// TODO: move SEASON_OPTIONS / DEFAULT_SEASON_ID into a shared constants module
-// once the zone and block report pages get the same filter, so the three copies
-// can't drift apart.
 const SEASON_OPTIONS = [
   { value: 1, label: 'Autumn' },
   { value: 2, label: 'Winter' },
   { value: 3, label: 'Summer' }
 ];
 
-const DEFAULT_SEASON_ID = 1; // Autumn
-
-// The BTR taluk completed-clusters endpoint is a different service. If it also
-// understands seasonId, keep this true so "Total" is season-scoped and the
-// Not Started math stays correct. Unknown query params are ignored by Spring,
-// so if BTR doesn't support it the behaviour is identical to before.
+const DEFAULT_SEASON_ID = 1;
 const BTR_SUPPORTS_SEASON_ID = true;
+const SESSION_KEY = 'talukFormReportState';
 
 const getSeasonLabel = (value) =>
-  SEASON_OPTIONS.find((o) => o.value === Number(value))?.label || 'Autumn';
+  SEASON_OPTIONS.find((option) => option.value === Number(value))?.label || 'Autumn';
 
-// Accepts anything (string from sessionStorage, number from location.state,
-// undefined on a cold direct-access load) and always returns a valid season id.
 const normalizeSeasonId = (value) => {
-  const n = Number(value);
-  return SEASON_OPTIONS.some((o) => o.value === n) ? n : DEFAULT_SEASON_ID;
+  const number = Number(value);
+  return SEASON_OPTIONS.some((option) => option.value === number)
+    ? number
+    : DEFAULT_SEASON_ID;
 };
-
-/* ─────────────────────────── session persistence ─────────────────────────── */
-
-const SESSION_KEY = 'talukFormReportState';
 
 function getSavedState() {
   try {
@@ -103,76 +91,112 @@ function getSavedState() {
   }
 }
 
-// Builds the "July <startYear> → June <startYear + 1>" agricultural-year
-// month list used by the Single Month / From Month / To Month dropdowns.
-// Each option's `value` is sent to the API in "MM-YYYY" form (e.g. "07-2025"),
-// matching /form1-status/district?districtId=1&startMonth=07-2025&endMonth=09-2025&landType=WET&seasonId=1.
 function buildAgriMonthOptions() {
-  const agriYear = AuthService.agriyear() || '2025-2026';
-  const startYear = parseInt(agriYear.split('-')[0], 10) || new Date().getFullYear();
+  const agriYear =
+    (AuthService && AuthService.agriyear ? AuthService.agriyear() : null) ||
+    localStorage.getItem('activeAgriYear') ||
+    '2025-2026';
+
+  const startYear = parseInt(String(agriYear).split('-')[0], 10) || new Date().getFullYear();
   const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December'
   ];
+
   const options = [];
-  for (let i = 0; i < 12; i++) {
-    const monthIndex = (6 + i) % 12; // start from July (index 6)
+
+  for (let i = 0; i < 12; i += 1) {
+    const monthIndex = (6 + i) % 12;
     const year = startYear + Math.floor((6 + i) / 12);
     const mm = String(monthIndex + 1).padStart(2, '0');
-    options.push({ label: `${monthNames[monthIndex]} ${year}`, value: `${mm}-${year}` });
+
+    options.push({
+      label: `${monthNames[monthIndex]} ${year}`,
+      value: `${mm}-${year}`
+    });
   }
+
   return options;
 }
 
-// Resolves a month string (e.g. 'July', 'July 2025', '07-2025') to a valid MM-YYYY value in MONTH_OPTIONS
-function resolveMonthValue(val, monthOptions) {
-  if (!monthOptions || monthOptions.length === 0) return '';
-  if (!val) return monthOptions[0]?.value || '';
+function resolveMonthValue(value, monthOptions) {
+  if (!monthOptions?.length) return '';
+  if (!value) return monthOptions[0]?.value || '';
 
-  // 1. Exact match with option value (e.g. '07-2025' or '02-2026')
-  const exactMatch = monthOptions.find((o) => o.value === val);
+  const exactMatch = monthOptions.find((option) => option.value === value);
   if (exactMatch) return exactMatch.value;
 
-  // 2. Exact match with label (e.g. 'July 2025')
-  const labelMatch = monthOptions.find((o) => o.label.toLowerCase() === val.toLowerCase());
+  const normalized = String(value).toLowerCase();
+  const labelMatch = monthOptions.find((option) => option.label.toLowerCase() === normalized);
   if (labelMatch) return labelMatch.value;
 
-  // 3. Match month name prefix (e.g. val is 'July' or 'Feb')
-  const monthNameMatch = monthOptions.find((o) => o.label.toLowerCase().startsWith(val.toLowerCase()));
-  if (monthNameMatch) return monthNameMatch.value;
+  const monthNameMatch = monthOptions.find((option) =>
+    option.label.toLowerCase().startsWith(normalized)
+  );
 
-  // 4. Fallback to first month in options
-  return monthOptions[0]?.value || '';
+  return monthNameMatch?.value || monthOptions[0]?.value || '';
 }
 
 function getCurrentMonthValue(monthOptions) {
-  if (!monthOptions || monthOptions.length === 0) return '';
+  if (!monthOptions?.length) return '';
+
   const now = new Date();
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const yyyy = now.getFullYear();
-  const currentVal = `${mm}-${yyyy}`;
-  const exists = monthOptions.find((o) => o.value === currentVal);
-  if (exists) return exists.value;
-  return monthOptions[monthOptions.length - 1]?.value || monthOptions[0]?.value || '';
+  const currentValue = `${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+
+  return (
+    monthOptions.find((option) => option.value === currentValue)?.value ||
+    monthOptions[monthOptions.length - 1]?.value ||
+    monthOptions[0]?.value ||
+    ''
+  );
 }
 
-// Per-taluk metrics come split into wet*/dry* fields (e.g. wetCompleted,
-// dryCompleted). This picks the right one — or sums both — based on the
-// active WET / DRY / ALL tab. `metric` is one of:
-// 'Completed' | 'Ongoing' | 'NotStarted' | 'UnderReview' | 'ClusterArea'
-//
-// NOTE: `landType` here is WET / DRY / ALL. That is land type, NOT crop season.
-// Crop season is the separate, mandatory seasonId (Autumn / Winter / Summer).
+function normalizeTalukName(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/taluk/gi, '')
+    .replace(/[^a-z0-9]/gi, '');
+}
+
 function pickMetric(taluk, metric, landType) {
-  if (landType === 'WET') return Number(taluk[`wet${metric}`]) || 0;
-  if (landType === 'DRY') return Number(taluk[`dry${metric}`]) || 0;
-  return (Number(taluk[`wet${metric}`]) || 0) + (Number(taluk[`dry${metric}`]) || 0);
+  if (!taluk || typeof taluk !== 'object') return 0;
+
+  const getValue = (key) => {
+    if (!key || taluk[key] === undefined || taluk[key] === null) return null;
+    const number = Number(taluk[key]);
+    return Number.isNaN(number) ? null : number;
+  };
+
+  const wetValue =
+    getValue(`wet${metric}`) ?? getValue(`wet_${metric.toLowerCase()}`) ?? 0;
+  const dryValue =
+    getValue(`dry${metric}`) ?? getValue(`dry_${metric.toLowerCase()}`) ?? 0;
+  const directValue =
+    getValue(metric) ?? getValue(metric.toLowerCase()) ?? getValue(metric.toUpperCase()) ?? 0;
+
+  if (landType === 'WET') return wetValue || directValue;
+  if (landType === 'DRY') return dryValue || directValue;
+  if (wetValue > 0 || dryValue > 0) return wetValue + dryValue;
+  return directValue;
 }
 
-const formatArea = (num) =>
-  Number(num || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const formatArea = (number) =>
+  Number(number || 0).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
 
-// Fallback taluks for a district
+// Preserved from the supplied page as an API fallback.
 function getFallbackTaluks(districtId) {
   const taluksByDistrict = {
     1: ['Thiruvananthapuran', 'Neyyattinkara', 'Nedumangad', 'Chirayinkeezhu'],
@@ -191,11 +215,135 @@ function getFallbackTaluks(districtId) {
     14: ['Kasaragod', 'Hosdurg', 'Vellarikundu']
   };
 
-  const districtTaluks = taluksByDistrict[districtId] || [];
-  return districtTaluks.map((name, index) => ({
+  return (taluksByDistrict[districtId] || []).map((name, index) => ({
     id: index + 1,
     talukNameEn: name
   }));
+}
+
+function MetricText({ value, noData = false, color = 'text.primary', area = false }) {
+  if (noData) {
+    return (
+      <Typography component="span" variant="body2" color="text.disabled">
+        —
+      </Typography>
+    );
+  }
+
+  return (
+    <Typography
+      component="span"
+      variant="body2"
+      sx={{
+        color: value > 0 ? color : 'text.secondary',
+        fontWeight: value > 0 ? 600 : 400,
+        fontVariantNumeric: 'tabular-nums',
+        whiteSpace: 'nowrap'
+      }}
+    >
+      {area ? formatArea(value) : Number(value || 0).toLocaleString()}
+    </Typography>
+  );
+}
+
+function StatCard({ label, value, color, icon, areaValue, tooltip }) {
+  const theme = useTheme();
+
+  const content = (
+    <Card
+      elevation={0}
+      sx={{
+        height: '100%',
+        borderRadius: 3,
+        border: `1px solid ${alpha(color, 0.16)}`,
+        bgcolor: alpha(color, 0.055),
+        transition: theme.transitions.create(['transform', 'box-shadow', 'border-color']),
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          boxShadow: theme.shadows[3],
+          borderColor: alpha(color, 0.28)
+        }
+      }}
+    >
+      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+        <Stack direction="row" justifyContent="space-between" spacing={2}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography
+              variant="h3"
+              sx={{
+                color,
+                fontWeight: 700,
+                lineHeight: 1.1,
+                fontVariantNumeric: 'tabular-nums'
+              }}
+            >
+              {Number(value || 0).toLocaleString()}
+            </Typography>
+
+            <Typography variant="body2" sx={{ mt: 0.7, color: 'text.primary', fontWeight: 600 }}>
+              {label}
+            </Typography>
+
+            {areaValue !== undefined && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: 'block', mt: 0.5, fontVariantNumeric: 'tabular-nums' }}
+              >
+                {formatArea(areaValue)} cents
+              </Typography>
+            )}
+          </Box>
+
+          <Box
+            sx={{
+              flex: '0 0 auto',
+              width: 38,
+              height: 38,
+              borderRadius: 2,
+              display: 'grid',
+              placeItems: 'center',
+              bgcolor: alpha(color, 0.12),
+              color
+            }}
+          >
+            {icon}
+          </Box>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+
+  return tooltip ? (
+    <Tooltip title={tooltip} arrow placement="top">
+      {content}
+    </Tooltip>
+  ) : (
+    content
+  );
+}
+
+function FilterLabel({ children }) {
+  return (
+    <Typography
+      variant="caption"
+      color="text.secondary"
+      sx={{ display: 'block', mb: 0.75, fontWeight: 600 }}
+    >
+      {children}
+    </Typography>
+  );
+}
+
+function MobileMetric({ label, children }) {
+  return (
+    <Box>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      <Box sx={{ mt: 0.2 }}>{children}</Box>
+    </Box>
+  );
 }
 
 function TalukFormReport() {
@@ -203,58 +351,64 @@ function TalukFormReport() {
   const navigate = useNavigate();
   const location = useLocation();
   const { districtName } = useParams();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const latestRequestRef = useRef(0);
 
-  const BASE_URL = mainapi.FORM_API;
+  const baseUrl = mainapi.FORM_API;
+  const monthOptions = useMemo(() => buildAgriMonthOptions(), []);
+  const defaultFromMonth = monthOptions[0]?.value || '';
+  const defaultToMonth = getCurrentMonthValue(monthOptions);
+  const defaultSingleMonth = defaultToMonth;
 
-  const MONTH_OPTIONS = buildAgriMonthOptions();
-  const getMonthLabel = (value) => MONTH_OPTIONS.find((o) => o.value === value)?.label || value;
-
-  /* ── merge location.state with saved sessionStorage state. ── */
   const stateData = useMemo(() => {
     const saved = getSavedState();
     return { ...saved, ...(location.state || {}) };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [location.state]);
 
-  /* ── resolve district ID once, keep in a ref ── */
-  const resolvedDistrictId = useRef(null);
+  const resolvedDistrictId = useMemo(
+    () => stateData.districtId ?? stateData.districtOfficeId ?? null,
+    [stateData]
+  );
 
-  const resolveDistrictId = () => {
-    if (stateData.districtId !== undefined && stateData.districtId !== null) {
-      return stateData.districtId;
+  const displayDistrictName = useMemo(() => {
+    if (districtName && districtName !== 'direct') {
+      return districtName
+        .split('-')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
     }
-    if (stateData.districtOfficeId !== undefined && stateData.districtOfficeId !== null) {
-      return stateData.districtOfficeId;
-    }
-    return null;
-  };
 
-  if (resolvedDistrictId.current === null) {
-    resolvedDistrictId.current = resolveDistrictId();
-  }
+    return stateData.districtName || 'District';
+  }, [districtName, stateData.districtName]);
 
-  // Initialize filters from merged state or defaults
-  const getInitialFilters = () => {
-    return {
-      districtId: resolvedDistrictId.current,
+  const initialFilters = useMemo(
+    () => ({
       filterType: stateData.filterType || 'range',
-      fromMonth: stateData.fromMonth ? resolveMonthValue(stateData.fromMonth, MONTH_OPTIONS) : (MONTH_OPTIONS[0]?.value || ''),
-      toMonth: stateData.toMonth ? resolveMonthValue(stateData.toMonth, MONTH_OPTIONS) : getCurrentMonthValue(MONTH_OPTIONS),
-      singleMonth: resolveMonthValue(stateData.singleMonth, MONTH_OPTIONS) || getCurrentMonthValue(MONTH_OPTIONS),
-      // `landType` is the new key; `seasonTab` is the legacy key still sent by
-      // the state-level page. Both carry WET / DRY / ALL.
+      fromMonth: stateData.fromMonth
+        ? resolveMonthValue(stateData.fromMonth, monthOptions)
+        : defaultFromMonth,
+      toMonth: stateData.toMonth
+        ? resolveMonthValue(stateData.toMonth, monthOptions)
+        : defaultToMonth,
+      singleMonth: stateData.singleMonth
+        ? resolveMonthValue(stateData.singleMonth, monthOptions)
+        : defaultSingleMonth,
       landTypeTab: stateData.landType || stateData.seasonTab || 'ALL',
-      // Mandatory crop season — falls back to Autumn on direct access.
       seasonId: normalizeSeasonId(stateData.seasonId)
-    };
-  };
+    }),
+    [defaultFromMonth, defaultSingleMonth, defaultToMonth, monthOptions, stateData]
+  );
 
-  const initialFilters = getInitialFilters();
+  const getMonthLabel = useCallback(
+    (value) => monthOptions.find((option) => option.value === value)?.label || value,
+    [monthOptions]
+  );
 
-  // Filter states with initial values
   const [btrData, setBtrData] = useState(null);
+  const [apiData, setApiData] = useState(null);
+  const [lastMonthApiData, setLastMonthApiData] = useState(null);
+  const [taluksList, setTaluksList] = useState([]);
 
-  const [districtId, setDistrictId] = useState(initialFilters.districtId);
   const [landTypeTab, setLandTypeTab] = useState(initialFilters.landTypeTab);
   const [seasonId, setSeasonId] = useState(initialFilters.seasonId);
   const [filterType, setFilterType] = useState(initialFilters.filterType);
@@ -262,371 +416,404 @@ function TalukFormReport() {
   const [toMonth, setToMonth] = useState(initialFilters.toMonth);
   const [singleMonth, setSingleMonth] = useState(initialFilters.singleMonth);
 
-  // State for API data
-  const [apiData, setApiData] = useState(null);
-  const [lastMonthApiData, setLastMonthApiData] = useState(null);
-  const [taluksList, setTaluksList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [masterTaluksLoading, setMasterTaluksLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(15);
 
-  /* ── display name ── */
-  const displayDistrictName =
-    (districtName && districtName !== 'direct' &&
-      districtName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')) ||
-    stateData.districtName ||
-    'District';
+  const fromMonthIndex = useMemo(
+    () => monthOptions.findIndex((option) => option.value === fromMonth),
+    [fromMonth, monthOptions]
+  );
 
-  /* ── persist district context + LIVE filter values ──
-     This used to run once on mount and write stateData (i.e. the values this
-     page was opened with), so any filter the user changed here was never saved.
-     It now re-runs on filter changes and writes the current state, which is what
-     a direct-access reload needs — especially for the mandatory seasonId. */
   useEffect(() => {
-    if (!resolvedDistrictId.current) return;
+    if (!resolvedDistrictId) return;
 
     sessionStorage.setItem(
       SESSION_KEY,
       JSON.stringify({
-        districtId: resolvedDistrictId.current,
-        districtOfficeId: resolvedDistrictId.current,
+        districtId: resolvedDistrictId,
+        districtOfficeId: resolvedDistrictId,
         districtName: stateData.districtName || displayDistrictName || '',
-        isDirectAccess: stateData.isDirectAccess || false,
+        isDirectAccess: Boolean(stateData.isDirectAccess),
         filterType,
         fromMonth,
         toMonth,
         singleMonth,
-        seasonTab: landTypeTab, // legacy key, kept for other pages
+        seasonTab: landTypeTab,
         landType: landTypeTab,
-        seasonId
+        seasonId: normalizeSeasonId(seasonId)
       })
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterType, fromMonth, toMonth, singleMonth, landTypeTab, seasonId]);
+  }, [
+    displayDistrictName,
+    filterType,
+    fromMonth,
+    landTypeTab,
+    resolvedDistrictId,
+    seasonId,
+    singleMonth,
+    stateData.districtName,
+    stateData.isDirectAccess,
+    toMonth
+  ]);
 
-  // Fetch master taluks list
-  const fetchMasterTaluks = async (districtIdValue) => {
+  const fetchMasterTaluks = useCallback(async () => {
+    if (!resolvedDistrictId) {
+      setMasterTaluksLoading(false);
+      return;
+    }
+
     setMasterTaluksLoading(true);
-    try {
-      const response = await api.get(`${mainapi.BTR_API}/btr-service/btr-api/taluks?distId=${districtIdValue}`);
-      console.log('Master Taluks Response:', response.data);
 
-      if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        console.log('Setting taluks list:', response.data.data);
-        setTaluksList(response.data.data);
+    try {
+      const response = await api.get(
+        `${mainapi.BTR_API}/btr-service/btr-api/taluks?distId=${resolvedDistrictId}`
+      );
+      const source = response?.data?.data;
+
+      if (Array.isArray(source) && source.length > 0) {
+        setTaluksList(source);
       } else {
-        console.warn('No taluks found, using fallback');
-        setTaluksList(getFallbackTaluks(districtIdValue));
+        setTaluksList(getFallbackTaluks(resolvedDistrictId));
       }
-    } catch (err) {
-      console.error('Error fetching master taluks:', err);
-      setTaluksList(getFallbackTaluks(districtIdValue));
+    } catch (fetchError) {
+      console.error('Error fetching master taluks:', fetchError);
+      setTaluksList(getFallbackTaluks(resolvedDistrictId));
     } finally {
       setMasterTaluksLoading(false);
     }
-  };
+  }, [resolvedDistrictId]);
 
-  // Fetch data from API
-  // Fetch data from API
-  const fetchTalukData = async () => {
+  const fetchTalukData = useCallback(async () => {
+    const requestId = latestRequestRef.current + 1;
+    latestRequestRef.current = requestId;
+
+    if (!resolvedDistrictId) {
+      setError('District ID is required. Please navigate from the district report page.');
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
     try {
-      setLoading(true);
-      setError(null);
-
-      const districtIdValue = resolvedDistrictId.current || districtId;
-
-      if (!districtIdValue) {
-        setError('District ID is required. Please navigate from the district report page.');
-        setLoading(false);
-        return;
-      }
-
-      let startMonthVal = resolveMonthValue(MONTH_OPTIONS[0]?.value, MONTH_OPTIONS);
-      let endMonthVal = resolveMonthValue(MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.value, MONTH_OPTIONS);
+      let startMonthValue = defaultFromMonth;
+      let endMonthValue = monthOptions[monthOptions.length - 1]?.value || defaultToMonth;
 
       if (filterType === 'single') {
-        if (singleMonth) {
-          const resolved = resolveMonthValue(singleMonth, MONTH_OPTIONS);
-          startMonthVal = resolved;
-          endMonthVal = resolved;
-        }
+        const resolved = resolveMonthValue(singleMonth, monthOptions);
+        startMonthValue = resolved;
+        endMonthValue = resolved;
       } else {
-        if (fromMonth) startMonthVal = resolveMonthValue(fromMonth, MONTH_OPTIONS);
-        if (toMonth) endMonthVal = resolveMonthValue(toMonth, MONTH_OPTIONS);
+        startMonthValue = resolveMonthValue(fromMonth, monthOptions);
+        endMonthValue = resolveMonthValue(toMonth, monthOptions);
       }
 
-      const token = AuthService.gettoken ? AuthService.gettoken() : localStorage.getItem('token');
-      if (!token) throw new Error('Authentication session token missing. Please log in again.');
+      const token = AuthService.gettoken
+        ? AuthService.gettoken()
+        : localStorage.getItem('token');
 
-      // seasonId is mandatory — guard against it ever reaching the URL empty.
+      if (!token) {
+        throw new Error('Authentication session token missing. Please log in again.');
+      }
+
       const effectiveSeasonId = normalizeSeasonId(seasonId);
+      const currentAgriYear =
+        (AuthService && AuthService.agriyear ? AuthService.agriyear() : null) ||
+        localStorage.getItem('activeAgriYear') ||
+        '2025-2026';
 
-      // form1-status: district + month range + land type + season.
-      const formParams = new URLSearchParams({ districtId: districtIdValue, startMonth: startMonthVal });
-      if (endMonthVal) formParams.append('endMonth', endMonthVal);
-      if (landTypeTab && landTypeTab !== 'ALL') formParams.append('landType', landTypeTab);
-      formParams.append('seasonId', String(effectiveSeasonId));
-      formParams.append('season', String(effectiveSeasonId));
-      formParams.append('cropSeasonId', String(effectiveSeasonId));
+      const formParams = new URLSearchParams({
+        agriYear: currentAgriYear,
+        districtId: String(resolvedDistrictId),
+        startMonth: startMonthValue,
+        endMonth: endMonthValue,
+        seasonId: String(effectiveSeasonId)
+      });
 
-      // BTR taluk completed-clusters: agri-year scoped + season parameters.
-      const btrParams = new URLSearchParams({ districtId: districtIdValue });
-      if (landTypeTab && landTypeTab !== 'ALL') btrParams.append('landType', landTypeTab);
-      btrParams.append('agriYear', AuthService.agriyear() || '2025-2026');
-      btrParams.append('seasonId', String(effectiveSeasonId));
-      btrParams.append('season', String(effectiveSeasonId));
-      btrParams.append('cropSeasonId', String(effectiveSeasonId));
+      if (landTypeTab !== 'ALL') formParams.append('landType', landTypeTab);
 
-      const formStatusUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/district?${formParams.toString()}`;
+      const btrParams = new URLSearchParams({
+        agriYear: currentAgriYear,
+        districtId: String(resolvedDistrictId)
+      });
+
+      if (BTR_SUPPORTS_SEASON_ID) {
+        btrParams.append('seasonId', String(effectiveSeasonId));
+      }
+
+      if (landTypeTab !== 'ALL') btrParams.append('landType', landTypeTab);
+
+      const formStatusUrl = `${baseUrl}/earas-form1-entry/api/progress-report/form1-status/district?${formParams.toString()}`;
       const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/dashboard/completed/taluk?${btrParams.toString()}`;
+      const headers = { Authorization: `Bearer ${token}` };
 
-      console.log('Taluk API Request:', formStatusUrl);
-      console.log('BTR Taluk Completed-Clusters Request:', completedClustersUrl);
+      const btrRequest = (async () => {
+        try {
+          const response = await axios.get(completedClustersUrl, { headers });
+          return response.data || null;
+        } catch (btrError) {
+          console.warn('BTR taluk completed-clusters request failed:', btrError?.message);
+          return null;
+        }
+      })();
 
-      const [formStatusRes, completedClustersRes] = await Promise.all([
-        axios.get(formStatusUrl, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(completedClustersUrl, { headers: { Authorization: `Bearer ${token}` } })
+      const lastMonthRequest = (async () => {
+        if (filterType !== 'range') return null;
+
+        const lastMonthValue = resolveMonthValue(toMonth || fromMonth, monthOptions);
+        if (!lastMonthValue) return null;
+
+        const lastMonthParams = new URLSearchParams({
+          agriYear: currentAgriYear,
+          districtId: String(resolvedDistrictId),
+          startMonth: lastMonthValue,
+          endMonth: lastMonthValue,
+          seasonId: String(effectiveSeasonId)
+        });
+
+        if (landTypeTab !== 'ALL') lastMonthParams.append('landType', landTypeTab);
+
+        const lastMonthUrl = `${baseUrl}/earas-form1-entry/api/progress-report/form1-status/district?${lastMonthParams.toString()}`;
+
+        try {
+          const response = await axios.get(lastMonthUrl, { headers });
+          return response.data || null;
+        } catch (lastMonthError) {
+          console.error('Error fetching last-month taluk data:', lastMonthError);
+          return null;
+        }
+      })();
+
+      const [formResponse, btrResponseData, lastMonthResponseData] = await Promise.all([
+        axios.get(formStatusUrl, { headers }),
+        btrRequest,
+        lastMonthRequest
       ]);
 
-      console.log('Taluk API Response:', formStatusRes.data);
-      console.log('BTR Taluk Completed-Clusters Response:', completedClustersRes.data);
+      if (requestId !== latestRequestRef.current) return;
 
-      setApiData(formStatusRes.data || null);
-      setBtrData(completedClustersRes.data || null);
+      setApiData(formResponse?.data || null);
+      setBtrData(btrResponseData);
+      setLastMonthApiData(lastMonthResponseData);
+    } catch (fetchError) {
+      if (requestId !== latestRequestRef.current) return;
 
-      // If range filter is active, fetch single-month data for the last month of the range
-      if (filterType === 'range') {
-        const lastMonthVal = toMonth
-          ? resolveMonthValue(toMonth, MONTH_OPTIONS)
-          : fromMonth
-            ? resolveMonthValue(fromMonth, MONTH_OPTIONS)
-            : resolveMonthValue(singleMonth, MONTH_OPTIONS);
-        if (lastMonthVal) {
-          const lmParams = new URLSearchParams({ districtId: districtIdValue, startMonth: lastMonthVal, endMonth: lastMonthVal });
-          if (landTypeTab && landTypeTab !== 'ALL') lmParams.append('landType', landTypeTab);
-          lmParams.append('seasonId', String(effectiveSeasonId));
-          lmParams.append('season', String(effectiveSeasonId));
-          lmParams.append('cropSeasonId', String(effectiveSeasonId));
-          const lmUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/district?${lmParams.toString()}`;
-          try {
-            const lmRes = await axios.get(lmUrl, { headers: { Authorization: `Bearer ${token}` } });
-            setLastMonthApiData(lmRes.data || null);
-          } catch (lmErr) {
-            console.error('Error fetching last month taluk data:', lmErr);
-            setLastMonthApiData(null);
-          }
-        } else {
-          setLastMonthApiData(null);
-        }
-      } else {
-        setLastMonthApiData(null);
-      }
-    } catch (err) {
-      console.error('Error fetching taluk data:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to fetch taluk data');
+      console.error('Error fetching taluk data:', fetchError);
+      setError(
+        fetchError.response?.data?.message ||
+        fetchError.message ||
+        'Failed to fetch taluk data'
+      );
     } finally {
-      setLoading(false);
+      if (requestId === latestRequestRef.current) {
+        setLoading(false);
+      }
     }
-  };
+  }, [
+    baseUrl,
+    defaultFromMonth,
+    defaultToMonth,
+    filterType,
+    fromMonth,
+    landTypeTab,
+    monthOptions,
+    resolvedDistrictId,
+    seasonId,
+    singleMonth,
+    toMonth
+  ]);
 
-  // Fetch master taluks on mount
   useEffect(() => {
-    if (resolvedDistrictId.current) {
-      fetchMasterTaluks(resolvedDistrictId.current);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    fetchMasterTaluks();
+  }, [fetchMasterTaluks]);
 
-  // Fetch data when filters change
   useEffect(() => {
     fetchTalukData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromMonth, toMonth, singleMonth, landTypeTab, seasonId, filterType, districtId]);
+  }, [fetchTalukData]);
 
-  // Map allSubDetails into UI rows, merging with master taluks list
   const talukData = useMemo(() => {
     const apiTaluks = apiData?.allSubDetails || {};
     const btrTaluks = btrData?.allSubDetails || {};
-    const lastMonthSubDetailsMap = (filterType === 'range' && lastMonthApiData) ? (lastMonthApiData.allSubDetails || {}) : null;
+    const lastMonthTaluks =
+      filterType === 'range' && lastMonthApiData
+        ? lastMonthApiData.allSubDetails || {}
+        : {};
 
-    const apiDataMapById = {};
-    const apiDataMapByName = {};
-    Object.entries(apiTaluks).forEach(([name, details]) => {
-      if (details.id) apiDataMapById[details.id] = { name, details };
-      const key = name?.toLowerCase()?.trim() || '';
-      if (key) apiDataMapByName[key] = { name, details };
-    });
+    const createLookup = (source) => {
+      const byId = {};
+      const byName = {};
 
-    const btrMapById = {};
-    const btrMapByName = {};
-    Object.entries(btrTaluks).forEach(([name, details]) => {
-      if (details.id) btrMapById[details.id] = { name, details };
-      const key = name?.toLowerCase()?.trim() || '';
-      if (key) btrMapByName[key] = { name, details };
-    });
+      Object.entries(source).forEach(([name, details]) => {
+        const id = details?.id || details?.talukId;
+        if (id) byId[id] = { name, details };
 
-    const resolveBtrDetails = (talukId, talukName) => {
-      if (talukId && btrMapById[talukId]) return btrMapById[talukId].details;
-      const key = talukName?.toLowerCase()?.trim() || '';
-      if (key && btrMapByName[key]) return btrMapByName[key].details;
-      return {};
+        const normalizedName = normalizeTalukName(name);
+        if (normalizedName) byName[normalizedName] = { name, details };
+      });
+
+      return { byId, byName };
+    };
+
+    const apiLookup = createLookup(apiTaluks);
+    const btrLookup = createLookup(btrTaluks);
+    const lastMonthLookup = createLookup(lastMonthTaluks);
+
+    const resolveDetails = (lookup, talukId, talukName) => {
+      if (talukId && lookup.byId[talukId]) return lookup.byId[talukId];
+
+      const normalizedName = normalizeTalukName(talukName);
+      return normalizedName ? lookup.byName[normalizedName] || null : null;
     };
 
     const getLastMonthMetrics = (talukId, talukName) => {
-      if (!lastMonthSubDetailsMap) return { count: 0, area: 0 };
-      let lmMatch = null;
-      const lmMapById = {};
-      const lmMapByName = {};
-      Object.entries(lastMonthSubDetailsMap).forEach(([name, details]) => {
-        if (details.id) lmMapById[details.id] = details;
-        const key = name?.toLowerCase()?.trim() || '';
-        if (key) lmMapByName[key] = details;
-      });
-      if (talukId && lmMapById[talukId]) lmMatch = lmMapById[talukId];
-      if (!lmMatch) {
-        const key = talukName?.toLowerCase()?.trim() || '';
-        if (key && lmMapByName[key]) lmMatch = lmMapByName[key];
-      }
-      if (!lmMatch) return { count: 0, area: 0 };
+      const match = resolveDetails(lastMonthLookup, talukId, talukName)?.details;
+      if (!match) return { count: 0, area: 0 };
 
-      const count = pickMetric(lmMatch, 'Completed', landTypeTab);
-      const rawArea = pickMetric(lmMatch, 'ClusterArea', landTypeTab);
+      const count = pickMetric(match, 'Completed', landTypeTab);
+      const rawArea = pickMetric(match, 'ClusterArea', landTypeTab);
+
       return {
         count,
         area: count > 0 ? rawArea : 0
       };
     };
 
-    if (taluksList && taluksList.length > 0) {
-      return taluksList.map((taluk) => {
-        const talukId = taluk.id;
-        const talukName = taluk.talukNameEn || '';
-
-        let apiMatch = null;
-        if (talukId && apiDataMapById[talukId]) apiMatch = apiDataMapById[talukId];
-        if (!apiMatch) {
-          const key = talukName?.toLowerCase()?.trim() || '';
-          if (key && apiDataMapByName[key]) apiMatch = apiDataMapByName[key];
-        }
-        const apiDetails = apiMatch ? apiMatch.details : {};
-
-        const completed = pickMetric(apiDetails, 'Completed', landTypeTab);
-        const ongoing = pickMetric(apiDetails, 'Ongoing', landTypeTab);
-        const underReview = pickMetric(apiDetails, 'UnderReview', landTypeTab);
-        const rawArea = pickMetric(apiDetails, 'ClusterArea', landTypeTab);
-        const area = completed > 0 ? rawArea : 0;
-        const lmMetrics = getLastMonthMetrics(talukId, talukName);
-
-        // Total comes from the BTR taluk completed-clusters API
-        const btrDetails = resolveBtrDetails(talukId, talukName);
-        const total = pickMetric(btrDetails, 'Completed', landTypeTab); // wetCompleted/dryCompleted
-
-        // Not Started = BTR total - form1 completed
-        const notStarted = Math.max(total - completed, 0);
-
-        const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
-
-        return {
-          id: talukId || apiDetails.id || `taluk_${Math.random()}`,
-          taluk: talukName || apiMatch?.name || 'Unknown Taluk',
-          total,
-          completed,
-          currentMonthCompleted: lmMetrics.count,
-          currentMonthArea: lmMetrics.area,
-          ongoing,
-          notStarted,
-          underReview,
-          area,
-          hasData
-        };
-      });
-    }
-
-    // Fallback (no master taluks list)
-    return Object.entries(apiTaluks).map(([talukName, t]) => {
-      const completed = pickMetric(t, 'Completed', landTypeTab);
-      const ongoing = pickMetric(t, 'Ongoing', landTypeTab);
-      const underReview = pickMetric(t, 'UnderReview', landTypeTab);
-      const rawArea = pickMetric(t, 'ClusterArea', landTypeTab);
+    const buildRow = (talukId, talukName, apiDetails, apiDisplayName) => {
+      const completed = pickMetric(apiDetails, 'Completed', landTypeTab);
+      const ongoing = pickMetric(apiDetails, 'Ongoing', landTypeTab);
+      const underReview = pickMetric(apiDetails, 'UnderReview', landTypeTab);
+      const rawArea = pickMetric(apiDetails, 'ClusterArea', landTypeTab);
       const area = completed > 0 ? rawArea : 0;
-      const lmMetrics = getLastMonthMetrics(t.id, talukName);
+      const currentMonth = getLastMonthMetrics(talukId, talukName);
 
-      const btrDetails = resolveBtrDetails(t.id, talukName);
+      const btrDetails = resolveDetails(btrLookup, talukId, talukName)?.details || {};
       const total = pickMetric(btrDetails, 'Completed', landTypeTab);
       const notStarted = Math.max(total - completed, 0);
-      const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
+
+      const hasData =
+        completed > 0 ||
+        ongoing > 0 ||
+        notStarted > 0 ||
+        underReview > 0 ||
+        area > 0 ||
+        total > 0;
 
       return {
-        id: t.id || `taluk_${Math.random()}`,
-        taluk: talukName || 'Unknown Taluk',
+        id: talukId || apiDetails?.id || normalizeTalukName(talukName) || talukName,
+        taluk: talukName || apiDisplayName || 'Unknown Taluk',
         total,
         completed,
-        currentMonthCompleted: lmMetrics.count,
-        currentMonthArea: lmMetrics.area,
+        currentMonthCompleted: currentMonth.count,
+        currentMonthArea: currentMonth.area,
         ongoing,
         notStarted,
         underReview,
         area,
         hasData
       };
-    });
-  }, [apiData, btrData, taluksList, landTypeTab, filterType, lastMonthApiData]);
+    };
 
-  // Count taluks with no data
-  const taluksWithNoData = useMemo(() => {
-    return talukData.filter(d => !d.hasData).length;
-  }, [talukData]);
+    if (taluksList?.length) {
+      return taluksList.map((taluk) => {
+        const talukId = taluk.id || taluk.talukId;
+        const talukName = taluk.talukNameEn || taluk.talukName || '';
+        const apiMatch = resolveDetails(apiLookup, talukId, talukName);
 
-  // Stats from API & talukData
+        return buildRow(
+          talukId,
+          talukName,
+          apiMatch?.details || {},
+          apiMatch?.name
+        );
+      });
+    }
+
+    return Object.entries(apiTaluks).map(([talukName, details]) =>
+      buildRow(details?.id || details?.talukId, talukName, details, talukName)
+    );
+  }, [apiData, btrData, filterType, landTypeTab, lastMonthApiData, taluksList]);
+
+  const taluksWithNoData = useMemo(
+    () => talukData.filter((taluk) => !taluk.hasData).length,
+    [talukData]
+  );
+
   const stats = useMemo(() => {
-    const totalClustersSum = talukData.reduce((sum, t) => sum + (t.total || 0), 0);
-    const totalCompletedClusters = totalClustersSum > 0 ? totalClustersSum : (btrData?.totalClusterCompleted || 0);
-
-    const completedSum = talukData.reduce((sum, t) => sum + (t.completed || 0), 0);
-    const ongoingSum = talukData.reduce((sum, t) => sum + (t.ongoing || 0), 0);
-    const notStartedSum = talukData.reduce((sum, t) => sum + (t.notStarted || 0), 0);
-    const underReviewSum = talukData.reduce((sum, t) => sum + (t.underReview || 0), 0);
+    const totalFromTaluks = talukData.reduce((sum, taluk) => sum + (taluk.total || 0), 0);
 
     return {
-      total: totalCompletedClusters,
-      completed: completedSum,
-      currentMonthCompleted: talukData.reduce((sum, t) => sum + (t.currentMonthCompleted || 0), 0),
-      currentMonthArea: talukData.reduce((sum, t) => sum + (t.currentMonthArea || 0), 0),
-      ongoing: ongoingSum,
-      notStarted: notStartedSum,
-      underReview: underReviewSum,
-      completedArea: talukData.reduce((sum, t) => sum + (t.area || 0), 0)
+      total: totalFromTaluks > 0 ? totalFromTaluks : btrData?.totalClusterCompleted || 0,
+      completed: talukData.reduce((sum, taluk) => sum + (taluk.completed || 0), 0),
+      currentMonthCompleted: talukData.reduce(
+        (sum, taluk) => sum + (taluk.currentMonthCompleted || 0),
+        0
+      ),
+      currentMonthArea: talukData.reduce(
+        (sum, taluk) => sum + (taluk.currentMonthArea || 0),
+        0
+      ),
+      ongoing: talukData.reduce((sum, taluk) => sum + (taluk.ongoing || 0), 0),
+      notStarted: talukData.reduce((sum, taluk) => sum + (taluk.notStarted || 0), 0),
+      underReview: talukData.reduce(
+        (sum, taluk) => sum + (taluk.underReview || 0),
+        0
+      ),
+      completedArea: talukData.reduce((sum, taluk) => sum + (taluk.area || 0), 0)
     };
   }, [btrData, talukData]);
 
-  const searchFilteredData = useMemo(() => {
-    if (!searchTerm.trim()) return talukData;
-    return talukData.filter(row =>
-      row.taluk.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [talukData, searchTerm]);
+  const filteredData = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    if (!normalizedSearch) return talukData;
+
+    return talukData.filter((row) => row.taluk.toLowerCase().includes(normalizedSearch));
+  }, [searchTerm, talukData]);
 
   const paginatedData = useMemo(() => {
     const startIndex = page * rowsPerPage;
-    return searchFilteredData.slice(startIndex, startIndex + rowsPerPage);
-  }, [searchFilteredData, page, rowsPerPage]);
+    return filteredData.slice(startIndex, startIndex + rowsPerPage);
+  }, [filteredData, page, rowsPerPage]);
 
-  const tableHeaders = useMemo(() => {
-    const baseHeaders = ['#', 'Taluk', 'Total'];
-    if (filterType === 'range') {
-      baseHeaders.push('During the Month');
+  useEffect(() => {
+    const maxPage = Math.max(Math.ceil(filteredData.length / rowsPerPage) - 1, 0);
+    if (page > maxPage) setPage(maxPage);
+  }, [filteredData.length, page, rowsPerPage]);
+
+  const filtersAreDirty =
+    filterType !== 'range' ||
+    fromMonth !== defaultFromMonth ||
+    toMonth !== defaultToMonth ||
+    singleMonth !== defaultSingleMonth ||
+    landTypeTab !== 'ALL' ||
+    Number(seasonId) !== DEFAULT_SEASON_ID;
+
+  const handleFromMonthChange = (event) => {
+    const nextFromMonth = event.target.value;
+    setFromMonth(nextFromMonth);
+    setPage(0);
+
+    const nextFromIndex = monthOptions.findIndex((option) => option.value === nextFromMonth);
+    const currentToIndex = monthOptions.findIndex((option) => option.value === toMonth);
+
+    if (nextFromIndex > currentToIndex) {
+      setToMonth(nextFromMonth);
     }
-    baseHeaders.push('Up to the Month');
-    return [...baseHeaders, 'Ongoing', 'Not Started', 'Under Review', 'Actions'];
-  }, [filterType]);
+  };
 
-  const handleChangePage = (event, newPage) => setPage(newPage);
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+  const handleClearFilters = () => {
+    setFromMonth(defaultFromMonth);
+    setToMonth(defaultToMonth);
+    setSingleMonth(defaultSingleMonth);
+    setLandTypeTab('ALL');
+    setSeasonId(DEFAULT_SEASON_ID);
+    setFilterType('range');
     setPage(0);
   };
 
@@ -635,86 +822,90 @@ function TalukFormReport() {
     setPage(0);
   };
 
-  const handleClearFilters = () => {
-    setFromMonth(MONTH_OPTIONS[0]?.value || '');
-    setToMonth(getCurrentMonthValue(MONTH_OPTIONS));
-    setSingleMonth(getCurrentMonthValue(MONTH_OPTIONS));
-    setLandTypeTab('ALL');
-    setSeasonId(DEFAULT_SEASON_ID); // reset to Autumn, never blank
-    setFilterType('range');
-    setPage(0);
-  };
-
-  const filtersAreDirty =
-    fromMonth !== (MONTH_OPTIONS[0]?.value || '') ||
-    toMonth !== getCurrentMonthValue(MONTH_OPTIONS) ||
-    landTypeTab !== 'ALL' ||
-    Number(seasonId) !== DEFAULT_SEASON_ID;
-
-  // Build a meaningful filename from the active filters
   const generateExcelFileName = () => {
-    const parts = ['Taluk_Report', displayDistrictName.replace(/\s+/g, '_')];
-
-    parts.push(getSeasonLabel(seasonId));
+    const parts = [
+      'Taluk_Report',
+      displayDistrictName.replace(/\s+/g, '_'),
+      getSeasonLabel(seasonId)
+    ];
 
     if (landTypeTab !== 'ALL') parts.push(landTypeTab);
 
-    if (filterType === 'single' && singleMonth) {
+    if (filterType === 'single') {
       parts.push(getMonthLabel(singleMonth).replace(/\s+/g, '_'));
-    } else if (filterType === 'range') {
-      if (fromMonth) parts.push(getMonthLabel(fromMonth).replace(/\s+/g, '_'));
-      if (toMonth) parts.push('to', getMonthLabel(toMonth).replace(/\s+/g, '_'));
+    } else {
+      parts.push(getMonthLabel(fromMonth).replace(/\s+/g, '_'));
+      parts.push('to');
+      parts.push(getMonthLabel(toMonth).replace(/\s+/g, '_'));
     }
 
     if (searchTerm.trim()) {
       parts.push(`Search-${searchTerm.trim().replace(/\s+/g, '_')}`);
     }
 
-    parts.push(new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
+    parts.push(new Date().toISOString().slice(0, 10));
     return `${parts.join('_')}.xlsx`;
   };
 
-  // Export the FULL search-filtered dataset (not just the current page) to Excel
-  const handleExportExcel = () => {
-    if (!searchFilteredData || searchFilteredData.length === 0) return;
+  const handleExportExcel = async () => {
+    if (!filteredData.length || exporting) return;
 
-    const exportRows = searchFilteredData.map((row, index) => {
-      const rowObj = {
-        '#': index + 1,
-        Season: getSeasonLabel(seasonId),
-        Taluk: row.taluk,
-        Total: row.hasData ? row.total : 'NA'
-      };
+    setExporting(true);
 
-      if (filterType === 'range') {
-        rowObj['During the Month'] = row.hasData ? row.currentMonthCompleted : 'NA';
-        rowObj['During Month Area'] = row.hasData ? (row.currentMonthCompleted > 0 ? row.currentMonthArea : 0) : 'NA';
-      }
+    try {
+      const XLSX = await import('xlsx');
 
-      rowObj['Up to the Month'] = row.hasData ? row.completed : 'NA';
-      rowObj['Area Completed'] = row.hasData ? (row.completed > 0 ? row.area : 0) : 'NA';
-      rowObj['Ongoing'] = row.hasData ? row.ongoing : 'NA';
-      rowObj['Not Started'] = row.hasData ? row.notStarted : 'NA';
-      rowObj['Under Review'] = row.hasData ? row.underReview : 'NA';
+      const exportRows = filteredData.map((row, index) => {
+        const rowObject = {
+          '#': index + 1,
+          District: displayDistrictName,
+          Season: getSeasonLabel(seasonId),
+          'Land Type': landTypeTab,
+          Taluk: row.taluk,
+          Total: row.hasData ? row.total : 'NA'
+        };
 
-      return rowObj;
-    });
+        if (filterType === 'range') {
+          rowObject['During the Month'] = row.hasData ? row.currentMonthCompleted : 'NA';
+          rowObject['During Month Area (cents)'] = row.hasData ? row.currentMonthArea : 'NA';
+          rowObject['Up to the Month'] = row.hasData ? row.completed : 'NA';
+        } else {
+          rowObject['During the Month'] = row.hasData ? row.completed : 'NA';
+        }
 
-    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+        rowObject['Area Completed (cents)'] = row.hasData ? row.area : 'NA';
+        rowObject.Ongoing = row.hasData ? row.ongoing : 'NA';
+        rowObject['Not Started'] = row.hasData ? row.notStarted : 'NA';
+        rowObject['Under Review'] = row.hasData ? row.underReview : 'NA';
 
-    // Reasonable column widths so it doesn't open looking cramped
-    worksheet['!cols'] = filterType === 'range' ? [
-      { wch: 5 }, { wch: 12 }, { wch: 25 }, { wch: 10 },
-      { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
-    ] : [
-      { wch: 5 }, { wch: 12 }, { wch: 25 }, { wch: 10 },
-      { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
-    ];
+        return rowObject;
+      });
 
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Taluk Report');
+      const worksheet = XLSX.utils.json_to_sheet(exportRows);
+      worksheet['!cols'] = [
+        { wch: 5 },
+        { wch: 22 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 25 },
+        { wch: 10 },
+        { wch: 18 },
+        { wch: 24 },
+        { wch: 18 },
+        { wch: 24 },
+        { wch: 12 },
+        { wch: 14 },
+        { wch: 14 }
+      ];
 
-    XLSX.writeFile(workbook, generateExcelFileName());
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Taluk Report');
+      XLSX.writeFile(workbook, generateExcelFileName());
+    } catch (exportError) {
+      console.error('Excel export failed:', exportError);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleGoBack = () => {
@@ -722,7 +913,7 @@ function TalukFormReport() {
       state: {
         fromMonth,
         toMonth,
-        seasonTab: landTypeTab, // legacy key
+        seasonTab: landTypeTab,
         landType: landTypeTab,
         seasonId: normalizeSeasonId(seasonId),
         filterType,
@@ -732,105 +923,82 @@ function TalukFormReport() {
   };
 
   const handleViewBlockDetails = (talukName, talukId, hasData) => {
-    // Only navigate if taluk has data
     if (!hasData) return;
 
     const formattedTalukName = talukName.toLowerCase().replace(/\s+/g, '-');
     const safeDistrictName = districtName || displayDistrictName || 'district';
     const formattedDistrictName = safeDistrictName.toLowerCase().replace(/\s+/g, '-');
 
-    navigate(`/kerala_form_report/zone_form_report/${formattedDistrictName}/${formattedTalukName}`, {
-      state: {
-        districtId: resolvedDistrictId.current || districtId,
-        districtName: displayDistrictName,
-        talukId: talukId,
-        talukName: talukName,
-        fromMonth,
-        toMonth,
-        seasonTab: landTypeTab, // legacy key
-        landType: landTypeTab,
-        seasonId: normalizeSeasonId(seasonId),
-        filterType,
-        singleMonth
-      }
-    });
-  };
-
-  const StatCard = ({ label, value, color, bgColor, icon, subtext, areaValue, tooltip }) => {
-    const cardContent = (
-      <Card sx={{
-        bgcolor: bgColor,
-        borderRadius: 3,
-        height: '100%',
-        transition: 'transform 0.2s, box-shadow 0.2s',
-        '&:hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: theme.shadows[4]
+    navigate(
+      `/kerala_form_report/zone_form_report/${formattedDistrictName}/${formattedTalukName}`,
+      {
+        state: {
+          districtId: resolvedDistrictId,
+          districtName: displayDistrictName,
+          talukId,
+          talukName,
+          fromMonth,
+          toMonth,
+          seasonTab: landTypeTab,
+          landType: landTypeTab,
+          seasonId: normalizeSeasonId(seasonId),
+          filterType,
+          singleMonth
         }
-      }}>
-        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Box>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
-                  {loading ? <CircularProgress size={24} /> : value}
-                </Typography>
-                {!loading && areaValue !== undefined && areaValue > 0 && (
-                  <Chip
-                    label={`${formatArea(areaValue)} cents`}
-                    size="small"
-                    variant="outlined"
-                    sx={{ fontSize: '0.7rem', height: 22, borderColor: alpha(color, 0.4), color }}
-                  />
-                )}
-              </Stack>
-              <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>
-                {label}
-                {subtext && (
-                  <span style={{ marginLeft: '8px', fontSize: '0.75rem', opacity: 0.7 }}>
-                    | {subtext}
-                  </span>
-                )}
-              </Typography>
-            </Box>
-            {icon}
-          </Stack>
-        </CardContent>
-      </Card>
+      }
     );
-
-    return tooltip ? (
-      <Tooltip title={tooltip} arrow placement="top">
-        {cardContent}
-      </Tooltip>
-    ) : cardContent;
   };
 
-  // Show loading state
-  if ((loading || masterTaluksLoading) && !apiData && taluksList.length === 0) {
+  const reportPeriodText =
+    filterType === 'single'
+      ? getMonthLabel(singleMonth)
+      : `${getMonthLabel(fromMonth)} – ${getMonthLabel(toMonth)}`;
+
+  const isInitialLoading =
+    (loading || masterTaluksLoading) && !apiData && taluksList.length === 0;
+
+  const headerBackground = theme.palette.primary.dark;
+  const completedColor = theme.palette.success.main;
+  const ongoingColor = theme.palette.info.main;
+  const notStartedColor = theme.palette.text.secondary;
+  const reviewColor = theme.palette.warning.dark;
+
+  if (isInitialLoading) {
     return (
-      <Grid container spacing={3} justifyContent="center" alignItems="center" sx={{ minHeight: '60vh' }}>
+      <Grid
+        container
+        spacing={3}
+        justifyContent="center"
+        alignItems="center"
+        sx={{ minHeight: 420 }}
+      >
         <Grid item>
-          <CircularProgress />
-          <Typography variant="body1" sx={{ mt: 2 }}>Loading taluk data...</Typography>
+          <Stack alignItems="center" spacing={2}>
+            <CircularProgress />
+            <Typography variant="body2" color="text.secondary">
+              Loading taluk progress report…
+            </Typography>
+          </Stack>
         </Grid>
       </Grid>
     );
   }
 
-  // Show error state
-  if (error) {
+  if (error && !apiData) {
     return (
-      <Grid container spacing={3} justifyContent="center" alignItems="center" sx={{ minHeight: '60vh' }}>
-        <Grid item>
-          <Typography color="error" variant="h6">Error: {error}</Typography>
-          <Button
-            variant="contained"
-            onClick={fetchTalukData}
-            sx={{ mt: 2 }}
+      <Grid container spacing={3}>
+        <Breadcrumb />
+        <Grid item xs={12}>
+          <Alert
+            severity="error"
+            action={
+              <Button color="inherit" size="small" onClick={fetchTalukData}>
+                Retry
+              </Button>
+            }
           >
-            Retry
-          </Button>
+            {error}
+          </Alert>
         </Grid>
       </Grid>
     );
@@ -840,603 +1008,874 @@ function TalukFormReport() {
     <Grid container spacing={3}>
       <Breadcrumb />
 
-      {/* Header with district name */}
       <Grid item xs={12}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <LocationOnIcon sx={{ fontSize: 40, color: '#1a237e' }} />
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          justifyContent="space-between"
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          spacing={2}
+        >
+          <Stack direction="row" spacing={1.25} alignItems="center">
+            <Box
+              sx={{
+                width: 44,
+                height: 44,
+                borderRadius: 2.5,
+                display: 'grid',
+                placeItems: 'center',
+                color: 'primary.main',
+                bgcolor: (currentTheme) => alpha(currentTheme.palette.primary.main, 0.1)
+              }}
+            >
+              <LocationOnIcon />
+            </Box>
+
             <Box>
-              <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1a237e' }}>
-                {displayDistrictName} - Taluk wise Report
+              <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                {displayDistrictName} — Taluk-wise Report
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {`${getSeasonLabel(seasonId)} season`}
-                {filterType === 'single' && singleMonth && ` • ${getMonthLabel(singleMonth)}`}
-                {filterType === 'range' && fromMonth && ` • ${getMonthLabel(fromMonth)}${toMonth ? ` - ${getMonthLabel(toMonth)}` : ''}`}
-                {landTypeTab !== 'ALL' && ` • ${landTypeTab} Land`}
-                {loading && ' • Loading...'}
-                {taluksWithNoData > 0 && ` • ${taluksWithNoData} taluks with no data`}
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35 }}>
+                {getSeasonLabel(seasonId)} • {reportPeriodText}
+                {landTypeTab !== 'ALL' ? ` • ${landTypeTab} Land` : ' • All Land'}
+                {loading ? ' • Refreshing…' : ''}
               </Typography>
             </Box>
           </Stack>
-          {filtersAreDirty && (
-            <Button
-              variant="outlined"
-              onClick={handleClearFilters}
-              startIcon={<ClearIcon />}
-              size="small"
-              sx={{ borderRadius: 2 }}
-            >
-              Reset Filters
-            </Button>
-          )}
+
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: { xs: '100%', sm: 'auto' } }}>
+            {filtersAreDirty && (
+              <Button
+                variant="text"
+                onClick={handleClearFilters}
+                startIcon={<ClearIcon />}
+                size="small"
+                sx={{ whiteSpace: 'nowrap' }}
+              >
+                Reset filters
+              </Button>
+            )}
+
+            {!stateData.isDirectAccess && (
+              <Button
+                variant="outlined"
+                onClick={handleGoBack}
+                startIcon={<ArrowBackIcon />}
+                size="small"
+                sx={{ whiteSpace: 'nowrap' }}
+              >
+                Back to Kerala Report
+              </Button>
+            )}
+          </Stack>
         </Stack>
       </Grid>
 
-      {/* Info Banner for taluks with no data */}
-      {taluksWithNoData > 0 && !loading && (
+      {error && apiData && (
         <Grid item xs={12}>
-          <Paper
-            sx={{
-              p: 1.5,
-              bgcolor: alpha('#ff9800', 0.08),
-              borderRadius: 2,
-              border: `1px solid ${alpha('#ff9800', 0.3)}`,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1
-            }}
-          >
-            <InfoOutlinedIcon sx={{ color: '#ff9800', fontSize: 20 }} />
-            <Typography variant="body2" color="text.secondary">
-              <strong>{taluksWithNoData}</strong> taluk{taluksWithNoData > 1 ? 's' : ''} have no data available for the selected filters.
-              <strong> View details is disabled for taluks without data.</strong>
-            </Typography>
-          </Paper>
+          <Alert severity="warning">
+            The latest refresh failed. The last successfully loaded data is still shown. {error}
+          </Alert>
         </Grid>
       )}
 
-      {/* Filter Section */}
+      {taluksWithNoData > 0 && !loading && (
+        <Grid item xs={12}>
+          <Alert severity="warning">
+            {taluksWithNoData} taluk{taluksWithNoData === 1 ? '' : 's'} have no data for
+            the selected filters. Detail view is unavailable for those taluks.
+          </Alert>
+        </Grid>
+      )}
+
       <Grid item xs={12}>
-        <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
-          <Stack spacing={2}>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
-              <FormControl size="small" sx={{ minWidth: 160 }}>
-                <InputLabel id="taluk-season-select-label">Season</InputLabel>
-                <Select
-                  labelId="taluk-season-select-label"
-                  value={seasonId}
-                  label="Season"
-                  onChange={(e) => { setSeasonId(Number(e.target.value)); setPage(0); }}
-                  startAdornment={
-                    <InputAdornment position="start">
-                      <GrassIcon fontSize="small" sx={{ color: '#2e7d32' }} />
-                    </InputAdornment>
-                  }
-                >
-                  {SEASON_OPTIONS.map((opt) => (
-                    <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 2, md: 2.5 },
+            borderRadius: 3,
+            border: `1px solid ${theme.palette.divider}`
+          }}
+        >
+          <Stack spacing={2.25}>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                Filters
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Choose the crop season, land type and reporting period for this district.
+              </Typography>
+            </Box>
 
-              <Tabs
-                value={landTypeTab}
-                onChange={(e, newValue) => { setLandTypeTab(newValue); setPage(0); }}
-                sx={{ minHeight: 40 }}
-              >
-                <Tab label="ALL" value="ALL" />
-                <Tab label="WET" value="WET" icon={<WaterDropIcon />} iconPosition="start" />
-                <Tab label="DRY" value="DRY" icon={<WbSunnyIcon />} iconPosition="start" />
-              </Tabs>
-
-              <ToggleButtonGroup
-                value={filterType}
-                exclusive
-                onChange={(e, newValue) => {
-                  if (newValue !== null) {
-                    setFilterType(newValue);
-                    if (newValue === 'range') {
-                      if (!fromMonth) setFromMonth(MONTH_OPTIONS[0]?.value || '');
-                      if (!toMonth) setToMonth(getCurrentMonthValue(MONTH_OPTIONS));
-                    } else {
-                      if (!singleMonth) setSingleMonth(getCurrentMonthValue(MONTH_OPTIONS));
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  md: 'minmax(160px, 0.8fr) minmax(250px, 1.2fr) minmax(250px, 1.2fr)'
+                },
+                gap: 2,
+                alignItems: 'end'
+              }}
+            >
+              <Box>
+                <FilterLabel>Season</FilterLabel>
+                <FormControl size="small" fullWidth>
+                  <InputLabel id="taluk-season-select-label">Season</InputLabel>
+                  <Select
+                    labelId="taluk-season-select-label"
+                    value={seasonId}
+                    label="Season"
+                    onChange={(event) => {
+                      setSeasonId(Number(event.target.value));
+                      setPage(0);
+                    }}
+                    startAdornment={
+                      <InputAdornment position="start">
+                        <GrassIcon fontSize="small" color="success" />
+                      </InputAdornment>
                     }
-                    setPage(0);
-                  }
-                }}
-                size="small"
-              >
-                <ToggleButton value="range">
-                  <ViewWeekIcon sx={{ mr: 0.5, fontSize: 18 }} />
-                  Month Range
-                </ToggleButton>
-                <ToggleButton value="single">
-                  <ViewModuleIcon sx={{ mr: 0.5, fontSize: 18 }} />
-                  Single Month
-                </ToggleButton>
-              </ToggleButtonGroup>
+                  >
+                    {SEASON_OPTIONS.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
 
-              {filterType === 'range' ? (
-                <>
-                  <FormControl size="small" sx={{ minWidth: 150 }}>
+              <Box>
+                <FilterLabel>Land Type</FilterLabel>
+                <Tabs
+                  value={landTypeTab}
+                  onChange={(_, newValue) => {
+                    setLandTypeTab(newValue);
+                    setPage(0);
+                  }}
+                  aria-label="Land type"
+                  variant="fullWidth"
+                  sx={{
+                    minHeight: 40,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    '& .MuiTabs-indicator': { height: 3 },
+                    '& .MuiTab-root': { minHeight: 38, minWidth: 0, px: 1 }
+                  }}
+                >
+                  <Tab label="All" value="ALL" />
+                  <Tab
+                    label="Wet"
+                    value="WET"
+                    icon={<WaterDropIcon fontSize="small" />}
+                    iconPosition="start"
+                  />
+                  <Tab
+                    label="Dry"
+                    value="DRY"
+                    icon={<WbSunnyIcon fontSize="small" />}
+                    iconPosition="start"
+                  />
+                </Tabs>
+              </Box>
+
+              <Box>
+                <FilterLabel>Period</FilterLabel>
+                <ToggleButtonGroup
+                  value={filterType}
+                  exclusive
+                  fullWidth
+                  size="small"
+                  aria-label="Report period"
+                  onChange={(_, newValue) => {
+                    if (!newValue) return;
+                    setFilterType(newValue);
+                    setPage(0);
+                  }}
+                >
+                  <ToggleButton value="range" aria-label="Month range">
+                    <ViewWeekIcon sx={{ mr: 0.75, fontSize: 18 }} />
+                    Range
+                  </ToggleButton>
+                  <ToggleButton value="single" aria-label="Single month">
+                    <ViewModuleIcon sx={{ mr: 0.75, fontSize: 18 }} />
+                    Single Month
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+            </Box>
+
+            <Divider />
+
+            {filterType === 'range' ? (
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', sm: '1fr auto 1fr' },
+                  gap: 1.5,
+                  alignItems: 'end',
+                  maxWidth: 620
+                }}
+              >
+                <Box>
+                  <FilterLabel>From Month</FilterLabel>
+                  <FormControl size="small" fullWidth>
                     <InputLabel>From Month</InputLabel>
-                    <Select
-                      value={fromMonth}
-                      label="From Month"
-                      onChange={(e) => { setFromMonth(e.target.value); setPage(0); }}
-                    >
-                      <MenuItem value="">{`None (${MONTH_OPTIONS[0]?.label})`}</MenuItem>
-                      {MONTH_OPTIONS.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
+                    <Select value={fromMonth} label="From Month" onChange={handleFromMonthChange}>
+                      {monthOptions.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          {option.label}
+                        </MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
-                  <Typography variant="body2" color="text.secondary">→</Typography>
-                  <FormControl size="small" sx={{ minWidth: 150 }}>
+                </Box>
+
+                <Typography
+                  aria-hidden="true"
+                  color="text.secondary"
+                  sx={{ pb: 1.1, display: { xs: 'none', sm: 'block' } }}
+                >
+                  →
+                </Typography>
+
+                <Box>
+                  <FilterLabel>To Month</FilterLabel>
+                  <FormControl size="small" fullWidth>
                     <InputLabel>To Month</InputLabel>
                     <Select
                       value={toMonth}
                       label="To Month"
-                      onChange={(e) => { setToMonth(e.target.value); setPage(0); }}
+                      onChange={(event) => {
+                        setToMonth(event.target.value);
+                        setPage(0);
+                      }}
                     >
-                      <MenuItem value="">{`None (${MONTH_OPTIONS[MONTH_OPTIONS.length - 1]?.label})`}</MenuItem>
-                      {MONTH_OPTIONS.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
+                      {monthOptions.map((option, index) => (
+                        <MenuItem
+                          key={option.value}
+                          value={option.value}
+                          disabled={index < fromMonthIndex}
+                        >
+                          {option.label}
+                        </MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
-                </>
-              ) : (
-                <FormControl size="small" sx={{ minWidth: 200 }}>
+                </Box>
+              </Box>
+            ) : (
+              <Box sx={{ maxWidth: { xs: '100%', sm: 300 } }}>
+                <FilterLabel>Month</FilterLabel>
+                <FormControl size="small" fullWidth>
                   <InputLabel>Select Month</InputLabel>
                   <Select
                     value={singleMonth}
                     label="Select Month"
-                    onChange={(e) => { setSingleMonth(e.target.value); setPage(0); }}
+                    onChange={(event) => {
+                      setSingleMonth(event.target.value);
+                      setPage(0);
+                    }}
                   >
-                    {MONTH_OPTIONS.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
+                    {monthOptions.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
-              )}
-            </Stack>
+              </Box>
+            )}
           </Stack>
         </Paper>
       </Grid>
 
-      {/* Stats Cards */}
       <Grid item xs={12}>
-        <Box
-          sx={{
-            position: 'relative',
-            border: `1px solid ${alpha('#04255e', 0.15)}`,
-            borderRadius: 3,
-            p: 2,
-            pt: 3,
-            bgcolor: '#fff'
-          }}
-        >
-          <Chip
-            label={`${displayDistrictName} - District Report Summary • ${getSeasonLabel(seasonId)}`}
-            color="primary"
-            size="small"
-            sx={{
-              position: 'absolute',
-              top: -12,
-              left: 20,
-              fontWeight: 600,
-              bgcolor: '#04255e',
-              color: '#fff',
-              px: 1
-            }}
-          />
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
-              <StatCard
-                label="Total Clusters"
-                value={stats.total}
-                color="#1565c0"
-                bgColor={alpha('#1565c0', 0.08)}
-                icon={<AssessmentIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />}
-                tooltip="Total clusters allocated for survey in selected season"
-              />
-            </Grid>
-            {filterType === 'range' && (
-              <Grid item xs={12} sm={6} md={2}>
-                <StatCard
-                  label="During the Month"
-                  value={stats.currentMonthCompleted}
-                  color="#0288d1"
-                  bgColor={alpha('#0288d1', 0.08)}
-                  icon={<CalendarMonthIcon sx={{ fontSize: 32, color: '#0288d1', opacity: 0.7 }} />}
-                  areaValue={stats.currentMonthArea}
-                  tooltip="Clusters completed during the selected end month"
-                />
-              </Grid>
-            )}
-            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
-              <StatCard
-                label="Up to the Month"
-                value={stats.completed}
-                color="#2e7d32"
-                bgColor={alpha('#2e7d32', 0.08)}
-                icon={<CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />}
-                areaValue={stats.completedArea}
-                tooltip="Cumulative clusters completed up to the selected month"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
-              <StatCard
-                label="Ongoing"
-                value={stats.ongoing}
-                color="#ed6c02"
-                bgColor={alpha('#ed6c02', 0.08)}
-                icon={<PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} />}
-                tooltip="Clusters currently ongoing"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
-              <StatCard
-                label="Not Started"
-                value={stats.notStarted}
-                color="#757575"
-                bgColor={alpha('#757575', 0.08)}
-                icon={<ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} />}
-                tooltip="Clusters not yet started"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={filterType === 'range' ? 2 : 2.4}>
-              <StatCard
-                label="Under Review"
-                value={stats.underReview}
-                color="#b76e00"
-                bgColor={alpha('#b76e00', 0.08)}
-                icon={<RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} />}
-                tooltip="Clusters currently under review"
-              />
-            </Grid>
-          </Grid>
-        </Box>
-      </Grid>
-
-      {/* Taluk Table */}
-      <Grid item xs={12}>
-        <Box
-          sx={{
-            position: 'relative',
-            border: `1px solid ${alpha('#04255e', 0.15)}`,
-            borderRadius: 3,
-            pt: 3,
-            bgcolor: '#fff'
-          }}
-        >
-          <Chip
-            label="Taluk Report Summary"
-            color="primary"
-            size="small"
-            sx={{
-              position: 'absolute',
-              top: -12,
-              left: 20,
-              zIndex: 10,
-              fontWeight: 600,
-              bgcolor: '#04255e',
-              color: '#fff',
-              px: 1
-            }}
-          />
-
-          {/* Search + Export row */}
+        <Box>
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
-            justifyContent="flex-end"
-            alignItems="center"
-            spacing={1.5}
-            sx={{ px: 2, pb: 2 }}
+            justifyContent="space-between"
+            alignItems={{ xs: 'flex-start', sm: 'center' }}
+            spacing={0.5}
+            sx={{ mb: 1.5 }}
           >
-            <TextField
-              placeholder="Search taluk..."
-              size="small"
-              value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
-              sx={{ width: 250 }}
-              InputProps={{
-                startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
-                endAdornment: searchTerm && (
-                  <InputAdornment position="end">
-                    <IconButton size="small" onClick={handleClearSearch} edge="end">
-                      <ClearIcon fontSize="small" />
-                    </IconButton>
-                  </InputAdornment>
-                )
-              }}
-            />
-            <Tooltip
-              title={
-                searchFilteredData.length === 0
-                  ? 'No data available to export'
-                  : `Export ${searchFilteredData.length} taluk${searchFilteredData.length > 1 ? 's' : ''} to Excel`
-              }
-            >
-              <span>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<DownloadIcon />}
-                  onClick={handleExportExcel}
-                  disabled={searchFilteredData.length === 0 || loading}
-                  sx={{ borderRadius: 2, whiteSpace: 'nowrap' }}
-                >
-                  Download Excel
-                </Button>
-              </span>
-            </Tooltip>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {displayDistrictName} Summary
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {getSeasonLabel(seasonId)} • {reportPeriodText}
+              </Typography>
+            </Box>
           </Stack>
 
-          <MainCard
-            title={`Taluks in ${displayDistrictName} — ${getSeasonLabel(seasonId)}`}
-            sx={{ borderRadius: 3 }}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, minmax(0, 1fr))',
+                md: 'repeat(3, minmax(0, 1fr))',
+                xl:
+                  filterType === 'range'
+                    ? 'repeat(6, minmax(0, 1fr))'
+                    : 'repeat(5, minmax(0, 1fr))'
+              },
+              gap: 2,
+              opacity: loading ? 0.7 : 1,
+              transition: theme.transitions.create('opacity')
+            }}
           >
-            {loading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                <CircularProgress />
-              </Box>
-            ) : (
-              <>
-                <TableContainer>
-                  <Table
-                    sx={{
-                      borderCollapse: 'collapse',
-                      '& .MuiTableCell-root': {
-                        borderRight: `1px solid ${alpha('#04255e', 0.12)}`,
-                        borderBottom: `1px solid ${alpha('#04255e', 0.12)}`
-                      },
-                      '& .MuiTableHead-root .MuiTableCell-root': {
-                        borderRight: '1px solid rgba(255, 255, 255, 0.2)',
-                        borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
-                      },
-                      '& .MuiTableCell-root:last-child': {
-                        borderRight: 'none'
-                      }
-                    }}
-                  >
-                    <TableHead>
-                      <TableRow sx={{ bgcolor: '#04255e' }}>
-                        <TableCell rowSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>#</TableCell>
-                        <TableCell rowSpan={2} align="left" sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>Taluk</TableCell>
-                        <TableCell rowSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>Total</TableCell>
-                        {filterType === 'range' && (
-                          <TableCell colSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
-                            During the Month
-                          </TableCell>
-                        )}
-                        <TableCell colSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
-                          Up to the Month
-                        </TableCell>
-                        <TableCell rowSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>Ongoing</TableCell>
-                        <TableCell rowSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>Not Started</TableCell>
-                        <TableCell rowSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>Under Review</TableCell>
-                        <TableCell rowSpan={2} align="center" sx={{ color: 'white', fontWeight: 600, py: 1.5 }}>Actions</TableCell>
-                      </TableRow>
-                      <TableRow sx={{ bgcolor: '#04255e' }}>
-                        {filterType === 'range' && (
-                          <>
-                            <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1, fontSize: '0.8rem' }}>Count</TableCell>
-                            <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1, fontSize: '0.8rem' }}>Area (cents)</TableCell>
-                          </>
-                        )}
-                        <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1, fontSize: '0.8rem' }}>Count</TableCell>
-                        <TableCell align="center" sx={{ color: 'white', fontWeight: 600, py: 1, fontSize: '0.8rem' }}>Area (cents)</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {paginatedData.length > 0 ? (
-                        paginatedData.map((row, index) => {
-                          const serialNumber = page * rowsPerPage + index + 1;
-                          const hasNoData = !row.hasData;
+            <StatCard
+              label="Total Clusters"
+              value={stats.total}
+              color={theme.palette.primary.main}
+              icon={<AssessmentIcon fontSize="small" />}
+              tooltip="Total clusters allocated for survey in the selected season"
+            />
 
-                          return (
-                            <TableRow
-                              key={row.id || index}
-                              hover
-                              sx={{
-                                '&:hover': { bgcolor: alpha('#04255e', 0.04) },
-                                transition: '0.2s',
-                                ...(hasNoData && {
-                                  bgcolor: alpha('#ff9800', 0.03),
-                                  '&:hover': { bgcolor: alpha('#ff9800', 0.08) }
-                                })
-                              }}
-                            >
-                              <TableCell align="center">
-                                <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                                  {serialNumber}
-                                </Typography>
-                              </TableCell>
-                              <TableCell>
-                                <Stack direction="row" spacing={1} alignItems="center">
-                                  <LocationOnIcon sx={{ fontSize: 18, color: hasNoData ? '#ff9800' : '#04255e', opacity: 0.7 }} />
-                                  <Typography fontWeight={hasNoData ? 400 : 500} color={hasNoData ? 'text.secondary' : 'text.primary'}>
-                                    {row.taluk}
-                                    {hasNoData && (
-                                      <Chip
-                                        label="No Data"
-                                        size="small"
-                                        sx={{
-                                          ml: 1,
-                                          height: 18,
-                                          fontSize: '0.6rem',
-                                          bgcolor: alpha('#ff9800', 0.15),
-                                          color: '#e65100',
-                                          fontWeight: 600
-                                        }}
-                                      />
-                                    )}
-                                  </Typography>
-                                </Stack>
-                              </TableCell>
-                              <TableCell align="center">
-                                {hasNoData ? (
-                                  <Typography variant="body2" color="text.secondary">NA</Typography>
-                                ) : (
-                                  <Chip label={row.total} size="small" variant="filled" sx={{ fontWeight: 600, bgcolor: alpha('#04255e', 0.1) }} />
-                                )}
-                              </TableCell>
-                              {filterType === 'range' && (
-                                <>
-                                  <TableCell align="center">
-                                    {hasNoData ? (
-                                      <Typography variant="body2" color="text.secondary">NA</Typography>
-                                    ) : row.currentMonthCompleted > 0 ? (
-                                      <Chip label={row.currentMonthCompleted} size="small" color="success" variant="outlined" />
-                                    ) : (
-                                      row.currentMonthCompleted
-                                    )}
-                                  </TableCell>
-                                  <TableCell align="center">
-                                    {hasNoData ? (
-                                      <Typography variant="body2" color="text.secondary">NA</Typography>
-                                    ) : row.currentMonthArea > 0 ? (
-                                      <Chip
-                                        label={formatArea(row.currentMonthArea)}
-                                        size="small"
-                                        variant="outlined"
-                                        sx={{ fontSize: '0.75rem', height: 22, borderColor: alpha('#04255e', 0.3), color: '#04255e' }}
-                                      />
-                                    ) : (
-                                      <Typography variant="body2" color="text.secondary">0.00</Typography>
-                                    )}
-                                  </TableCell>
-                                </>
-                              )}
-                              <TableCell align="center">
-                                {hasNoData ? (
-                                  <Typography variant="body2" color="text.secondary">NA</Typography>
-                                ) : row.completed > 0 ? (
-                                  <Chip label={row.completed} size="small" color="success" variant="outlined" />
-                                ) : (
-                                  row.completed
-                                )}
-                              </TableCell>
-                              <TableCell align="center">
-                                {hasNoData ? (
-                                  <Typography variant="body2" color="text.secondary">NA</Typography>
-                                ) : row.area > 0 ? (
-                                  <Chip
-                                    label={formatArea(row.area)}
-                                    size="small"
-                                    variant="outlined"
-                                    sx={{ fontSize: '0.75rem', height: 22, borderColor: alpha('#04255e', 0.3), color: '#04255e' }}
-                                  />
-                                ) : (
-                                  <Typography variant="body2" color="text.secondary">0.00</Typography>
-                                )}
-                              </TableCell>
-                              <TableCell align="center">
-                                {hasNoData ? (
-                                  <Typography variant="body2" color="text.secondary">NA</Typography>
-                                ) : row.ongoing > 0 ? (
-                                  <Chip label={row.ongoing} size="small" color="primary" variant="outlined" />
-                                ) : (
-                                  row.ongoing
-                                )}
-                              </TableCell>
-                              <TableCell align="center">
-                                {hasNoData ? (
-                                  <Typography variant="body2" color="text.secondary">NA</Typography>
-                                ) : row.notStarted > 0 ? (
-                                  <Chip label={row.notStarted} size="small" variant="outlined" />
-                                ) : (
-                                  row.notStarted
-                                )}
-                              </TableCell>
-                              <TableCell align="center">
-                                {hasNoData ? (
-                                  <Typography variant="body2" color="text.secondary">NA</Typography>
-                                ) : row.underReview > 0 ? (
-                                  <Chip label={row.underReview} size="small" color="warning" variant="outlined" />
-                                ) : (
-                                  row.underReview
-                                )}
-                              </TableCell>
-                              <TableCell align="center">
-                                {row.hasData ? (
-                                  <Tooltip title="View Block Details">
-                                    <IconButton
-                                      size="small"
-                                      onClick={() => handleViewBlockDetails(row.taluk, row.id, row.hasData)}
-                                      sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
-                                    >
-                                      <VisibilityIcon />
-                                    </IconButton>
-                                  </Tooltip>
-                                ) : (
-                                  <Tooltip title="No data available - View disabled">
-                                    <IconButton
-                                      size="small"
-                                      disabled
-                                      sx={{ color: '#bdbdbd', cursor: 'not-allowed' }}
-                                    >
-                                      <VisibilityOffIcon />
-                                    </IconButton>
-                                  </Tooltip>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={filterType === 'range' ? 9 : 8} align="center" sx={{ py: 6 }}>
-                            <Typography color="text.secondary">
-                              {searchTerm
-                                ? `No taluks found matching "${searchTerm}"`
-                                : `No data available for ${getSeasonLabel(seasonId)} season with the selected filters`}
-                            </Typography>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-                {searchFilteredData.length > 0 && (
-                  <TablePagination
-                    component="div"
-                    count={searchFilteredData.length}
-                    page={page}
-                    onPageChange={handleChangePage}
-                    rowsPerPage={rowsPerPage}
-                    onRowsPerPageChange={handleChangeRowsPerPage}
-                    rowsPerPageOptions={[15, 25, 50, 100]}
-                    sx={{ borderTop: `1px solid ${theme.palette.divider}` }}
-                  />
-                )}
-              </>
+            {filterType === 'range' && (
+              <StatCard
+                label="During the Month"
+                value={stats.currentMonthCompleted}
+                areaValue={stats.currentMonthArea}
+                color={theme.palette.info.main}
+                icon={<CalendarMonthIcon fontSize="small" />}
+                tooltip="Clusters completed during the selected end month"
+              />
             )}
-          </MainCard>
+
+            <StatCard
+              label={filterType === 'range' ? 'Up to the Month' : 'During the Month'}
+              value={stats.completed}
+              areaValue={stats.completedArea}
+              color={theme.palette.success.main}
+              icon={<CheckCircleIcon fontSize="small" />}
+              tooltip={
+                filterType === 'range'
+                  ? 'Cumulative clusters completed up to the selected end month'
+                  : 'Clusters completed during the selected month'
+              }
+            />
+
+            <StatCard
+              label="Ongoing"
+              value={stats.ongoing}
+              color={theme.palette.info.dark}
+              icon={<PendingIcon fontSize="small" />}
+              tooltip="Clusters currently ongoing"
+            />
+
+            <StatCard
+              label="Not Started"
+              value={stats.notStarted}
+              color={theme.palette.text.secondary}
+              icon={<ScheduleIcon fontSize="small" />}
+              tooltip="Clusters not yet started"
+            />
+
+            <StatCard
+              label="Under Review"
+              value={stats.underReview}
+              color={theme.palette.warning.dark}
+              icon={<RateReviewIcon fontSize="small" />}
+              tooltip="Clusters currently under review"
+            />
+          </Box>
         </Box>
       </Grid>
 
-      {/* Back Button */}
-      {!stateData.isDirectAccess && (
-        <Grid item xs={12}>
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-            <Button
-              variant="outlined"
-              onClick={handleGoBack}
-              startIcon={<ArrowBackIcon />}
-              sx={{
-                color: '#04255e',
-                borderColor: '#04255e',
-                borderRadius: 2,
-                px: 4,
-                '&:hover': {
-                  borderColor: '#04255e',
-                  bgcolor: alpha('#04255e', 0.04)
-                }
-              }}
+      <Grid item xs={12}>
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: 3,
+            border: `1px solid ${theme.palette.divider}`,
+            overflow: 'hidden'
+          }}
+        >
+          {loading && <LinearProgress aria-label="Refreshing taluk data" />}
+
+          <Box sx={{ p: { xs: 2, md: 2.5 }, pb: 1.5 }}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              justifyContent="space-between"
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+              spacing={2}
             >
-              Back to Kerala Report
-            </Button>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  Taluk Progress
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {filteredData.length} taluk{filteredData.length === 1 ? '' : 's'} shown in {displayDistrictName}
+                </Typography>
+              </Box>
+
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1.25}
+                sx={{ width: { xs: '100%', sm: 'auto' } }}
+              >
+                <TextField
+                  label="Search taluks"
+                  placeholder="e.g. Neyyattinkara"
+                  size="small"
+                  value={searchTerm}
+                  onChange={(event) => {
+                    setSearchTerm(event.target.value);
+                    setPage(0);
+                  }}
+                  sx={{ width: { xs: '100%', sm: 280 } }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                    endAdornment: searchTerm ? (
+                      <InputAdornment position="end">
+                        <IconButton
+                          size="small"
+                          onClick={handleClearSearch}
+                          edge="end"
+                          aria-label="Clear taluk search"
+                        >
+                          <ClearIcon fontSize="small" />
+                        </IconButton>
+                      </InputAdornment>
+                    ) : null
+                  }}
+                />
+
+                <Tooltip
+                  title={
+                    filteredData.length
+                      ? `Export ${filteredData.length} taluk${filteredData.length === 1 ? '' : 's'} to Excel`
+                      : 'No data available to export'
+                  }
+                >
+                  <span>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={exporting ? <CircularProgress size={16} /> : <DownloadIcon />}
+                      onClick={handleExportExcel}
+                      disabled={!filteredData.length || loading || exporting}
+                      sx={{
+                        minHeight: 40,
+                        width: { xs: '100%', sm: 'auto' },
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {exporting ? 'Preparing…' : 'Export Excel'}
+                    </Button>
+                  </span>
+                </Tooltip>
+              </Stack>
+            </Stack>
           </Box>
-        </Grid>
-      )}
+
+          <Divider />
+
+          <Box
+            sx={{
+              opacity: loading ? 0.62 : 1,
+              pointerEvents: loading ? 'none' : 'auto',
+              transition: theme.transitions.create('opacity')
+            }}
+          >
+            {paginatedData.length === 0 ? (
+              <Box sx={{ py: 8, px: 2, textAlign: 'center' }}>
+                <SearchIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  No matching taluks
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  Try changing the search term or report filters.
+                </Typography>
+              </Box>
+            ) : isMobile ? (
+              <Stack spacing={1.5} sx={{ p: 2 }}>
+                {paginatedData.map((row) => (
+                  <Card
+                    key={row.id}
+                    variant="outlined"
+                    sx={{
+                      borderRadius: 2.5,
+                      bgcolor: row.hasData
+                        ? 'background.paper'
+                        : alpha(theme.palette.warning.main, 0.035)
+                    }}
+                  >
+                    <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                      <Stack
+                        direction="row"
+                        alignItems="flex-start"
+                        justifyContent="space-between"
+                        spacing={1}
+                      >
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <LocationOnIcon
+                            fontSize="small"
+                            sx={{ color: row.hasData ? 'primary.main' : 'warning.main' }}
+                          />
+                          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                            {row.taluk}
+                          </Typography>
+                        </Stack>
+
+                        {!row.hasData && (
+                          <Chip label="No Data" size="small" color="warning" variant="outlined" />
+                        )}
+                      </Stack>
+
+                      <Box
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                          gap: 1.5,
+                          mt: 2
+                        }}
+                      >
+                        <MobileMetric label="Total">
+                          <MetricText value={row.total} noData={!row.hasData} />
+                        </MobileMetric>
+
+                        {filterType === 'range' && (
+                          <MobileMetric label="During Month">
+                            <MetricText
+                              value={row.currentMonthCompleted}
+                              noData={!row.hasData}
+                              color={ongoingColor}
+                            />
+                          </MobileMetric>
+                        )}
+
+                        {filterType === 'range' && (
+                          <MobileMetric label="Month Area (cents)">
+                            <MetricText value={row.currentMonthArea} noData={!row.hasData} area />
+                          </MobileMetric>
+                        )}
+
+                        <MobileMetric label={filterType === 'range' ? 'Up to Month' : 'During Month'}>
+                          <MetricText
+                            value={row.completed}
+                            noData={!row.hasData}
+                            color={completedColor}
+                          />
+                        </MobileMetric>
+
+                        <MobileMetric label="Area (cents)">
+                          <MetricText value={row.area} noData={!row.hasData} area />
+                        </MobileMetric>
+
+                        <MobileMetric label="Ongoing">
+                          <MetricText
+                            value={row.ongoing}
+                            noData={!row.hasData}
+                            color={ongoingColor}
+                          />
+                        </MobileMetric>
+
+                        <MobileMetric label="Not Started">
+                          <MetricText
+                            value={row.notStarted}
+                            noData={!row.hasData}
+                            color={notStartedColor}
+                          />
+                        </MobileMetric>
+
+                        <MobileMetric label="Under Review">
+                          <MetricText
+                            value={row.underReview}
+                            noData={!row.hasData}
+                            color={reviewColor}
+                          />
+                        </MobileMetric>
+                      </Box>
+
+                      <Button
+                        fullWidth
+                        size="small"
+                        variant="text"
+                        startIcon={row.hasData ? <VisibilityIcon /> : <VisibilityOffIcon />}
+                        disabled={!row.hasData}
+                        onClick={() => handleViewBlockDetails(row.taluk, row.id, row.hasData)}
+                        sx={{ mt: 1.5 }}
+                      >
+                        {row.hasData ? 'View block details' : 'Details unavailable'}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </Stack>
+            ) : (
+              <TableContainer sx={{ maxHeight: '65vh', overflowX: 'auto' }}>
+                <Table
+                  stickyHeader
+                  size="small"
+                  aria-label={`${displayDistrictName} taluk cluster enumeration progress`}
+                  sx={{
+                    minWidth: filterType === 'range' ? 1120 : 920,
+                    '& .MuiTableCell-root': {
+                      borderRight: `1px solid ${theme.palette.divider}`,
+                      borderBottom: `1px solid ${theme.palette.divider}`
+                    },
+                    '& .MuiTableCell-root:last-of-type': { borderRight: 'none' }
+                  }}
+                >
+                  <TableHead>
+                    <TableRow>
+                      <TableCell
+                        rowSpan={2}
+                        align="center"
+                        sx={{
+                          position: 'sticky',
+                          left: 0,
+                          zIndex: 6,
+                          color: 'primary.contrastText',
+                          bgcolor: headerBackground,
+                          fontWeight: 700,
+                          width: 56,
+                          minWidth: 56
+                        }}
+                      >
+                        #
+                      </TableCell>
+
+                      <TableCell
+                        rowSpan={2}
+                        sx={{
+                          position: 'sticky',
+                          left: 56,
+                          zIndex: 6,
+                          color: 'primary.contrastText',
+                          bgcolor: headerBackground,
+                          fontWeight: 700,
+                          minWidth: 210,
+                          boxShadow: `2px 0 0 ${alpha(theme.palette.common.white, 0.18)}`
+                        }}
+                      >
+                        Taluk
+                      </TableCell>
+
+                      <TableCell
+                        rowSpan={2}
+                        align="center"
+                        sx={{ color: 'primary.contrastText', bgcolor: headerBackground, fontWeight: 700 }}
+                      >
+                        Total
+                      </TableCell>
+
+                      {filterType === 'range' && (
+                        <TableCell
+                          colSpan={2}
+                          align="center"
+                          sx={{
+                            color: 'primary.contrastText',
+                            bgcolor: headerBackground,
+                            fontWeight: 700,
+                            borderBottom: `1px solid ${alpha(theme.palette.common.white, 0.18)}`
+                          }}
+                        >
+                          During the Month
+                        </TableCell>
+                      )}
+
+                      <TableCell
+                        colSpan={2}
+                        align="center"
+                        sx={{
+                          color: 'primary.contrastText',
+                          bgcolor: headerBackground,
+                          fontWeight: 700,
+                          borderBottom: `1px solid ${alpha(theme.palette.common.white, 0.18)}`
+                        }}
+                      >
+                        {filterType === 'range' ? 'Up to the Month' : 'During the Month'}
+                      </TableCell>
+
+                      <TableCell rowSpan={2} align="center" sx={{ color: 'primary.contrastText', bgcolor: headerBackground, fontWeight: 700 }}>
+                        Ongoing
+                      </TableCell>
+                      <TableCell rowSpan={2} align="center" sx={{ color: 'primary.contrastText', bgcolor: headerBackground, fontWeight: 700 }}>
+                        Not Started
+                      </TableCell>
+                      <TableCell rowSpan={2} align="center" sx={{ color: 'primary.contrastText', bgcolor: headerBackground, fontWeight: 700 }}>
+                        Under Review
+                      </TableCell>
+                      <TableCell rowSpan={2} align="center" sx={{ color: 'primary.contrastText', bgcolor: headerBackground, fontWeight: 700 }}>
+                        Action
+                      </TableCell>
+                    </TableRow>
+
+                    <TableRow>
+                      {filterType === 'range' && (
+                        <>
+                          <TableCell
+                            align="center"
+                            sx={{ color: 'primary.contrastText', bgcolor: headerBackground, fontWeight: 600, fontSize: '0.75rem', top: 41 }}
+                          >
+                            Count
+                          </TableCell>
+                          <TableCell
+                            align="center"
+                            sx={{ color: 'primary.contrastText', bgcolor: headerBackground, fontWeight: 600, fontSize: '0.75rem', top: 41 }}
+                          >
+                            Area (cents)
+                          </TableCell>
+                        </>
+                      )}
+
+                      <TableCell
+                        align="center"
+                        sx={{ color: 'primary.contrastText', bgcolor: headerBackground, fontWeight: 600, fontSize: '0.75rem', top: 41 }}
+                      >
+                        Count
+                      </TableCell>
+                      <TableCell
+                        align="center"
+                        sx={{ color: 'primary.contrastText', bgcolor: headerBackground, fontWeight: 600, fontSize: '0.75rem', top: 41 }}
+                      >
+                        Area (cents)
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+
+                  <TableBody>
+                    {paginatedData.map((row, index) => {
+                      const serialNumber = page * rowsPerPage + index + 1;
+                      const rowBackground = row.hasData
+                        ? theme.palette.background.paper
+                        : alpha(theme.palette.warning.main, 0.035);
+
+                      return (
+                        <TableRow
+                          key={row.id}
+                          hover
+                          sx={{
+                            bgcolor: rowBackground,
+                            '&:hover': {
+                              bgcolor: row.hasData
+                                ? alpha(theme.palette.primary.main, 0.035)
+                                : alpha(theme.palette.warning.main, 0.075)
+                            }
+                          }}
+                        >
+                          <TableCell
+                            align="center"
+                            sx={{ position: 'sticky', left: 0, zIndex: 3, bgcolor: 'inherit', width: 56, minWidth: 56 }}
+                          >
+                            <Typography variant="body2" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                              {serialNumber}
+                            </Typography>
+                          </TableCell>
+
+                          <TableCell
+                            sx={{
+                              position: 'sticky',
+                              left: 56,
+                              zIndex: 3,
+                              bgcolor: 'inherit',
+                              minWidth: 210,
+                              boxShadow: `2px 0 0 ${theme.palette.divider}`
+                            }}
+                          >
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <LocationOnIcon
+                                sx={{
+                                  fontSize: 17,
+                                  color: row.hasData ? 'primary.main' : 'warning.main',
+                                  opacity: 0.8
+                                }}
+                              />
+                              <Typography variant="body2" sx={{ fontWeight: row.hasData ? 600 : 500, whiteSpace: 'nowrap' }}>
+                                {row.taluk}
+                              </Typography>
+                              {!row.hasData && (
+                                <Chip label="No Data" size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                              )}
+                            </Stack>
+                          </TableCell>
+
+                          <TableCell align="center">
+                            <MetricText value={row.total} noData={!row.hasData} />
+                          </TableCell>
+
+                          {filterType === 'range' && (
+                            <>
+                              <TableCell align="center">
+                                <MetricText value={row.currentMonthCompleted} noData={!row.hasData} color={ongoingColor} />
+                              </TableCell>
+                              <TableCell align="center">
+                                <MetricText value={row.currentMonthArea} noData={!row.hasData} area />
+                              </TableCell>
+                            </>
+                          )}
+
+                          <TableCell align="center">
+                            <MetricText value={row.completed} noData={!row.hasData} color={completedColor} />
+                          </TableCell>
+                          <TableCell align="center">
+                            <MetricText value={row.area} noData={!row.hasData} area />
+                          </TableCell>
+                          <TableCell align="center">
+                            <MetricText value={row.ongoing} noData={!row.hasData} color={ongoingColor} />
+                          </TableCell>
+                          <TableCell align="center">
+                            <MetricText value={row.notStarted} noData={!row.hasData} color={notStartedColor} />
+                          </TableCell>
+                          <TableCell align="center">
+                            <MetricText value={row.underReview} noData={!row.hasData} color={reviewColor} />
+                          </TableCell>
+
+                          <TableCell align="center">
+                            <Tooltip title={row.hasData ? 'View block details' : 'No data available'}>
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  disabled={!row.hasData}
+                                  onClick={() => handleViewBlockDetails(row.taluk, row.id, row.hasData)}
+                                  aria-label={row.hasData ? `View block details for ${row.taluk}` : `No data available for ${row.taluk}`}
+                                  sx={{
+                                    color: 'primary.main',
+                                    '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08) }
+                                  }}
+                                >
+                                  {row.hasData ? <VisibilityIcon fontSize="small" /> : <VisibilityOffIcon fontSize="small" />}
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+
+            {filteredData.length > 0 && (
+              <TablePagination
+                component="div"
+                count={filteredData.length}
+                page={page}
+                onPageChange={(_, newPage) => setPage(newPage)}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={(event) => {
+                  setRowsPerPage(parseInt(event.target.value, 10));
+                  setPage(0);
+                }}
+                rowsPerPageOptions={[15, 25, 50, 100]}
+                sx={{
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                  '.MuiTablePagination-toolbar': { flexWrap: 'wrap' }
+                }}
+              />
+            )}
+          </Box>
+        </Paper>
+      </Grid>
     </Grid>
   );
 }
