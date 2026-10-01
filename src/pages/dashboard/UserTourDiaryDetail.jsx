@@ -129,9 +129,6 @@ const UserTourDiaryDetail = () => {
     if (roleName === "Field Data Collector" && loggedInRole === "Field Inspector") {
       return true;
     }
-    if (roleName === "Field Inspector" && loggedInRole === "Taluk Level Approver") {
-      return true;
-    }
     return false;
   };
 
@@ -139,7 +136,7 @@ const UserTourDiaryDetail = () => {
     if (roleName === "Field Data Collector" && loggedInRole === "Taluk Level Approver") {
       return true;
     }
-    if (roleName === "Field Inspector" && loggedInRole === "District Level Approver") {
+    if (roleName === "Field Inspector" && loggedInRole === "Taluk Level Approver") {
       return true;
     }
     if (roleName === "Taluk Level Approver" && loggedInRole === "District Level Approver") {

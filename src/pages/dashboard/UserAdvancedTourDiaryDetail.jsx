@@ -149,10 +149,7 @@ const UserAdvancedTourDiaryDetail = () => {
     if (roleName === "Field Data Collector" && loggedInRole === "Field Inspector") {
       return true;
     }
-    // Taluk Level Approver verifying Field Inspector (Full Month)
-    if (roleName === "Field Inspector" && loggedInRole === "Taluk Level Approver") {
-      return true;
-    }
+    // Field Inspector has no verification
     return false;
   };
 
@@ -164,8 +161,8 @@ const UserAdvancedTourDiaryDetail = () => {
     if (roleName === "Field Data Collector" && loggedInRole === "Taluk Level Approver") {
       return true;
     }
-    // District Level Approver approving Field Inspector (Full Month)
-    if (roleName === "Field Inspector" && loggedInRole === "District Level Approver") {
+    // Taluk Level Approver approving Field Inspector (Full Month)
+    if (roleName === "Field Inspector" && loggedInRole === "Taluk Level Approver") {
       return true;
     }
     // District Level Approver approving Taluk Level Approver (Full Month)
@@ -281,8 +278,8 @@ const UserAdvancedTourDiaryDetail = () => {
       // Field Inspector verifies First & Second Half
       return ["First Half", "Second Half"];
     } else if (roleName === "Field Inspector") {
-      // Taluk Level Approver verifies Full Month
-      return ["Full Month"];
+      // Field Inspector has no verification
+      return [];
     }
     return [];
   };
@@ -312,6 +309,17 @@ const UserAdvancedTourDiaryDetail = () => {
   };
 
   /**
+   * Helper to check if Taluk Level Approver (Admin) has already approved a half
+   */
+  const isAlreadyApprovedByAdmin = (half) => {
+    if (!submissionDetails) return false;
+    if (half === "First Half") return submissionDetails.firstHalfAdminStatus === 'APPROVED';
+    if (half === "Second Half") return submissionDetails.secondHalfAdminStatus === 'APPROVED';
+    if (half === "Full Month") return submissionDetails.fullMonthAdminStatus === 'APPROVED';
+    return false;
+  };
+
+  /**
    * Check if a specific half can be verified
    */
   const canVerifyHalf = (half) => {
@@ -319,17 +327,23 @@ const UserAdvancedTourDiaryDetail = () => {
 
     // Check if submitted
     let isSubmitted = false;
+    let isAdminApproved = false;
 
     if (half === "First Half") {
       isSubmitted = submissionDetails.firstHalfSubmitted;
+      isAdminApproved = submissionDetails.firstHalfAdminStatus === 'APPROVED';
     } else if (half === "Second Half") {
       isSubmitted = submissionDetails.secondHalfSubmitted;
+      isAdminApproved = submissionDetails.secondHalfAdminStatus === 'APPROVED';
     } else if (half === "Full Month") {
       isSubmitted = submissionDetails.fullMonthSubmitId;
+      isAdminApproved = submissionDetails.fullMonthAdminStatus === 'APPROVED';
     }
 
-    // Must be submitted (allow verify or re-verify/reject at any time)
-    return Boolean(isSubmitted);
+    if (!isSubmitted) return false;
+    if (isAdminApproved) return false; // Already approved by Taluk Level Approver -> verification disabled
+
+    return true;
   };
 
   /**
@@ -363,7 +377,7 @@ const UserAdvancedTourDiaryDetail = () => {
     if (roleName === "Field Data Collector") {
       return verifiedStatus === 'APPROVED' || adminStatus === 'PENDING' || adminStatus === 'REJECTED' || adminStatus === 'APPROVED';
     } else if (roleName === "Field Inspector") {
-      return verifiedStatus === 'APPROVED' || adminStatus === 'APPROVED' || adminStatus === 'REJECTED';
+      return true;
     } else if (roleName === "Taluk Level Approver" || roleName === "District Level Approver" || roleName === "District Level Data Viewer") {
       return true;
     }
@@ -1200,6 +1214,12 @@ const UserAdvancedTourDiaryDetail = () => {
       return;
     }
 
+    if (isAlreadyApprovedByAdmin(half)) {
+      showNotification('warning', 'already approved so verification not allowed');
+      closeVerificationMenu();
+      return;
+    }
+
     let alreadyApproved = false;
     let currentStatus = '';
 
@@ -1233,6 +1253,12 @@ const UserAdvancedTourDiaryDetail = () => {
   };
 
   const confirmVerification = async () => {
+    if (isAlreadyApprovedByAdmin(verificationHalf)) {
+      showNotification('error', 'already approved so verification not allowed');
+      setVerificationDialogOpen(false);
+      return;
+    }
+
     if (verificationStatus === 'REJECTED' && !verificationRemarks.trim()) {
       showNotification('error', 'Remarks are mandatory when rejecting a submission.');
       return;
@@ -1251,12 +1277,26 @@ const UserAdvancedTourDiaryDetail = () => {
         submissionId: verificationSubmissionId,
         verifiedBy: verifiedBy,
         verificationRemark: verificationRemarks.trim() || `${verificationStatus} for ${verificationHalf}`,
-        verifiedStatus: verificationStatus
+        verifiedStatus: verificationStatus,
+        ...(verificationStatus === 'REJECTED' ? { status: 'REJECTED' } : {})
       };
 
       const response = await tourDiaryService.saveOrUpdateVerification(payload);
 
       if (!response.error) {
+        // if (verificationStatus === 'REJECTED') {
+        //   try {
+        //     await tourDiaryService.submitAdminApproval({
+        //       id: verificationSubmissionId,
+        //       adminId: verifiedBy,
+        //       adminRemark: verificationRemarks.trim() || `Verification Rejected for ${verificationHalf}`,
+        //       adminStatus: 'REJECTED',
+        //       status: 'REJECTED'
+        //     });
+        //   } catch (e) {
+        //     console.log("Secondary status sync:", e);
+        //   }
+        // }
         await fetchSubmissionDetails();
         await fetchUserTourEntries();
         showNotification('success', `${verificationHalf} ${verificationStatus} successfully`);
@@ -2007,24 +2047,35 @@ const UserAdvancedTourDiaryDetail = () => {
                 justifyContent: 'flex-end'
               }}>
                 <Box>
-                  {canVerify() && (
-                    <Button
-                      variant="contained"
-                      onClick={openVerificationMenu}
-                      disabled={loadingSubmissionDetails || !submissionDetails}
-                      sx={{
-                        backgroundColor: '#2980b9',
-                        '&:hover': { backgroundColor: '#1f6391' },
-                        '&.Mui-disabled': {
-                          backgroundColor: theme.palette.action.disabledBackground
-                        },
-                        whiteSpace: 'nowrap',
-                        minWidth: '90px'
-                      }}
-                    >
-                      {loadingSubmissionDetails ? "Loading..." : "Verify"}
-                    </Button>
-                  )}
+                  {canVerify() && (() => {
+                    const allVerificationApprovedByAdmin = getVerificationOptions().length > 0 &&
+                      getVerificationOptions().every(half => isAlreadyApprovedByAdmin(half));
+                    return (
+                      <Tooltip
+                        title={allVerificationApprovedByAdmin ? "already approved so verification not allowed" : ""}
+                        arrow
+                      >
+                        <span>
+                          <Button
+                            variant="contained"
+                            onClick={openVerificationMenu}
+                            disabled={loadingSubmissionDetails || !submissionDetails || allVerificationApprovedByAdmin}
+                            sx={{
+                              backgroundColor: '#2980b9',
+                              '&:hover': { backgroundColor: '#1f6391' },
+                              '&.Mui-disabled': {
+                                backgroundColor: theme.palette.action.disabledBackground
+                              },
+                              whiteSpace: 'nowrap',
+                              minWidth: '90px'
+                            }}
+                          >
+                            {loadingSubmissionDetails ? "Loading..." : "Verify"}
+                          </Button>
+                        </span>
+                      </Tooltip>
+                    );
+                  })()}
 
                   {canApprove() && (
                     <Button
@@ -2052,18 +2103,31 @@ const UserAdvancedTourDiaryDetail = () => {
                     open={Boolean(verificationAnchorEl)}
                     onClose={closeVerificationMenu}
                   >
-                    {getVerificationOptions().map((half) => (
-                      <MenuItem
-                        key={half}
-                        onClick={() => handleVerificationHalf(half)}
-                        disabled={!canVerifyHalf(half)}
-                      >
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <Typography>{half}</Typography>
-                          {getVerificationStatusChip(half)}
-                        </Box>
-                      </MenuItem>
-                    ))}
+                    {getVerificationOptions().map((half) => {
+                      const adminApproved = isAlreadyApprovedByAdmin(half);
+                      const isSub = half === "First Half" ? submissionDetails?.firstHalfSubmitted :
+                        half === "Second Half" ? submissionDetails?.secondHalfSubmitted :
+                          submissionDetails?.fullMonthSubmitId;
+                      const tooltipMsg = adminApproved
+                        ? "already approved so verification not allowed"
+                        : (!isSub ? "Not submitted" : "");
+
+                      return (
+                        <Tooltip key={half} title={tooltipMsg} arrow placement="left">
+                          <span>
+                            <MenuItem
+                              onClick={() => handleVerificationHalf(half)}
+                              disabled={!canVerifyHalf(half)}
+                            >
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                <Typography>{half}</Typography>
+                                {getVerificationStatusChip(half)}
+                              </Box>
+                            </MenuItem>
+                          </span>
+                        </Tooltip>
+                      );
+                    })}
                   </Menu>
 
                   {/* Approval Menu */}

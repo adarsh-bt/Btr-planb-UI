@@ -705,6 +705,7 @@ const tourDiaryService = {
   // In tourDiaryService.js
   async saveOrUpdateVerification(payload) {
     console.log("saveOrUpdateVerification payload: ", payload);
+
     return api.post(`${BASE_URL}/tour-diary/api/purposes/save-or-update-verification`, payload)
       .then(response => {
         if (response.data) {
