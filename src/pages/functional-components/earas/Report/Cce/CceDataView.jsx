@@ -1095,7 +1095,7 @@ const CceDataView = () => {
         });
       }
 
-      // SECTION 5: Yield
+      // SECTION 5: Yield 
       checkPageBreak(35);
       doc.setFontSize(10.5);
       doc.setFont('helvetica', 'bold');
