@@ -531,13 +531,13 @@ const tourDiaryService = {
     return 1;
   },
 
-  async getClusters(zoneId, agriYear, seasonId = null) {
+  async getClusters(zoneId, agriYear, purposeId = 1) {
     try {
-      const activeSeasonId = seasonId || this.getSeasonIdByCurrentMonth();
+      const activePurposeId = purposeId || 1;
       const response = await api.get(
-        `${BASE_URL}/earas-form1-entry/form1/cluster-list?zoneId=${zoneId}&seasonId=${activeSeasonId}&agriYear=${agriYear}`
+        `${BASE_URL}/tour-diary/api/tour/available-clusters?zoneId=${zoneId}&purposeId=${activePurposeId}&agriYear=${agriYear}`
       );
-      console.log(`${BASE_URL}/earas-form1-entry/form1/cluster-list?zoneId=${zoneId}&seasonId=${activeSeasonId}&agriYear=${agriYear}`)
+      console.log(`${BASE_URL}/tour-diary/api/tour/available-clusters?zoneId=${zoneId}&purposeId=${activePurposeId}&agriYear=${agriYear}`);
       return response.data;
     } catch (err) {
       console.error("Error fetching clusters:", err);

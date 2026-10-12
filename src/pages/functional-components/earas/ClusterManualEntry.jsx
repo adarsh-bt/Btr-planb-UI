@@ -140,6 +140,11 @@ const ClusterFormUI = () => {
     const [apiCropsData, setApiCropsData] = useState(null);
     const [loadingApiCrops, setLoadingApiCrops] = useState(false);
 
+    // NUC label area details validation states
+    const [nucLabelDetails, setNucLabelDetails] = useState({});
+    const [loadingNucDetails, setLoadingNucDetails] = useState(false);
+    const [nucErrors, setNucErrors] = useState({});
+
     const [validationInfo, setValidationInfo] = useState(null);
     const [isValidationDialogOpen, setIsValidationDialogOpen] = useState(false);
     const [validatingRow, setValidatingRow] = useState(null);
@@ -599,12 +604,118 @@ const ClusterFormUI = () => {
             setLoadingApiCrops(false);
         }
     }, [clusterId, BASE_URL]);
+    const fetchNucLabelAreaDetails = useCallback(async (cId = clusterId) => {
+        const targetClusterId = cId || clusterId;
+        if (!targetClusterId) return;
+        setLoadingNucDetails(true);
+        try {
+            const token = localStorage.getItem('token') || authservice.gettoken();
+            const response = await fetch(
+                `${BASE_URL}/earas-form1-entry/nuc-details/label-area/fetch-by-clusterId/${targetClusterId}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                console.warn(`NUC label area API responded with status ${response.status}`);
+                setNucLabelDetails({});
+                return;
+            }
+
+            const data = await response.json();
+            console.log('Fetched NUC label area details:', data);
+            const details = data?.payload?.nucDetails || data?.payload || {};
+            setNucLabelDetails(details);
+        } catch (error) {
+            console.error('Error fetching NUC label area details:', error);
+            setNucLabelDetails({});
+        } finally {
+            setLoadingNucDetails(false);
+        }
+    }, [clusterId, BASE_URL]);
+
+    const getNucInfoForLabel = useCallback((label, nucData = nucLabelDetails) => {
+        if (!label || !nucData || !nucData[label]) {
+            return { isUsed: false, maxNucArea: 0, seasonsText: '', entries: [] };
+        }
+
+        const entries = nucData[label];
+        if (!Array.isArray(entries) || entries.length === 0) {
+            return { isUsed: false, maxNucArea: 0, seasonsText: '', entries: [] };
+        }
+
+        const maxNucArea = entries.reduce((max, e) => {
+            const area = parseFloat(e.clusterLabelArea) || 0;
+            return Math.max(max, area);
+        }, 0);
+
+        const seasonsText = entries
+            .map(e => `${e.seasonName || 'Season ' + e.seasonId}: ${e.clusterLabelArea} cents`)
+            .join(', ');
+
+        return {
+            isUsed: entries.length > 0,
+            maxNucArea,
+            seasonsText,
+            entries
+        };
+    }, [nucLabelDetails]);
+
+    const validateNucRules = useCallback((data = keyplotsData, nucData = nucLabelDetails) => {
+        if (!nucData || Object.keys(nucData).length === 0) {
+            setNucErrors({});
+            return { isValid: true, nucErrorsMap: {} };
+        }
+
+        const newNucErrors = {};
+        let isValid = true;
+
+        Object.entries(nucData).forEach(([label, entries]) => {
+            if (!Array.isArray(entries) || entries.length === 0) return;
+
+            const maxNucArea = entries.reduce((max, e) => {
+                const area = parseFloat(e.clusterLabelArea) || 0;
+                return Math.max(max, area);
+            }, 0);
+
+            const seasonsText = entries
+                .map(e => `${e.seasonName || 'Season ' + e.seasonId}: ${e.clusterLabelArea} cents`)
+                .join(', ');
+
+            const keyplot = data.find(kp => kp.label === label);
+
+            if (!keyplot || !keyplot.rows || keyplot.rows.length === 0) {
+                newNucErrors[`missing-${label}`] = `This label (${label}) is already used in NUC details, so please delete NUC details first.`;
+                isValid = false;
+                return;
+            }
+
+            const totalArea = keyplot.rows.reduce(
+                (sum, r) => sum + (parseFloat(r.enumeratedArea) || 0),
+                0
+            );
+
+            if (maxNucArea > 0 && totalArea < maxNucArea) {
+                newNucErrors[keyplot.id] = `Area decrease is not supported. Area for label "${label}" (${totalArea.toFixed(2)} cents) cannot be less than the area used in NUC details (${maxNucArea} cents${seasonsText ? ` in ${seasonsText}` : ''}). Please reduce NUC area first.`;
+                isValid = false;
+            }
+        });
+
+        setNucErrors(newNucErrors);
+        return { isValid, nucErrorsMap: newNucErrors };
+    }, [keyplotsData, nucLabelDetails]);
+
     // Add this useEffect after your existing useEffects
     useEffect(() => {
         if (clusterId) {
             fetchApiCceCrops();
+            fetchNucLabelAreaDetails(clusterId);
         }
-    }, [clusterId, fetchApiCceCrops]);
+    }, [clusterId, fetchApiCceCrops, fetchNucLabelAreaDetails]);
 
     // Helper function to get all currently selected crop names
     const getSelectedCropNames = () => {
@@ -733,6 +844,9 @@ const ClusterFormUI = () => {
             setDefaultVillageId(data.payload.kvillageId);
             setDefaultVillage(data.payload.kvillageName);
             setClusterId(data.payload.clusterId);
+            if (data.payload.clusterId) {
+                fetchNucLabelAreaDetails(data.payload.clusterId);
+            }
             if (data.payload) {
                 setKeyplotDetails(data.payload);
                 setClusterInfo(prevInfo => ({
@@ -914,6 +1028,42 @@ const ClusterFormUI = () => {
     };
 
     const handleSubmit = () => {
+        // 0. Validate NUC requirements first
+        for (const [label, entries] of Object.entries(nucLabelDetails)) {
+            if (!Array.isArray(entries) || entries.length === 0) continue;
+
+            const maxNucArea = entries.reduce(
+                (max, e) => Math.max(max, parseFloat(e.clusterLabelArea) || 0),
+                0
+            );
+
+            const matchingKeyplot = keyplotsData.find(kp => kp.label === label);
+            if (!matchingKeyplot || !matchingKeyplot.rows || matchingKeyplot.rows.length === 0) {
+                setSnackbarMessage(
+                    `This label (${label}) is already used in NUC details, so please delete NUC details first.`
+                );
+                setSnackbarOpen(true);
+                return;
+            }
+
+            const totalArea = matchingKeyplot.rows.reduce(
+                (sum, r) => sum + (parseFloat(r.enumeratedArea) || 0),
+                0
+            );
+
+            if (maxNucArea > 0 && totalArea < maxNucArea) {
+                const seasonsText = entries
+                    .map(e => `${e.seasonName || 'Season ' + e.seasonId}: ${e.clusterLabelArea} cents`)
+                    .join(', ');
+
+                setSnackbarMessage(
+                    `Area decrease is not supported. Area for label "${label}" (${totalArea.toFixed(2)} cents) cannot be less than the area used in NUC details (${maxNucArea} cents${seasonsText ? ` in ${seasonsText}` : ''}). Please reduce NUC area first.`
+                );
+                setSnackbarOpen(true);
+                return;
+            }
+        }
+
         // First validate labels
         const labelValidation = validateSidePlotLabels();
         if (!labelValidation.isValid) {
@@ -972,6 +1122,26 @@ const ClusterFormUI = () => {
         try {
             setSubmitting(true);
             setSubmitError('');
+
+            // Validate NUC rules before sending requests
+            for (const [label, entries] of Object.entries(nucLabelDetails)) {
+                if (!Array.isArray(entries) || entries.length === 0) continue;
+                const maxNucArea = entries.reduce(
+                    (max, e) => Math.max(max, parseFloat(e.clusterLabelArea) || 0),
+                    0
+                );
+                const matchingKeyplot = keyplotsData.find(kp => kp.label === label);
+                if (!matchingKeyplot || !matchingKeyplot.rows || matchingKeyplot.rows.length === 0) {
+                    throw new Error(`This label (${label}) is already used in NUC details, so please delete NUC details first.`);
+                }
+                const totalArea = matchingKeyplot.rows.reduce(
+                    (sum, r) => sum + (parseFloat(r.enumeratedArea) || 0),
+                    0
+                );
+                if (maxNucArea > 0 && totalArea < maxNucArea) {
+                    throw new Error(`Area decrease is not supported. Area for label "${label}" cannot be less than the area used in NUC details (${maxNucArea} cents). Please reduce NUC area first.`);
+                }
+            }
 
             // Get user info
             const userId = authservice.userid();
@@ -1357,9 +1527,29 @@ const ClusterFormUI = () => {
             });
         });
 
+        // 2. Validate NUC rules
+        const { nucErrorsMap } = validateNucRules(data, nucLabelDetails);
+
+        data.forEach(kp => {
+            if (kp.label && nucErrorsMap[kp.id]) {
+                kp.rows.forEach(row => {
+                    const errorKey = `${kp.id}-${row.uniqueId}`;
+                    if (!newErrors[errorKey]) {
+                        newErrors[errorKey] = nucErrorsMap[kp.id];
+                    }
+                });
+            }
+        });
+
         setErrors(newErrors);
         setKeyplotsData(data);
     };
+
+    useEffect(() => {
+        if (keyplotsData.length > 0 && Object.keys(nucLabelDetails).length > 0) {
+            validateAndSetData(keyplotsData);
+        }
+    }, [nucLabelDetails]);
 
 
     const handleVillageChange = (newVillageId, keyplotId, rowUniqueId) => {
@@ -1449,6 +1639,36 @@ const ClusterFormUI = () => {
         if (!rowToDelete) return;
 
         const { keyplotId, rowUniqueId, rowData } = rowToDelete;
+
+        const keyplot = keyplotsData.find(k => k.id === keyplotId);
+        if (keyplot && keyplot.label) {
+            const nucInfo = getNucInfoForLabel(keyplot.label);
+            if (nucInfo.isUsed) {
+                const remainingRows = keyplot.rows.filter(r => r.uniqueId !== rowUniqueId);
+                if (remainingRows.length === 0) {
+                    setSnackbarMessage(
+                        `This label (${keyplot.label}) is already used in NUC details, so please delete NUC details first.`
+                    );
+                    setSnackbarOpen(true);
+                    handleCloseConfirmDialog();
+                    return;
+                }
+
+                const remainingTotalArea = remainingRows.reduce(
+                    (sum, r) => sum + (parseFloat(r.enumeratedArea) || 0),
+                    0
+                );
+
+                if (nucInfo.maxNucArea > 0 && remainingTotalArea < nucInfo.maxNucArea) {
+                    setSnackbarMessage(
+                        `Area decrease is not supported. Deleting this row reduces the area for label "${keyplot.label}" to ${remainingTotalArea.toFixed(2)} cents, which is less than the area used in NUC details (${nucInfo.maxNucArea} cents). Please reduce NUC area first.`
+                    );
+                    setSnackbarOpen(true);
+                    handleCloseConfirmDialog();
+                    return;
+                }
+            }
+        }
 
         try {
             const token = authservice.gettoken();
@@ -1565,7 +1785,30 @@ const ClusterFormUI = () => {
     };
 
     const handleInputBlur = (e, keyplotId, rowUniqueId, field) => {
-        // This can be used for additional validation if needed
+        if (field !== 'enumeratedArea') return;
+        const { value } = e.target;
+        const enumeratedArea = parseFloat(value);
+        if (isNaN(enumeratedArea)) return;
+
+        const keyplot = keyplotsData.find(kp => kp.id === keyplotId);
+        if (keyplot && keyplot.label) {
+            const nucInfo = getNucInfoForLabel(keyplot.label);
+            if (nucInfo.isUsed && nucInfo.maxNucArea > 0) {
+                const totalArea = keyplot.rows.reduce((sum, r) => {
+                    if (r.uniqueId === rowUniqueId) {
+                        return sum + enumeratedArea;
+                    }
+                    return sum + (parseFloat(r.enumeratedArea) || 0);
+                }, 0);
+
+                if (totalArea < nucInfo.maxNucArea) {
+                    setSnackbarMessage(
+                        `Area decrease is not supported. Area for label "${keyplot.label}" (${totalArea.toFixed(2)} cents) cannot be less than the area used in NUC details (${nucInfo.maxNucArea} cents${nucInfo.seasonsText ? ` in ${nucInfo.seasonsText}` : ''}). Please reduce NUC area first.`
+                    );
+                    setSnackbarOpen(true);
+                }
+            }
+        }
     };
 
     const handleAddRow = (keyplotId) => {
@@ -1610,7 +1853,37 @@ const ClusterFormUI = () => {
     const [removedRows, setRemovedRows] = useState([]);
     const handleRemoveRow = (keyplotId, rowUniqueId) => {
         const keyplot = keyplotsData.find(k => k.id === keyplotId);
+        if (!keyplot) return;
         const rowToRemove = keyplot.rows.find(r => r.uniqueId === rowUniqueId);
+        if (!rowToRemove) return;
+
+        // NUC validation check
+        if (keyplot.label) {
+            const nucInfo = getNucInfoForLabel(keyplot.label);
+            if (nucInfo.isUsed) {
+                const remainingRows = keyplot.rows.filter(r => r.uniqueId !== rowUniqueId);
+                if (remainingRows.length === 0) {
+                    setSnackbarMessage(
+                        `This label (${keyplot.label}) is already used in NUC details, so please delete NUC details first.`
+                    );
+                    setSnackbarOpen(true);
+                    return;
+                }
+
+                const remainingTotalArea = remainingRows.reduce(
+                    (sum, r) => sum + (parseFloat(r.enumeratedArea) || 0),
+                    0
+                );
+
+                if (nucInfo.maxNucArea > 0 && remainingTotalArea < nucInfo.maxNucArea) {
+                    setSnackbarMessage(
+                        `Area decrease is not supported. Deleting this row reduces the area for label "${keyplot.label}" to ${remainingTotalArea.toFixed(2)} cents, which is less than the area used in NUC details (${nucInfo.maxNucArea} cents). Please reduce NUC area first.`
+                    );
+                    setSnackbarOpen(true);
+                    return;
+                }
+            }
+        }
 
         // If it's an existing row (has b_id), show confirmation dialog
         if (rowToRemove && rowToRemove.b_id) {
@@ -1645,7 +1918,22 @@ const ClusterFormUI = () => {
     // Update the handleLabelChange function
     const handleLabelChange = (newLabel, keyplotId) => {
         // If selecting empty option, don't allow
-        if (!newLabel.trim()) return;
+        if (!newLabel || !newLabel.trim()) return;
+
+        // Check if current label is used in NUC details
+        const currentKeyplot = keyplotsData.find(kp => kp.id === keyplotId);
+        const oldLabel = currentKeyplot ? currentKeyplot.label : null;
+
+        if (oldLabel && oldLabel !== newLabel) {
+            const nucInfo = getNucInfoForLabel(oldLabel);
+            if (nucInfo.isUsed) {
+                setSnackbarMessage(
+                    `This label (${oldLabel}) is already used in NUC details, so please delete NUC details first.`
+                );
+                setSnackbarOpen(true);
+                return;
+            }
+        }
 
         // Check if label is already used
         const isAlreadyUsed = keyplotsData.some(kp => kp.label === newLabel && kp.id !== keyplotId);
@@ -1654,7 +1942,6 @@ const ClusterFormUI = () => {
             setSnackbarOpen(true);
             return;
         }
-
 
         setKeyplotsData(prevData => {
             const updatedData = prevData.map(kp =>
@@ -1665,11 +1952,14 @@ const ClusterFormUI = () => {
             const labels = updatedData.map(kp => kp.label).filter(label => label);
             setCurrentLabels(labels);
 
+            validateAndSetData(updatedData);
+
             return updatedData;
         });
     };
 
-    const hasAnyError = Object.values(errors).some(error => error !== null && error !== '');
+    const hasNucError = Object.values(nucErrors).some(error => error !== null && error !== '');
+    const hasAnyError = Object.values(errors).some(error => error !== null && error !== '') || hasNucError;
 
     const getLabelStatus = (label) => {
         const keyplot = keyplotsData.find(kp => kp.label === label);
@@ -2172,6 +2462,15 @@ const ClusterFormUI = () => {
                         </Grid>
                     </Box>
 
+                    {/* Missing NUC labels alerts if any */}
+                    {Object.entries(nucErrors)
+                        .filter(([key]) => key.startsWith('missing-'))
+                        .map(([key, msg]) => (
+                            <Alert key={key} severity="error" sx={{ mt: 2, mb: 1 }}>
+                                {msg}
+                            </Alert>
+                        ))}
+
                     {/* Keyplot Sections - ORIGINAL UI PRESERVED */}
                     {keyplotsData.map((keyplot, index) => {
 
@@ -2188,9 +2487,13 @@ const ClusterFormUI = () => {
 
 
                         const hasErrorInKeyplot = keyplot.rows.some(r => !!errors[`${keyplot.id}-${r.uniqueId}`]);
+                        const nucInfo = getNucInfoForLabel(keyplot.label);
+                        const currentKeyplotTotal = keyplot.rows.reduce((total, row) => total + (parseFloat(row.enumeratedArea) || 0), 0);
+                        const isAreaBelowNuc = nucInfo.isUsed && nucInfo.maxNucArea > 0 && currentKeyplotTotal < nucInfo.maxNucArea;
+
                         return (
-                            <Box key={keyplot.id} sx={{ mt: 3, border: '1px solid #ccc', borderRadius: 1, overflowX: 'auto', bgcolor: 'white', p: 2 }}>
-                                <Box sx={{ bgcolor: '#05307a', color: 'white', p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Box key={keyplot.id} sx={{ mt: 3, border: isAreaBelowNuc ? '2px solid #d32f2f' : '1px solid #ccc', borderRadius: 1, overflowX: 'auto', bgcolor: 'white', p: 2 }}>
+                                <Box sx={{ bgcolor: isAreaBelowNuc ? '#c62828' : '#05307a', color: 'white', p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     {/* LEFT SIDE: Section label (existing code) */}
                                     {keyplot.label === 'K' ? (
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -2213,40 +2516,42 @@ const ClusterFormUI = () => {
 
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                             <Typography variant="h6">Side Plot -</Typography>
-                                            <FormControl size="small" sx={{ minWidth: 120 }} error={!keyplot.label}>
-                                                <Select
-                                                    value={keyplot.label || ''}
-                                                    onChange={(e) => handleLabelChange(e.target.value, keyplot.id)}
-                                                    displayEmpty
-                                                    //   label="Select Label"
-                                                    sx={{
-                                                        color: keyplot.label ? 'white' : 'rgba(255, 255, 255, 0.7)',
-                                                        '& .MuiOutlinedInput-notchedOutline': {
-                                                            borderColor: keyplot.label ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.3)'
-                                                        },
-                                                        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
-                                                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
-                                                        '& .MuiSvgIcon-root': { color: 'white' },
-                                                    }}
-                                                >
-                                                    <MenuItem value="" disabled>
-                                                        <em>Select a label</em>
-                                                    </MenuItem>
-                                                    {SIDE_PLOT_OPTIONS.map(option => {
-                                                        const isDisabled = keyplotsData.some(kp => kp.label === option);
-                                                        return (
-                                                            <MenuItem key={option} value={option} disabled={isDisabled}>
-                                                                {option} {isDisabled && option !== keyplot.label && ' (Already selected)'}
-                                                            </MenuItem>
-                                                        );
-                                                    })}
-                                                </Select>
-                                                {/* {!keyplot.label && (
-      <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.8)', mt: 0.5 }}>
-        Please select a label
-      </Typography>
-    )} */}
-                                            </FormControl>
+                                            <Tooltip title={nucInfo.isUsed ? `This label (${keyplot.label}) is already used in NUC details (${nucInfo.seasonsText || `${nucInfo.maxNucArea} cents`}). Delete NUC details first to change label.` : ''}>
+                                                <FormControl size="small" sx={{ minWidth: 120 }} error={!keyplot.label}>
+                                                    <Select
+                                                        value={keyplot.label || ''}
+                                                        onChange={(e) => handleLabelChange(e.target.value, keyplot.id)}
+                                                        displayEmpty
+                                                        //   label="Select Label"
+                                                        sx={{
+                                                            color: keyplot.label ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                                                            '& .MuiOutlinedInput-notchedOutline': {
+                                                                borderColor: keyplot.label ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.3)'
+                                                            },
+                                                            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
+                                                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
+                                                            '& .MuiSvgIcon-root': { color: 'white' },
+                                                        }}
+                                                    >
+                                                        <MenuItem value="" disabled>
+                                                            <em>Select a label</em>
+                                                        </MenuItem>
+                                                        {SIDE_PLOT_OPTIONS.map(option => {
+                                                            const isDisabled = keyplotsData.some(kp => kp.label === option);
+                                                            return (
+                                                                <MenuItem key={option} value={option} disabled={isDisabled}>
+                                                                    {option} {isDisabled && option !== keyplot.label && ' (Already selected)'}
+                                                                </MenuItem>
+                                                            );
+                                                        })}
+                                                    </Select>
+                                                    {/* {!keyplot.label && (
+          <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.8)', mt: 0.5 }}>
+            Please select a label
+          </Typography>
+        )} */}
+                                                </FormControl>
+                                            </Tooltip>
 
                                             {/* 2. ENHANCED REORDER CONTROLS */}
                                             <Box
@@ -2304,25 +2609,49 @@ const ClusterFormUI = () => {
                                     )}
 
                                     {/* RIGHT SIDE: Total enumerated area for this section */}
-                                    <Box sx={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 1,
-                                        p: '6px 16px',
-                                        backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                                        borderRadius: '6px',
-                                        border: '1px solid rgba(255, 255, 255, 0.3)'
-                                    }}>
-                                        <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
-                                            Total:
-                                        </Typography>
-                                        <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
-                                            {keyplot.rows.reduce((total, row) => total + (parseFloat(row.enumeratedArea) || 0), 0).toFixed(2)} cents
-                                        </Typography>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                        {nucInfo.isUsed && (
+                                            <Tooltip title={`Used in NUC: ${nucInfo.seasonsText || `${nucInfo.maxNucArea} cents`}`}>
+                                                <Chip
+                                                    icon={<GrassIcon style={{ color: '#fff', fontSize: '1rem' }} />}
+                                                    label={`NUC: ${nucInfo.maxNucArea} cents`}
+                                                    size="small"
+                                                    sx={{
+                                                        backgroundColor: isAreaBelowNuc ? '#b71c1c' : 'rgba(255, 255, 255, 0.25)',
+                                                        color: 'white',
+                                                        fontWeight: 'bold',
+                                                        border: '1px solid rgba(255, 255, 255, 0.4)'
+                                                    }}
+                                                />
+                                            </Tooltip>
+                                        )}
+                                        <Box sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 1,
+                                            p: '6px 16px',
+                                            backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                                            borderRadius: '6px',
+                                            border: '1px solid rgba(255, 255, 255, 0.3)'
+                                        }}>
+                                            <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                                                Total:
+                                            </Typography>
+                                            <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                                                {currentKeyplotTotal.toFixed(2)} cents
+                                            </Typography>
+                                        </Box>
                                     </Box>
                                 </Box>
 
                                 <Grid container spacing={2} sx={{ p: 2 }} alignItems="center">
+                                    {nucErrors[keyplot.id] && (
+                                        <Grid item xs={12}>
+                                            <Alert severity="error" sx={{ mb: 1 }}>
+                                                {nucErrors[keyplot.id]}
+                                            </Alert>
+                                        </Grid>
+                                    )}
                                     {/* Headers */}
                                     <Grid container spacing={2} sx={{ borderBottom: '2px solid #06d83aff', pb: 3, m: 1 }}>
                                         <Grid item xs={2}><Typography fontWeight="bold">Village</Typography></Grid>
@@ -2430,7 +2759,7 @@ const ClusterFormUI = () => {
                                     })}
                                     {role === 'Field Data Collector' && (
                                         <Grid item xs={12} sx={{ textAlign: 'center', mt: 1 }}>
-                                            <Button startIcon={<AddCircleOutlineIcon />} size="small" variant="contained" color="success" onClick={() => handleAddRow(keyplot.id)} disabled={isNewRowIncomplete || hasErrorInKeyplot || !isedit}>Add Row</Button>
+                                            <Button startIcon={<AddCircleOutlineIcon />} size="small" variant="contained" color="success" onClick={() => handleAddRow(keyplot.id)} disabled={isNewRowIncomplete || hasErrorInKeyplot || !isedit || !!nucErrors[keyplot.id]}>Add Row</Button>
                                         </Grid>)}
                                 </Grid>
                             </Box>
@@ -2439,20 +2768,24 @@ const ClusterFormUI = () => {
                     {/* ✅ Main Submit Button - ORIGINAL UI PRESERVED */}
                     {role === 'Field Data Collector' && (
                         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2 }}>
-                            <Tooltip title={getMissingLabels().length > 0 ?
+                            <Tooltip title={
+                                hasNucError ? "Resolve NUC validation errors before saving" :
+                                getMissingLabels().length > 0 ?
                                 `Add rows to: ${getMissingLabels().join(', ')}` :
                                 "Save cluster data"}>
-                                <Button
-                                    variant="contained"
-                                    size="large"
-                                    color="primary"
-                                    startIcon={submitting ? <CircularProgress size={20} /> : <SaveIcon />}
-                                    onClick={handleSubmit}
-                                    disabled={isSubmitDisabled()}
-                                    sx={{ minWidth: 200, height: 48 }}
-                                >
-                                    {submitting ? 'Saving Cluster...' : 'Save Cluster'}
-                                </Button>
+                                <span>
+                                    <Button
+                                        variant="contained"
+                                        size="large"
+                                        color="primary"
+                                        startIcon={submitting ? <CircularProgress size={20} /> : <SaveIcon />}
+                                        onClick={handleSubmit}
+                                        disabled={isSubmitDisabled()}
+                                        sx={{ minWidth: 200, height: 48 }}
+                                    >
+                                        {submitting ? 'Saving Cluster...' : 'Save Cluster'}
+                                    </Button>
+                                </span>
                             </Tooltip>
                         </Box>
                     )}

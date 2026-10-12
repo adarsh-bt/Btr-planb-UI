@@ -9,7 +9,6 @@ class AuthService {
   static async login(userLogin) {
     try {
       const encrypted = encryptData(JSON.stringify(userLogin));
-
       const response = await api.post(
         '/user-access/api/login',
         encrypted,
@@ -54,7 +53,7 @@ class AuthService {
         userData,
         { skipAuth: true }
       );
-      
+
       return response;
     } catch (err) {
       return {
@@ -183,7 +182,7 @@ class AuthService {
     return localStorage.getItem('activeZone');
   }
 
-   static agriyear() {
+  static agriyear() {
     return localStorage.getItem('activeAgriYear');
   }
 
@@ -244,42 +243,42 @@ class AuthService {
   }
 
   // ================= SAVE OFFICE INFO =================
-static async saveOfficeInfo(userId, officeData) {
-  try {
-    const response = await api.post(
-      `/user-access/api/user-registration/${userId}/office-info`,
-      officeData
-    );
+  static async saveOfficeInfo(userId, officeData) {
+    try {
+      const response = await api.post(
+        `/user-access/api/user-registration/${userId}/office-info`,
+        officeData
+      );
 
-    return response.data;
+      return response.data;
 
-  } catch (err) {
-    return {
-      success: false,
-      message: err.response?.data?.message || 'Failed to save office info'
-    };
+    } catch (err) {
+      return {
+        success: false,
+        message: err.response?.data?.message || 'Failed to save office info'
+      };
+    }
   }
-}
 
-// Add this method to AuthService class
-static async getUserOfficeInfo() {
-  try {
-    const token = this.gettoken();
-    if (!token) return null;
-    
-    const userId = this.userid();
-    if (!userId) return null;
-    
-    const response = await api.get(`/user-access/api/user-registration/${userId}/office-info`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    
-    return response.data;
-  } catch (err) {
-    console.error('Error fetching office info:', err);
-    return null;
+  // Add this method to AuthService class
+  static async getUserOfficeInfo() {
+    try {
+      const token = this.gettoken();
+      if (!token) return null;
+
+      const userId = this.userid();
+      if (!userId) return null;
+
+      const response = await api.get(`/user-access/api/user-registration/${userId}/office-info`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      return response.data;
+    } catch (err) {
+      console.error('Error fetching office info:', err);
+      return null;
+    }
   }
-}
 }
 
 export default AuthService;

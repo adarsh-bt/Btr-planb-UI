@@ -53,6 +53,8 @@ import InfoIcon from "@mui/icons-material/Info";
 import CloseIcon from "@mui/icons-material/Close";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import * as XLSX from "xlsx";
 import tourDiaryService from "pages/authentication/services/tourdiaryservice";
 import profileService from "pages/profile/profileservice";
 import ApprovedUserService from "pages/functional-components/approvels/ApprovedUserService";
@@ -149,10 +151,7 @@ const UserAdvancedTourDiaryDetail = () => {
     if (roleName === "Field Data Collector" && loggedInRole === "Field Inspector") {
       return true;
     }
-    // Taluk Level Approver verifying Field Inspector (Full Month)
-    if (roleName === "Field Inspector" && loggedInRole === "Taluk Level Approver") {
-      return true;
-    }
+    // Field Inspector submission does NOT require verification
     return false;
   };
 
@@ -164,8 +163,8 @@ const UserAdvancedTourDiaryDetail = () => {
     if (roleName === "Field Data Collector" && loggedInRole === "Taluk Level Approver") {
       return true;
     }
-    // District Level Approver approving Field Inspector (Full Month)
-    if (roleName === "Field Inspector" && loggedInRole === "District Level Approver") {
+    // Taluk Level Approver approving Field Inspector (Full Month)
+    if (roleName === "Field Inspector" && loggedInRole === "Taluk Level Approver") {
       return true;
     }
     // District Level Approver approving Taluk Level Approver (Full Month)
@@ -249,8 +248,6 @@ const UserAdvancedTourDiaryDetail = () => {
   const getZoneName = (zoneId) => {
     if (!zoneId) return '—';
 
-    console.log("Getting zone name for zoneId:", zoneId);
-    console.log("Available userZones:", userZones);
 
     if (userZones.length === 0) {
       // Try to find zone in tourEntries data
@@ -281,8 +278,8 @@ const UserAdvancedTourDiaryDetail = () => {
       // Field Inspector verifies First & Second Half
       return ["First Half", "Second Half"];
     } else if (roleName === "Field Inspector") {
-      // Taluk Level Approver verifies Full Month
-      return ["Full Month"];
+      // Verification hidden for Field Inspector
+      return [];
     }
     return [];
   };
@@ -295,15 +292,13 @@ const UserAdvancedTourDiaryDetail = () => {
       // Taluk Level Approver approves First & Second Half
       return ["First Half", "Second Half"];
     } else if (roleName === "Field Inspector") {
-      // District Level Approver approves Full Month
+      // Taluk Level Approver approves Full Month for Field Inspector
       return ["Full Month"];
     } else if (roleName === "Taluk Level Approver") {
       // District Level Approver approves Full Month
       return ["Full Month"];
-      // District Level Data Viewer approves Full Month
     } else if (roleName === "District Level Data Viewer") {
       return ["Full Month"];
-      // District Level Approver approves Full Month
     } else if (roleName === "District Level Approver") {
       // IT Admin approves Full Month
       return ["Full Month"];
@@ -319,17 +314,24 @@ const UserAdvancedTourDiaryDetail = () => {
 
     // Check if submitted
     let isSubmitted = false;
+    let adminStatus = '';
 
     if (half === "First Half") {
       isSubmitted = submissionDetails.firstHalfSubmitted;
+      adminStatus = submissionDetails.firstHalfAdminStatus;
     } else if (half === "Second Half") {
       isSubmitted = submissionDetails.secondHalfSubmitted;
+      adminStatus = submissionDetails.secondHalfAdminStatus;
     } else if (half === "Full Month") {
       isSubmitted = submissionDetails.fullMonthSubmitId;
+      adminStatus = submissionDetails.fullMonthAdminStatus;
     }
 
-    // Must be submitted (allow verify or re-verify/reject at any time)
-    return Boolean(isSubmitted);
+    // Must be submitted and not already approved by Taluk Level Approver
+    if (!isSubmitted) return false;
+    if (adminStatus === 'APPROVED') return false;
+
+    return true;
   };
 
   /**
@@ -363,7 +365,8 @@ const UserAdvancedTourDiaryDetail = () => {
     if (roleName === "Field Data Collector") {
       return verifiedStatus === 'APPROVED' || adminStatus === 'PENDING' || adminStatus === 'REJECTED' || adminStatus === 'APPROVED';
     } else if (roleName === "Field Inspector") {
-      return verifiedStatus === 'APPROVED' || adminStatus === 'APPROVED' || adminStatus === 'REJECTED';
+      // Verification hidden for Field Inspector, allow direct approval
+      return true;
     } else if (roleName === "Taluk Level Approver" || roleName === "District Level Approver" || roleName === "District Level Data Viewer") {
       return true;
     }
@@ -591,6 +594,94 @@ const UserAdvancedTourDiaryDetail = () => {
       setSubmissionDetails(null);
     } finally {
       setLoadingSubmissionDetails(false);
+    }
+  };
+
+  const handleExportExcel = () => {
+    try {
+      const monthName = monthNames[selectedMonth - 1];
+      const empName = userDetails?.name || 'User';
+
+      const headers = [
+        "Date",
+        "Day",
+        "Half",
+        "Entry Type",
+        "Zone",
+        "Location",
+        "Purpose",
+        "Remarks",
+        "Status"
+      ];
+
+      const rows = tourEntries.map(entry => {
+        let dateStr = '—';
+        let dayName = '—';
+        let half = '—';
+        try {
+          const date = new Date(entry.createdAt);
+          if (!isNaN(date.getTime())) {
+            const day = date.getDate();
+            const month = date.getMonth();
+            const dName = dayNames[date.getDay()];
+            dateStr = `${String(day).padStart(2, '0')} ${monthNames[month].substring(0, 3)} ${selectedYear}`;
+            dayName = dName;
+            half = day <= 15 ? 'First Half' : 'Second Half';
+          }
+        } catch (e) { }
+
+        const purpose = entry.purposeName || getPurposeName(entry.purposeId) || '—';
+        const zone = getZoneName(entry.zoneId) || '—';
+
+        return [
+          dateStr,
+          dayName,
+          half,
+          entry.entryType || 'WORKING',
+          zone,
+          entry.location || '—',
+          purpose,
+          entry.remark || '—',
+          entry.status || 'PENDING'
+        ];
+      });
+
+      const workbook = XLSX.utils.book_new();
+
+      const metaRows = [
+        ["ADVANCED TOUR PROGRAM MANAGEMENT REPORT"],
+        [`Employee Name: ${userDetails?.name || 'N/A'}`, `Employee ID: ${userDetails?.penNumber || userDetails?.empNumber || userDetails?.employeeId || 'N/A'}`],
+        [`Designation: ${userDetails?.designation || 'N/A'}`, `Office Location: ${userDetails?.officelocation || userDetails?.officeLocation || 'N/A'}`],
+        [`Month & Year: ${monthName} ${selectedYear}`],
+        []
+      ];
+
+      const sheetData = [...metaRows, headers, ...rows];
+      const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+
+      worksheet['!cols'] = [
+        { wch: 16 },
+        { wch: 8 },
+        { wch: 14 },
+        { wch: 15 },
+        { wch: 22 },
+        { wch: 25 },
+        { wch: 25 },
+        { wch: 30 },
+        { wch: 15 }
+      ];
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Advanced Tour Program');
+
+      const sanitizedName = empName.replace(/[^a-zA-Z0-9]/g, '_');
+      XLSX.writeFile(workbook, `Advanced_Tour_Program_${sanitizedName}_${monthName}_${selectedYear}.xlsx`);
+    } catch (err) {
+      console.error("Error exporting excel:", err);
+      setNotification({
+        open: true,
+        type: 'error',
+        message: 'Failed to export Excel file'
+      });
     }
   };
 
@@ -851,7 +942,7 @@ const UserAdvancedTourDiaryDetail = () => {
                   />
                 )}
                 {/* Verification Status */}
-                {submissionDetails.firstHalfVerifiedStatus && (
+                {submissionDetails.firstHalfVerifiedStatus && roleName === "Field Data Collector" && (
                   <Chip
                     label={`Ver: ${submissionDetails.firstHalfVerifiedStatus}`}
                     size="small"
@@ -924,7 +1015,7 @@ const UserAdvancedTourDiaryDetail = () => {
                   />
                 )}
                 {/* Verification Status */}
-                {submissionDetails.secondHalfVerifiedStatus && (
+                {submissionDetails.secondHalfVerifiedStatus && roleName === "Field Data Collector" && (
                   <Chip
                     label={`Ver: ${submissionDetails.secondHalfVerifiedStatus}`}
                     size="small"
@@ -1001,7 +1092,7 @@ const UserAdvancedTourDiaryDetail = () => {
               />
             )}
             {/* Verification Status */}
-            {submissionDetails.fullMonthVerifiedStatus && (
+            {submissionDetails.fullMonthVerifiedStatus && roleName === "Field Data Collector" && (
               <Chip
                 label={`Ver: ${submissionDetails.fullMonthVerifiedStatus}`}
                 size="small"
@@ -1202,16 +1293,26 @@ const UserAdvancedTourDiaryDetail = () => {
 
     let alreadyApproved = false;
     let currentStatus = '';
+    let adminStatus = '';
 
     if (half === "First Half") {
       alreadyApproved = submissionDetails?.firstHalfVerifiedStatus === 'APPROVED';
       currentStatus = submissionDetails?.firstHalfVerifiedStatus;
+      adminStatus = submissionDetails?.firstHalfAdminStatus;
     } else if (half === "Second Half") {
       alreadyApproved = submissionDetails?.secondHalfVerifiedStatus === 'APPROVED';
       currentStatus = submissionDetails?.secondHalfVerifiedStatus;
+      adminStatus = submissionDetails?.secondHalfAdminStatus;
     } else if (half === "Full Month") {
       alreadyApproved = submissionDetails?.fullMonthVerifiedStatus === 'APPROVED';
       currentStatus = submissionDetails?.fullMonthVerifiedStatus;
+      adminStatus = submissionDetails?.fullMonthAdminStatus;
+    }
+
+    if (adminStatus === 'APPROVED') {
+      showNotification('warning', 'Already Approver Approved');
+      closeVerificationMenu();
+      return;
     }
 
     if (alreadyApproved) {
@@ -1233,6 +1334,21 @@ const UserAdvancedTourDiaryDetail = () => {
   };
 
   const confirmVerification = async () => {
+    let adminStatus = '';
+    if (verificationHalf === "First Half") {
+      adminStatus = submissionDetails?.firstHalfAdminStatus;
+    } else if (verificationHalf === "Second Half") {
+      adminStatus = submissionDetails?.secondHalfAdminStatus;
+    } else if (verificationHalf === "Full Month") {
+      adminStatus = submissionDetails?.fullMonthAdminStatus;
+    }
+
+    if (adminStatus === 'APPROVED') {
+      showNotification('warning', 'Already Approver Approved');
+      setVerificationDialogOpen(false);
+      return;
+    }
+
     if (verificationStatus === 'REJECTED' && !verificationRemarks.trim()) {
       showNotification('error', 'Remarks are mandatory when rejecting a submission.');
       return;
@@ -1612,6 +1728,20 @@ const UserAdvancedTourDiaryDetail = () => {
                   )
                 }}
               />
+              <Button
+                variant="contained"
+                startIcon={<FileDownloadIcon />}
+                onClick={handleExportExcel}
+                disabled={tourEntries.length === 0}
+                sx={{
+                  backgroundColor: '#27ae60',
+                  '&:hover': { backgroundColor: '#1e8449' },
+                  whiteSpace: 'nowrap',
+                  fontWeight: 600
+                }}
+              >
+                Download Excel
+              </Button>
             </Stack>
           </Box>
 
@@ -1952,6 +2082,20 @@ const UserAdvancedTourDiaryDetail = () => {
                 >
                   Back
                 </Button>
+                {/* <Button
+                  variant="contained"
+                  startIcon={<FileDownloadIcon />}
+                  onClick={handleExportExcel}
+                  disabled={tourEntries.length === 0}
+                  sx={{
+                    backgroundColor: '#27ae60',
+                    '&:hover': { backgroundColor: '#1e8449' },
+                    whiteSpace: 'nowrap',
+                    fontWeight: 600
+                  }}
+                >
+                  Download Excel
+                </Button> */}
 
 
               </Box>

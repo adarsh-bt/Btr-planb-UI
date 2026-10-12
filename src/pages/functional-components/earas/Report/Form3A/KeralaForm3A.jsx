@@ -53,12 +53,12 @@ const CROP_GROUPS = [
   { id: 16, name: 'Other trees' },
   { id: 18, name: 'Pulses' },
   { id: 21, name: 'Tubers' },
-  { id: 22, name: 'Vegetables' }
+  { id: 22, name: 'Vegetables' },
+  { id: 11, name: 'Spices and condiments' }
 ];
 
 const ALL_CROP_GROUPS = -1;
 const ALL_CROP_GROUPS_LABEL = 'All Crop Groups';
-const FETCH_BATCH_SIZE = 6;
 
 const cleanName = (name) => (name || '').replace(/\s+/g, ' ').trim();
 
@@ -285,8 +285,12 @@ const KeralaForm3A = () => {
     if (!isAllCropGroups && !cropGroupId) return;
     let cancelled = false;
 
-    const buildUrl = (groupId) => {
-      const params = new URLSearchParams({ agriYear: agriculturalYear, cropGroupId: String(groupId) });
+    const buildUrl = (groupIds) => {
+      const params = new URLSearchParams({ agriYear: agriculturalYear });
+      const ids = Array.isArray(groupIds) ? groupIds : [groupIds];
+      ids.forEach((id) => {
+        if (id != null) params.append('cropGroupIds', String(id));
+      });
       const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
       if (landTypeParam) params.append('landType', landTypeParam);
       params.append('seasonId', String(seasonId));
@@ -304,16 +308,9 @@ const KeralaForm3A = () => {
         const headers = { Authorization: `Bearer ${token}` };
         const groupIds = isAllCropGroups ? CROP_GROUPS.map((g) => g.id) : [cropGroupId];
 
-        const payloads = [];
-        for (let i = 0; i < groupIds.length; i += FETCH_BATCH_SIZE) {
-          const batch = groupIds.slice(i, i + FETCH_BATCH_SIZE);
-          // eslint-disable-next-line no-await-in-loop
-          const responses = await Promise.all(batch.map((id) => axios.get(buildUrl(id), { headers })));
-          if (cancelled) return;
-          responses.forEach((r) => payloads.push(r.data));
-        }
+        const response = await axios.get(buildUrl(groupIds), { headers });
         if (cancelled) return;
-        setApiData(mergeGroupResponses(payloads));
+        setApiData(mergeGroupResponses([response.data]));
       } catch (err) {
         if (cancelled) return;
         console.error('Error fetching Form 3A data:', err);

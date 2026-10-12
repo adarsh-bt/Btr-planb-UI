@@ -403,7 +403,7 @@ const UserTourDiaryDetail = () => {
     return today > lastDayOfMonth;
   };
 
-  const fetchClusters = async (zoneId) => {
+  const fetchClusters = async (zoneId, purposeId = null) => {
     if (!zoneId) {
       setClusters([]);
       setFilteredClusters([]);
@@ -412,7 +412,8 @@ const UserTourDiaryDetail = () => {
 
     try {
       const year = authservice.agriyear() || "2025-2026";
-      const response = await tourDiaryService.getClusters(zoneId, year);
+      const activePurposeId = purposeId || manualFormData.purposeId || 1;
+      const response = await tourDiaryService.getClusters(zoneId, year, activePurposeId);
 
       if (response && Array.isArray(response)) {
         setClusters(response);
@@ -977,7 +978,8 @@ const UserTourDiaryDetail = () => {
       const payload = {
         id: editFormData.id,
         distance: editFormData.distance ? parseFloat(editFormData.distance) : null,
-        hours: editFormData.hours ? parseFloat(editFormData.hours) : null
+        hours: editFormData.hours ? parseFloat(editFormData.hours) : null,
+        agriYear: authservice.agriyear()
       };
       const response = await tourDiaryService.updateSystemTourEntry(payload);
       if (response && response.id) {
@@ -1067,7 +1069,8 @@ const UserTourDiaryDetail = () => {
         hours: skipDetails ? null : (editFormData.hours ? parseFloat(editFormData.hours) : null),
         cropId: skipDetails ? null : (editFormData.cropId ? Number(editFormData.cropId) : null),
         isAdvanceChanged: sendChange ? true : (hasAdvanceTour ? false : undefined),
-        changeReason: sendChange ? changeReason : undefined
+        changeReason: sendChange ? changeReason : undefined,
+        agriYear: authservice.agriyear()
       };
 
       const response = await tourDiaryService.saveOrUpdateManualEntry(payload);
@@ -1211,7 +1214,8 @@ const UserTourDiaryDetail = () => {
         cropId: skipDetails ? null : (manualFormData.cropId ? Number(manualFormData.cropId) : null),
         createdAt: formattedDate,
         isAdvanceChanged: sendChange ? true : (hasAdvanceTour ? false : undefined),
-        changeReason: sendChange ? changeReason : undefined
+        changeReason: sendChange ? changeReason : undefined,
+        agriYear: authservice.agriyear()
       };
 
       const response = await tourDiaryService.saveOrUpdateManualEntry(payload);
@@ -1632,7 +1636,7 @@ const UserTourDiaryDetail = () => {
                   </Typography>
                   <Chip
                     label={
-                      (fullMonthStatus && (
+                      (isFieldDataCollector && fullMonthStatus && (
                         fullMonthStatus.verified_status === 'REJECTED' ||
                         fullMonthStatus.verifiedStatus === 'REJECTED'
                       ))
@@ -1650,7 +1654,7 @@ const UserTourDiaryDetail = () => {
                             : '⏳ Pending Submission'
                     }
                     color={
-                      (fullMonthStatus && (
+                      (isFieldDataCollector && fullMonthStatus && (
                         fullMonthStatus.verified_status === 'REJECTED' ||
                         fullMonthStatus.verifiedStatus === 'REJECTED'
                       ))

@@ -56,7 +56,6 @@ const CROP_GROUPS = [
 
 const ALL_CROP_GROUPS = -1;
 const ALL_CROP_GROUPS_LABEL = 'All Crop Groups';
-const FETCH_BATCH_SIZE = 6;
 
 const themeColor = '#05307a';
 const themeColorAlt = '#0b4ea2';
@@ -204,18 +203,20 @@ const ClusterForm3A = () => {
 
     let cancelled = false;
 
-    const buildUrl = (groupId) => {
+    const buildUrl = (groupIds) => {
       const params = new URLSearchParams({
         agriYear: agriculturalYear,
-        cropGroupId: String(groupId),
         zoneId: String(zoneId)
+      });
+      const ids = Array.isArray(groupIds) ? groupIds : [groupIds];
+      ids.forEach((id) => {
+        if (id != null) params.append('cropGroupIds', String(id));
       });
       const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
       if (landTypeParam) params.append('landType', landTypeParam);
       params.append('seasonId', String(seasonId));
       const irrigationParam = IRRIGATION_PARAM[irrigation];
       if (irrigationParam) params.append('isIrrigated', irrigationParam);
-      console.log(`${BASE_URL}/earas-form1-entry/api/progress-report/form3A/cluster?${params.toString()}`)
       return `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/cluster?${params.toString()}`;
     };
 
@@ -239,17 +240,10 @@ const ClusterForm3A = () => {
         }
 
         const groupIds = isAllCropGroups ? CROP_GROUPS.map((g) => g.id) : [cropGroupId];
-        const payloads = [];
-        for (let i = 0; i < groupIds.length; i += FETCH_BATCH_SIZE) {
-          const batch = groupIds.slice(i, i + FETCH_BATCH_SIZE);
-          // eslint-disable-next-line no-await-in-loop
-          const responses = await Promise.all(batch.map((id) => axios.get(buildUrl(id), { headers })));
-          if (cancelled) return;
-          responses.forEach((r) => payloads.push(r.data));
-        }
+        const response = await axios.get(buildUrl(groupIds), { headers });
 
         if (cancelled) return;
-        setApiData(mergeGroupResponses(payloads, masterClusters, landTypeTab));
+        setApiData(mergeGroupResponses([response.data], masterClusters, landTypeTab));
       } catch (err) {
         if (cancelled) return;
         console.error('Error fetching Cluster Form 3A data:', err);

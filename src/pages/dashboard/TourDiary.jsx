@@ -70,7 +70,7 @@ const TourDiary = () => {
             openSubmitMenu(event);
         } else {
 
-            if (submissionView?.fullMonthAdminStatus === 'APPROVED') {
+            if (submissionView?.fullMonthSubmitId && submissionView?.fullMonthAdminStatus !== 'REJECTED' && submissionView?.fullMonthVerifiedStatus !== 'REJECTED') {
                 showNotification('info', `Entry already submitted on ${new Date(submissionView.fullMonthSubmittedDate).toLocaleString()}`);
                 return;
             }
@@ -249,19 +249,25 @@ const TourDiary = () => {
 
         if (!submissionView) return false;
 
-        // For Field Data Collector - check individual halves
+        // For Field Data Collector - check individual halves (unlocked if rejected by either Field Inspector or Taluk Level Approver)
         if (isFieldDataCollector) {
             if (isFirstHalf) {
-                // First Half: locked if submitted and not rejected
-                return submissionView.firstHalfSubmitted && submissionView.firstHalfAdminStatus !== 'REJECTED';
+                // First Half: locked if submitted and NOT rejected by Admin AND NOT rejected by Field Inspector (Verifier)
+                return submissionView.firstHalfSubmitted &&
+                    submissionView.firstHalfAdminStatus !== 'REJECTED' &&
+                    submissionView.firstHalfVerifiedStatus !== 'REJECTED';
             } else {
-                // Second Half: locked if submitted and not rejected
-                return submissionView.secondHalfSubmitted && submissionView.secondHalfAdminStatus !== 'REJECTED';
+                // Second Half: locked if submitted and NOT rejected by Admin AND NOT rejected by Field Inspector (Verifier)
+                return submissionView.secondHalfSubmitted &&
+                    submissionView.secondHalfAdminStatus !== 'REJECTED' &&
+                    submissionView.secondHalfVerifiedStatus !== 'REJECTED';
             }
         } else {
             // For non-Field Data Collector - check full month
             // The isFirstHalf parameter doesn't matter for full month
-            return submissionView.fullMonthSubmitId && submissionView.fullMonthAdminStatus !== 'REJECTED';;
+            return submissionView.fullMonthSubmitId &&
+                submissionView.fullMonthAdminStatus !== 'REJECTED' &&
+                submissionView.fullMonthVerifiedStatus !== 'REJECTED';
         }
     };
     // Open view details modal
@@ -559,7 +565,8 @@ const TourDiary = () => {
                         isLate: response.data.firstHalfIsLate,
                         submittedAt: response.data.firstHalfSubmittedAt,
                         isSubmitted: !!response.data.firstHalfId,
-                        adminstatus: response.data.adminFirstStatus || null
+                        adminstatus: response.data.adminFirstStatus || null,
+                        verifiedstatus: response.data.verifiedFirstStatus || response.data.firstHalfVerifiedStatus || null
                     },
                     secondHalf: {
                         id: response.data.secondHalfId,
@@ -569,7 +576,8 @@ const TourDiary = () => {
                         isLate: response.data.secondHalfIsLate,
                         submittedAt: response.data.secondHalfSubmittedAt,
                         isSubmitted: !!response.data.secondHalfId,
-                        adminstatus: response.data.adminSecondStatus || null
+                        adminstatus: response.data.adminSecondStatus || null,
+                        verifiedstatus: response.data.verifiedSecondStatus || response.data.secondHalfVerifiedStatus || null
                     },
                     loading: false
                 });
@@ -668,14 +676,13 @@ const TourDiary = () => {
     // ============================ HALF SUBMIT ============================
     const handleSubmitHalf = async (half) => {
 
-        // if (half === 'First Half' && submissionStatus.firstHalf?.isSubmitted && submissionStatus.firstHalf.adminstatus === 'REJECTED') {
-        if (half === 'First Half' && submissionStatus.firstHalf?.isSubmitted && submissionStatus.firstHalf.adminstatus !== 'REJECTED') {
-            showNotification('info', `First Half already submitted on ${new Date(submissionStatus.firstHalf.submittedAt).toLocaleString()}`);
+        if (half === 'First Half' && submissionStatus.firstHalf?.isSubmitted && submissionStatus.firstHalf.adminstatus !== 'REJECTED' && submissionStatus.firstHalf.verifiedstatus !== 'REJECTED' && submissionView?.firstHalfAdminStatus !== 'REJECTED' && submissionView?.firstHalfVerifiedStatus !== 'REJECTED') {
+            showNotification('info', `First Half already submitted on ${new Date(submissionStatus.firstHalf.submittedAt || submissionView?.firstHalfSubmittedDate).toLocaleString()}`);
             closeSubmitMenu();
             return;
         }
-        if (half === 'Second Half' && submissionStatus.secondHalf?.isSubmitted && submissionStatus.secondHalf.adminstatus !== 'REJECTED') {
-            showNotification('info', `Second Half already submitted on ${new Date(submissionStatus.secondHalf.submittedAt).toLocaleString()}`);
+        if (half === 'Second Half' && submissionStatus.secondHalf?.isSubmitted && submissionStatus.secondHalf.adminstatus !== 'REJECTED' && submissionStatus.secondHalf.verifiedstatus !== 'REJECTED' && submissionView?.secondHalfAdminStatus !== 'REJECTED' && submissionView?.secondHalfVerifiedStatus !== 'REJECTED') {
+            showNotification('info', `Second Half already submitted on ${new Date(submissionStatus.secondHalf.submittedAt || submissionView?.secondHalfSubmittedDate).toLocaleString()}`);
             closeSubmitMenu();
             return;
         }
@@ -1531,7 +1538,7 @@ const TourDiary = () => {
                                                         )}
 
                                                         {/* Verification Status Chip */}
-                                                        {submissionView?.firstHalfSubmitted && submissionView?.firstHalfVerifiedStatus && (
+                                                        {submissionView?.firstHalfSubmitted && submissionView?.firstHalfVerifiedStatus && isFieldDataCollector && (
                                                             <Chip
                                                                 label={`Ver: ${submissionView.firstHalfVerifiedStatus}`}
                                                                 size="small"
@@ -1623,7 +1630,7 @@ const TourDiary = () => {
                                                         )}
 
                                                         {/* Verification Status Chip */}
-                                                        {submissionView?.secondHalfSubmitted && submissionView?.secondHalfVerifiedStatus && (
+                                                        {submissionView?.secondHalfSubmitted && submissionView?.secondHalfVerifiedStatus && isFieldDataCollector && (
                                                             <Chip
                                                                 label={`Ver: ${submissionView.secondHalfVerifiedStatus}`}
                                                                 size="small"
@@ -1736,7 +1743,7 @@ const TourDiary = () => {
                                                     )}
 
                                                     {/* Verification Status Chip */}
-                                                    {submissionView?.fullMonthSubmitId && submissionView?.fullMonthVerifiedStatus && (
+                                                    {submissionView?.fullMonthSubmitId && submissionView?.fullMonthVerifiedStatus && isFieldDataCollector && (
                                                         <Chip
                                                             label={`Ver: ${submissionView.fullMonthVerifiedStatus}`}
                                                             size="small"
@@ -1837,7 +1844,8 @@ const TourDiary = () => {
                                                     onClick={() => handleSubmitHalf("First Half")}
                                                     disabled={
                                                         submissionView?.firstHalfSubmitted &&
-                                                        submissionView?.firstHalfAdminStatus !== "REJECTED"
+                                                        submissionView?.firstHalfAdminStatus !== "REJECTED" &&
+                                                        submissionView?.firstHalfVerifiedStatus !== "REJECTED"
                                                     }
                                                     sx={{
                                                         py: 1.5,
@@ -1878,7 +1886,7 @@ const TourDiary = () => {
                                                                 />
 
                                                                 {/* Verification Status */}
-                                                                {submissionView.firstHalfVerifiedStatus && (
+                                                                {submissionView.firstHalfVerifiedStatus && isFieldDataCollector && (
                                                                     <Chip
                                                                         size="small"
                                                                         label={`Ver: ${submissionView.firstHalfVerifiedStatus}`}
@@ -1939,7 +1947,11 @@ const TourDiary = () => {
                                                 {/* Second Half */}
                                                 <MenuItem
                                                     onClick={() => handleSubmitHalf("Second Half")}
-                                                    disabled={submissionView?.secondHalfSubmitted && submissionView?.secondHalfAdminStatus !== "REJECTED"}
+                                                    disabled={
+                                                        submissionView?.secondHalfSubmitted &&
+                                                        submissionView?.secondHalfAdminStatus !== "REJECTED" &&
+                                                        submissionView?.secondHalfVerifiedStatus !== "REJECTED"
+                                                    }
                                                     sx={{
                                                         py: 1.5,
                                                         '&:hover': { backgroundColor: theme.palette.action.hover }
@@ -1979,7 +1991,7 @@ const TourDiary = () => {
                                                                 />
 
                                                                 {/* Verification Status */}
-                                                                {submissionView.secondHalfVerifiedStatus && (
+                                                                {submissionView.secondHalfVerifiedStatus && isFieldDataCollector && (
                                                                     <Chip
                                                                         size="small"
                                                                         label={`Ver: ${submissionView.secondHalfVerifiedStatus}`}
