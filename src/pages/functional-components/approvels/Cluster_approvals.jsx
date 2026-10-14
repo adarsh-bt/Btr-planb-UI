@@ -74,7 +74,7 @@ function ClusterApprovals() {
   
   
 const [page, setPage] = useState(0);
-const [rowsPerPage, setRowsPerPage] = useState(25);
+const [rowsPerPage, setRowsPerPage] = useState(15);
 
 const [totalElements, setTotalElements] = useState(0);
 const [totalPages, setTotalPages] = useState(0);
@@ -382,7 +382,7 @@ const handleSubmitAction = async (isApprove) => {
       <Breadcrumb />
       <Grid item xs={12}>
         <Typography variant="h3" sx={{ mb: 2, fontWeight: 700 }}>
-          Cluster Approval Requests 
+          Cluster Approval Requests
         </Typography>
         
         <Card sx={{ p: 1, borderRadius: 3, boxShadow: '0 8px 32px rgba(0,0,0,0.08)' }}>
@@ -756,7 +756,7 @@ const handleSubmitAction = async (isApprove) => {
                 onPageChange={handleChangePage}
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
-                rowsPerPageOptions={[25, 50, 100]}
+                rowsPerPageOptions={[15, 20, 25]}
                 sx={{ 
                   mt: 2,
                   '.MuiTablePagination-toolbar': { 

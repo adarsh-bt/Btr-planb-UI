@@ -111,7 +111,7 @@ const KeralaForm3A = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
 
   const cropGroupId = CROP_GROUPS[activeTab]?.id;
   const cropGroupName = CROP_GROUPS[activeTab]?.name;
@@ -597,7 +597,7 @@ const KeralaForm3A = () => {
                 onPageChange={handleChangePage}
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
-                rowsPerPageOptions={[10, 25, 50]}
+                rowsPerPageOptions={[15, 20, 25]}
                 sx={{ borderTop: `1px solid ${alpha(themeColor, 0.1)}` }}
               />
             </Box>

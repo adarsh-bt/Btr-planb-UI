@@ -58,7 +58,7 @@ const ZoneListing = () => {
   const navigate = useNavigate();
   // Pagination states from API
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const searchRef = useRef(null);
@@ -497,7 +497,7 @@ const handleViewZone = (zone) => {
                     backgroundColor: 'white'
                   }}
                 >
-                  {[25, 50, 100].map(option => (
+                  {[15, 20, 25].map(option => (
                     <option key={option} value={option}>
                       {option}
                     </option>

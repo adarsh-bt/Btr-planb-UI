@@ -128,7 +128,7 @@ function KeralaForm5ReportList() {
   // UI states
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
 
   // Fetch master districts list
   const fetchMasterDistricts = async () => {
@@ -1132,7 +1132,7 @@ const fetchCropsList = async () => {
                 onPageChange={handleChangePage}
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
-                rowsPerPageOptions={[5, 10, 25]}
+                rowsPerPageOptions={[15, 20, 25]}
                 sx={{ borderTop: `1px solid ${theme.palette.divider}` }}
               />
             )}

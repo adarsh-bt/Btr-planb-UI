@@ -78,6 +78,8 @@ const WorkallocationsApprovals = Loadable(lazy(() => import('pages/functional-co
 
 const Form1Status = Loadable(lazy(() => import('pages/functional-components/approvels/Form1Status')));
 
+const CceApprovals = Loadable(lazy(() => import('pages/functional-components/approvels/Cce_approvals.jsx')));
+
 
 const CCE_menus = Loadable(lazy(() => import('pages/functional-components/earas/cce_menus')));
 
@@ -810,6 +812,14 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <Form1Status />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'approval_manage/Cce_approvals',
+      element: (
+        <PrivateRoute>
+          <CceApprovals />
         </PrivateRoute>
       )
     },

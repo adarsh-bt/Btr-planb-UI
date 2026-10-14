@@ -73,7 +73,7 @@ function Form1Status() {
 
   // Server-side pagination
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
   const [totalElements, setTotalElements] = useState(0);
 
   // Client-side sorting
@@ -84,7 +84,7 @@ function Form1Status() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const [snackbar, setSnackbar] = useState({
-    open: false,
+    open: false, 
     message: '',
     severity: 'success'
   });
@@ -757,7 +757,7 @@ function Form1Status() {
                 onPageChange={handleChangePage}
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
-                rowsPerPageOptions={[10, 25, 50, 100]}
+                rowsPerPageOptions={[15, 20, 25, 30]}
                 sx={{
                   mt: 2,
                   '.MuiTablePagination-toolbar': {
