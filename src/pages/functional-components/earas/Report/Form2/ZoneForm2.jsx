@@ -19,7 +19,13 @@ import {
   Stack,
   CircularProgress,
   IconButton,
-  Tooltip
+  Tooltip,
+  Grid,
+  Avatar,
+  Button,
+  TextField,
+  InputAdornment,
+  Divider
 } from '@mui/material';
 import {
   LocationOn,
@@ -30,10 +36,19 @@ import {
   WbSunny,
   Visibility,
   VisibilityOff,
-  InfoOutlined
+  InfoOutlined,
+  Assessment as AssessmentIcon,
+  CheckCircle as CheckCircleIcon,
+  VisibilityOff as VisibilityOffIcon,
+  Download as DownloadIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon,
+  Grass as GrassIcon,
+  Water as WaterIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import mainapi from 'api/mainapi';
 import AuthService from 'pages/authentication/services/authservice';
 import Breadcrumb from 'routes/Breadcrumb';
@@ -56,6 +71,7 @@ const IRR_HEADER_ROW1_H = 44;
 
 // ---- Solid (non-transparent) tint colors for sticky cells ----
 const themeColor = '#05307a';
+const themeColorAlt = '#0b4ea2';
 const stickyTintLight = '#eef1f7';
 const stickyTintSubtotal = '#e4e9f2';
 const stickyTintGrand = '#d2dbe9';
@@ -224,6 +240,42 @@ const ZoneForm2 = () => {
       );
     }
   }, [talukId, selectedTaluk, stateData.districtId, officeInfo, selectedDistrict, agriculturalYear, stateData.activeTab]);
+
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Role auto-redirection if FIELD_DATA_COLLECTOR visits ZoneForm2 directly
+  useEffect(() => {
+    let currentOfficeType = stateData.officeType || officeInfo.officeType;
+    if (!currentOfficeType) {
+      try {
+        const tokenRole = AuthService.getrole();
+        const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
+        const des = localStorage.getItem('des') || '';
+        if (roles.includes('Field Data Collector') || des.includes('Field Data Collector')) {
+          currentOfficeType = 'FIELD_DATA_COLLECTOR';
+        }
+      } catch (e) { }
+    }
+
+    if (currentOfficeType === 'FIELD_DATA_COLLECTOR') {
+      const zoneId = officeInfo.zoneId || AuthService.getzone();
+      navigate('/schemes/earas/cce/Form2', {
+        replace: true,
+        state: {
+          officeType: 'FIELD_DATA_COLLECTOR',
+          viewLevel: 'cluster',
+          zoneId,
+          zoneName: officeInfo.zoneName || '',
+          talukId: officeInfo.talukOfficeId || officeInfo.talukId || talukId,
+          talukName: officeInfo.talukName || selectedTaluk,
+          districtId: officeInfo.districtOfficeId || officeInfo.districtId || stateData.districtId,
+          districtName: officeInfo.districtName || selectedDistrict,
+          agriculturalYear,
+          activeTab
+        }
+      });
+    }
+  }, [stateData, officeInfo, talukId, selectedTaluk, selectedDistrict, agriculturalYear, activeTab, navigate]);
 
   // Fetch master zones on mount
   useEffect(() => {
@@ -557,7 +609,8 @@ const ZoneForm2 = () => {
     }
   };
 
-  const handleZoneClick = (zoneName, zoneId) => {
+  const handleZoneClick = (zoneName, zoneId, blockName) => {
+    if (zoneId == null) return;
     navigate(`/schemes/earas/cce/Form2`, {
       state: {
         officeType: stateData.officeType || 'DIRECTORATE',
@@ -567,12 +620,144 @@ const ZoneForm2 = () => {
         talukId,
         talukName: selectedTaluk,
         selectedTaluk,
+        blockName,
+        selectedBlock: blockName,
         zoneId,
         zoneName,
+        selectedZone: zoneName,
         agriculturalYear,
-        activeTab
+        activeTab,
+        landType: landTypeFilter
       }
     });
+  };
+
+  const filteredLandRows = useMemo(() => {
+    if (!searchTerm.trim()) return landRows;
+    const term = searchTerm.toLowerCase().trim();
+    return landRows.filter((r) => r.zone.toLowerCase().includes(term) || r.block.toLowerCase().includes(term));
+  }, [landRows, searchTerm]);
+
+  const filteredIrrRows = useMemo(() => {
+    if (!searchTerm.trim()) return irrRows;
+    const term = searchTerm.toLowerCase().trim();
+    return irrRows.filter((r) => r.zone.toLowerCase().includes(term) || r.block.toLowerCase().includes(term));
+  }, [irrRows, searchTerm]);
+
+  const filteredLandGrouped = useMemo(() => {
+    return buildOrderedGroups(filteredLandRows);
+  }, [filteredLandRows]);
+
+  const filteredIrrGrouped = useMemo(() => {
+    return buildOrderedGroups(filteredIrrRows);
+  }, [filteredIrrRows]);
+
+  const totalIrrigationArea = useMemo(() => {
+    let sum = 0;
+    Object.values(irrGrandTotals || {}).forEach((t) => {
+      sum += Number(t.area) || 0;
+    });
+    return sum;
+  }, [irrGrandTotals]);
+
+  const handleExportExcel = () => {
+    const isLand = activeTab === 0;
+    const fileNameParts = [
+      'Form2_ZoneReport',
+      (selectedTaluk || 'Taluk').replace(/\s+/g, '_'),
+      isLand ? 'LandUtilization' : 'Irrigation',
+      agriculturalYear,
+      new Date().toISOString().slice(0, 10)
+    ];
+
+    const headerMeta = [
+      [`Form 2 — Zone-wise ${isLand ? 'Land Utilization' : 'Irrigation'} Report`],
+      ['Taluk', `${selectedTaluk} (${selectedDistrict} District)`],
+      ['Agricultural Year', agriculturalYear],
+      ['Land Type Filter', landTypeFilter.toUpperCase()],
+      ['Area Unit', 'Hectares'],
+      ['Exported On', new Date().toLocaleString()],
+      []
+    ];
+
+    if (isLand) {
+      const headerRow = ['#', 'Block', 'Zone', ...landUtilizationDataColumns.map((c) => c.label)];
+      const dataRows = [];
+      let rowNum = 1;
+
+      Object.entries(filteredLandGrouped).forEach(([blockName, zones]) => {
+        zones.forEach((r) => {
+          dataRows.push([
+            rowNum++,
+            r.block,
+            r.zone,
+            ...landUtilizationDataColumns.map((c) => Number((r[c.id] || 0).toFixed(2)))
+          ]);
+        });
+        const bt = landBlockTotals[blockName];
+        if (bt) {
+          dataRows.push([
+            '',
+            `Total for ${blockName}`,
+            '',
+            ...landUtilizationDataColumns.map((c) => Number((bt[c.id] || 0).toFixed(2)))
+          ]);
+        }
+      });
+
+      const totalRow = [
+        '',
+        'GRAND TOTAL',
+        '',
+        ...landUtilizationDataColumns.map((c) => Number((landGrandTotals[c.id] || 0).toFixed(2)))
+      ];
+
+      const worksheet = XLSX.utils.aoa_to_sheet([...headerMeta, headerRow, ...dataRows, totalRow]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Land Utilization');
+      XLSX.writeFile(workbook, `${fileNameParts.join('_')}.xlsx`);
+    } else {
+      const headerRow1 = ['#', 'Block', 'Zone'];
+      const headerRow2 = ['', '', ''];
+      irrigationSources.forEach((s) => {
+        headerRow1.push(s.sourceName, '');
+        headerRow2.push('Count', 'Area (Ha)');
+      });
+
+      const dataRows = [];
+      let rowNum = 1;
+      Object.entries(filteredIrrGrouped).forEach(([blockName, zones]) => {
+        zones.forEach((r) => {
+          const row = [rowNum++, r.block, r.zone];
+          irrigationSources.forEach((s) => {
+            const cell = r.byId[s.sourceId] || { count: 0, area: 0 };
+            row.push(cell.count, Number(cell.area.toFixed(2)));
+          });
+          dataRows.push(row);
+        });
+
+        const bt = irrBlockTotals[blockName];
+        if (bt) {
+          const subtotalRow = ['', `Total for ${blockName}`, ''];
+          irrigationSources.forEach((s) => {
+            const t = bt[s.sourceId] || { count: 0, area: 0 };
+            subtotalRow.push(t.count, Number(t.area.toFixed(2)));
+          });
+          dataRows.push(subtotalRow);
+        }
+      });
+
+      const totalRow = ['', 'GRAND TOTAL', ''];
+      irrigationSources.forEach((s) => {
+        const t = irrGrandTotals[s.sourceId] || { count: 0, area: 0 };
+        totalRow.push(t.count, Number(t.area.toFixed(2)));
+      });
+
+      const worksheet = XLSX.utils.aoa_to_sheet([...headerMeta, headerRow1, headerRow2, ...dataRows, totalRow]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Irrigation');
+      XLSX.writeFile(workbook, `${fileNameParts.join('_')}.xlsx`);
+    }
   };
 
   const landTypeOptions = [
@@ -618,154 +803,336 @@ const ZoneForm2 = () => {
       <Box sx={{ mb: 2 }}>
         <Breadcrumb />
       </Box>
-      <Card sx={{ borderRadius: 3, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
-        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-          <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-            <Box
+      <Card
+        elevation={0}
+        sx={{
+          borderRadius: 4,
+          overflow: 'visible',
+          background: theme.palette.background.paper,
+          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          boxShadow: '0 4px 20px rgba(5,48,122,0.06)'
+        }}
+      >
+        {/* ── Header Band ── */}
+        <Box
+          sx={{
+            background: `linear-gradient(120deg, ${themeColor} 0%, ${themeColorAlt} 55%, #1a6fc4 100%)`,
+            color: '#fff',
+            px: { xs: 2, sm: 3, md: 4 },
+            py: { xs: 2.5, sm: 3 },
+            borderRadius: '16px 16px 0 0',
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            alignItems: { xs: 'flex-start', md: 'center' },
+            justifyContent: 'space-between',
+            gap: 2
+          }}
+        >
+          <Stack direction="row" spacing={2} alignItems="center">
+            <IconButton
               onClick={handleBack}
+              size="small"
               sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-                cursor: 'pointer',
-                color: themeColor,
-                '&:hover': { opacity: 0.7 }
+                bgcolor: 'rgba(255,255,255,0.16)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.3)',
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.28)' }
               }}
             >
-              <ArrowBack />
-              <Typography variant="body2">Back</Typography>
+              <ArrowBack fontSize="small" />
+            </IconButton>
+            <Avatar
+              sx={{
+                bgcolor: 'rgba(255,255,255,0.16)',
+                border: '1px solid rgba(255,255,255,0.35)',
+                width: 54,
+                height: 54
+              }}
+            >
+              <AssessmentIcon sx={{ fontSize: 30 }} />
+            </Avatar>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: 0.2, lineHeight: 1.2 }}>
+                Form 2 — Zone-wise Land Utilization &amp; Irrigation Report - {agriculturalYear}
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.85, mt: 0.5 }}>
+                {selectedTaluk} Taluk ({selectedDistrict} District) • AY {agriculturalYear} • Area in Hectares
+              </Typography>
             </Box>
-            <LocationOn sx={{ fontSize: 32, color: themeColor }} />
-            <Typography variant="h5" sx={{ fontWeight: 'bold', color: themeColor }}>
-              {selectedTaluk} Taluk ({selectedDistrict} District) - Zone wise Land Utilization &amp; Irrigation Report
-            </Typography>
-            <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
-              (Click on any Zone to view detailed report) • Agricultural Year: {agriculturalYear}
-            </Typography>
-            {(zonesWithNoLandData > 0 || zonesWithNoIrrData > 0) && (
+          </Stack>
+
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            <Chip
+              icon={activeTab === 0 ? <GrassIcon sx={{ fontSize: 16, color: '#fff !important' }} /> : <WaterDrop sx={{ fontSize: 16, color: '#fff !important' }} />}
+              label={activeTab === 0 ? 'Land Utilization' : 'Irrigation Details'}
+              size="small"
+              sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }}
+            />
+            {landTypeFilter !== 'all' && (
               <Chip
-                icon={<InfoOutlined />}
-                label={`${Math.max(zonesWithNoLandData, zonesWithNoIrrData)} zones with no data`}
+                label={`${landTypeFilter.toUpperCase()} Land`}
                 size="small"
-                sx={{ ml: 1, bgcolor: alpha('#ff9800', 0.15), color: '#e65100' }}
+                sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }}
               />
             )}
-          </Box>
+            <Chip
+              label={`AY: ${agriculturalYear}`}
+              size="small"
+              sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }}
+            />
+          </Stack>
+        </Box>
 
-          {/* Error */}
+        <CardContent sx={{ p: { xs: 2, sm: 3, md: 3.5 } }}>
+          {/* ── KPI Strip ── */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            {[
+              { label: 'Zones', value: activeTab === 0 ? landRows.length : irrRows.length, icon: <LocationOn />, color: '#1565c0' },
+              {
+                label: activeTab === 0 ? 'Net Area Sown (Ha)' : 'Total Irrigated Area (Ha)',
+                value: formatNumber(activeTab === 0 ? landGrandTotals.netAreaSown : totalIrrigationArea),
+                icon: activeTab === 0 ? <Agriculture /> : <WaterDrop />,
+                color: '#2e7d32'
+              },
+              {
+                label: activeTab === 0 ? 'Categories' : 'Sources',
+                value: activeTab === 0 ? Object.keys(LAND_FIELD_MAP).length : irrigationSources.length,
+                icon: <GrassIcon />,
+                color: '#6a1b9a'
+              },
+              {
+                label: 'With Data',
+                value: activeTab === 0 ? landRows.filter(hasLandData).length : irrRows.filter(hasIrrData).length,
+                icon: <CheckCircleIcon />,
+                color: '#0277bd'
+              },
+              {
+                label: 'No Data',
+                value: activeTab === 0 ? zonesWithNoLandData : zonesWithNoIrrData,
+                icon: <VisibilityOffIcon />,
+                color: '#ef6c00'
+              }
+            ].map((k) => (
+              <Grid item xs={6} sm={4} md={2.4} key={k.label}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 1.75,
+                    borderRadius: 2.5,
+                    border: `1px solid ${alpha(k.color, 0.15)}`,
+                    background: `linear-gradient(135deg, ${alpha(k.color, 0.06)} 0%, ${alpha(k.color, 0.02)} 100%)`,
+                    transition: 'transform 0.18s, box-shadow 0.18s',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: `0 6px 16px ${alpha(k.color, 0.14)}`
+                    }
+                  }}
+                >
+                  <Stack direction="row" alignItems="center" spacing={1.5}>
+                    <Avatar sx={{ bgcolor: alpha(k.color, 0.12), color: k.color, width: 38, height: 38 }}>
+                      {React.cloneElement(k.icon, { sx: { fontSize: 20 } })}
+                    </Avatar>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, letterSpacing: 0.4 }}>
+                        {k.label.toUpperCase()}
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 800, color: k.color, lineHeight: 1.1 }}>
+                        {loading ? <CircularProgress size={16} /> : k.value}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
+
+          {/* ── Filters Paper ── */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              mb: 3,
+              borderRadius: 3,
+              border: `1px solid ${alpha(themeColor, 0.12)}`,
+              bgcolor: alpha(themeColor, 0.015)
+            }}
+          >
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={2}
+              alignItems={{ xs: 'stretch', md: 'center' }}
+              flexWrap="wrap"
+            >
+              {/* Land Type Filter */}
+              <Box sx={{ minWidth: 260 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, letterSpacing: 0.6 }}>
+                  LAND TYPE
+                </Typography>
+                <Tabs
+                  value={landTypeFilter}
+                  onChange={(e, val) => setLandTypeFilter(val)}
+                  variant="fullWidth"
+                  sx={{
+                    minHeight: 40,
+                    mt: 0.5,
+                    border: `1px solid ${alpha(themeColor, 0.2)}`,
+                    borderRadius: 2,
+                    '& .MuiTab-root': {
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      minHeight: 40,
+                      color: 'text.secondary',
+                      '&.Mui-selected': { color: themeColor }
+                    },
+                    '& .MuiTabs-indicator': {
+                      backgroundColor: themeColor,
+                      height: 3,
+                      borderRadius: '3px 3px 0 0'
+                    }
+                  }}
+                >
+                  <Tab label="ALL" value="all" />
+                  <Tab label="WET" value="wet" icon={<WaterDrop sx={{ fontSize: 18 }} />} iconPosition="start" />
+                  <Tab label="DRY" value="dry" icon={<WbSunny sx={{ fontSize: 18 }} />} iconPosition="start" />
+                </Tabs>
+              </Box>
+
+              <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
+
+              {/* Report Tab Selector */}
+              <Box sx={{ minWidth: 300, flex: 1 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, letterSpacing: 0.6 }}>
+                  REPORT SECTION
+                </Typography>
+                <Tabs
+                  value={activeTab}
+                  onChange={handleTabChange}
+                  sx={{
+                    minHeight: 40,
+                    mt: 0.5,
+                    border: `1px solid ${alpha(themeColor, 0.2)}`,
+                    borderRadius: 2,
+                    '& .MuiTab-root': {
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      minHeight: 40,
+                      color: 'text.secondary',
+                      '&.Mui-selected': { color: themeColor }
+                    },
+                    '& .MuiTabs-indicator': {
+                      backgroundColor: themeColor,
+                      height: 3,
+                      borderRadius: '3px 3px 0 0'
+                    }
+                  }}
+                >
+                  <Tab icon={<GrassIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Land Utilization" value={0} />
+                  <Tab icon={<WaterDrop sx={{ fontSize: 18 }} />} iconPosition="start" label="Irrigation Details" value={1} />
+                </Tabs>
+              </Box>
+            </Stack>
+
+            {(zonesWithNoLandData > 0 || zonesWithNoIrrData > 0) && !loading && (
+              <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Chip
+                  icon={<VisibilityOffIcon sx={{ fontSize: 14 }} />}
+                  label={`${Math.max(zonesWithNoLandData, zonesWithNoIrrData)} zone${Math.max(zonesWithNoLandData, zonesWithNoIrrData) > 1 ? 's' : ''} have no data`}
+                  size="small"
+                  sx={{ bgcolor: alpha('#ff9800', 0.14), color: '#e65100', fontWeight: 600 }}
+                />
+              </Box>
+            )}
+          </Paper>
+
+          {/* ── Error Banner ── */}
           {error && (
             <Paper sx={{ p: 2, mb: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
               <Typography color="error">Error: {error}</Typography>
             </Paper>
           )}
 
-          {/* Info Banner for zones with no data */}
-          {(zonesWithNoLandData > 0 || zonesWithNoIrrData > 0) && !loading && (
-            <Paper
-              sx={{
-                p: 1.5,
-                mb: 2,
-                bgcolor: alpha('#ff9800', 0.08),
-                borderRadius: 2,
-                border: `1px solid ${alpha('#ff9800', 0.3)}`,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
-              }}
-            >
-              <InfoOutlined sx={{ color: '#ff9800', fontSize: 20 }} />
-              <Typography variant="body2" color="text.secondary">
-                <strong>{Math.max(zonesWithNoLandData, zonesWithNoIrrData)}</strong> zone{Math.max(zonesWithNoLandData, zonesWithNoIrrData) > 1 ? 's' : ''} have no data available for the selected filters.
-                <strong> View details is disabled for zones without data.</strong>
-              </Typography>
-            </Paper>
-          )}
-
-          {/* Land Type Filter */}
+          {/* ── Search + Export Toolbar ── */}
           <Paper
             elevation={0}
             sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              borderRadius: 3,
-              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+              p: 1.5,
               mb: 2,
-              overflow: 'hidden'
+              borderRadius: 3,
+              border: `1px solid ${alpha(themeColor, 0.12)}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 2,
+              flexWrap: 'wrap'
             }}
           >
-            {landTypeOptions.map((opt, idx) => {
-              const isActive = landTypeFilter === opt.value;
-              return (
-                <Box
-                  key={opt.value}
-                  onClick={() => setLandTypeFilter(opt.value)}
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    px: 2.5,
-                    py: 1.25,
-                    cursor: 'pointer',
-                    borderRight: idx < landTypeOptions.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.15)}` : 'none',
-                    transition: '0.2s',
-                    '&:hover': {
-                      backgroundColor: alpha(themeColor, 0.04)
-                    }
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.75,
-                      color: isActive ? themeColor : 'text.secondary'
-                    }}
-                  >
-                    {opt.icon}
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 600,
-                        letterSpacing: 0.3,
-                        textTransform: 'uppercase',
-                        fontSize: '0.8rem'
-                      }}
-                    >
-                      {opt.label}
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      width: '100%',
-                      height: 2.5,
-                      borderRadius: 1,
-                      backgroundColor: isActive ? themeColor : 'transparent',
-                      transition: '0.2s'
-                    }}
-                  />
-                </Box>
-              );
-            })}
+            <TextField
+              placeholder="Search block or zone..."
+              size="small"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ width: 280 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+                endAdornment: searchTerm && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setSearchTerm('')} edge="end">
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }}
+            />
+
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Chip
+                label={`${activeTab === 0 ? filteredLandRows.length : filteredIrrRows.length} zone${(activeTab === 0 ? filteredLandRows.length : filteredIrrRows.length) !== 1 ? 's' : ''}`}
+                size="small"
+                sx={{ bgcolor: alpha(themeColor, 0.08), color: themeColor, fontWeight: 600 }}
+              />
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<DownloadIcon />}
+                onClick={handleExportExcel}
+                disabled={activeTab === 0 ? filteredLandRows.length === 0 : filteredIrrRows.length === 0}
+                sx={{
+                  borderColor: alpha(themeColor, 0.4),
+                  color: themeColor,
+                  fontWeight: 700,
+                  textTransform: 'none',
+                  px: 2,
+                  py: 0.75,
+                  borderRadius: 2,
+                  '&:hover': {
+                    borderColor: themeColor,
+                    bgcolor: alpha(themeColor, 0.06)
+                  }
+                }}
+              >
+                Export to Excel
+              </Button>
+            </Stack>
           </Paper>
 
-          <Paper elevation={2} sx={{ borderRadius: 2, overflow: 'hidden', border: `1px solid ${alpha(themeColor, 0.1)}` }}>
-            <Tabs
-              value={activeTab}
-              onChange={handleTabChange}
-              centered
-              sx={{
-                bgcolor: alpha(themeColor, 0.05),
-                '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: '1rem', py: 1.5 }
-              }}
-            >
-              <Tab icon={<Agriculture sx={{ fontSize: 20 }} />} iconPosition="start" label="Land Utilization" />
-              <Tab icon={<WaterDrop sx={{ fontSize: 20 }} />} iconPosition="start" label="Irrigation Details" />
-            </Tabs>
-
+          {/* ── Table Container ── */}
+          <Paper
+            elevation={0}
+            sx={{
+              borderRadius: 3,
+              overflow: 'hidden',
+              border: `1px solid ${alpha(themeColor, 0.12)}`,
+              position: 'relative',
+              boxShadow: '0 2px 12px rgba(5,48,122,0.05)'
+            }}
+          >
             {/* ==================== LAND UTILIZATION TAB ==================== */}
             {activeTab === 0 && (
-              <TableContainer sx={{ maxHeight: 550, overflow: 'auto' }}>
+              <TableContainer sx={{ maxHeight: 600, overflow: 'auto' }}>
                 <Table stickyHeader sx={tableSx(LU_TABLE_W)}>
                   <colgroup>
                     {landUtilizationColumns.map((col) => (
@@ -804,7 +1171,7 @@ const ZoneForm2 = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {Object.keys(landGrouped).length === 0 && (
+                    {Object.keys(filteredLandGrouped).length === 0 && (
                       <TableRow>
                         <TableCell colSpan={landUtilizationColumns.length} align="center" sx={{ py: 6 }}>
                           <Typography color="text.secondary">No data available</Typography>
@@ -812,7 +1179,7 @@ const ZoneForm2 = () => {
                       </TableRow>
                     )}
 
-                    {Object.entries(landGrouped).map(([blockName, zones]) => {
+                    {Object.entries(filteredLandGrouped).map(([blockName, zones]) => {
                       const rows = [];
                       const blockTotal = landBlockTotals[blockName];
 
@@ -825,7 +1192,7 @@ const ZoneForm2 = () => {
                           <TableRow
                             key={`${blockName}-${zone.zone}-${zone.zoneId}`}
                             hover={isClickable}
-                            onClick={() => isClickable && handleZoneClick(zone.zone, zone.zoneId)}
+                            onClick={() => isClickable && handleZoneClick(zone.zone, zone.zoneId, blockName)}
                             sx={{
                               cursor: isClickable ? 'pointer' : 'default',
                               '&:hover': isClickable ? { bgcolor: alpha(themeColor, 0.08) } : undefined,
@@ -940,7 +1307,7 @@ const ZoneForm2 = () => {
                                   color: active ? 'inherit' : 'text.disabled'
                                 }}
                               >
-                                {active ? formatNumber(blockTotal[col.id]) : '—'}
+                                {active && blockTotal ? formatNumber(blockTotal[col.id]) : '—'}
                               </TableCell>
                             );
                           })}
@@ -949,6 +1316,41 @@ const ZoneForm2 = () => {
 
                       return rows;
                     })}
+
+                    {/* Grand Total Row */}
+                    {filteredLandRows.length > 0 && (
+                      <TableRow sx={{ bgcolor: stickyTintGrand }}>
+                        <TableCell
+                          colSpan={2}
+                          align="center"
+                          sx={{
+                            ...stickyCellSx(0, stickyTintGrand),
+                            fontWeight: 800,
+                            color: themeColor,
+                            zIndex: 2,
+                            borderRight: `1px solid ${alpha(themeColor, 0.2)}`
+                          }}
+                        >
+                          GRAND TOTAL
+                        </TableCell>
+                        {landUtilizationDataColumns.map((col) => {
+                          const active = isColumnActive(col);
+                          return (
+                            <TableCell
+                              key={col.id}
+                              align="right"
+                              sx={{
+                                fontWeight: 800,
+                                color: active ? themeColor : 'text.disabled',
+                                bgcolor: stickyTintGrand
+                              }}
+                            >
+                              {active ? formatNumber(landGrandTotals[col.id]) : '—'}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -1045,7 +1447,7 @@ const ZoneForm2 = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {Object.keys(irrGrouped).length === 0 && (
+                    {Object.keys(filteredIrrGrouped).length === 0 && (
                       <TableRow>
                         <TableCell colSpan={(irrigationSources.length || 1) * 2 + 2} align="center" sx={{ py: 6 }}>
                           <Typography color="text.secondary">No data available</Typography>
@@ -1053,7 +1455,7 @@ const ZoneForm2 = () => {
                       </TableRow>
                     )}
 
-                    {Object.entries(irrGrouped).map(([blockName, zones]) => {
+                    {Object.entries(filteredIrrGrouped).map(([blockName, zones]) => {
                       const rows = [];
 
                       zones.forEach((zone, idx) => {
@@ -1065,7 +1467,7 @@ const ZoneForm2 = () => {
                           <TableRow
                             key={`${blockName}-${zone.zone}-${zone.zoneId}`}
                             hover={isClickable}
-                            onClick={() => isClickable && handleZoneClick(zone.zone, zone.zoneId)}
+                            onClick={() => isClickable && handleZoneClick(zone.zone, zone.zoneId, blockName)}
                             sx={{
                               cursor: isClickable ? 'pointer' : 'default',
                               '&:hover': isClickable ? { bgcolor: alpha(themeColor, 0.08) } : undefined,
@@ -1171,14 +1573,14 @@ const ZoneForm2 = () => {
                           </TableCell>
                           {irrigationSources.map((source) => {
                             const active = isSourceActive(source.sourceId);
-                            const t = blockTotal[source.sourceId] || { count: 0, area: 0 };
+                            const t = blockTotal ? blockTotal[source.sourceId] : { count: 0, area: 0 };
                             return (
                               <React.Fragment key={source.sourceId}>
                                 <TableCell align="center" sx={{ fontWeight: 700, bgcolor: stickyTintSubtotal, color: active ? 'inherit' : 'text.disabled' }}>
-                                  {active && t.count > 0 ? t.count : '-'}
+                                  {active && t && t.count > 0 ? t.count : '-'}
                                 </TableCell>
                                 <TableCell align="right" sx={{ fontWeight: 700, bgcolor: stickyTintSubtotal, color: active ? 'inherit' : 'text.disabled' }}>
-                                  {active && t.area > 0 ? formatNumber(t.area) : '-'}
+                                  {active && t && t.area > 0 ? formatNumber(t.area) : '-'}
                                 </TableCell>
                               </React.Fragment>
                             );
@@ -1188,6 +1590,53 @@ const ZoneForm2 = () => {
 
                       return rows;
                     })}
+
+                    {/* Grand Total Row */}
+                    {filteredIrrRows.length > 0 && (
+                      <TableRow sx={{ bgcolor: stickyTintGrand }}>
+                        <TableCell
+                          colSpan={2}
+                          align="center"
+                          sx={{
+                            ...stickyCellSx(0, stickyTintGrand),
+                            fontWeight: 800,
+                            color: themeColor,
+                            zIndex: 2,
+                            borderRight: `1px solid ${alpha(themeColor, 0.2)}`
+                          }}
+                        >
+                          GRAND TOTAL
+                        </TableCell>
+                        {irrigationSources.map((source) => {
+                          const active = isSourceActive(source.sourceId);
+                          const t = irrGrandTotals[source.sourceId] || { count: 0, area: 0 };
+                          return (
+                            <React.Fragment key={source.sourceId}>
+                              <TableCell
+                                align="center"
+                                sx={{
+                                  fontWeight: 800,
+                                  bgcolor: stickyTintGrand,
+                                  color: active ? themeColor : 'text.disabled'
+                                }}
+                              >
+                                {active && t.count > 0 ? t.count : '—'}
+                              </TableCell>
+                              <TableCell
+                                align="right"
+                                sx={{
+                                  fontWeight: 800,
+                                  bgcolor: stickyTintGrand,
+                                  color: active ? themeColor : 'text.disabled'
+                                }}
+                              >
+                                {active && t.area > 0 ? formatNumber(t.area) : '—'}
+                              </TableCell>
+                            </React.Fragment>
+                          );
+                        })}
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>

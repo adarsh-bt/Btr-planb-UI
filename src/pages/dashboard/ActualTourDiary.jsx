@@ -54,10 +54,13 @@ import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import SaveIcon from "@mui/icons-material/Save";
 import InfoIcon from "@mui/icons-material/Info";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import tourDiaryService from "pages/authentication/services/tourdiaryservice";
+import profileService from "pages/profile/profileservice";
 import Breadcrumb from "routes/Breadcrumb";
 import MainCard from "components/MainCard";
 import authservice from "pages/authentication/services/authservice";
+import { exportTourDiaryPdf } from "utils/tourDiaryPdfGenerator";
 
 const UserTourDiaryDetail = () => {
   const theme = useTheme();
@@ -164,6 +167,7 @@ const UserTourDiaryDetail = () => {
   const [tourEntries, setTourEntries] = useState([]);
   const [userDetails, setUserDetails] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState(paramUserId || currentUserId);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Modal states
   const [selectedDate, setSelectedDate] = useState(null);
@@ -862,6 +866,67 @@ const UserTourDiaryDetail = () => {
   useEffect(() => {
     if (editSelectedScheme) { fetchPurposesByScheme(editSelectedScheme); } else { setPurposes([]); }
   }, [editSelectedScheme]);
+
+  const handleExportPdf = async () => {
+    try {
+      setIsGeneratingPdf(true);
+      let officerDetails = userDetails;
+      if (!officerDetails || !officerDetails.name || officerDetails.name === 'N/A') {
+        try {
+          const profileRes = await profileService.fetchUserById(selectedUserId);
+          const pData = profileRes?.payload || profileRes?.data || profileRes;
+          if (pData) {
+            officerDetails = {
+              name: pData.name || pData.userName || authservice.userName() || "Employee",
+              penNumber: pData.penNumber || pData.empNumber || pData.employeeId || authservice.penNumber() || "N/A",
+              empNumber: pData.empNumber || pData.penNumber || authservice.penNumber() || "N/A",
+              designation: pData.designation || role || "N/A",
+              officelocation: pData.officelocation || pData.officeLocation || authservice.locationName() || "N/A"
+            };
+          }
+        } catch (e) {
+          console.warn("Could not fetch user profile for PDF:", e);
+        }
+      }
+
+      const safeUserDetails = {
+        name: officerDetails?.name || authservice.userName() || "Employee",
+        penNumber: officerDetails?.penNumber || officerDetails?.empNumber || authservice.penNumber() || "N/A",
+        empNumber: officerDetails?.empNumber || officerDetails?.penNumber || authservice.penNumber() || "N/A",
+        designation: officerDetails?.designation || role || "N/A",
+        officelocation: officerDetails?.officelocation || officerDetails?.officeLocation || authservice.locationName() || "N/A"
+      };
+
+      await exportTourDiaryPdf({
+        tourEntries,
+        userDetails: safeUserDetails,
+        selectedMonth,
+        selectedYear,
+        fullMonthStatus,
+        getZoneName: (zId, entry) => getZoneName(zId, entry),
+        getPurposeName: (pId) => {
+          if (!pId) return '—';
+          const p = purposes.find(item => Number(item.id) === Number(pId));
+          return p?.purposeName || '—';
+        }
+      });
+
+      setSnackbar({
+        open: true,
+        severity: "success",
+        message: "Tour Diary PDF downloaded successfully"
+      });
+    } catch (err) {
+      console.error("Error generating Tour Diary PDF:", err);
+      setSnackbar({
+        open: true,
+        severity: "error",
+        message: "Failed to generate Tour Diary PDF"
+      });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   const handleBack = () => navigate(-1);
 
@@ -1753,7 +1818,22 @@ const UserTourDiaryDetail = () => {
                   {monthNames[selectedMonth - 1]} {selectedYear}
                 </Typography>
 
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '250px', justifyContent: 'flex-end' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  <Button
+                    variant="contained"
+                    startIcon={isGeneratingPdf ? <CircularProgress size={18} color="inherit" /> : <PictureAsPdfIcon />}
+                    onClick={handleExportPdf}
+                    disabled={tourEntries.length === 0 || isGeneratingPdf}
+                    sx={{
+                      backgroundColor: '#d32f2f',
+                      '&:hover': { backgroundColor: '#b71c1c' },
+                      whiteSpace: 'nowrap',
+                      minWidth: '130px',
+                      fontWeight: 600
+                    }}
+                  >
+                    {isGeneratingPdf ? "Generating..." : "Download PDF"}
+                  </Button>
                   <Tooltip title={isMonthSubmitted() ? "Full Month has already been submitted" : "Submit Full Month"}>
                     <span>
                       <Button

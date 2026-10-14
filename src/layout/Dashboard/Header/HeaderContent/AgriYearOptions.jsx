@@ -68,8 +68,8 @@ export default function AgriYearOptions() {
     }
 
     // TESTING ONLY
-    yearsList.push('2027-2028');
-    yearsList.push('2028-2029');
+    // yearsList.push('2027-2028');
+    // yearsList.push('2028-2029');
 
     return yearsList;
   };

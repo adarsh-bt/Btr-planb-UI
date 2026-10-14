@@ -18,7 +18,13 @@ import {
   Chip,
   IconButton,
   CircularProgress,
-  Stack
+  Stack,
+  Grid,
+  Avatar,
+  Button,
+  TextField,
+  InputAdornment,
+  Divider
 } from '@mui/material';
 import {
   LocationOn,
@@ -26,21 +32,29 @@ import {
   Agriculture,
   WbSunny,
   ArrowBack,
-  InfoOutlined
+  InfoOutlined,
+  Assessment as AssessmentIcon,
+  CheckCircle as CheckCircleIcon,
+  VisibilityOff as VisibilityOffIcon,
+  Download as DownloadIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon,
+  Grass as GrassIcon,
+  Water as WaterIcon,
+  Store as StoreIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import mainapi from 'api/mainapi';
 import AuthService from 'pages/authentication/services/authservice';
 import Breadcrumb from 'routes/Breadcrumb';
 import api from 'api/api';
 
-// Gateway root (e.g. http://localhost:8080). The '/earas-form1-entry' service
-// prefix is added on the request path below.
-// NOTE: if mainapi.FORM_API already ends in '/earas-form1-entry',
-// drop the duplicate segment from the URL to avoid a doubled prefix (404).
 const BASE_URL = mainapi.FORM_API;
 const BTR_BASE_URL = mainapi.BTR_API;
+const themeColor = '#05307a';
+const themeColorAlt = '#0b4ea2';
 
 const SESSION_KEY = 'talukForm2State';
 
@@ -176,6 +190,8 @@ const TalukForm2 = () => {
     }
   };
 
+  const [searchTerm, setSearchTerm] = useState('');
+
   // Role auto-redirection if TALUK user visits TalukForm2 directly
   useEffect(() => {
     let currentOfficeType = stateData.officeType || officeInfo.officeType;
@@ -184,10 +200,33 @@ const TalukForm2 = () => {
         const tokenRole = AuthService.getrole();
         const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
         const des = localStorage.getItem('des') || '';
-        if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
+        if (roles.includes('Field Data Collector') || des.includes('Field Data Collector')) {
+          currentOfficeType = 'FIELD_DATA_COLLECTOR';
+        } else if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
           currentOfficeType = 'TALUK';
         }
       } catch (e) { }
+    }
+
+    if (currentOfficeType === 'FIELD_DATA_COLLECTOR') {
+      const zoneId = officeInfo.zoneId || AuthService.getzone();
+      navigate('/schemes/earas/cce/Form2', {
+        replace: true,
+        state: {
+          officeType: 'FIELD_DATA_COLLECTOR',
+          viewLevel: 'cluster',
+          zoneId,
+          zoneName: officeInfo.zoneName || '',
+          talukId: officeInfo.talukOfficeId || officeInfo.talukId,
+          talukName: officeInfo.talukName || '',
+          districtId,
+          districtName,
+          isDirectAccess: true,
+          landType: landTypeFilter,
+          activeTab: stateData.activeTab || 0
+        }
+      });
+      return;
     }
 
     if (currentOfficeType === 'TALUK') {
@@ -445,7 +484,8 @@ const TalukForm2 = () => {
 
   // Check if a taluk has any irrigation data
   const hasIrrigationData = (row) => {
-    return Object.keys(row.byId).length > 0;
+    if (!row.byId) return false;
+    return Object.values(row.byId).some((v) => v && (v.count > 0 || v.area > 0));
   };
 
   // Count taluks with no irrigation data
@@ -533,6 +573,94 @@ const TalukForm2 = () => {
     { value: 'dry', label: 'Dry', icon: <WbSunny sx={{ fontSize: 18 }} /> }
   ];
 
+  const filteredTalukData = useMemo(() => {
+    if (!searchTerm.trim()) return talukData;
+    const term = searchTerm.toLowerCase().trim();
+    return talukData.filter((r) => r.taluk.toLowerCase().includes(term));
+  }, [talukData, searchTerm]);
+
+  const filteredIrrigationRows = useMemo(() => {
+    if (!searchTerm.trim()) return irrigationRows;
+    const term = searchTerm.toLowerCase().trim();
+    return irrigationRows.filter((r) => r.taluk.toLowerCase().includes(term));
+  }, [irrigationRows, searchTerm]);
+
+  const totalIrrigationArea = useMemo(() => {
+    let sum = 0;
+    Object.values(irrigationTotals).forEach((t) => {
+      sum += Number(t.area) || 0;
+    });
+    return sum;
+  }, [irrigationTotals]);
+
+  const handleExportExcel = () => {
+    const isLand = activeTab === 0;
+    const currentRows = isLand ? filteredTalukData : filteredIrrigationRows;
+    if (!currentRows || currentRows.length === 0) return;
+
+    const fileNameParts = [
+      'Form2_TalukReport',
+      (districtName || 'District').replace(/\s+/g, '_'),
+      isLand ? 'LandUtilization' : 'Irrigation',
+      agriculturalYear,
+      new Date().toISOString().slice(0, 10)
+    ];
+
+    const headerMeta = [
+      [`Form 2 — Taluk-wise ${isLand ? 'Land Utilization' : 'Irrigation'} Report`],
+      ['District', districtName],
+      ['Agricultural Year', agriculturalYear],
+      ['Land Type Filter', landTypeFilter.toUpperCase()],
+      ['Area Unit', 'Hectares'],
+      ['Exported On', new Date().toLocaleString()],
+      []
+    ];
+
+    if (isLand) {
+      const headerRow = ['#', 'Taluk', ...landUtilizationColumns.filter((c) => c.id !== 'taluk').map((c) => c.label)];
+      const dataRows = currentRows.map((r, i) => [
+        i + 1,
+        r.taluk,
+        ...landUtilizationColumns.filter((c) => c.id !== 'taluk').map((c) => Number((r[c.id] || 0).toFixed(2)))
+      ]);
+      const totalRow = [
+        '',
+        'GRAND TOTAL',
+        ...landUtilizationColumns.filter((c) => c.id !== 'taluk').map((c) => Number((landUtilizationTotals[c.id] || 0).toFixed(2)))
+      ];
+      const worksheet = XLSX.utils.aoa_to_sheet([...headerMeta, headerRow, ...dataRows, totalRow]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Land Utilization');
+      XLSX.writeFile(workbook, `${fileNameParts.join('_')}.xlsx`);
+    } else {
+      const headerRow1 = ['#', 'Taluk'];
+      const headerRow2 = ['', ''];
+      irrigationSources.forEach((s) => {
+        headerRow1.push(s.sourceName, '');
+        headerRow2.push('Count', 'Area (Ha)');
+      });
+      const dataRows = currentRows.map((r, i) => {
+        const row = [i + 1, r.taluk];
+        irrigationSources.forEach((s) => {
+          const cell = r.byId[s.sourceId] || { count: 0, area: 0 };
+          row.push(cell.count, Number(cell.area.toFixed(2)));
+        });
+        return row;
+      });
+      const totalRow = ['', 'GRAND TOTAL'];
+      irrigationSources.forEach((s) => {
+        const t = irrigationTotals[s.sourceId] || { count: 0, area: 0 };
+        totalRow.push(t.count, Number(t.area.toFixed(2)));
+      });
+      const worksheet = XLSX.utils.aoa_to_sheet([...headerMeta, headerRow1, headerRow2, ...dataRows, totalRow]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Irrigation');
+      XLSX.writeFile(workbook, `${fileNameParts.join('_')}.xlsx`);
+    }
+  };
+
+  const exportDisabled = (activeTab === 0 ? filteredTalukData.length === 0 : filteredIrrigationRows.length === 0) || loading;
+
   /* ─────────────────────────── render ─────────────────────────── */
 
   if ((loading || masterTaluksLoading) && landData.length === 0 && irrigationApiData.length === 0 && taluksList.length === 0) {
@@ -557,164 +685,327 @@ const TalukForm2 = () => {
           borderRadius: 4,
           overflow: 'visible',
           background: theme.palette.background.paper,
-          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          boxShadow: '0 4px 20px rgba(5,48,122,0.06)'
         }}
       >
-        <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-          {/* Header */}
-          <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            <IconButton onClick={handleBack} size="small" sx={{ color: themeColor, mr: 0.5 }}>
-              <ArrowBack />
+        {/* ── Header Band ── */}
+        <Box
+          sx={{
+            background: `linear-gradient(120deg, ${themeColor} 0%, ${themeColorAlt} 55%, #1a6fc4 100%)`,
+            color: '#fff',
+            px: { xs: 2, sm: 3, md: 4 },
+            py: { xs: 2.5, sm: 3 },
+            borderRadius: '16px 16px 0 0',
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            alignItems: { xs: 'flex-start', md: 'center' },
+            justifyContent: 'space-between',
+            gap: 2
+          }}
+        >
+          <Stack direction="row" spacing={2} alignItems="center">
+            <IconButton
+              onClick={handleBack}
+              size="small"
+              sx={{
+                bgcolor: 'rgba(255,255,255,0.16)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.3)',
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.28)' }
+              }}
+            >
+              <ArrowBack fontSize="small" />
             </IconButton>
-            <LocationOn sx={{ fontSize: 32, color: themeColor }} />
-            <Typography variant="h5" sx={{ fontWeight: 'bold', color: themeColor }}>
-              {districtName} District - Taluk-wise Land Utilization &amp; Irrigation Report
-            </Typography>
-            <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
-              Agricultural Year: {agriculturalYear}
-            </Typography>
-            {(taluksWithNoData > 0 || taluksWithNoIrrigationData > 0) && (
+            <Avatar
+              sx={{
+                bgcolor: 'rgba(255,255,255,0.16)',
+                border: '1px solid rgba(255,255,255,0.35)',
+                width: 54,
+                height: 54
+              }}
+            >
+              <AssessmentIcon sx={{ fontSize: 30 }} />
+            </Avatar>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: 0.2, lineHeight: 1.2 }}>
+                Form 2 — Taluk-wise Land Utilization &amp; Irrigation Report - {agriculturalYear}
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.85, mt: 0.5 }}>
+                {districtName} District • Agricultural Year {agriculturalYear} • Area in Hectares
+              </Typography>
+            </Box>
+          </Stack>
+
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            <Chip
+              icon={activeTab === 0 ? <GrassIcon sx={{ fontSize: 16, color: '#fff !important' }} /> : <WaterDrop sx={{ fontSize: 16, color: '#fff !important' }} />}
+              label={activeTab === 0 ? 'Land Utilization' : 'Irrigation Details'}
+              size="small"
+              sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }}
+            />
+            {landTypeFilter !== 'all' && (
               <Chip
-                icon={<InfoOutlined />}
-                label={`${Math.max(taluksWithNoData, taluksWithNoIrrigationData)} taluks with no data`}
+                label={`${landTypeFilter.toUpperCase()} Land`}
                 size="small"
-                sx={{ ml: 1, bgcolor: alpha('#ff9800', 0.15), color: '#e65100' }}
+                sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }}
               />
             )}
-          </Box>
+            <Chip
+              label={`AY: ${agriculturalYear}`}
+              size="small"
+              sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }}
+            />
+          </Stack>
+        </Box>
 
-          {/* Error */}
+        <CardContent sx={{ p: { xs: 2, sm: 3, md: 3.5 } }}>
+          {/* ── KPI Strip ── */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            {[
+              { label: 'Taluks', value: talukData.length, icon: <LocationOn />, color: '#1565c0' },
+              {
+                label: activeTab === 0 ? 'Net Area Sown (Ha)' : 'Total Irrigated Area (Ha)',
+                value: formatNumber(activeTab === 0 ? landUtilizationTotals.netAreaSown : totalIrrigationArea),
+                icon: activeTab === 0 ? <Agriculture /> : <WaterDrop />,
+                color: '#2e7d32'
+              },
+              {
+                label: activeTab === 0 ? 'Categories' : 'Sources',
+                value: activeTab === 0 ? Object.keys(LAND_FIELD_MAP).length : irrigationSources.length,
+                icon: <GrassIcon />,
+                color: '#6a1b9a'
+              },
+              {
+                label: 'With Data',
+                value: activeTab === 0 ? talukData.filter(hasTalukData).length : irrigationRows.filter(hasIrrigationData).length,
+                icon: <CheckCircleIcon />,
+                color: '#0277bd'
+              },
+              {
+                label: 'No Data',
+                value: activeTab === 0 ? taluksWithNoData : taluksWithNoIrrigationData,
+                icon: <VisibilityOffIcon />,
+                color: '#ef6c00'
+              }
+            ].map((k) => (
+              <Grid item xs={6} sm={4} md={2.4} key={k.label}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 1.75,
+                    borderRadius: 2.5,
+                    border: `1px solid ${alpha(k.color, 0.15)}`,
+                    background: `linear-gradient(135deg, ${alpha(k.color, 0.06)} 0%, ${alpha(k.color, 0.02)} 100%)`,
+                    transition: 'transform 0.18s, box-shadow 0.18s',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: `0 6px 16px ${alpha(k.color, 0.14)}`
+                    }
+                  }}
+                >
+                  <Stack direction="row" alignItems="center" spacing={1.5}>
+                    <Avatar sx={{ bgcolor: alpha(k.color, 0.12), color: k.color, width: 38, height: 38 }}>
+                      {React.cloneElement(k.icon, { sx: { fontSize: 20 } })}
+                    </Avatar>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, letterSpacing: 0.4 }}>
+                        {k.label.toUpperCase()}
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 800, color: k.color, lineHeight: 1.1 }}>
+                        {loading ? <CircularProgress size={16} /> : k.value}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
+
+          {/* ── Filters Paper ── */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              mb: 3,
+              borderRadius: 3,
+              border: `1px solid ${alpha(themeColor, 0.12)}`,
+              bgcolor: alpha(themeColor, 0.015)
+            }}
+          >
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={2}
+              alignItems={{ xs: 'stretch', md: 'center' }}
+              flexWrap="wrap"
+            >
+              {/* Land Type Filter */}
+              <Box sx={{ minWidth: 260 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, letterSpacing: 0.6 }}>
+                  LAND TYPE
+                </Typography>
+                <Tabs
+                  value={landTypeFilter}
+                  onChange={(e, val) => setLandTypeFilter(val)}
+                  variant="fullWidth"
+                  sx={{
+                    minHeight: 40,
+                    mt: 0.5,
+                    border: `1px solid ${alpha(themeColor, 0.2)}`,
+                    borderRadius: 2,
+                    '& .MuiTab-root': {
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      minHeight: 40,
+                      color: 'text.secondary',
+                      '&.Mui-selected': { color: themeColor }
+                    },
+                    '& .MuiTabs-indicator': {
+                      backgroundColor: themeColor,
+                      height: 3,
+                      borderRadius: '3px 3px 0 0'
+                    }
+                  }}
+                >
+                  <Tab label="ALL" value="all" />
+                  <Tab label="WET" value="wet" icon={<WaterDrop sx={{ fontSize: 18 }} />} iconPosition="start" />
+                  <Tab label="DRY" value="dry" icon={<WbSunny sx={{ fontSize: 18 }} />} iconPosition="start" />
+                </Tabs>
+              </Box>
+
+              <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
+
+              {/* Report Tab Selector */}
+              <Box sx={{ minWidth: 300, flex: 1 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, letterSpacing: 0.6 }}>
+                  REPORT SECTION
+                </Typography>
+                <Tabs
+                  value={activeTab}
+                  onChange={handleTabChange}
+                  sx={{
+                    minHeight: 40,
+                    mt: 0.5,
+                    border: `1px solid ${alpha(themeColor, 0.2)}`,
+                    borderRadius: 2,
+                    '& .MuiTab-root': {
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      minHeight: 40,
+                      color: 'text.secondary',
+                      '&.Mui-selected': { color: themeColor }
+                    },
+                    '& .MuiTabs-indicator': {
+                      backgroundColor: themeColor,
+                      height: 3,
+                      borderRadius: '3px 3px 0 0'
+                    }
+                  }}
+                >
+                  <Tab icon={<GrassIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Land Utilization" value={0} />
+                  <Tab icon={<WaterDrop sx={{ fontSize: 18 }} />} iconPosition="start" label="Irrigation Details" value={1} />
+                </Tabs>
+              </Box>
+            </Stack>
+
+            {(taluksWithNoData > 0 || taluksWithNoIrrigationData > 0) && !loading && (
+              <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Chip
+                  icon={<VisibilityOffIcon sx={{ fontSize: 14 }} />}
+                  label={`${Math.max(taluksWithNoData, taluksWithNoIrrigationData)} taluk${Math.max(taluksWithNoData, taluksWithNoIrrigationData) > 1 ? 's' : ''} have no data`}
+                  size="small"
+                  sx={{ bgcolor: alpha('#ff9800', 0.14), color: '#e65100', fontWeight: 600 }}
+                />
+              </Box>
+            )}
+          </Paper>
+
+          {/* ── Error Banner ── */}
           {error && (
             <Paper sx={{ p: 2, mb: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
               <Typography color="error">Error: {error}</Typography>
             </Paper>
           )}
 
-          {/* Info Banner for taluks with no data */}
-          {(taluksWithNoData > 0 || taluksWithNoIrrigationData > 0) && !loading && (
-            <Paper
-              sx={{
-                p: 1.5,
-                mb: 2,
-                bgcolor: alpha('#ff9800', 0.08),
-                borderRadius: 2,
-                border: `1px solid ${alpha('#ff9800', 0.3)}`,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
-              }}
-            >
-              <InfoOutlined sx={{ color: '#ff9800', fontSize: 20 }} />
-              <Typography variant="body2" color="text.secondary">
-                <strong>{Math.max(taluksWithNoData, taluksWithNoIrrigationData)}</strong> taluk{Math.max(taluksWithNoData, taluksWithNoIrrigationData) > 1 ? 's' : ''} have no data available for the selected filters.
-                <strong> View details is disabled for taluks without data.</strong>
-              </Typography>
-            </Paper>
-          )}
-
-          {/* Land Type Filter - applies to both tabs */}
+          {/* ── Search + Export Toolbar ── */}
           <Paper
             elevation={0}
             sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              borderRadius: 3,
-              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+              p: 1.5,
               mb: 2,
-              overflow: 'hidden'
+              borderRadius: 3,
+              border: `1px solid ${alpha(themeColor, 0.12)}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 2,
+              flexWrap: 'wrap'
             }}
           >
-            {landTypeOptions.map((opt, idx) => {
-              const isActive = landTypeFilter === opt.value;
-              return (
-                <Box
-                  key={opt.value}
-                  onClick={() => setLandTypeFilter(opt.value)}
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    px: 2.5,
-                    py: 1.25,
-                    cursor: 'pointer',
-                    borderRight: idx < landTypeOptions.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.15)}` : 'none',
-                    transition: '0.2s',
-                    '&:hover': {
-                      backgroundColor: alpha(themeColor, 0.04)
-                    }
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.75,
-                      color: isActive ? themeColor : 'text.secondary'
-                    }}
-                  >
-                    {opt.icon}
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 600,
-                        letterSpacing: 0.3,
-                        textTransform: 'uppercase',
-                        fontSize: '0.8rem'
-                      }}
-                    >
-                      {opt.label}
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      width: '100%',
-                      height: 2.5,
-                      borderRadius: 1,
-                      backgroundColor: isActive ? themeColor : 'transparent',
-                      transition: '0.2s'
-                    }}
-                  />
-                </Box>
-              );
-            })}
+            <TextField
+              placeholder="Search taluk..."
+              size="small"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ width: 280 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+                endAdornment: searchTerm && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setSearchTerm('')} edge="end">
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }}
+            />
+
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Chip
+                label={`${activeTab === 0 ? filteredTalukData.length : filteredIrrigationRows.length} row${(activeTab === 0 ? filteredTalukData.length : filteredIrrigationRows.length) !== 1 ? 's' : ''}`}
+                size="small"
+                sx={{ bgcolor: alpha(themeColor, 0.08), color: themeColor, fontWeight: 600 }}
+              />
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<DownloadIcon />}
+                onClick={handleExportExcel}
+                disabled={exportDisabled}
+                sx={{
+                  borderColor: alpha(themeColor, 0.4),
+                  color: themeColor,
+                  fontWeight: 700,
+                  textTransform: 'none',
+                  px: 2,
+                  py: 0.75,
+                  borderRadius: 2,
+                  '&:hover': {
+                    borderColor: themeColor,
+                    bgcolor: alpha(themeColor, 0.06)
+                  }
+                }}
+              >
+                Export to Excel
+              </Button>
+            </Stack>
           </Paper>
 
-          {/* Tabs Section */}
+          {/* ── Table Container ── */}
           <Paper
-            elevation={2}
+            elevation={0}
             sx={{
               borderRadius: 3,
               overflow: 'hidden',
-              border: `1px solid ${alpha(themeColor, 0.1)}`
+              border: `1px solid ${alpha(themeColor, 0.12)}`,
+              position: 'relative',
+              boxShadow: '0 2px 12px rgba(5,48,122,0.05)'
             }}
           >
-            <Tabs
-              value={activeTab}
-              onChange={handleTabChange}
-              centered
-              sx={{
-                backgroundColor: alpha(themeColor, 0.05),
-                '& .MuiTab-root': {
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  fontSize: '1rem',
-                  py: 1.5,
-                  minHeight: 'auto',
-                  '&.Mui-selected': {
-                    color: themeColor
-                  }
-                },
-                '& .MuiTabs-indicator': {
-                  backgroundColor: themeColor,
-                  height: 3
-                }
-              }}
-            >
-              <Tab icon={<Agriculture sx={{ fontSize: 20 }} />} iconPosition="start" label="Land Utilization" />
-              <Tab icon={<WaterDrop sx={{ fontSize: 20 }} />} iconPosition="start" label="Irrigation Details" />
-            </Tabs>
-
             {/* Land Utilization Tab */}
             <Box role="tabpanel" hidden={activeTab !== 0} sx={{ p: 0 }}>
               {activeTab === 0 && (
@@ -757,8 +1048,8 @@ const TalukForm2 = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {talukData.length > 0 ? (
-                        talukData.map((row, index) => {
+                      {filteredTalukData.length > 0 ? (
+                        filteredTalukData.map((row, index) => {
                           const clickable = row.talukId != null;
                           const hasData = hasTalukData(row);
                           const serialNumber = index + 1;
@@ -846,7 +1137,7 @@ const TalukForm2 = () => {
                         </TableRow>
                       )}
                       {/* Total Row */}
-                      {talukData.length > 0 && (
+                      {filteredTalukData.length > 0 && (
                         <TableRow sx={{ backgroundColor: alpha(themeColor, 0.08) }}>
                           <TableCell align="center" sx={{ fontWeight: 700, color: themeColor }}>
                             T
@@ -948,9 +1239,9 @@ const TalukForm2 = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {irrigationRows.length > 0 ? (
+                      {filteredIrrigationRows.length > 0 ? (
                         <>
-                          {irrigationRows.map((row, index) => {
+                          {filteredIrrigationRows.map((row, index) => {
                             const clickable = row.talukId != null;
                             const hasData = hasIrrigationData(row);
                             const serialNumber = index + 1;

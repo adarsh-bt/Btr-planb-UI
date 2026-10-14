@@ -42,10 +42,13 @@ import InfoIcon from '@mui/icons-material/Info';
 import EventIcon from '@mui/icons-material/Event';
 import AddIcon from '@mui/icons-material/Add';
 import CheckIcon from '@mui/icons-material/Check';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
 import tourDiaryService from 'pages/authentication/services/tourdiaryservice';
+import profileService from 'pages/profile/profileservice';
 import authservice from 'pages/authentication/services/authservice';
+import { exportAdvancedTourDiaryPdf } from 'utils/tourDiaryPdfGenerator';
 import { id } from 'date-fns/locale';
 
 const TourDiary = () => {
@@ -86,6 +89,7 @@ const TourDiary = () => {
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [activeHalves, setActiveHalves] = useState({ firstHalf: 0, secondHalf: 0 });
     const [submissionStatus, setSubmissionStatus] = useState({ firstHalf: null, secondHalf: null, loading: false });
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState(0);
@@ -1423,6 +1427,56 @@ const TourDiary = () => {
         return rows;
     };
 
+    const handleExportPdf = async () => {
+        try {
+            setIsGeneratingPdf(true);
+            const userId = authservice.userid();
+            let officerDetails = null;
+            if (userId) {
+                try {
+                    const profileRes = await profileService.fetchUserById(userId);
+                    const pData = profileRes?.payload || profileRes?.data || profileRes;
+                    if (pData) {
+                        officerDetails = {
+                            name: pData.name || pData.userName || authservice.userName() || "Employee",
+                            penNumber: pData.penNumber || pData.empNumber || pData.employeeId || authservice.penNumber() || "N/A",
+                            empNumber: pData.empNumber || pData.penNumber || authservice.penNumber() || "N/A",
+                            designation: pData.designation || role || "N/A",
+                            officelocation: pData.officelocation || pData.officeLocation || authservice.locationName() || "N/A"
+                        };
+                    }
+                } catch (e) {
+                    console.warn("Could not fetch user profile for PDF:", e);
+                }
+            }
+
+            const safeUserDetails = {
+                name: officerDetails?.name || authservice.userName() || "Employee",
+                penNumber: officerDetails?.penNumber || officerDetails?.empNumber || authservice.penNumber() || "N/A",
+                empNumber: officerDetails?.empNumber || officerDetails?.penNumber || authservice.penNumber() || "N/A",
+                designation: officerDetails?.designation || role || "N/A",
+                officelocation: officerDetails?.officelocation || officerDetails?.officeLocation || authservice.locationName() || "N/A"
+            };
+
+            await exportAdvancedTourDiaryPdf({
+                tourEntries: tourEvents,
+                userDetails: safeUserDetails,
+                selectedMonth: currentDate.getMonth() + 1,
+                selectedYear: currentDate.getFullYear(),
+                submissionDetails: submissionView,
+                getZoneName: (zId) => getZoneName(zId),
+                getPurposeName: (pId) => getPurposeName(pId)
+            });
+
+            showNotification('success', 'Tour Program PDF downloaded successfully');
+        } catch (err) {
+            console.error("Error generating Tour Program PDF:", err);
+            showNotification('error', 'Failed to generate Tour Program PDF');
+        } finally {
+            setIsGeneratingPdf(false);
+        }
+    };
+
     // ============================ MAIN RENDER ============================
     return (
         <Grid container spacing={3}>
@@ -1818,7 +1872,22 @@ const TourDiary = () => {
                                     {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
                                 </Typography>
 
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '350px', justifyContent: 'flex-end' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                                    <Button
+                                        variant="contained"
+                                        startIcon={isGeneratingPdf ? <CircularProgress size={18} color="inherit" /> : <PictureAsPdfIcon />}
+                                        onClick={handleExportPdf}
+                                        disabled={tourEvents.length === 0 || isGeneratingPdf}
+                                        sx={{
+                                            backgroundColor: '#d32f2f',
+                                            '&:hover': { backgroundColor: '#b71c1c' },
+                                            whiteSpace: 'nowrap',
+                                            minWidth: '130px',
+                                            fontWeight: 600
+                                        }}
+                                    >
+                                        {isGeneratingPdf ? "Generating..." : "Download PDF"}
+                                    </Button>
                                     <Box>
                                         <Button
                                             variant="contained"

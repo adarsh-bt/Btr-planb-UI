@@ -1461,18 +1461,7 @@ const ClusterManualEntryNonBtr = () => {
     });
 
     // 2. Validate NUC rules
-    const { nucErrorsMap } = validateNucRules(data, nucLabelDetails);
-
-    data.forEach(kp => {
-      if (kp.label && nucErrorsMap[kp.id]) {
-        kp.rows.forEach(row => {
-          const errorKey = `${kp.id}-${row.uniqueId}`;
-          if (!newErrors[errorKey]) {
-            newErrors[errorKey] = nucErrorsMap[kp.id];
-          }
-        });
-      }
-    });
+    validateNucRules(data, nucLabelDetails);
 
     setErrors(newErrors);
     setKeyplotsData(data);
@@ -2865,19 +2854,29 @@ const ClusterManualEntryNonBtr = () => {
           <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Grid item xs={1}>
               {row.isExisting && (
-                <Chip label="Saved" size="small" color="success" variant="outlined" />
-              )}</Grid>
-            {(!isKeyPlotFirstRow || isNewRow) && (
-              <Tooltip title="Remove Row">
-                <IconButton
-                  disabled={isSubmitDisabled()}
-                  color="error"
-                  onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)}
-                >
-                  <RemoveCircleOutlineIcon />
-                </IconButton>
-              </Tooltip>
-            )}
+                <Chip
+                  label="Saved"
+                  size="small"
+                  color="success"
+                  variant="outlined"
+                />
+              )}
+            </Grid>
+
+            {status !== "Completed" &&
+              status !== "Under Review" &&
+              role === "Field Data Collector" &&
+              (!isKeyPlotFirstRow || isNewRow) && (
+                <Tooltip title="Remove Row">
+                  <IconButton
+                    disabled={isSubmitDisabled()}
+                    color="error"
+                    onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)}
+                  >
+                    <RemoveCircleOutlineIcon />
+                  </IconButton>
+                </Tooltip>
+              )}
           </Grid>
         </Grid>
       </Paper>
@@ -3103,7 +3102,10 @@ const ClusterManualEntryNonBtr = () => {
               .some(r => !r.villageName || !r.block || !r.oldsvno || !r.area || !r.enumeratedArea);
           }
 
-          const hasErrorInKeyplot = keyplot.rows.some(r => !!errors[`${keyplot.id}-${r.uniqueId}`]);
+          const hasErrorInKeyplot = keyplot.rows.some(r => {
+            const err = errors[`${keyplot.id}-${r.uniqueId}`];
+            return !!err && (!nucErrors[keyplot.id] || err !== nucErrors[keyplot.id]);
+          });
           const nucInfo = getNucInfoForLabel(keyplot.label);
           const currentKeyplotTotal = keyplot.rows.reduce((total, row) => total + (parseFloat(row.enumeratedArea) || 0), 0);
           const isAreaBelowNuc = nucInfo.isUsed && nucInfo.maxNucArea > 0 && currentKeyplotTotal < nucInfo.maxNucArea;
@@ -3315,7 +3317,7 @@ const ClusterManualEntryNonBtr = () => {
                       variant="contained"
                       color="success"
                       onClick={() => handleAddRow(keyplot.id)}
-                      disabled={isNewRowIncomplete || hasErrorInKeyplot || !isedit || !!nucErrors[keyplot.id]}
+                      disabled={isNewRowIncomplete || hasErrorInKeyplot || !isedit}
                     >
                       Add Row
                     </Button>
@@ -3331,9 +3333,9 @@ const ClusterManualEntryNonBtr = () => {
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2 }}>
             <Tooltip title={
               hasNucError ? "Resolve NUC validation errors before saving" :
-              getMissingLabels().length > 0 ?
-              `Add rows to: ${getMissingLabels().join(', ')}` :
-              "Save cluster data"}>
+                getMissingLabels().length > 0 ?
+                  `Add rows to: ${getMissingLabels().join(', ')}` :
+                  "Save cluster data"}>
               <span>
                 <Button
                   variant="contained"

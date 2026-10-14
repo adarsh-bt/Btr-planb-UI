@@ -54,12 +54,14 @@ import CloseIcon from "@mui/icons-material/Close";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import * as XLSX from "xlsx";
 import tourDiaryService from "pages/authentication/services/tourdiaryservice";
 import profileService from "pages/profile/profileservice";
 import ApprovedUserService from "pages/functional-components/approvels/ApprovedUserService";
 import authservice from "pages/authentication/services/authservice";
 import Breadcrumb from "routes/Breadcrumb";
+import { exportAdvancedTourDiaryPdf } from "utils/tourDiaryPdfGenerator";
 
 const UserAdvancedTourDiaryDetail = () => {
   const theme = useTheme();
@@ -78,10 +80,12 @@ const UserAdvancedTourDiaryDetail = () => {
     return new Date().getFullYear();
   };
 
-  const { userId, month: monthParam, year: yearParam, userDetails: userInfo } = location.state || {};
+  const { userId: stateUserId, month: monthParam, year: yearParam, userDetails: userInfo } = location.state || {};
+  const userId = stateUserId || authservice.userid();
   const [roleName, setRoleName] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(monthParam || new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(yearParam || getLocalStorageYear());
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -682,6 +686,44 @@ const UserAdvancedTourDiaryDetail = () => {
         type: 'error',
         message: 'Failed to export Excel file'
       });
+    }
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      setIsGeneratingPdf(true);
+      const safeUserDetails = {
+        name: userDetails?.name || authservice.userName() || "Employee",
+        penNumber: userDetails?.penNumber || userDetails?.empNumber || userDetails?.employeeId || authservice.penNumber() || "N/A",
+        empNumber: userDetails?.empNumber || userDetails?.penNumber || authservice.penNumber() || "N/A",
+        designation: userDetails?.designation || roleName || authservice.getrole() || "N/A",
+        officelocation: userDetails?.officelocation || userDetails?.officeLocation || authservice.locationName() || "N/A"
+      };
+
+      await exportAdvancedTourDiaryPdf({
+        tourEntries,
+        userDetails: safeUserDetails,
+        selectedMonth,
+        selectedYear,
+        submissionDetails,
+        getZoneName,
+        getPurposeName
+      });
+
+      setNotification({
+        open: true,
+        type: 'success',
+        message: 'Advanced Tour Program PDF downloaded successfully'
+      });
+    } catch (err) {
+      console.error("Error generating Advanced Tour Diary PDF:", err);
+      setNotification({
+        open: true,
+        type: 'error',
+        message: 'Failed to generate Tour Program PDF'
+      });
+    } finally {
+      setIsGeneratingPdf(false);
     }
   };
 
@@ -1728,20 +1770,37 @@ const UserAdvancedTourDiaryDetail = () => {
                   )
                 }}
               />
-              <Button
-                variant="contained"
-                startIcon={<FileDownloadIcon />}
-                onClick={handleExportExcel}
-                disabled={tourEntries.length === 0}
-                sx={{
-                  backgroundColor: '#27ae60',
-                  '&:hover': { backgroundColor: '#1e8449' },
-                  whiteSpace: 'nowrap',
-                  fontWeight: 600
-                }}
-              >
-                Download Excel
-              </Button>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Button
+                  variant="contained"
+                  startIcon={isGeneratingPdf ? <CircularProgress size={18} color="inherit" /> : <PictureAsPdfIcon />}
+                  onClick={handleExportPdf}
+                  disabled={tourEntries.length === 0 || isGeneratingPdf}
+                  sx={{
+                    backgroundColor: '#d32f2f',
+                    '&:hover': { backgroundColor: '#b71c1c' },
+                    whiteSpace: 'nowrap',
+                    fontWeight: 600
+                  }}
+                >
+                  {isGeneratingPdf ? "Generating..." : "Download PDF"}
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<FileDownloadIcon />}
+                  onClick={handleExportExcel}
+                  disabled={tourEntries.length === 0}
+                  sx={{
+                    borderColor: '#27ae60',
+                    color: '#27ae60',
+                    '&:hover': { borderColor: '#1e8449', backgroundColor: 'rgba(39, 174, 96, 0.08)' },
+                    whiteSpace: 'nowrap',
+                    fontWeight: 600
+                  }}
+                >
+                  Download Excel
+                </Button>
+              </Stack>
             </Stack>
           </Box>
 
@@ -2150,6 +2209,20 @@ const UserAdvancedTourDiaryDetail = () => {
                 minWidth: '200px',
                 justifyContent: 'flex-end'
               }}>
+                <Button
+                  variant="contained"
+                  startIcon={isGeneratingPdf ? <CircularProgress size={18} color="inherit" /> : <PictureAsPdfIcon />}
+                  onClick={handleExportPdf}
+                  disabled={tourEntries.length === 0 || isGeneratingPdf}
+                  sx={{
+                    backgroundColor: '#d32f2f',
+                    '&:hover': { backgroundColor: '#b71c1c' },
+                    whiteSpace: 'nowrap',
+                    fontWeight: 600
+                  }}
+                >
+                  {isGeneratingPdf ? "Generating..." : "Download PDF"}
+                </Button>
                 <Box>
                   {canVerify() && (
                     <Button
