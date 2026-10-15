@@ -309,6 +309,7 @@ const ZoneForm3A = () => {
       params.append('seasonId', String(seasonId));
       const irrigationParam = IRRIGATION_PARAM[irrigation];
       if (irrigationParam) params.append('isIrrigated', irrigationParam);
+      console.log(`${BASE_URL}/earas-form1-entry/api/progress-report/form3A/taluk?${params.toString()}`)
       return `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/taluk?${params.toString()}`;
     };
 
