@@ -152,6 +152,16 @@ function resolveMonthValue(val, monthOptions) {
 // NOTE: `landType` here is WET / DRY / ALL. That is land type, NOT crop season.
 // Crop season is the separate, mandatory seasonId (Autumn / Winter / Summer).
 function pickMetric(taluk, metric, landType) {
+  if (!taluk) return 0;
+  if (metric === 'ClusterArea') {
+    const wetComp = Number(taluk.wetCompleted) || 0;
+    const dryComp = Number(taluk.dryCompleted) || 0;
+    const wetArea = wetComp > 0 ? (Number(taluk.wetClusterArea) || 0) : 0;
+    const dryArea = dryComp > 0 ? (Number(taluk.dryClusterArea) || 0) : 0;
+    if (landType === 'WET') return wetArea;
+    if (landType === 'DRY') return dryArea;
+    return wetArea + dryArea;
+  }
   if (landType === 'WET') return Number(taluk[`wet${metric}`]) || 0;
   if (landType === 'DRY') return Number(taluk[`dry${metric}`]) || 0;
   return (Number(taluk[`wet${metric}`]) || 0) + (Number(taluk[`dry${metric}`]) || 0);
@@ -300,13 +310,10 @@ function TalukFormReport() {
     setMasterTaluksLoading(true);
     try {
       const response = await api.get(`${mainapi.BTR_API}/btr-service/btr-api/taluks?distId=${districtIdValue}`);
-      console.log('Master Taluks Response:', response.data);
 
       if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        console.log('Setting taluks list:', response.data.data);
         setTaluksList(response.data.data);
       } else {
-        console.warn('No taluks found, using fallback');
         setTaluksList(getFallbackTaluks(districtIdValue));
       }
     } catch (err) {
@@ -351,9 +358,10 @@ function TalukFormReport() {
 
       // seasonId is mandatory — guard against it ever reaching the URL empty.
       const effectiveSeasonId = normalizeSeasonId(seasonId);
+      const agriYear = AuthService.agriyear() || '2025-2026';
 
-      // form1-status: district + month range + land type + season.
-      const formParams = new URLSearchParams({ districtId: districtIdValue, startMonth: startMonthVal });
+      // form1-status: agriYear + district + month range + land type + season.
+      const formParams = new URLSearchParams({ agriYear, districtId: districtIdValue, startMonth: startMonthVal });
       if (endMonthVal) formParams.append('endMonth', endMonthVal);
       if (landTypeTab && landTypeTab !== 'ALL') formParams.append('landType', landTypeTab);
       formParams.append('seasonId', String(effectiveSeasonId));
@@ -361,21 +369,16 @@ function TalukFormReport() {
       // BTR taluk completed-clusters: agri-year scoped now. No months, no seasonId.
       const btrParams = new URLSearchParams({ districtId: districtIdValue });
       if (landTypeTab && landTypeTab !== 'ALL') btrParams.append('landType', landTypeTab);
-      btrParams.append('agriYear', AuthService.agriyear() || '2025-2026');
+      btrParams.append('agriYear', agriYear);
 
       const formStatusUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/form1-status/district?${formParams.toString()}`;
       const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/dashboard/completed/taluk?${btrParams.toString()}`;
 
-      console.log('Taluk API Request:', formStatusUrl);
-      console.log('BTR Taluk Completed-Clusters Request:', completedClustersUrl);
 
       const [formStatusRes, completedClustersRes] = await Promise.all([
         axios.get(formStatusUrl, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(completedClustersUrl, { headers: { Authorization: `Bearer ${token}` } })
       ]);
-
-      console.log('Taluk API Response:', formStatusRes.data);
-      console.log('BTR Taluk Completed-Clusters Response:', completedClustersRes.data);
 
       setApiData(formStatusRes.data || null);
       setBtrData(completedClustersRes.data || null);
@@ -451,8 +454,8 @@ function TalukFormReport() {
         const btrDetails = resolveBtrDetails(talukId, talukName);
         const total = pickMetric(btrDetails, 'Completed', landTypeTab); // wetCompleted/dryCompleted
 
-        // Not Started = BTR total - form1 completed
-        const notStarted = Math.max(total - completed, 0);
+        // Not Started = BTR total - form1 (completed + ongoing + underReview)
+        const notStarted = Math.max(total - completed - ongoing - underReview, 0);
 
         const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
 
@@ -479,7 +482,7 @@ function TalukFormReport() {
 
       const btrDetails = resolveBtrDetails(t.id, talukName);
       const total = pickMetric(btrDetails, 'Completed', landTypeTab);
-      const notStarted = Math.max(total - completed, 0);
+      const notStarted = Math.max(total - completed - ongoing - underReview, 0);
       const hasData = completed > 0 || ongoing > 0 || notStarted > 0 || underReview > 0 || area > 0 || total > 0;
 
       return {
@@ -505,13 +508,15 @@ function TalukFormReport() {
   const stats = useMemo(() => {
     const totalCompletedClusters = btrData?.totalClusterCompleted || 0; // source for "Total Clusters"
     const existingCompleted = apiData?.completed || 0;
+    const existingOngoing = apiData?.ongoing || 0;
+    const existingUnderReview = apiData?.underView || apiData?.underReview || 0;
 
     return {
       total: totalCompletedClusters,
       completed: existingCompleted,
-      ongoing: apiData?.ongoing || 0,
-      notStarted: Math.max(totalCompletedClusters - existingCompleted, 0),
-      underReview: apiData?.underView || 0,
+      ongoing: existingOngoing,
+      notStarted: Math.max(totalCompletedClusters - existingCompleted - existingOngoing - existingUnderReview, 0),
+      underReview: existingUnderReview,
       completedArea: talukData.reduce((sum, t) => sum + t.area, 0)
     };
   }, [apiData, btrData, talukData]);
@@ -598,7 +603,7 @@ function TalukFormReport() {
 
     // Reasonable column widths so it doesn't open looking cramped
     worksheet['!cols'] = [
-      { wch: 5 },  { wch: 12 }, { wch: 25 }, { wch: 10 },
+      { wch: 5 }, { wch: 12 }, { wch: 25 }, { wch: 10 },
       { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 14 }
     ];
 
@@ -616,6 +621,7 @@ function TalukFormReport() {
         seasonTab: landTypeTab, // legacy key
         landType: landTypeTab,
         seasonId: normalizeSeasonId(seasonId),
+        agriYear: AuthService.agriyear() || '2025-2026',
         filterType,
         singleMonth
       }
@@ -641,6 +647,7 @@ function TalukFormReport() {
         seasonTab: landTypeTab, // legacy key
         landType: landTypeTab,
         seasonId: normalizeSeasonId(seasonId),
+        agriYear: AuthService.agriyear() || '2025-2026',
         filterType,
         singleMonth
       }

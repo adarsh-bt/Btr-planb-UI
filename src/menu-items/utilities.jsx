@@ -159,14 +159,14 @@ if (role == 'Super Admin' || role === 'IT Admin' || role === 'District Level App
   );
 } else if (role === 'Field Data Collector') {
   utilities.children.push(
-    zoneDetails,
+    // zoneDetails,
     viewBtr,
     keyPlot,
     clusterFormation,
     ClusterFormView,
     workallocation,
     // cceview,
-    ccereport
+    // ccereport
   );
 } else if (role === 'EARAS Admin') {
   utilities.children.push(

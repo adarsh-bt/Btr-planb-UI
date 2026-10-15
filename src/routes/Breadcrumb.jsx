@@ -103,6 +103,9 @@ function getEffectiveOfficeType(locationState, officeInfo) {
     const roles = Array.isArray(tokenRole) ? tokenRole : [tokenRole];
     const des = localStorage.getItem('des') || '';
 
+    if (roles.includes('Field Data Collector') || des.includes('Field Data Collector')) {
+      return 'FIELD_DATA_COLLECTOR';
+    }
     if (roles.some(r => ['Taluk Level Approver', 'Taluk Level Data Viewer', 'Field Inspector', 'Taluk Statistical Officer'].includes(r)) || des.includes('Taluk')) {
       return 'TALUK';
     }
@@ -466,18 +469,19 @@ const Breadcrumb = () => {
     } else if (isForm3AReport) {
       const talukForm3ASessionState = getSavedSessionState(TALUK_FORM3A_SESSION_KEY);
       const zoneForm3ASessionState = getSavedSessionState(ZONE_FORM3A_SESSION_KEY);
+      const clusterForm3ASessionState = getSavedSessionState('clusterForm3AState');
       const form3ASessionState = getSavedSessionState(FORM3A_SESSION_KEY);
 
       const isStateLevel = location.pathname.toLowerCase().includes('keralaform3a') || location.pathname === '/schemes/earas/Report/Form3A/KeralaForm3A';
       const isDistrictLevel = location.pathname.toLowerCase().includes('talukform3a') || location.pathname === '/schemes/earas/Report/Form3A/TalukForm3A';
       const isTalukLevel = location.pathname.toLowerCase().includes('zoneform3a') || location.pathname === '/schemes/earas/Report/Form3A/ZoneForm3A';
-      const isForm3AOverviewPage = (location.pathname.toLowerCase().endsWith('/form3a') || location.pathname === '/schemes/earas/Report/Form3A/Form3A') && !isStateLevel && !isDistrictLevel && !isTalukLevel;
+      const isForm3AOverviewPage = (location.pathname.toLowerCase().includes('clusterform3a') || location.pathname.toLowerCase().endsWith('/form3a') || location.pathname === '/schemes/earas/Report/Form3A/Form3A') && !isStateLevel && !isDistrictLevel && !isTalukLevel;
 
-      const f3aDistrictId = location.state?.districtId || form3ASessionState.districtId || zoneForm3ASessionState.districtId || talukForm3ASessionState.districtId || (params.districtId && !isNaN(params.districtId) ? params.districtId : null);
-      const f3aDistrictName = location.state?.districtName || location.state?.selectedDistrict || form3ASessionState.districtName || zoneForm3ASessionState.districtName || talukForm3ASessionState.districtName || params.districtName || '';
-      const f3aTalukId = location.state?.talukId || form3ASessionState.talukId || zoneForm3ASessionState.talukId || talukForm3ASessionState.talukId || (params.talukId && !isNaN(params.talukId) ? params.talukId : null);
-      const f3aTalukName = location.state?.talukName || location.state?.selectedTaluk || form3ASessionState.talukName || zoneForm3ASessionState.talukName || talukForm3ASessionState.talukName || params.talukName || '';
-      const f3aZoneName = location.state?.zoneName || location.state?.selectedZone || form3ASessionState.zoneName || zoneForm3ASessionState.zoneName || '';
+      const f3aDistrictId = location.state?.districtId || clusterForm3ASessionState.districtId || form3ASessionState.districtId || zoneForm3ASessionState.districtId || talukForm3ASessionState.districtId || (params.districtId && !isNaN(params.districtId) ? params.districtId : null);
+      const f3aDistrictName = location.state?.districtName || location.state?.selectedDistrict || clusterForm3ASessionState.districtName || form3ASessionState.districtName || zoneForm3ASessionState.districtName || talukForm3ASessionState.districtName || params.districtName || '';
+      const f3aTalukId = location.state?.talukId || clusterForm3ASessionState.talukId || form3ASessionState.talukId || zoneForm3ASessionState.talukId || talukForm3ASessionState.talukId || (params.talukId && !isNaN(params.talukId) ? params.talukId : null);
+      const f3aTalukName = location.state?.talukName || location.state?.selectedTaluk || clusterForm3ASessionState.talukName || form3ASessionState.talukName || zoneForm3ASessionState.talukName || talukForm3ASessionState.talukName || params.talukName || '';
+      const f3aZoneName = location.state?.zoneName || location.state?.selectedZone || clusterForm3ASessionState.zoneName || form3ASessionState.zoneName || zoneForm3ASessionState.zoneName || '';
 
       // STATE segment (only for DIRECTORATE role)
       if (officeType === 'DIRECTORATE' && !isStateLevel) {
@@ -554,6 +558,7 @@ const Breadcrumb = () => {
       }
 
     } else if (isForm3BReport) {
+      const clusterForm3BSessionState = getSavedSessionState('clusterForm3BState');
       const talukForm3BSessionState = getSavedSessionState(TALUK_FORM3B_SESSION_KEY);
       const zoneForm3BSessionState = getSavedSessionState(ZONE_FORM3B_SESSION_KEY);
       const form3BSessionState = getSavedSessionState(FORM3B_SESSION_KEY);
@@ -561,13 +566,13 @@ const Breadcrumb = () => {
       const isStateLevel = location.pathname.toLowerCase().includes('keralaform3b') || location.pathname === '/schemes/earas/Report/Form3B/KeralaForm3B';
       const isDistrictLevel = location.pathname.toLowerCase().includes('talukform3b') || location.pathname === '/schemes/earas/Report/Form3B/TalukForm3B';
       const isTalukLevel = location.pathname.toLowerCase().includes('zoneform3b') || location.pathname === '/schemes/earas/Report/Form3B/ZoneForm3B';
-      const isForm3BOverviewPage = (location.pathname.toLowerCase().endsWith('/form3b') || location.pathname === '/schemes/earas/Report/Form3B/Form3B') && !isStateLevel && !isDistrictLevel && !isTalukLevel;
+      const isForm3BOverviewPage = (location.pathname.toLowerCase().includes('clusterform3b') || location.pathname.toLowerCase().endsWith('/form3b') || location.pathname === '/schemes/earas/Report/Form3B/Form3B') && !isStateLevel && !isDistrictLevel && !isTalukLevel;
 
-      const f3bDistrictId = location.state?.districtId || form3BSessionState.districtId || zoneForm3BSessionState.districtId || talukForm3BSessionState.districtId || (params.districtId && !isNaN(params.districtId) ? params.districtId : null);
-      const f3bDistrictName = location.state?.districtName || location.state?.selectedDistrict || form3BSessionState.districtName || zoneForm3BSessionState.districtName || talukForm3BSessionState.districtName || params.districtName || '';
-      const f3bTalukId = location.state?.talukId || form3BSessionState.talukId || zoneForm3BSessionState.talukId || talukForm3BSessionState.talukId || (params.talukId && !isNaN(params.talukId) ? params.talukId : null);
-      const f3bTalukName = location.state?.talukName || location.state?.selectedTaluk || form3BSessionState.talukName || zoneForm3BSessionState.talukName || talukForm3BSessionState.talukName || params.talukName || '';
-      const f3bZoneName = location.state?.zoneName || location.state?.selectedZone || form3BSessionState.zoneName || zoneForm3BSessionState.zoneName || '';
+      const f3bDistrictId = location.state?.districtId || clusterForm3BSessionState.districtId || form3BSessionState.districtId || zoneForm3BSessionState.districtId || talukForm3BSessionState.districtId || (params.districtId && !isNaN(params.districtId) ? params.districtId : null);
+      const f3bDistrictName = location.state?.districtName || location.state?.selectedDistrict || clusterForm3BSessionState.districtName || form3BSessionState.districtName || zoneForm3BSessionState.districtName || talukForm3BSessionState.districtName || params.districtName || '';
+      const f3bTalukId = location.state?.talukId || clusterForm3BSessionState.talukId || form3BSessionState.talukId || zoneForm3BSessionState.talukId || talukForm3BSessionState.talukId || (params.talukId && !isNaN(params.talukId) ? params.talukId : null);
+      const f3bTalukName = location.state?.talukName || location.state?.selectedTaluk || clusterForm3BSessionState.talukName || form3BSessionState.talukName || zoneForm3BSessionState.talukName || talukForm3BSessionState.talukName || params.talukName || '';
+      const f3bZoneName = location.state?.zoneName || location.state?.selectedZone || clusterForm3BSessionState.zoneName || form3BSessionState.zoneName || zoneForm3BSessionState.zoneName || '';
 
       // STATE segment (only for DIRECTORATE role)
       if (officeType === 'DIRECTORATE' && !isStateLevel) {

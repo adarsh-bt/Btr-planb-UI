@@ -194,7 +194,7 @@ function TalukForm5Report() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
 
   /* ── persist district context to sessionStorage so breadcrumb back works ── */
   useEffect(() => {
@@ -226,7 +226,7 @@ function TalukForm5Report() {
       // Try 1: BTR API endpoint
       try {
         response = await api.get(`${mainapi.BTR_API}/btr-service/btr-api/taluks?distId=${districtId}`);
-        console.log('Master Taluks Response (attempt 1):', response.data);
+
       } catch (err) {
         console.log('Attempt 1 failed, trying alternative endpoint...');
       }
@@ -235,7 +235,7 @@ function TalukForm5Report() {
       if (!response || !response.data) {
         try {
           response = await api.get(`${BASE_URL}/earas-form1-entry/api/taluks?districtId=${districtId}`);
-          console.log('Master Taluks Response (attempt 2):', response.data);
+
         } catch (err) {
           console.log('Attempt 2 failed, trying alternative endpoint...');
         }
@@ -256,7 +256,7 @@ function TalukForm5Report() {
         }
 
         if (taluks.length > 0) {
-          console.log('Setting taluks list:', taluks);
+
           setTaluksList(taluks);
         } else {
           console.warn('No taluks found in response, using fallback');
@@ -319,7 +319,7 @@ function TalukForm5Report() {
       }
 
       url += `?${params.toString()}`;
-      console.log('Fetching taluk Form 5 data from:', url);
+
 
       const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
@@ -346,18 +346,18 @@ function TalukForm5Report() {
   };
 
   // Fetch crop list for the dropdown filter
-const fetchCropsList = async () => {
-  try {
-    const response = await api.get(
-      `${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-logs?agriYear=${agriculturalYear}`
-    );
-    if (response.data && Array.isArray(response.data)) {
-      setCropOptions(response.data); // { cropId, cropName, ... } objects
+  const fetchCropsList = async () => {
+    try {
+      const response = await api.get(
+        `${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-logs?agriYear=${agriculturalYear}`
+      );
+      if (response.data && Array.isArray(response.data)) {
+        setCropOptions(response.data); // { cropId, cropName, ... } objects
+      }
+    } catch (err) {
+      console.error('Error fetching crops list:', err);
     }
-  } catch (err) {
-    console.error('Error fetching crops list:', err);
-  }
-};
+  };
 
   /* ─────────────────────────── effects ─────────────────────────── */
 
@@ -388,10 +388,6 @@ const fetchCropsList = async () => {
       apiDataMap[key] = t;
     });
 
-    // Log for debugging
-    console.log('Taluks List:', taluksList);
-    console.log('API Taluks:', apiTaluks);
-
     // If we have master taluks list, merge with API data
     if (taluksList && taluksList.length > 0) {
       const merged = taluksList.map((taluk) => {
@@ -421,12 +417,10 @@ const fetchCropsList = async () => {
         };
       });
 
-      console.log('Merged Taluks:', merged);
+
       return merged;
     }
 
-    // Fallback: use only API data if master list is not available
-    console.log('Using API taluks only');
     return apiTaluks.map((t) => ({
       id: t.talukId || `taluk_${Math.random()}`,
       taluk: t.talukName || 'Unknown Taluk',
@@ -452,20 +446,26 @@ const fetchCropsList = async () => {
     return talukData.filter(d => !d.hasData).length;
   }, [talukData]);
 
-  // District-level stats come straight from the top-level totals returned by the
-  // API (authoritative — do not re-sum the taluk rows).
-  const stats = useMemo(
-    () => ({
-      allowtedCce: apiData?.allowedCCECrops || 0,
-      selectedCce: apiData?.selectedCce || 0,
-      completed: apiData?.completed || 0,
-      ongoing: apiData?.ongoing || 0,
-      notAvailable: apiData?.notAvailable || 0,
-      notStarted: apiData?.notStarted || 0,
-      underReview: apiData?.underReview || 0
-    }),
-    [apiData]
-  );
+  // Dynamic summary stats derived from taluk data
+  const stats = useMemo(() => {
+    const allowtedCceSum = talukData.reduce((sum, t) => sum + (t.allowtedCce || 0), 0);
+    const selectedCceSum = talukData.reduce((sum, t) => sum + (t.selectedCce || 0), 0);
+    const completedSum = talukData.reduce((sum, t) => sum + (t.completed || 0), 0);
+    const ongoingSum = talukData.reduce((sum, t) => sum + (t.ongoing || 0), 0);
+    const notAvailableSum = talukData.reduce((sum, t) => sum + (t.notAvailable || 0), 0);
+    const notStartedSum = talukData.reduce((sum, t) => sum + (t.notStarted || 0), 0);
+    const underReviewSum = talukData.reduce((sum, t) => sum + (t.underReview || 0), 0);
+
+    return {
+      allowtedCce: allowtedCceSum > 0 ? allowtedCceSum : (apiData?.allowedCCECrops || 0),
+      selectedCce: selectedCceSum > 0 ? selectedCceSum : (apiData?.selectedCce || 0),
+      completed: completedSum,
+      ongoing: ongoingSum,
+      notAvailable: notAvailableSum,
+      notStarted: notStartedSum,
+      underReview: underReviewSum
+    };
+  }, [apiData, talukData]);
 
   const searchFilteredData = useMemo(() => {
     if (!searchTerm.trim()) return talukData;
@@ -556,7 +556,7 @@ const fetchCropsList = async () => {
 
     // Reasonable column widths so it doesn't open looking cramped
     worksheet['!cols'] = [
-      { wch: 5 },  { wch: 25 }, { wch: 12 },
+      { wch: 5 }, { wch: 25 }, { wch: 12 },
       { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }
     ];
 
@@ -834,7 +834,7 @@ const fetchCropsList = async () => {
           />
           <Grid container spacing={2}>
             {[
-              { label: 'Allowted CCE', value: stats.allowtedCce, color: '#1565c0', icon: <HubIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} /> },
+              { label: 'Alloted CCE', value: stats.allowtedCce, color: '#1565c0', icon: <HubIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} /> },
               { label: 'Selected CCE', value: stats.selectedCce, color: '#04255e', icon: <AssessmentIcon sx={{ fontSize: 32, color: '#04255e', opacity: 0.7 }} /> },
               { label: 'Completed', value: stats.completed, color: '#2e7d32', icon: <CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} /> },
               { label: 'Ongoing', value: stats.ongoing, color: '#ed6c02', icon: <PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} /> },
@@ -946,7 +946,7 @@ const fetchCropsList = async () => {
                     {[
                       '#',
                       'Taluk',
-                      'Allowted CCE',
+                      'Alloted CCE',
                       'Selected CCE',
                       'Completed',
                       'Ongoing',
@@ -1133,7 +1133,7 @@ const fetchCropsList = async () => {
                   setRowsPerPage(parseInt(e.target.value, 10));
                   setPage(0);
                 }}
-                rowsPerPageOptions={[5, 10, 25]}
+                rowsPerPageOptions={[15, 25, 50, 100]}
                 sx={{ borderTop: `1px solid ${theme.palette.divider}` }}
               />
             )}

@@ -89,7 +89,7 @@ const Form5 = () => {
   const [order, setOrder] = useState('asc');
   const [orderBy, setOrderBy] = useState('crop');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
 
   // Persist session state
   useEffect(() => {
@@ -163,7 +163,8 @@ const Form5 = () => {
           zoneId: item.zoneId || zoneId,
           clusterId: item.clusterId,
           noOfCce: item.noOfCce,
-          availableCcePlotId: item.availableCcePlotId || null,
+          availableCcePlotId: item.availableCcePlotId || item.cceAvailablePlotId || item.plotId || null,
+          cceAvailablePlotId: item.cceAvailablePlotId || item.availableCcePlotId || item.plotId || null,
           cropId: item.cropId
         }));
 
@@ -216,7 +217,7 @@ const Form5 = () => {
       crop: row.crop,
       season: row.season,
       clusterNo: row.clusterNo,
-      cultivatedArea: row.cultivatedArea !== 'N/A' ? `${row.cultivatedArea} ha` : 'N/A',
+      cultivatedArea: row.cultivatedArea !== 'N/A' && row.cultivatedArea !== null ? row.cultivatedArea : 'N/A',
       landType: row.landType !== 'N/A' ? row.landType : 'Not Specified',
       surveyNo: row.surveyNo,
       farmerName: row.farmerName,
@@ -226,7 +227,8 @@ const Form5 = () => {
       clusterId: row.clusterId,
       cropId: row.cropId,
       noOfCce: row.noOfCce,
-      availableCcePlotId: row.availableCcePlotId,
+      availableCcePlotId: row.availableCcePlotId || row.cceAvailablePlotId,
+      cceAvailablePlotId: row.cceAvailablePlotId || row.availableCcePlotId,
       // Additional fields for the detail view
       survey: row.surveyNo,
       irrigationType: 'N/A',
@@ -728,7 +730,7 @@ const Form5 = () => {
                   setRowsPerPage(parseInt(e.target.value, 10));
                   setPage(0);
                 }}
-                rowsPerPageOptions={[5, 10, 25, 50]}
+                rowsPerPageOptions={[15, 25, 50, 100]}
               />
             )}
           </Paper>

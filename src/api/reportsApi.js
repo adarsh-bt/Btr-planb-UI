@@ -1,4 +1,4 @@
-import { MOCK_USERS_LIST, MOCK_DISTRICT_PERFORMANCE, MOCK_ZONE_PERFORMANCE, MOCK_SUMMARY } from './mockData';
+// import { MOCK_USERS_LIST, MOCK_DISTRICT_PERFORMANCE, MOCK_ZONE_PERFORMANCE, MOCK_SUMMARY } from './mockData';
 
 const delay = (ms = 350) => new Promise((resolve) => setTimeout(resolve, ms));
 

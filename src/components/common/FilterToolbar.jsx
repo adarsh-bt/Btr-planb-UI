@@ -14,7 +14,6 @@ import {
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { AGRICULTURAL_YEARS, MONTHS_LIST } from 'constants/config';
-import { MOCK_DISTRICTS, MOCK_ZONES } from 'api/mockData';
 
 export default function FilterToolbar({ filters, onFilterChange, onReset }) {
   // Dynamically populate available Taluks based on selected District

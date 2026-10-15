@@ -54,7 +54,7 @@ import {
   getSubmissionMatrix,
   getZonePerformance
 } from 'api/dashboardApi';
-import { MOCK_DISTRICTS, MOCK_ZONES } from 'api/mockData';
+
 
 export default function ProjectOverview() {
   // Main Tab State: 0 = Overview, 1 = Progress, 2 = Submission Status
@@ -892,8 +892,8 @@ export default function ProjectOverview() {
                             u.overallStatus === 'Completed'
                               ? 'ON_TRACK'
                               : u.overallStatus === 'Not Submitted'
-                              ? 'CRITICAL'
-                              : 'NEEDS_ATTENTION'
+                                ? 'CRITICAL'
+                                : 'NEEDS_ATTENTION'
                           }
                           label={u.overallStatus}
                           size="small"

@@ -159,10 +159,10 @@ const TalukForm2 = () => {
     setMasterTaluksLoading(true);
     try {
       const response = await api.get(`${BTR_BASE_URL}/btr-service/btr-api/taluks?distId=${districtIdValue}`);
-      console.log('Master Taluks Response:', response.data);
+
 
       if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        console.log('Setting taluks list:', response.data.data);
+
         setTaluksList(response.data.data);
       } else {
         console.warn('No taluks found, using fallback');
@@ -256,8 +256,7 @@ const TalukForm2 = () => {
 
         const [landRes, irrRes] = await Promise.all([axios.get(landUrl, { headers }), axios.get(irrigationUrl, { headers })]);
 
-        console.log('Land Data Response:', landRes.data);
-        console.log('Irrigation Data Response:', irrRes.data);
+
 
         setLandData(Array.isArray(landRes.data) ? landRes.data : []);
         setIrrigationApiData(Array.isArray(irrRes.data) ? irrRes.data : []);

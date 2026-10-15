@@ -2581,6 +2581,7 @@ const ClusterManualEntryNonBtr = () => {
             {(!isKeyPlotFirstRow || isNewRow) && (
               <Tooltip title="Remove Row">
                 <IconButton
+                  disabled={isSubmitDisabled()}
                   color="error"
                   onClick={() => handleRemoveRow(keyplot.id, row.uniqueId)}
                   disabled={role !== 'Field Data Collector'}

@@ -26,7 +26,7 @@ import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import StatusBadge from 'components/common/StatusBadge';
 import ExportButtons from 'components/common/ExportButtons';
 import { getSubmissionMatrix } from 'api/dashboardApi';
-import { MOCK_DISTRICTS, MOCK_ZONES } from 'api/mockData';
+
 
 export default function SubmissionMatrixTable({ filters = {}, onUserSelect }) {
   const [data, setData] = useState([]);
@@ -228,8 +228,8 @@ export default function SubmissionMatrixTable({ filters = {}, onUserSelect }) {
                         user.overallStatus === 'Completed'
                           ? 'ON_TRACK'
                           : user.overallStatus === 'Not Submitted'
-                          ? 'CRITICAL'
-                          : 'NEEDS_ATTENTION'
+                            ? 'CRITICAL'
+                            : 'NEEDS_ATTENTION'
                       }
                       label={user.overallStatus}
                     />

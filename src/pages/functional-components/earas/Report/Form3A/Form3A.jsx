@@ -197,7 +197,7 @@ const Form3A = () => {
   ];
 
   const irrigationTypeOptions = [
-    { value: 'total', label: 'Total' },
+    { value: 'total', label: 'All' },
     { value: 'irrigated', label: 'Irrigated' },
     { value: 'unirrigated', label: 'Unirrigated' }
   ];
@@ -303,220 +303,243 @@ const Form3A = () => {
           border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
         }}
       >
-      <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
+        <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
 
-        {/* Header */}
-        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <IconButton onClick={handleBack} size="small" sx={{ color: themeColor }}>
-            <ArrowBack />
-          </IconButton>
-          <LocationOn sx={{ fontSize: 32, color: themeColor }} />
-          <Typography variant="h5" sx={{ fontWeight: 'bold', color: themeColor }}>
-            {selectedZone} Zone ({selectedBlock} Block, {selectedTaluk} Taluk, {selectedDistrict} District) - Panchayath-wise Seasonal Crops Report
-          </Typography>
-        </Box>
+          {/* Header */}
+          <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <IconButton onClick={handleBack} size="small" sx={{ color: themeColor }}>
+              <ArrowBack />
+            </IconButton>
+            <LocationOn sx={{ fontSize: 32, color: themeColor }} />
+            <Typography variant="h5" sx={{ fontWeight: 'bold', color: themeColor }}>
+              {selectedZone} Zone ({selectedBlock} Block, {selectedTaluk} Taluk, {selectedDistrict} District) - Panchayath-wise Seasonal Crops Report
+            </Typography>
+          </Box>
 
-        {/* Filters: Land Type (All/Wet/Dry) + Irrigation Type dropdown */}
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2, mb: 2 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              borderRadius: 3,
-              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-              overflow: 'hidden',
-            }}
-          >
-            {landTypeOptions.map((opt, idx) => {
-              const isActive = landTypeFilter === opt.value;
-              return (
-                <Box
-                  key={opt.value}
-                  onClick={() => setLandTypeFilter(opt.value)}
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    px: 2.5,
-                    py: 1.25,
-                    cursor: 'pointer',
-                    borderRight: idx < landTypeOptions.length - 1
-                      ? `1px solid ${alpha(theme.palette.divider, 0.15)}`
-                      : 'none',
-                    transition: '0.2s',
-                    '&:hover': {
-                      backgroundColor: alpha(themeColor, 0.04),
-                    },
-                  }}
-                >
+          {/* Filters: Land Type (All/Wet/Dry) + Irrigation Type dropdown */}
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2, mb: 2 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                borderRadius: 3,
+                border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                overflow: 'hidden',
+              }}
+            >
+              {landTypeOptions.map((opt, idx) => {
+                const isActive = landTypeFilter === opt.value;
+                return (
                   <Box
+                    key={opt.value}
+                    onClick={() => setLandTypeFilter(opt.value)}
                     sx={{
                       display: 'flex',
+                      flexDirection: 'column',
                       alignItems: 'center',
-                      gap: 0.75,
-                      color: isActive ? themeColor : 'text.secondary',
+                      gap: 0.5,
+                      px: 2.5,
+                      py: 1.25,
+                      cursor: 'pointer',
+                      borderRight: idx < landTypeOptions.length - 1
+                        ? `1px solid ${alpha(theme.palette.divider, 0.15)}`
+                        : 'none',
+                      transition: '0.2s',
+                      '&:hover': {
+                        backgroundColor: alpha(themeColor, 0.04),
+                      },
                     }}
                   >
-                    {opt.icon}
-                    <Typography
-                      variant="body2"
+                    <Box
                       sx={{
-                        fontWeight: 600,
-                        letterSpacing: 0.3,
-                        textTransform: 'uppercase',
-                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.75,
+                        color: isActive ? themeColor : 'text.secondary',
                       }}
                     >
-                      {opt.label}
-                    </Typography>
+                      {opt.icon}
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 600,
+                          letterSpacing: 0.3,
+                          textTransform: 'uppercase',
+                          fontSize: '0.8rem',
+                        }}
+                      >
+                        {opt.label}
+                      </Typography>
+                    </Box>
+                    <Box
+                      sx={{
+                        width: '100%',
+                        height: 2.5,
+                        borderRadius: 1,
+                        backgroundColor: isActive ? themeColor : 'transparent',
+                        transition: '0.2s',
+                      }}
+                    />
                   </Box>
-                  <Box
-                    sx={{
-                      width: '100%',
-                      height: 2.5,
-                      borderRadius: 1,
-                      backgroundColor: isActive ? themeColor : 'transparent',
-                      transition: '0.2s',
-                    }}
-                  />
-                </Box>
-              );
-            })}
-          </Paper>
+                );
+              })}
+            </Paper>
 
-          <FormControl size="small" sx={{ minWidth: 190 }}>
-            <InputLabel id="irrigation-type-label">Irrigation Type</InputLabel>
-            <Select
-              labelId="irrigation-type-label"
-              value={irrigationType}
-              label="Irrigation Type"
-              onChange={(e) => setIrrigationType(e.target.value)}
+            <FormControl size="small" sx={{ minWidth: 190 }}>
+              <InputLabel id="irrigation-type-label">Irrigation Type</InputLabel>
+              <Select
+                labelId="irrigation-type-label"
+                value={irrigationType}
+                label="Irrigation Type"
+                onChange={(e) => setIrrigationType(e.target.value)}
+                sx={{
+                  borderRadius: 2,
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: alpha(theme.palette.divider, 0.3),
+                  },
+                }}
+              >
+                {irrigationTypeOptions.map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+
+          {/* Tabs Section */}
+          <Paper
+            elevation={2}
+            sx={{
+              borderRadius: 3,
+              overflow: 'hidden',
+              border: `1px solid ${alpha(themeColor, 0.1)}`,
+            }}
+          >
+            <Tabs
+              value={activeTab}
+              onChange={handleTabChange}
+              variant="scrollable"
+              scrollButtons="auto"
+              allowScrollButtonsMobile
               sx={{
-                borderRadius: 2,
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: alpha(theme.palette.divider, 0.3),
+                backgroundColor: alpha(themeColor, 0.05),
+                '& .MuiTab-root': {
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '1rem',
+                  py: 1.5,
+                  minHeight: 'auto',
+                  '&.Mui-selected': {
+                    color: themeColor,
+                  },
+                },
+                '& .MuiTabs-indicator': {
+                  backgroundColor: themeColor,
+                  height: 3,
                 },
               }}
             >
-              {irrigationTypeOptions.map((opt) => (
-                <MenuItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </MenuItem>
+              {cropCategories.map((cat) => (
+                <Tab key={cat.id} label={`${cat.icon} ${cat.label}`} />
               ))}
-            </Select>
-          </FormControl>
-        </Box>
+            </Tabs>
 
-        {/* Tabs Section */}
-        <Paper
-          elevation={2}
-          sx={{
-            borderRadius: 3,
-            overflow: 'hidden',
-            border: `1px solid ${alpha(themeColor, 0.1)}`,
-          }}
-        >
-          <Tabs
-            value={activeTab}
-            onChange={handleTabChange}
-            variant="scrollable"
-            scrollButtons="auto"
-            allowScrollButtonsMobile
-            sx={{
-              backgroundColor: alpha(themeColor, 0.05),
-              '& .MuiTab-root': {
-                textTransform: 'none',
-                fontWeight: 600,
-                fontSize: '1rem',
-                py: 1.5,
-                minHeight: 'auto',
-                '&.Mui-selected': {
-                  color: themeColor,
-                },
-              },
-              '& .MuiTabs-indicator': {
-                backgroundColor: themeColor,
-                height: 3,
-              },
-            }}
-          >
-            {cropCategories.map((cat) => (
-              <Tab key={cat.id} label={`${cat.icon} ${cat.label}`} />
-            ))}
-          </Tabs>
-
-          {/* Active category's table: Panchayath, <crop columns...> */}
-          <Box role="tabpanel" sx={{ p: 0 }}>
-            <TableContainer sx={{ maxHeight: 600, overflowX: 'auto' }}>
-              <Table
-                stickyHeader
-                size="small"
-                sx={{ width: '100%', minWidth: TABLE_MIN_W, tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0 }}
-              >
-                <colgroup>
-                  <col style={{ width: PANCHAYATH_W }} />
-                  {activeCategory.crops.map((crop) => (
-                    <col key={crop.name} style={{ width: CROP_W }} />
-                  ))}
-                  {/* Spacer column absorbs any leftover width so the real
+            {/* Active category's table: Panchayath, <crop columns...> */}
+            <Box role="tabpanel" sx={{ p: 0 }}>
+              <TableContainer sx={{ maxHeight: 600, overflowX: 'auto' }}>
+                <Table
+                  stickyHeader
+                  size="small"
+                  sx={{ width: '100%', minWidth: TABLE_MIN_W, tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0 }}
+                >
+                  <colgroup>
+                    <col style={{ width: PANCHAYATH_W }} />
+                    {activeCategory.crops.map((crop) => (
+                      <col key={crop.name} style={{ width: CROP_W }} />
+                    ))}
+                    {/* Spacer column absorbs any leftover width so the real
                       columns keep a consistent, readable size instead of
                       stretching when there are only one or two crop columns. */}
-                  <col style={{ width: 'auto' }} />
-                </colgroup>
-                <TableHead>
-                  <TableRow>
-                    <TableCell
-                      align="left"
-                      sx={{
-                        backgroundColor: themeColor,
-                        color: 'white',
-                        fontWeight: 700,
-                        whiteSpace: 'nowrap',
-                        py: 1.5,
-                        position: 'sticky',
-                        left: 0,
-                        zIndex: 3,
-                      }}
-                    >
-                      Panchayath
-                    </TableCell>
-                    {activeCategory.crops.map((crop) => {
-                      const active = isCropActive(crop);
-                      return (
-                        <TableCell
-                          key={crop.name}
-                          align="right"
-                          sx={{
-                            backgroundColor: themeColor,
-                            color: active ? 'white' : alpha('#ffffff', 0.5),
-                            fontWeight: 700,
-                            whiteSpace: 'nowrap',
-                            py: 1.5,
-                          }}
-                        >
-                          {crop.name}
+                    <col style={{ width: 'auto' }} />
+                  </colgroup>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell
+                        align="left"
+                        sx={{
+                          backgroundColor: themeColor,
+                          color: 'white',
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                          py: 1.5,
+                          position: 'sticky',
+                          left: 0,
+                          zIndex: 3,
+                        }}
+                      >
+                        Panchayath
+                      </TableCell>
+                      {activeCategory.crops.map((crop) => {
+                        const active = isCropActive(crop);
+                        return (
+                          <TableCell
+                            key={crop.name}
+                            align="right"
+                            sx={{
+                              backgroundColor: themeColor,
+                              color: active ? 'white' : alpha('#ffffff', 0.5),
+                              fontWeight: 700,
+                              whiteSpace: 'nowrap',
+                              py: 1.5,
+                            }}
+                          >
+                            {crop.name}
+                          </TableCell>
+                        );
+                      })}
+                      <TableCell aria-hidden sx={{ backgroundColor: themeColor, padding: 0 }} />
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {paginatedRows.map((row, index) => (
+                      <TableRow key={index} hover>
+                        <TableCell align="left" sx={{ position: 'sticky', left: 0, zIndex: 1, backgroundColor: theme.palette.background.paper }}>
+                          <Chip
+                            label={row.panchayath}
+                            size="small"
+                            sx={{
+                              backgroundColor: alpha(themeColor, 0.1),
+                              color: themeColor,
+                              fontWeight: 500,
+                              borderRadius: 1.5,
+                            }}
+                          />
                         </TableCell>
-                      );
-                    })}
-                    <TableCell aria-hidden sx={{ backgroundColor: themeColor, padding: 0 }} />
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {paginatedRows.map((row, index) => (
-                    <TableRow key={index} hover>
-                      <TableCell align="left" sx={{ position: 'sticky', left: 0, zIndex: 1, backgroundColor: theme.palette.background.paper }}>
-                        <Chip
-                          label={row.panchayath}
-                          size="small"
-                          sx={{
-                            backgroundColor: alpha(themeColor, 0.1),
-                            color: themeColor,
-                            fontWeight: 500,
-                            borderRadius: 1.5,
-                          }}
-                        />
+                        {activeCategory.crops.map((crop) => {
+                          const active = isCropActive(crop);
+                          return (
+                            <TableCell
+                              key={crop.name}
+                              align="right"
+                              sx={{
+                                ...numericCellSx,
+                                color: active ? 'inherit' : 'text.disabled',
+                              }}
+                            >
+                              {active ? formatNumber(getCellValue(row, crop.name)) : '—'}
+                            </TableCell>
+                          );
+                        })}
+                        <TableCell aria-hidden />
+                      </TableRow>
+                    ))}
+                    {/* Total Row */}
+                    <TableRow sx={{ backgroundColor: alpha(themeColor, 0.08) }}>
+                      <TableCell align="left" sx={{ fontWeight: 700, color: themeColor, position: 'sticky', left: 0, zIndex: 1, backgroundColor: '#eef1f7' }}>
+                        TOTAL
                       </TableCell>
                       {activeCategory.crops.map((crop) => {
                         const active = isCropActive(crop);
@@ -526,56 +549,33 @@ const Form3A = () => {
                             align="right"
                             sx={{
                               ...numericCellSx,
+                              fontWeight: 700,
                               color: active ? 'inherit' : 'text.disabled',
                             }}
                           >
-                            {active ? formatNumber(getCellValue(row, crop.name)) : '—'}
+                            {active ? formatNumber(categoryTotals[crop.name]) : '—'}
                           </TableCell>
                         );
                       })}
-                      <TableCell aria-hidden />
+                      <TableCell aria-hidden sx={{ backgroundColor: alpha(themeColor, 0.08) }} />
                     </TableRow>
-                  ))}
-                  {/* Total Row */}
-                  <TableRow sx={{ backgroundColor: alpha(themeColor, 0.08) }}>
-                    <TableCell align="left" sx={{ fontWeight: 700, color: themeColor, position: 'sticky', left: 0, zIndex: 1, backgroundColor: '#eef1f7' }}>
-                      TOTAL
-                    </TableCell>
-                    {activeCategory.crops.map((crop) => {
-                      const active = isCropActive(crop);
-                      return (
-                        <TableCell
-                          key={crop.name}
-                          align="right"
-                          sx={{
-                            ...numericCellSx,
-                            fontWeight: 700,
-                            color: active ? 'inherit' : 'text.disabled',
-                          }}
-                        >
-                          {active ? formatNumber(categoryTotals[crop.name]) : '—'}
-                        </TableCell>
-                      );
-                    })}
-                    <TableCell aria-hidden sx={{ backgroundColor: alpha(themeColor, 0.08) }} />
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
-            <TablePagination
-              component="div"
-              count={categoryData.length}
-              page={page}
-              onPageChange={handleChangePage}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-              rowsPerPageOptions={[10, 25, 50]}
-              sx={{ borderTop: `1px solid ${alpha(themeColor, 0.1)}` }}
-            />
-          </Box>
-        </Paper>
-      </CardContent>
-    </Card>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <TablePagination
+                component="div"
+                count={categoryData.length}
+                page={page}
+                onPageChange={handleChangePage}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                rowsPerPageOptions={[10, 25, 50]}
+                sx={{ borderTop: `1px solid ${alpha(themeColor, 0.1)}` }}
+              />
+            </Box>
+          </Paper>
+        </CardContent>
+      </Card>
     </Box>
   );
 };

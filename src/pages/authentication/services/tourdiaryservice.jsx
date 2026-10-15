@@ -537,7 +537,7 @@ const tourDiaryService = {
       const response = await api.get(
         `${BASE_URL}/earas-form1-entry/form1/cluster-list?zoneId=${zoneId}&seasonId=${activeSeasonId}&agriYear=${agriYear}`
       );
-
+      console.log(`${BASE_URL}/earas-form1-entry/form1/cluster-list?zoneId=${zoneId}&seasonId=${activeSeasonId}&agriYear=${agriYear}`)
       return response.data;
     } catch (err) {
       console.error("Error fetching clusters:", err);
@@ -705,6 +705,7 @@ const tourDiaryService = {
   // In tourDiaryService.js
   async saveOrUpdateVerification(payload) {
     console.log("saveOrUpdateVerification payload: ", payload);
+
     return api.post(`${BASE_URL}/tour-diary/api/purposes/save-or-update-verification`, payload)
       .then(response => {
         if (response.data) {

@@ -69,7 +69,7 @@ const TourDiary = () => {
         if (isFieldDataCollector) {
             openSubmitMenu(event);
         } else {
-            console.log("Submission view:", submissionView);
+
             if (submissionView?.fullMonthAdminStatus === 'APPROVED') {
                 showNotification('info', `Entry already submitted on ${new Date(submissionView.fullMonthSubmittedDate).toLocaleString()}`);
                 return;
@@ -252,16 +252,22 @@ const TourDiary = () => {
         // For Field Data Collector - check individual halves
         if (isFieldDataCollector) {
             if (isFirstHalf) {
-                // First Half: locked if submitted and not rejected
-                return submissionView.firstHalfSubmitted && submissionView.firstHalfAdminStatus !== 'REJECTED';
+                // First Half: locked if submitted and neither admin nor verifier has rejected it
+                return submissionView.firstHalfSubmitted &&
+                    submissionView.firstHalfAdminStatus !== 'REJECTED' &&
+                    submissionView.firstHalfVerifiedStatus !== 'REJECTED';
             } else {
-                // Second Half: locked if submitted and not rejected
-                return submissionView.secondHalfSubmitted && submissionView.secondHalfAdminStatus !== 'REJECTED';
+                // Second Half: locked if submitted and neither admin nor verifier has rejected it
+                return submissionView.secondHalfSubmitted &&
+                    submissionView.secondHalfAdminStatus !== 'REJECTED' &&
+                    submissionView.secondHalfVerifiedStatus !== 'REJECTED';
             }
         } else {
             // For non-Field Data Collector - check full month
             // The isFirstHalf parameter doesn't matter for full month
-            return submissionView.fullMonthSubmitId && submissionView.fullMonthAdminStatus !== 'REJECTED';;
+            return submissionView.fullMonthSubmitId &&
+                submissionView.fullMonthAdminStatus !== 'REJECTED' &&
+                submissionView.fullMonthVerifiedStatus !== 'REJECTED';
         }
     };
     // Open view details modal
@@ -548,7 +554,7 @@ const TourDiary = () => {
         setSubmissionStatus(prev => ({ ...prev, loading: true }));
         try {
             const response = await tourDiaryService.getAdminSubmissionDetails(userId, year, month);
-            console.log("Submission Details API Response:", response);
+
             if (!response.error && response.data) {
                 setSubmissionStatus({
                     firstHalf: {
@@ -592,7 +598,7 @@ const TourDiary = () => {
             if (Array.isArray(response)) {
                 const currentMonth = currentDate.getMonth() + 1;
                 const monthData = response.find(item => item.month === currentMonth);
-                console.log("Current Month Data:", monthData);
+                console.log("month data  ", monthData)
                 setSubmissionView(monthData || null);
             }
         } catch (error) {
@@ -668,18 +674,25 @@ const TourDiary = () => {
     // ============================ HALF SUBMIT ============================
     const handleSubmitHalf = async (half) => {
 
-        // if (half === 'First Half' && submissionStatus.firstHalf?.isSubmitted && submissionStatus.firstHalf.adminstatus === 'REJECTED') {
-        if (half === 'First Half' && submissionStatus.firstHalf?.isSubmitted && submissionStatus.firstHalf.adminstatus !== 'REJECTED') {
-            showNotification('info', `First Half already submitted on ${new Date(submissionStatus.firstHalf.submittedAt).toLocaleString()}`);
-            closeSubmitMenu();
-            return;
+        if (half === 'First Half') {
+            const isFirstHalfRejected = (submissionView && (submissionView.firstHalfAdminStatus === 'REJECTED' || submissionView.firstHalfVerifiedStatus === 'REJECTED')) ||
+                (submissionStatus.firstHalf?.adminstatus === 'REJECTED' || submissionStatus.firstHalf?.verifiedStatus === 'REJECTED');
+            if (submissionStatus.firstHalf?.isSubmitted && !isFirstHalfRejected) {
+                showNotification('info', `First Half already submitted on ${new Date(submissionStatus.firstHalf.submittedAt).toLocaleString()}`);
+                closeSubmitMenu();
+                return;
+            }
         }
-        if (half === 'Second Half' && submissionStatus.secondHalf?.isSubmitted && submissionStatus.secondHalf.adminstatus !== 'REJECTED') {
-            showNotification('info', `Second Half already submitted on ${new Date(submissionStatus.secondHalf.submittedAt).toLocaleString()}`);
-            closeSubmitMenu();
-            return;
+        if (half === 'Second Half') {
+            const isSecondHalfRejected = (submissionView && (submissionView.secondHalfAdminStatus === 'REJECTED' || submissionView.secondHalfVerifiedStatus === 'REJECTED')) ||
+                (submissionStatus.secondHalf?.adminstatus === 'REJECTED' || submissionStatus.secondHalf?.verifiedStatus === 'REJECTED');
+            if (submissionStatus.secondHalf?.isSubmitted && !isSecondHalfRejected) {
+                showNotification('info', `Second Half already submitted on ${new Date(submissionStatus.secondHalf.submittedAt).toLocaleString()}`);
+                closeSubmitMenu();
+                return;
+            }
         }
-        console.log("Opening submit dialog for half:", submissionStatus);
+
         setSubmitDialog({ open: true, half });
         closeSubmitMenu();
     };
@@ -699,7 +712,7 @@ const TourDiary = () => {
 
         if (isFieldDataCollector) {
             submissionType = submitDialog.half === 'First Half' ? 'FIRST_HALF' : 'SECOND_HALF';
-            console.log("Submitting half:", submitDialog);
+
             zoneId = Number(authservice.getzone());
             if (!zoneId) {
                 showNotification('error', 'No zone assigned.');
@@ -712,15 +725,22 @@ const TourDiary = () => {
             zoneId = rawZone ? Number(rawZone) : null; // send if available, but don't block on it
         }
 
+        const firstHalfId = submissionStatus.firstHalf?.id || submissionView?.firstHalfSubmitId || submissionView?.firstHalfId || null;
+        const secondHalfId = submissionStatus.secondHalf?.id || submissionView?.secondHalfSubmitId || submissionView?.secondHalfId || null;
+        const fullMonthId = submissionView?.fullMonthSubmitId || submissionView?.fullMonthId || null;
+
+        const targetSubmitId = submitDialog.half === 'First Half' ? firstHalfId :
+            submitDialog.half === 'Second Half' ? secondHalfId : fullMonthId;
+
         const payload = {
             submissionType,
             month,
             year,
             userId,
-            ...(zoneId ? { zoneId } : {})
-            , submitId: submitDialog.half === 'First Half' ? submissionStatus.firstHalf?.id : submissionStatus.secondHalf?.id
+            ...(zoneId ? { zoneId } : {}),
+            ...(targetSubmitId ? { submitId: targetSubmitId } : {})
         };
-        console.log("Submitting payload:", payload);
+
         try {
             setSubmitLoading(true);
             const response = await tourDiaryService.submitTourHalf(payload);
@@ -787,7 +807,7 @@ const TourDiary = () => {
             const defaultZoneId = getDefaultZoneId();
             if (defaultZoneId) {
                 setSelectedZoneId(defaultZoneId);
-                console.log("Default zone set in openAddModal:", defaultZoneId);
+
             }
         }
 
@@ -870,12 +890,7 @@ const TourDiary = () => {
     const saveEvent = async () => {
         if (!selectedDate) return;
 
-        console.log("=== saveEvent called ===");
-        console.log("selectedDate:", selectedDate);
-        console.log("formData:", formData);
-        console.log("selectedZoneId (from state):", selectedZoneId);
-        console.log("selectedScheme:", selectedScheme);
-        console.log("entryType:", entryType);
+
 
         // Check if the selected purpose requires a zone
         const selectedPurpose = allPurposes.find(p => p.id === Number(formData.purpose));
@@ -892,7 +907,7 @@ const TourDiary = () => {
             const zoneExists = availableZones.some(z => z.zoneId === Number(selectedZoneId));
             if (zoneExists) {
                 zoneIdToUse = Number(selectedZoneId);
-                console.log("Using selected zone from state:", zoneIdToUse);
+
             }
         }
 
@@ -903,7 +918,7 @@ const TourDiary = () => {
                 const zoneExists = availableZones.some(z => z.zoneId === Number(storedZoneId));
                 if (zoneExists) {
                     zoneIdToUse = Number(storedZoneId);
-                    console.log("Using stored zone as fallback:", zoneIdToUse);
+
                 }
             }
         }
@@ -911,10 +926,8 @@ const TourDiary = () => {
         // If still no zone and only one zone available, use it
         if (!zoneIdToUse && requiresZone && availableZones.length === 1) {
             zoneIdToUse = availableZones[0].zoneId;
-            console.log("Using single available zone:", zoneIdToUse);
-        }
 
-        console.log("Final zoneIdToUse:", zoneIdToUse);
+        }
 
         // Validation
         if (entryType === 'WORKING') {
@@ -951,8 +964,7 @@ const TourDiary = () => {
         const shouldSendZoneId = entryType === 'WORKING' && selectedScheme !== 10 && requiresZone;
         const finalZoneId = shouldSendZoneId ? zoneIdToUse : null;
 
-        console.log("shouldSendZoneId:", shouldSendZoneId);
-        console.log("finalZoneId:", finalZoneId);
+
 
         const payload = {
             purposeId: entryType === 'WORKING' && selectedScheme !== 10 ? Number(formData.purpose) : null,
@@ -965,12 +977,12 @@ const TourDiary = () => {
             entryType
         };
 
-        console.log("Final payload:", payload);
+
 
         try {
             setLoading(true);
             const response = await tourDiaryService.saveOrUpdateTour(payload);
-            console.log("Response:", response);
+
             if (response.id) {
                 const completeEvent = {
                     id: response.id,
@@ -1539,8 +1551,7 @@ const TourDiary = () => {
                                                         )}
 
                                                         {/* Verification Status Chip */}
-                                                        {submissionView?.firstHalfSubmitted && submissionView?.firstHalfVerifiedStatus &&
-                                                         !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(role) && (
+                                                        {submissionView?.firstHalfSubmitted && submissionView?.firstHalfVerifiedStatus && (
                                                             <Chip
                                                                 label={`Ver: ${submissionView.firstHalfVerifiedStatus}`}
                                                                 size="small"
@@ -1632,8 +1643,7 @@ const TourDiary = () => {
                                                         )}
 
                                                         {/* Verification Status Chip */}
-                                                        {submissionView?.secondHalfSubmitted && submissionView?.secondHalfVerifiedStatus &&
-                                                         !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(role) && (
+                                                        {submissionView?.secondHalfSubmitted && submissionView?.secondHalfVerifiedStatus && (
                                                             <Chip
                                                                 label={`Ver: ${submissionView.secondHalfVerifiedStatus}`}
                                                                 size="small"
@@ -1746,8 +1756,7 @@ const TourDiary = () => {
                                                     )}
 
                                                     {/* Verification Status Chip */}
-                                                    {submissionView?.fullMonthSubmitId && submissionView?.fullMonthVerifiedStatus &&
-                                                     !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(role) && (
+                                                    {submissionView?.fullMonthSubmitId && submissionView?.fullMonthVerifiedStatus && (
                                                         <Chip
                                                             label={`Ver: ${submissionView.fullMonthVerifiedStatus}`}
                                                             size="small"
@@ -1848,7 +1857,8 @@ const TourDiary = () => {
                                                     onClick={() => handleSubmitHalf("First Half")}
                                                     disabled={
                                                         submissionView?.firstHalfSubmitted &&
-                                                        submissionView?.firstHalfAdminStatus !== "REJECTED"
+                                                        submissionView?.firstHalfAdminStatus !== "REJECTED" &&
+                                                        submissionView?.firstHalfVerifiedStatus !== "REJECTED"
                                                     }
                                                     sx={{
                                                         py: 1.5,
@@ -1950,7 +1960,11 @@ const TourDiary = () => {
                                                 {/* Second Half */}
                                                 <MenuItem
                                                     onClick={() => handleSubmitHalf("Second Half")}
-                                                    disabled={submissionView?.secondHalfSubmitted && submissionView?.secondHalfAdminStatus !== "REJECTED"}
+                                                    disabled={
+                                                        submissionView?.secondHalfSubmitted &&
+                                                        submissionView?.secondHalfAdminStatus !== "REJECTED" &&
+                                                        submissionView?.secondHalfVerifiedStatus !== "REJECTED"
+                                                    }
                                                     sx={{
                                                         py: 1.5,
                                                         '&:hover': { backgroundColor: theme.palette.action.hover }
@@ -2226,16 +2240,16 @@ const TourDiary = () => {
                                                             const zoneExists = assignedZones.some(z => z.zoneId === Number(storedZoneId));
                                                             if (zoneExists) {
                                                                 setSelectedZoneId(Number(storedZoneId));
-                                                                console.log("Auto-selected zone from localStorage:", storedZoneId);
+
                                                             } else {
                                                                 // If stored zone not in assigned zones, select first
                                                                 setSelectedZoneId(assignedZones[0].zoneId);
-                                                                console.log("Auto-selected first zone:", assignedZones[0].zoneId);
+
                                                             }
                                                         } else {
                                                             // If no stored zone, select first
                                                             setSelectedZoneId(assignedZones[0].zoneId);
-                                                            console.log("Auto-selected first zone (no stored):", assignedZones[0].zoneId);
+
                                                         }
                                                     }
                                                 }
@@ -2315,7 +2329,7 @@ const TourDiary = () => {
                                                                         label="Zone"
                                                                         onChange={(e) => {
                                                                             const zoneId = e.target.value;
-                                                                            console.log("Zone selected in dropdown:", zoneId);
+
                                                                             setSelectedZoneId(zoneId);
                                                                         }}
                                                                     >
@@ -2354,7 +2368,7 @@ const TourDiary = () => {
                                                         label="Zone"
                                                         onChange={(e) => {
                                                             const zoneId = e.target.value;
-                                                            console.log("Zone selected in dropdown:", zoneId);
+
                                                             setSelectedZoneId(zoneId);
                                                         }}
                                                     >
@@ -2383,7 +2397,7 @@ const TourDiary = () => {
                                                         label="Zone"
                                                         onChange={(e) => {
                                                             const zoneId = e.target.value;
-                                                            console.log("Zone selected in dropdown:", zoneId);
+
                                                             setSelectedZoneId(zoneId);
                                                         }}
                                                     >
@@ -2632,7 +2646,7 @@ const TourDiary = () => {
                                                                         label="Zone"
                                                                         onChange={(e) => {
                                                                             const zoneId = e.target.value;
-                                                                            console.log("Zone selected in edit dropdown:", zoneId);
+
                                                                             setEditSelectedZoneId(zoneId);
                                                                         }}
                                                                     >
@@ -2665,7 +2679,7 @@ const TourDiary = () => {
                                                         label="Zone"
                                                         onChange={(e) => {
                                                             const zoneId = e.target.value;
-                                                            console.log("Zone selected in edit dropdown:", zoneId);
+
                                                             setEditSelectedZoneId(zoneId);
                                                         }}
                                                     >
@@ -2694,7 +2708,7 @@ const TourDiary = () => {
                                                         label="Zone"
                                                         onChange={(e) => {
                                                             const zoneId = e.target.value;
-                                                            console.log("Zone selected in edit dropdown:", zoneId);
+
                                                             setEditSelectedZoneId(zoneId);
                                                         }}
                                                     >

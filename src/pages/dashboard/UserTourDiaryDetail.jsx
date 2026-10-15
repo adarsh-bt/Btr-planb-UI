@@ -129,9 +129,6 @@ const UserTourDiaryDetail = () => {
     if (roleName === "Field Data Collector" && loggedInRole === "Field Inspector") {
       return true;
     }
-    if (roleName === "Field Inspector" && loggedInRole === "Taluk Level Approver") {
-      return true;
-    }
     return false;
   };
 
@@ -139,7 +136,7 @@ const UserTourDiaryDetail = () => {
     if (roleName === "Field Data Collector" && loggedInRole === "Taluk Level Approver") {
       return true;
     }
-    if (roleName === "Field Inspector" && loggedInRole === "District Level Approver") {
+    if (roleName === "Field Inspector" && loggedInRole === "Taluk Level Approver") {
       return true;
     }
     if (roleName === "Taluk Level Approver" && loggedInRole === "District Level Approver") {
@@ -1106,10 +1103,7 @@ const UserTourDiaryDetail = () => {
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
                         {getStatusChip(fullMonthStatus?.status || 'PENDING', 'Submission')}
-                        {!["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(roleName) &&
-                          !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(loggedInRole) &&
-                          getStatusChip(fullMonthStatus?.verified_status || fullMonthStatus?.verifiedStatus || 'PENDING', 'Verification')
-                        }
+                        {getStatusChip(fullMonthStatus?.verified_status || fullMonthStatus?.verifiedStatus || 'PENDING', 'Verification')}
                         {getStatusChip(fullMonthStatus?.approved_status || fullMonthStatus?.approvedStatus || fullMonthStatus?.adminStatus || 'PENDING', 'Approval')}
                         {fullMonthStatus && (fullMonthStatus.isPartialSubmission || fullMonthStatus.is_partial_submission || fullMonthStatus.isPartial) && (
                           <Chip
@@ -1139,14 +1133,12 @@ const UserTourDiaryDetail = () => {
                           </Typography>
                         )}
 
-                        {!["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(roleName) &&
-                          !["Taluk Level Approver", "District Level Approver", "District Level Data Viewer"].includes(loggedInRole) &&
-                          (fullMonthStatus.verified_at || fullMonthStatus.verifiedAt) && (
-                            <Typography variant="caption" color="text.secondary">
-                              <strong>Verified:</strong> {new Date(fullMonthStatus.verified_at || fullMonthStatus.verifiedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, {new Date(fullMonthStatus.verified_at || fullMonthStatus.verifiedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                              {(fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark) && ` (${fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark})`}
-                            </Typography>
-                          )}
+                        {(fullMonthStatus.verified_at || fullMonthStatus.verifiedAt || fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark || fullMonthStatus.verificationRemark) && (
+                          <Typography variant="caption" color="text.secondary">
+                            <strong>Verified:</strong> {fullMonthStatus.verified_at || fullMonthStatus.verifiedAt ? `${new Date(fullMonthStatus.verified_at || fullMonthStatus.verifiedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, ${new Date(fullMonthStatus.verified_at || fullMonthStatus.verifiedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}` : 'Yes'}
+                            {(fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark || fullMonthStatus.verificationRemark) && ` (${fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark || fullMonthStatus.verificationRemark})`}
+                          </Typography>
+                        )}
 
                         {(fullMonthStatus.approved_at || fullMonthStatus.approvedAt) && (
                           <Typography variant="caption" color="text.secondary">

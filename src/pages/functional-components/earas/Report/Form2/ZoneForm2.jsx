@@ -191,10 +191,10 @@ const ZoneForm2 = () => {
     setMasterZonesLoading(true);
     try {
       const response = await api.get(`${BTR_BASE_URL}/btr-service/btr-api/zones?desTalukId=${talukIdValue}`);
-      console.log('Master Zones Response:', response.data);
+
 
       if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        console.log('Setting zones list:', response.data.data);
+
         setZonesList(response.data.data);
       } else {
         console.warn('No zones found, using fallback');
@@ -253,8 +253,6 @@ const ZoneForm2 = () => {
 
         const [landRes, irrRes] = await Promise.all([axios.get(landUrl, { headers }), axios.get(irrUrl, { headers })]);
 
-        console.log('Land Zones API Response:', landRes.data);
-        console.log('Irrigation Zones API Response:', irrRes.data);
 
         setLandZonesApi(Array.isArray(landRes.data) ? landRes.data : []);
         setIrrZonesApi(Array.isArray(irrRes.data) ? irrRes.data : []);
@@ -328,6 +326,11 @@ const ZoneForm2 = () => {
       });
     }
 
+    const targetZoneId = location.state?.zoneId || (location.state?.officeType === 'FIELD_DATA_COLLECTOR' ? AuthService.getzone() : null);
+    if (targetZoneId) {
+      mergedData = mergedData.filter((r) => String(r.zoneId) === String(targetZoneId));
+    }
+
     // Sort by block then zone
     return mergedData.sort((a, b) => {
       if (a.block === 'Unassigned') return 1;
@@ -335,7 +338,7 @@ const ZoneForm2 = () => {
       if (a.block === b.block) return a.zone.localeCompare(b.zone);
       return a.block.localeCompare(b.block);
     });
-  }, [landZonesApi, zonesList]);
+  }, [landZonesApi, zonesList, location.state]);
 
   // Check if a zone has any land data
   const hasLandData = (row) => {
@@ -436,6 +439,11 @@ const ZoneForm2 = () => {
       });
     }
 
+    const targetZoneId = location.state?.zoneId || (location.state?.officeType === 'FIELD_DATA_COLLECTOR' ? AuthService.getzone() : null);
+    if (targetZoneId) {
+      mergedData = mergedData.filter((r) => String(r.zoneId) === String(targetZoneId));
+    }
+
     // Sort by block then zone
     return mergedData.sort((a, b) => {
       if (a.block === 'Unassigned') return 1;
@@ -443,7 +451,7 @@ const ZoneForm2 = () => {
       if (a.block === b.block) return a.zone.localeCompare(b.zone);
       return a.block.localeCompare(b.block);
     });
-  }, [irrZonesApi, zonesList]);
+  }, [irrZonesApi, zonesList, location.state]);
 
   // Check if a zone has any irrigation data
   const hasIrrData = (row) => {
