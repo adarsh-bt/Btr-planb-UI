@@ -26,6 +26,7 @@ const SESSION_KEY = 'clusterForm3AState';
 
 const CLUSTER_W = 220;
 const AREA_W = 120;
+const PANCHAYATH_W = 180;
 const CROP_W = 150;
 
 const DEFAULT_LAND_TYPE = 'ALL';
@@ -56,12 +57,20 @@ const CROP_GROUPS = [
 
 const ALL_CROP_GROUPS = -1;
 const ALL_CROP_GROUPS_LABEL = 'All Crop Groups';
-const FETCH_BATCH_SIZE = 6;
 
 const themeColor = '#05307a';
 const themeColorAlt = '#0b4ea2';
 
 const cleanName = (name) => (name || '').replace(/\s+/g, ' ').trim();
+
+const getCropKey = (c) => {
+  if (!c) return '';
+  if (c.cropKey) return c.cropKey;
+  const name = cleanName(c.cropName || '');
+  if (c.cropVarietyId != null) return `${c.cropId}_${c.cropVarietyId}_${name.toLowerCase()}`;
+  if (c.varietyId != null) return `${c.cropId}_${c.varietyId}_${name.toLowerCase()}`;
+  return `${c.cropId}_${name.toLowerCase()}`;
+};
 
 function getSavedState() {
   try {
@@ -84,6 +93,9 @@ function mergeGroupResponses(responses, masterClusterList = [], landTypeTab = 'A
       clusterId: mc.clusterId ?? null,
       clusterNumber: mc.clusterNumber,
       landType: mc.landType || null,
+      lbid: mc.lbid ?? mc.lbId ?? null,
+      localbodyname: cleanName(mc.localbodyname ?? mc.localBodyName ?? ''),
+      lbcode: mc.lbcode ?? mc.lbCode ?? '',
       clusterArea: 0, nucArea: 0, ffsArea: 0, cosArea: 0,
       crops: new Map()
     });
@@ -107,6 +119,9 @@ function mergeGroupResponses(responses, masterClusterList = [], landTypeTab = 'A
           clusterId: c.clusterId ?? null,
           clusterNumber: c.clusterNumber,
           landType: c.landType || null,
+          lbid: c.lbid ?? c.lbId ?? null,
+          localbodyname: cleanName(c.localbodyname ?? c.localBodyName ?? ''),
+          lbcode: c.lbcode ?? c.lbCode ?? '',
           clusterArea: Number(c.clusterArea) || 0,
           nucArea: Number(c.nucArea) || 0,
           ffsArea: Number(c.ffsArea) || 0,
@@ -121,12 +136,26 @@ function mergeGroupResponses(responses, masterClusterList = [], landTypeTab = 'A
       if (!entry.ffsArea && c.ffsArea) entry.ffsArea = Number(c.ffsArea) || 0;
       if (!entry.cosArea && c.cosArea) entry.cosArea = Number(c.cosArea) || 0;
       if (!entry.landType && c.landType) entry.landType = c.landType;
+      if (!entry.localbodyname && (c.localbodyname || c.localBodyName)) {
+        entry.localbodyname = cleanName(c.localbodyname || c.localBodyName);
+      }
+      if (!entry.lbid && (c.lbid || c.lbId)) {
+        entry.lbid = c.lbid || c.lbId;
+      }
+      if (!entry.lbcode && (c.lbcode || c.lbCode)) {
+        entry.lbcode = c.lbcode || c.lbCode;
+      }
 
       (c.crops || []).forEach((crop) => {
-        const existing = entry.crops.get(crop.cropId);
+        const cropKey = getCropKey(crop);
+        const existing = entry.crops.get(cropKey);
         if (existing) existing.areaInCents = (Number(existing.areaInCents) || 0) + (Number(crop.areaInCents) || 0);
-        else entry.crops.set(crop.cropId, {
-          cropId: crop.cropId, cropName: crop.cropName, areaInCents: Number(crop.areaInCents) || 0
+        else entry.crops.set(cropKey, {
+          cropKey,
+          cropId: crop.cropId,
+          cropVarietyId: crop.cropVarietyId ?? crop.varietyId ?? null,
+          cropName: cleanName(crop.cropName),
+          areaInCents: Number(crop.areaInCents) || 0
         });
       });
     });
@@ -134,6 +163,7 @@ function mergeGroupResponses(responses, masterClusterList = [], landTypeTab = 'A
 
   return Array.from(clusters.values()).map((c) => ({
     clusterId: c.clusterId, clusterNumber: c.clusterNumber, landType: c.landType,
+    lbid: c.lbid, localbodyname: c.localbodyname, lbcode: c.lbcode,
     clusterArea: c.clusterArea, nucArea: c.nucArea, ffsArea: c.ffsArea, cosArea: c.cosArea,
     crops: Array.from(c.crops.values())
   }));
@@ -171,6 +201,7 @@ const ClusterForm3A = () => {
   const [landTypeTab, setLandTypeTab] = useState(() => (location.state?.isDirectAccess ? DEFAULT_LAND_TYPE : (location.state?.landType ?? stateData.landType ?? DEFAULT_LAND_TYPE)));
   const [seasonId, setSeasonId] = useState(() => (location.state?.isDirectAccess ? DEFAULT_SEASON_ID : (location.state?.seasonId ?? stateData.seasonId ?? DEFAULT_SEASON_ID)));
   const [irrigation, setIrrigation] = useState(() => location.state?.irrigation ?? DEFAULT_IRRIGATION);
+  const [selectedPanchayath, setSelectedPanchayath] = useState(() => location.state?.panchayathId ?? stateData.selectedPanchayath ?? 'ALL');
   const [apiData, setApiData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -193,9 +224,10 @@ const ClusterForm3A = () => {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({
       officeType: stateData.officeType, districtId, districtName,
       talukId, talukName, blockId, blockName, zoneId, zoneName,
-      agriculturalYear, activeTab, landType: landTypeTab, seasonId, irrigation
+      agriculturalYear, activeTab, landType: landTypeTab, seasonId, irrigation,
+      selectedPanchayath
     }));
-  }, [stateData.officeType, districtId, districtName, talukId, talukName, blockId, blockName, zoneId, zoneName, agriculturalYear, activeTab, landTypeTab, seasonId, irrigation]);
+  }, [stateData.officeType, districtId, districtName, talukId, talukName, blockId, blockName, zoneId, zoneName, agriculturalYear, activeTab, landTypeTab, seasonId, irrigation, selectedPanchayath]);
 
   // ── Fetch cluster report data ──
   useEffect(() => {
@@ -204,11 +236,14 @@ const ClusterForm3A = () => {
 
     let cancelled = false;
 
-    const buildUrl = (groupId) => {
+    const buildUrl = (groupIds) => {
       const params = new URLSearchParams({
         agriYear: agriculturalYear,
-        cropGroupId: String(groupId),
         zoneId: String(zoneId)
+      });
+      const ids = Array.isArray(groupIds) ? groupIds : [groupIds];
+      ids.forEach((id) => {
+        if (id != null) params.append('cropGroupIds', String(id));
       });
       const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
       if (landTypeParam) params.append('landType', landTypeParam);
@@ -239,17 +274,10 @@ const ClusterForm3A = () => {
         }
 
         const groupIds = isAllCropGroups ? CROP_GROUPS.map((g) => g.id) : [cropGroupId];
-        const payloads = [];
-        for (let i = 0; i < groupIds.length; i += FETCH_BATCH_SIZE) {
-          const batch = groupIds.slice(i, i + FETCH_BATCH_SIZE);
-          // eslint-disable-next-line no-await-in-loop
-          const responses = await Promise.all(batch.map((id) => axios.get(buildUrl(id), { headers })));
-          if (cancelled) return;
-          responses.forEach((r) => payloads.push(r.data));
-        }
+        const response = await axios.get(buildUrl(groupIds), { headers });
 
         if (cancelled) return;
-        setApiData(mergeGroupResponses(payloads, masterClusters, landTypeTab));
+        setApiData(mergeGroupResponses([response.data], masterClusters, landTypeTab));
       } catch (err) {
         if (cancelled) return;
         console.error('Error fetching Cluster Form 3A data:', err);
@@ -272,7 +300,15 @@ const ClusterForm3A = () => {
     const map = new Map();
     apiData.forEach((c) =>
       (c.crops || []).forEach((crop) => {
-        if (!map.has(crop.cropId)) map.set(crop.cropId, { cropId: crop.cropId, cropName: cleanName(crop.cropName) });
+        const key = getCropKey(crop);
+        if (!map.has(key)) {
+          map.set(key, {
+            cropKey: key,
+            cropId: crop.cropId,
+            cropVarietyId: crop.cropVarietyId ?? crop.varietyId ?? null,
+            cropName: cleanName(crop.cropName)
+          });
+        }
       })
     );
     return Array.from(map.values()).sort((a, b) => a.cropName.localeCompare(b.cropName));
@@ -282,7 +318,8 @@ const ClusterForm3A = () => {
     const list = apiData.map((c) => {
       const byId = {};
       (c.crops || []).forEach((crop) => {
-        byId[crop.cropId] = Number(crop.areaInCents) || 0;
+        const key = getCropKey(crop);
+        byId[key] = (byId[key] || 0) + (Number(crop.areaInCents) || 0);
       });
       const hasData =
         (Number(c.clusterArea) || 0) > 0 ||
@@ -294,6 +331,9 @@ const ClusterForm3A = () => {
         clusterId: c.clusterId ?? null,
         clusterNumber: c.clusterNumber || 'Unassigned',
         landType: c.landType || '',
+        lbid: c.lbid ?? null,
+        localbodyname: c.localbodyname || '',
+        lbcode: c.lbcode || '',
         clusterArea: Number(c.clusterArea) || 0,
         nucArea: Number(c.nucArea) || 0,
         ffsArea: Number(c.ffsArea) || 0,
@@ -311,18 +351,53 @@ const ClusterForm3A = () => {
     });
   }, [apiData]);
 
+  const panchayathOptions = useMemo(() => {
+    const map = new Map();
+    apiData.forEach((c) => {
+      const name = cleanName(c.localbodyname);
+      if (name) {
+        const id = c.lbid != null ? String(c.lbid) : name;
+        if (!map.has(id)) {
+          map.set(id, {
+            id,
+            lbid: c.lbid ?? null,
+            name,
+            code: c.lbcode || ''
+          });
+        }
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [apiData]);
+
+  const selectedPanchayathObj = useMemo(
+    () => panchayathOptions.find((p) => String(p.id) === String(selectedPanchayath)),
+    [panchayathOptions, selectedPanchayath]
+  );
+  const selectedPanchayathName = selectedPanchayath === 'ALL' ? '' : (selectedPanchayathObj?.name || String(selectedPanchayath));
+
   const searchFilteredRows = useMemo(() => {
-    if (!searchTerm.trim()) return clusterRows;
+    let rows = clusterRows;
+
+    if (selectedPanchayath !== 'ALL') {
+      rows = rows.filter((r) => {
+        if (r.lbid != null) return String(r.lbid) === String(selectedPanchayath);
+        return cleanName(r.localbodyname) === String(selectedPanchayath);
+      });
+    }
+
+    if (!searchTerm.trim()) return rows;
     const q = searchTerm.toLowerCase().trim();
-    return clusterRows.filter((r) =>
+    return rows.filter((r) =>
       String(r.clusterNumber).toLowerCase().includes(q) ||
-      (r.landType || '').toLowerCase().includes(q)
+      (r.landType || '').toLowerCase().includes(q) ||
+      (r.localbodyname || '').toLowerCase().includes(q)
     );
-  }, [clusterRows, searchTerm]);
+  }, [clusterRows, selectedPanchayath, searchTerm]);
 
   const clustersWithNoData = useMemo(
-    () => clusterRows.filter((r) => !r.hasData && r.clusterId != null).length,
-    [clusterRows]
+    () => searchFilteredRows.filter((r) => !r.hasData && r.clusterId != null).length,
+    [searchFilteredRows]
   );
 
   const areaTotals = useMemo(() => {
@@ -338,16 +413,17 @@ const ClusterForm3A = () => {
 
   const cropTotals = useMemo(() => {
     const totals = {};
-    cropColumns.forEach((c) => (totals[c.cropId] = 0));
+    cropColumns.forEach((c) => (totals[c.cropKey] = 0));
     searchFilteredRows.forEach((row) => {
       cropColumns.forEach((c) => {
-        if (row.byId[c.cropId] !== undefined) totals[c.cropId] += row.byId[c.cropId];
+        if (row.byId[c.cropKey] !== undefined) totals[c.cropKey] += row.byId[c.cropKey];
       });
     });
     return totals;
   }, [searchFilteredRows, cropColumns]);
 
   // ── Handlers ──
+  const handlePanchayathChange = (e) => { setSelectedPanchayath(e.target.value); setPage(0); };
   const handleCropGroupChange = (e) => { setActiveTab(Number(e.target.value)); setPage(0); };
   const handleLandTypeChange = (_, v) => { if (v != null) { setLandTypeTab(v); setPage(0); } };
   const handleSeasonChange = (e) => { setSeasonId(Number(e.target.value)); setPage(0); };
@@ -385,6 +461,7 @@ const ClusterForm3A = () => {
   // ── Excel export ──
   const generateExcelFileName = () => {
     const parts = ['Form3A_ClusterReport', (zoneName || 'Zone').replace(/\s+/g, '_')];
+    if (selectedPanchayathName) parts.push(selectedPanchayathName.replace(/\s+/g, '_'));
     parts.push((cropGroupName || 'All').replace(/\s+/g, '_'));
     if (landTypeTab !== 'ALL') parts.push(landTypeTab);
     if (seasonName) parts.push(seasonName);
@@ -404,6 +481,7 @@ const ClusterForm3A = () => {
       ['Taluk', talukName],
       ['Block', blockName],
       ['Zone', zoneName],
+      ...(selectedPanchayathName ? [['Panchayath', selectedPanchayathName]] : []),
       ['Agricultural Year', agriculturalYear],
       ['Crop Group', cropGroupName || '—'],
       ['Land Type', landTypeTab === 'ALL' ? 'All' : landTypeTab],
@@ -415,7 +493,7 @@ const ClusterForm3A = () => {
     ];
 
     const headerRow = [
-      '#', 'Cluster No.', 'Land Type', 'Cluster Area', 'NUC Area', 'FFS Area', 'CoS Area',
+      '#', 'Cluster No.', 'Land Type', 'Cluster Area', 'Panchayath', 'NUC Area', 'FFS Area', 'CoS Area',
       ...cropColumns.map((c) => c.cropName)
     ];
 
@@ -424,17 +502,18 @@ const ClusterForm3A = () => {
       serial += 1;
       const cells = [serial, `Cluster ${row.clusterNumber}`, row.landType || '—'];
       if (!row.hasData) {
-        cells.push('NA', 'NA', 'NA', 'NA');
+        cells.push('NA', row.localbodyname || '—', 'NA', 'NA', 'NA');
         cropColumns.forEach(() => cells.push('NA'));
       } else {
         cells.push(
           row.clusterArea ? Number(row.clusterArea) : '—',
+          row.localbodyname || '—',
           row.nucArea ? Number(row.nucArea) : '—',
           row.ffsArea ? Number(row.ffsArea) : '—',
           row.cosArea ? Number(row.cosArea) : '—'
         );
         cropColumns.forEach((c) => {
-          const v = row.byId[c.cropId];
+          const v = row.byId[c.cropKey];
           cells.push(v ? Number(v) : '—');
         });
       }
@@ -444,26 +523,27 @@ const ClusterForm3A = () => {
     const totalsRow = [
       '', '', 'GRAND TOTAL',
       Number(areaTotals.clusterArea.toFixed(2)),
+      '—',
       Number(areaTotals.nucArea.toFixed(2)),
       Number(areaTotals.ffsArea.toFixed(2)),
       Number(areaTotals.cosArea.toFixed(2)),
-      ...cropColumns.map((c) => Number((cropTotals[c.cropId] || 0).toFixed(2)))
+      ...cropColumns.map((c) => Number((cropTotals[c.cropKey] || 0).toFixed(2)))
     ];
 
     const aoa = [...headerMeta, headerRow, ...dataRows, totalsRow];
     const worksheet = XLSX.utils.aoa_to_sheet(aoa);
     worksheet['!cols'] = [
-      { wch: 5 }, { wch: 22 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
+      { wch: 5 }, { wch: 22 }, { wch: 12 }, { wch: 14 }, { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
       ...cropColumns.map(() => ({ wch: 16 }))
     ];
-    worksheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }];
+    worksheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }];
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Cluster Form 3A');
     XLSX.writeFile(workbook, generateExcelFileName());
   };
 
-  const TABLE_MIN_W = CLUSTER_W + 4 * AREA_W + Math.max(cropColumns.length, 1) * CROP_W;
+  const TABLE_MIN_W = CLUSTER_W + 4 * AREA_W + PANCHAYATH_W + Math.max(cropColumns.length, 1) * CROP_W;
   const exportDisabled = searchFilteredRows.length === 0 || loading;
 
   // ─────────────────────────── RENDER ───────────────────────────
@@ -537,6 +617,20 @@ const ClusterForm3A = () => {
                 sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }}
               />
             )}
+            {selectedPanchayath !== 'ALL' && selectedPanchayathName && (
+              <Chip
+                icon={<LocationOn sx={{ fontSize: 16, color: '#fff !important' }} />}
+                label={selectedPanchayathName}
+                size="small"
+                onDelete={() => setSelectedPanchayath('ALL')}
+                sx={{
+                  bgcolor: 'rgba(255,255,255,0.18)',
+                  color: '#fff',
+                  fontWeight: 600,
+                  '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.8)', '&:hover': { color: '#fff' } }
+                }}
+              />
+            )}
             {landTypeTab !== 'ALL' && (
               <Chip label={`${landTypeTab} Land`} size="small"
                 sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }} />
@@ -564,7 +658,7 @@ const ClusterForm3A = () => {
           {/* ── KPI strip ── */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             {[
-              { label: 'Clusters', value: clusterRows.length, icon: <StoreIcon />, color: '#1565c0' },
+              { label: 'Clusters', value: searchFilteredRows.length, icon: <StoreIcon />, color: '#1565c0' },
               { label: 'Cluster Area', value: formatNumber(areaTotals.clusterArea), icon: <StoreIcon />, color: '#2e7d32' },
               { label: 'Nuc Area', value: formatNumber(areaTotals.nucArea), icon: <GrassIcon />, color: '#6a1b9a' },
               { label: 'FFS Area', value: formatNumber(areaTotals.ffsArea), icon: <EnergySavingsLeafIcon />, color: '#ef6c00' },
@@ -636,7 +730,33 @@ const ClusterForm3A = () => {
 
               <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', lg: 'block' } }} />
 
-              <FormControl size="small" sx={{ minWidth: 240 }}>
+              <FormControl size="small" sx={{ minWidth: 200 }}>
+                <InputLabel id="cluster-panchayath-label">Panchayath</InputLabel>
+                <Select
+                  labelId="cluster-panchayath-label"
+                  value={selectedPanchayath}
+                  label="Panchayath"
+                  onChange={handlePanchayathChange}
+                  renderValue={(v) => {
+                    if (v === 'ALL') return 'All Panchayaths';
+                    return (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <LocationOn sx={{ fontSize: 18, color: themeColor }} />
+                        {selectedPanchayathName || v}
+                      </Box>
+                    );
+                  }}
+                >
+                  <MenuItem value="ALL">All Panchayaths</MenuItem>
+                  {panchayathOptions.map((p) => (
+                    <MenuItem key={p.id} value={p.id}>
+                      {p.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl size="small" sx={{ minWidth: 220 }}>
                 <InputLabel id="cluster-crop-group-label">Crop Group</InputLabel>
                 <Select
                   labelId="cluster-crop-group-label"
@@ -658,7 +778,7 @@ const ClusterForm3A = () => {
                 </Select>
               </FormControl>
 
-              <FormControl size="small" sx={{ minWidth: 180 }}>
+              <FormControl size="small" sx={{ minWidth: 170 }}>
                 <InputLabel id="cluster-season-label">Season</InputLabel>
                 <Select
                   labelId="cluster-season-label"
@@ -676,7 +796,7 @@ const ClusterForm3A = () => {
                 </Select>
               </FormControl>
 
-              <FormControl size="small" sx={{ minWidth: 180 }}>
+              <FormControl size="small" sx={{ minWidth: 170 }}>
                 <InputLabel id="cluster-irrigation-label">Irrigation</InputLabel>
                 <Select
                   labelId="cluster-irrigation-label"
@@ -812,10 +932,11 @@ const ClusterForm3A = () => {
                   <colgroup>
                     <col style={{ width: CLUSTER_W }} />
                     <col style={{ width: AREA_W }} />
+                    <col style={{ width: PANCHAYATH_W }} />
                     <col style={{ width: AREA_W }} />
                     <col style={{ width: AREA_W }} />
                     <col style={{ width: AREA_W }} />
-                    {cropColumns.map((c) => (<col key={c.cropId} style={{ width: CROP_W }} />))}
+                    {cropColumns.map((c) => (<col key={c.cropKey} style={{ width: CROP_W }} />))}
                     <col style={{ width: 'auto' }} />
                   </colgroup>
 
@@ -824,6 +945,7 @@ const ClusterForm3A = () => {
                       {[
                         { key: 'cluster', label: 'Cluster No.', align: 'left', sticky: true },
                         { key: 'clusterArea', label: 'Cluster Area', align: 'right' },
+                        { key: 'panchayath', label: 'Panchayath', align: 'left' },
                         { key: 'nuc', label: 'NUC Area', align: 'right' },
                         { key: 'ffs', label: 'FFS Area', align: 'right' },
                         { key: 'cos', label: 'CoS Area', align: 'right' }
@@ -852,7 +974,7 @@ const ClusterForm3A = () => {
                       ))}
                       {cropColumns.map((crop) => (
                         <TableCell
-                          key={crop.cropId}
+                          key={crop.cropKey}
                           align="right"
                           sx={{
                             backgroundColor: themeColor,
@@ -876,7 +998,7 @@ const ClusterForm3A = () => {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={Math.max(cropColumns.length + 6, 8)} align="center" sx={{ py: 10 }}>
+                        <TableCell colSpan={Math.max(cropColumns.length + 7, 9)} align="center" sx={{ py: 10 }}>
                           <Stack alignItems="center" spacing={2}>
                             <CircularProgress size={44} thickness={4} sx={{ color: themeColor }} />
                             <Box textAlign="center">
@@ -892,11 +1014,13 @@ const ClusterForm3A = () => {
                       </TableRow>
                     ) : paginatedRows.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={cropColumns.length + 6} align="center" sx={{ py: 6 }}>
+                        <TableCell colSpan={cropColumns.length + 7} align="center" sx={{ py: 6 }}>
                           <Typography color="text.secondary">
                             {searchTerm
                               ? `No clusters found matching "${searchTerm}"`
-                              : `No data available for ${cropGroupName}`}
+                              : selectedPanchayath !== 'ALL'
+                                ? `No clusters found for Panchayath "${selectedPanchayathName}"`
+                                : `No data available for ${cropGroupName}`}
                           </Typography>
                         </TableCell>
                       </TableRow>
@@ -964,7 +1088,32 @@ const ClusterForm3A = () => {
                               </Stack>
                             </TableCell>
 
-                            {['clusterArea', 'nucArea', 'ffsArea', 'cosArea'].map((key) => (
+                            {/* Cluster Area */}
+                            <TableCell align="right" sx={numericCellSx}>
+                              {!row.hasData ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : row.clusterArea ? (
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>{formatNumber(row.clusterArea)}</Typography>
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">—</Typography>
+                              )}
+                            </TableCell>
+
+                            {/* Panchayath */}
+                            <TableCell align="left" sx={{ whiteSpace: 'nowrap' }}>
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontWeight: 500,
+                                  color: row.localbodyname ? 'text.primary' : 'text.secondary'
+                                }}
+                              >
+                                {row.localbodyname || '—'}
+                              </Typography>
+                            </TableCell>
+
+                            {/* NUC Area, FFS Area, CoS Area */}
+                            {['nucArea', 'ffsArea', 'cosArea'].map((key) => (
                               <TableCell key={key} align="right" sx={numericCellSx}>
                                 {!row.hasData ? (
                                   <Typography variant="body2" color="text.secondary">NA</Typography>
@@ -977,9 +1126,9 @@ const ClusterForm3A = () => {
                             ))}
 
                             {cropColumns.map((crop) => {
-                              const val = row.byId[crop.cropId];
+                              const val = row.byId[crop.cropKey];
                               return (
-                                <TableCell key={crop.cropId} align="right" sx={numericCellSx}>
+                                <TableCell key={crop.cropKey} align="right" sx={numericCellSx}>
                                   {!row.hasData ? (
                                     <Typography variant="body2" color="text.secondary">NA</Typography>
                                   ) : val ? (
@@ -1017,12 +1166,13 @@ const ClusterForm3A = () => {
                             GRAND TOTAL
                           </TableCell>
                           <TableCell align="right" sx={numericCellSx}>{formatNumber(areaTotals.clusterArea)}</TableCell>
+                          <TableCell align="left" sx={{ color: 'text.secondary', fontWeight: 600 }}>—</TableCell>
                           <TableCell align="right" sx={numericCellSx}>{formatNumber(areaTotals.nucArea)}</TableCell>
                           <TableCell align="right" sx={numericCellSx}>{formatNumber(areaTotals.ffsArea)}</TableCell>
                           <TableCell align="right" sx={numericCellSx}>{formatNumber(areaTotals.cosArea)}</TableCell>
                           {cropColumns.map((crop) => (
-                            <TableCell key={crop.cropId} align="right" sx={numericCellSx}>
-                              {cropTotals[crop.cropId] ? formatNumber(cropTotals[crop.cropId]) : '—'}
+                            <TableCell key={crop.cropKey} align="right" sx={numericCellSx}>
+                              {cropTotals[crop.cropKey] ? formatNumber(cropTotals[crop.cropKey]) : '—'}
                             </TableCell>
                           ))}
                           <TableCell aria-hidden sx={{ backgroundColor: alpha(themeColor, 0.09) }} />

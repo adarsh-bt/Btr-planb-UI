@@ -11,7 +11,7 @@ import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined
 
 
 export default function AgriYearOptions() {
-const navigate = useNavigate();
+  const navigate = useNavigate();
   const [years, setYears] = useState([]);
   const [selectedYear, setSelectedYear] = useState('');
 
@@ -46,23 +46,33 @@ const navigate = useNavigate();
 
   }, []);
 
-const generateAgriYears = () => {
-  const APP_START_YEAR = 2025;
+  const generateAgriYears = () => {
+    const APP_START_YEAR = 2025;
 
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth() + 1; // July is month 7 (1-indexed)
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1;
 
-  const currentAgriStartYear = month >= 7 ? year : year - 1;
-  const endYear = Math.max(APP_START_YEAR, currentAgriStartYear);
+    const currentAgriStartYear =
+      month >= 7 ? year : year - 1;
 
-  const yearsList = [];
-  for (let y = APP_START_YEAR; y <= endYear; y++) {
-    yearsList.push(`${y}-${y + 1}`);
-  }
-  return yearsList;
-};
+    const endYear = Math.max(
+      APP_START_YEAR,
+      currentAgriStartYear
+    );
 
+    const yearsList = [];
+
+    for (let y = APP_START_YEAR; y <= endYear; y++) {
+      yearsList.push(`${y}-${y + 1}`);
+    }
+
+    // TESTING ONLY
+    // yearsList.push('2027-2028');
+    // yearsList.push('2028-2029');
+
+    return yearsList;
+  };
   const handleChange = (event) => {
 
     const value = event.target.value;
@@ -83,56 +93,56 @@ const generateAgriYears = () => {
 
     <Box sx={{ mr: 2 }}>
 
-      <FormControl size="small" sx={{ 
-    minWidth: { xs: '100%', sm: 100 }, // Full width on mobile
-    width: { xs: '100%', sm: 'auto' }
-  }}>
-    <Select
-      value={selectedYear}
-      onChange={handleChange}
-      IconComponent={() => null}
-      sx={{
-        color: 'white',
-        border: 'none',
-        '.MuiOutlinedInput-notchedOutline': { border: 'none' },
-        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { border: 'none' },
-        '&:hover .MuiOutlinedInput-notchedOutline': { border: 'none' },
-        backgroundColor: '#04255e94',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1,
-        fontWeight: 500,
-        borderRadius: 2,
-        padding: { xs: '4px 8px', sm: '8px',lg:0 },
-        '& .MuiSelect-select': {
-          py: { xs: 0.5, sm: 1 },
-        }
-      }}
-      renderValue={(selected) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <CalendarMonthOutlinedIcon sx={{ fontSize: '1rem' }} />
-          <Typography 
-            component="span" 
-            sx={{ 
-              display: { xs: 'none', sm: 'inline' },
-              fontSize: '0.875rem'
-            }}
-          >
-            {selected}
-          </Typography>
-        </Box>
-      )}
-    >
-      {years.map((year) => (
-        <MenuItem key={year} value={year} sx={{ color: 'black' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <CalendarMonthOutlinedIcon sx={{ color: 'action.active', fontSize: '1rem' }} />
-            {year}
-          </Box>
-        </MenuItem>
-      ))}
-    </Select>
-  </FormControl>
+      <FormControl size="small" sx={{
+        minWidth: { xs: '100%', sm: 100 }, // Full width on mobile
+        width: { xs: '100%', sm: 'auto' }
+      }}>
+        <Select
+          value={selectedYear}
+          onChange={handleChange}
+          IconComponent={() => null}
+          sx={{
+            color: 'white',
+            border: 'none',
+            '.MuiOutlinedInput-notchedOutline': { border: 'none' },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { border: 'none' },
+            '&:hover .MuiOutlinedInput-notchedOutline': { border: 'none' },
+            backgroundColor: '#04255e94',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            fontWeight: 500,
+            borderRadius: 2,
+            padding: { xs: '4px 8px', sm: '8px', lg: 0 },
+            '& .MuiSelect-select': {
+              py: { xs: 0.5, sm: 1 },
+            }
+          }}
+          renderValue={(selected) => (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <CalendarMonthOutlinedIcon sx={{ fontSize: '1rem' }} />
+              <Typography
+                component="span"
+                sx={{
+                  display: { xs: 'none', sm: 'inline' },
+                  fontSize: '0.875rem'
+                }}
+              >
+                {selected}
+              </Typography>
+            </Box>
+          )}
+        >
+          {years.map((year) => (
+            <MenuItem key={year} value={year} sx={{ color: 'black' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CalendarMonthOutlinedIcon sx={{ color: 'action.active', fontSize: '1rem' }} />
+                {year}
+              </Box>
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
 
     </Box>
   );

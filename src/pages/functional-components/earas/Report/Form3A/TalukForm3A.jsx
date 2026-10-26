@@ -59,9 +59,17 @@ const CROP_GROUPS = [
 
 const ALL_CROP_GROUPS = -1;
 const ALL_CROP_GROUPS_LABEL = 'All Crop Groups';
-const FETCH_BATCH_SIZE = 6;
 
 const cleanName = (name) => (name || '').replace(/\s+/g, ' ').trim();
+
+const getCropKey = (c) => {
+  if (!c) return '';
+  if (c.cropKey) return c.cropKey;
+  const name = cleanName(c.cropName || '');
+  if (c.cropVarietyId != null) return `${c.cropId}_${c.cropVarietyId}_${name.toLowerCase()}`;
+  if (c.varietyId != null) return `${c.cropId}_${c.varietyId}_${name.toLowerCase()}`;
+  return `${c.cropId}_${name.toLowerCase()}`;
+};
 
 function getSavedState() {
   try {
@@ -117,13 +125,16 @@ function mergeGroupResponses(responses) {
       if (!entry.cosArea && t.cosArea) entry.cosArea = Number(t.cosArea) || 0;
 
       (t.crops || []).forEach((c) => {
-        const existing = entry.crops.get(c.cropId);
+        const cropKey = getCropKey(c);
+        const existing = entry.crops.get(cropKey);
         if (existing) {
           existing.areaInCents = (Number(existing.areaInCents) || 0) + (Number(c.areaInCents) || 0);
         } else {
-          entry.crops.set(c.cropId, {
+          entry.crops.set(cropKey, {
+            cropKey,
             cropId: c.cropId,
-            cropName: c.cropName,
+            cropVarietyId: c.cropVarietyId ?? c.varietyId ?? null,
+            cropName: cleanName(c.cropName),
             areaInCents: Number(c.areaInCents) || 0
           });
         }
@@ -291,18 +302,21 @@ const TalukForm3A = () => {
 
     let cancelled = false;
 
-    const buildUrl = (groupId) => {
+    const buildUrl = (groupIds) => {
       const params = new URLSearchParams({
         agriYear: agriculturalYear,
-        districtId: String(districtId),
-        cropGroupId: String(groupId)
+        districtId: String(districtId)
+      });
+      const ids = Array.isArray(groupIds) ? groupIds : [groupIds];
+      ids.forEach((id) => {
+        if (id != null) params.append('cropGroupIds', String(id));
       });
       const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
       if (landTypeParam) params.append('landType', landTypeParam);
       params.append('seasonId', String(seasonId));
       const irrigationParam = IRRIGATION_PARAM[irrigation];
       if (irrigationParam) params.append('isIrrigated', irrigationParam);
-      console.log(`${BASE_URL}/earas-form1-entry/api/progress-report/form3A/district?${params.toString()}`)
+      console.log(`${BASE_URL}/earas-form1-entry/api/progress-report/form3A/district?${params.toString()}`);
       return `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/district?${params.toString()}`;
     };
 
@@ -315,16 +329,9 @@ const TalukForm3A = () => {
         const headers = { Authorization: `Bearer ${token}` };
         const groupIds = isAllCropGroups ? CROP_GROUPS.map((g) => g.id) : [cropGroupId];
 
-        const payloads = [];
-        for (let i = 0; i < groupIds.length; i += FETCH_BATCH_SIZE) {
-          const batch = groupIds.slice(i, i + FETCH_BATCH_SIZE);
-          // eslint-disable-next-line no-await-in-loop
-          const responses = await Promise.all(batch.map((id) => axios.get(buildUrl(id), { headers })));
-          if (cancelled) return;
-          responses.forEach((r) => payloads.push(r.data));
-        }
+        const response = await axios.get(buildUrl(groupIds), { headers });
         if (cancelled) return;
-        setApiData(mergeGroupResponses(payloads));
+        setApiData(mergeGroupResponses([response.data]));
       } catch (err) {
         if (cancelled) return;
         console.error('Error fetching Taluk Form 3A data:', err);
@@ -347,7 +354,15 @@ const TalukForm3A = () => {
     const map = new Map();
     apiData.forEach((t) =>
       (t.crops || []).forEach((c) => {
-        if (!map.has(c.cropId)) map.set(c.cropId, { cropId: c.cropId, cropName: cleanName(c.cropName) });
+        const key = getCropKey(c);
+        if (!map.has(key)) {
+          map.set(key, {
+            cropKey: key,
+            cropId: c.cropId,
+            cropVarietyId: c.cropVarietyId ?? c.varietyId ?? null,
+            cropName: cleanName(c.cropName)
+          });
+        }
       })
     );
     return Array.from(map.values()).sort((a, b) => a.cropName.localeCompare(b.cropName));
@@ -364,7 +379,10 @@ const TalukForm3A = () => {
 
     const buildRow = (talukId, talukName, api) => {
       const byId = {};
-      (api?.crops || []).forEach((c) => { byId[c.cropId] = Number(c.areaInCents) || 0; });
+      (api?.crops || []).forEach((c) => {
+        const key = getCropKey(c);
+        byId[key] = (byId[key] || 0) + (Number(c.areaInCents) || 0);
+      });
       const clusterArea = Number(api?.clusterArea) || 0;
       const nucArea = Number(api?.nucArea) || 0;
       const ffsArea = Number(api?.ffsArea) || 0;
@@ -412,10 +430,10 @@ const TalukForm3A = () => {
 
   const cropTotals = useMemo(() => {
     const totals = {};
-    cropColumns.forEach((c) => (totals[c.cropId] = 0));
+    cropColumns.forEach((c) => (totals[c.cropKey] = 0));
     searchFilteredRows.forEach((row) => {
       cropColumns.forEach((c) => {
-        if (row.byId[c.cropId] !== undefined) totals[c.cropId] += row.byId[c.cropId];
+        if (row.byId[c.cropKey] !== undefined) totals[c.cropKey] += row.byId[c.cropKey];
       });
     });
     return totals;
@@ -519,7 +537,7 @@ const TalukForm3A = () => {
           row.cosArea ? Number(row.cosArea) : '—'
         );
         cropColumns.forEach((c) => {
-          const v = row.byId[c.cropId];
+          const v = row.byId[c.cropKey];
           cells.push(v ? Number(v) : '—');
         });
       }
@@ -532,7 +550,7 @@ const TalukForm3A = () => {
       Number(areaTotals.nucArea.toFixed(2)),
       Number(areaTotals.ffsArea.toFixed(2)),
       Number(areaTotals.cosArea.toFixed(2)),
-      ...cropColumns.map((c) => Number((cropTotals[c.cropId] || 0).toFixed(2)))
+      ...cropColumns.map((c) => Number((cropTotals[c.cropKey] || 0).toFixed(2)))
     ];
 
     const aoa = [...headerMeta, headerRow, ...dataRows, totalsRow];
@@ -912,7 +930,7 @@ const TalukForm3A = () => {
                     <col style={{ width: AREA_W }} />
                     <col style={{ width: AREA_W }} />
                     <col style={{ width: AREA_W }} />
-                    {cropColumns.map((c) => (<col key={c.cropId} style={{ width: CROP_W }} />))}
+                    {cropColumns.map((c) => (<col key={c.cropKey} style={{ width: CROP_W }} />))}
                     <col style={{ width: 'auto' }} />
                   </colgroup>
 
@@ -953,7 +971,7 @@ const TalukForm3A = () => {
                       })}
                       {cropColumns.map((crop) => (
                         <TableCell
-                          key={crop.cropId}
+                          key={crop.cropKey}
                           align="right"
                           sx={{
                             backgroundColor: themeColor, color: '#fff', fontWeight: 700,
@@ -1072,9 +1090,9 @@ const TalukForm3A = () => {
                               ))}
 
                               {cropColumns.map((crop) => {
-                                const val = row.byId[crop.cropId];
+                                const val = row.byId[crop.cropKey];
                                 return (
-                                  <TableCell key={crop.cropId} align="right" sx={numericCellSx}>
+                                  <TableCell key={crop.cropKey} align="right" sx={numericCellSx}>
                                     {!row.hasData ? (
                                       <Typography variant="body2" color="text.secondary">NA</Typography>
                                     ) : val ? (
@@ -1117,8 +1135,8 @@ const TalukForm3A = () => {
                           <TableCell align="right" sx={numericCellSx}>{formatNumber(areaTotals.ffsArea)}</TableCell>
                           <TableCell align="right" sx={numericCellSx}>{formatNumber(areaTotals.cosArea)}</TableCell>
                           {cropColumns.map((crop) => (
-                            <TableCell key={crop.cropId} align="right" sx={numericCellSx}>
-                              {cropTotals[crop.cropId] ? formatNumber(cropTotals[crop.cropId]) : '—'}
+                            <TableCell key={crop.cropKey} align="right" sx={numericCellSx}>
+                              {cropTotals[crop.cropKey] ? formatNumber(cropTotals[crop.cropKey]) : '—'}
                             </TableCell>
                           ))}
                           <TableCell aria-hidden sx={{ backgroundColor: alpha(themeColor, 0.09) }} />

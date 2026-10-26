@@ -3,22 +3,22 @@ import mainapi from 'api/mainapi';
 
 const RegisterService = {
   USER_URL: mainapi.BASE_URL,
-  
+
   // BASE_URL: 'http://localhost:8081/user-access',
 
-async getDistricts() {
-  try {
-    const url = `${this.USER_URL}/user-access/api/districts`;
-  
-    const response = await axios.get(url);
-    return response.data;
-  } catch (err) {
-    console.error("District Fetch Error:", err);
-    return {
-      message: err.response?.data?.message || 'An error occurred while fetching districts.'
-    };
-  }
-},
+  async getDistricts() {
+    try {
+      const url = `${this.USER_URL}/user-access/api/districts`;
+
+      const response = await axios.get(url);
+      return response.data;
+    } catch (err) {
+      console.error("District Fetch Error:", err);
+      return {
+        message: err.response?.data?.message || 'An error occurred while fetching districts.'
+      };
+    }
+  },
 
 
   async getTaluks(districtId) {

@@ -49,12 +49,16 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import CloseIcon from "@mui/icons-material/Close";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import * as XLSX from "xlsx";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import tourDiaryService from "pages/authentication/services/tourdiaryservice";
 import profileService from "pages/profile/profileservice";
 import ApprovedUserService from "pages/functional-components/approvels/ApprovedUserService";
 import authservice from "pages/authentication/services/authservice";
 import Breadcrumb from "routes/Breadcrumb";
+import { exportTourDiaryPdf } from "utils/tourDiaryPdfGenerator";
 
 const UserTourDiaryDetail = () => {
   const theme = useTheme();
@@ -72,10 +76,12 @@ const UserTourDiaryDetail = () => {
     return new Date().getFullYear();
   };
 
-  const { userId, month: monthParam, year: yearParam, userDetails: userInfo } = location.state || {};
+  const { userId: stateUserId, month: monthParam, year: yearParam, userDetails: userInfo } = location.state || {};
+  const userId = stateUserId || authservice.userid();
   const [roleName, setRoleName] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(monthParam || new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(yearParam || getLocalStorageYear(selectedMonth));
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -477,12 +483,23 @@ const UserTourDiaryDetail = () => {
 
   // Verification Action
   const handleOpenVerificationDialog = () => {
+    const adminStatus = fullMonthStatus?.approved_status || fullMonthStatus?.approvedStatus || fullMonthStatus?.adminStatus;
+    if (adminStatus === 'APPROVED') {
+      setSnackbar({ open: true, message: "Already Approver Approved", severity: "warning" });
+      return;
+    }
     setVerificationStatus('APPROVED');
     setVerificationRemarks('');
     setVerificationDialogOpen(true);
   };
 
   const performVerification = async () => {
+    const adminStatus = fullMonthStatus?.approved_status || fullMonthStatus?.approvedStatus || fullMonthStatus?.adminStatus;
+    if (adminStatus === 'APPROVED') {
+      setSnackbar({ open: true, message: "Already Approver Approved", severity: "warning" });
+      return;
+    }
+
     const adminId = authservice.userid();
     if (!adminId) {
       setSnackbar({ open: true, message: "User session expired. Please login again.", severity: "error" });
@@ -629,6 +646,132 @@ const UserTourDiaryDetail = () => {
     );
   };
 
+  const handleExportExcel = () => {
+    try {
+      const monthName = monthNames[selectedMonth - 1];
+      const empName = userDetails?.name || 'User';
+
+      const headers = [
+        "Date",
+        "Day",
+        "Zone",
+        "Cluster No",
+        "Entry Type",
+        "Program Change",
+        "Change Reason",
+        "Purpose",
+        "Distance (km)",
+        "Hours (h)",
+        "Remarks"
+      ];
+
+      const rows = tourEntries.map(entry => {
+        let dateStr = '—';
+        let dayName = '—';
+        try {
+          const date = new Date(entry.createdAt);
+          if (!isNaN(date.getTime())) {
+            const day = date.getDate();
+            const month = date.getMonth();
+            const dName = dayNames[date.getDay()];
+            dateStr = `${String(day).padStart(2, '0')} ${monthNames[month].substring(0, 3)} ${selectedYear}`;
+            dayName = dName;
+          }
+        } catch (e) { }
+
+        const purpose = entry.purposeName || getPurposeName(entry.purposeId) || '—';
+        const zone = getZoneName(entry.zoneId, entry) || '—';
+        const cluster = entry.clusterNo || entry.clusterNumber || entry.clusterName || entry.clusterId || '—';
+
+        return [
+          dateStr,
+          dayName,
+          zone,
+          cluster,
+          entry.entryType || 'WORKING',
+          entry.isAdvanceChanged ? 'Yes' : 'No',
+          entry.changeReason || '—',
+          purpose,
+          entry.distance ? Number(entry.distance) : '—',
+          entry.hours ? Number(entry.hours) : '—',
+          entry.remark || '—'
+        ];
+      });
+
+      const workbook = XLSX.utils.book_new();
+
+      const metaRows = [
+        ["ACTUAL TOUR DIARY MANAGEMENT REPORT"],
+        [`Employee Name: ${userDetails?.name || 'N/A'}`, `Employee ID: ${userDetails?.penNumber || userDetails?.empNumber || userDetails?.employeeId || 'N/A'}`],
+        [`Designation: ${userDetails?.designation || 'N/A'}`, `Office Location: ${userDetails?.officelocation || userDetails?.officeLocation || 'N/A'}`],
+        [`Month & Year: ${monthName} ${selectedYear}`],
+        []
+      ];
+
+      const sheetData = [...metaRows, headers, ...rows];
+      const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+
+      worksheet['!cols'] = [
+        { wch: 16 },
+        { wch: 8 },
+        { wch: 20 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 16 },
+        { wch: 25 },
+        { wch: 25 },
+        { wch: 14 },
+        { wch: 12 },
+        { wch: 30 }
+      ];
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Actual Tour Diary');
+
+      const sanitizedName = empName.replace(/[^a-zA-Z0-9]/g, '_');
+      XLSX.writeFile(workbook, `Actual_Tour_Diary_${sanitizedName}_${monthName}_${selectedYear}.xlsx`);
+    } catch (err) {
+      console.error("Error exporting excel:", err);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      setIsGeneratingPdf(true);
+      const safeUserDetails = {
+        name: userDetails?.name || authservice.userName() || "Employee",
+        penNumber: userDetails?.penNumber || userDetails?.empNumber || userDetails?.employeeId || authservice.penNumber() || "N/A",
+        empNumber: userDetails?.empNumber || userDetails?.penNumber || authservice.penNumber() || "N/A",
+        designation: userDetails?.designation || roleName || authservice.getrole() || "N/A",
+        officelocation: userDetails?.officelocation || userDetails?.officeLocation || authservice.locationName() || "N/A"
+      };
+
+      await exportTourDiaryPdf({
+        tourEntries,
+        userDetails: safeUserDetails,
+        selectedMonth,
+        selectedYear,
+        fullMonthStatus,
+        getZoneName,
+        getPurposeName
+      });
+
+      setSnackbar({
+        open: true,
+        severity: "success",
+        message: "Tour Diary PDF downloaded successfully"
+      });
+    } catch (err) {
+      console.error("Error generating Tour Diary PDF:", err);
+      setSnackbar({
+        open: true,
+        severity: "error",
+        message: "Failed to generate Tour Diary PDF"
+      });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   // ============================================================
   // RENDER TABLE VIEW
   // ============================================================
@@ -715,6 +858,37 @@ const UserTourDiaryDetail = () => {
                   )
                 }}
               />
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Button
+                  variant="contained"
+                  startIcon={isGeneratingPdf ? <CircularProgress size={18} color="inherit" /> : <PictureAsPdfIcon />}
+                  onClick={handleExportPdf}
+                  disabled={tourEntries.length === 0 || isGeneratingPdf}
+                  sx={{
+                    backgroundColor: '#d32f2f',
+                    '&:hover': { backgroundColor: '#b71c1c' },
+                    whiteSpace: 'nowrap',
+                    fontWeight: 600
+                  }}
+                >
+                  {isGeneratingPdf ? "Generating..." : "Download PDF"}
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<FileDownloadIcon />}
+                  onClick={handleExportExcel}
+                  disabled={tourEntries.length === 0}
+                  sx={{
+                    borderColor: '#27ae60',
+                    color: '#27ae60',
+                    '&:hover': { borderColor: '#1e8449', backgroundColor: 'rgba(39, 174, 96, 0.08)' },
+                    whiteSpace: 'nowrap',
+                    fontWeight: 600
+                  }}
+                >
+                  Download Excel
+                </Button>
+              </Stack>
             </Stack>
           </Box>
 
@@ -1057,7 +1231,21 @@ const UserTourDiaryDetail = () => {
                 {monthNames[selectedMonth - 1]} {selectedYear}
               </Typography>
 
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Button
+                  variant="contained"
+                  startIcon={isGeneratingPdf ? <CircularProgress size={18} color="inherit" /> : <PictureAsPdfIcon />}
+                  onClick={handleExportPdf}
+                  disabled={tourEntries.length === 0 || isGeneratingPdf}
+                  sx={{
+                    backgroundColor: '#d32f2f',
+                    '&:hover': { backgroundColor: '#b71c1c' },
+                    whiteSpace: 'nowrap',
+                    fontWeight: 600
+                  }}
+                >
+                  {isGeneratingPdf ? "Generating..." : "Download PDF"}
+                </Button>
                 <Button
                   variant="contained"
                   onClick={() => handleMonthChange(1)}
@@ -1103,7 +1291,7 @@ const UserTourDiaryDetail = () => {
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
                         {getStatusChip(fullMonthStatus?.status || 'PENDING', 'Submission')}
-                        {getStatusChip(fullMonthStatus?.verified_status || fullMonthStatus?.verifiedStatus || 'PENDING', 'Verification')}
+                        {roleName === "Field Data Collector" && getStatusChip(fullMonthStatus?.verified_status || fullMonthStatus?.verifiedStatus || 'PENDING', 'Verification')}
                         {getStatusChip(fullMonthStatus?.approved_status || fullMonthStatus?.approvedStatus || fullMonthStatus?.adminStatus || 'PENDING', 'Approval')}
                         {fullMonthStatus && (fullMonthStatus.isPartialSubmission || fullMonthStatus.is_partial_submission || fullMonthStatus.isPartial) && (
                           <Chip
@@ -1133,7 +1321,7 @@ const UserTourDiaryDetail = () => {
                           </Typography>
                         )}
 
-                        {(fullMonthStatus.verified_at || fullMonthStatus.verifiedAt || fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark || fullMonthStatus.verificationRemark) && (
+                        {roleName === "Field Data Collector" && (fullMonthStatus.verified_at || fullMonthStatus.verifiedAt || fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark || fullMonthStatus.verificationRemark) && (
                           <Typography variant="caption" color="text.secondary">
                             <strong>Verified:</strong> {fullMonthStatus.verified_at || fullMonthStatus.verifiedAt ? `${new Date(fullMonthStatus.verified_at || fullMonthStatus.verifiedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, ${new Date(fullMonthStatus.verified_at || fullMonthStatus.verifiedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}` : 'Yes'}
                             {(fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark || fullMonthStatus.verificationRemark) && ` (${fullMonthStatus.verified_remark || fullMonthStatus.verifiedRemark || fullMonthStatus.verificationRemark})`}

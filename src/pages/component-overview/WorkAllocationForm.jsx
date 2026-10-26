@@ -214,7 +214,7 @@ function WorkAllocationForm() {
   const [data, setData] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [validationErrors, setValidationErrors] = useState({});
+  const [clusterLimit, setClusterLimit] = useState(100);
   const [isDisabled, setIsDisabled] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formStatus, setFormStatus] = useState('NEW');
@@ -319,6 +319,37 @@ function WorkAllocationForm() {
     fetchData();
   }, [resolvedZoneId]);
 
+  // Fetch Cluster Limit from API
+  useEffect(() => {
+    const fetchClusterLimit = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await api.get(`${BASE_URL}/btr-service/admin-manage/Cluster-limits`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const limitData = response.data;
+        console.log("Cluster limit fetched:", limitData);
+        let val = 100;
+        if (typeof limitData === 'number') {
+          val = limitData;
+        } else if (typeof limitData?.payload === 'number') {
+          val = limitData.payload;
+        } else if (Array.isArray(limitData) && limitData.length > 0) {
+          val = limitData[0].tsoLimit || limitData[0].clusterMax || limitData[0].keyplotsLimit || 100;
+        } else if (limitData?.tsoLimit) {
+          val = limitData.tsoLimit;
+        } else if (!isNaN(parseFloat(limitData))) {
+          val = parseFloat(limitData);
+        }
+        setClusterLimit(val);
+      } catch (err) {
+        console.error("Error fetching cluster limit:", err);
+        setClusterLimit(100);
+      }
+    };
+    fetchClusterLimit();
+  }, [BASE_URL]);
+
   // Fetch saved allocations and read their approval status
   const fetchWorkAllocation = React.useCallback(async () => {
     if (!resolvedZoneId) return;
@@ -328,6 +359,7 @@ function WorkAllocationForm() {
       const res = await api.get(`${BASE_URL}/btr-service/btr-api/work-allocation-view/${resolvedZoneId}/${agriYear}`);
       const apiData = res.data;
       console.log("data ", apiData)
+      console.log(`${BASE_URL}/btr-service/btr-api/work-allocation-view/${resolvedZoneId}/${agriYear}`)
       if (apiData) {
         const allocations = apiData.payload || (Array.isArray(apiData) ? apiData : []);
         setWorkAllocationData(allocations);
@@ -369,63 +401,152 @@ function WorkAllocationForm() {
     fetchWorkAllocation();
   }, [fetchWorkAllocation]);
 
+  // Helper to recalculate derived row fields according to business rules
+  const recalculateRow = (row) => {
+    const hasWet = row.Wet_area !== '' && row.Wet_area !== null && row.Wet_area !== undefined;
+    const hasDry = row.Dry_area !== '' && row.Dry_area !== null && row.Dry_area !== undefined;
+
+    const wetArea = hasWet ? parseFloat(row.Wet_area) : null;
+    const dryArea = hasDry ? parseFloat(row.Dry_area) : null;
+
+    // 1. Tab 1 Total Area = Wet + Dry (if at least one exists)
+    if (hasWet || hasDry) {
+      const totalArea = (wetArea || 0) + (dryArea || 0);
+      row.Total_area = totalArea.toString();
+    } else {
+      row.Total_area = '';
+    }
+
+    // 2. Tab 2 Excluded Areas
+    const forestWet = parseFloat(row.forest_wet) || 0;
+    const forestDry = parseFloat(row.forest_dry) || 0;
+    const plantationWet = parseFloat(row.plantation_wet) || 0;
+    const plantationDry = parseFloat(row.plantation_dry) || 0;
+    const waterWet = parseFloat(row.water_wet) || 0;
+    const waterDry = parseFloat(row.water_dry) || 0;
+    const otherWet = parseFloat(row.other_wet) || 0;
+    const otherDry = parseFloat(row.other_dry) || 0;
+
+    const totalWetExcluded = forestWet + plantationWet + waterWet + otherWet;
+    const totalDryExcluded = forestDry + plantationDry + waterDry + otherDry;
+
+    // 3. Tab 3 Area Available for Estimation (Must NEVER be negative)
+    if (hasWet) {
+      const estWet = Math.max(0, (wetArea || 0) - totalWetExcluded);
+      row.total_area_wet_19 = estWet.toString();
+    } else {
+      row.total_area_wet_19 = '';
+    }
+
+    if (hasDry) {
+      const estDry = Math.max(0, (dryArea || 0) - totalDryExcluded);
+      row.total_area_dry_21 = estDry.toString();
+    } else {
+      row.total_area_dry_21 = '';
+    }
+
+    if (hasWet || hasDry) {
+      const estWet = hasWet ? Math.max(0, (wetArea || 0) - totalWetExcluded) : 0;
+      const estDry = hasDry ? Math.max(0, (dryArea || 0) - totalDryExcluded) : 0;
+      row.total_area_total_20 = (estWet + estDry).toString();
+    } else {
+      row.total_area_total_20 = '';
+    }
+
+    // 4. Tab 3 Number of Plots Total = Wet Plots + Dry Plots
+    const hasPlotsWet = row.plots_wet_17 !== '' && row.plots_wet_17 !== null && row.plots_wet_17 !== undefined;
+    const hasPlotsDry = row.plots_dry_16 !== '' && row.plots_dry_16 !== null && row.plots_dry_16 !== undefined;
+    if (hasPlotsWet || hasPlotsDry) {
+      const plotsWet = parseFloat(row.plots_wet_17) || 0;
+      const plotsDry = parseFloat(row.plots_dry_16) || 0;
+      row.plots_total = (plotsWet + plotsDry).toString();
+    } else {
+      row.plots_total = '';
+    }
+  };
+
   // Merge datasets
   useEffect(() => {
+    const getValueString = (val) => (val !== undefined && val !== null ? val.toString() : '');
+
     if (zoneData.length > 0 && workAllocationData.length > 0) {
       const merged = zoneData.map(zoneItem => {
         const workItem = workAllocationData.find(work => work.lbcode === zoneItem.lbcode);
-        return {
+        const row = {
           blocks: zoneItem.blocks || [],
           villages: zoneItem.villages || [],
           p_name: zoneItem.p_name || '',
           lbcode: zoneItem.lbcode || '',
-          Wet_area: workItem?.villageWetArea?.toString() || '',
-          Dry_area: workItem?.villageDryArea?.toString() || '',
-          Total_area: workItem?.villageTotalArea?.toString() || '',
-          forest_a: workItem?.forestAreaA?.toString() || '',
-          area_under: workItem?.areaUnderPlant?.toString() || '',
-          plantation_under: workItem?.forestExcludeUnclutivate?.toString() || '',
-          kayal_excluded: workItem?.kayalExcludeArea?.toString() || '',
-          plots_dry_16: workItem?.noOfPlotsDry?.toString() || '',
-          plots_wet_17: workItem?.noOfPlotsWet?.toString() || '',
-          plots_total: workItem?.noOfPlotsTotal?.toString() || '',
-          total_area_wet_19: workItem?.totalAreaWet?.toString() || '',
-          total_area_dry_21: workItem?.totalAreaDry?.toString() || '',
-          total_area_total_20: workItem?.totalAreaForEstimation?.toString() || '',
+          Wet_area: getValueString(workItem?.villageWetArea),
+          Dry_area: getValueString(workItem?.villageDryArea),
+          Total_area: getValueString(workItem?.villageTotalArea),
+
+          // Forest Area (Wet: forestAreaB, Dry: forestAreaA)
+          forest_wet: getValueString(workItem?.forestAreaB),
+          forest_dry: getValueString(workItem?.forestAreaA),
+
+          // Plantation Area (Wet: forestAreaC, Dry: areaUnderPlant)
+          plantation_wet: getValueString(workItem?.forestAreaC),
+          plantation_dry: getValueString(workItem?.areaUnderPlant),
+
+          // Water Bodies (Wet: otherExcludeFWet, Dry: kayalExcludeArea)
+          water_wet: getValueString(workItem?.otherExcludeFWet),
+          water_dry: getValueString(workItem?.kayalExcludeArea),
+
+          // Other Areas (Wet: forestExcludeNotUnclutivate, Dry: forestExcludeUnclutivate)
+          other_wet: getValueString(workItem?.forestExcludeNotUnclutivate),
+          other_dry: getValueString(workItem?.forestExcludeUnclutivate),
+
+          // Cluster Details (Wet: totalWetCluster, Dry: totalDryCluster)
+          wet_cluster: getValueString(workItem?.totalWetCluster),
+          dry_cluster: getValueString(workItem?.totalDryCluster),
+
+          plots_dry_16: getValueString(workItem?.noOfPlotsDry),
+          plots_wet_17: getValueString(workItem?.noOfPlotsWet),
+          plots_total: getValueString(workItem?.noOfPlotsTotal),
+          total_area_wet_19: getValueString(workItem?.totalAreaWet),
+          total_area_dry_21: getValueString(workItem?.totalAreaDry),
+          total_area_total_20: getValueString(workItem?.totalAreaForEstimation),
           remarks: workItem?.remarks || ''
         };
+        recalculateRow(row);
+        return row;
       });
       setData(merged);
     } else if (zoneData.length > 0) {
-      const zoneDataWithEmptyFields = zoneData.map(zoneItem => ({
-        blocks: zoneItem.blocks || [],
-        villages: zoneItem.villages || [],
-        p_name: zoneItem.p_name || '',
-        lbcode: zoneItem.lbcode || '',
-        Wet_area: zoneItem.Wet_area || '',
-        Dry_area: zoneItem.Dry_area || '',
-        Total_area: zoneItem.Total_area || '',
-        forest_a: '',
-        area_under: '',
-        plantation_under: '',
-        kayal_excluded: '',
-        plots_dry_16: '',
-        plots_wet_17: '',
-        plots_total: '',
-        total_area_wet_19: '',
-        total_area_dry_21: '',
-        total_area_total_20: '',
-        remarks: ''
-      }));
+      const zoneDataWithEmptyFields = zoneData.map(zoneItem => {
+        const row = {
+          blocks: zoneItem.blocks || [],
+          villages: zoneItem.villages || [],
+          p_name: zoneItem.p_name || '',
+          lbcode: zoneItem.lbcode || '',
+          Wet_area: zoneItem.Wet_area || '',
+          Dry_area: zoneItem.Dry_area || '',
+          Total_area: zoneItem.Total_area || '',
+          forest_wet: '',
+          forest_dry: '',
+          plantation_wet: '',
+          plantation_dry: '',
+          water_wet: '',
+          water_dry: '',
+          other_wet: '',
+          other_dry: '',
+          wet_cluster: '',
+          dry_cluster: '',
+          plots_dry_16: '',
+          plots_wet_17: '',
+          plots_total: '',
+          total_area_wet_19: '',
+          total_area_dry_21: '',
+          total_area_total_20: '',
+          remarks: ''
+        };
+        recalculateRow(row);
+        return row;
+      });
       setData(zoneDataWithEmptyFields);
     }
   }, [zoneData, workAllocationData]);
-
-  const validateNumber = (value) => {
-    if (value === '' || value === null || value === undefined) return 'This field is required';
-    if (!/^\d*\.?\d*$/.test(value)) return 'Only numbers allowed';
-    return '';
-  };
 
   // ===== ADMIN REVOKE ACTION =====
   const handleRevoke = async () => {
@@ -522,61 +643,167 @@ function WorkAllocationForm() {
   };
 
   // ============================================================
-  // MAIN AUTO-CALCULATION LOGIC
+  // MAIN AUTO-CALCULATION & VALIDATION LOGIC
   // ============================================================
   const handleInputChange = (index, field, value) => {
     // Field Inspector cannot edit
     if (isDisabled || isFieldInspector) return;
 
-    const updatedData = [...data];
-    updatedData[index] = { ...updatedData[index], [field]: value };
-
-    const row = updatedData[index];
-
-    // ===== 1. TAB 1: Calculate Total Area = Wet + Dry =====
-    const wetArea = parseFloat(row.Wet_area) || 0;
-    const dryArea = parseFloat(row.Dry_area) || 0;
-    row.Total_area = (wetArea + dryArea).toString();
-
-    // ===== 2. TAB 2: Get Excluded Areas =====
-    const forestArea = parseFloat(row.forest_a) || 0;
-    const plantationArea = parseFloat(row.area_under) || 0;
-    const waterBodies = parseFloat(row.kayal_excluded) || 0;
-    const otherAreas = parseFloat(row.plantation_under) || 0;
-
-    // ===== 3. Calculate Total Excluded =====
-    const totalExcluded = forestArea + plantationArea + waterBodies + otherAreas;
-
-    // ===== 4. TAB 3: Area Available for Estimation =====
-    row.total_area_wet_19 = wetArea.toString();
-
-    const estimationDry = Math.max(0, dryArea - totalExcluded);
-    row.total_area_dry_21 = estimationDry.toString();
-
-    const estimationTotal = wetArea + estimationDry;
-    row.total_area_total_20 = estimationTotal.toString();
-
-    // ===== 5. TAB 3: Number of Plots Total = Wet + Dry =====
-    const plotsWet = parseFloat(row.plots_wet_17) || 0;
-    const plotsDry = parseFloat(row.plots_dry_16) || 0;
-    row.plots_total = (plotsWet + plotsDry).toString();
-
-    setData(updatedData);
-    // ===== 6. Validation for numeric fields =====
     const numericFields = [
       'Wet_area', 'Dry_area',
-      'forest_a', 'area_under', 'kayal_excluded', 'plantation_under',
-      'plots_wet_17', 'plots_dry_16'
+      'forest_wet', 'forest_dry',
+      'plantation_wet', 'plantation_dry',
+      'water_wet', 'water_dry',
+      'other_wet', 'other_dry',
+      'plots_wet_17', 'plots_dry_16',
+      'wet_cluster', 'dry_cluster'
     ];
 
+    // Enforce numeric rules: block letters, special characters, and leading zeros (e.g. 05)
     if (numericFields.includes(field)) {
-      const errorMsg = validateNumber(value);
-      setValidationErrors((prev) => ({
-        ...prev,
-        [`${field}_${index}`]: errorMsg,
-      }));
+      const isValidNumericInput = /^(?:[1-9]\d*\.?\d*|0(?:\.\d*)?|\.\d*)?$/.test(value);
+      if (!isValidNumericInput) {
+        return; // Prevent state update if user enters letters, special chars, or leading zeros like 05
+      }
     }
+
+    const updatedData = [...data];
+    const updatedRow = { ...updatedData[index], [field]: value };
+    recalculateRow(updatedRow);
+    updatedData[index] = updatedRow;
+    setData(updatedData);
   };
+
+  const computeValidationErrors = (dataList) => {
+    const errors = {};
+    if (!dataList || !Array.isArray(dataList) || dataList.length === 0) return errors;
+
+    dataList.forEach((row, index) => {
+      const hasWet = row.Wet_area !== '' && row.Wet_area !== null && row.Wet_area !== undefined;
+      const hasDry = row.Dry_area !== '' && row.Dry_area !== null && row.Dry_area !== undefined;
+
+      const wetArea = hasWet ? parseFloat(row.Wet_area) : null;
+      const dryArea = hasDry ? parseFloat(row.Dry_area) : null;
+
+      // Base area checks
+      if (!hasWet) {
+        errors[`Wet_area_${index}`] = 'Wet area as per village records is required';
+      } else if (isNaN(wetArea) || wetArea < 0) {
+        errors[`Wet_area_${index}`] = 'Invalid Wet area value';
+      }
+
+      if (!hasDry) {
+        errors[`Dry_area_${index}`] = 'Dry area as per village records is required';
+      } else if (isNaN(dryArea) || dryArea < 0) {
+        errors[`Dry_area_${index}`] = 'Invalid Dry area value';
+      }
+
+      // Excluded area fields
+      const excludedFields = [
+        { key: 'forest_wet', label: 'Forest Wet' },
+        { key: 'forest_dry', label: 'Forest Dry' },
+        { key: 'plantation_wet', label: 'Plantation Wet' },
+        { key: 'plantation_dry', label: 'Plantation Dry' },
+        { key: 'water_wet', label: 'Water Bodies Wet' },
+        { key: 'water_dry', label: 'Water Bodies Dry' },
+        { key: 'other_wet', label: 'Other Wet' },
+        { key: 'other_dry', label: 'Other Dry' }
+      ];
+
+      excludedFields.forEach(({ key, label }) => {
+        const val = row[key];
+        if (val === '' || val === null || val === undefined) {
+          errors[`${key}_${index}`] = `${label} is required`;
+        } else if (isNaN(parseFloat(val)) || parseFloat(val) < 0) {
+          errors[`${key}_${index}`] = `Invalid ${label} value`;
+        }
+      });
+
+      const forestWet = parseFloat(row.forest_wet) || 0;
+      const forestDry = parseFloat(row.forest_dry) || 0;
+      const plantationWet = parseFloat(row.plantation_wet) || 0;
+      const plantationDry = parseFloat(row.plantation_dry) || 0;
+      const waterWet = parseFloat(row.water_wet) || 0;
+      const waterDry = parseFloat(row.water_dry) || 0;
+      const otherWet = parseFloat(row.other_wet) || 0;
+      const otherDry = parseFloat(row.other_dry) || 0;
+
+      const totalWetExcluded = forestWet + plantationWet + waterWet + otherWet;
+      const totalDryExcluded = forestDry + plantationDry + waterDry + otherDry;
+
+      // Validation Rule: Excluded Area Cannot Exceed Village Record Area
+      // Validate Wet and Dry independently!
+      if (hasWet && wetArea !== null && !isNaN(wetArea)) {
+        if (totalWetExcluded > wetArea) {
+          const msg = `Excluded Wet (${totalWetExcluded}) > Village Wet (${wetArea})`;
+          errors[`Wet_area_${index}`] = errors[`Wet_area_${index}`] || msg;
+          errors[`forest_wet_${index}`] = errors[`forest_wet_${index}`] || msg;
+          errors[`plantation_wet_${index}`] = errors[`plantation_wet_${index}`] || msg;
+          errors[`water_wet_${index}`] = errors[`water_wet_${index}`] || msg;
+          errors[`other_wet_${index}`] = errors[`other_wet_${index}`] || msg;
+          errors[`row_excluded_wet_${index}`] = msg;
+        }
+      }
+
+      if (hasDry && dryArea !== null && !isNaN(dryArea)) {
+        if (totalDryExcluded > dryArea) {
+          const msg = `Excluded Dry (${totalDryExcluded}) > Village Dry (${dryArea})`;
+          errors[`Dry_area_${index}`] = errors[`Dry_area_${index}`] || msg;
+          errors[`forest_dry_${index}`] = errors[`forest_dry_${index}`] || msg;
+          errors[`plantation_dry_${index}`] = errors[`plantation_dry_${index}`] || msg;
+          errors[`water_dry_${index}`] = errors[`water_dry_${index}`] || msg;
+          errors[`other_dry_${index}`] = errors[`other_dry_${index}`] || msg;
+          errors[`row_excluded_dry_${index}`] = msg;
+        }
+      }
+
+      // Tab 3 fields
+      const hasPlotsWet = row.plots_wet_17 !== '' && row.plots_wet_17 !== null && row.plots_wet_17 !== undefined;
+      const hasPlotsDry = row.plots_dry_16 !== '' && row.plots_dry_16 !== null && row.plots_dry_16 !== undefined;
+      const hasWetCluster = row.wet_cluster !== '' && row.wet_cluster !== null && row.wet_cluster !== undefined;
+      const hasDryCluster = row.dry_cluster !== '' && row.dry_cluster !== null && row.dry_cluster !== undefined;
+
+      if (!hasPlotsWet) errors[`plots_wet_17_${index}`] = 'Wet plots count is required';
+      if (!hasPlotsDry) errors[`plots_dry_16_${index}`] = 'Dry plots count is required';
+      if (!hasWetCluster) errors[`wet_cluster_${index}`] = 'Wet cluster count is required';
+      if (!hasDryCluster) errors[`dry_cluster_${index}`] = 'Dry cluster count is required';
+
+      const plotsWet = parseFloat(row.plots_wet_17) || 0;
+      const plotsDry = parseFloat(row.plots_dry_16) || 0;
+      const wetCluster = parseFloat(row.wet_cluster) || 0;
+      const dryCluster = parseFloat(row.dry_cluster) || 0;
+
+      // Available Area Allocation Limits
+      const rawAvailableWet = (hasWet && wetArea !== null) ? wetArea - totalWetExcluded : null;
+      const rawAvailableDry = (hasDry && dryArea !== null) ? dryArea - totalDryExcluded : null;
+
+      if (rawAvailableWet !== null) {
+        if (rawAvailableWet <= 0) {
+          if (plotsWet > 0) errors[`plots_wet_17_${index}`] = 'Cannot allocate Wet plots when Available Wet Area is 0 or negative';
+          if (wetCluster > 0) errors[`wet_cluster_${index}`] = 'Cannot allocate Wet cluster when Available Wet Area is 0 or negative';
+        } else {
+          if (plotsWet > rawAvailableWet) errors[`plots_wet_17_${index}`] = `Wet plots (${plotsWet}) exceed Available Wet Area (${rawAvailableWet} cents)`;
+          if (wetCluster > rawAvailableWet) errors[`wet_cluster_${index}`] = `Wet cluster count (${wetCluster}) exceeds Available Wet Area (${rawAvailableWet} cents)`;
+        }
+      }
+
+      if (rawAvailableDry !== null) {
+        if (rawAvailableDry <= 0) {
+          if (plotsDry > 0) errors[`plots_dry_16_${index}`] = 'Cannot allocate Dry plots when Available Dry Area is 0 or negative';
+          if (dryCluster > 0) errors[`dry_cluster_${index}`] = 'Cannot allocate Dry cluster when Available Dry Area is 0 or negative';
+        } else {
+          if (plotsDry > rawAvailableDry) errors[`plots_dry_16_${index}`] = `Dry plots (${plotsDry}) exceed Available Dry Area (${rawAvailableDry} cents)`;
+          if (dryCluster > rawAvailableDry) errors[`dry_cluster_${index}`] = `Dry cluster count (${dryCluster}) exceeds Available Dry Area (${rawAvailableDry} cents)`;
+        }
+      }
+    });
+
+    return errors;
+  };
+
+  const validationErrors = useMemo(() => {
+    return computeValidationErrors(data);
+  }, [data]);
 
   const showTemporaryMessage = (message, isError = false) => {
     setSuccessMessage(message);
@@ -586,29 +813,121 @@ function WorkAllocationForm() {
     }, 3000);
   };
 
+  // Total Cluster Sum & Limit Validation
+  const totalClusterSum = useMemo(() => {
+    if (!data || data.length === 0) return 0;
+    return data.reduce((sum, r) => {
+      const wet = parseFloat(r.wet_cluster) || 0;
+      const dry = parseFloat(r.dry_cluster) || 0;
+      return sum + wet + dry;
+    }, 0);
+  }, [data]);
+
+  const isClusterLimitExceeded = useMemo(() => {
+    return totalClusterSum > clusterLimit;
+  }, [totalClusterSum, clusterLimit]);
+
+  const isClusterLimitNotMet = useMemo(() => {
+    return totalClusterSum < clusterLimit;
+  }, [totalClusterSum, clusterLimit]);
+
+  const isClusterLimitMatched = useMemo(() => {
+    return totalClusterSum === clusterLimit;
+  }, [totalClusterSum, clusterLimit]);
+
   const handleSubmitClick = () => {
-    const hasErrors = Object.values(validationErrors).some((msg) => msg !== '');
-    if (hasErrors) {
-      showTemporaryMessage('⚠️ Please correct all invalid fields before submitting.', true);
+    const errorKeys = Object.keys(validationErrors);
+    if (errorKeys.length > 0) {
+      const firstErrorMsg = validationErrors[errorKeys[0]];
+      showTemporaryMessage(`⚠️ Validation Error: ${firstErrorMsg}`, true);
+      return;
+    }
+    if (!isClusterLimitMatched) {
+      if (totalClusterSum < clusterLimit) {
+        showTemporaryMessage(`⚠️ Total Cluster count (${totalClusterSum}) is less than the required cluster limit of ${clusterLimit}. Total clusters across all panchayaths must equal ${clusterLimit}.`, true);
+      } else {
+        showTemporaryMessage(`⚠️ Total Cluster count (${totalClusterSum}) across all panchayaths exceeds the maximum limit of ${clusterLimit}.`, true);
+      }
       return;
     }
     setConfirmDialogOpen(true);
   };
 
-  // Form completion validator rules
+  // Form completion validator rules - Send for approval enabled ONLY when total cluster count equals cluster limit
   const canSubmit = useMemo(() => {
     if (!data || data.length === 0) return false;
-    const requiredFields = [
-      'Wet_area', 'Dry_area',
-      'forest_a', 'area_under', 'kayal_excluded', 'plantation_under',
-      'plots_wet_17', 'plots_dry_16'
-    ];
-    const hasEmptyFields = data.some((row) =>
-      requiredFields.some((field) => row[field] === '' || row[field] === null || row[field] === undefined)
-    );
-    const hasErrors = Object.values(validationErrors).some((msg) => msg !== '');
-    return !hasEmptyFields && !hasErrors;
-  }, [data, validationErrors]);
+    const hasErrors = Object.keys(validationErrors).length > 0;
+    return !hasErrors && isClusterLimitMatched;
+  }, [data, validationErrors, isClusterLimitMatched]);
+
+  const buildRowsToSave = () => {
+    const user_id = authservice.userid();
+    return data.map((row) => {
+      const forestWet = parseFloat(row.forest_wet) || 0;
+      const forestDry = parseFloat(row.forest_dry) || 0;
+      const plantationWet = parseFloat(row.plantation_wet) || 0;
+      const plantationDry = parseFloat(row.plantation_dry) || 0;
+      const waterWet = parseFloat(row.water_wet) || 0;
+      const waterDry = parseFloat(row.water_dry) || 0;
+      const otherWet = parseFloat(row.other_wet) || 0;
+      const otherDry = parseFloat(row.other_dry) || 0;
+
+      const wetArea = parseFloat(row.Wet_area) || 0;
+      const dryArea = parseFloat(row.Dry_area) || 0;
+      const villageTotalArea = wetArea + dryArea;
+
+      const totalWetExcluded = forestWet + plantationWet + waterWet + otherWet;
+      const totalDryExcluded = forestDry + plantationDry + waterDry + otherDry;
+
+      const estimationWet = Math.max(0, wetArea - totalWetExcluded);
+      const estimationDry = Math.max(0, dryArea - totalDryExcluded);
+      const estimationTotal = estimationWet + estimationDry;
+
+      const plotsWet = parseFloat(row.plots_wet_17) || 0;
+      const plotsDry = parseFloat(row.plots_dry_16) || 0;
+      const plotsTotal = plotsWet + plotsDry;
+
+      return {
+        zoneId: resolvedZoneId,
+        lbcode: row.lbcode || "LB-2025-001",
+
+        // ===== AREA DETAILS (Tab 1) =====
+        villageWetArea: wetArea,
+        villageDryArea: dryArea,
+        villageTotalArea: villageTotalArea,
+
+        // ===== EXCLUDED AREAS (Tab 2) =====
+        forestAreaA: forestDry,                     // Dry Forest
+        forestAreaB: forestWet,                     // Wet Forest
+        forestAreaC: plantationWet,                 // Wet Plantation
+        areaUnderPlant: plantationDry,              // Dry Plantation
+        otherExcludeFWet: waterWet,                 // Wet Water Bodies
+        kayalExcludeArea: waterDry,                 // Dry Water Bodies
+        forestExcludeNotUnclutivate: otherWet,      // Wet Other Areas
+        forestExcludeUnclutivate: otherDry,         // Dry Other Areas
+        otherExcludedFDry: 0,
+        otherExcludeFTotal: 0,
+
+        // ===== AREA AVAILABLE FOR ESTIMATION (Tab 3) =====
+        totalAreaWet: estimationWet,
+        totalAreaDry: estimationDry,
+        totalAreaForEstimation: estimationTotal,
+
+        // ===== NUMBER OF PLOTS (Tab 3) =====
+        noOfPlotsWet: plotsWet,
+        noOfPlotsDry: plotsDry,
+        noOfPlotsTotal: plotsTotal,
+
+        // ===== CLUSTER DETAILS =====
+        totalWetCluster: parseFloat(row.wet_cluster) || 0,
+        totalDryCluster: parseFloat(row.dry_cluster) || 0,
+
+        remarks: row.remarks || "",
+        userId: user_id,
+        agriYear: authservice.agriyear(),
+      };
+    });
+  };
 
   const handleConfirmSubmit = async () => {
     setConfirmDialogOpen(false);
@@ -616,43 +935,7 @@ function WorkAllocationForm() {
 
     try {
       const token = localStorage.getItem('token');
-      const user_id = authservice.userid();
-
-      const rowsToSave = data.map((row) => ({
-        zoneId: resolvedZoneId,
-        lbcode: row.lbcode || "LB-2025-001",
-
-        // ===== AREA DETAILS (Tab 1) =====
-        villageWetArea: parseFloat(row.Wet_area) || 0,
-        villageDryArea: parseFloat(row.Dry_area) || 0,
-        villageTotalArea: parseFloat(row.Total_area) || 0,
-
-        // ===== EXCLUDED AREAS (Tab 2) =====
-        forestAreaA: parseFloat(row.forest_a) || 0,
-        forestAreaB: 0,
-        forestAreaC: 0,
-        areaUnderPlant: parseFloat(row.area_under) || 0,
-        forestExcludeUnclutivate: parseFloat(row.plantation_under) || 0,
-        forestExcludeNotUnclutivate: 0,
-        kayalExcludeArea: parseFloat(row.kayal_excluded) || 0,
-
-        // ===== AREA AVAILABLE FOR ESTIMATION (Tab 3) =====
-        otherExcludeFWet: 0,
-        otherExcludedFDry: 0,
-        otherExcludeFTotal: 0,
-        totalAreaWet: parseFloat(row.total_area_wet_19) || 0,
-        totalAreaDry: parseFloat(row.total_area_dry_21) || 0,
-        totalAreaForEstimation: parseFloat(row.total_area_total_20) || 0,
-
-        // ===== NUMBER OF PLOTS (Tab 3) =====
-        noOfPlotsWet: parseFloat(row.plots_wet_17) || 0,
-        noOfPlotsDry: parseFloat(row.plots_dry_16) || 0,
-        noOfPlotsTotal: parseFloat(row.plots_total) || 0,
-
-        remarks: row.remarks || "",
-        userId: user_id,
-        agriYear: authservice.agriyear(),
-      }));
+      const rowsToSave = buildRowsToSave();
 
       const response = await fetch(`${BASE_URL}/btr-service/btr-api/work-allocation-submit`, {
         method: 'POST',
@@ -680,47 +963,29 @@ function WorkAllocationForm() {
     // Field Inspector cannot save draft
     if (isDisabled || isFieldInspector) return;
 
+    // Check if any row has Excluded > Village Record (invalid negative available area condition)
+    const hasInvalidExcludedArea = data.some((row) => {
+      const wet = parseFloat(row.Wet_area) || 0;
+      const dry = parseFloat(row.Dry_area) || 0;
+      const hasWet = row.Wet_area !== '' && row.Wet_area !== null && row.Wet_area !== undefined;
+      const hasDry = row.Dry_area !== '' && row.Dry_area !== null && row.Dry_area !== undefined;
+
+      const totalWetExcluded = (parseFloat(row.forest_wet) || 0) + (parseFloat(row.plantation_wet) || 0) + (parseFloat(row.water_wet) || 0) + (parseFloat(row.other_wet) || 0);
+      const totalDryExcluded = (parseFloat(row.forest_dry) || 0) + (parseFloat(row.plantation_dry) || 0) + (parseFloat(row.water_dry) || 0) + (parseFloat(row.other_dry) || 0);
+
+      return (hasWet && totalWetExcluded > wet) || (hasDry && totalDryExcluded > dry);
+    });
+
+    if (hasInvalidExcludedArea) {
+      showTemporaryMessage('⚠️ Cannot save draft: Total Excluded Area exceeds Village Record Area for one or more Panchayaths.', true);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const token = localStorage.getItem('token');
-      const user_id = authservice.userid();
-
-      const rowsToSave = data.map((row) => ({
-        zoneId: resolvedZoneId,
-        lbcode: row.lbcode || "LB-2025-001",
-
-        // ===== AREA DETAILS (Tab 1) =====
-        villageWetArea: parseFloat(row.Wet_area) || 0,
-        villageDryArea: parseFloat(row.Dry_area) || 0,
-        villageTotalArea: parseFloat(row.Total_area) || 0,
-
-        // ===== EXCLUDED AREAS (Tab 2) =====
-        forestAreaA: parseFloat(row.forest_a) || 0,
-        forestAreaB: 0,
-        forestAreaC: 0,
-        areaUnderPlant: parseFloat(row.area_under) || 0,
-        forestExcludeUnclutivate: parseFloat(row.plantation_under) || 0,
-        forestExcludeNotUnclutivate: 0,
-        kayalExcludeArea: parseFloat(row.kayal_excluded) || 0,
-
-        // ===== AREA AVAILABLE FOR ESTIMATION (Tab 3) =====
-        otherExcludeFWet: 0,
-        otherExcludedFDry: 0,
-        otherExcludeFTotal: 0,
-        totalAreaWet: parseFloat(row.total_area_wet_19) || 0,
-        totalAreaDry: parseFloat(row.total_area_dry_21) || 0,
-        totalAreaForEstimation: parseFloat(row.total_area_total_20) || 0,
-
-        // ===== NUMBER OF PLOTS (Tab 3) =====
-        noOfPlotsWet: parseFloat(row.plots_wet_17) || 0,
-        noOfPlotsDry: parseFloat(row.plots_dry_16) || 0,
-        noOfPlotsTotal: parseFloat(row.plots_total) || 0,
-
-        remarks: row.remarks || "",
-        userId: user_id,
-        agriYear: authservice.agriyear(),
-      }));
+      const rowsToSave = buildRowsToSave();
 
       const response = await fetch(`${BASE_URL}/btr-service/btr-api/work-allocation-save`, {
         method: 'POST',
@@ -731,7 +996,7 @@ function WorkAllocationForm() {
         body: JSON.stringify(rowsToSave)
       });
 
-      if (!response.ok) throw new Error('Failed to save');
+      if (!response.ok) throw new Error('Failed to save draft');
 
       setFormStatus('DRAFT');
       showTemporaryMessage('✅ Draft saved successfully!');
@@ -907,336 +1172,515 @@ function WorkAllocationForm() {
   // TAB 1: AREA AS PER VILLAGE RECORDS
   // ============================================================
   const renderAreaDetailsTable = () => (
-    <StyledTable size="small">
-      <TableHead>
-        <TableRow>
-          <StyledTableCell rowSpan={2}>Panchayat / Municipality / Corporation Zone</StyledTableCell>
-          <StyledTableCell align="center" colSpan={3}>Area as per village records (in cents)</StyledTableCell>
-        </TableRow>
-        <TableRow>
-          <StyledTableCell align="center">Wet in Cents</StyledTableCell>
-          <StyledTableCell align="center">Dry in cents</StyledTableCell>
-          <StyledTableCell align="center">Total in cents</StyledTableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {data.map((row, index) => {
-          const wet = parseFloat(row.Wet_area) || 0;
-          const dry = parseFloat(row.Dry_area) || 0;
-          const total = wet + dry;
+    <Box>
+      {Object.keys(validationErrors).some(k => k.startsWith('Wet_area_') || k.startsWith('Dry_area_')) && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <AlertTitle>⚠️ Village Record Validation Errors</AlertTitle>
+          Please ensure all Wet and Dry village record areas are entered and that total excluded area does not exceed village record area.
+        </Alert>
+      )}
+      <StyledTable size="small">
+        <TableHead>
+          <TableRow>
+            <StyledTableCell rowSpan={2}>Panchayat / Municipality / Corporation Zone</StyledTableCell>
+            <StyledTableCell align="center" colSpan={3}>Area as per village records (in cents)</StyledTableCell>
+          </TableRow>
+          <TableRow>
+            <StyledTableCell align="center">Wet in Cents</StyledTableCell>
+            <StyledTableCell align="center">Dry in cents</StyledTableCell>
+            <StyledTableCell align="center">Total in cents</StyledTableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {data.map((row, index) => {
+            const hasWet = row.Wet_area !== '' && row.Wet_area !== null && row.Wet_area !== undefined;
+            const hasDry = row.Dry_area !== '' && row.Dry_area !== null && row.Dry_area !== undefined;
+            const wet = hasWet ? parseFloat(row.Wet_area) : 0;
+            const dry = hasDry ? parseFloat(row.Dry_area) : 0;
+            const totalDisplay = (hasWet || hasDry) ? (wet + dry).toFixed(2) : '';
 
-          return (
-            <TableRow key={index}>
-              <StyledTableCell>
-                <FormInput size="small" value={row.p_name} disabled={true} variant="outlined" />
-              </StyledTableCell>
+            return (
+              <TableRow key={index}>
+                <StyledTableCell>
+                  <FormInput size="small" value={row.p_name} disabled={true} variant="outlined" />
+                </StyledTableCell>
 
-              {/* Wet Area - Only Field Data Collector can edit */}
-              <StyledTableCell>
-                <FormInput
-                  size="small"
-                  value={row.Wet_area || ''}
-                  onChange={(e) => handleInputChange(index, 'Wet_area', e.target.value)}
-                  error={!!validationErrors[`Wet_area_${index}`]}
-                  helperText={validationErrors[`Wet_area_${index}`]}
-                  disabled={isDisabled || isFieldInspector}
-                  variant="outlined"
-                />
-              </StyledTableCell>
-
-              {/* Dry Area - Only Field Data Collector can edit */}
-              <StyledTableCell>
-                <FormInput
-                  size="small"
-                  value={row.Dry_area || ''}
-                  onChange={(e) => handleInputChange(index, 'Dry_area', e.target.value)}
-                  error={!!validationErrors[`Dry_area_${index}`]}
-                  helperText={validationErrors[`Dry_area_${index}`]}
-                  disabled={isDisabled || isFieldInspector}
-                  variant="outlined"
-                />
-              </StyledTableCell>
-
-              {/* Total Area - Auto-calculated, Read-Only */}
-              <StyledTableCell>
-                <Tooltip title={`${wet} + ${dry} = ${total}`}>
+                {/* Wet Area - Only Field Data Collector can edit */}
+                <StyledTableCell>
                   <FormInput
                     size="small"
-                    value={total.toFixed(2)}
-                    disabled={true}
+                    value={row.Wet_area || ''}
+                    onChange={(e) => handleInputChange(index, 'Wet_area', e.target.value)}
+                    error={!!validationErrors[`Wet_area_${index}`]}
+                    helperText={validationErrors[`Wet_area_${index}`]}
+                    disabled={isDisabled || isFieldInspector}
                     variant="outlined"
-                    sx={{
-                      '& .MuiInputBase-input': {
-                        backgroundColor: '#e8f5e9',
-                        fontWeight: 'bold',
-                        color: '#2e7d32'
-                      }
-                    }}
+                    placeholder="Wet Area"
                   />
-                </Tooltip>
-              </StyledTableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </StyledTable>
+                </StyledTableCell>
+
+                {/* Dry Area - Only Field Data Collector can edit */}
+                <StyledTableCell>
+                  <FormInput
+                    size="small"
+                    value={row.Dry_area || ''}
+                    onChange={(e) => handleInputChange(index, 'Dry_area', e.target.value)}
+                    error={!!validationErrors[`Dry_area_${index}`]}
+                    helperText={validationErrors[`Dry_area_${index}`]}
+                    disabled={isDisabled || isFieldInspector}
+                    variant="outlined"
+                    placeholder="Dry Area"
+                  />
+                </StyledTableCell>
+
+                {/* Total Area - Auto-calculated, Read-Only */}
+                <StyledTableCell>
+                  <Tooltip title={hasWet || hasDry ? `${hasWet ? wet : 'empty'} + ${hasDry ? dry : 'empty'} = ${totalDisplay}` : 'Total area'}>
+                    <FormInput
+                      size="small"
+                      value={totalDisplay}
+                      disabled={true}
+                      variant="outlined"
+                      sx={{
+                        '& .MuiInputBase-input': {
+                          backgroundColor: '#e8f5e9',
+                          fontWeight: 'bold',
+                          color: '#2e7d32'
+                        }
+                      }}
+                    />
+                  </Tooltip>
+                </StyledTableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </StyledTable>
+    </Box>
   );
 
   // ============================================================
   // TAB 2: EXCLUDED AREAS
   // ============================================================
   const renderForestDetailsTable = () => (
-    <StyledTable size="small">
-      <TableHead>
-        <TableRow>
-          <StyledTableCell align="center">NAME OF PANCHAYATH</StyledTableCell>
-          <StyledTableCell align="center">FOREST AREAS</StyledTableCell>
-          <StyledTableCell align="center">PLANTATION AREA</StyledTableCell>
-          <StyledTableCell align="center">AREA OF WATER BODIES</StyledTableCell>
-          <StyledTableCell align="center">OTHER AREAS</StyledTableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {data.map((row, index) => {
-          const forest = parseFloat(row.forest_a) || 0;
-          const plantation = parseFloat(row.area_under) || 0;
-          const water = parseFloat(row.kayal_excluded) || 0;
-          const other = parseFloat(row.plantation_under) || 0;
+    <Box>
+      {Object.keys(validationErrors).some(k => k.startsWith('forest_') || k.startsWith('plantation_') || k.startsWith('water_') || k.startsWith('other_') || k.startsWith('row_excluded_')) && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <AlertTitle>⚠️ Excluded Area Validation Errors</AlertTitle>
+          Total Excluded Wet area cannot exceed Village Record Wet area, and Total Excluded Dry area cannot exceed Village Record Dry area. Validate Wet and Dry independently.
+        </Alert>
+      )}
+      <StyledTable size="small">
+        <TableHead>
+          <TableRow>
+            <StyledTableCell rowSpan={2} align="center">NAME OF PANCHAYATH</StyledTableCell>
+            <StyledTableCell align="center" colSpan={2}>FOREST AREAS</StyledTableCell>
+            <StyledTableCell align="center" colSpan={2}>PLANTATION AREA</StyledTableCell>
+            <StyledTableCell align="center" colSpan={2}>AREA OF WATER BODIES</StyledTableCell>
+            <StyledTableCell align="center" colSpan={2}>OTHER AREAS</StyledTableCell>
+          </TableRow>
+          <TableRow>
+            <StyledTableCell align="center">Wet</StyledTableCell>
+            <StyledTableCell align="center">Dry</StyledTableCell>
+            <StyledTableCell align="center">Wet</StyledTableCell>
+            <StyledTableCell align="center">Dry</StyledTableCell>
+            <StyledTableCell align="center">Wet</StyledTableCell>
+            <StyledTableCell align="center">Dry</StyledTableCell>
+            <StyledTableCell align="center">Wet</StyledTableCell>
+            <StyledTableCell align="center">Dry</StyledTableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {data.map((row, index) => {
+            return (
+              <TableRow key={index}>
+                <StyledTableCell>
+                  <Typography variant="body2" fontWeight={500}>{row.p_name}</Typography>
+                </StyledTableCell>
 
-          return (
-            <TableRow key={index}>
-              <StyledTableCell>
-                <Typography variant="body2" fontWeight={500}>{row.p_name}</Typography>
-              </StyledTableCell>
+                {/* Forest Areas - Wet (forestAreaB) */}
+                <StyledTableCell>
+                  <FormInput
+                    size="small"
+                    value={row.forest_wet ?? ''}
+                    onChange={(e) => handleInputChange(index, 'forest_wet', e.target.value)}
+                    error={!!validationErrors[`forest_wet_${index}`]}
+                    helperText={validationErrors[`forest_wet_${index}`]}
+                    disabled={isDisabled || isFieldInspector}
+                    variant="outlined"
+                    placeholder="Wet"
+                  />
+                </StyledTableCell>
 
-              {/* Forest Areas - Only Field Data Collector can edit */}
-              <StyledTableCell>
-                <FormInput
-                  size="small"
-                  value={row.forest_a || ''}
-                  onChange={(e) => handleInputChange(index, 'forest_a', e.target.value)}
-                  error={!!validationErrors[`forest_a_${index}`]}
-                  helperText={validationErrors[`forest_a_${index}`]}
-                  disabled={isDisabled || isFieldInspector}
-                  variant="outlined"
-                />
-              </StyledTableCell>
+                {/* Forest Areas - Dry (forestAreaA) */}
+                <StyledTableCell>
+                  <FormInput
+                    size="small"
+                    value={row.forest_dry ?? ''}
+                    onChange={(e) => handleInputChange(index, 'forest_dry', e.target.value)}
+                    error={!!validationErrors[`forest_dry_${index}`]}
+                    helperText={validationErrors[`forest_dry_${index}`]}
+                    disabled={isDisabled || isFieldInspector}
+                    variant="outlined"
+                    placeholder="Dry"
+                  />
+                </StyledTableCell>
 
-              {/* Plantation Area - Only Field Data Collector can edit */}
-              <StyledTableCell>
-                <FormInput
-                  size="small"
-                  value={row.area_under || ''}
-                  onChange={(e) => handleInputChange(index, 'area_under', e.target.value)}
-                  error={!!validationErrors[`area_under_${index}`]}
-                  helperText={validationErrors[`area_under_${index}`]}
-                  disabled={isDisabled || isFieldInspector}
-                  variant="outlined"
-                />
-              </StyledTableCell>
+                {/* Plantation Area - Wet (forestAreaC) */}
+                <StyledTableCell>
+                  <FormInput
+                    size="small"
+                    value={row.plantation_wet ?? ''}
+                    onChange={(e) => handleInputChange(index, 'plantation_wet', e.target.value)}
+                    error={!!validationErrors[`plantation_wet_${index}`]}
+                    helperText={validationErrors[`plantation_wet_${index}`]}
+                    disabled={isDisabled || isFieldInspector}
+                    variant="outlined"
+                    placeholder="Wet"
+                  />
+                </StyledTableCell>
 
-              {/* Water Bodies - Only Field Data Collector can edit */}
-              <StyledTableCell>
-                <FormInput
-                  size="small"
-                  value={row.kayal_excluded || ''}
-                  onChange={(e) => handleInputChange(index, 'kayal_excluded', e.target.value)}
-                  error={!!validationErrors[`kayal_excluded_${index}`]}
-                  helperText={validationErrors[`kayal_excluded_${index}`]}
-                  disabled={isDisabled || isFieldInspector}
-                  variant="outlined"
-                />
-              </StyledTableCell>
+                {/* Plantation Area - Dry (areaUnderPlant) */}
+                <StyledTableCell>
+                  <FormInput
+                    size="small"
+                    value={row.plantation_dry ?? ''}
+                    onChange={(e) => handleInputChange(index, 'plantation_dry', e.target.value)}
+                    error={!!validationErrors[`plantation_dry_${index}`]}
+                    helperText={validationErrors[`plantation_dry_${index}`]}
+                    disabled={isDisabled || isFieldInspector}
+                    variant="outlined"
+                    placeholder="Dry"
+                  />
+                </StyledTableCell>
 
-              {/* Other Areas - Only Field Data Collector can edit */}
-              <StyledTableCell>
-                <FormInput
-                  size="small"
-                  value={row.plantation_under || ''}
-                  onChange={(e) => handleInputChange(index, 'plantation_under', e.target.value)}
-                  error={!!validationErrors[`plantation_under_${index}`]}
-                  helperText={validationErrors[`plantation_under_${index}`]}
-                  disabled={isDisabled || isFieldInspector}
-                  variant="outlined"
-                />
-              </StyledTableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </StyledTable>
+                {/* Water Bodies - Wet (otherExcludeFWet) */}
+                <StyledTableCell>
+                  <FormInput
+                    size="small"
+                    value={row.water_wet ?? ''}
+                    onChange={(e) => handleInputChange(index, 'water_wet', e.target.value)}
+                    error={!!validationErrors[`water_wet_${index}`]}
+                    helperText={validationErrors[`water_wet_${index}`]}
+                    disabled={isDisabled || isFieldInspector}
+                    variant="outlined"
+                    placeholder="Wet"
+                  />
+                </StyledTableCell>
+
+                {/* Water Bodies - Dry (kayalExcludeArea) */}
+                <StyledTableCell>
+                  <FormInput
+                    size="small"
+                    value={row.water_dry ?? ''}
+                    onChange={(e) => handleInputChange(index, 'water_dry', e.target.value)}
+                    error={!!validationErrors[`water_dry_${index}`]}
+                    helperText={validationErrors[`water_dry_${index}`]}
+                    disabled={isDisabled || isFieldInspector}
+                    variant="outlined"
+                    placeholder="Dry"
+                  />
+                </StyledTableCell>
+
+                {/* Other Areas - Wet (forestExcludeNotUnclutivate) */}
+                <StyledTableCell>
+                  <FormInput
+                    size="small"
+                    value={row.other_wet ?? ''}
+                    onChange={(e) => handleInputChange(index, 'other_wet', e.target.value)}
+                    error={!!validationErrors[`other_wet_${index}`]}
+                    helperText={validationErrors[`other_wet_${index}`]}
+                    disabled={isDisabled || isFieldInspector}
+                    variant="outlined"
+                    placeholder="Wet"
+                  />
+                </StyledTableCell>
+
+                {/* Other Areas - Dry (forestExcludeUnclutivate) */}
+                <StyledTableCell>
+                  <FormInput
+                    size="small"
+                    value={row.other_dry ?? ''}
+                    onChange={(e) => handleInputChange(index, 'other_dry', e.target.value)}
+                    error={!!validationErrors[`other_dry_${index}`]}
+                    helperText={validationErrors[`other_dry_${index}`]}
+                    disabled={isDisabled || isFieldInspector}
+                    variant="outlined"
+                    placeholder="Dry"
+                  />
+                </StyledTableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </StyledTable>
+    </Box>
   );
 
   // ============================================================
   // TAB 3: AREA AVAILABLE FOR ESTIMATION PURPOSES
   // ============================================================
   const renderOtherDetailsTable = () => (
-    <StyledTable size="small">
-      <TableHead>
-        <TableRow>
-          <StyledTableCell rowSpan={2}>Panchayat / Municipality / Corporation Zone</StyledTableCell>
-          <StyledTableCell align="center" colSpan={3}>Number of Plots</StyledTableCell>
-          <StyledTableCell align="center" colSpan={3}>Area (in cents)</StyledTableCell>
-          <StyledTableCell align="left" rowSpan={2}>Remarks</StyledTableCell>
-        </TableRow>
-        <TableRow>
-          <StyledTableCell align="center">Wet</StyledTableCell>
-          <StyledTableCell align="center">Dry</StyledTableCell>
-          <StyledTableCell align="center">Total</StyledTableCell>
-          <StyledTableCell align="center">Wet</StyledTableCell>
-          <StyledTableCell align="center">Dry</StyledTableCell>
-          <StyledTableCell align="center">Total</StyledTableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {data.map((row, index) => {
-          // Get values for calculations
-          const wetArea = parseFloat(row.Wet_area) || 0;
-          const dryArea = parseFloat(row.Dry_area) || 0;
-          const forest = parseFloat(row.forest_a) || 0;
-          const plantation = parseFloat(row.area_under) || 0;
-          const water = parseFloat(row.kayal_excluded) || 0;
-          const other = parseFloat(row.plantation_under) || 0;
-          const totalExcluded = forest + plantation + water + other;
-          const estimationDry = Math.max(0, dryArea - totalExcluded);
-          const estimationTotal = wetArea + estimationDry;
+    <Box>
+      {/* Cluster Limit Info Header & Alert */}
+      <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+        <Typography variant="subtitle2" color="text.secondary" fontWeight={600}>
+          Cluster Summary Across Panchayaths:
+        </Typography>
+        <Chip
+          label={`Total Cluster: ${totalClusterSum} / Required Limit: ${clusterLimit}`}
+          color={isClusterLimitMatched ? "success" : isClusterLimitExceeded ? "error" : "warning"}
+          variant="filled"
+          sx={{ fontWeight: 'bold' }}
+        />
+      </Box>
 
-          // Plots calculations
-          const plotsWet = parseFloat(row.plots_wet_17) || 0;
-          const plotsDry = parseFloat(row.plots_dry_16) || 0;
-          const plotsTotal = plotsWet + plotsDry;
+      {isClusterLimitExceeded && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <AlertTitle>⚠️ Cluster Limit Exceeded!</AlertTitle>
+          Total combined cluster count across all panchayaths is <strong>{totalClusterSum}</strong>, which exceeds the maximum allowed limit of <strong>{clusterLimit}</strong>. Please adjust Wet/Dry cluster counts so that the total equals <strong>{clusterLimit}</strong>.
+        </Alert>
+      )}
 
-          return (
-            <TableRow key={index}>
-              <StyledTableCell>
-                <Typography variant="body2" fontWeight={500}>{row.p_name}</Typography>
-              </StyledTableCell>
+      {isClusterLimitNotMet && totalClusterSum > 0 && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <AlertTitle>⚠️ Cluster Limit Not Reached!</AlertTitle>
+          Total combined cluster count across all panchayaths is <strong>{totalClusterSum}</strong>, which is less than the required limit of <strong>{clusterLimit}</strong>. Total cluster count must equal <strong>{clusterLimit}</strong> to enable submission for approval.
+        </Alert>
+      )}
 
-              {/* ===== NUMBER OF PLOTS ===== */}
+      {totalClusterSum === 0 && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <AlertTitle>ℹ️ Cluster Allocation Required</AlertTitle>
+          Please enter wet and dry cluster counts across panchayaths. The total combined cluster count must equal <strong>{clusterLimit}</strong> to enable submission for approval.
+        </Alert>
+      )}
 
-              {/* Plots Wet - Only Field Data Collector can edit */}
-              <StyledTableCell>
-                <FormInput
-                  size="small"
-                  value={row.plots_wet_17 || ''}
-                  onChange={(e) => handleInputChange(index, 'plots_wet_17', e.target.value)}
-                  error={!!validationErrors[`plots_wet_17_${index}`]}
-                  helperText={validationErrors[`plots_wet_17_${index}`]}
-                  disabled={isDisabled || isFieldInspector}
-                  variant="outlined"
-                  placeholder="Enter Wet Plots"
-                />
-              </StyledTableCell>
+      {Object.keys(validationErrors).some(k => k.startsWith('plots_') || k.startsWith('wet_cluster_') || k.startsWith('dry_cluster_')) && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <AlertTitle>⚠️ Estimation Allocation Error</AlertTitle>
+          Cluster and plot allocation must not exceed the corresponding available Wet/Dry area.
+        </Alert>
+      )}
 
-              {/* Plots Dry - Only Field Data Collector can edit */}
-              <StyledTableCell>
-                <FormInput
-                  size="small"
-                  value={row.plots_dry_16 || ''}
-                  onChange={(e) => handleInputChange(index, 'plots_dry_16', e.target.value)}
-                  error={!!validationErrors[`plots_dry_16_${index}`]}
-                  helperText={validationErrors[`plots_dry_16_${index}`]}
-                  disabled={isDisabled || isFieldInspector}
-                  variant="outlined"
-                  placeholder="Enter Dry Plots"
-                />
-              </StyledTableCell>
+      <StyledTable size="small">
+        <TableHead>
+          <TableRow>
+            <StyledTableCell rowSpan={2}>Panchayat / Municipality / Corporation Zone</StyledTableCell>
+            <StyledTableCell align="center" colSpan={3}>Number of Plots</StyledTableCell>
+            <StyledTableCell align="center" colSpan={3}>Area (in cents)</StyledTableCell>
+            <StyledTableCell align="center" colSpan={2}>Total Cluster</StyledTableCell>
+            <StyledTableCell align="left" rowSpan={2}>Remarks</StyledTableCell>
+          </TableRow>
+          <TableRow>
+            <StyledTableCell align="center">Wet</StyledTableCell>
+            <StyledTableCell align="center">Dry</StyledTableCell>
+            <StyledTableCell align="center">Total</StyledTableCell>
+            <StyledTableCell align="center">Wet</StyledTableCell>
+            <StyledTableCell align="center">Dry</StyledTableCell>
+            <StyledTableCell align="center">Total</StyledTableCell>
+            <StyledTableCell align="center">Wet Cluster</StyledTableCell>
+            <StyledTableCell align="center">Dry Cluster</StyledTableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {data.map((row, index) => {
+            const hasWet = row.Wet_area !== '' && row.Wet_area !== null && row.Wet_area !== undefined;
+            const hasDry = row.Dry_area !== '' && row.Dry_area !== null && row.Dry_area !== undefined;
 
-              {/* Plots Total - Auto-calculated, Read-Only */}
-              <StyledTableCell>
-                <Tooltip title={`${plotsWet} + ${plotsDry} = ${plotsTotal}`}>
+            const wetArea = hasWet ? parseFloat(row.Wet_area) : 0;
+            const dryArea = hasDry ? parseFloat(row.Dry_area) : 0;
+
+            const forestWet = parseFloat(row.forest_wet) || 0;
+            const forestDry = parseFloat(row.forest_dry) || 0;
+            const plantationWet = parseFloat(row.plantation_wet) || 0;
+            const plantationDry = parseFloat(row.plantation_dry) || 0;
+            const waterWet = parseFloat(row.water_wet) || 0;
+            const waterDry = parseFloat(row.water_dry) || 0;
+            const otherWet = parseFloat(row.other_wet) || 0;
+            const otherDry = parseFloat(row.other_dry) || 0;
+
+            const totalWetExcluded = forestWet + plantationWet + waterWet + otherWet;
+            const totalDryExcluded = forestDry + plantationDry + waterDry + otherDry;
+
+            // NO NEGATIVE AVAILABLE AREA
+            const estimationWet = Math.max(0, wetArea - totalWetExcluded);
+            const estimationDry = Math.max(0, dryArea - totalDryExcluded);
+            const estimationTotal = estimationWet + estimationDry;
+
+            const estimationWetDisplay = hasWet ? estimationWet.toFixed(2) : '';
+            const estimationDryDisplay = hasDry ? estimationDry.toFixed(2) : '';
+            const estimationTotalDisplay = (hasWet || hasDry) ? estimationTotal.toFixed(2) : '';
+
+            // Plots calculations
+            const hasPlotsWet = row.plots_wet_17 !== '' && row.plots_wet_17 !== null && row.plots_wet_17 !== undefined;
+            const hasPlotsDry = row.plots_dry_16 !== '' && row.plots_dry_16 !== null && row.plots_dry_16 !== undefined;
+            const plotsWet = parseFloat(row.plots_wet_17) || 0;
+            const plotsDry = parseFloat(row.plots_dry_16) || 0;
+            const plotsTotalDisplay = (hasPlotsWet || hasPlotsDry) ? (plotsWet + plotsDry).toString() : '';
+
+            return (
+              <TableRow key={index}>
+                <StyledTableCell>
+                  <Typography variant="body2" fontWeight={500}>{row.p_name}</Typography>
+                </StyledTableCell>
+
+                {/* ===== NUMBER OF PLOTS ===== */}
+
+                {/* Plots Wet - Only Field Data Collector can edit */}
+                <StyledTableCell>
                   <FormInput
                     size="small"
-                    value={plotsTotal}
-                    disabled={true}
+                    value={row.plots_wet_17 || ''}
+                    onChange={(e) => handleInputChange(index, 'plots_wet_17', e.target.value)}
+                    error={!!validationErrors[`plots_wet_17_${index}`]}
+                    helperText={validationErrors[`plots_wet_17_${index}`]}
+                    disabled={isDisabled || isFieldInspector}
                     variant="outlined"
-                    sx={{
-                      '& .MuiInputBase-input': {
-                        backgroundColor: '#f5f5f5',
-                        fontWeight: 'bold',
-                        color: '#1976d2'
-                      }
-                    }}
+                    placeholder="Enter Wet Plots"
                   />
-                </Tooltip>
-              </StyledTableCell>
+                </StyledTableCell>
 
-              {/* ===== AREA (in cents) ===== */}
-
-              {/* Area Wet - Auto-filled from Tab 1, Read-Only */}
-              <StyledTableCell>
-                <Tooltip title={`Village Wet Area: ${wetArea}`}>
+                {/* Plots Dry - Only Field Data Collector can edit */}
+                <StyledTableCell>
                   <FormInput
                     size="small"
-                    value={wetArea.toFixed(2)}
-                    disabled={true}
+                    value={row.plots_dry_16 || ''}
+                    onChange={(e) => handleInputChange(index, 'plots_dry_16', e.target.value)}
+                    error={!!validationErrors[`plots_dry_16_${index}`]}
+                    helperText={validationErrors[`plots_dry_16_${index}`]}
+                    disabled={isDisabled || isFieldInspector}
                     variant="outlined"
-                    sx={{
-                      '& .MuiInputBase-input': {
-                        backgroundColor: '#e3f2fd',
-                        fontWeight: 'bold',
-                        color: '#0d47a1'
-                      }
-                    }}
+                    placeholder="Enter Dry Plots"
                   />
-                </Tooltip>
-              </StyledTableCell>
+                </StyledTableCell>
 
-              {/* Area Dry - Auto-calculated (Dry - Total Excluded), Read-Only */}
-              <StyledTableCell>
-                <Tooltip title={`${dryArea} - ${totalExcluded} = ${estimationDry}`}>
+                {/* Plots Total - Auto-calculated, Read-Only */}
+                <StyledTableCell>
+                  <Tooltip title={hasPlotsWet || hasPlotsDry ? `${plotsWet} + ${plotsDry} = ${plotsWet + plotsDry}` : 'Total plots'}>
+                    <FormInput
+                      size="small"
+                      value={plotsTotalDisplay}
+                      disabled={true}
+                      variant="outlined"
+                      sx={{
+                        '& .MuiInputBase-input': {
+                          backgroundColor: '#f5f5f5',
+                          fontWeight: 'bold',
+                          color: '#1976d2'
+                        }
+                      }}
+                    />
+                  </Tooltip>
+                </StyledTableCell>
+
+                {/* ===== AREA (in cents) ===== */}
+
+                {/* Area Wet - Auto-calculated (Wet - Total Wet Excluded), Read-Only */}
+                <StyledTableCell>
+                  <Tooltip title={hasWet ? `${wetArea} - ${totalWetExcluded} = ${estimationWetDisplay}` : 'Available Wet Area'}>
+                    <FormInput
+                      size="small"
+                      value={estimationWetDisplay}
+                      disabled={true}
+                      variant="outlined"
+                      sx={{
+                        '& .MuiInputBase-input': {
+                          backgroundColor: '#e3f2fd',
+                          fontWeight: 'bold',
+                          color: '#0d47a1'
+                        }
+                      }}
+                    />
+                  </Tooltip>
+                </StyledTableCell>
+
+                {/* Area Dry - Auto-calculated (Dry - Total Dry Excluded), Read-Only */}
+                <StyledTableCell>
+                  <Tooltip title={hasDry ? `${dryArea} - ${totalDryExcluded} = ${estimationDryDisplay}` : 'Available Dry Area'}>
+                    <FormInput
+                      size="small"
+                      value={estimationDryDisplay}
+                      disabled={true}
+                      variant="outlined"
+                      sx={{
+                        '& .MuiInputBase-input': {
+                          backgroundColor: '#e3f2fd',
+                          fontWeight: 'bold',
+                          color: '#0d47a1'
+                        }
+                      }}
+                    />
+                  </Tooltip>
+                </StyledTableCell>
+
+                {/* Area Total - Auto-calculated (Wet + Dry), Read-Only */}
+                <StyledTableCell>
+                  <Tooltip title={hasWet || hasDry ? `${estimationWetDisplay || 0} + ${estimationDryDisplay || 0} = ${estimationTotalDisplay}` : 'Total Available Area'}>
+                    <FormInput
+                      size="small"
+                      value={estimationTotalDisplay}
+                      disabled={true}
+                      variant="outlined"
+                      sx={{
+                        '& .MuiInputBase-input': {
+                          backgroundColor: '#e3f2fd',
+                          fontWeight: 'bold',
+                          color: '#0d47a1'
+                        }
+                      }}
+                    />
+                  </Tooltip>
+                </StyledTableCell>
+
+                {/* ===== TOTAL CLUSTER ===== */}
+
+                {/* Wet Cluster */}
+                <StyledTableCell>
                   <FormInput
                     size="small"
-                    value={estimationDry.toFixed(2)}
-                    disabled={true}
+                    value={row.wet_cluster ?? ''}
+                    onChange={(e) => handleInputChange(index, 'wet_cluster', e.target.value)}
+                    error={!!validationErrors[`wet_cluster_${index}`]}
+                    helperText={validationErrors[`wet_cluster_${index}`]}
+                    disabled={isDisabled || isFieldInspector}
                     variant="outlined"
-                    sx={{
-                      '& .MuiInputBase-input': {
-                        backgroundColor: '#e3f2fd',
-                        fontWeight: 'bold',
-                        color: '#0d47a1'
-                      }
-                    }}
+                    placeholder="Wet Cluster"
                   />
-                </Tooltip>
-              </StyledTableCell>
+                </StyledTableCell>
 
-              {/* Area Total - Auto-calculated (Wet + Dry), Read-Only */}
-              <StyledTableCell>
-                <Tooltip title={`${wetArea} + ${estimationDry} = ${estimationTotal}`}>
+                {/* Dry Cluster */}
+                <StyledTableCell>
                   <FormInput
                     size="small"
-                    value={estimationTotal.toFixed(2)}
-                    disabled={true}
+                    value={row.dry_cluster ?? ''}
+                    onChange={(e) => handleInputChange(index, 'dry_cluster', e.target.value)}
+                    error={!!validationErrors[`dry_cluster_${index}`]}
+                    helperText={validationErrors[`dry_cluster_${index}`]}
+                    disabled={isDisabled || isFieldInspector}
                     variant="outlined"
-                    sx={{
-                      '& .MuiInputBase-input': {
-                        backgroundColor: '#e3f2fd',
-                        fontWeight: 'bold',
-                        color: '#0d47a1'
-                      }
-                    }}
+                    placeholder="Dry Cluster"
                   />
-                </Tooltip>
-              </StyledTableCell>
+                </StyledTableCell>
 
-              {/* Remarks - Only Field Data Collector can edit */}
-              <StyledTableCell>
-                <FormInput
-                  size="small"
-                  value={row.remarks || ''}
-                  onChange={(e) => handleInputChange(index, 'remarks', e.target.value)}
-                  disabled={isDisabled || isFieldInspector}
-                  variant="outlined"
-                  multiline
-                  rows={2}
-                />
-              </StyledTableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </StyledTable>
+                {/* Remarks - Only Field Data Collector can edit */}
+                <StyledTableCell>
+                  <FormInput
+                    size="small"
+                    value={row.remarks || ''}
+                    onChange={(e) => handleInputChange(index, 'remarks', e.target.value)}
+                    disabled={isDisabled || isFieldInspector}
+                    variant="outlined"
+                    multiline
+                    rows={2}
+                  />
+                </StyledTableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </StyledTable>
+    </Box>
   );
 
   if (loading) {
@@ -1568,7 +2012,13 @@ function WorkAllocationForm() {
                 </Tooltip>
               </Grid>
               <Grid item>
-                <Tooltip title={!canSubmit && !isDisabled ? 'Please complete all metric fields' : ''}>
+                <Tooltip title={
+                  !canSubmit && !isDisabled
+                    ? (!isClusterLimitMatched
+                        ? `Total cluster count (${totalClusterSum}) must equal required limit (${clusterLimit}) to submit for approval`
+                        : 'Please complete all metric fields')
+                    : ''
+                }>
                   <span>
                     <ActionButton variant="contained" color="success" onClick={handleSubmitClick} disabled={isDisabled || !canSubmit || isSubmitting} startIcon={<SendIcon />}>
                       {isSubmitting ? 'Submitting...' : 'Submit for Approval'}
@@ -1583,8 +2033,14 @@ function WorkAllocationForm() {
           {!isDisabled && !isAdmin && !isFieldInspector && formStatus !== 'APPROVED' && (
             <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
               <Chip
-                label={canSubmit ? "✓ Data complete - Ready to send" : "⚠️ Incomplete fields remaining"}
-                color={canSubmit ? "success" : "warning"}
+                label={
+                  canSubmit
+                    ? "✓ Data complete - Ready to send for approval"
+                    : !isClusterLimitMatched
+                    ? `⚠️ Total clusters (${totalClusterSum}) must equal limit (${clusterLimit})`
+                    : "⚠️ Incomplete fields remaining"
+                }
+                color={canSubmit ? "success" : isClusterLimitExceeded ? "error" : "warning"}
                 size="small"
                 variant="outlined"
               />

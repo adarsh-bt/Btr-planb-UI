@@ -54,10 +54,13 @@ import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import SaveIcon from "@mui/icons-material/Save";
 import InfoIcon from "@mui/icons-material/Info";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import tourDiaryService from "pages/authentication/services/tourdiaryservice";
+import profileService from "pages/profile/profileservice";
 import Breadcrumb from "routes/Breadcrumb";
 import MainCard from "components/MainCard";
 import authservice from "pages/authentication/services/authservice";
+import { exportTourDiaryPdf } from "utils/tourDiaryPdfGenerator";
 
 const UserTourDiaryDetail = () => {
   const theme = useTheme();
@@ -164,6 +167,7 @@ const UserTourDiaryDetail = () => {
   const [tourEntries, setTourEntries] = useState([]);
   const [userDetails, setUserDetails] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState(paramUserId || currentUserId);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Modal states
   const [selectedDate, setSelectedDate] = useState(null);
@@ -403,7 +407,7 @@ const UserTourDiaryDetail = () => {
     return today > lastDayOfMonth;
   };
 
-  const fetchClusters = async (zoneId) => {
+  const fetchClusters = async (zoneId, purposeId = null) => {
     if (!zoneId) {
       setClusters([]);
       setFilteredClusters([]);
@@ -412,7 +416,8 @@ const UserTourDiaryDetail = () => {
 
     try {
       const year = authservice.agriyear() || "2025-2026";
-      const response = await tourDiaryService.getClusters(zoneId, year);
+      const activePurposeId = purposeId || manualFormData.purposeId || 1;
+      const response = await tourDiaryService.getClusters(zoneId, year, activePurposeId);
 
       if (response && Array.isArray(response)) {
         setClusters(response);
@@ -862,6 +867,67 @@ const UserTourDiaryDetail = () => {
     if (editSelectedScheme) { fetchPurposesByScheme(editSelectedScheme); } else { setPurposes([]); }
   }, [editSelectedScheme]);
 
+  const handleExportPdf = async () => {
+    try {
+      setIsGeneratingPdf(true);
+      let officerDetails = userDetails;
+      if (!officerDetails || !officerDetails.name || officerDetails.name === 'N/A') {
+        try {
+          const profileRes = await profileService.fetchUserById(selectedUserId);
+          const pData = profileRes?.payload || profileRes?.data || profileRes;
+          if (pData) {
+            officerDetails = {
+              name: pData.name || pData.userName || authservice.userName() || "Employee",
+              penNumber: pData.penNumber || pData.empNumber || pData.employeeId || authservice.penNumber() || "N/A",
+              empNumber: pData.empNumber || pData.penNumber || authservice.penNumber() || "N/A",
+              designation: pData.designation || role || "N/A",
+              officelocation: pData.officelocation || pData.officeLocation || authservice.locationName() || "N/A"
+            };
+          }
+        } catch (e) {
+          console.warn("Could not fetch user profile for PDF:", e);
+        }
+      }
+
+      const safeUserDetails = {
+        name: officerDetails?.name || authservice.userName() || "Employee",
+        penNumber: officerDetails?.penNumber || officerDetails?.empNumber || authservice.penNumber() || "N/A",
+        empNumber: officerDetails?.empNumber || officerDetails?.penNumber || authservice.penNumber() || "N/A",
+        designation: officerDetails?.designation || role || "N/A",
+        officelocation: officerDetails?.officelocation || officerDetails?.officeLocation || authservice.locationName() || "N/A"
+      };
+
+      await exportTourDiaryPdf({
+        tourEntries,
+        userDetails: safeUserDetails,
+        selectedMonth,
+        selectedYear,
+        fullMonthStatus,
+        getZoneName: (zId, entry) => getZoneName(zId, entry),
+        getPurposeName: (pId) => {
+          if (!pId) return '—';
+          const p = purposes.find(item => Number(item.id) === Number(pId));
+          return p?.purposeName || '—';
+        }
+      });
+
+      setSnackbar({
+        open: true,
+        severity: "success",
+        message: "Tour Diary PDF downloaded successfully"
+      });
+    } catch (err) {
+      console.error("Error generating Tour Diary PDF:", err);
+      setSnackbar({
+        open: true,
+        severity: "error",
+        message: "Failed to generate Tour Diary PDF"
+      });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   const handleBack = () => navigate(-1);
 
   const handleMonthChange = (offset) => {
@@ -977,7 +1043,8 @@ const UserTourDiaryDetail = () => {
       const payload = {
         id: editFormData.id,
         distance: editFormData.distance ? parseFloat(editFormData.distance) : null,
-        hours: editFormData.hours ? parseFloat(editFormData.hours) : null
+        hours: editFormData.hours ? parseFloat(editFormData.hours) : null,
+        agriYear: authservice.agriyear()
       };
       const response = await tourDiaryService.updateSystemTourEntry(payload);
       if (response && response.id) {
@@ -1067,7 +1134,8 @@ const UserTourDiaryDetail = () => {
         hours: skipDetails ? null : (editFormData.hours ? parseFloat(editFormData.hours) : null),
         cropId: skipDetails ? null : (editFormData.cropId ? Number(editFormData.cropId) : null),
         isAdvanceChanged: sendChange ? true : (hasAdvanceTour ? false : undefined),
-        changeReason: sendChange ? changeReason : undefined
+        changeReason: sendChange ? changeReason : undefined,
+        agriYear: authservice.agriyear()
       };
 
       const response = await tourDiaryService.saveOrUpdateManualEntry(payload);
@@ -1211,7 +1279,8 @@ const UserTourDiaryDetail = () => {
         cropId: skipDetails ? null : (manualFormData.cropId ? Number(manualFormData.cropId) : null),
         createdAt: formattedDate,
         isAdvanceChanged: sendChange ? true : (hasAdvanceTour ? false : undefined),
-        changeReason: sendChange ? changeReason : undefined
+        changeReason: sendChange ? changeReason : undefined,
+        agriYear: authservice.agriyear()
       };
 
       const response = await tourDiaryService.saveOrUpdateManualEntry(payload);
@@ -1632,7 +1701,7 @@ const UserTourDiaryDetail = () => {
                   </Typography>
                   <Chip
                     label={
-                      (fullMonthStatus && (
+                      (isFieldDataCollector && fullMonthStatus && (
                         fullMonthStatus.verified_status === 'REJECTED' ||
                         fullMonthStatus.verifiedStatus === 'REJECTED'
                       ))
@@ -1650,7 +1719,7 @@ const UserTourDiaryDetail = () => {
                             : '⏳ Pending Submission'
                     }
                     color={
-                      (fullMonthStatus && (
+                      (isFieldDataCollector && fullMonthStatus && (
                         fullMonthStatus.verified_status === 'REJECTED' ||
                         fullMonthStatus.verifiedStatus === 'REJECTED'
                       ))
@@ -1749,7 +1818,22 @@ const UserTourDiaryDetail = () => {
                   {monthNames[selectedMonth - 1]} {selectedYear}
                 </Typography>
 
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '250px', justifyContent: 'flex-end' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  <Button
+                    variant="contained"
+                    startIcon={isGeneratingPdf ? <CircularProgress size={18} color="inherit" /> : <PictureAsPdfIcon />}
+                    onClick={handleExportPdf}
+                    disabled={tourEntries.length === 0 || isGeneratingPdf}
+                    sx={{
+                      backgroundColor: '#d32f2f',
+                      '&:hover': { backgroundColor: '#b71c1c' },
+                      whiteSpace: 'nowrap',
+                      minWidth: '130px',
+                      fontWeight: 600
+                    }}
+                  >
+                    {isGeneratingPdf ? "Generating..." : "Download PDF"}
+                  </Button>
                   <Tooltip title={isMonthSubmitted() ? "Full Month has already been submitted" : "Submit Full Month"}>
                     <span>
                       <Button

@@ -377,6 +377,7 @@ const Breadcrumb = () => {
       }
 
     } else if (isForm2Report) {
+      const clusterForm2SessionState = getSavedSessionState('clusterForm2State');
       const talukForm2SessionState = getSavedSessionState(TALUK_FORM2_SESSION_KEY);
       const zoneForm2SessionState = getSavedSessionState(ZONE_FORM2_SESSION_KEY);
       const form2SessionState = getSavedSessionState(FORM2_SESSION_KEY);
@@ -384,13 +385,13 @@ const Breadcrumb = () => {
       const isStateLevel = location.pathname.toLowerCase().includes('keralaform2') || location.pathname === '/schemes/earas/cce/KeralaForm2';
       const isDistrictLevel = location.pathname.toLowerCase().includes('talukform2') || location.pathname === '/schemes/earas/cce/TalukForm2';
       const isTalukLevel = location.pathname.toLowerCase().includes('zoneform2') || location.pathname === '/schemes/earas/cce/ZoneForm2';
-      const isForm2OverviewPage = (location.pathname.toLowerCase().endsWith('/form2') || location.pathname === '/schemes/earas/cce/Form2') && !isStateLevel && !isDistrictLevel && !isTalukLevel;
+      const isForm2OverviewPage = (location.pathname.toLowerCase().includes('clusterform2') || location.pathname.toLowerCase().endsWith('/form2') || location.pathname === '/schemes/earas/cce/Form2') && !isStateLevel && !isDistrictLevel && !isTalukLevel;
 
-      const f2DistrictId = location.state?.districtId || form2SessionState.districtId || zoneForm2SessionState.districtId || talukForm2SessionState.districtId || (params.districtId && !isNaN(params.districtId) ? params.districtId : null);
-      const f2DistrictName = location.state?.districtName || location.state?.selectedDistrict || form2SessionState.districtName || zoneForm2SessionState.districtName || talukForm2SessionState.districtName || params.districtName || '';
-      const f2TalukId = location.state?.talukId || form2SessionState.talukId || zoneForm2SessionState.talukId || talukForm2SessionState.talukId || (params.talukId && !isNaN(params.talukId) ? params.talukId : null);
-      const f2TalukName = location.state?.talukName || location.state?.selectedTaluk || form2SessionState.talukName || zoneForm2SessionState.talukName || talukForm2SessionState.talukName || params.talukName || '';
-      const f2ZoneName = location.state?.zoneName || form2SessionState.zoneName || zoneForm2SessionState.zoneName || '';
+      const f2DistrictId = location.state?.districtId || clusterForm2SessionState.districtId || form2SessionState.districtId || zoneForm2SessionState.districtId || talukForm2SessionState.districtId || (params.districtId && !isNaN(params.districtId) ? params.districtId : null);
+      const f2DistrictName = location.state?.districtName || location.state?.selectedDistrict || clusterForm2SessionState.districtName || form2SessionState.districtName || zoneForm2SessionState.districtName || talukForm2SessionState.districtName || params.districtName || '';
+      const f2TalukId = location.state?.talukId || clusterForm2SessionState.talukId || form2SessionState.talukId || zoneForm2SessionState.talukId || talukForm2SessionState.talukId || (params.talukId && !isNaN(params.talukId) ? params.talukId : null);
+      const f2TalukName = location.state?.talukName || location.state?.selectedTaluk || clusterForm2SessionState.talukName || form2SessionState.talukName || zoneForm2SessionState.talukName || talukForm2SessionState.talukName || params.talukName || '';
+      const f2ZoneName = location.state?.zoneName || location.state?.selectedZone || clusterForm2SessionState.zoneName || form2SessionState.zoneName || zoneForm2SessionState.zoneName || '';
 
       // STATE segment (only for DIRECTORATE role)
       if (officeType === 'DIRECTORATE' && !isStateLevel) {
@@ -459,7 +460,7 @@ const Breadcrumb = () => {
 
       // FORM 2 OVERVIEW segment
       if (isForm2OverviewPage) {
-        const overviewLabel = f2ZoneName ? `${formatLabel(f2ZoneName)} Form 2 Overview` : 'Form 2 Overview';
+        const overviewLabel = f2ZoneName ? `${formatLabel(f2ZoneName)} Zone (Cluster Report)` : 'Cluster Report';
         items.push({
           label: overviewLabel,
           path: null,

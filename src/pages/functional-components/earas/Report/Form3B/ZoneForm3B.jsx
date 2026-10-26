@@ -126,10 +126,12 @@ function mergeGroupResponses(responses) {
         const existing = entry.crops.get(c.cropId);
         if (existing) {
           existing.areaInCents = (Number(existing.areaInCents) || 0) + (Number(c.areaInCents) || 0);
+          if (!existing.cropUnit && c.cropUnit) existing.cropUnit = c.cropUnit;
         } else {
           entry.crops.set(c.cropId, {
             cropId: c.cropId,
             cropName: c.cropName,
+            cropUnit: c.cropUnit,
             areaInCents: Number(c.areaInCents) || 0
           });
         }
@@ -367,7 +369,15 @@ const ZoneForm3B = () => {
     const map = new Map();
     apiData.forEach((z) =>
       (z.crops || []).forEach((c) => {
-        if (!map.has(c.cropId)) map.set(c.cropId, { cropId: c.cropId, cropName: cleanName(c.cropName) });
+        if (!map.has(c.cropId)) {
+          map.set(c.cropId, {
+            cropId: c.cropId,
+            cropName: cleanName(c.cropName),
+            cropUnit: c.cropUnit || ''
+          });
+        } else if (!map.get(c.cropId).cropUnit && c.cropUnit) {
+          map.get(c.cropId).cropUnit = c.cropUnit;
+        }
       })
     );
     return Array.from(map.values()).sort((a, b) => a.cropName.localeCompare(b.cropName));
@@ -565,7 +575,13 @@ const ZoneForm3B = () => {
       []
     ];
 
-    const headerRow = ['#', 'Block', 'Zone', 'Cluster Area', ...cropColumns.map((c) => c.cropName)];
+    const headerRow = [
+      '#',
+      'Block',
+      'Zone',
+      'Cluster Area',
+      ...cropColumns.map((c) => (c.cropUnit ? `${c.cropName} (${c.cropUnit})` : c.cropName))
+    ];
 
     let serial = 0;
     const dataRows = [];
@@ -999,7 +1015,7 @@ const ZoneForm3B = () => {
                           color: 'white',
                           fontWeight: 700,
                           whiteSpace: 'nowrap',
-                          py: 1.5,
+                          py: 1.2,
                           position: 'sticky',
                           top: 0,
                           zIndex: 3
@@ -1016,13 +1032,40 @@ const ZoneForm3B = () => {
                             color: 'white',
                             fontWeight: 700,
                             whiteSpace: 'nowrap',
-                            py: 1.5,
+                            py: 1.2,
                             position: 'sticky',
                             top: 0,
                             zIndex: 3
                           }}
                         >
-                          {crop.cropName}
+                          <Box sx={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.25 }}>
+                            <Typography
+                              component="span"
+                              sx={{
+                                fontWeight: 700,
+                                fontSize: '0.82rem',
+                                color: '#fff',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              {crop.cropName}
+                            </Typography>
+                            {crop.cropUnit && (
+                              <Typography
+                                component="span"
+                                sx={{
+                                  fontSize: '0.72rem',
+                                  fontWeight: 500,
+                                  opacity: 0.85,
+                                  color: alpha('#fff', 0.85),
+                                  whiteSpace: 'nowrap',
+                                  textTransform: 'none'
+                                }}
+                              >
+                                {crop.cropUnit.trim().startsWith('(') ? crop.cropUnit.trim() : `(${crop.cropUnit.trim()})`}
+                              </Typography>
+                            )}
+                          </Box>
                         </TableCell>
                       ))}
                       <TableCell aria-hidden sx={{ backgroundColor: themeColor, position: 'sticky', top: 0, zIndex: 3, padding: 0 }} />

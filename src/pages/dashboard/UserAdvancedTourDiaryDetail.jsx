@@ -53,11 +53,15 @@ import InfoIcon from "@mui/icons-material/Info";
 import CloseIcon from "@mui/icons-material/Close";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import * as XLSX from "xlsx";
 import tourDiaryService from "pages/authentication/services/tourdiaryservice";
 import profileService from "pages/profile/profileservice";
 import ApprovedUserService from "pages/functional-components/approvels/ApprovedUserService";
 import authservice from "pages/authentication/services/authservice";
 import Breadcrumb from "routes/Breadcrumb";
+import { exportAdvancedTourDiaryPdf } from "utils/tourDiaryPdfGenerator";
 
 const UserAdvancedTourDiaryDetail = () => {
   const theme = useTheme();
@@ -76,10 +80,12 @@ const UserAdvancedTourDiaryDetail = () => {
     return new Date().getFullYear();
   };
 
-  const { userId, month: monthParam, year: yearParam, userDetails: userInfo } = location.state || {};
+  const { userId: stateUserId, month: monthParam, year: yearParam, userDetails: userInfo } = location.state || {};
+  const userId = stateUserId || authservice.userid();
   const [roleName, setRoleName] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(monthParam || new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(yearParam || getLocalStorageYear());
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -149,7 +155,11 @@ const UserAdvancedTourDiaryDetail = () => {
     if (roleName === "Field Data Collector" && loggedInRole === "Field Inspector") {
       return true;
     }
+<<<<<<< HEAD
     // Field Inspector has no verification
+=======
+    // Field Inspector submission does NOT require verification
+>>>>>>> bef10d97e9f5a2d0bc373d22d92f5d13251c4275
     return false;
   };
 
@@ -246,8 +256,6 @@ const UserAdvancedTourDiaryDetail = () => {
   const getZoneName = (zoneId) => {
     if (!zoneId) return '—';
 
-    console.log("Getting zone name for zoneId:", zoneId);
-    console.log("Available userZones:", userZones);
 
     if (userZones.length === 0) {
       // Try to find zone in tourEntries data
@@ -278,7 +286,11 @@ const UserAdvancedTourDiaryDetail = () => {
       // Field Inspector verifies First & Second Half
       return ["First Half", "Second Half"];
     } else if (roleName === "Field Inspector") {
+<<<<<<< HEAD
       // Field Inspector has no verification
+=======
+      // Verification hidden for Field Inspector
+>>>>>>> bef10d97e9f5a2d0bc373d22d92f5d13251c4275
       return [];
     }
     return [];
@@ -292,15 +304,13 @@ const UserAdvancedTourDiaryDetail = () => {
       // Taluk Level Approver approves First & Second Half
       return ["First Half", "Second Half"];
     } else if (roleName === "Field Inspector") {
-      // District Level Approver approves Full Month
+      // Taluk Level Approver approves Full Month for Field Inspector
       return ["Full Month"];
     } else if (roleName === "Taluk Level Approver") {
       // District Level Approver approves Full Month
       return ["Full Month"];
-      // District Level Data Viewer approves Full Month
     } else if (roleName === "District Level Data Viewer") {
       return ["Full Month"];
-      // District Level Approver approves Full Month
     } else if (roleName === "District Level Approver") {
       // IT Admin approves Full Month
       return ["Full Month"];
@@ -327,6 +337,7 @@ const UserAdvancedTourDiaryDetail = () => {
 
     // Check if submitted
     let isSubmitted = false;
+<<<<<<< HEAD
     let isAdminApproved = false;
 
     if (half === "First Half") {
@@ -342,6 +353,24 @@ const UserAdvancedTourDiaryDetail = () => {
 
     if (!isSubmitted) return false;
     if (isAdminApproved) return false; // Already approved by Taluk Level Approver -> verification disabled
+=======
+    let adminStatus = '';
+
+    if (half === "First Half") {
+      isSubmitted = submissionDetails.firstHalfSubmitted;
+      adminStatus = submissionDetails.firstHalfAdminStatus;
+    } else if (half === "Second Half") {
+      isSubmitted = submissionDetails.secondHalfSubmitted;
+      adminStatus = submissionDetails.secondHalfAdminStatus;
+    } else if (half === "Full Month") {
+      isSubmitted = submissionDetails.fullMonthSubmitId;
+      adminStatus = submissionDetails.fullMonthAdminStatus;
+    }
+
+    // Must be submitted and not already approved by Taluk Level Approver
+    if (!isSubmitted) return false;
+    if (adminStatus === 'APPROVED') return false;
+>>>>>>> bef10d97e9f5a2d0bc373d22d92f5d13251c4275
 
     return true;
   };
@@ -377,6 +406,10 @@ const UserAdvancedTourDiaryDetail = () => {
     if (roleName === "Field Data Collector") {
       return verifiedStatus === 'APPROVED' || adminStatus === 'PENDING' || adminStatus === 'REJECTED' || adminStatus === 'APPROVED';
     } else if (roleName === "Field Inspector") {
+<<<<<<< HEAD
+=======
+      // Verification hidden for Field Inspector, allow direct approval
+>>>>>>> bef10d97e9f5a2d0bc373d22d92f5d13251c4275
       return true;
     } else if (roleName === "Taluk Level Approver" || roleName === "District Level Approver" || roleName === "District Level Data Viewer") {
       return true;
@@ -605,6 +638,132 @@ const UserAdvancedTourDiaryDetail = () => {
       setSubmissionDetails(null);
     } finally {
       setLoadingSubmissionDetails(false);
+    }
+  };
+
+  const handleExportExcel = () => {
+    try {
+      const monthName = monthNames[selectedMonth - 1];
+      const empName = userDetails?.name || 'User';
+
+      const headers = [
+        "Date",
+        "Day",
+        "Half",
+        "Entry Type",
+        "Zone",
+        "Location",
+        "Purpose",
+        "Remarks",
+        "Status"
+      ];
+
+      const rows = tourEntries.map(entry => {
+        let dateStr = '—';
+        let dayName = '—';
+        let half = '—';
+        try {
+          const date = new Date(entry.createdAt);
+          if (!isNaN(date.getTime())) {
+            const day = date.getDate();
+            const month = date.getMonth();
+            const dName = dayNames[date.getDay()];
+            dateStr = `${String(day).padStart(2, '0')} ${monthNames[month].substring(0, 3)} ${selectedYear}`;
+            dayName = dName;
+            half = day <= 15 ? 'First Half' : 'Second Half';
+          }
+        } catch (e) { }
+
+        const purpose = entry.purposeName || getPurposeName(entry.purposeId) || '—';
+        const zone = getZoneName(entry.zoneId) || '—';
+
+        return [
+          dateStr,
+          dayName,
+          half,
+          entry.entryType || 'WORKING',
+          zone,
+          entry.location || '—',
+          purpose,
+          entry.remark || '—',
+          entry.status || 'PENDING'
+        ];
+      });
+
+      const workbook = XLSX.utils.book_new();
+
+      const metaRows = [
+        ["ADVANCED TOUR PROGRAM MANAGEMENT REPORT"],
+        [`Employee Name: ${userDetails?.name || 'N/A'}`, `Employee ID: ${userDetails?.penNumber || userDetails?.empNumber || userDetails?.employeeId || 'N/A'}`],
+        [`Designation: ${userDetails?.designation || 'N/A'}`, `Office Location: ${userDetails?.officelocation || userDetails?.officeLocation || 'N/A'}`],
+        [`Month & Year: ${monthName} ${selectedYear}`],
+        []
+      ];
+
+      const sheetData = [...metaRows, headers, ...rows];
+      const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+
+      worksheet['!cols'] = [
+        { wch: 16 },
+        { wch: 8 },
+        { wch: 14 },
+        { wch: 15 },
+        { wch: 22 },
+        { wch: 25 },
+        { wch: 25 },
+        { wch: 30 },
+        { wch: 15 }
+      ];
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Advanced Tour Program');
+
+      const sanitizedName = empName.replace(/[^a-zA-Z0-9]/g, '_');
+      XLSX.writeFile(workbook, `Advanced_Tour_Program_${sanitizedName}_${monthName}_${selectedYear}.xlsx`);
+    } catch (err) {
+      console.error("Error exporting excel:", err);
+      setNotification({
+        open: true,
+        type: 'error',
+        message: 'Failed to export Excel file'
+      });
+    }
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      setIsGeneratingPdf(true);
+      const safeUserDetails = {
+        name: userDetails?.name || authservice.userName() || "Employee",
+        penNumber: userDetails?.penNumber || userDetails?.empNumber || userDetails?.employeeId || authservice.penNumber() || "N/A",
+        empNumber: userDetails?.empNumber || userDetails?.penNumber || authservice.penNumber() || "N/A",
+        designation: userDetails?.designation || roleName || authservice.getrole() || "N/A",
+        officelocation: userDetails?.officelocation || userDetails?.officeLocation || authservice.locationName() || "N/A"
+      };
+
+      await exportAdvancedTourDiaryPdf({
+        tourEntries,
+        userDetails: safeUserDetails,
+        selectedMonth,
+        selectedYear,
+        submissionDetails,
+        getZoneName,
+        getPurposeName
+      });
+
+      setNotification({
+        open: true,
+        type: 'success',
+        message: 'Advanced Tour Program PDF downloaded successfully'
+      });
+    } catch (err) {
+      console.error("Error generating Advanced Tour Diary PDF:", err);
+      setNotification({
+        open: true,
+        type: 'error',
+        message: 'Failed to generate Tour Program PDF'
+      });
+    } finally {
+      setIsGeneratingPdf(false);
     }
   };
 
@@ -865,7 +1024,7 @@ const UserAdvancedTourDiaryDetail = () => {
                   />
                 )}
                 {/* Verification Status */}
-                {submissionDetails.firstHalfVerifiedStatus && (
+                {submissionDetails.firstHalfVerifiedStatus && roleName === "Field Data Collector" && (
                   <Chip
                     label={`Ver: ${submissionDetails.firstHalfVerifiedStatus}`}
                     size="small"
@@ -938,7 +1097,7 @@ const UserAdvancedTourDiaryDetail = () => {
                   />
                 )}
                 {/* Verification Status */}
-                {submissionDetails.secondHalfVerifiedStatus && (
+                {submissionDetails.secondHalfVerifiedStatus && roleName === "Field Data Collector" && (
                   <Chip
                     label={`Ver: ${submissionDetails.secondHalfVerifiedStatus}`}
                     size="small"
@@ -1015,7 +1174,7 @@ const UserAdvancedTourDiaryDetail = () => {
               />
             )}
             {/* Verification Status */}
-            {submissionDetails.fullMonthVerifiedStatus && (
+            {submissionDetails.fullMonthVerifiedStatus && roleName === "Field Data Collector" && (
               <Chip
                 label={`Ver: ${submissionDetails.fullMonthVerifiedStatus}`}
                 size="small"
@@ -1222,16 +1381,26 @@ const UserAdvancedTourDiaryDetail = () => {
 
     let alreadyApproved = false;
     let currentStatus = '';
+    let adminStatus = '';
 
     if (half === "First Half") {
       alreadyApproved = submissionDetails?.firstHalfVerifiedStatus === 'APPROVED';
       currentStatus = submissionDetails?.firstHalfVerifiedStatus;
+      adminStatus = submissionDetails?.firstHalfAdminStatus;
     } else if (half === "Second Half") {
       alreadyApproved = submissionDetails?.secondHalfVerifiedStatus === 'APPROVED';
       currentStatus = submissionDetails?.secondHalfVerifiedStatus;
+      adminStatus = submissionDetails?.secondHalfAdminStatus;
     } else if (half === "Full Month") {
       alreadyApproved = submissionDetails?.fullMonthVerifiedStatus === 'APPROVED';
       currentStatus = submissionDetails?.fullMonthVerifiedStatus;
+      adminStatus = submissionDetails?.fullMonthAdminStatus;
+    }
+
+    if (adminStatus === 'APPROVED') {
+      showNotification('warning', 'Already Approver Approved');
+      closeVerificationMenu();
+      return;
     }
 
     if (alreadyApproved) {
@@ -1253,8 +1422,22 @@ const UserAdvancedTourDiaryDetail = () => {
   };
 
   const confirmVerification = async () => {
+<<<<<<< HEAD
     if (isAlreadyApprovedByAdmin(verificationHalf)) {
       showNotification('error', 'already approved so verification not allowed');
+=======
+    let adminStatus = '';
+    if (verificationHalf === "First Half") {
+      adminStatus = submissionDetails?.firstHalfAdminStatus;
+    } else if (verificationHalf === "Second Half") {
+      adminStatus = submissionDetails?.secondHalfAdminStatus;
+    } else if (verificationHalf === "Full Month") {
+      adminStatus = submissionDetails?.fullMonthAdminStatus;
+    }
+
+    if (adminStatus === 'APPROVED') {
+      showNotification('warning', 'Already Approver Approved');
+>>>>>>> bef10d97e9f5a2d0bc373d22d92f5d13251c4275
       setVerificationDialogOpen(false);
       return;
     }
@@ -1652,6 +1835,37 @@ const UserAdvancedTourDiaryDetail = () => {
                   )
                 }}
               />
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Button
+                  variant="contained"
+                  startIcon={isGeneratingPdf ? <CircularProgress size={18} color="inherit" /> : <PictureAsPdfIcon />}
+                  onClick={handleExportPdf}
+                  disabled={tourEntries.length === 0 || isGeneratingPdf}
+                  sx={{
+                    backgroundColor: '#d32f2f',
+                    '&:hover': { backgroundColor: '#b71c1c' },
+                    whiteSpace: 'nowrap',
+                    fontWeight: 600
+                  }}
+                >
+                  {isGeneratingPdf ? "Generating..." : "Download PDF"}
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<FileDownloadIcon />}
+                  onClick={handleExportExcel}
+                  disabled={tourEntries.length === 0}
+                  sx={{
+                    borderColor: '#27ae60',
+                    color: '#27ae60',
+                    '&:hover': { borderColor: '#1e8449', backgroundColor: 'rgba(39, 174, 96, 0.08)' },
+                    whiteSpace: 'nowrap',
+                    fontWeight: 600
+                  }}
+                >
+                  Download Excel
+                </Button>
+              </Stack>
             </Stack>
           </Box>
 
@@ -1992,6 +2206,20 @@ const UserAdvancedTourDiaryDetail = () => {
                 >
                   Back
                 </Button>
+                {/* <Button
+                  variant="contained"
+                  startIcon={<FileDownloadIcon />}
+                  onClick={handleExportExcel}
+                  disabled={tourEntries.length === 0}
+                  sx={{
+                    backgroundColor: '#27ae60',
+                    '&:hover': { backgroundColor: '#1e8449' },
+                    whiteSpace: 'nowrap',
+                    fontWeight: 600
+                  }}
+                >
+                  Download Excel
+                </Button> */}
 
 
               </Box>
@@ -2046,6 +2274,20 @@ const UserAdvancedTourDiaryDetail = () => {
                 minWidth: '200px',
                 justifyContent: 'flex-end'
               }}>
+                <Button
+                  variant="contained"
+                  startIcon={isGeneratingPdf ? <CircularProgress size={18} color="inherit" /> : <PictureAsPdfIcon />}
+                  onClick={handleExportPdf}
+                  disabled={tourEntries.length === 0 || isGeneratingPdf}
+                  sx={{
+                    backgroundColor: '#d32f2f',
+                    '&:hover': { backgroundColor: '#b71c1c' },
+                    whiteSpace: 'nowrap',
+                    fontWeight: 600
+                  }}
+                >
+                  {isGeneratingPdf ? "Generating..." : "Download PDF"}
+                </Button>
                 <Box>
                   {canVerify() && (() => {
                     const allVerificationApprovedByAdmin = getVerificationOptions().length > 0 &&

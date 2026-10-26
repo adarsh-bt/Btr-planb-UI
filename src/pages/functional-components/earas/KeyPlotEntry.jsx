@@ -31,7 +31,8 @@ import {
   Delete,
   Error as ErrorIcon,
   CheckCircle,
-  Cancel
+  Cancel,
+  WarningAmber
 } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import mainapi from "api/mainapi";
@@ -1476,7 +1477,7 @@ const KeyPlotEntry = () => {
           );
         })}
 
-        {/* Confirmation Modal */}
+        {/* Caution / Warning Confirmation Modal */}
         <Dialog
           open={showConfirmModal}
           onClose={handleCancelSave}
@@ -1484,21 +1485,170 @@ const KeyPlotEntry = () => {
           aria-describedby="confirm-dialog-description"
           maxWidth="sm"
           fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              overflow: 'hidden',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+            }
+          }}
         >
-          <DialogTitle id="confirm-dialog-title">
-            Confirm Save Operation
+          {/* Header with warning styling */}
+          <DialogTitle
+            id="confirm-dialog-title"
+            sx={{
+              background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+              color: 'white',
+              px: 3,
+              py: 2,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5
+            }}
+          >
+            <WarningAmber sx={{ fontSize: 32, color: '#fef3c7' }} />
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                Important Caution: Review Before Saving
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.9)', display: 'block', mt: 0.3 }}>
+                Please verify all plot details before proceeding
+              </Typography>
+            </Box>
           </DialogTitle>
-          <DialogContent>
-            <DialogContentText id="confirm-dialog-description">
-              Are you sure you want to save {totalKeyplots} keyplot{totalKeyplots !== 1 ? 's' : ''}?
-              This action will save all the entered data to the database.
-            </DialogContentText>
+
+          <DialogContent sx={{ p: 3 }}>
+            {/* Caution Banner */}
+            <Alert
+              severity="warning"
+              variant="outlined"
+              sx={{
+                mt: 1,
+                mb: 2.5,
+                borderRadius: 2,
+                borderWidth: '1.5px',
+                borderColor: '#f59e0b',
+                backgroundColor: '#fffbeb',
+                '& .MuiAlert-icon': {
+                  color: '#d97706',
+                  fontSize: 24,
+                  alignSelf: 'center'
+                }
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#92400e', mb: 0.5 }}>
+                Before saving, please check the Keyplot details correctly!
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#b45309', fontSize: '0.875rem' }}>
+                Please take note of the following important conditions before confirming:
+              </Typography>
+            </Alert>
+
+            {/* Crucial Directorate & Deletion Caution Notice */}
+            <Box
+              sx={{
+                p: 2,
+                mb: 2.5,
+                borderRadius: 2,
+                bgcolor: '#fef2f2',
+                border: '1px solid #fecaca'
+              }}
+            >
+              <Typography variant="body2" sx={{ color: '#991b1b', fontWeight: 600, display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1.2 }}>
+                <span style={{ fontSize: '1rem', lineHeight: 1.4 }}>⚠️</span>
+                <span>
+                  <strong>Directorate Change Only:</strong> After saving, any changes or corrections can ONLY be made by the Directorate.
+                </span>
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#991b1b', fontWeight: 600, display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                <span style={{ fontSize: '1rem', lineHeight: 1.4 }}>⚠️</span>
+                <span>
+                  <strong>No Permanent Deletion:</strong> Keyplots once saved can NEVER be deleted permanently from the system.
+                </span>
+              </Typography>
+            </Box>
+
+            {/* Checklist of details to verify */}
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                bgcolor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                mb: 2.5
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1 }}>
+                Please check the Plot Details thoroughly:
+              </Typography>
+              <Grid container spacing={1}>
+                <Grid item xs={6}>
+                  <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.85rem' }}>
+                    • <strong>Local Body</strong>
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.85rem' }}>
+                    • <strong>Land Type</strong> (Wet / Dry)
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.85rem' }}>
+                    • <strong>Revenue Village</strong>
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.85rem' }}>
+                    • <strong>Village Block</strong>
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.85rem' }}>
+                    • <strong>Survey Number</strong>
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.85rem' }}>
+                    • <strong>Sub-Division No. & Area</strong>
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Box>
+
+            {/* Total Plots Notice */}
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: '#f1f5f9', p: 1.5, borderRadius: 2 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e293b' }}>
+                Total Keyplots to be saved:
+              </Typography>
+              <Chip
+                label={`${totalKeyplots} Keyplot${totalKeyplots !== 1 ? 's' : ''}`}
+                color="warning"
+                size="small"
+                sx={{ fontWeight: 'bold' }}
+              />
+            </Box>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCancelSave} color="secondary" variant="outlined">
-              Cancel
+
+          <DialogActions sx={{ px: 3, pb: 2.5, pt: 1, justifyContent: 'space-between' }}>
+            <Button
+              onClick={handleCancelSave}
+              color="inherit"
+              variant="outlined"
+              sx={{ minWidth: 120, borderColor: '#cbd5e1', color: '#475569', '&:hover': { borderColor: '#94a3b8', bgcolor: '#f8fafc' } }}
+            >
+              Go Back & Check
             </Button>
-            <Button onClick={handleConfirmSave} color="primary" variant="contained" autoFocus>
+            <Button
+              onClick={handleConfirmSave}
+              variant="contained"
+              sx={{
+                minWidth: 160,
+                fontWeight: 600,
+                bgcolor: '#d97706',
+                '&:hover': { bgcolor: '#b45309' }
+              }}
+              autoFocus
+            >
               Confirm & Save
             </Button>
           </DialogActions>

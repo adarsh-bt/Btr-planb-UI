@@ -42,10 +42,13 @@ import InfoIcon from '@mui/icons-material/Info';
 import EventIcon from '@mui/icons-material/Event';
 import AddIcon from '@mui/icons-material/Add';
 import CheckIcon from '@mui/icons-material/Check';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
 import tourDiaryService from 'pages/authentication/services/tourdiaryservice';
+import profileService from 'pages/profile/profileservice';
 import authservice from 'pages/authentication/services/authservice';
+import { exportAdvancedTourDiaryPdf } from 'utils/tourDiaryPdfGenerator';
 import { id } from 'date-fns/locale';
 
 const TourDiary = () => {
@@ -70,7 +73,7 @@ const TourDiary = () => {
             openSubmitMenu(event);
         } else {
 
-            if (submissionView?.fullMonthAdminStatus === 'APPROVED') {
+            if (submissionView?.fullMonthSubmitId && submissionView?.fullMonthAdminStatus !== 'REJECTED' && submissionView?.fullMonthVerifiedStatus !== 'REJECTED') {
                 showNotification('info', `Entry already submitted on ${new Date(submissionView.fullMonthSubmittedDate).toLocaleString()}`);
                 return;
             }
@@ -86,6 +89,7 @@ const TourDiary = () => {
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [activeHalves, setActiveHalves] = useState({ firstHalf: 0, secondHalf: 0 });
     const [submissionStatus, setSubmissionStatus] = useState({ firstHalf: null, secondHalf: null, loading: false });
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState(0);
@@ -249,15 +253,23 @@ const TourDiary = () => {
 
         if (!submissionView) return false;
 
-        // For Field Data Collector - check individual halves
+        // For Field Data Collector - check individual halves (unlocked if rejected by either Field Inspector or Taluk Level Approver)
         if (isFieldDataCollector) {
             if (isFirstHalf) {
+<<<<<<< HEAD
                 // First Half: locked if submitted and neither admin nor verifier has rejected it
+=======
+                // First Half: locked if submitted and NOT rejected by Admin AND NOT rejected by Field Inspector (Verifier)
+>>>>>>> bef10d97e9f5a2d0bc373d22d92f5d13251c4275
                 return submissionView.firstHalfSubmitted &&
                     submissionView.firstHalfAdminStatus !== 'REJECTED' &&
                     submissionView.firstHalfVerifiedStatus !== 'REJECTED';
             } else {
+<<<<<<< HEAD
                 // Second Half: locked if submitted and neither admin nor verifier has rejected it
+=======
+                // Second Half: locked if submitted and NOT rejected by Admin AND NOT rejected by Field Inspector (Verifier)
+>>>>>>> bef10d97e9f5a2d0bc373d22d92f5d13251c4275
                 return submissionView.secondHalfSubmitted &&
                     submissionView.secondHalfAdminStatus !== 'REJECTED' &&
                     submissionView.secondHalfVerifiedStatus !== 'REJECTED';
@@ -565,7 +577,8 @@ const TourDiary = () => {
                         isLate: response.data.firstHalfIsLate,
                         submittedAt: response.data.firstHalfSubmittedAt,
                         isSubmitted: !!response.data.firstHalfId,
-                        adminstatus: response.data.adminFirstStatus || null
+                        adminstatus: response.data.adminFirstStatus || null,
+                        verifiedstatus: response.data.verifiedFirstStatus || response.data.firstHalfVerifiedStatus || null
                     },
                     secondHalf: {
                         id: response.data.secondHalfId,
@@ -575,7 +588,8 @@ const TourDiary = () => {
                         isLate: response.data.secondHalfIsLate,
                         submittedAt: response.data.secondHalfSubmittedAt,
                         isSubmitted: !!response.data.secondHalfId,
-                        adminstatus: response.data.adminSecondStatus || null
+                        adminstatus: response.data.adminSecondStatus || null,
+                        verifiedstatus: response.data.verifiedSecondStatus || response.data.secondHalfVerifiedStatus || null
                     },
                     loading: false
                 });
@@ -674,6 +688,7 @@ const TourDiary = () => {
     // ============================ HALF SUBMIT ============================
     const handleSubmitHalf = async (half) => {
 
+<<<<<<< HEAD
         if (half === 'First Half') {
             const isFirstHalfRejected = (submissionView && (submissionView.firstHalfAdminStatus === 'REJECTED' || submissionView.firstHalfVerifiedStatus === 'REJECTED')) ||
                 (submissionStatus.firstHalf?.adminstatus === 'REJECTED' || submissionStatus.firstHalf?.verifiedStatus === 'REJECTED');
@@ -691,6 +706,17 @@ const TourDiary = () => {
                 closeSubmitMenu();
                 return;
             }
+=======
+        if (half === 'First Half' && submissionStatus.firstHalf?.isSubmitted && submissionStatus.firstHalf.adminstatus !== 'REJECTED' && submissionStatus.firstHalf.verifiedstatus !== 'REJECTED' && submissionView?.firstHalfAdminStatus !== 'REJECTED' && submissionView?.firstHalfVerifiedStatus !== 'REJECTED') {
+            showNotification('info', `First Half already submitted on ${new Date(submissionStatus.firstHalf.submittedAt || submissionView?.firstHalfSubmittedDate).toLocaleString()}`);
+            closeSubmitMenu();
+            return;
+        }
+        if (half === 'Second Half' && submissionStatus.secondHalf?.isSubmitted && submissionStatus.secondHalf.adminstatus !== 'REJECTED' && submissionStatus.secondHalf.verifiedstatus !== 'REJECTED' && submissionView?.secondHalfAdminStatus !== 'REJECTED' && submissionView?.secondHalfVerifiedStatus !== 'REJECTED') {
+            showNotification('info', `Second Half already submitted on ${new Date(submissionStatus.secondHalf.submittedAt || submissionView?.secondHalfSubmittedDate).toLocaleString()}`);
+            closeSubmitMenu();
+            return;
+>>>>>>> bef10d97e9f5a2d0bc373d22d92f5d13251c4275
         }
 
         setSubmitDialog({ open: true, half });
@@ -1436,6 +1462,56 @@ const TourDiary = () => {
         return rows;
     };
 
+    const handleExportPdf = async () => {
+        try {
+            setIsGeneratingPdf(true);
+            const userId = authservice.userid();
+            let officerDetails = null;
+            if (userId) {
+                try {
+                    const profileRes = await profileService.fetchUserById(userId);
+                    const pData = profileRes?.payload || profileRes?.data || profileRes;
+                    if (pData) {
+                        officerDetails = {
+                            name: pData.name || pData.userName || authservice.userName() || "Employee",
+                            penNumber: pData.penNumber || pData.empNumber || pData.employeeId || authservice.penNumber() || "N/A",
+                            empNumber: pData.empNumber || pData.penNumber || authservice.penNumber() || "N/A",
+                            designation: pData.designation || role || "N/A",
+                            officelocation: pData.officelocation || pData.officeLocation || authservice.locationName() || "N/A"
+                        };
+                    }
+                } catch (e) {
+                    console.warn("Could not fetch user profile for PDF:", e);
+                }
+            }
+
+            const safeUserDetails = {
+                name: officerDetails?.name || authservice.userName() || "Employee",
+                penNumber: officerDetails?.penNumber || officerDetails?.empNumber || authservice.penNumber() || "N/A",
+                empNumber: officerDetails?.empNumber || officerDetails?.penNumber || authservice.penNumber() || "N/A",
+                designation: officerDetails?.designation || role || "N/A",
+                officelocation: officerDetails?.officelocation || officerDetails?.officeLocation || authservice.locationName() || "N/A"
+            };
+
+            await exportAdvancedTourDiaryPdf({
+                tourEntries: tourEvents,
+                userDetails: safeUserDetails,
+                selectedMonth: currentDate.getMonth() + 1,
+                selectedYear: currentDate.getFullYear(),
+                submissionDetails: submissionView,
+                getZoneName: (zId) => getZoneName(zId),
+                getPurposeName: (pId) => getPurposeName(pId)
+            });
+
+            showNotification('success', 'Tour Program PDF downloaded successfully');
+        } catch (err) {
+            console.error("Error generating Tour Program PDF:", err);
+            showNotification('error', 'Failed to generate Tour Program PDF');
+        } finally {
+            setIsGeneratingPdf(false);
+        }
+    };
+
     // ============================ MAIN RENDER ============================
     return (
         <Grid container spacing={3}>
@@ -1551,7 +1627,7 @@ const TourDiary = () => {
                                                         )}
 
                                                         {/* Verification Status Chip */}
-                                                        {submissionView?.firstHalfSubmitted && submissionView?.firstHalfVerifiedStatus && (
+                                                        {submissionView?.firstHalfSubmitted && submissionView?.firstHalfVerifiedStatus && isFieldDataCollector && (
                                                             <Chip
                                                                 label={`Ver: ${submissionView.firstHalfVerifiedStatus}`}
                                                                 size="small"
@@ -1643,7 +1719,7 @@ const TourDiary = () => {
                                                         )}
 
                                                         {/* Verification Status Chip */}
-                                                        {submissionView?.secondHalfSubmitted && submissionView?.secondHalfVerifiedStatus && (
+                                                        {submissionView?.secondHalfSubmitted && submissionView?.secondHalfVerifiedStatus && isFieldDataCollector && (
                                                             <Chip
                                                                 label={`Ver: ${submissionView.secondHalfVerifiedStatus}`}
                                                                 size="small"
@@ -1756,7 +1832,7 @@ const TourDiary = () => {
                                                     )}
 
                                                     {/* Verification Status Chip */}
-                                                    {submissionView?.fullMonthSubmitId && submissionView?.fullMonthVerifiedStatus && (
+                                                    {submissionView?.fullMonthSubmitId && submissionView?.fullMonthVerifiedStatus && isFieldDataCollector && (
                                                         <Chip
                                                             label={`Ver: ${submissionView.fullMonthVerifiedStatus}`}
                                                             size="small"
@@ -1831,7 +1907,22 @@ const TourDiary = () => {
                                     {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
                                 </Typography>
 
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '350px', justifyContent: 'flex-end' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                                    <Button
+                                        variant="contained"
+                                        startIcon={isGeneratingPdf ? <CircularProgress size={18} color="inherit" /> : <PictureAsPdfIcon />}
+                                        onClick={handleExportPdf}
+                                        disabled={tourEvents.length === 0 || isGeneratingPdf}
+                                        sx={{
+                                            backgroundColor: '#d32f2f',
+                                            '&:hover': { backgroundColor: '#b71c1c' },
+                                            whiteSpace: 'nowrap',
+                                            minWidth: '130px',
+                                            fontWeight: 600
+                                        }}
+                                    >
+                                        {isGeneratingPdf ? "Generating..." : "Download PDF"}
+                                    </Button>
                                     <Box>
                                         <Button
                                             variant="contained"
@@ -1899,7 +1990,7 @@ const TourDiary = () => {
                                                                 />
 
                                                                 {/* Verification Status */}
-                                                                {submissionView.firstHalfVerifiedStatus && (
+                                                                {submissionView.firstHalfVerifiedStatus && isFieldDataCollector && (
                                                                     <Chip
                                                                         size="small"
                                                                         label={`Ver: ${submissionView.firstHalfVerifiedStatus}`}
@@ -2004,7 +2095,7 @@ const TourDiary = () => {
                                                                 />
 
                                                                 {/* Verification Status */}
-                                                                {submissionView.secondHalfVerifiedStatus && (
+                                                                {submissionView.secondHalfVerifiedStatus && isFieldDataCollector && (
                                                                     <Chip
                                                                         size="small"
                                                                         label={`Ver: ${submissionView.secondHalfVerifiedStatus}`}

@@ -54,7 +54,6 @@ const CROP_GROUPS = [
 
 const ALL_CROP_GROUPS = -1;
 const ALL_CROP_GROUPS_LABEL = 'All Crop Groups';
-const FETCH_BATCH_SIZE = 6;
 
 const BLOCK_W = 160;
 const ZONE_W = 200;
@@ -67,6 +66,15 @@ const stickyTintLight = '#eef1f7';
 const stickyTintSubtotal = '#e4e9f2';
 
 const cleanName = (name) => (name || '').replace(/\s+/g, ' ').trim();
+
+const getCropKey = (c) => {
+  if (!c) return '';
+  if (c.cropKey) return c.cropKey;
+  const name = cleanName(c.cropName || '');
+  if (c.cropVarietyId != null) return `${c.cropId}_${c.cropVarietyId}_${name.toLowerCase()}`;
+  if (c.varietyId != null) return `${c.cropId}_${c.varietyId}_${name.toLowerCase()}`;
+  return `${c.cropId}_${name.toLowerCase()}`;
+};
 
 function resolveBlockName(blockId, blockName, zoneName) {
   const lower = (zoneName || '').toLowerCase();
@@ -121,13 +129,16 @@ function mergeGroupResponses(responses) {
       if (!entry.cosArea && z.cosArea) entry.cosArea = Number(z.cosArea) || 0;
 
       (z.crops || []).forEach((c) => {
-        const existing = entry.crops.get(c.cropId);
+        const cropKey = getCropKey(c);
+        const existing = entry.crops.get(cropKey);
         if (existing) {
           existing.areaInCents = (Number(existing.areaInCents) || 0) + (Number(c.areaInCents) || 0);
         } else {
-          entry.crops.set(c.cropId, {
+          entry.crops.set(cropKey, {
+            cropKey,
             cropId: c.cropId,
-            cropName: c.cropName,
+            cropVarietyId: c.cropVarietyId ?? c.varietyId ?? null,
+            cropName: cleanName(c.cropName),
             areaInCents: Number(c.areaInCents) || 0
           });
         }
@@ -284,18 +295,21 @@ const ZoneForm3A = () => {
 
     let cancelled = false;
 
-    const buildUrl = (groupId) => {
+    const buildUrl = (groupIds) => {
       const params = new URLSearchParams({
         agriYear: agriculturalYear,
-        talukId: String(talukId),
-        cropGroupId: String(groupId)
+        talukId: String(talukId)
+      });
+      const ids = Array.isArray(groupIds) ? groupIds : [groupIds];
+      ids.forEach((id) => {
+        if (id != null) params.append('cropGroupIds', String(id));
       });
       const landTypeParam = LAND_TYPE_PARAM[landTypeTab];
       if (landTypeParam) params.append('landType', landTypeParam);
       params.append('seasonId', String(seasonId));
       const irrigationParam = IRRIGATION_PARAM[irrigation];
       if (irrigationParam) params.append('isIrrigated', irrigationParam);
-      console.log(`${BASE_URL}/earas-form1-entry/api/progress-report/form3A/taluk?${params.toString()}`);
+      console.log(`${BASE_URL}/earas-form1-entry/api/progress-report/form3A/taluk?${params.toString()}`)
       return `${BASE_URL}/earas-form1-entry/api/progress-report/form3A/taluk?${params.toString()}`;
     };
 
@@ -308,16 +322,9 @@ const ZoneForm3A = () => {
         const headers = { Authorization: `Bearer ${token}` };
         const groupIds = isAllCropGroups ? CROP_GROUPS.map((g) => g.id) : [cropGroupId];
 
-        const payloads = [];
-        for (let i = 0; i < groupIds.length; i += FETCH_BATCH_SIZE) {
-          const batch = groupIds.slice(i, i + FETCH_BATCH_SIZE);
-          // eslint-disable-next-line no-await-in-loop
-          const responses = await Promise.all(batch.map((id) => axios.get(buildUrl(id), { headers })));
-          if (cancelled) return;
-          responses.forEach((r) => payloads.push(r.data));
-        }
+        const response = await axios.get(buildUrl(groupIds), { headers });
         if (cancelled) return;
-        setApiData(mergeGroupResponses(payloads));
+        setApiData(mergeGroupResponses([response.data]));
       } catch (err) {
         if (cancelled) return;
         console.error('Error fetching Zone Form 3A data:', err);
@@ -340,7 +347,15 @@ const ZoneForm3A = () => {
     const map = new Map();
     apiData.forEach((z) =>
       (z.crops || []).forEach((c) => {
-        if (!map.has(c.cropId)) map.set(c.cropId, { cropId: c.cropId, cropName: cleanName(c.cropName) });
+        const key = getCropKey(c);
+        if (!map.has(key)) {
+          map.set(key, {
+            cropKey: key,
+            cropId: c.cropId,
+            cropVarietyId: c.cropVarietyId ?? c.varietyId ?? null,
+            cropName: cleanName(c.cropName)
+          });
+        }
       })
     );
     return Array.from(map.values()).sort((a, b) => a.cropName.localeCompare(b.cropName));
@@ -358,7 +373,10 @@ const ZoneForm3A = () => {
 
     const buildZoneRow = (zoneId, zoneName, blockId, blockName, api) => {
       const byId = {};
-      (api?.crops || []).forEach((c) => { byId[c.cropId] = Number(c.areaInCents) || 0; });
+      (api?.crops || []).forEach((c) => {
+        const key = getCropKey(c);
+        byId[key] = (byId[key] || 0) + (Number(c.areaInCents) || 0);
+      });
       const clusterArea = Number(api?.clusterArea) || 0;
       const nucArea = Number(api?.nucArea) || 0;
       const ffsArea = Number(api?.ffsArea) || 0;
@@ -439,7 +457,7 @@ const ZoneForm3A = () => {
     const map = new Map();
     filteredBlocks.forEach((b) => {
       const totals = {};
-      cropColumns.forEach((c) => (totals[c.cropId] = 0));
+      cropColumns.forEach((c) => (totals[c.cropKey] = 0));
       let clusterArea = 0, nucArea = 0, ffsArea = 0, cosArea = 0;
 
       b.zones.forEach((z) => {
@@ -448,7 +466,7 @@ const ZoneForm3A = () => {
         ffsArea += z.ffsArea || 0;
         cosArea += z.cosArea || 0;
         cropColumns.forEach((c) => {
-          if (z.byId && z.byId[c.cropId] !== undefined) totals[c.cropId] += z.byId[c.cropId];
+          if (z.byId && z.byId[c.cropKey] !== undefined) totals[c.cropKey] += z.byId[c.cropKey];
         });
       });
       map.set(b.blockName, { totals, clusterArea, nucArea, ffsArea, cosArea });
@@ -459,7 +477,7 @@ const ZoneForm3A = () => {
   // ── Grand totals ──
   const grandTotals = useMemo(() => {
     const totals = {};
-    cropColumns.forEach((c) => (totals[c.cropId] = 0));
+    cropColumns.forEach((c) => (totals[c.cropKey] = 0));
     let clusterArea = 0, nucArea = 0, ffsArea = 0, cosArea = 0;
 
     filteredBlocks.forEach((b) => {
@@ -469,7 +487,7 @@ const ZoneForm3A = () => {
       ffsArea += bt.ffsArea || 0;
       cosArea += bt.cosArea || 0;
       cropColumns.forEach((c) => {
-        totals[c.cropId] += bt.totals?.[c.cropId] || 0;
+        totals[c.cropKey] += bt.totals?.[c.cropKey] || 0;
       });
     });
     return { totals, clusterArea, nucArea, ffsArea, cosArea };
@@ -588,7 +606,7 @@ const ZoneForm3A = () => {
             zone.cosArea ? Number(zone.cosArea) : '—'
           );
           cropColumns.forEach((c) => {
-            const v = zone.byId[c.cropId];
+            const v = zone.byId[c.cropKey];
             row.push(v ? Number(v) : '—');
           });
         }
@@ -602,7 +620,7 @@ const ZoneForm3A = () => {
         Number((bt.nucArea || 0).toFixed(2)),
         Number((bt.ffsArea || 0).toFixed(2)),
         Number((bt.cosArea || 0).toFixed(2)),
-        ...cropColumns.map((c) => Number(((bt.totals?.[c.cropId]) || 0).toFixed(2)))
+        ...cropColumns.map((c) => Number(((bt.totals?.[c.cropKey]) || 0).toFixed(2)))
       ]);
     });
 
@@ -612,7 +630,7 @@ const ZoneForm3A = () => {
       Number(grandTotals.nucArea.toFixed(2)),
       Number(grandTotals.ffsArea.toFixed(2)),
       Number(grandTotals.cosArea.toFixed(2)),
-      ...cropColumns.map((c) => Number(((grandTotals.totals?.[c.cropId]) || 0).toFixed(2)))
+      ...cropColumns.map((c) => Number(((grandTotals.totals?.[c.cropKey]) || 0).toFixed(2)))
     ]);
 
     const worksheet = XLSX.utils.aoa_to_sheet(aoa);
@@ -1000,7 +1018,7 @@ const ZoneForm3A = () => {
                   <col style={{ width: AREA_W }} />
                   <col style={{ width: AREA_W }} />
                   <col style={{ width: AREA_W }} />
-                  {cropColumns.map((c) => (<col key={c.cropId} style={{ width: CROP_COL_W }} />))}
+                  {cropColumns.map((c) => (<col key={c.cropKey} style={{ width: CROP_COL_W }} />))}
                   <col style={{ width: 'auto' }} />
                 </colgroup>
 
@@ -1037,7 +1055,7 @@ const ZoneForm3A = () => {
                     ))}
                     {cropColumns.map((crop) => (
                       <TableCell
-                        key={crop.cropId}
+                        key={crop.cropKey}
                         align="right"
                         sx={{
                           backgroundColor: themeColor,
@@ -1189,9 +1207,9 @@ const ZoneForm3A = () => {
                                 </TableCell>
                               ))}
                               {cropColumns.map((crop) => {
-                                const val = zone.byId?.[crop.cropId];
+                                const val = zone.byId?.[crop.cropKey];
                                 return (
-                                  <TableCell key={crop.cropId} align="right" sx={numericCellSx}>
+                                  <TableCell key={crop.cropKey} align="right" sx={numericCellSx}>
                                     {!zone.hasData ? (
                                       <Typography variant="body2" color="text.secondary">NA</Typography>
                                     ) : val ? (
@@ -1236,10 +1254,10 @@ const ZoneForm3A = () => {
                               {bInfo.cosArea ? formatNumber(bInfo.cosArea) : '—'}
                             </TableCell>
                             {cropColumns.map((crop) => {
-                              const val = bInfo.totals?.[crop.cropId];
+                              const val = bInfo.totals?.[crop.cropKey];
                               return (
                                 <TableCell
-                                  key={crop.cropId}
+                                  key={crop.cropKey}
                                   align="right"
                                   sx={{ ...numericCellSx, fontWeight: 700, bgcolor: stickyTintSubtotal }}
                                 >
@@ -1280,8 +1298,8 @@ const ZoneForm3A = () => {
                         <TableCell align="right" sx={numericCellSx}>{formatNumber(grandTotals.ffsArea)}</TableCell>
                         <TableCell align="right" sx={numericCellSx}>{formatNumber(grandTotals.cosArea)}</TableCell>
                         {cropColumns.map((crop) => (
-                          <TableCell key={crop.cropId} align="right" sx={numericCellSx}>
-                            {grandTotals.totals[crop.cropId] ? formatNumber(grandTotals.totals[crop.cropId]) : '—'}
+                          <TableCell key={crop.cropKey} align="right" sx={numericCellSx}>
+                            {grandTotals.totals[crop.cropKey] ? formatNumber(grandTotals.totals[crop.cropKey]) : '—'}
                           </TableCell>
                         ))}
                         <TableCell aria-hidden sx={{ backgroundColor: alpha(themeColor, 0.09) }} />

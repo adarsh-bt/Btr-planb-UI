@@ -11,14 +11,14 @@ import { useContext } from 'react';
 const earas_list = () => {
   const theme = useTheme();
   //  const { permissions, loading, error } = useContext(PermissionsContext);
-  
+
   //   // Flatten permissions for easy checking
   //   const userPermissions = flattenPermissions(permissions);
-  
+
   //   // Check if user has "View BTR"
   //   const canViewBTR = userPermissions.includes('View BTR');
-const role = auth.getrole()?.trim();
-   alert(role);
+  const role = auth.getrole()?.trim();
+
   const cardData = [
     {
       title: 'Zone Details',
@@ -35,7 +35,7 @@ const role = auth.getrole()?.trim();
       gradient: '...',
       // url: '/schemes/earas/btr'
       url: '/schemes/earas/btr'
-    // } : null
+      // } : null
     }
     ,
     {
