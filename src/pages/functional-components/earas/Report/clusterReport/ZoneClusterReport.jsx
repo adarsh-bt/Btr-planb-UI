@@ -80,9 +80,9 @@ const AGRI_YEAR_MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June'
 ];
 
-function getAgriculturalYear() {
+function getAgriculturalYear(explicitYear) {
   try {
-    const agriYear = AuthService.agriyear();
+    const agriYear = explicitYear || AuthService.agriyear() || localStorage.getItem('activeAgriYear');
     if (agriYear) {
       const years = agriYear.split('-');
       if (years.length === 2) {
@@ -294,7 +294,14 @@ function ZoneClusterReport() {
 
   // Initialize agricultural year & months
   if (agriculturalYear.current === null) {
-    agriculturalYear.current = getAgriculturalYear();
+    if (stateData.agriculturalYear && typeof stateData.agriculturalYear === 'object' && stateData.agriculturalYear.display) {
+      agriculturalYear.current = stateData.agriculturalYear;
+    } else {
+      const passedYear = typeof stateData.agriculturalYear === 'string'
+        ? stateData.agriculturalYear
+        : stateData.agriYear;
+      agriculturalYear.current = getAgriculturalYear(passedYear);
+    }
   }
 
   /* ── month dropdown options (July 2025 … June 2026) ── */
@@ -369,6 +376,13 @@ function ZoneClusterReport() {
     const effectiveSingleMonth = overrides.singleMonth !== undefined ? overrides.singleMonth : singleMonth;
     const effectiveFromMonth = overrides.fromMonth !== undefined ? overrides.fromMonth : fromMonth;
     const effectiveToMonth = overrides.toMonth !== undefined ? overrides.toMonth : toMonth;
+    const effectiveAgriYear =
+      overrides.agriYear !== undefined
+        ? overrides.agriYear
+        : (agriculturalYear.current?.display ||
+          AuthService.agriyear() ||
+          localStorage.getItem('activeAgriYear') ||
+          '2025-2026');
 
     try {
       const token = localStorage.getItem('token');
@@ -377,6 +391,9 @@ function ZoneClusterReport() {
       const params = new URLSearchParams();
       params.append('page', 0);
       params.append('size', 100);
+      if (effectiveAgriYear) {
+        params.append('agriYear', effectiveAgriYear);
+      }
 
       if (effectiveLandType && effectiveSeasonTab !== 'ALL') {
         params.append('landType', effectiveLandType.toLowerCase());
@@ -423,10 +440,9 @@ function ZoneClusterReport() {
 
       const url = `${BASE_URL}/btr-service/api/report/clusters/taluk/${talukIdValue}/zones?${params.toString()}`;
 
-
       const response = await api.get(url);
 
-
+      console.log(url, 'jiihihijihijihij')
       if (response.data) {
         setApiData(response.data);
         setTotalElements(
@@ -442,6 +458,9 @@ function ZoneClusterReport() {
           const lmParams = new URLSearchParams();
           lmParams.append('page', 0);
           lmParams.append('size', 100);
+          if (effectiveAgriYear) {
+            lmParams.append('agriYear', effectiveAgriYear);
+          }
           lmParams.append('startMonth', lastM);
           lmParams.append('endMonth', lastM);
           if (effectiveLandType && effectiveSeasonTab !== 'ALL') {
@@ -488,7 +507,7 @@ function ZoneClusterReport() {
   /* ─────────────────────────── derived data ─────────────────────────── */
 
   const getZoneStats = (details) => {
-    if (!details) return { completed: 0, ongoing: 0, notStarted: 0, underReview: 0, hasData: false };
+    if (!details) return { completed: 0, ongoing: 0, notStarted: 0, underReview: 0, totalCluster: 0, hasData: false };
 
     let stats;
     if (landType === 'WET') {
@@ -514,9 +533,23 @@ function ZoneClusterReport() {
       };
     }
 
+    const seasonTotalCluster = landType === 'WET'
+      ? details.wetTotalCluster
+      : landType === 'DRY'
+        ? details.dryTotalCluster
+        : null;
+
+    const fallbackTotal = stats.completed + stats.ongoing + stats.notStarted + stats.underReview;
+    const totalCluster = (seasonTotalCluster !== undefined && seasonTotalCluster !== null)
+      ? Number(seasonTotalCluster)
+      : (details.totalCluster !== undefined && details.totalCluster !== null)
+        ? Number(details.totalCluster)
+        : fallbackTotal;
+
     return {
       ...stats,
-      hasData: stats.completed > 0 || stats.ongoing > 0 || stats.notStarted > 0 || stats.underReview > 0
+      totalCluster,
+      hasData: stats.completed > 0 || stats.ongoing > 0 || stats.notStarted > 0 || stats.underReview > 0 || totalCluster > 0
     };
   };
 
@@ -605,6 +638,8 @@ function ZoneClusterReport() {
         addZone(blockNameRaw, blockId, {
           zoneId,
           zoneName,
+          total: stats.totalCluster,
+          totalCluster: stats.totalCluster,
           completed: stats.completed,
           currentMonthCompleted,
           ongoing: stats.ongoing,
@@ -623,6 +658,8 @@ function ZoneClusterReport() {
         addZone(details.blockName || 'Unassigned', details.blockId ?? null, {
           zoneId: details.zoneId,
           zoneName,
+          total: stats.totalCluster,
+          totalCluster: stats.totalCluster,
           completed: stats.completed,
           currentMonthCompleted,
           ongoing: stats.ongoing,
@@ -639,6 +676,8 @@ function ZoneClusterReport() {
         addZone(details.blockName || 'Unassigned', details.blockId ?? null, {
           zoneId: details.zoneId,
           zoneName,
+          total: stats.totalCluster,
+          totalCluster: stats.totalCluster,
           completed: stats.completed,
           currentMonthCompleted,
           ongoing: stats.ongoing,
@@ -679,7 +718,7 @@ function ZoneClusterReport() {
 
     processedData.forEach(block => {
       block.zones.forEach(zone => {
-        total += zone.completed + zone.ongoing + zone.notStarted + zone.underReview;
+        total += zone.totalCluster !== undefined ? zone.totalCluster : (zone.total !== undefined ? zone.total : (zone.completed + zone.ongoing + zone.notStarted + zone.underReview));
         completed += zone.completed;
         currentMonthCompleted += (zone.currentMonthCompleted || 0);
         ongoing += zone.ongoing;
@@ -694,12 +733,17 @@ function ZoneClusterReport() {
       });
     });
 
+    const targetZoneId = stateData.zoneId || (stateData.officeType === 'FIELD_DATA_COLLECTOR' ? AuthService.getzone() : null);
+    const overallTotal = (!targetZoneId && apiData?.totalCluster !== undefined && apiData?.totalCluster !== null)
+      ? Number(apiData.totalCluster)
+      : total;
+
     return {
-      total, completed, currentMonthCompleted, ongoing, notStarted, underReview,
+      total: overallTotal, completed, currentMonthCompleted, ongoing, notStarted, underReview,
       zonesWithData, zonesWithoutData,
       totalZones: processedData.reduce((sum, block) => sum + block.zones.length, 0)
     };
-  }, [processedData]);
+  }, [processedData, apiData, stateData.zoneId, stateData.officeType]);
 
   const flattenedTableData = useMemo(() => {
     const result = [];
@@ -707,7 +751,7 @@ function ZoneClusterReport() {
       let bTotal = 0, bCompleted = 0, bCurrentMonthCompleted = 0, bOngoing = 0, bNotStarted = 0, bUnderReview = 0;
 
       block.zones.forEach((zone, idx) => {
-        const zTotal = zone.completed + zone.ongoing + zone.notStarted + zone.underReview;
+        const zTotal = zone.totalCluster !== undefined ? zone.totalCluster : (zone.total !== undefined ? zone.total : (zone.completed + zone.ongoing + zone.notStarted + zone.underReview));
         bTotal += zTotal;
         bCompleted += zone.completed;
         bCurrentMonthCompleted += (zone.currentMonthCompleted || 0);
@@ -724,6 +768,7 @@ function ZoneClusterReport() {
           isFirstZoneInBlock: idx === 0,
           zoneName: zone.zoneName,
           total: zTotal,
+          totalCluster: zTotal,
           completed: zone.completed,
           currentMonthCompleted: zone.currentMonthCompleted || 0,
           ongoing: zone.ongoing,
@@ -742,6 +787,7 @@ function ZoneClusterReport() {
         blockName: block.blockName,
         zoneName: `Total for ${block.blockName}`,
         total: bTotal,
+        totalCluster: bTotal,
         completed: bCompleted,
         currentMonthCompleted: bCurrentMonthCompleted,
         ongoing: bOngoing,
@@ -959,7 +1005,7 @@ function ZoneClusterReport() {
                 {filterType === 'range' && fromMonth && toMonth && ` • ${getMonthLabel(fromMonth, agriYearMonths.current)} – ${getMonthLabel(toMonth, agriYearMonths.current)}`}
                 {filterType === 'range' && fromMonth && !toMonth && ` • From ${getMonthLabel(fromMonth, agriYearMonths.current)}`}
                 {filterType === 'range' && !fromMonth && toMonth && ` • Until ${getMonthLabel(toMonth, agriYearMonths.current)}`}
-                {apiData && ` • Total Clusters: ${apiData.totalCluster || 0}`}
+                {apiData && ` • Total Clusters: ${apiData.totalCluster !== undefined && apiData.totalCluster !== null ? apiData.totalCluster : (stats.total || 0)}`}
                 {stats.zonesWithoutData > 0 && ` • ${stats.zonesWithoutData} zones with no data`}
               </Typography>
             </Box>

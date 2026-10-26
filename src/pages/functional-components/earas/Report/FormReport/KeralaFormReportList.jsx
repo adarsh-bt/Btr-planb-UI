@@ -70,8 +70,6 @@ const SEASON_OPTIONS = [
 
 const DEFAULT_SEASON_ID = 1;
 
-// Keep this true while the BTR endpoint supports seasonId.
-const BTR_SUPPORTS_SEASON_ID = true;
 
 function buildAgriMonthOptions() {
   const agriYear =
@@ -175,6 +173,47 @@ function pickMetric(district, metric, landType) {
   if (wetValue > 0 || dryValue > 0) return wetValue + dryValue;
   return directValue;
 }
+
+function pickTotalCluster(district, landType) {
+  if (!district || typeof district !== 'object') return 0;
+
+  const getValue = (key) => {
+    if (!key || district[key] === undefined || district[key] === null) return null;
+    const number = Number(district[key]);
+    return Number.isNaN(number) ? null : number;
+  };
+
+  const wetTotal =
+    getValue('wetTotalCluster') ??
+    getValue('wetTotalClusters') ??
+    getValue('wetTotal') ??
+    getValue('wet_total_cluster') ??
+    null;
+
+  const dryTotal =
+    getValue('dryTotalCluster') ??
+    getValue('dryTotalClusters') ??
+    getValue('dryTotal') ??
+    getValue('dry_total_cluster') ??
+    null;
+
+  if (landType === 'WET' && wetTotal !== null) return wetTotal;
+  if (landType === 'DRY' && dryTotal !== null) return dryTotal;
+  if (landType === 'ALL' && wetTotal !== null && dryTotal !== null) {
+    return wetTotal + dryTotal;
+  }
+
+  const directValue =
+    getValue('totalCluster') ??
+    getValue('totalClusters') ??
+    getValue('total_cluster') ??
+    getValue('total') ??
+    getValue('Total') ??
+    0;
+
+  return directValue;
+}
+
 
 function getFallbackDistricts() {
   return [
@@ -448,39 +487,21 @@ function KeralaFormReportList() {
 
       const btrParams = new URLSearchParams({ agriYear: currentAgriYear });
 
-      if (BTR_SUPPORTS_SEASON_ID) {
-        btrParams.append('seasonId', String(effectiveSeasonId));
-      }
-
       if (landTypeTab !== 'ALL') {
         btrParams.append('landType', landTypeTab);
       }
 
       const formStatusUrl = `${baseUrl}/earas-form1-entry/api/progress-report/form1-status/state?${formStatusParams.toString()}`;
-      const completedClustersUrlPrimary = `${mainapi.BTR_API}/btr-service/api/report/dashboard/completed/state?${btrParams.toString()}`;
-      const completedClustersUrlFallback = `${mainapi.BTR_API}/btr-service/api/report/completed-clusters?${btrParams.toString()}`;
+      const completedClustersUrl = `${mainapi.BTR_API}/btr-service/api/report/completed-clusters?${btrParams.toString()}`;
       const headers = { Authorization: `Bearer ${token}` };
 
       const btrRequest = (async () => {
         try {
-          const response = await axios.get(completedClustersUrlPrimary, { headers });
-          return response.data || null;
-        } catch (primaryError) {
-          console.warn(
-            'BTR primary endpoint failed; attempting fallback:',
-            primaryError?.message
-          );
-
-          try {
-            const fallbackResponse = await axios.get(completedClustersUrlFallback, { headers });
-            return fallbackResponse.data || null;
-          } catch (fallbackError) {
-            console.warn(
-              'BTR completed clusters fallback endpoint also failed:',
-              fallbackError?.message
-            );
-            return null;
-          }
+          const response = await axios.get(completedClustersUrl, { headers });
+          return response?.data || null;
+        } catch (btrError) {
+          console.warn('BTR completed clusters request failed:', btrError?.message);
+          return null;
         }
       })();
 
@@ -561,7 +582,8 @@ function KeralaFormReportList() {
 
   const districtData = useMemo(() => {
     const apiDistricts = apiData?.allSubDetails || {};
-    const btrDistricts = btrData?.allSubDetails || {};
+    const btrPayload = btrData?.allSubDetails ? btrData : (btrData?.data || btrData || {});
+    const btrDistricts = btrPayload?.allSubDetails || {};
     const lastMonthDistricts =
       filterType === 'range' && lastMonthApiData
         ? lastMonthApiData.allSubDetails || {}
@@ -616,9 +638,12 @@ function KeralaFormReportList() {
       const area = completed > 0 ? rawArea : 0;
       const currentMonth = getLastMonthMetrics(districtId, districtName);
 
-      const btrDetails =
-        resolveDetails(btrLookup, districtId, districtName)?.details || {};
-      const total = pickMetric(btrDetails, 'Completed', landTypeTab);
+      const btrMatch = resolveDetails(btrLookup, districtId, districtName);
+      const btrDetails = btrMatch?.details || {};
+      const hasBtrRecord = Boolean(btrMatch && btrDetails && Object.keys(btrDetails).length > 0);
+      const hasApiRecord = Boolean(apiDetails && Object.keys(apiDetails).length > 0);
+
+      const total = pickTotalCluster(btrDetails, landTypeTab);
       const notStarted = Math.max(total - completed, 0);
 
       const hasData =
@@ -627,7 +652,9 @@ function KeralaFormReportList() {
         notStarted > 0 ||
         underReview > 0 ||
         area > 0 ||
-        total > 0;
+        total > 0 ||
+        hasBtrRecord ||
+        hasApiRecord;
 
       return {
         id: districtId || apiDetails?.id || normalizeDistrictName(districtName) || districtName,
@@ -640,7 +667,8 @@ function KeralaFormReportList() {
         notStarted,
         underReview,
         area,
-        hasData
+        hasData,
+        hasBtrRecord
       };
     };
 
@@ -687,11 +715,21 @@ function KeralaFormReportList() {
       0
     );
 
+    const btrPayload = btrData?.allSubDetails ? btrData : (btrData?.data || btrData || {});
+    const btrTotalCluster = Number(
+      btrPayload?.totalCluster ??
+      btrPayload?.totalClusters ??
+      btrPayload?.total ??
+      0
+    );
+
+    const stateTotalClusters = Math.max(
+      !Number.isNaN(btrTotalCluster) ? btrTotalCluster : 0,
+      totalFromDistricts
+    );
+
     return {
-      all:
-        totalFromDistricts > 0
-          ? totalFromDistricts
-          : btrData?.totalClusterCompleted || 0,
+      all: stateTotalClusters,
       completed: districtData.reduce(
         (sum, district) => sum + (district.completed || 0),
         0

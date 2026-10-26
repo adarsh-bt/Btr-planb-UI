@@ -1405,7 +1405,19 @@ const KeyPlotEntryNonBtr = () => {
                 mb: 2.5,
                 borderRadius: 2,
                 bgcolor: '#fef2f2',
-                border: '1px solid #fecaca'
+                border: '2px solid #ef4444',
+                // Pop-in bounce effect on load
+                animation: 'popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                '@keyframes popIn': {
+                  '0%': {
+                    opacity: 0,
+                    transform: 'scale(0.85) translateY(-8px)',
+                  },
+                  '100%': {
+                    opacity: 1,
+                    transform: 'scale(1) translateY(0)',
+                  },
+                },
               }}
             >
               <Typography variant="body2" sx={{ color: '#991b1b', fontWeight: 600, display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1.2 }}>
@@ -1420,7 +1432,21 @@ const KeyPlotEntryNonBtr = () => {
                   <strong>No Permanent Deletion:</strong> Keyplots once saved can NEVER be deleted permanently from the system.
                 </span>
               </Typography>
+
+              <Typography variant="body2" sx={{ color: '#991b1b', fontWeight: 600, display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                <span style={{ fontSize: '1rem', lineHeight: 1.4 }}>⚠️</span>
+                <span>
+                  <strong>Permanent Data:</strong> Land type and local body cannot be edited after saving (deletion requires Admin access).
+                </span>
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#991b1b', fontWeight: 600, display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                <span style={{ fontSize: '1rem', lineHeight: 1.4 }}>⚠️</span>
+                <span>
+                  <strong>Warning on Dependent Data:</strong> Deleting will permanently remove linked cluster forms, crop data, tour diaries, and NUC records. Please verify plot details carefully before saving.
+                </span>
+              </Typography>
             </Box>
+
 
             {/* Checklist of details to verify */}
             <Box

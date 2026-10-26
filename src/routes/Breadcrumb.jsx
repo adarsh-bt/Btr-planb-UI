@@ -61,6 +61,8 @@ const formatLabel = (string) => {
     'work_allocation_approvals': 'Work Allocation Approvals',
     'cluster_approvals': 'Cluster Approvals',
     'form1_status_approvals': 'Form1 Status Approvals',
+    'keyplot_deletion_requests': 'Keyplot Deletion Requests',
+    'keyplot_deletion_approvals': 'Keyplot Deletion Approvals',
   };
 
   const lower = string.toLowerCase();

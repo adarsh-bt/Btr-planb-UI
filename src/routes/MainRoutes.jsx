@@ -76,6 +76,7 @@ const ClusterApprovals = Loadable(lazy(() => import('pages/functional-components
 const WorkallocationsApprovals = Loadable(lazy(() => import('pages/functional-components/approvels/Workallocation_approvals')));
 
 const Form1Status = Loadable(lazy(() => import('pages/functional-components/approvels/Form1Status')));
+const KeyplotDeletionRequests = Loadable(lazy(() => import('pages/functional-components/approvels/KeyplotDeletionRequests')));
 
 
 const CCE_menus = Loadable(lazy(() => import('pages/functional-components/earas/cce_menus')));
@@ -827,6 +828,22 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <Form1Status />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'approval_manage/keyplot_deletion_requests',
+      element: (
+        <PrivateRoute>
+          <KeyplotDeletionRequests />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'approval_manage/keyplot_deletion_approvals',
+      element: (
+        <PrivateRoute>
+          <KeyplotDeletionRequests />
         </PrivateRoute>
       )
     },
