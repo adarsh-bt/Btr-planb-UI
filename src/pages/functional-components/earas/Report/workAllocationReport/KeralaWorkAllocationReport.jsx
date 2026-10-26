@@ -465,7 +465,7 @@ function KeralaWorkAllocationReport() {
   const [activeTab, setActiveTab] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
 
   const tab = TAB_DEFS[activeTab];
   const columns = leafColumns(tab);
@@ -914,7 +914,7 @@ function KeralaWorkAllocationReport() {
             </TableContainer>
 
             <TablePagination
-              rowsPerPageOptions={[5, 10, 25, 50]}
+              rowsPerPageOptions={[15, 20, 25, 30]}
               component="div"
               count={filteredData.length}
               rowsPerPage={rowsPerPage}

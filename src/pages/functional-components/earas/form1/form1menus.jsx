@@ -455,6 +455,86 @@ function Form1_menus() {
     setIsCropLoading(true);
     setCropFetchError(null);
 
+<<<<<<< HEAD
+
+const handleSeasonChange = useCallback(async (newSeasonId) => {
+  if (newSeasonId === seasonId || seasonSwitchPending) return;
+  
+  setSeasonSwitchPending(true);
+  setSeasonId(newSeasonId);
+  
+  // Clear current data immediately to show loading state
+  setCropData([]);
+  setCropFetchError(null);
+  
+  // Fetch with the new season
+  try {
+    const token = localStorage.getItem('token');
+    const BASE_URL = mainapi.BASE_URL;
+    
+    const response = await axios.get(
+      `${BASE_URL}/earas-form1-entry/crop-details/fetch-by-clusterId/${clusterId}/season/${newSeasonId}/district/${districtId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000
+      }
+    );
+
+    const data = response.data;
+    
+    if (data?.payload && Array.isArray(data.payload)) {
+      setCropData(data.payload);
+      if (data.payload.length === 0) {
+        setCropFetchError(`No crop data available for ${getSeasonLabel(newSeasonId)} season.`);
+      } else {
+        setCropFetchError(null);
+      }
+    } else {
+      setCropData([]);
+      setCropFetchError(`No crop data available for ${getSeasonLabel(newSeasonId)} season.`);
+    }
+
+  } catch (err) {
+    console.error('Error fetching crop details:', err);
+    setCropData([]);
+    setCropFetchError(
+      err.response?.status === 404 
+        ? `No crop data found for ${getSeasonLabel(newSeasonId)} season.`
+        : `Failed to load crop data. Please try again.`
+    );
+  } finally {
+    setIsCropLoading(false);
+    setSeasonSwitchPending(false);
+  }
+}, [clusterId, districtId, seasonId, seasonSwitchPending]);
+
+// Improved useEffect for initial load
+useEffect(() => {
+  if (clusterId && districtId && seasonId) {
+    fetchCropDetails();
+  }
+}, [clusterId, districtId]); // Only re-run when cluster or district changes
+
+// Separate useEffect for seasonId changes
+useEffect(() => {
+  if (clusterId && districtId && seasonId) {
+    handleSeasonChange(seasonId);
+  }
+}, [seasonId]); // This will trigger when seasonId changes
+
+// Improved checkAvailableCropSeasons with better error handling
+const checkAvailableCropSeasons = useCallback(async () => {
+  if (!clusterId || !districtId) return;
+  
+  const seasons = [1, 2, 3];
+  const available = [];
+  
+  for (const season of seasons) {
+=======
+>>>>>>> 6c541a2153652c2c3ce42ba6a0fcc30a0b414edf
     try {
       const token = localStorage.getItem('token');
       const BASE_URL = mainapi.BASE_URL;

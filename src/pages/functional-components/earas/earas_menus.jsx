@@ -8,9 +8,13 @@ import Box from '@mui/material/Box';
 import CardContent from '@mui/material/CardContent';
 import CardMedia from '@mui/material/CardMedia';
 import IconButton from '@mui/material/IconButton';
+
+
 import { Link } from 'react-router-dom';
+
 import MainCard from 'components/MainCard';
 import Breadcrumb from 'routes/Breadcrumb';
+
 import { useContext } from 'react';
 
 
@@ -45,6 +49,8 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import { BarChart } from '@mui/x-charts/BarChart';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 
+//for permissions line
+// import { useUserAccess, PermissionGate } from 'contexts/auth-reducer/universal/UserAccessContext';
 import mainapi from 'api/mainapi';
 import authservice from 'pages/authentication/services/authservice';
 
@@ -59,7 +65,11 @@ ChartJS.register(
 );
 
 function Earas_menus() {
-  const theme = useMuiTheme();
+
+  //for permissions line
+  // const { userAccessData, loading, hasPermission, hasPermissionByName } = useUserAccess();
+
+  // Add state management
   const [btrData, setBtrData] = useState(null);
   const [btrLoading, setBtrLoading] = useState(true);
 
@@ -299,6 +309,7 @@ function Earas_menus() {
           throw new Error('Failed to fetch BTR type');
         }
         const data = await response.json();
+
         setBtrData(data);
       } catch (error) {
         console.error('Error fetching BTR type:', error);
@@ -342,7 +353,9 @@ function Earas_menus() {
       }
     ];
 
+    // Find the matching grid configuration
     const activeGrid = gridConfigs.find(config => config.id === btrTypeId);
+
     if (!activeGrid) return null;
 
     return (

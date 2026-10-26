@@ -1387,6 +1387,7 @@ const KeyPlotEntry = () => {
                                 size="small"
                                 fullWidth
                                 disabled={row.isAreaLocked} // Lock field if the plot already exists
+                                inputProps={{ maxLength: 10 }}
                               />
                             </TableCell>
                             <TableCell>

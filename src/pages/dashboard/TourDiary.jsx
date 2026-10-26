@@ -256,12 +256,20 @@ const TourDiary = () => {
         // For Field Data Collector - check individual halves (unlocked if rejected by either Field Inspector or Taluk Level Approver)
         if (isFieldDataCollector) {
             if (isFirstHalf) {
+<<<<<<< HEAD
+                // First Half: locked if submitted and neither admin nor verifier has rejected it
+=======
                 // First Half: locked if submitted and NOT rejected by Admin AND NOT rejected by Field Inspector (Verifier)
+>>>>>>> bef10d97e9f5a2d0bc373d22d92f5d13251c4275
                 return submissionView.firstHalfSubmitted &&
                     submissionView.firstHalfAdminStatus !== 'REJECTED' &&
                     submissionView.firstHalfVerifiedStatus !== 'REJECTED';
             } else {
+<<<<<<< HEAD
+                // Second Half: locked if submitted and neither admin nor verifier has rejected it
+=======
                 // Second Half: locked if submitted and NOT rejected by Admin AND NOT rejected by Field Inspector (Verifier)
+>>>>>>> bef10d97e9f5a2d0bc373d22d92f5d13251c4275
                 return submissionView.secondHalfSubmitted &&
                     submissionView.secondHalfAdminStatus !== 'REJECTED' &&
                     submissionView.secondHalfVerifiedStatus !== 'REJECTED';
@@ -604,7 +612,7 @@ const TourDiary = () => {
             if (Array.isArray(response)) {
                 const currentMonth = currentDate.getMonth() + 1;
                 const monthData = response.find(item => item.month === currentMonth);
-
+                console.log("month data  ", monthData)
                 setSubmissionView(monthData || null);
             }
         } catch (error) {
@@ -680,6 +688,25 @@ const TourDiary = () => {
     // ============================ HALF SUBMIT ============================
     const handleSubmitHalf = async (half) => {
 
+<<<<<<< HEAD
+        if (half === 'First Half') {
+            const isFirstHalfRejected = (submissionView && (submissionView.firstHalfAdminStatus === 'REJECTED' || submissionView.firstHalfVerifiedStatus === 'REJECTED')) ||
+                (submissionStatus.firstHalf?.adminstatus === 'REJECTED' || submissionStatus.firstHalf?.verifiedStatus === 'REJECTED');
+            if (submissionStatus.firstHalf?.isSubmitted && !isFirstHalfRejected) {
+                showNotification('info', `First Half already submitted on ${new Date(submissionStatus.firstHalf.submittedAt).toLocaleString()}`);
+                closeSubmitMenu();
+                return;
+            }
+        }
+        if (half === 'Second Half') {
+            const isSecondHalfRejected = (submissionView && (submissionView.secondHalfAdminStatus === 'REJECTED' || submissionView.secondHalfVerifiedStatus === 'REJECTED')) ||
+                (submissionStatus.secondHalf?.adminstatus === 'REJECTED' || submissionStatus.secondHalf?.verifiedStatus === 'REJECTED');
+            if (submissionStatus.secondHalf?.isSubmitted && !isSecondHalfRejected) {
+                showNotification('info', `Second Half already submitted on ${new Date(submissionStatus.secondHalf.submittedAt).toLocaleString()}`);
+                closeSubmitMenu();
+                return;
+            }
+=======
         if (half === 'First Half' && submissionStatus.firstHalf?.isSubmitted && submissionStatus.firstHalf.adminstatus !== 'REJECTED' && submissionStatus.firstHalf.verifiedstatus !== 'REJECTED' && submissionView?.firstHalfAdminStatus !== 'REJECTED' && submissionView?.firstHalfVerifiedStatus !== 'REJECTED') {
             showNotification('info', `First Half already submitted on ${new Date(submissionStatus.firstHalf.submittedAt || submissionView?.firstHalfSubmittedDate).toLocaleString()}`);
             closeSubmitMenu();
@@ -689,6 +716,7 @@ const TourDiary = () => {
             showNotification('info', `Second Half already submitted on ${new Date(submissionStatus.secondHalf.submittedAt || submissionView?.secondHalfSubmittedDate).toLocaleString()}`);
             closeSubmitMenu();
             return;
+>>>>>>> bef10d97e9f5a2d0bc373d22d92f5d13251c4275
         }
 
         setSubmitDialog({ open: true, half });
@@ -723,13 +751,20 @@ const TourDiary = () => {
             zoneId = rawZone ? Number(rawZone) : null; // send if available, but don't block on it
         }
 
+        const firstHalfId = submissionStatus.firstHalf?.id || submissionView?.firstHalfSubmitId || submissionView?.firstHalfId || null;
+        const secondHalfId = submissionStatus.secondHalf?.id || submissionView?.secondHalfSubmitId || submissionView?.secondHalfId || null;
+        const fullMonthId = submissionView?.fullMonthSubmitId || submissionView?.fullMonthId || null;
+
+        const targetSubmitId = submitDialog.half === 'First Half' ? firstHalfId :
+            submitDialog.half === 'Second Half' ? secondHalfId : fullMonthId;
+
         const payload = {
             submissionType,
             month,
             year,
             userId,
-            ...(zoneId ? { zoneId } : {})
-            , submitId: submitDialog.half === 'First Half' ? submissionStatus.firstHalf?.id : submissionStatus.secondHalf?.id
+            ...(zoneId ? { zoneId } : {}),
+            ...(targetSubmitId ? { submitId: targetSubmitId } : {})
         };
 
         try {
@@ -2813,7 +2848,7 @@ const TourDiary = () => {
                             multiline
                             rows={editEntryType === 'WORKING' && editSelectedScheme === 10 ? 6 : 3}
                             value={editFormData.remarks}
-                            onChange={(e) => handleEditInputChange('remarks', validateRemarks(e.target.value))}
+                            onChange={(e) => handleEditInputChange('remarks', e.target.value)}
                             variant="outlined"
                             placeholder={editEntryType !== "WORKING" ? "Add remarks for this entry" : "Add remarks (optional)"}
                             required={editEntryType === 'WORKING' && editSelectedScheme === 10}

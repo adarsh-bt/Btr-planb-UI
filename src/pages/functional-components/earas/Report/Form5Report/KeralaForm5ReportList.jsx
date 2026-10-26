@@ -1134,7 +1134,11 @@ function KeralaForm5ReportList() {
                 onPageChange={handleChangePage}
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
+<<<<<<< HEAD
+                rowsPerPageOptions={[15, 20, 25]}
+=======
                 rowsPerPageOptions={[15, 25, 50, 100]}
+>>>>>>> 50cd2ed3473c6bdc6d01b167ba4f9088ebe5c9d0
                 sx={{ borderTop: `1px solid ${theme.palette.divider}` }}
               />
             )}

@@ -70,6 +70,8 @@ function ClusterSeatForm({ zoneId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedZoneId]);
 
+  const startYear = 2025;
+  const endYear = 2026;
   const fetchClusterData = () => {
     const token = localStorage.getItem('token');
     setLoading(true);

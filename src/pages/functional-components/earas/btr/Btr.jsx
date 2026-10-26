@@ -31,7 +31,8 @@ import InfoOutlineIcon from '@mui/icons-material/InfoOutlined';
 import IconButton from '@mui/material/IconButton';
 import { use } from 'react';
 
-
+// --- Sample Data for Dropdowns & Modal ---
+const role = authservice.getrole();
 
 // Define the columns for the data table
 // const columns = (handleEdit, handleView,page,size) => [

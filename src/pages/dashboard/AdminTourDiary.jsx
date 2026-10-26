@@ -25,7 +25,7 @@ const AdminTourDiary = () => {
   const [totalRows, setTotalRows] = useState(0);
 
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(10);
+  const [size, setSize] = useState(15);
 
   const [level, setLevel] = useState("ALL");
   const [district, setDistrict] = useState("");
@@ -450,7 +450,7 @@ const AdminTourDiary = () => {
             paginationTotalRows={totalRows}
             paginationDefaultPage={page + 1}
             paginationPerPage={size}
-            paginationRowsPerPageOptions={[10, 15, 20, 25, 30, 50]}
+            paginationRowsPerPageOptions={[15, 20, 25, 30, 35, 40]}
             onChangePage={(pg) => setPage(pg - 1)}
             onChangeRowsPerPage={(perPage) => {
               setSize(perPage);

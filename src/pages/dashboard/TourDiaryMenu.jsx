@@ -13,15 +13,15 @@ const TourDiaryMenu = () => {
 
     const menuItems = [
         {
-            title: 'Advanced Tour Program',
-            // description: 'Plan your tour for the month',
+            title: 'Advanced Tour Diary',
+            description: 'Plan your tour for the month',
             icon: EventNoteIcon,
             path: '/tourdiary/advanced',
             gradient: 'linear-gradient(135deg, rgba(99, 155, 255, 0.57), rgb(51, 125, 253))'
         },
         {
             title: 'Tour Diary',
-            // description: 'Actual travel diary',
+            description: 'Actual travel diary',
             icon: CalendarMonthIcon,
             path: '/tourdiary/actual_tour_diary',
             gradient: 'linear-gradient(135deg, rgba(79, 208, 170, 0.57), rgb(37, 187, 142))'

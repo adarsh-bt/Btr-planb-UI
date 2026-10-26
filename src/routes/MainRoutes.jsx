@@ -73,9 +73,12 @@ const Approvel = Loadable(lazy(() => import('pages/functional-components/approve
 const ApprovelMenu = Loadable(lazy(() => import('pages/functional-components/approvels/ApprovalMenus')));
 
 const ClusterApprovals = Loadable(lazy(() => import('pages/functional-components/approvels/Cluster_approvals')));
+const FormApprovals = Loadable(lazy(() => import('pages/functional-components/approvels/Form_approvals.jsx')));
 const WorkallocationsApprovals = Loadable(lazy(() => import('pages/functional-components/approvels/Workallocation_approvals')));
 
 const Form1Status = Loadable(lazy(() => import('pages/functional-components/approvels/Form1Status')));
+
+const CceApprovals = Loadable(lazy(() => import('pages/functional-components/approvels/Cce_approvals.jsx')));
 const KeyplotDeletionRequests = Loadable(lazy(() => import('pages/functional-components/approvels/KeyplotDeletionRequests')));
 
 
@@ -816,6 +819,14 @@ const MainRoutes = {
       )
     },
     {
+      path: 'approval_manage/form_approvals',
+      element: (
+        <PrivateRoute>
+          <FormApprovals />
+        </PrivateRoute>
+      )
+    },
+    {
       path: 'approval_manage/work_allocation_approvals',
       element: (
         <PrivateRoute>
@@ -828,6 +839,14 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <Form1Status />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'approval_manage/Cce_approvals',
+      element: (
+        <PrivateRoute>
+          <CceApprovals />
         </PrivateRoute>
       )
     },
