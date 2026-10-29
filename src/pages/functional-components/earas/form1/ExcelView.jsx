@@ -30,7 +30,6 @@ import logo from '../../../../assets/images/logo/des-print-logo.png';
 
 // Define all possible cluster labels
 const ALL_CLUSTER_LABELS = ['K', 'S1', 'S2', 'S3', 'S4', 'E1', 'E2', 'E3', 'E4', 'N1', 'N2', 'N3', 'N4', 'W1', 'W2', 'W3', 'W4'];
-const DESIRED_CLUSTER_ORDER = ['K', 'S1', 'E1', 'N1', 'W1', 'N2', 'W2', 'S2', 'E2', 'N3', 'W3', 'S3', 'E3', 'N4', 'W4', 'S4', 'E4'];
 // Styled components for Excel-like appearance
 const ExcelTableContainer = styled(TableContainer)({
   border: '2px solid #000',
@@ -194,7 +193,7 @@ const getActiveClusters = (data) => {
       ALL_CLUSTER_LABELS.forEach(cluster => {
         const key = cluster.toLowerCase();
         // Check if the property exists on the item (even if value is 0 or null)
-        if (item.hasOwnProperty(key)) {
+        if (Object.prototype.hasOwnProperty.call(item, key)) {
           clusters.add(cluster);
         }
       });
@@ -212,7 +211,7 @@ const getActiveClusters = (data) => {
         const iKey = `${key}I`;
         const uiKey = `${key}UI`;
         // Check if the crop has these properties
-        if (crop.hasOwnProperty(iKey) || crop.hasOwnProperty(uiKey)) {
+        if (Object.prototype.hasOwnProperty.call(crop, iKey) || Object.prototype.hasOwnProperty.call(crop, uiKey)) {
           clusters.add(cluster);
         }
       });
@@ -289,13 +288,19 @@ const PrintStyle = () => (
   </style>
 );
 
-const ExcelView = ({ open, onClose, clusterId }) => {
+const ExcelView = ({ open, onClose, clusterId, isDryPlot = false }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState(null);
   const [activeClusters, setActiveClusters] = useState([]);
   const [isPrinting, setIsPrinting] = useState(false);
   const printRef = useRef();
+
+  const effectiveIsDryPlot = Boolean(
+    isDryPlot ||
+    (typeof formData?.clusterType === 'string' && formData.clusterType.toLowerCase().includes('dry')) ||
+    (typeof formData?.header?.clusterType === 'string' && formData.header.clusterType.toLowerCase().includes('dry'))
+  );
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
@@ -313,11 +318,41 @@ const ExcelView = ({ open, onClose, clusterId }) => {
     },
   });
 
+  const [clusterLabelsInfo, setClusterLabelsInfo] = useState([]);
+
   useEffect(() => {
     if (open && clusterId) {
       fetchExcelData();
+      fetchClusterLabels();
     }
   }, [open, clusterId]);
+
+  const fetchClusterLabels = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await api.post(
+        `${mainapi.BASE_URL}/btr-service/cluster-api/cluster-labels/list`,
+        { clusterId: Number(clusterId) || clusterId },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      const data = response.data;
+      const list = data?.payload || data?.data || (Array.isArray(data) ? data : []);
+      if (Array.isArray(list) && list.length > 0) {
+        setClusterLabelsInfo(list);
+        const labels = list.map(item => item.label || item.clusterLabel || item.name).filter(Boolean);
+        if (labels.length > 0) {
+          setActiveClusters(labels);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching cluster labels in ExcelView:', err);
+    }
+  };
 
   const fetchExcelData = async () => {
     setLoading(true);
@@ -334,8 +369,10 @@ const ExcelView = ({ open, onClose, clusterId }) => {
         }
       );
       setFormData(response.data);
-      const clusters = getActiveClusters(response.data);
-      setActiveClusters(clusters.length > 0 ? clusters : ['K']);
+      if (clusterLabelsInfo.length === 0) {
+        const clusters = getActiveClusters(response.data);
+        setActiveClusters(clusters.length > 0 ? clusters : ['K']);
+      }
     } catch (err) {
       console.error('Error fetching Excel data:', err);
       setError('Failed to load data. Please try again.');
@@ -366,7 +403,7 @@ const ExcelView = ({ open, onClose, clusterId }) => {
         <CropNameCell colSpan={6} sx={cellStyle}>
           {nuc.malayalamLabel || nuc.label}
         </CropNameCell>
-        <CellComponent sx={cellStyle}>"</CellComponent>
+        <CellComponent sx={cellStyle}>&quot;</CellComponent>
         {clusterValues.map((val, idx) => (
           <CellComponent key={idx} colSpan={2} sx={cellStyle}>
             {typeof val === 'number' ? val.toFixed(2) : '0.00'}
@@ -479,7 +516,20 @@ const ExcelView = ({ open, onClose, clusterId }) => {
           </HeaderCell>
         </TableRow>
 
-        {landArray.map((item, index) => {
+        {landArray
+          .filter(item => {
+            if (!effectiveIsDryPlot) return true;
+            const text = `${item?.label || ''} ${item?.malayalamLabel || ''} ${item?.landType || ''} ${item?.description || ''}`.toLowerCase();
+            return !(
+              text.includes('nuc') ||
+              text.includes('ffs') ||
+              text.includes('cos') ||
+              text.includes('നോൺ അർബൻ') ||
+              text.includes('ഫോറസ്റ്റ്') ||
+              text.includes('കോസ്റ്റൽ')
+            );
+          })
+          .map((item, index) => {
           const clusterValues = activeClusters.map(cluster => {
             const val = item[cluster.toLowerCase()];
             // Convert null/undefined to 0 for display
@@ -489,7 +539,7 @@ const ExcelView = ({ open, onClose, clusterId }) => {
             <TableRow key={index}>
               <DataCell sx={{ minWidth: '50px' }}>{index + 1}</DataCell>
               <DataCell colSpan={5} sx={{ textAlign: 'left' }}>{item.malayalamLabel}</DataCell>
-              <DataCell>"</DataCell>
+              <DataCell>&quot;</DataCell>
               {clusterValues.map((val, idx) => (
                 <DataCell key={idx} colSpan={2}>
                   {typeof val === 'number' ? val.toFixed(2) : '0.00'}
@@ -534,7 +584,7 @@ const ExcelView = ({ open, onClose, clusterId }) => {
         </TableRow>
 
         {sortedCrops.length > 0 ? (
-          sortedCrops.map((crop, idx) => renderCropRow(crop))
+          sortedCrops.map((crop) => renderCropRow(crop))
         ) : (
           <TableRow>
             <CropNameCell colSpan={totalCols} sx={{ textAlign: 'center', color: '#999' }}>
@@ -543,7 +593,7 @@ const ExcelView = ({ open, onClose, clusterId }) => {
           </TableRow>
         )}
 
-        {nucRows.length > 0 && nucRows.map((nuc, idx) => renderNucRow(nuc))}
+        {!effectiveIsDryPlot && nucRows.length > 0 && nucRows.map((nuc) => renderNucRow(nuc))}
       </>
     );
   };
@@ -567,7 +617,7 @@ const ExcelView = ({ open, onClose, clusterId }) => {
           <SectionHeaderCell colSpan={6} sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', fontSize: '9px' }}>
             വിളകൾ
           </SectionHeaderCell>
-          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '50px' }}>"</DataCell>
+          <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '50px' }}>&quot;</DataCell>
           {activeClusters.map((label) => (
             <React.Fragment key={label}>
               <DataCell sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold', minWidth: '45px' }}>I</DataCell>
@@ -579,7 +629,7 @@ const ExcelView = ({ open, onClose, clusterId }) => {
         </TableRow>
 
         {sortedCrops.length > 0 ? (
-          sortedCrops.map((crop, idx) => renderCropRow(crop))
+          sortedCrops.map((crop) => renderCropRow(crop))
         ) : (
           <TableRow>
             <CropNameCell colSpan={totalCols} sx={{ textAlign: 'center', color: '#999' }}>
@@ -925,21 +975,11 @@ const ExcelView = ({ open, onClose, clusterId }) => {
                   <TableRow>
                     <HeaderCell colSpan={6} sx={{ minWidth: '150px' }}>വിവരണങ്ങൾ</HeaderCell>
                     <HeaderCell sx={{ minWidth: '60px' }}>യൂണിറ്റ്</HeaderCell>
-                    {activeClusters.map((label) => {
-                      const clusterLabelsWithArea = formData?.clusterLabelsWithArea || [];
-                      const areaMap = {};
-                      clusterLabelsWithArea.forEach(item => {
-                        areaMap[item.label] = item.totalEnumeratedArea || 0;
-                      });
-                      const area = areaMap[label] || 0;
-                      return (
-                        <HeaderCell key={label} colSpan={2} sx={{ minWidth: '45px' }}>
-                          {label}
-                          <br />
-                          {/* <span style={{ fontSize: '6px', fontWeight: 'normal' }}>({area.toFixed(2)})</span> */}
-                        </HeaderCell>
-                      );
-                    })}
+                    {activeClusters.map((label) => (
+                      <HeaderCell key={label} colSpan={2} sx={{ minWidth: '45px' }}>
+                        {label}
+                      </HeaderCell>
+                    ))}
                     <HeaderCell colSpan={2} sx={{ minWidth: '55px' }}>ആകെ</HeaderCell>
                   </TableRow>
                 </TableHead>
@@ -998,7 +1038,7 @@ const ExcelView = ({ open, onClose, clusterId }) => {
 };
 
 // Main Component
-const Form1WithExcelView = ({ clusterId }) => {
+const Form1WithExcelView = ({ clusterId, isDryPlot = false }) => {
   const [openExcelView, setOpenExcelView] = useState(false);
 
   return (
@@ -1021,9 +1061,11 @@ const Form1WithExcelView = ({ clusterId }) => {
         open={openExcelView}
         onClose={() => setOpenExcelView(false)}
         clusterId={clusterId}
+        isDryPlot={isDryPlot}
       />
     </>
   );
 };
 
-export default Form1WithExcelView;
+export { ExcelView, Form1WithExcelView };
+export default ExcelView;

@@ -31,18 +31,16 @@ import {
   LocationOn as LocationOnIcon,
   Warning as WarningIcon,
   NoteAlt as RemarksIcon,
-  CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
   BugReport as BugReportIcon,
   Image as ImageIcon,
-  PictureAsPdf as PictureAsPdfIcon,
-  Download as DownloadIcon
+  PictureAsPdf as PictureAsPdfIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Breadcrumb from 'routes/Breadcrumb';
 import mainapi from 'api/mainapi';
+import AuthService from 'pages/authentication/services/authservice';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -120,7 +118,6 @@ const DataItem = ({ label, value }) => {
  * so both the count-based and the area-based variants can reuse it.
  */
 const MetricCard = ({ label, value, color }) => {
-  const theme = useTheme();
   return (
     <Paper
       elevation={0}
@@ -689,14 +686,6 @@ const CceDataView = () => {
 
   const selectedTrees = frameDetails?.ifTreeThenRandomNo || [];
 
-  // Irrigation type(s) live inside each irrigationSources[] entry, not at the
-  // root of the common-details payload. Join them for the summary card.
-  const irrigationTypeLabel =
-    (commonDetails?.irrigationSources || [])
-      .map((source) => source.irrigationType)
-      .filter(Boolean)
-      .join(', ') || 'N/A';
-
   // The yield payload nests two levels deep (visits, then yield types per
   // visit), so flatten to one row per measurement for tabular display.
   const yieldRows = yieldDetailsList.flatMap((tree, treeIdx) =>
@@ -823,6 +812,80 @@ const CceDataView = () => {
   const handleDownloadPdf = async () => {
     setIsGeneratingPdf(true);
     try {
+      // 1. Resolve Investigator User ID (from Yield details addedBy)
+      let investigatorUserId =
+        yieldDetailsList.find((y) => y?.addedBy || y?.userId || y?.enteredBy)?.addedBy ||
+        yieldDetailsList.find((y) => y?.addedBy || y?.userId || y?.enteredBy)?.userId ||
+        yieldDetailsList[0]?.addedBy ||
+        null;
+
+      if (!investigatorUserId && frameDetails?.ifTreeThenRandomNo?.length > 0) {
+        const firstTreeId = frameDetails.ifTreeThenRandomNo.find((t) => t?.cceDataEntryPerTreeId)?.cceDataEntryPerTreeId;
+        if (firstTreeId) {
+          try {
+            const token = localStorage.getItem('token');
+            const headers = {
+              'Content-Type': 'application/json',
+              ...(token && { Authorization: `Bearer ${token}` })
+            };
+            let res = await fetch(`${mainapi.FORM_API}/earas-form1-entry/cce-data-entry/fetch-yield-details/${firstTreeId}`, { headers });
+            if (!res.ok) {
+              res = await fetch(`${mainapi.FORM_API}/cce-data-entry/fetch-yield-details/${firstTreeId}`, { headers });
+            }
+            if (res.ok) {
+              const d = await res.json();
+              const p = d?.payload || d;
+              investigatorUserId = p?.addedBy || p?.userId || null;
+            }
+          } catch (e) {
+            console.warn('Could not fetch tree yield detail for investigator ID', e);
+          }
+        }
+      }
+
+      if (!investigatorUserId) {
+        investigatorUserId = plotDetails?.addedBy || rowData?.addedBy || null;
+      }
+
+      // 2. Resolve Logged-in User ID
+      const loggedInUserId = AuthService.userid();
+      const loggedInUserFallback = AuthService.getusername() || localStorage.getItem('user') || 'N/A';
+
+      // 3. API helper: /user-profile/user-role/{userId}
+      const resolveUserName = async (userId, fallbackName = 'N/A') => {
+        if (!userId) return fallbackName;
+        try {
+          const token = localStorage.getItem('token');
+          const headers = {
+            'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` })
+          };
+          const baseUrl = mainapi.USER_API || mainapi.BASE_URL;
+          let res = await fetch(`${baseUrl}/user-access/user-profile/user-role/${userId}`, { headers });
+          if (!res.ok) {
+            res = await fetch(`${baseUrl}/user-profile/user-role/${userId}`, { headers });
+          }
+          if (res.ok) {
+            const json = await res.json();
+            const payload = json?.payload || json?.data?.payload || json?.data || json;
+            const roleObj = Array.isArray(payload?.roles) && payload.roles.length > 0 ? payload.roles[0] : null;
+            const personName = roleObj?.name?.trim() || payload?.name?.trim() || payload?.fullName?.trim() || payload?.username?.trim();
+            const designation = roleObj?.designation?.trim() || roleObj?.roleName?.trim();
+            if (personName) {
+              return designation ? `${personName} (${designation})` : personName;
+            }
+          }
+        } catch (err) {
+          console.warn(`Error resolving user name from /user-profile/user-role/${userId}:`, err);
+        }
+        return fallbackName;
+      };
+
+      const [investigatorName, downloadedByName] = await Promise.all([
+        resolveUserName(investigatorUserId, investigatorUserId ? `User (${investigatorUserId.substring(0, 8)}...)` : 'N/A'),
+        resolveUserName(loggedInUserId, loggedInUserFallback)
+      ]);
+
       const doc = new jsPDF('p', 'mm', 'a4');
       const targetPlotId = rowData.availableCcePlotId || rowData.cceAvailablePlotId || 'N/A';
       const cropName = rowData?.crop || plotDetails?.cropName || frameDetails?.cropName || 'CCE Crop';
@@ -861,7 +924,7 @@ const CceDataView = () => {
 
       doc.setFontSize(8.5);
       doc.setFont('helvetica', 'normal');
-      doc.text(` Generated: ${new Date().toLocaleString()}`, 18, y + 16);
+      doc.text(` Generated: ${new Date().toLocaleString()}  |  Downloaded By: ${downloadedByName}`, 18, y + 16);
 
       y += 28;
 
@@ -870,19 +933,20 @@ const CceDataView = () => {
         startY: y,
         head: [['Summary Parameter', 'Value', 'Summary Parameter', 'Value']],
         body: [
-          ['Crop & Season', `${cropName} (${seasonName})`, 'Farmer Name', plotDetails?.farmerName || rowData?.farmerName || 'N/A'],
+          ['Plot ID / Crop', `${targetPlotId} / ${cropName}`, 'Season & Farmer', `${seasonName} / ${plotDetails?.farmerName || rowData?.farmerName || 'N/A'}`],
           ['Plot Selection Status', plotDetails?.isSelected ? 'Selected' : 'N/A', 'CCE Source Type', plotDetails?.cceSourceType || 'N/A'],
           ['District / Taluk', `${plotDetails?.btrDetailsResponse?.districtName || 'N/A'} / ${plotDetails?.btrDetailsResponse?.talukName || 'N/A'}`, 'Local Body / Panchayath', plotDetails?.btrDetailsResponse?.localbodyNameEn || rowData?.panchayath || 'N/A'],
-          ['Survey / Resurvey No', plotDetails?.btrDetailsResponse?.resvno ? `${plotDetails.btrDetailsResponse.resvno}/${plotDetails.btrDetailsResponse.resbdno || ''}` : (rowData?.surveyNo || 'N/A'), 'Cultivated Area', formatArea(plotDetails?.cultivatedArea ?? rowData?.cultivatedArea)]
+          ['Survey / Resurvey No', plotDetails?.btrDetailsResponse?.resvno ? `${plotDetails.btrDetailsResponse.resvno}/${plotDetails.btrDetailsResponse.resbdno || ''}` : (rowData?.surveyNo || 'N/A'), 'Cultivated Area', formatArea(plotDetails?.cultivatedArea ?? rowData?.cultivatedArea)],
+          ['Data Entered By (Investigator)', investigatorName, 'Downloaded By', downloadedByName]
         ],
         theme: 'grid',
         headStyles: { fillColor: [5, 48, 122], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
         styles: { fontSize: 8, cellPadding: 2 },
         columnStyles: {
-          0: { fontStyle: 'bold', fillColor: [240, 244, 248], cellWidth: 38 },
-          1: { cellWidth: 53 },
-          2: { fontStyle: 'bold', fillColor: [240, 244, 248], cellWidth: 38 },
-          3: { cellWidth: 53 }
+          0: { fontStyle: 'bold', fillColor: [240, 244, 248], cellWidth: 42 },
+          1: { cellWidth: 49 },
+          2: { fontStyle: 'bold', fillColor: [240, 244, 248], cellWidth: 42 },
+          3: { cellWidth: 49 }
         }
       });
 
@@ -1102,7 +1166,12 @@ const CceDataView = () => {
       doc.setTextColor(5, 48, 122);
       doc.text('5. Yield ', 14, y);
 
-      y += 6;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Data Entered By (Investigator): ${investigatorName}`, 14, y + 5);
+
+      y += 8;
 
       if (yieldMatrix && yieldMatrix.length > 0) {
         yieldMatrix.forEach((vGroup) => {
@@ -1202,11 +1271,36 @@ const CceDataView = () => {
         });
       }
 
+      // SECTION 7: Personnel & Report Verification
+      checkPageBreak(30);
+      doc.setFontSize(10.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(5, 48, 122);
+      doc.text('7. Report Personnel & Verification', 14, y);
+      y += 4;
+
+      applyAutoTable({
+        startY: y,
+        head: [['Role / Responsibility', 'Personnel Name / Details', 'Reference User ID']],
+        body: [
+          ['Data Entered By (Investigator)', investigatorName, investigatorUserId || 'N/A'],
+          ['Report Downloaded By', downloadedByName, loggedInUserId || 'N/A']
+        ],
+        theme: 'striped',
+        headStyles: { fillColor: [5, 48, 122], textColor: 255, fontSize: 8 },
+        styles: { fontSize: 8, cellPadding: 2.5 },
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 55 },
+          1: { cellWidth: 75 },
+          2: { cellWidth: 52 }
+        }
+      });
+
       // Page Numbers and Footer
       const pageCount = doc.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
-        doc.setFontSize(8);
+        doc.setFontSize(7.5);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(100, 116, 139);
 
@@ -1218,7 +1312,7 @@ const CceDataView = () => {
 
         doc.setDrawColor(226, 232, 240);
         doc.line(14, 285, 196, 285);
-        doc.text('Confidential — AIDeA EARAS CCE Reporting System', 14, 290);
+        doc.text(`Downloaded by: ${downloadedByName} | Confidential — AIDeA EARAS CCE Reporting System`, 14, 290);
         doc.text(`Page ${i} of ${pageCount}`, 196, 290, { align: 'right' });
       }
 

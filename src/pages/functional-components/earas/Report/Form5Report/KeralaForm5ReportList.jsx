@@ -49,9 +49,9 @@ import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import * as XLSX from 'xlsx';
 import Breadcrumb from 'routes/Breadcrumb';
-import axios from 'axios';
 import mainapi from 'api/mainapi';
 import AuthService from 'pages/authentication/services/authservice';
 import api from 'api/api';
@@ -64,66 +64,93 @@ const BASE_URL = mainapi.FORM_API;
 
 /* ─────────────── agricultural year months ─────────────── */
 
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
+function buildAgriMonthOptions() {
+  const agriYear =
+    (AuthService && AuthService.agriyear ? AuthService.agriyear() : null) ||
+    localStorage.getItem('activeAgriYear') ||
+    '2025-2026';
 
-// Builds the month list for the active agricultural year (July → June).
-// e.g. '2025-2026' → July 2025 ... December 2025, January 2026 ... June 2026
-// Each entry: { label: 'July 2025', value: '2025-07' } (value is API-ready YYYY-MM)
-function getAgriYearMonths(agriYear) {
-  const [startYear, endYear] = (agriYear || '2025-2026').split('-').map(Number);
-  const months = [];
-  for (let m = 6; m < 12; m++) {
-    months.push({ label: `${MONTH_NAMES[m]} ${startYear}`, value: `${startYear}-${String(m + 1).padStart(2, '0')}` });
+  const startYear = parseInt(String(agriYear).split('-')[0], 10) || new Date().getFullYear();
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const options = [];
+
+  for (let i = 0; i < 12; i += 1) {
+    const monthIndex = (6 + i) % 12;
+    const year = startYear + Math.floor((6 + i) / 12);
+    const mm = String(monthIndex + 1).padStart(2, '0');
+
+    options.push({
+      label: `${monthNames[monthIndex]} ${year}`,
+      value: `${mm}-${year}`
+    });
   }
-  for (let m = 0; m < 6; m++) {
-    months.push({ label: `${MONTH_NAMES[m]} ${endYear}`, value: `${endYear}-${String(m + 1).padStart(2, '0')}` });
-  }
-  return months;
+
+  return options;
 }
 
-// Current month as 'YYYY-MM' if it falls inside the agri year, else July (first month)
-function getDefaultSingleMonth(agriYearMonths) {
-  const now = new Date();
-  const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  return agriYearMonths.some((m) => m.value === current) ? current : agriYearMonths[0]?.value || '';
-}
-
-// Extract the API-ready month number (1–12) from a 'YYYY-MM' value.
-// e.g. '2025-07' → 7
 function monthNum(value) {
-  return value ? parseInt(value.split('-')[1], 10) : null;
+  if (!value) return null;
+  const str = String(value).trim();
+  if (str.includes('-')) {
+    const parts = str.split('-');
+    if (parts[0].length === 4) return parseInt(parts[1], 10);
+    if (parts[1].length === 4) return parseInt(parts[0], 10);
+    return parseInt(parts[0], 10);
+  }
+  const num = parseInt(str, 10);
+  return Number.isNaN(num) ? null : num;
+}
+
+function getCurrentMonthValue(monthOptions) {
+  if (!monthOptions?.length) return '';
+
+  const now = new Date();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yyyy = now.getFullYear();
+  const currentValue = `${mm}-${yyyy}`;
+
+  return (
+    monthOptions.find((option) => option.value === currentValue)?.value ||
+    monthOptions.find((option) => monthNum(option.value) === now.getMonth() + 1)?.value ||
+    monthOptions[monthOptions.length - 1]?.value ||
+    monthOptions[0]?.value ||
+    ''
+  );
 }
 
 function KeralaForm5ReportList() {
   const theme = useTheme();
   const navigate = useNavigate();
 
-  // Agricultural year from AuthService (e.g. '2025-2026'), and its month list.
+  // Agricultural year from AuthService (e.g. '2025-2026'), and its month options.
   const agriculturalYear = AuthService.agriyear() || '2025-2026';
-  const agriYearMonths = useMemo(() => getAgriYearMonths(agriculturalYear), [agriculturalYear]);
-  const defaultSingleMonth = useMemo(() => getDefaultSingleMonth(agriYearMonths), [agriYearMonths]);
-  const monthLabel = (value) => agriYearMonths.find((m) => m.value === value)?.label || '';
+  const monthOptions = useMemo(() => buildAgriMonthOptions(), []);
+  const defaultFromMonth = monthOptions[0]?.value || '';
+  const defaultToMonth = getCurrentMonthValue(monthOptions);
+  const defaultSingleMonth = getCurrentMonthValue(monthOptions);
+  const monthLabel = (value) => monthOptions.find((m) => m.value === value)?.label || '';
 
   // State for API data
   const [apiData, setApiData] = useState(null);
+  const [lastMonthApiData, setLastMonthApiData] = useState(null);
   const [districtsList, setDistrictsList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [masterDistrictsLoading, setMasterDistrictsLoading] = useState(true);
 
-  // Crop Name filter (UI kept). Backend does not accept cropName yet, so the
-  // param is not sent — see the TODO in fetchDashboardData to enable it later.
+  // Crop Name filter
   const [cropName, setCropName] = useState('ALL');
   const [cropOptions, setCropOptions] = useState([]);
 
-  // Month filter states (values are API-ready 'YYYY-MM')
-  const [filterType, setFilterType] = useState('single');
+  // Month filter states
+  const [filterType, setFilterType] = useState('range');
+  const [fromMonth, setFromMonth] = useState(defaultFromMonth);
+  const [toMonth, setToMonth] = useState(defaultToMonth);
   const [singleMonth, setSingleMonth] = useState(defaultSingleMonth);
-  const [fromMonth, setFromMonth] = useState('');
-  const [toMonth, setToMonth] = useState('');
 
   // UI states
   const [searchTerm, setSearchTerm] = useState('');
@@ -255,14 +282,14 @@ function KeralaForm5ReportList() {
 
       // Month filters — API expects a numeric month (1–12). startMonth is mandatory.
       if (filterType === 'single') {
-        // Single month: send only startMonth (backend defaults endMonth = startMonth).
         const start = monthNum(singleMonth) || monthNum(defaultSingleMonth);
         params.append('startMonth', start);
+        params.append('endMonth', start);
       } else {
-        // Month range: startMonth mandatory, endMonth optional.
-        const start = monthNum(fromMonth) || monthNum(agriYearMonths[0]?.value);
+        const start = monthNum(fromMonth) || monthNum(defaultFromMonth);
+        const end = monthNum(toMonth) || monthNum(defaultToMonth);
         params.append('startMonth', start);
-        if (toMonth) params.append('endMonth', monthNum(toMonth));
+        if (end) params.append('endMonth', end);
       }
 
       // TODO: enable when the backend controller accepts a cropName param.
@@ -277,25 +304,47 @@ function KeralaForm5ReportList() {
       url += `?${params.toString()}`;
       console.log('Fetching data from:', url);
 
-      const response = await api.get(url);
+      const mainRequest = api.get(url);
 
-      if (response.data) {
+      let lastMonthRequest = Promise.resolve(null);
+      if (filterType === 'range') {
+        const lastMonth = monthNum(toMonth) || monthNum(fromMonth) || monthNum(defaultToMonth);
+        if (lastMonth) {
+          const lmParams = new URLSearchParams();
+          lmParams.append('agriYear', agriculturalYear);
+          lmParams.append('startMonth', lastMonth);
+          lmParams.append('endMonth', lastMonth);
+
+          if (cropName !== 'ALL') {
+            const selectedCrop = cropOptions.find((c) => c.cropName === cropName);
+            if (selectedCrop) lmParams.append('cropId', selectedCrop.cropId);
+          }
+
+          const lmUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/cce-summary?${lmParams.toString()}`;
+          console.log('Fetching last month Form 5 data from:', lmUrl);
+          lastMonthRequest = api.get(lmUrl).then((res) => res.data).catch((err) => {
+            console.error('Error fetching last month Form 5 data:', err);
+            return null;
+          });
+        }
+      }
+
+      const [response, lmData] = await Promise.all([mainRequest, lastMonthRequest]);
+
+      if (response && response.data) {
         setApiData(response.data);
 
         // Populate the crop dropdown if/when the endpoint returns a cropList.
-        // (Currently not returned, so the dropdown stays at ALL.)
         if (cropName === 'ALL' && Array.isArray(response.data.cropList)) {
           setCropOptions(response.data.cropList);
         }
       }
+      setLastMonthApiData(lmData);
     } catch (err) {
       console.error('Error fetching CCE Progress dashboard data:', err);
 
-      // Handle specific error cases
       if (err.response?.status === 401) {
         setError('Session expired. Please login again.');
-        // Optionally redirect to login page
-        // navigate('/login');
       } else if (err.response?.status === 403) {
         setError("You don't have permission to access this data.");
       } else if (err.response?.status === 400) {
@@ -308,82 +357,127 @@ function KeralaForm5ReportList() {
     }
   };
 
+  // Index of selected fromMonth in monthOptions
+  const fromMonthIndex = useMemo(
+    () => monthOptions.findIndex((option) => option.value === fromMonth),
+    [fromMonth, monthOptions]
+  );
+
+  const handleFromMonthChange = (event) => {
+    const nextFromMonth = event.target.value;
+    setFromMonth(nextFromMonth);
+    setPage(0);
+
+    const nextFromIndex = monthOptions.findIndex(
+      (option) => option.value === nextFromMonth
+    );
+    const currentToIndex = monthOptions.findIndex(
+      (option) => option.value === toMonth
+    );
+
+    if (nextFromIndex > currentToIndex) {
+      setToMonth(nextFromMonth);
+    }
+  };
+
   // Transform API data to district rows.
   // Merges master districts list with API data
   const transformApiDataToDistricts = useMemo(() => {
-    // Get data from API or empty object
     const apiDistricts = apiData?.districts || [];
+    const lastMonthDistricts = (filterType === 'range' && lastMonthApiData?.districts) || [];
 
-    // Create a map for quick lookup of API data by district name
     const apiDataMap = {};
-    apiDistricts.forEach(d => {
-      const key = d.districtName?.toLowerCase() || '';
+    apiDistricts.forEach((d) => {
+      const key = d.districtName?.toLowerCase().trim() || '';
       apiDataMap[key] = d;
     });
 
-    // Log for debugging
-    console.log('Districts List:', districtsList);
-    console.log('API Districts:', apiDistricts);
+    const lastMonthDataMap = {};
+    lastMonthDistricts.forEach((d) => {
+      const key = d.districtName?.toLowerCase().trim() || '';
+      lastMonthDataMap[key] = d;
+    });
 
-    // If we have master districts list, merge with API data
+    const getLastMonthDistrict = (distId, distName) => {
+      if (!lastMonthDistricts.length) return null;
+      if (distId) {
+        const byId = lastMonthDistricts.find((d) => String(d.districtId) === String(distId));
+        if (byId) return byId;
+      }
+      const norm = (distName || '').toLowerCase().trim();
+      if (norm && lastMonthDataMap[norm]) {
+        return lastMonthDataMap[norm];
+      }
+      return null;
+    };
+
     if (districtsList && districtsList.length > 0) {
       const merged = districtsList.map((district) => {
         const districtName = district.districtName || district.name || district.distNameEn || '';
-        const apiData = apiDataMap[districtName.toLowerCase()] || {};
+        const districtData = apiDataMap[districtName.toLowerCase().trim()] || {};
+        const districtId = district.id || district.districtId || districtData.districtId || `dist_${Math.random()}`;
+        const lmDistrict = getLastMonthDistrict(districtId, districtName);
+        const currentMonthCompleted = lmDistrict?.completed || 0;
 
-        // Check if this district has any data
-        const hasData = (apiData.allowedCCECrops || 0) > 0 ||
-          (apiData.selectedCce || 0) > 0 ||
-          (apiData.completed || 0) > 0 ||
-          (apiData.ongoing || 0) > 0 ||
-          (apiData.notAvailable || 0) > 0 ||
-          (apiData.notStarted || 0) > 0 ||
-          (apiData.underReview || 0) > 0;
+        const hasData = (districtData.allowedCCECrops || 0) > 0 ||
+          (districtData.selectedCce || 0) > 0 ||
+          (districtData.completed || 0) > 0 ||
+          currentMonthCompleted > 0 ||
+          (districtData.ongoing || 0) > 0 ||
+          (districtData.notAvailable || 0) > 0 ||
+          (districtData.notStarted || 0) > 0 ||
+          (districtData.underReview || 0) > 0;
 
         return {
-          id: district.id || district.districtId || apiData.districtId || `dist_${Math.random()}`,
+          id: districtId,
           district: districtName || 'Unknown District',
-          allowtedCce: apiData.allowedCCECrops || 0,
-          selectedCce: apiData.selectedCce || 0,
-          completed: apiData.completed || 0,
-          ongoing: apiData.ongoing || 0,
-          notAvailable: apiData.notAvailable || 0,
-          notStarted: apiData.notStarted || 0,
-          underReview: apiData.underReview || 0,
+          allowtedCce: districtData.allowedCCECrops || 0,
+          selectedCce: districtData.selectedCce || 0,
+          currentMonthCompleted: currentMonthCompleted,
+          completed: districtData.completed || 0,
+          ongoing: districtData.ongoing || 0,
+          notAvailable: districtData.notAvailable || 0,
+          notStarted: districtData.notStarted || 0,
+          underReview: districtData.underReview || 0,
           hasData: hasData
         };
       });
 
-      console.log('Merged Districts:', merged);
       return merged;
     }
 
-    // Fallback: use only API data if master list is not available
-    console.log('Using API districts only');
-    return apiDistricts.map((d) => ({
-      id: d.districtId || `dist_${Math.random()}`,
-      district: d.districtName || 'Unknown District',
-      allowtedCce: d.allowedCCECrops || 0,
-      selectedCce: d.selectedCce || 0,
-      completed: d.completed || 0,
-      ongoing: d.ongoing || 0,
-      notAvailable: d.notAvailable || 0,
-      notStarted: d.notStarted || 0,
-      underReview: d.underReview || 0,
-      hasData: (d.allowedCCECrops || 0) > 0 ||
-        (d.selectedCce || 0) > 0 ||
-        (d.completed || 0) > 0 ||
-        (d.ongoing || 0) > 0 ||
-        (d.notAvailable || 0) > 0 ||
-        (d.notStarted || 0) > 0 ||
-        (d.underReview || 0) > 0
-    }));
-  }, [apiData, districtsList]);
+    return apiDistricts.map((d) => {
+      const lmDistrict = getLastMonthDistrict(d.districtId, d.districtName);
+      const currentMonthCompleted = lmDistrict?.completed || 0;
+
+      return {
+        id: d.districtId || `dist_${Math.random()}`,
+        district: d.districtName || 'Unknown District',
+        allowtedCce: d.allowedCCECrops || 0,
+        selectedCce: d.selectedCce || 0,
+        currentMonthCompleted: currentMonthCompleted,
+        completed: d.completed || 0,
+        ongoing: d.ongoing || 0,
+        notAvailable: d.notAvailable || 0,
+        notStarted: d.notStarted || 0,
+        underReview: d.underReview || 0,
+        hasData: (d.allowedCCECrops || 0) > 0 ||
+          (d.selectedCce || 0) > 0 ||
+          (d.completed || 0) > 0 ||
+          currentMonthCompleted > 0 ||
+          (d.ongoing || 0) > 0 ||
+          (d.notAvailable || 0) > 0 ||
+          (d.notStarted || 0) > 0 ||
+          (d.underReview || 0) > 0
+      };
+    });
+  }, [apiData, lastMonthApiData, districtsList, filterType]);
 
   // Dynamic summary stats derived from transformed district data
   const stats = useMemo(() => {
     const allowtedCceSum = transformApiDataToDistricts.reduce((sum, d) => sum + (d.allowtedCce || 0), 0);
     const selectedCceSum = transformApiDataToDistricts.reduce((sum, d) => sum + (d.selectedCce || 0), 0);
+    const currentMonthCompletedSum = transformApiDataToDistricts.reduce((sum, d) => sum + (d.currentMonthCompleted || 0), 0);
     const completedSum = transformApiDataToDistricts.reduce((sum, d) => sum + (d.completed || 0), 0);
     const ongoingSum = transformApiDataToDistricts.reduce((sum, d) => sum + (d.ongoing || 0), 0);
     const notAvailableSum = transformApiDataToDistricts.reduce((sum, d) => sum + (d.notAvailable || 0), 0);
@@ -393,6 +487,7 @@ function KeralaForm5ReportList() {
     return {
       allowtedCce: allowtedCceSum > 0 ? allowtedCceSum : (apiData?.allowedCCECrops || 0),
       selectedCce: selectedCceSum > 0 ? selectedCceSum : (apiData?.selectedCce || 0),
+      currentMonthCompleted: currentMonthCompletedSum,
       completed: completedSum,
       ongoing: ongoingSum,
       notAvailable: notAvailableSum,
@@ -428,14 +523,10 @@ function KeralaForm5ReportList() {
     if (newValue === null) return;
     setFilterType(newValue);
     if (newValue === 'single') {
-      setSingleMonth(defaultSingleMonth);
-      setFromMonth('');
-      setToMonth('');
+      setSingleMonth(singleMonth || defaultSingleMonth);
     } else {
-      // range: default from July (first month of the agri year)
-      setFromMonth(agriYearMonths[0]?.value || '');
-      setSingleMonth('');
-      setToMonth('');
+      setFromMonth(fromMonth || defaultFromMonth);
+      setToMonth(toMonth || defaultToMonth);
     }
     setPage(0);
   };
@@ -447,10 +538,10 @@ function KeralaForm5ReportList() {
 
   const handleClearFilters = () => {
     setCropName('ALL');
-    setFilterType('single');
+    setFilterType('range');
+    setFromMonth(defaultFromMonth);
+    setToMonth(defaultToMonth);
     setSingleMonth(defaultSingleMonth);
-    setFromMonth('');
-    setToMonth('');
     setPage(0);
     setSearchTerm('');
   };
@@ -480,25 +571,40 @@ function KeralaForm5ReportList() {
   const handleExportExcel = () => {
     if (!filteredData || filteredData.length === 0) return;
 
-    const exportRows = filteredData.map((row, index) => ({
-      '#': index + 1,
-      District: row.district,
-      'Allowted CCE': row.hasData ? row.allowtedCce : 'NA',
-      'Selected CCE': row.hasData ? row.selectedCce : 'NA',
-      Completed: row.hasData ? row.completed : 'NA',
-      Ongoing: row.hasData ? row.ongoing : 'NA',
-      'Not Available': row.hasData ? row.notAvailable : 'NA',
-      'Not Started': row.hasData ? row.notStarted : 'NA',
-      'Under Review': row.hasData ? row.underReview : 'NA'
-    }));
+    const exportRows = filteredData.map((row, index) => {
+      const rowObj = {
+        '#': index + 1,
+        District: row.district,
+        'Allowted CCE': row.hasData ? row.allowtedCce : 'NA',
+        'Selected CCE': row.hasData ? row.selectedCce : 'NA'
+      };
+
+      if (filterType === 'range') {
+        rowObj['During the Month'] = row.hasData ? row.currentMonthCompleted : 'NA';
+        rowObj['Up to the Month'] = row.hasData ? row.completed : 'NA';
+      } else {
+        rowObj['Completed'] = row.hasData ? row.completed : 'NA';
+      }
+
+      rowObj['Ongoing'] = row.hasData ? row.ongoing : 'NA';
+      rowObj['Not Available'] = row.hasData ? row.notAvailable : 'NA';
+      rowObj['Not Started'] = row.hasData ? row.notStarted : 'NA';
+      rowObj['Under Review'] = row.hasData ? row.underReview : 'NA';
+
+      return rowObj;
+    });
 
     const worksheet = XLSX.utils.json_to_sheet(exportRows);
 
-    // Reasonable column widths so it doesn't open looking cramped
-    worksheet['!cols'] = [
-      { wch: 5 }, { wch: 25 }, { wch: 12 },
-      { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }
-    ];
+    worksheet['!cols'] = filterType === 'range'
+      ? [
+          { wch: 5 }, { wch: 25 }, { wch: 12 }, { wch: 12 },
+          { wch: 16 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }
+        ]
+      : [
+          { wch: 5 }, { wch: 25 }, { wch: 12 }, { wch: 12 },
+          { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }
+        ];
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'District Report');
@@ -507,10 +613,8 @@ function KeralaForm5ReportList() {
   };
 
   const handleViewDetails = (districtName, hasData) => {
-    // Only navigate if district has data
     if (!hasData) return;
 
-    // Find district ID from data
     const district = transformApiDataToDistricts.find((d) => d.district === districtName);
     if (district) {
       navigate(`/kerala_form5_report/taluk_form5_report/${district.id}`, {
@@ -595,6 +699,37 @@ function KeralaForm5ReportList() {
     </Card>
   );
 
+  // Table headers based on filter type
+  const tableHeaders = useMemo(() => {
+    if (filterType === 'range') {
+      return [
+        '#',
+        'District',
+        'Allowted CCE',
+        'Selected CCE',
+        'During the Month',
+        'Up to the Month',
+        'Ongoing',
+        'Not Available',
+        'Not Started',
+        'Under Review',
+        'Actions'
+      ];
+    }
+    return [
+      '#',
+      'District',
+      'Allowted CCE',
+      'Selected CCE',
+      'Completed',
+      'Ongoing',
+      'Not Available',
+      'Not Started',
+      'Under Review',
+      'Actions'
+    ];
+  }, [filterType]);
+
   // Stat cards configuration
   const statCards = [
     {
@@ -609,8 +744,18 @@ function KeralaForm5ReportList() {
       color: '#04255e',
       icon: <AssessmentIcon sx={{ fontSize: 32, color: '#04255e', opacity: 0.7 }} />
     },
+    ...(filterType === 'range'
+      ? [
+          {
+            label: 'During the Month',
+            value: stats.currentMonthCompleted,
+            color: '#0288d1',
+            icon: <CalendarMonthIcon sx={{ fontSize: 32, color: '#0288d1', opacity: 0.7 }} />
+          }
+        ]
+      : []),
     {
-      label: 'Completed',
+      label: filterType === 'range' ? 'Up to the Month' : 'Completed',
       value: stats.completed,
       color: '#2e7d32',
       icon: <CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />
@@ -765,14 +910,11 @@ function KeralaForm5ReportList() {
                   <Select
                     value={fromMonth}
                     label="From Month"
-                    onChange={(e) => {
-                      setFromMonth(e.target.value);
-                      setPage(0);
-                    }}
+                    onChange={handleFromMonthChange}
                   >
-                    {agriYearMonths.map((m) => (
-                      <MenuItem key={m.value} value={m.value}>
-                        {m.label}
+                    {monthOptions.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
                       </MenuItem>
                     ))}
                   </Select>
@@ -790,10 +932,13 @@ function KeralaForm5ReportList() {
                       setPage(0);
                     }}
                   >
-                    <MenuItem value="">None</MenuItem>
-                    {agriYearMonths.map((m) => (
-                      <MenuItem key={m.value} value={m.value}>
-                        {m.label}
+                    {monthOptions.map((option, index) => (
+                      <MenuItem
+                        key={option.value}
+                        value={option.value}
+                        disabled={index < fromMonthIndex}
+                      >
+                        {option.label}
                       </MenuItem>
                     ))}
                   </Select>
@@ -810,9 +955,9 @@ function KeralaForm5ReportList() {
                     setPage(0);
                   }}
                 >
-                  {agriYearMonths.map((m) => (
-                    <MenuItem key={m.value} value={m.value}>
-                      {m.label}
+                  {monthOptions.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
                     </MenuItem>
                   ))}
                 </Select>
@@ -954,18 +1099,7 @@ function KeralaForm5ReportList() {
               <Table>
                 <TableHead>
                   <TableRow sx={{ bgcolor: '#04255e' }}>
-                    {[
-                      '#',
-                      'District',
-                      'Allowted CCE',
-                      'Selected CCE',
-                      'Completed',
-                      'Ongoing',
-                      'Not Available',
-                      'Not Started',
-                      'Under Review',
-                      'Actions'
-                    ].map((label, idx) => (
+                    {tableHeaders.map((label, idx) => (
                       <TableCell
                         key={idx}
                         align={idx === 0 ? 'center' : idx === 1 ? 'left' : 'center'}
@@ -979,7 +1113,7 @@ function KeralaForm5ReportList() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={tableHeaders.length} align="center" sx={{ py: 6 }}>
                         <CircularProgress size={40} />
                       </TableCell>
                     </TableRow>
@@ -1049,6 +1183,17 @@ function KeralaForm5ReportList() {
                               row.selectedCce
                             )}
                           </TableCell>
+                          {filterType === 'range' && (
+                            <TableCell align="center">
+                              {hasNoData ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : row.currentMonthCompleted > 0 ? (
+                                <Chip label={row.currentMonthCompleted} size="small" color="success" variant="outlined" />
+                              ) : (
+                                row.currentMonthCompleted
+                              )}
+                            </TableCell>
+                          )}
                           <TableCell align="center">
                             {hasNoData ? (
                               <Typography variant="body2" color="text.secondary">NA</Typography>
@@ -1122,7 +1267,7 @@ function KeralaForm5ReportList() {
                     })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={tableHeaders.length} align="center" sx={{ py: 6 }}>
                         <Typography color="text.secondary">No districts found</Typography>
                       </TableCell>
                     </TableRow>

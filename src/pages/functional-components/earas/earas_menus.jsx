@@ -44,6 +44,7 @@ import GroupIcon from '@mui/icons-material/Hub';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import { BarChart } from '@mui/x-charts/BarChart';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import AgricultureIcon from '@mui/icons-material/Agriculture';
 
 import mainapi from 'api/mainapi';
 import authservice from 'pages/authentication/services/authservice';
@@ -1050,6 +1051,70 @@ function Earas_menus() {
           </Typography>
           <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '1px' }}>
             View
+          </Typography>
+        </Box>
+      </Card>
+    </Grid>
+  )}
+
+  {/* Advance Forecast Card */}
+  {(role === 'Field Data Collector' || role?.trim?.() === 'Field Data Collector' || (Array.isArray(role) && role.includes('Field Data Collector'))) && (
+    <Grid item xs={12} sm={6} md={4} lg={3}>
+      <Card
+        component={Link}
+        to="/schemes/earas/advance_forecast"
+        sx={{
+          textDecoration: 'none',
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1.5rem',
+          borderRadius: '1.3rem',
+          background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          boxShadow: '0 10px 20px rgba(0, 0, 0, 0.15)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          position: 'relative',
+          overflow: 'hidden',
+          minHeight: '130px',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: '-100%',
+            width: '100%',
+            height: '100%',
+            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+            transition: 'left 0.6s ease',
+          },
+          '&:hover': {
+            transform: 'translateY(-8px)',
+            boxShadow: '0 20px 30px rgba(0, 0, 0, 0.2)',
+            '&::before': { left: '100%' },
+          },
+        }}
+      >
+        <Box sx={{
+          width: { xs: '4rem', sm: '5rem' },
+          height: { xs: '4rem', sm: '5rem' },
+          borderRadius: '1.2rem',
+          marginRight: { xs: 0, sm: '1.5rem' },
+          marginBottom: { xs: '1rem', sm: 0 },
+          background: 'rgba(255,255,255,0.2)',
+          backdropFilter: 'blur(10px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <AgricultureIcon sx={{ fontSize: { xs: '2.5rem', sm: '3rem' }, color: '#fff' }} />
+        </Box>
+        <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', mb: 0.5 }}>
+            Advance
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            Forecast
           </Typography>
         </Box>
       </Card>

@@ -56,6 +56,7 @@ const ZoneManage = Loadable(lazy(() => import('pages/functional-components/earas
 
 const Form1_menus = Loadable(lazy(() => import('pages/functional-components/earas/form1/form1menus')));
 const GCESDashboard = Loadable(lazy(() => import('pages/functional-components/earas/Report/Cce/GCESDashboard')));
+const AdvancedForecastDashboard = Loadable(lazy(() => import('pages/functional-components/earas/AdvancedForecast/AdvancedForecastDashboard')));
 
 const Profile = Loadable(lazy(() => import('pages/profile/Profile')));
 
@@ -399,6 +400,30 @@ const MainRoutes = {
       element: (
         <PrivateRoute>
           <Earas />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/advance_forecast',
+      element: (
+        <PrivateRoute>
+          <AdvancedForecastDashboard />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: 'schemes/earas/advance_forecast',
+      element: (
+        <PrivateRoute>
+          <AdvancedForecastDashboard />
+        </PrivateRoute>
+      )
+    },
+    {
+      path: '/schemes/earas/Advance_Forecast',
+      element: (
+        <PrivateRoute>
+          <AdvancedForecastDashboard />
         </PrivateRoute>
       )
     },

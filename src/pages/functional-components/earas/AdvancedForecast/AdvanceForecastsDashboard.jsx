@@ -6,17 +6,30 @@ import {
   Card,
   CardContent,
   Button,
-  Chip,
-  Paper
+  Chip
 } from '@mui/material';
 import AgricultureIcon from '@mui/icons-material/Agriculture';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import LockIcon from '@mui/icons-material/Lock';
+import { Link } from 'react-router-dom';
 
 const AdvanceForecastsDashboard = ({ onSelectModule }) => {
   return (
     <Box sx={{ py: 2 }}>
+      {/* Back to EARAS Main Menu Link */}
+      <Box sx={{ mb: 2 }}>
+        <Button
+          component={Link}
+          to="/schemes/earas"
+          startIcon={<ArrowBackIcon />}
+          sx={{ fontWeight: 600, color: '#475569', textTransform: 'none', '&:hover': { color: '#0f172a' } }}
+        >
+          Back to EARAS Menu
+        </Button>
+      </Box>
+
       {/* Title & Subtitle */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px' }}>

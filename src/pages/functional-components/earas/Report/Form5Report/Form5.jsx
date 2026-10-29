@@ -48,6 +48,47 @@ function getSavedState() {
   }
 }
 
+function buildAgriMonthOptions() {
+  const agriYear =
+    (AuthService && AuthService.agriyear ? AuthService.agriyear() : null) ||
+    localStorage.getItem('activeAgriYear') ||
+    '2025-2026';
+
+  const startYear = parseInt(String(agriYear).split('-')[0], 10) || new Date().getFullYear();
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const options = [];
+
+  for (let i = 0; i < 12; i += 1) {
+    const monthIndex = (6 + i) % 12;
+    const year = startYear + Math.floor((6 + i) / 12);
+    const mm = String(monthIndex + 1).padStart(2, '0');
+
+    options.push({
+      label: `${monthNames[monthIndex]} ${year}`,
+      value: `${mm}-${year}`
+    });
+  }
+
+  return options;
+}
+
+function monthNum(value) {
+  if (!value) return null;
+  const str = String(value).trim();
+  if (str.includes('-')) {
+    const parts = str.split('-');
+    if (parts[0].length === 4) return parseInt(parts[1], 10);
+    if (parts[1].length === 4) return parseInt(parts[0], 10);
+    return parseInt(parts[0], 10);
+  }
+  const num = parseInt(str, 10);
+  return Number.isNaN(num) ? null : num;
+}
+
 const Form5 = () => {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -58,6 +99,19 @@ const Form5 = () => {
     const saved = getSavedState();
     return { ...saved, ...(location.state || {}) };
   }, [location.state]);
+
+  const monthOptions = useMemo(() => buildAgriMonthOptions(), []);
+  const monthLabel = (value) => {
+    if (!value) return '';
+    const match = monthOptions.find((m) => m.value === value);
+    if (match) return match.label;
+    if (String(value).includes('-')) {
+      const num = monthNum(value);
+      const matchNum = monthOptions.find((m) => monthNum(m.value) === num);
+      if (matchNum) return matchNum.label;
+    }
+    return value;
+  };
 
   const zoneId = stateData.zoneId || 751;
   const zoneName = stateData.zoneName || '';
@@ -384,6 +438,11 @@ const Form5 = () => {
               {talukName && `${talukName} Taluk • `}
               {districtName && `${districtName} District • `}
               {`Agricultural Year: ${agriculturalYear}`}
+              {stateData.filterType === 'single' && (stateData.singleMonth || stateData.startMonth) && ` • ${monthLabel(stateData.singleMonth || stateData.startMonth)}`}
+              {stateData.filterType === 'range' && (stateData.fromMonth || stateData.startMonth) && (stateData.toMonth || stateData.endMonth) && ` • ${monthLabel(stateData.fromMonth || stateData.startMonth)} – ${monthLabel(stateData.toMonth || stateData.endMonth)}`}
+              {stateData.filterType === 'range' && (stateData.fromMonth || stateData.startMonth) && !(stateData.toMonth || stateData.endMonth) && ` • From ${monthLabel(stateData.fromMonth || stateData.startMonth)}`}
+              {stateData.filterType === 'range' && !(stateData.fromMonth || stateData.startMonth) && (stateData.toMonth || stateData.endMonth) && ` • Until ${monthLabel(stateData.toMonth || stateData.endMonth)}`}
+              {stateData.cropName && stateData.cropName !== 'ALL' && ` • Crop: ${stateData.cropName}`}
             </Typography>
           </Box>
 

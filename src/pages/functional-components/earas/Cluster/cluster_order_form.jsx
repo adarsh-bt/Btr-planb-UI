@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import PropTypes from 'prop-types';
 import {
   Grid,
   Card,
@@ -21,7 +22,6 @@ import {
 import {
   LocalFlorist,
   Refresh,
-  FilterList,
   Dashboard,
   PendingActions,
   CheckCircle,
@@ -32,7 +32,6 @@ import {
   AcUnit,
   WbSunny
 } from '@mui/icons-material';
-import axios from 'axios';
 import Breadcrumb from 'routes/Breadcrumb'; // Ensure this path is correct for your project
 import LoadingScreen from 'utils/loadingscreen'; // Ensure this path is correct
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
@@ -40,7 +39,7 @@ import authservice from 'pages/authentication/services/authservice';
 import mainapi from 'api/mainapi';
 import api from 'api/api';
 
-function ClusterSeatForm({ zoneId }) {
+function ClusterSeatForm({ zoneId = null }) {
   const [clusters, setClusters] = useState([]);
   const [summary, setSummary] = useState({
     completed: 0,
@@ -76,7 +75,6 @@ function ClusterSeatForm({ zoneId }) {
   }, [resolvedZoneId]);
 
   const fetchClusterData = () => {
-    const token = localStorage.getItem('token');
     setLoading(true);
     setError(null);
 
@@ -90,7 +88,18 @@ function ClusterSeatForm({ zoneId }) {
     api.get(`${BASE_URL}/btr-service/cluster-api/cluster-form-status/${resolvedZoneId}/${authservice.agriyear()}`)
       .then(res => {
         // Store the raw payload directly - One object per cluster
-        setClusters(res.data.payload || []);
+        const clusterPayload = res.data.payload || [];
+        setClusters(clusterPayload);
+        try {
+          clusterPayload.forEach((c) => {
+            if (c.clusterType) {
+              if (c.keyplotId) sessionStorage.setItem(`cluster_type_${c.keyplotId}`, c.clusterType);
+              if (c.clusterNo) sessionStorage.setItem(`cluster_type_${c.clusterNo}`, c.clusterType);
+            }
+          });
+        } catch (e) {
+          console.warn('SessionStorage error:', e);
+        }
         setSummary({
           completed: res.data.completed || 0,
           ongoing: res.data.ongoing || 0,
@@ -132,16 +141,6 @@ function ClusterSeatForm({ zoneId }) {
     }
   };
 
-  const getStatusIcon = (status) => {
-    const norm = normalizeStatus(status);
-    switch (norm) {
-      case 'Completed': return <CheckCircle sx={{ fontSize: 16 }} />;
-      case 'On Going': return <PlayCircle sx={{ fontSize: 16 }} />;
-      case 'Under Review': return <PendingActions sx={{ fontSize: 16 }} />;
-      default: return <NewReleases sx={{ fontSize: 16 }} />;
-    }
-  };
-
   const getClusterTypeColor = (type) => {
     switch (type?.toLowerCase()) {
       case 'wet': return { bg: '#F1F8E9', color: '#33691E', border: '#C5E1A5' };
@@ -155,13 +154,34 @@ function ClusterSeatForm({ zoneId }) {
   const handleSeasonClick = (e, cluster, seasonId) => {
     e.stopPropagation(); // Prevent triggering parent card click if any
     const encodedSyNo = encodeURIComponent(cluster.keyplotId); // keyplotId maps to 'No'
-    const encodedSlNo = encodeURIComponent(cluster.clusterNo);          // seasonId maps to 'slno'
-console.Console
+    const encodedSlNo = encodeURIComponent(cluster.clusterNo); // clusterNo maps to 'slno'
+    const clusterTypeParam = encodeURIComponent(cluster.clusterType || '');
+    const seasonIdParam = encodeURIComponent(seasonId || '');
+
+    try {
+      if (cluster.clusterType) {
+        sessionStorage.setItem(`cluster_type_${cluster.keyplotId}`, cluster.clusterType);
+        sessionStorage.setItem(`cluster_type_${cluster.clusterNo}`, cluster.clusterType);
+        sessionStorage.setItem('current_cluster_type', cluster.clusterType);
+      }
+    } catch (err) {
+      console.warn('SessionStorage error:', err);
+    }
+
+    const typeQuery = cluster.clusterType
+      ? `&clusterType=${clusterTypeParam}&landType=${clusterTypeParam}`
+      : '';
+    const seasonQuery = seasonId ? `&seasonId=${seasonIdParam}` : '';
+
     // Check if we have a resolvedZoneId (Admin context or specific zone view)
     if (resolvedZoneId) {
-      navigate(`/schemes/earas/Clusters_Form/${resolvedZoneId}/ClusterFormView?No=${encodedSyNo}&slno=${encodedSlNo}`);
+      navigate(
+        `/schemes/earas/Clusters_Form/${resolvedZoneId}/ClusterFormView?No=${encodedSyNo}&slno=${encodedSlNo}${typeQuery}${seasonQuery}`
+      );
     } else {
-      navigate(`/schemes/earas/Clusters_Form/ClusterFormView?No=${encodedSyNo}&slno=${encodedSlNo}`);
+      navigate(
+        `/schemes/earas/Clusters_Form/ClusterFormView?No=${encodedSyNo}&slno=${encodedSlNo}${typeQuery}${seasonQuery}`
+      );
     }
   };
   // --- Filtering ---
@@ -178,8 +198,6 @@ console.Console
 
     return matchesStatus && matchesSearch;
   });
-
-  const statuses = ['All', 'Completed', 'On Going', 'Not Started', 'Under Review'];
 
   return (
     <Grid container spacing={3}>
@@ -229,12 +247,15 @@ console.Console
                 <Grid item xs={12} sm={6} md={2.4} key={item.status}>
                   <Paper
                     elevation={0}
+                    onClick={() => setSelectedStatus(item.status)}
                     sx={{
                       p: 2,
-                      border: '1px solid #e0e0e0',
+                      border: `1px solid ${selectedStatus === item.status ? item.color : '#e0e0e0'}`,
+                      bgcolor: selectedStatus === item.status ? `${item.color}0c` : 'inherit',
                       borderRadius: 3,
                       display: 'flex',
                       alignItems: 'center',
+                      cursor: 'pointer',
                       transition: 'all 0.2s',
                       '&:hover': { transform: 'translateY(-2px)', boxShadow: 2, borderColor: item.color }
                     }}
@@ -252,6 +273,22 @@ console.Console
             </Grid>
 
             {/* --- Filters & Search --- */}
+            <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
+              <TextField
+                size="small"
+                placeholder="Search cluster, localbody, village…"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                sx={{ width: { xs: '100%', sm: 300 } }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search fontSize="small" />
+                    </InputAdornment>
+                  )
+                }}
+              />
+            </Box>
         
             {/* --- Cluster Grid --- */}
             <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
@@ -429,5 +466,9 @@ console.Console
     </Grid>
   );
 }
+
+ClusterSeatForm.propTypes = {
+  zoneId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+};
 
 export default ClusterSeatForm;

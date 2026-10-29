@@ -21,7 +21,10 @@ const AdvancedForecastDashboard = () => {
     if (!r && userJurisdiction?.role) r = userJurisdiction.role;
 
     const strR = String(r || '').toLowerCase();
-    if (strR.includes('inspector') || strR.includes('field')) {
+    if (strR.includes('collector')) {
+      return 'Field Data Collector';
+    }
+    if (strR.includes('inspector')) {
       return 'Field Inspector';
     }
     if (strR.includes('taluk') || strR.includes('tahsildar')) {

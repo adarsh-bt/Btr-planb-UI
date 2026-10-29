@@ -49,6 +49,7 @@ import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import * as XLSX from 'xlsx';
 import Breadcrumb from 'routes/Breadcrumb';
 import axios from 'axios';
@@ -74,37 +75,90 @@ function getSavedState() {
   }
 }
 
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
+function buildAgriMonthOptions() {
+  const agriYear =
+    (AuthService && AuthService.agriyear ? AuthService.agriyear() : null) ||
+    localStorage.getItem('activeAgriYear') ||
+    '2025-2026';
 
-// Builds the month list for the active agricultural year (July → June).
-// e.g. '2025-2026' → July 2025 ... December 2025, January 2026 ... June 2026
-// Each entry: { label: 'July 2025', value: '2025-07' } (value is API-ready YYYY-MM)
-function getAgriYearMonths(agriYear) {
-  const [startYear, endYear] = (agriYear || '2025-2026').split('-').map(Number);
-  const months = [];
-  for (let m = 6; m < 12; m++) {
-    months.push({ label: `${MONTH_NAMES[m]} ${startYear}`, value: `${startYear}-${String(m + 1).padStart(2, '0')}` });
+  const startYear = parseInt(String(agriYear).split('-')[0], 10) || new Date().getFullYear();
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const options = [];
+
+  for (let i = 0; i < 12; i += 1) {
+    const monthIndex = (6 + i) % 12;
+    const year = startYear + Math.floor((6 + i) / 12);
+    const mm = String(monthIndex + 1).padStart(2, '0');
+
+    options.push({
+      label: `${monthNames[monthIndex]} ${year}`,
+      value: `${mm}-${year}`
+    });
   }
-  for (let m = 0; m < 6; m++) {
-    months.push({ label: `${MONTH_NAMES[m]} ${endYear}`, value: `${endYear}-${String(m + 1).padStart(2, '0')}` });
-  }
-  return months;
+
+  return options;
 }
 
-// Current month as 'YYYY-MM' if it falls inside the agri year, else July (first month)
-function getDefaultSingleMonth(agriYearMonths) {
-  const now = new Date();
-  const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  return agriYearMonths.some((m) => m.value === current) ? current : agriYearMonths[0]?.value || '';
-}
-
-// Extract the API-ready month number (1–12) from a 'YYYY-MM' value.
-// e.g. '2025-07' → 7
 function monthNum(value) {
-  return value ? parseInt(value.split('-')[1], 10) : null;
+  if (!value) return null;
+  const str = String(value).trim();
+  if (str.includes('-')) {
+    const parts = str.split('-');
+    if (parts[0].length === 4) return parseInt(parts[1], 10);
+    if (parts[1].length === 4) return parseInt(parts[0], 10);
+    return parseInt(parts[0], 10);
+  }
+  const num = parseInt(str, 10);
+  return Number.isNaN(num) ? null : num;
+}
+
+function resolveMonthValue(value, monthOptions) {
+  if (!monthOptions?.length) return '';
+  if (!value) return monthOptions[0]?.value || '';
+
+  const exactMatch = monthOptions.find((option) => option.value === value);
+  if (exactMatch) return exactMatch.value;
+
+  const normalized = String(value).toLowerCase();
+
+  const labelMatch = monthOptions.find((option) => option.label.toLowerCase() === normalized);
+  if (labelMatch) return labelMatch.value;
+
+  const monthNameMatch = monthOptions.find((option) =>
+    option.label.toLowerCase().startsWith(normalized)
+  );
+  if (monthNameMatch) return monthNameMatch.value;
+
+  if (String(value).includes('-')) {
+    const num = monthNum(value);
+    if (num) {
+      const numMatch = monthOptions.find((opt) => monthNum(opt.value) === num);
+      if (numMatch) return numMatch.value;
+    }
+  }
+
+  return monthOptions[0]?.value || '';
+}
+
+function getCurrentMonthValue(monthOptions) {
+  if (!monthOptions?.length) return '';
+
+  const now = new Date();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yyyy = now.getFullYear();
+  const currentValue = `${mm}-${yyyy}`;
+
+  return (
+    monthOptions.find((option) => option.value === currentValue)?.value ||
+    monthOptions.find((option) => monthNum(option.value) === now.getMonth() + 1)?.value ||
+    monthOptions[monthOptions.length - 1]?.value ||
+    monthOptions[0]?.value ||
+    ''
+  );
 }
 
 // Fallback taluks for a district
@@ -142,15 +196,11 @@ function TalukForm5Report() {
   const { districtId: routeDistrictId } = useParams();
   const location = useLocation();
 
-  // Merge location.state with any saved sessionStorage state.
-  // location.state wins when present (fresh navigation); saved state is
-  // used as a fallback when returning via the breadcrumb with no state.
   const stateData = useMemo(() => {
     const saved = getSavedState();
     return { ...saved, ...(location.state || {}) };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ── resolved district ID stored in a ref so it is always current ── */
   const resolvedDistrictId = useRef(null);
 
   const resolveDistrictId = () => {
@@ -166,28 +216,35 @@ function TalukForm5Report() {
     resolvedDistrictId.current = resolveDistrictId();
   }
 
-  // Agricultural year from AuthService (e.g. '2025-2026'), and its month list.
+  // Agricultural year from AuthService (e.g. '2025-2026'), and its month options.
   const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
-  const agriYearMonths = useMemo(() => getAgriYearMonths(agriculturalYear), [agriculturalYear]);
-  const defaultSingleMonth = useMemo(() => getDefaultSingleMonth(agriYearMonths), [agriYearMonths]);
-  const monthLabel = (value) => agriYearMonths.find((m) => m.value === value)?.label || '';
+  const monthOptions = useMemo(() => buildAgriMonthOptions(), []);
+  const defaultFromMonth = monthOptions[0]?.value || '';
+  const defaultToMonth = getCurrentMonthValue(monthOptions);
+  const defaultSingleMonth = getCurrentMonthValue(monthOptions);
+  const monthLabel = (value) => monthOptions.find((m) => m.value === value)?.label || '';
 
-  /* ── filter state - Crop Name (UI only) + months ── */
-  // Backend does not accept cropName yet, so the param is not sent —
-  // see the TODO in fetchTalukWiseData to enable it later.
   const [cropName, setCropName] = useState(stateData.cropName || 'ALL');
   const [cropOptions, setCropOptions] = useState([]);
 
-  // Month filter states (values are API-ready 'YYYY-MM'), carried over from the district page
-  const [filterType, setFilterType] = useState(stateData.filterType || 'single');
+  // Month filter states
+  const [filterType, setFilterType] = useState(stateData.filterType || 'range');
   const [singleMonth, setSingleMonth] = useState(
-    stateData.singleMonth !== undefined && stateData.filterType ? stateData.singleMonth : defaultSingleMonth
+    stateData.singleMonth ? resolveMonthValue(stateData.singleMonth, monthOptions) : defaultSingleMonth
   );
-  const [fromMonth, setFromMonth] = useState(stateData.fromMonth || '');
-  const [toMonth, setToMonth] = useState(stateData.toMonth || '');
+  const [fromMonth, setFromMonth] = useState(
+    stateData.fromMonth || stateData.startMonth
+      ? resolveMonthValue(stateData.fromMonth || stateData.startMonth, monthOptions)
+      : defaultFromMonth
+  );
+  const [toMonth, setToMonth] = useState(
+    stateData.toMonth || stateData.endMonth
+      ? resolveMonthValue(stateData.toMonth || stateData.endMonth, monthOptions)
+      : defaultToMonth
+  );
 
-  /* ── ui state ── */
   const [apiData, setApiData] = useState(null);
+  const [lastMonthApiData, setLastMonthApiData] = useState(null);
   const [taluksList, setTaluksList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [masterTaluksLoading, setMasterTaluksLoading] = useState(true);
@@ -196,7 +253,6 @@ function TalukForm5Report() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(15);
 
-  /* ── persist district context to sessionStorage so breadcrumb back works ── */
   useEffect(() => {
     if (resolvedDistrictId.current) {
       sessionStorage.setItem(
@@ -206,14 +262,14 @@ function TalukForm5Report() {
           districtName: stateData.districtName || '',
           cropName: stateData.cropName || 'ALL',
           agriculturalYear: stateData.agriculturalYear || '2025-2026',
-          filterType: stateData.filterType || 'single',
-          singleMonth: stateData.singleMonth || '',
-          fromMonth: stateData.fromMonth || '',
-          toMonth: stateData.toMonth || ''
+          filterType,
+          singleMonth,
+          fromMonth,
+          toMonth
         })
       );
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filterType, singleMonth, fromMonth, toMonth]);
 
   /* ─────────────────────────── fetch master taluks ─────────────────────────── */
 
@@ -299,14 +355,14 @@ function TalukForm5Report() {
 
       // Month filters — API expects a numeric month (1–12). startMonth is mandatory.
       if (filterType === 'single') {
-        // Single month: send only startMonth (backend defaults endMonth = startMonth).
         const start = monthNum(singleMonth) || monthNum(defaultSingleMonth);
         params.append('startMonth', start);
+        params.append('endMonth', start);
       } else {
-        // Month range: startMonth mandatory, endMonth optional.
-        const start = monthNum(fromMonth) || monthNum(agriYearMonths[0]?.value);
+        const start = monthNum(fromMonth) || monthNum(defaultFromMonth);
+        const end = monthNum(toMonth) || monthNum(defaultToMonth);
         params.append('startMonth', start);
-        if (toMonth) params.append('endMonth', monthNum(toMonth));
+        if (end) params.append('endMonth', end);
       }
 
       // District drill-down → backend returns the taluks for this district.
@@ -321,19 +377,46 @@ function TalukForm5Report() {
       url += `?${params.toString()}`;
       console.log('Fetching taluk Form 5 data from:', url);
 
-      const response = await axios.get(url, {
+      const mainRequest = axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
+
+      let lastMonthRequest = Promise.resolve(null);
+      if (filterType === 'range') {
+        const lastMonth = monthNum(toMonth) || monthNum(fromMonth) || monthNum(defaultToMonth);
+        if (lastMonth) {
+          const lmParams = new URLSearchParams();
+          lmParams.append('agriYear', agriculturalYear);
+          lmParams.append('startMonth', lastMonth);
+          lmParams.append('endMonth', lastMonth);
+          lmParams.append('districtId', districtIdValue);
+
+          if (cropName !== 'ALL') {
+            const selectedCrop = cropOptions.find((c) => c.cropName === cropName);
+            if (selectedCrop) lmParams.append('cropId', selectedCrop.cropId);
+          }
+
+          const lmUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/cce-summary?${lmParams.toString()}`;
+          console.log('Fetching last month taluk Form 5 data from:', lmUrl);
+          lastMonthRequest = axios.get(lmUrl, {
+            headers: { Authorization: `Bearer ${token}` }
+          }).then((res) => res.data).catch((err) => {
+            console.error('Error fetching last month taluk Form 5 data:', err);
+            return null;
+          });
+        }
+      }
+
+      const [response, lmData] = await Promise.all([mainRequest, lastMonthRequest]);
 
       if (response.data) {
         setApiData(response.data);
 
-        // Populate the crop dropdown if/when the endpoint returns a cropList.
-        // (Currently not returned, so the dropdown stays at ALL.)
         if (cropName === 'ALL' && Array.isArray(response.data.cropList)) {
           setCropOptions(response.data.cropList);
         }
       }
+      setLastMonthApiData(lmData);
     } catch (err) {
       console.error('Error fetching taluk Form 5 data:', err);
       if (err.response?.status === 401) setError('Session expired. Please login again.');
@@ -342,6 +425,29 @@ function TalukForm5Report() {
       else setError(err.response?.data?.message || err.message || 'Failed to fetch taluk data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Index of selected fromMonth in monthOptions
+  const fromMonthIndex = useMemo(
+    () => monthOptions.findIndex((option) => option.value === fromMonth),
+    [fromMonth, monthOptions]
+  );
+
+  const handleFromMonthChange = (event) => {
+    const nextFromMonth = event.target.value;
+    setFromMonth(nextFromMonth);
+    setPage(0);
+
+    const nextFromIndex = monthOptions.findIndex(
+      (option) => option.value === nextFromMonth
+    );
+    const currentToIndex = monthOptions.findIndex(
+      (option) => option.value === toMonth
+    );
+
+    if (nextFromIndex > currentToIndex) {
+      setToMonth(nextFromMonth);
     }
   };
 
@@ -378,84 +484,106 @@ const fetchCropsList = async () => {
   /* ─────────────────────────── derived data ─────────────────────────── */
 
   const talukData = useMemo(() => {
-    // Get data from API or empty array
     const apiTaluks = apiData?.taluks || [];
+    const lastMonthTaluks = (filterType === 'range' && lastMonthApiData?.taluks) || [];
 
-    // Create a map for quick lookup of API data by taluk name
     const apiDataMap = {};
-    apiTaluks.forEach(t => {
-      const key = t.talukName?.toLowerCase() || '';
+    apiTaluks.forEach((t) => {
+      const key = t.talukName?.toLowerCase().trim() || '';
       apiDataMap[key] = t;
     });
 
-    // Log for debugging
-    console.log('Taluks List:', taluksList);
-    console.log('API Taluks:', apiTaluks);
+    const lastMonthDataMap = {};
+    lastMonthTaluks.forEach((t) => {
+      const key = t.talukName?.toLowerCase().trim() || '';
+      lastMonthDataMap[key] = t;
+    });
 
-    // If we have master taluks list, merge with API data
+    const getLastMonthTaluk = (tId, tName) => {
+      if (!lastMonthTaluks.length) return null;
+      if (tId) {
+        const byId = lastMonthTaluks.find((t) => String(t.talukId) === String(tId));
+        if (byId) return byId;
+      }
+      const norm = (tName || '').toLowerCase().trim();
+      if (norm && lastMonthDataMap[norm]) {
+        return lastMonthDataMap[norm];
+      }
+      return null;
+    };
+
     if (taluksList && taluksList.length > 0) {
       const merged = taluksList.map((taluk) => {
         const talukName = taluk.talukName || taluk.talukNameEn || taluk.name || '';
-        const apiData = apiDataMap[talukName.toLowerCase()] || {};
+        const tData = apiDataMap[talukName.toLowerCase().trim()] || {};
+        const talukId = taluk.id || taluk.talukId || tData.talukId || `taluk_${Math.random()}`;
+        const lmTaluk = getLastMonthTaluk(talukId, talukName);
+        const currentMonthCompleted = lmTaluk?.completed || 0;
 
-        // Check if this taluk has any data
-        const hasData = (apiData.allowedCCECrops || 0) > 0 ||
-          (apiData.selectedCce || 0) > 0 ||
-          (apiData.completed || 0) > 0 ||
-          (apiData.ongoing || 0) > 0 ||
-          (apiData.notAvailable || 0) > 0 ||
-          (apiData.notStarted || 0) > 0 ||
-          (apiData.underReview || 0) > 0;
+        const hasData = (tData.allowedCCECrops || 0) > 0 ||
+          (tData.selectedCce || 0) > 0 ||
+          (tData.completed || 0) > 0 ||
+          currentMonthCompleted > 0 ||
+          (tData.ongoing || 0) > 0 ||
+          (tData.notAvailable || 0) > 0 ||
+          (tData.notStarted || 0) > 0 ||
+          (tData.underReview || 0) > 0;
 
         return {
-          id: taluk.id || taluk.talukId || apiData.talukId || `taluk_${Math.random()}`,
+          id: talukId,
           taluk: talukName || 'Unknown Taluk',
-          allowtedCce: apiData.allowedCCECrops || 0,
-          selectedCce: apiData.selectedCce || 0,
-          completed: apiData.completed || 0,
-          ongoing: apiData.ongoing || 0,
-          notAvailable: apiData.notAvailable || 0,
-          notStarted: apiData.notStarted || 0,
-          underReview: apiData.underReview || 0,
+          allowtedCce: tData.allowedCCECrops || 0,
+          selectedCce: tData.selectedCce || 0,
+          currentMonthCompleted: currentMonthCompleted,
+          completed: tData.completed || 0,
+          ongoing: tData.ongoing || 0,
+          notAvailable: tData.notAvailable || 0,
+          notStarted: tData.notStarted || 0,
+          underReview: tData.underReview || 0,
           hasData: hasData
         };
       });
 
-      console.log('Merged Taluks:', merged);
       return merged;
     }
 
-    // Fallback: use only API data if master list is not available
-    console.log('Using API taluks only');
-    return apiTaluks.map((t) => ({
-      id: t.talukId || `taluk_${Math.random()}`,
-      taluk: t.talukName || 'Unknown Taluk',
-      allowtedCce: t.allowedCCECrops || 0,
-      selectedCce: t.selectedCce || 0,
-      completed: t.completed || 0,
-      ongoing: t.ongoing || 0,
-      notAvailable: t.notAvailable || 0,
-      notStarted: t.notStarted || 0,
-      underReview: t.underReview || 0,
-      hasData: (t.allowedCCECrops || 0) > 0 ||
-        (t.selectedCce || 0) > 0 ||
-        (t.completed || 0) > 0 ||
-        (t.ongoing || 0) > 0 ||
-        (t.notAvailable || 0) > 0 ||
-        (t.notStarted || 0) > 0 ||
-        (t.underReview || 0) > 0
-    }));
-  }, [apiData, taluksList]);
+    return apiTaluks.map((t) => {
+      const lmTaluk = getLastMonthTaluk(t.talukId, t.talukName);
+      const currentMonthCompleted = lmTaluk?.completed || 0;
+
+      return {
+        id: t.talukId || `taluk_${Math.random()}`,
+        taluk: t.talukName || 'Unknown Taluk',
+        allowtedCce: t.allowedCCECrops || 0,
+        selectedCce: t.selectedCce || 0,
+        currentMonthCompleted: currentMonthCompleted,
+        completed: t.completed || 0,
+        ongoing: t.ongoing || 0,
+        notAvailable: t.notAvailable || 0,
+        notStarted: t.notStarted || 0,
+        underReview: t.underReview || 0,
+        hasData: (t.allowedCCECrops || 0) > 0 ||
+          (t.selectedCce || 0) > 0 ||
+          (t.completed || 0) > 0 ||
+          currentMonthCompleted > 0 ||
+          (t.ongoing || 0) > 0 ||
+          (t.notAvailable || 0) > 0 ||
+          (t.notStarted || 0) > 0 ||
+          (t.underReview || 0) > 0
+      };
+    });
+  }, [apiData, lastMonthApiData, taluksList, filterType]);
 
   // Count taluks with no data
   const taluksWithNoData = useMemo(() => {
-    return talukData.filter(d => !d.hasData).length;
+    return talukData.filter((d) => !d.hasData).length;
   }, [talukData]);
 
   // Dynamic summary stats derived from taluk data
   const stats = useMemo(() => {
     const allowtedCceSum = talukData.reduce((sum, t) => sum + (t.allowtedCce || 0), 0);
     const selectedCceSum = talukData.reduce((sum, t) => sum + (t.selectedCce || 0), 0);
+    const currentMonthCompletedSum = talukData.reduce((sum, t) => sum + (t.currentMonthCompleted || 0), 0);
     const completedSum = talukData.reduce((sum, t) => sum + (t.completed || 0), 0);
     const ongoingSum = talukData.reduce((sum, t) => sum + (t.ongoing || 0), 0);
     const notAvailableSum = talukData.reduce((sum, t) => sum + (t.notAvailable || 0), 0);
@@ -465,6 +593,7 @@ const fetchCropsList = async () => {
     return {
       allowtedCce: allowtedCceSum > 0 ? allowtedCceSum : (apiData?.allowedCCECrops || 0),
       selectedCce: selectedCceSum > 0 ? selectedCceSum : (apiData?.selectedCce || 0),
+      currentMonthCompleted: currentMonthCompletedSum,
       completed: completedSum,
       ongoing: ongoingSum,
       notAvailable: notAvailableSum,
@@ -494,24 +623,20 @@ const fetchCropsList = async () => {
     if (newValue === null) return;
     setFilterType(newValue);
     if (newValue === 'single') {
-      setSingleMonth(defaultSingleMonth);
-      setFromMonth('');
-      setToMonth('');
+      setSingleMonth(singleMonth || defaultSingleMonth);
     } else {
-      // range: default from July (first month of the agri year)
-      setFromMonth(agriYearMonths[0]?.value || '');
-      setSingleMonth('');
-      setToMonth('');
+      setFromMonth(fromMonth || defaultFromMonth);
+      setToMonth(toMonth || defaultToMonth);
     }
     setPage(0);
   };
 
   const handleClearFilters = () => {
     setCropName('ALL');
-    setFilterType('single');
+    setFilterType('range');
+    setFromMonth(defaultFromMonth);
+    setToMonth(defaultToMonth);
     setSingleMonth(defaultSingleMonth);
-    setFromMonth('');
-    setToMonth('');
     setPage(0);
     setSearchTerm('');
   };
@@ -546,25 +671,41 @@ const fetchCropsList = async () => {
   const handleExportExcel = () => {
     if (!searchFilteredData || searchFilteredData.length === 0) return;
 
-    const exportRows = searchFilteredData.map((row, index) => ({
-      '#': index + 1,
-      Taluk: row.taluk,
-      'Allowted CCE': row.hasData ? row.allowtedCce : 'NA',
-      'Selected CCE': row.hasData ? row.selectedCce : 'NA',
-      Completed: row.hasData ? row.completed : 'NA',
-      Ongoing: row.hasData ? row.ongoing : 'NA',
-      'Not Available': row.hasData ? row.notAvailable : 'NA',
-      'Not Started': row.hasData ? row.notStarted : 'NA',
-      'Under Review': row.hasData ? row.underReview : 'NA'
-    }));
+    const exportRows = searchFilteredData.map((row, index) => {
+      const rowObj = {
+        '#': index + 1,
+        Taluk: row.taluk,
+        'Allowted CCE': row.hasData ? row.allowtedCce : 'NA',
+        'Selected CCE': row.hasData ? row.selectedCce : 'NA'
+      };
+
+      if (filterType === 'range') {
+        rowObj['During the Month'] = row.hasData ? row.currentMonthCompleted : 'NA';
+        rowObj['Up to the Month'] = row.hasData ? row.completed : 'NA';
+      } else {
+        rowObj['Completed'] = row.hasData ? row.completed : 'NA';
+      }
+
+      rowObj['Ongoing'] = row.hasData ? row.ongoing : 'NA';
+      rowObj['Not Available'] = row.hasData ? row.notAvailable : 'NA';
+      rowObj['Not Started'] = row.hasData ? row.notStarted : 'NA';
+      rowObj['Under Review'] = row.hasData ? row.underReview : 'NA';
+
+      return rowObj;
+    });
 
     const worksheet = XLSX.utils.json_to_sheet(exportRows);
 
     // Reasonable column widths so it doesn't open looking cramped
-    worksheet['!cols'] = [
-      { wch: 5 },  { wch: 25 }, { wch: 12 },
-      { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }
-    ];
+    worksheet['!cols'] = filterType === 'range'
+      ? [
+          { wch: 5 }, { wch: 25 }, { wch: 12 }, { wch: 12 },
+          { wch: 16 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }
+        ]
+      : [
+          { wch: 5 }, { wch: 25 }, { wch: 12 }, { wch: 12 },
+          { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }
+        ];
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'District Report');
@@ -631,6 +772,63 @@ const fetchCropsList = async () => {
   /* ─────────────────────────── display name ─────────────────────────── */
 
   const displayDistrictName = stateData.districtName || 'District';
+
+  // Table headers based on filter type
+  const tableHeaders = useMemo(() => {
+    if (filterType === 'range') {
+      return [
+        '#',
+        'Taluk',
+        'Allowted CCE',
+        'Selected CCE',
+        'During the Month',
+        'Up to the Month',
+        'Ongoing',
+        'Not Available',
+        'Not Started',
+        'Under Review',
+        'Actions'
+      ];
+    }
+    return [
+      '#',
+      'Taluk',
+      'Allowted CCE',
+      'Selected CCE',
+      'Completed',
+      'Ongoing',
+      'Not Available',
+      'Not Started',
+      'Under Review',
+      'Actions'
+    ];
+  }, [filterType]);
+
+  // Stat cards configuration
+  const statCards = [
+    { label: 'Allowted CCE', value: stats.allowtedCce, color: '#1565c0', icon: <HubIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} /> },
+    { label: 'Selected CCE', value: stats.selectedCce, color: '#04255e', icon: <AssessmentIcon sx={{ fontSize: 32, color: '#04255e', opacity: 0.7 }} /> },
+    ...(filterType === 'range'
+      ? [
+          {
+            label: 'During the Month',
+            value: stats.currentMonthCompleted,
+            color: '#0288d1',
+            icon: <CalendarMonthIcon sx={{ fontSize: 32, color: '#0288d1', opacity: 0.7 }} />
+          }
+        ]
+      : []),
+    {
+      label: filterType === 'range' ? 'Up to the Month' : 'Completed',
+      value: stats.completed,
+      color: '#2e7d32',
+      icon: <CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />
+    },
+    { label: 'Ongoing', value: stats.ongoing, color: '#ed6c02', icon: <PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} /> },
+    { label: 'Not Available', value: stats.notAvailable, color: '#c62828', icon: <CancelIcon sx={{ fontSize: 32, color: '#c62828', opacity: 0.7 }} /> },
+    { label: 'Not Started', value: stats.notStarted, color: '#757575', icon: <ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} /> },
+    { label: 'Under Review', value: stats.underReview, color: '#b76e00', icon: <RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} /> }
+  ];
 
   /* ─────────────────────────── render ─────────────────────────── */
 
@@ -755,14 +953,11 @@ const fetchCropsList = async () => {
                   <Select
                     value={fromMonth}
                     label="From Month"
-                    onChange={(e) => {
-                      setFromMonth(e.target.value);
-                      setPage(0);
-                    }}
+                    onChange={handleFromMonthChange}
                   >
-                    {agriYearMonths.map((m) => (
-                      <MenuItem key={m.value} value={m.value}>
-                        {m.label}
+                    {monthOptions.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
                       </MenuItem>
                     ))}
                   </Select>
@@ -780,10 +975,13 @@ const fetchCropsList = async () => {
                       setPage(0);
                     }}
                   >
-                    <MenuItem value="">None</MenuItem>
-                    {agriYearMonths.map((m) => (
-                      <MenuItem key={m.value} value={m.value}>
-                        {m.label}
+                    {monthOptions.map((option, index) => (
+                      <MenuItem
+                        key={option.value}
+                        value={option.value}
+                        disabled={index < fromMonthIndex}
+                      >
+                        {option.label}
                       </MenuItem>
                     ))}
                   </Select>
@@ -800,9 +998,9 @@ const fetchCropsList = async () => {
                     setPage(0);
                   }}
                 >
-                  {agriYearMonths.map((m) => (
-                    <MenuItem key={m.value} value={m.value}>
-                      {m.label}
+                  {monthOptions.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
                     </MenuItem>
                   ))}
                 </Select>
@@ -839,15 +1037,7 @@ const fetchCropsList = async () => {
             }}
           />
           <Grid container spacing={2}>
-            {[
-              { label: 'Allowted CCE', value: stats.allowtedCce, color: '#1565c0', icon: <HubIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} /> },
-              { label: 'Selected CCE', value: stats.selectedCce, color: '#04255e', icon: <AssessmentIcon sx={{ fontSize: 32, color: '#04255e', opacity: 0.7 }} /> },
-              { label: 'Completed', value: stats.completed, color: '#2e7d32', icon: <CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} /> },
-              { label: 'Ongoing', value: stats.ongoing, color: '#ed6c02', icon: <PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} /> },
-              { label: 'Not Available', value: stats.notAvailable, color: '#c62828', icon: <CancelIcon sx={{ fontSize: 32, color: '#c62828', opacity: 0.7 }} /> },
-              { label: 'Not Started', value: stats.notStarted, color: '#757575', icon: <ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} /> },
-              { label: 'Under Review', value: stats.underReview, color: '#b76e00', icon: <RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} /> }
-            ].map(({ label, value, color, icon }) => (
+            {statCards.map(({ label, value, color, icon }) => (
               <Grid item xs={12} sm={6} md={4} lg key={label}>
                 <StatCard label={label} value={value} color={color} bgColor={alpha(color, 0.08)} icon={icon} />
               </Grid>
@@ -949,18 +1139,7 @@ const fetchCropsList = async () => {
               <Table>
                 <TableHead>
                   <TableRow sx={{ bgcolor: '#04255e' }}>
-                    {[
-                      '#',
-                      'Taluk',
-                      'Allowted CCE',
-                      'Selected CCE',
-                      'Completed',
-                      'Ongoing',
-                      'Not Available',
-                      'Not Started',
-                      'Under Review',
-                      'Actions'
-                    ].map((label, idx) => (
+                    {tableHeaders.map((label, idx) => (
                       <TableCell
                         key={idx}
                         align={idx === 0 ? 'center' : idx === 1 ? 'left' : 'center'}
@@ -974,7 +1153,7 @@ const fetchCropsList = async () => {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={tableHeaders.length} align="center" sx={{ py: 6 }}>
                         <CircularProgress size={40} />
                       </TableCell>
                     </TableRow>
@@ -1044,6 +1223,17 @@ const fetchCropsList = async () => {
                               row.selectedCce
                             )}
                           </TableCell>
+                          {filterType === 'range' && (
+                            <TableCell align="center">
+                              {hasNoData ? (
+                                <Typography variant="body2" color="text.secondary">NA</Typography>
+                              ) : row.currentMonthCompleted > 0 ? (
+                                <Chip label={row.currentMonthCompleted} size="small" color="success" variant="outlined" />
+                              ) : (
+                                row.currentMonthCompleted
+                              )}
+                            </TableCell>
+                          )}
                           <TableCell align="center">
                             {hasNoData ? (
                               <Typography variant="body2" color="text.secondary">NA</Typography>
@@ -1117,7 +1307,7 @@ const fetchCropsList = async () => {
                     })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={tableHeaders.length} align="center" sx={{ py: 6 }}>
                         <Typography color="text.secondary">
                           {searchTerm ? `No taluks found matching "${searchTerm}"` : 'No data available for selected filters'}
                         </Typography>

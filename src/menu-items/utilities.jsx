@@ -15,8 +15,9 @@ import {
    UsergroupAddOutlined,
   UserSwitchOutlined,        
   DeliveredProcedureOutlined ,
- AppstoreOutlined,
- ProfileOutlined
+  AppstoreOutlined,
+  ProfileOutlined,
+  LineChartOutlined
 } from '@ant-design/icons';
 import authservice from 'pages/authentication/services/authservice';
 
@@ -38,7 +39,8 @@ const icons = {
   UserSwitchOutlined,
   DeliveredProcedureOutlined,
   AppstoreOutlined,
-  ProfileOutlined
+  ProfileOutlined,
+  LineChartOutlined
 };
 
 // ==============================|| MENU ITEMS - UTILITIES ||============================== //
@@ -135,9 +137,16 @@ const userManagement = {
    const ccereport = {
   id: 'util-ccereport',
   title: 'CCE Report',
-  type: 'item',
   url: '/schemes/earas/cce/CceReport',
   icon: icons.ProfileOutlined
+};
+
+const advanceForecast = {
+  id: 'util-advance-forecast',
+  title: 'Advance Forecast',
+  type: 'item',
+  url: '/schemes/earas/advance_forecast',
+  icon: icons.LineChartOutlined
 };
 
 // Role-based logic with fallback
@@ -165,6 +174,7 @@ if (role == 'Super Admin' ||role === 'IT Admin' || role === 'District Level Appr
     clusterFormation,
     ClusterFormView,
     workallocation,
+    advanceForecast,
     // cceview,
     ccereport
   );
