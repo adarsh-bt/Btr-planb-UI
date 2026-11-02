@@ -130,7 +130,7 @@ const Form5 = () => {
             'Content-Type': 'application/json'
           }
         });
-        console.log(`${baseUrl}/earas-form1-entry/cce-crop-details/cce-summary/${zoneId}/${agriculturalYear}`)
+        alert(`${baseUrl}/earas-form1-entry/cce-crop-details/cce-summary/${zoneId}/${agriculturalYear}`)
         if (!response.ok) {
           throw new Error('Failed to fetch data');
         }

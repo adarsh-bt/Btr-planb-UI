@@ -155,11 +155,7 @@ const UserAdvancedTourDiaryDetail = () => {
     if (roleName === "Field Data Collector" && loggedInRole === "Field Inspector") {
       return true;
     }
-<<<<<<< HEAD
     // Field Inspector has no verification
-=======
-    // Field Inspector submission does NOT require verification
->>>>>>> bef10d97e9f5a2d0bc373d22d92f5d13251c4275
     return false;
   };
 
@@ -286,11 +282,7 @@ const UserAdvancedTourDiaryDetail = () => {
       // Field Inspector verifies First & Second Half
       return ["First Half", "Second Half"];
     } else if (roleName === "Field Inspector") {
-<<<<<<< HEAD
       // Field Inspector has no verification
-=======
-      // Verification hidden for Field Inspector
->>>>>>> bef10d97e9f5a2d0bc373d22d92f5d13251c4275
       return [];
     }
     return [];
@@ -337,7 +329,6 @@ const UserAdvancedTourDiaryDetail = () => {
 
     // Check if submitted
     let isSubmitted = false;
-<<<<<<< HEAD
     let isAdminApproved = false;
 
     if (half === "First Half") {
@@ -353,24 +344,6 @@ const UserAdvancedTourDiaryDetail = () => {
 
     if (!isSubmitted) return false;
     if (isAdminApproved) return false; // Already approved by Taluk Level Approver -> verification disabled
-=======
-    let adminStatus = '';
-
-    if (half === "First Half") {
-      isSubmitted = submissionDetails.firstHalfSubmitted;
-      adminStatus = submissionDetails.firstHalfAdminStatus;
-    } else if (half === "Second Half") {
-      isSubmitted = submissionDetails.secondHalfSubmitted;
-      adminStatus = submissionDetails.secondHalfAdminStatus;
-    } else if (half === "Full Month") {
-      isSubmitted = submissionDetails.fullMonthSubmitId;
-      adminStatus = submissionDetails.fullMonthAdminStatus;
-    }
-
-    // Must be submitted and not already approved by Taluk Level Approver
-    if (!isSubmitted) return false;
-    if (adminStatus === 'APPROVED') return false;
->>>>>>> bef10d97e9f5a2d0bc373d22d92f5d13251c4275
 
     return true;
   };
@@ -406,10 +379,6 @@ const UserAdvancedTourDiaryDetail = () => {
     if (roleName === "Field Data Collector") {
       return verifiedStatus === 'APPROVED' || adminStatus === 'PENDING' || adminStatus === 'REJECTED' || adminStatus === 'APPROVED';
     } else if (roleName === "Field Inspector") {
-<<<<<<< HEAD
-=======
-      // Verification hidden for Field Inspector, allow direct approval
->>>>>>> bef10d97e9f5a2d0bc373d22d92f5d13251c4275
       return true;
     } else if (roleName === "Taluk Level Approver" || roleName === "District Level Approver" || roleName === "District Level Data Viewer") {
       return true;
@@ -1422,22 +1391,8 @@ const UserAdvancedTourDiaryDetail = () => {
   };
 
   const confirmVerification = async () => {
-<<<<<<< HEAD
     if (isAlreadyApprovedByAdmin(verificationHalf)) {
       showNotification('error', 'already approved so verification not allowed');
-=======
-    let adminStatus = '';
-    if (verificationHalf === "First Half") {
-      adminStatus = submissionDetails?.firstHalfAdminStatus;
-    } else if (verificationHalf === "Second Half") {
-      adminStatus = submissionDetails?.secondHalfAdminStatus;
-    } else if (verificationHalf === "Full Month") {
-      adminStatus = submissionDetails?.fullMonthAdminStatus;
-    }
-
-    if (adminStatus === 'APPROVED') {
-      showNotification('warning', 'Already Approver Approved');
->>>>>>> bef10d97e9f5a2d0bc373d22d92f5d13251c4275
       setVerificationDialogOpen(false);
       return;
     }

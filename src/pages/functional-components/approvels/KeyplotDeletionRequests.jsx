@@ -616,14 +616,14 @@ function KeyplotDeletionRequests() {
               variant="outlined"
             />
           </Grid>
-          <Grid item xs={6} sm={4}>
+          {/* <Grid item xs={6} sm={4}>
             <Typography variant="caption" color="text.secondary" display="block">
               BTR ID
             </Typography>
             <Typography variant="body2" fontWeight={500}>
               {row.btrId ?? '—'}
             </Typography>
-          </Grid>
+          </Grid> */}
           {row.impactSnapshot?.clusterNumber != null && (
             <Grid item xs={6} sm={4}>
               <Typography variant="caption" color="text.secondary" display="block">
@@ -1057,9 +1057,9 @@ function KeyplotDeletionRequests() {
                                 </Tooltip>
                               )}
                             </Stack>
-                            <Typography variant="caption" color="text.secondary">
+                            {/* <Typography variant="caption" color="text.secondary">
                               BTR ID: {row.btrId ?? '—'}
-                            </Typography>
+                            </Typography> */}
                           </TableCell>
 
                           {/* Land Type */}

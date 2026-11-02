@@ -1,4 +1,4 @@
-// ZoneClusterReport.js
+// ZoneClusterReport.jsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Grid,
@@ -31,8 +31,10 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   CircularProgress,
+  LinearProgress,
+  Avatar,
+  Divider
 } from '@mui/material';
-import MainCard from 'components/MainCard';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
@@ -51,17 +53,16 @@ import WaterDropIcon from '@mui/icons-material/WaterDrop';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
 import * as XLSX from 'xlsx';
 import Breadcrumb from 'routes/Breadcrumb';
-import axios from 'axios';
 import mainapi from 'api/mainapi';
 import api from 'api/api';
 import AuthService from 'pages/authentication/services/authservice';
 
-
 const BASE_URL = mainapi.BTR_API;
+const themeColor = '#05307a';
+const themeColorAlt = '#0b4ea2';
 
 /* ─────────────────────────── helpers ─────────────────────────── */
 
@@ -80,14 +81,19 @@ const AGRI_YEAR_MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June'
 ];
 
+const formatNumber = (val) => {
+  if (val === null || val === undefined || isNaN(val)) return '0';
+  return Number(val).toLocaleString('en-IN');
+};
+
 function getAgriculturalYear(explicitYear) {
   try {
     const agriYear = explicitYear || AuthService.agriyear() || localStorage.getItem('activeAgriYear');
     if (agriYear) {
       const years = agriYear.split('-');
       if (years.length === 2) {
-        const startYear = parseInt(years[0]);
-        const endYear = parseInt(years[1]);
+        const startYear = parseInt(years[0], 10);
+        const endYear = parseInt(years[1], 10);
         return { startYear, endYear, display: agriYear };
       }
     }
@@ -131,14 +137,14 @@ function buildAgriYearMonths(startYear, endYear) {
 function getDefaultMonth(months) {
   const now = new Date();
   const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const exists = (months || []).some(m => m.value === current);
+  const exists = (months || []).some((m) => m.value === current);
   return exists ? current : (months && months[0]?.value ? months[0].value : '');
 }
 
 // Get month label from value (e.g. "2025-07" -> "July 2025")
 function getMonthLabel(value, agriYearMonths) {
   if (!value) return '';
-  const found = (agriYearMonths || []).find(m => m.value === value);
+  const found = (agriYearMonths || []).find((m) => m.value === value);
   if (found) return found.label;
 
   if (/^\d{4}-\d{2}$/.test(value)) {
@@ -239,15 +245,6 @@ function toMonthOptionValue(raw, agriculturalYear) {
   return hit ? hit.value : '';
 }
 
-/**
- * Grouping key for a block.
- * The API returns the same block with inconsistent whitespace/casing
- * (e.g. "Chalakudy" and "Chalakudy "), so normalise the name before grouping.
- *
- * If block panchayats and municipalities that share a name must appear as
- * SEPARATE blocks, key this on blockId instead — the table's row-merge logic
- * reads `blockKey`, so nothing else needs to change.
- */
 function normalizeBlockKey(blockName) {
   const normalized = (blockName ? String(blockName) : '').trim().replace(/\s+/g, ' ').toLowerCase();
   return normalized || 'unassigned';
@@ -271,7 +268,6 @@ function ZoneClusterReport() {
 
   const stateData = location.state || {};
   const agriculturalYear = useRef(null);
-  const agriYearMonths = useRef([]);
 
   /* ── resolve taluk ID once and keep in a ref ── */
   const resolvedTalukId = useRef(null);
@@ -304,6 +300,10 @@ function ZoneClusterReport() {
     }
   }
 
+  const getAgriYearString = () => {
+    return agriculturalYear.current?.display || AuthService.agriyear() || localStorage.getItem('activeAgriYear') || '2025-2026';
+  };
+
   /* ── month dropdown options (July 2025 … June 2026) ── */
   const monthOptions = useMemo(() => buildMonthOptions(agriculturalYear.current), []);
 
@@ -327,25 +327,18 @@ function ZoneClusterReport() {
   const [zonesList, setZonesList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [totalElements, setTotalElements] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(15);
 
   /* ─────────────────────────── fetch master zones ─────────────────────────── */
 
-  /**
-   * The master list is the SKELETON of the table: every zone in the taluk,
-   * whether or not it reported clusters. Without it, zones with no data simply
-   * disappear from the report instead of showing as "No Data".
-   */
   const fetchMasterZones = async (talukId) => {
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
 
       const response = await api.get(`${BASE_URL}/btr-service/btr-api/zones?desTalukId=${talukId}`);
-
 
       if (response.data && response.data.data) {
         setZonesList(response.data.data);
@@ -379,10 +372,7 @@ function ZoneClusterReport() {
     const effectiveAgriYear =
       overrides.agriYear !== undefined
         ? overrides.agriYear
-        : (agriculturalYear.current?.display ||
-          AuthService.agriyear() ||
-          localStorage.getItem('activeAgriYear') ||
-          '2025-2026');
+        : getAgriYearString();
 
     try {
       const token = localStorage.getItem('token');
@@ -439,16 +429,10 @@ function ZoneClusterReport() {
       }
 
       const url = `${BASE_URL}/btr-service/api/report/clusters/taluk/${talukIdValue}/zones?${params.toString()}`;
-
       const response = await api.get(url);
 
-      console.log(url, 'jiihihijihijihij')
       if (response.data) {
         setApiData(response.data);
-        setTotalElements(
-          response.data.totalElements ||
-          Object.keys(response.data.allSubDetails || {}).length
-        );
       }
 
       // If range filter active, fetch single-month stats for last month of range
@@ -466,7 +450,7 @@ function ZoneClusterReport() {
           if (effectiveLandType && effectiveSeasonTab !== 'ALL') {
             lmParams.append('landType', effectiveLandType.toLowerCase());
           }
-          let lmUrl = `${BASE_URL}/btr-service/api/report/clusters/taluk/${talukIdValue}/zones?${lmParams.toString()}`;
+          const lmUrl = `${BASE_URL}/btr-service/api/report/clusters/taluk/${talukIdValue}/zones?${lmParams.toString()}`;
           try {
             const lmResponse = await api.get(lmUrl);
             setLastMonthApiData(lmResponse.data);
@@ -515,21 +499,21 @@ function ZoneClusterReport() {
         completed: details.wetCompleted || 0,
         ongoing: details.wetOngoing || 0,
         notStarted: details.wetNotStarted || 0,
-        underReview: details.wetUnderView || 0,
+        underReview: details.wetUnderView || 0
       };
     } else if (landType === 'DRY') {
       stats = {
         completed: details.dryCompleted || 0,
         ongoing: details.dryOngoing || 0,
         notStarted: details.dryNotStarted || 0,
-        underReview: details.dryUnderView || 0,
+        underReview: details.dryUnderView || 0
       };
     } else {
       stats = {
         completed: (details.wetCompleted || 0) + (details.dryCompleted || 0),
         ongoing: (details.wetOngoing || 0) + (details.dryOngoing || 0),
         notStarted: (details.wetNotStarted || 0) + (details.dryNotStarted || 0),
-        underReview: (details.wetUnderView || 0) + (details.dryUnderView || 0),
+        underReview: (details.wetUnderView || 0) + (details.dryUnderView || 0)
       };
     }
 
@@ -553,21 +537,11 @@ function ZoneClusterReport() {
     };
   };
 
-  /**
-   * Zones are grouped under `blockName` coming from the report API.
-   *
-   * Master zone list = the skeleton (every zone in the taluk, so zones that
-   * reported nothing still render as "No Data").
-   * allSubDetails    = the stats, overlaid onto the skeleton by zoneId.
-   *
-   * If the master list is unavailable, the API response alone drives the table.
-   */
   const processedData = useMemo(() => {
     const subDetailsMap = apiData?.allSubDetails || {};
     const lastMonthSubDetailsMap = (filterType === 'range' && lastMonthApiData) ? (lastMonthApiData.allSubDetails || {}) : null;
     const apiEntries = Object.entries(subDetailsMap).filter(([, details]) => !!details);
 
-    // Stat lookups: zoneId is authoritative, name is only a fallback
     const byZoneId = new Map();
     const byZoneName = new Map();
     apiEntries.forEach(([zoneName, details]) => {
@@ -631,7 +605,6 @@ function ZoneClusterReport() {
         const stats = getZoneStats(match ? match.details : null);
         const currentMonthCompleted = getLastMonthCompleted(zoneId, zoneName);
 
-        // Block comes from the API when this zone reported; master list otherwise
         const blockNameRaw = (match && match.details.blockName) || zone.blockName || 'Unassigned';
         const blockId = (match && match.details.blockId) ?? zone.blockId ?? null;
 
@@ -649,8 +622,6 @@ function ZoneClusterReport() {
         });
       });
 
-      // Anything the API reported that the master list doesn't know about still
-      // gets shown — dropping real clusters is worse than an unexpected row
       apiEntries.forEach(([zoneName, details]) => {
         if (matchedApiKeys.has(zoneName)) return;
         const stats = getZoneStats(details);
@@ -669,7 +640,6 @@ function ZoneClusterReport() {
         });
       });
     } else {
-      // No skeleton available — group straight from the API response
       apiEntries.forEach(([zoneName, details]) => {
         const stats = getZoneStats(details);
         const currentMonthCompleted = getLastMonthCompleted(details.zoneId, zoneName);
@@ -690,7 +660,6 @@ function ZoneClusterReport() {
 
     let blocks = Array.from(blockMap.values());
 
-    // Natural sort inside a block so Chalakkudy1 … Chalakkudy5 stay in order
     blocks.forEach((block) => {
       block.zones.sort((a, b) =>
         String(a.zoneName).localeCompare(String(b.zoneName), undefined, { numeric: true, sensitivity: 'base' })
@@ -716,8 +685,8 @@ function ZoneClusterReport() {
     let total = 0, completed = 0, currentMonthCompleted = 0, ongoing = 0, notStarted = 0, underReview = 0;
     let zonesWithData = 0, zonesWithoutData = 0;
 
-    processedData.forEach(block => {
-      block.zones.forEach(zone => {
+    processedData.forEach((block) => {
+      block.zones.forEach((zone) => {
         total += zone.totalCluster !== undefined ? zone.totalCluster : (zone.total !== undefined ? zone.total : (zone.completed + zone.ongoing + zone.notStarted + zone.underReview));
         completed += zone.completed;
         currentMonthCompleted += (zone.currentMonthCompleted || 0);
@@ -739,15 +708,21 @@ function ZoneClusterReport() {
       : total;
 
     return {
-      total: overallTotal, completed, currentMonthCompleted, ongoing, notStarted, underReview,
-      zonesWithData, zonesWithoutData,
+      total: overallTotal,
+      completed,
+      currentMonthCompleted,
+      ongoing,
+      notStarted,
+      underReview,
+      zonesWithData,
+      zonesWithoutData,
       totalZones: processedData.reduce((sum, block) => sum + block.zones.length, 0)
     };
   }, [processedData, apiData, stateData.zoneId, stateData.officeType]);
 
   const flattenedTableData = useMemo(() => {
     const result = [];
-    processedData.forEach(block => {
+    processedData.forEach((block) => {
       let bTotal = 0, bCompleted = 0, bCurrentMonthCompleted = 0, bOngoing = 0, bNotStarted = 0, bUnderReview = 0;
 
       block.zones.forEach((zone, idx) => {
@@ -802,9 +777,10 @@ function ZoneClusterReport() {
 
   const searchFilteredData = useMemo(() => {
     if (!searchTerm.trim()) return flattenedTableData;
-    return flattenedTableData.filter(r =>
-      r.zoneName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.blockName.toLowerCase().includes(searchTerm.toLowerCase())
+    const term = searchTerm.toLowerCase();
+    return flattenedTableData.filter((r) =>
+      r.zoneName.toLowerCase().includes(term) ||
+      r.blockName.toLowerCase().includes(term)
     );
   }, [flattenedTableData, searchTerm]);
 
@@ -838,6 +814,21 @@ function ZoneClusterReport() {
     setPage(0);
   };
 
+  const handleFromMonthChange = (event) => {
+    setFromMonth(event.target.value);
+    setPage(0);
+  };
+
+  const handleToMonthChange = (event) => {
+    setToMonth(event.target.value);
+    setPage(0);
+  };
+
+  const handleSingleMonthChange = (event) => {
+    setSingleMonth(event.target.value);
+    setPage(0);
+  };
+
   const handleClearFilters = () => {
     const curMonthVal = toMonthOptionValue(getCurrentMonthName(), agriculturalYear.current);
     const julyVal = toMonthOptionValue('July', agriculturalYear.current);
@@ -848,10 +839,29 @@ function ZoneClusterReport() {
     setLandType(null);
     setFilterType('range');
     setPage(0);
+    setSearchTerm('');
   };
 
   const handleViewZoneDetails = (zoneName, clickedZoneId) => {
-    navigate(`/Report/kerala_cluster_report/taluk_cluster_report/zone_cluster_report/${districtName}/${talukName}/clusters/${clickedZoneId}`);
+    navigate(`/Report/kerala_cluster_report/taluk_cluster_report/zone_cluster_report/${districtName}/${talukName}/clusters/${clickedZoneId}`, {
+      state: {
+        zoneId: clickedZoneId,
+        zoneName,
+        talukId: resolvedTalukId.current,
+        talukName: formattedTaluk,
+        districtName: displayDistrictName,
+        landType,
+        seasonTab,
+        startMonth: filterType === 'single' ? singleMonth : fromMonth,
+        endMonth: filterType === 'single' ? singleMonth : toMonth,
+        filterType,
+        fromMonth,
+        toMonth,
+        singleMonth,
+        agriYear: getAgriYearString(),
+        agriculturalYear: agriculturalYear.current
+      }
+    });
 
     setTimeout(() => {
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
@@ -863,13 +873,39 @@ function ZoneClusterReport() {
     setPage(0);
   };
 
+  const handleChangePage = (event, newPage) => setPage(newPage);
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  /* ─────────────────────────── display names ─────────────────────────── */
+
+  const displayDistrictName =
+    stateData.districtName ||
+    (districtName
+      ? districtName
+          .split('-')
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ')
+      : 'District');
+
+  const formattedTaluk =
+    stateData.talukName ||
+    (talukName
+      ? talukName
+          .replace(/-\d+$/, '')
+          .split('-')
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ')
+      : 'Taluk');
+
   /* ─────────────────────────── excel export ─────────────────────────── */
 
-  // Build a meaningful filename from the active filters
   const generateExcelFileName = () => {
-    const parts = ['Zone_Report', formattedTaluk.replace(/\s+/g, '_')];
+    const parts = ['Zone_Cluster_Report', displayDistrictName.replace(/\s+/g, '_'), formattedTaluk.replace(/\s+/g, '_')];
 
-    if (seasonTab !== 'ALL') parts.push(seasonTab);
+    if (seasonTab !== 'ALL') parts.push(`${seasonTab}_Land`);
 
     if (filterType === 'single' && singleMonth) {
       parts.push(String(singleMonth).replace(/\s+/g, '_'));
@@ -878,609 +914,1016 @@ function ZoneClusterReport() {
       if (toMonth) parts.push('to', String(toMonth).replace(/\s+/g, '_'));
     }
 
+    parts.push(getAgriYearString());
+
     if (searchTerm.trim()) {
       parts.push(`Search-${searchTerm.trim().replace(/\s+/g, '_')}`);
     }
 
-    parts.push(new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
+    parts.push(new Date().toISOString().slice(0, 10));
     return `${parts.join('_')}.xlsx`;
   };
 
-  // Export the FULL search-filtered dataset (blocks, zones, and subtotal rows) to Excel
   const handleExportExcel = () => {
     if (!searchFilteredData || searchFilteredData.length === 0) return;
 
+    const periodStr =
+      filterType === 'range'
+        ? `${fromMonth || '—'} – ${toMonth || '—'}`
+        : (singleMonth || '—');
+
+    const headerMeta = [
+      [`Zone Cluster Formation Progress Report — ${formattedTaluk} Taluk (${displayDistrictName})`],
+      ['Agricultural Year', getAgriYearString()],
+      ['Land Type / Season', seasonTab === 'ALL' ? 'All' : `${seasonTab} Land`],
+      ['Period', periodStr || '—'],
+      ['Exported On', new Date().toLocaleString()],
+      []
+    ];
+
+    const headerRow =
+      filterType === 'range'
+        ? ['#', 'Block', 'Zone', 'Total', 'During the Month', 'Up to the Month', 'Ongoing', 'Not Started', 'Under Review']
+        : ['#', 'Block', 'Zone', 'Total', 'Up to the Month', 'Ongoing', 'Not Started', 'Under Review'];
+
     let serial = 0;
-    const exportRows = searchFilteredData.map((row) => {
+    const dataRows = searchFilteredData.map((row) => {
       const isSubtotalRow = row.type === 'subtotal';
-      if (!isSubtotalRow) serial++;
+      if (!isSubtotalRow) serial += 1;
 
-      const hasNoData = !row.hasData && row.total === 0;
+      const slNo = isSubtotalRow ? '' : serial;
+      const blockCol = isSubtotalRow ? '' : row.blockName;
+      const zoneCol = row.zoneName;
 
-      const rowObj = {
-        '#': isSubtotalRow ? '' : serial,
-        Block: row.blockName,
-        Zone: row.zoneName,
-        Total: hasNoData && !isSubtotalRow ? 'NA' : row.total
-      };
-
-      if (filterType === 'range') {
-        rowObj['During the Month'] = hasNoData && !isSubtotalRow ? 'NA' : row.currentMonthCompleted;
+      if (!row.hasData && !isSubtotalRow) {
+        return filterType === 'range'
+          ? [slNo, blockCol, zoneCol, 'NA', 'NA', 'NA', 'NA', 'NA', 'NA']
+          : [slNo, blockCol, zoneCol, 'NA', 'NA', 'NA', 'NA', 'NA'];
       }
-
-      rowObj['Up to the Month'] = hasNoData && !isSubtotalRow ? 'NA' : row.completed;
-
-      rowObj['Ongoing'] = hasNoData && !isSubtotalRow ? 'NA' : row.ongoing;
-      rowObj['Not Started'] = hasNoData && !isSubtotalRow ? 'NA' : row.notStarted;
-      rowObj['Under Review'] = hasNoData && !isSubtotalRow ? 'NA' : row.underReview;
-
-      return rowObj;
+      return filterType === 'range'
+        ? [slNo, blockCol, zoneCol, row.total, row.currentMonthCompleted, row.completed, row.ongoing, row.notStarted, row.underReview]
+        : [slNo, blockCol, zoneCol, row.total, row.completed, row.ongoing, row.notStarted, row.underReview];
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    const totalsRow =
+      filterType === 'range'
+        ? ['', '', 'GRAND TOTAL', stats.total, stats.currentMonthCompleted, stats.completed, stats.ongoing, stats.notStarted, stats.underReview]
+        : ['', '', 'GRAND TOTAL', stats.total, stats.completed, stats.ongoing, stats.notStarted, stats.underReview];
 
-    // Reasonable column widths so it doesn't open looking cramped
+    const aoa = [...headerMeta, headerRow, ...dataRows, totalsRow];
+    const worksheet = XLSX.utils.aoa_to_sheet(aoa);
+
     worksheet['!cols'] = filterType === 'range'
-      ? [{ wch: 5 }, { wch: 20 }, { wch: 22 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 14 }]
-      : [{ wch: 5 }, { wch: 20 }, { wch: 22 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 14 }];
+      ? [{ wch: 6 }, { wch: 20 }, { wch: 25 }, { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 14 }]
+      : [{ wch: 6 }, { wch: 20 }, { wch: 25 }, { wch: 12 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 14 }];
+
+    worksheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }];
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'District Report');
-
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Zone Report');
     XLSX.writeFile(workbook, generateExcelFileName());
   };
 
-  /* ─────────────────────────── sub-components ─────────────────────────── */
+  const tableHeaders = useMemo(() => {
+    if (filterType === 'range') {
+      return [
+        { key: 'slno', label: '#', align: 'center', width: 60 },
+        { key: 'block', label: 'Block', align: 'center', minWidth: 160 },
+        { key: 'zone', label: 'Zone', align: 'left', minWidth: 200 },
+        { key: 'total', label: 'Total', align: 'center' },
+        { key: 'duringMonth', label: 'During the Month', align: 'center' },
+        { key: 'upToMonth', label: 'Up to the Month', align: 'center' },
+        { key: 'ongoing', label: 'Ongoing', align: 'center' },
+        { key: 'notStarted', label: 'Not Started', align: 'center' },
+        { key: 'underReview', label: 'Under Review', align: 'center' },
+        { key: 'actions', label: 'Actions', align: 'center', width: 80 }
+      ];
+    }
+    return [
+      { key: 'slno', label: '#', align: 'center', width: 60 },
+      { key: 'block', label: 'Block', align: 'center', minWidth: 160 },
+      { key: 'zone', label: 'Zone', align: 'left', minWidth: 200 },
+      { key: 'total', label: 'Total', align: 'center' },
+      { key: 'upToMonth', label: 'Up to the Month', align: 'center' },
+      { key: 'ongoing', label: 'Ongoing', align: 'center' },
+      { key: 'notStarted', label: 'Not Started', align: 'center' },
+      { key: 'underReview', label: 'Under Review', align: 'center' },
+      { key: 'actions', label: 'Actions', align: 'center', width: 80 }
+    ];
+  }, [filterType]);
 
-  const StatCard = ({ label, value, color, bgColor, icon, tooltip }) => {
-    const cardContent = (
-      <Card sx={{
-        bgcolor: bgColor, borderRadius: 3,
-        height: '100%',
-        transition: 'transform 0.2s, box-shadow 0.2s',
-        '&:hover': { transform: 'translateY(-4px)', boxShadow: theme.shadows[4] },
-      }}>
-        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Box>
-              <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>{value}</Typography>
-              <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>{label}</Typography>
-            </Box>
-            {icon}
-          </Stack>
-        </CardContent>
-      </Card>
+  const kpiItems = useMemo(() => {
+    const items = [
+      { label: 'Zones', value: formatNumber(stats.totalZones), icon: <StoreIcon />, color: '#1565c0' },
+      { label: 'Total Clusters', value: formatNumber(stats.total), icon: <AssessmentIcon />, color: '#1565c0' }
+    ];
+
+    if (filterType === 'range') {
+      items.push({
+        label: 'During the Month',
+        value: formatNumber(stats.currentMonthCompleted),
+        icon: <CalendarMonthIcon />,
+        color: '#0288d1'
+      });
+    }
+
+    items.push(
+      {
+        label: filterType === 'range' ? 'Up to the Month' : 'During the Month',
+        value: formatNumber(stats.completed),
+        icon: <CheckCircleIcon />,
+        color: '#2e7d32'
+      },
+      {
+        label: 'Ongoing',
+        value: formatNumber(stats.ongoing),
+        icon: <PendingIcon />,
+        color: '#ed6c02'
+      },
+      {
+        label: 'Not Started',
+        value: formatNumber(stats.notStarted),
+        icon: <ScheduleIcon />,
+        color: '#757575'
+      },
+      {
+        label: 'Under Review',
+        value: formatNumber(stats.underReview),
+        icon: <RateReviewIcon />,
+        color: '#b76e00'
+      }
     );
 
-    return tooltip ? (
-      <Tooltip title={tooltip} arrow placement="top">
-        {cardContent}
-      </Tooltip>
-    ) : cardContent;
-  };
+    return items;
+  }, [stats, filterType]);
 
-  /* ─────────────────────────── display name ─────────────────────────── */
-
-  const formattedTaluk =
-    stateData.talukName ||
-    (talukName
-      ? talukName
-        .replace(/-\d+$/, '')
-        .split('-')
-        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ')
-      : 'Taluk');
+  const exportDisabled = searchFilteredData.length === 0 || loading;
 
   /* ─────────────────────────── render ─────────────────────────── */
 
-  if (loading && !apiData && zonesList.length === 0) {
-    return (
-      <Grid container spacing={3} justifyContent="center" alignItems="center" sx={{ minHeight: '400px' }}>
-        <Grid item>
-          <CircularProgress />
-          <Typography sx={{ mt: 2 }}>Loading zone data...</Typography>
-        </Grid>
-      </Grid>
-    );
-  }
-
   return (
-    <Grid container spacing={3}>
-      <Breadcrumb />
+    <Box>
+      <Box sx={{ mb: 2 }}>
+        <Breadcrumb />
+      </Box>
 
-      {/* Header */}
-      <Grid item xs={12}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between"
-          alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <StoreIcon sx={{ fontSize: 40, color: '#1a237e' }} />
+      <Card
+        elevation={0}
+        sx={{
+          borderRadius: 4,
+          overflow: 'visible',
+          background: theme.palette.background.paper,
+          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          boxShadow: '0 4px 20px rgba(5,48,122,0.06)'
+        }}
+      >
+        {/* ── Header band with gradient ── */}
+        <Box
+          sx={{
+            background: `linear-gradient(120deg, ${themeColor} 0%, ${themeColorAlt} 55%, #1a6fc4 100%)`,
+            color: '#fff',
+            px: { xs: 2, sm: 3, md: 4 },
+            py: { xs: 2.5, sm: 3 },
+            borderRadius: '16px 16px 0 0',
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            alignItems: { xs: 'flex-start', md: 'center' },
+            justifyContent: 'space-between',
+            gap: 2
+          }}
+        >
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Avatar
+              sx={{
+                bgcolor: 'rgba(255,255,255,0.16)',
+                border: '1px solid rgba(255,255,255,0.35)',
+                width: 54,
+                height: 54
+              }}
+            >
+              <AssessmentIcon sx={{ fontSize: 30 }} />
+            </Avatar>
             <Box>
-              <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1a237e' }}>
-                {formattedTaluk} Taluk – Zone wise Cluster Progress Report
+              <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: 0.2, lineHeight: 1.2 }}>
+                Zone Cluster Progress Report: {formattedTaluk}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {agriculturalYear.current && `Agricultural Year: ${agriculturalYear.current.display}`}
-                {landType && landType !== 'ALL' && ` • ${landType} Season`}
-                {filterType === 'single' && singleMonth && ` • ${getMonthLabel(singleMonth, agriYearMonths.current)}`}
-                {filterType === 'range' && fromMonth && toMonth && ` • ${getMonthLabel(fromMonth, agriYearMonths.current)} – ${getMonthLabel(toMonth, agriYearMonths.current)}`}
-                {filterType === 'range' && fromMonth && !toMonth && ` • From ${getMonthLabel(fromMonth, agriYearMonths.current)}`}
-                {filterType === 'range' && !fromMonth && toMonth && ` • Until ${getMonthLabel(toMonth, agriYearMonths.current)}`}
-                {apiData && ` • Total Clusters: ${apiData.totalCluster !== undefined && apiData.totalCluster !== null ? apiData.totalCluster : (stats.total || 0)}`}
-                {stats.zonesWithoutData > 0 && ` • ${stats.zonesWithoutData} zones with no data`}
+              <Typography variant="body2" sx={{ opacity: 0.85, mt: 0.5 }}>
+                {displayDistrictName} • {formattedTaluk} Taluk • Agricultural Year {getAgriYearString()} • Zone-wise Cluster Progress Details
               </Typography>
             </Box>
           </Stack>
-          {(fromMonth || toMonth || singleMonth || seasonTab !== 'ALL') && (
-            <Button variant="outlined" onClick={handleClearFilters}
-              startIcon={<ClearIcon />} size="small" sx={{ borderRadius: 2 }}>
-              Clear All Filters
-            </Button>
-          )}
-        </Stack>
-      </Grid>
 
-      {/* Error */}
-      {error && (
-        <Grid item xs={12}>
-          <Paper sx={{ p: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
-            <Typography color="error">Error: {error}</Typography>
-          </Paper>
-        </Grid>
-      )}
-
-      {/* Info Banner for zones with no data */}
-      {stats.zonesWithoutData > 0 && !loading && (
-        <Grid item xs={12}>
-          <Paper
-            sx={{
-              p: 1.5,
-              bgcolor: alpha('#ff9800', 0.08),
-              borderRadius: 2,
-              border: `1px solid ${alpha('#ff9800', 0.3)}`,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1
-            }}
-          >
-            <InfoOutlinedIcon sx={{ color: '#ff9800', fontSize: 20 }} />
-            <Typography variant="body2" color="text.secondary">
-              <strong>{stats.zonesWithoutData}</strong> zone{stats.zonesWithoutData > 1 ? 's' : ''} have no data available for the selected filters.
-              {landType ? ` This may be because no ${landType.toLowerCase()} season clusters were formed in these zones.` : ''}
-              <strong> View details is disabled for zones without data.</strong>
-            </Typography>
-          </Paper>
-        </Grid>
-      )}
-
-      {/* Filters */}
-      <Grid item xs={12}>
-        <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
-            <Tabs value={seasonTab} onChange={handleSeasonTabChange} sx={{ minHeight: 40 }}>
-              <Tab label="ALL" value="ALL" />
-              <Tab label="WET" value="WET" icon={<WaterDropIcon />} iconPosition="start" />
-              <Tab label="DRY" value="DRY" icon={<WbSunnyIcon />} iconPosition="start" />
-            </Tabs>
-
-            <ToggleButtonGroup value={filterType} exclusive onChange={handleFilterTypeChange} size="small">
-              <ToggleButton value="range"><ViewWeekIcon sx={{ mr: 0.5, fontSize: 18 }} />Month Range</ToggleButton>
-              <ToggleButton value="single"><ViewModuleIcon sx={{ mr: 0.5, fontSize: 18 }} />Single Month</ToggleButton>
-            </ToggleButtonGroup>
-
-            {filterType === 'range' ? (
-              <>
-                <FormControl size="small" sx={{ minWidth: 160 }}>
-                  <InputLabel>From Month</InputLabel>
-                  <Select value={fromMonth} label="From Month" onChange={e => { setFromMonth(e.target.value); setPage(0); }}>
-                    <MenuItem value="">None</MenuItem>
-                    {monthOptions.map(option => (
-                      <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                <Typography variant="body2" color="text.secondary">→</Typography>
-                <FormControl size="small" sx={{ minWidth: 160 }}>
-                  <InputLabel>To Month</InputLabel>
-                  <Select value={toMonth} label="To Month" onChange={e => { setToMonth(e.target.value); setPage(0); }}>
-                    <MenuItem value="">None</MenuItem>
-                    {monthOptions.map(option => (
-                      <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </>
-            ) : (
-              <FormControl size="small" sx={{ minWidth: 200 }}>
-                <InputLabel>Select Month</InputLabel>
-                <Select value={singleMonth} label="Select Month" onChange={e => { setSingleMonth(e.target.value); setPage(0); }}>
-                  <MenuItem value="">None</MenuItem>
-                  {monthOptions.map(option => (
-                    <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            {seasonTab !== 'ALL' && (
+              <Chip
+                label={`${seasonTab} Season`}
+                size="small"
+                sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }}
+              />
+            )}
+            <Chip
+              icon={<CalendarMonthIcon sx={{ fontSize: 16, color: '#fff !important' }} />}
+              label={
+                filterType === 'range'
+                  ? `${fromMonth || '—'} – ${toMonth || '—'}`
+                  : (singleMonth || '—')
+              }
+              size="small"
+              sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }}
+            />
+            {apiData && (
+              <Chip
+                label={`Total Clusters: ${stats.total ?? (apiData.totalCluster || 0)}`}
+                size="small"
+                sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600 }}
+              />
             )}
           </Stack>
-        </Paper>
-      </Grid>
+        </Box>
 
-      {/* Stats Cards */}
-      <Grid item xs={12}>
-        <Box sx={{ position: 'relative', border: `1px solid ${alpha('#04255e', 0.15)}`, borderRadius: 3, p: 2, pt: 3, bgcolor: '#fff' }}>
-          <Chip label={`${formattedTaluk} – Taluk Report Summary`} size="small"
-            sx={{ position: 'absolute', top: -12, left: 20, zIndex: 10, fontWeight: 600, bgcolor: '#04255e', color: '#fff', px: 1, boxShadow: 2 }} />
-          <Grid container spacing={2}>
-            {(filterType === 'range' ? [
-              { label: 'Total Zones', value: stats.totalZones, color: '#1565c0', icon: <StoreIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />, tooltip: 'Total zones in selected taluk' },
-              { label: 'Total Clusters', value: stats.total, color: '#1565c0', icon: <AssessmentIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />, tooltip: 'Total clusters allocated for survey' },
-              { label: 'During the Month', value: stats.currentMonthCompleted, color: '#0288d1', icon: <CalendarMonthIcon sx={{ fontSize: 32, color: '#0288d1', opacity: 0.7 }} />, tooltip: 'Clusters completed during the selected end month' },
-              { label: 'Up to the Month', value: stats.completed, color: '#2e7d32', icon: <CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />, tooltip: 'Cumulative clusters completed up to the selected month' },
-              { label: 'Ongoing', value: stats.ongoing, color: '#ed6c02', icon: <PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} />, tooltip: 'Clusters currently ongoing' },
-              { label: 'Not Started', value: stats.notStarted, color: '#757575', icon: <ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} />, tooltip: 'Clusters not yet started' },
-              { label: 'Under Review', value: stats.underReview, color: '#b76e00', icon: <RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} />, tooltip: 'Clusters currently under review' },
-            ] : [
-              { label: 'Total Zones', value: stats.totalZones, color: '#1565c0', icon: <StoreIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />, tooltip: 'Total zones in selected taluk' },
-              { label: 'Total Clusters', value: stats.total, color: '#1565c0', icon: <AssessmentIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} />, tooltip: 'Total clusters allocated for survey' },
-              { label: 'Up to the Month', value: stats.completed, color: '#2e7d32', icon: <CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />, tooltip: 'Cumulative clusters completed up to the selected month' },
-              { label: 'Ongoing', value: stats.ongoing, color: '#ed6c02', icon: <PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} />, tooltip: 'Clusters currently ongoing' },
-              { label: 'Not Started', value: stats.notStarted, color: '#757575', icon: <ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} />, tooltip: 'Clusters not yet started' },
-              { label: 'Under Review', value: stats.underReview, color: '#b76e00', icon: <RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} />, tooltip: 'Clusters currently under review' },
-            ]).map(({ label, value, color, icon, tooltip }) => (
-              <Grid item xs={12} sm={6} md={filterType === 'range' ? 1.71 : 2} key={label}>
-                <StatCard label={label} value={value} color={color} bgColor={alpha(color, 0.08)} icon={icon} tooltip={tooltip} />
+        <CardContent sx={{ p: { xs: 2, sm: 3, md: 3.5 } }}>
+          {/* ── KPI strip ── */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            {kpiItems.map((k) => (
+              <Grid
+                item
+                xs={6}
+                sm={4}
+                md={filterType === 'range' ? 1.71 : 2}
+                key={k.label}
+              >
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 1.75,
+                    borderRadius: 2.5,
+                    border: `1px solid ${alpha(k.color, 0.15)}`,
+                    background: `linear-gradient(135deg, ${alpha(k.color, 0.06)} 0%, ${alpha(k.color, 0.02)} 100%)`,
+                    transition: 'transform 0.18s, box-shadow 0.18s',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: `0 6px 16px ${alpha(k.color, 0.14)}`
+                    }
+                  }}
+                >
+                  <Stack direction="row" alignItems="center" spacing={1.5}>
+                    <Avatar sx={{ bgcolor: alpha(k.color, 0.12), color: k.color, width: 38, height: 38 }}>
+                      {React.cloneElement(k.icon, { sx: { fontSize: 20 } })}
+                    </Avatar>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: 'text.secondary',
+                          fontWeight: 600,
+                          letterSpacing: 0.4,
+                          display: 'block',
+                          textOverflow: 'ellipsis',
+                          overflow: 'hidden',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {k.label.toUpperCase()}
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 800, color: k.color, lineHeight: 1.1 }}>
+                        {loading ? <CircularProgress size={16} /> : k.value}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Paper>
               </Grid>
             ))}
           </Grid>
-        </Box>
-      </Grid>
 
-      {/* Zone Table */}
-      <Grid item xs={12}>
-        <Box
-          sx={{
-            position: 'relative',
-            border: `1px solid ${alpha('#04255e', 0.15)}`,
-            borderRadius: 3,
-            pt: 3,
-            bgcolor: '#fff'
-          }}
-        >
-          <Chip label="Zone Report Summary" size="small"
-            sx={{ position: 'absolute', top: -12, left: 20, zIndex: 10, fontWeight: 600, bgcolor: '#04255e', color: '#fff', px: 1, boxShadow: 2 }} />
-
-          {/* Search + Export row — sits inside the same bordered box, above MainCard */}
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            justifyContent="flex-end"
-            alignItems="center"
-            spacing={1.5}
-            sx={{ px: 2, pb: 2 }}
+          {/* ── Filters ── */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              mb: 3,
+              borderRadius: 3,
+              border: `1px solid ${alpha(themeColor, 0.12)}`,
+              bgcolor: alpha(themeColor, 0.015)
+            }}
           >
-            <TextField placeholder="Search block/zone..." size="small" value={searchTerm}
-              onChange={e => { setSearchTerm(e.target.value); setPage(0); }} sx={{ width: 250 }}
+            <Stack
+              direction={{ xs: 'column', lg: 'row' }}
+              spacing={2}
+              alignItems={{ xs: 'stretch', lg: 'center' }}
+              flexWrap="wrap"
+            >
+              {/* Land Type Tabs */}
+              <Box sx={{ minWidth: 260 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, letterSpacing: 0.6 }}>
+                  LAND TYPE / SEASON
+                </Typography>
+                <Tabs
+                  value={seasonTab}
+                  onChange={handleSeasonTabChange}
+                  variant="fullWidth"
+                  sx={{
+                    minHeight: 40,
+                    mt: 0.5,
+                    border: `1px solid ${alpha(themeColor, 0.2)}`,
+                    borderRadius: 2,
+                    '& .MuiTab-root': {
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      minHeight: 40,
+                      color: 'text.secondary',
+                      '&.Mui-selected': { color: themeColor }
+                    },
+                    '& .MuiTabs-indicator': { backgroundColor: themeColor, height: 3, borderRadius: '3px 3px 0 0' }
+                  }}
+                >
+                  <Tab label="ALL" value="ALL" />
+                  <Tab label="WET" value="WET" icon={<WaterDropIcon sx={{ fontSize: 18 }} />} iconPosition="start" />
+                  <Tab label="DRY" value="DRY" icon={<WbSunnyIcon sx={{ fontSize: 18 }} />} iconPosition="start" />
+                </Tabs>
+              </Box>
+
+              <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', lg: 'block' } }} />
+
+              {/* Mode Toggle Button */}
+              <Box>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, letterSpacing: 0.6 }}>
+                  FILTER MODE
+                </Typography>
+                <ToggleButtonGroup
+                  value={filterType}
+                  exclusive
+                  onChange={handleFilterTypeChange}
+                  size="small"
+                  sx={{
+                    minHeight: 40,
+                    mt: 0.5,
+                    border: `1px solid ${alpha(themeColor, 0.2)}`,
+                    borderRadius: 2,
+                    '& .MuiToggleButton-root': {
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      border: 'none',
+                      px: 2,
+                      color: 'text.secondary',
+                      '&.Mui-selected': {
+                        backgroundColor: alpha(themeColor, 0.1),
+                        color: themeColor,
+                        fontWeight: 800
+                      }
+                    }
+                  }}
+                >
+                  <ToggleButton value="range">
+                    <ViewWeekIcon sx={{ mr: 0.75, fontSize: 18 }} />
+                    Month Range
+                  </ToggleButton>
+                  <ToggleButton value="single">
+                    <ViewModuleIcon sx={{ mr: 0.75, fontSize: 18 }} />
+                    Single Month
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+
+              <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', lg: 'block' } }} />
+
+              {/* Month Selects */}
+              {filterType === 'range' ? (
+                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: { xs: 1, lg: 2.5 } }}>
+                  <FormControl size="small" sx={{ minWidth: 170 }}>
+                    <InputLabel>From Month</InputLabel>
+                    <Select
+                      value={fromMonth}
+                      label="From Month"
+                      onChange={handleFromMonthChange}
+                      MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
+                    >
+                      {monthOptions.map((m) => (
+                        <MenuItem key={m.value} value={m.value}>
+                          {m.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                    →
+                  </Typography>
+                  <FormControl size="small" sx={{ minWidth: 170 }}>
+                    <InputLabel>To Month</InputLabel>
+                    <Select
+                      value={toMonth}
+                      label="To Month"
+                      onChange={handleToMonthChange}
+                      MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
+                    >
+                      <MenuItem value="">None</MenuItem>
+                      {monthOptions.map((m) => (
+                        <MenuItem key={m.value} value={m.value}>
+                          {m.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Stack>
+              ) : (
+                <Box sx={{ mt: { xs: 1, lg: 2.5 } }}>
+                  <FormControl size="small" sx={{ minWidth: 200 }}>
+                    <InputLabel>Select Month</InputLabel>
+                    <Select
+                      value={singleMonth}
+                      label="Select Month"
+                      onChange={handleSingleMonthChange}
+                      MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
+                    >
+                      {monthOptions.map((m) => (
+                        <MenuItem key={m.value} value={m.value}>
+                          {m.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+              )}
+
+              {(fromMonth ||
+                toMonth ||
+                (filterType === 'single' && singleMonth) ||
+                seasonTab !== 'ALL' ||
+                searchTerm) && (
+                <Box sx={{ mt: { xs: 1, lg: 2.5 }, ml: { lg: 'auto' } }}>
+                  <Button
+                    variant="outlined"
+                    onClick={handleClearFilters}
+                    startIcon={<ClearIcon />}
+                    size="small"
+                    sx={{
+                      height: 40,
+                      borderRadius: 2,
+                      borderColor: alpha(themeColor, 0.3),
+                      color: themeColor,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      '&:hover': { borderColor: themeColor, bgcolor: alpha(themeColor, 0.04) }
+                    }}
+                  >
+                    Reset Filters
+                  </Button>
+                </Box>
+              )}
+            </Stack>
+
+            {stats.zonesWithoutData > 0 && !loading && (
+              <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Chip
+                  icon={<VisibilityOffIcon sx={{ fontSize: 14 }} />}
+                  label={`${stats.zonesWithoutData} zone${stats.zonesWithoutData > 1 ? 's' : ''} with no data`}
+                  size="small"
+                  sx={{ bgcolor: alpha('#ff9800', 0.14), color: '#e65100', fontWeight: 600 }}
+                />
+              </Box>
+            )}
+          </Paper>
+
+          {/* ── Error Message ── */}
+          {error && (
+            <Paper sx={{ p: 2, mb: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
+              <Typography color="error">Error: {error}</Typography>
+            </Paper>
+          )}
+
+          {/* ── Search + Export toolbar ── */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 1.5,
+              mb: 2,
+              borderRadius: 3,
+              border: `1px solid ${alpha(themeColor, 0.12)}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 2,
+              flexWrap: 'wrap'
+            }}
+          >
+            <TextField
+              placeholder="Search block or zone..."
+              size="small"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(0);
+              }}
+              sx={{ width: 280 }}
               InputProps={{
-                startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
                 endAdornment: searchTerm && (
                   <InputAdornment position="end">
                     <IconButton size="small" onClick={handleClearSearch} edge="end">
                       <ClearIcon fontSize="small" />
                     </IconButton>
                   </InputAdornment>
-                ),
+                )
               }}
             />
-            <Tooltip
-              title={
-                searchFilteredData.length === 0
-                  ? 'No data available to export'
-                  : `Export ${searchFilteredData.length} row${searchFilteredData.length > 1 ? 's' : ''} to Excel`
-              }
-            >
-              <span>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<DownloadIcon />}
-                  onClick={handleExportExcel}
-                  disabled={searchFilteredData.length === 0 || loading}
-                  sx={{ borderRadius: 2, whiteSpace: 'nowrap' }}
-                >
-                  Download Excel
-                </Button>
-              </span>
-            </Tooltip>
-          </Stack>
 
-          <MainCard
-            title={`Blocks and Zones in ${formattedTaluk}`}
-            sx={{ borderRadius: 3 }}
-          >
-            <TableContainer>
-              <Table
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Chip
+                label={`${searchFilteredData.length} row${searchFilteredData.length !== 1 ? 's' : ''}`}
+                size="small"
                 sx={{
-                  borderCollapse: 'collapse',
-                  '& .MuiTableCell-root': {
-                    borderRight: `1px solid ${alpha('#04255e', 0.12)}`,
-                    borderBottom: `1px solid ${alpha('#04255e', 0.12)}`
-                  },
-                  '& .MuiTableHead-root .MuiTableCell-root': {
-                    borderRight: '1px solid rgba(255, 255, 255, 0.2)',
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
-                  },
-                  '& .MuiTableCell-root:last-child': {
-                    borderRight: 'none'
-                  }
+                  bgcolor: alpha(themeColor, 0.08),
+                  color: themeColor,
+                  fontWeight: 600
                 }}
+              />
+              <Tooltip
+                title={
+                  exportDisabled
+                    ? 'No data available to export'
+                    : `Download ${searchFilteredData.length} row${searchFilteredData.length > 1 ? 's' : ''} as Excel`
+                }
               >
-                <TableHead>
-                  <TableRow sx={{ bgcolor: '#04255e' }}>
-                    {(filterType === 'range'
-                      ? ['#', 'Block', 'Zone', 'Total', 'During the Month', 'Up to the Month', 'Ongoing', 'Not Started', 'Under Review', 'Actions']
-                      : ['#', 'Block', 'Zone', 'Total', 'Up to the Month', 'Ongoing', 'Not Started', 'Under Review', 'Actions']
-                    ).map((label, idx) => (
-                      <TableCell key={idx}
-                        align={idx === 0 ? 'center' : idx === 1 ? 'center' : idx === 2 ? 'left' : 'center'}
-                        sx={{
-                          color: 'white', fontWeight: 600, py: 1.5, border: 'none',
-                          ...(idx === 1 && { minWidth: 180 }),
-                          ...(idx === 2 && { minWidth: 200 }),
-                        }}>
-                        {label}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                </TableHead>
+                <span>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<DownloadIcon />}
+                    onClick={handleExportExcel}
+                    disabled={exportDisabled}
+                    sx={{
+                      borderRadius: 2,
+                      bgcolor: themeColor,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                      px: 2,
+                      '&:hover': { bgcolor: themeColorAlt },
+                      '&.Mui-disabled': { bgcolor: alpha(themeColor, 0.3), color: '#fff' }
+                    }}
+                  >
+                    Download Excel
+                  </Button>
+                </span>
+              </Tooltip>
+            </Stack>
+          </Paper>
 
-                <TableBody>
-                  {loading ? (
+          {/* ── Table ── */}
+          <Paper
+            elevation={0}
+            sx={{
+              borderRadius: 3,
+              overflow: 'hidden',
+              border: `1px solid ${alpha(themeColor, 0.12)}`,
+              position: 'relative',
+              boxShadow: '0 2px 12px rgba(5,48,122,0.05)'
+            }}
+          >
+            {loading && (
+              <LinearProgress
+                sx={{
+                  backgroundColor: alpha(themeColor, 0.15),
+                  '& .MuiLinearProgress-bar': { backgroundColor: themeColor }
+                }}
+              />
+            )}
+            <Box sx={{ p: 0, position: 'relative' }}>
+              <TableContainer sx={{ maxHeight: 600, overflowX: 'auto' }}>
+                <Table stickyHeader size="small" sx={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
+                  <TableHead>
                     <TableRow>
-                      <TableCell colSpan={filterType === 'range' ? 10 : 9} align="center" sx={{ py: 6 }}><CircularProgress size={40} /></TableCell>
+                      {tableHeaders.map((h) => (
+                        <TableCell
+                          key={h.key}
+                          align={h.align}
+                          sx={{
+                            backgroundColor: themeColor,
+                            color: '#fff',
+                            fontWeight: 700,
+                            whiteSpace: 'nowrap',
+                            py: 1.6,
+                            fontSize: '0.82rem',
+                            letterSpacing: 0.3,
+                            borderBottom: `2px solid ${alpha('#fff', 0.15)}`,
+                            width: h.width,
+                            minWidth: h.minWidth
+                          }}
+                        >
+                          {h.label}
+                        </TableCell>
+                      ))}
                     </TableRow>
-                  ) : paginatedData.length > 0 ? (() => {
-                    const rows = [];
-                    let lastBlockKey = null;
-                    let serialNumber = page * rowsPerPage;
+                  </TableHead>
 
-                    for (let i = 0; i < paginatedData.length; i++) {
-                      const row = paginatedData[i];
-                      const isNewBlock = row.blockKey !== lastBlockKey;
-                      const isSubtotalRow = row.type === 'subtotal';
-                      const hasNoData = !row.hasData && row.total === 0;
-
-                      if (isNewBlock) {
-                        lastBlockKey = row.blockKey;
-                      }
-
-                      if (!isSubtotalRow) {
-                        serialNumber++;
-                      }
-
-                      const blockRowCount = isSubtotalRow
-                        ? 0
-                        : paginatedData.filter(r => r.blockKey === row.blockKey && r.type !== 'subtotal').length;
-
-                      rows.push(
-                        <TableRow key={row.id} hover sx={{
-                          '&:hover': { bgcolor: alpha('#04255e', 0.04) },
-                          transition: '0.2s',
-                          '& td': {
-                            borderBottom: isSubtotalRow ? `1px solid ${theme.palette.primary.main}` : 'none',
-                            borderTop: isSubtotalRow ? `0.01px solid ${theme.palette.primary.main}` : 'none',
-                            backgroundColor: isSubtotalRow ? alpha('#728ab4', 0.08) : 'transparent',
-                          },
-                          ...(hasNoData && !isSubtotalRow && {
-                            bgcolor: alpha('#ff9800', 0.03),
-                            '&:hover': { bgcolor: alpha('#ff9800', 0.08) }
-                          })
-                        }}>
-                          {/* Serial Number
-                              Subtotal rows have no Block cell, so this cell absorbs
-                              that column — keeps all columns filled and the
-                              subtotal border running the full table width. */}
-                          <TableCell
-                            align="center"
-                            colSpan={isSubtotalRow ? 2 : 1}
-                            sx={{ border: 'none' }}
-                          >
-                            {!isSubtotalRow && (
-                              <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                                {serialNumber}
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={tableHeaders.length} align="center" sx={{ py: 10 }}>
+                          <Stack alignItems="center" spacing={2}>
+                            <CircularProgress size={44} thickness={4} sx={{ color: themeColor }} />
+                            <Box textAlign="center">
+                              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: themeColor }}>
+                                Loading Zone Cluster Progress Report...
                               </Typography>
-                            )}
-                          </TableCell>
-
-                          {/* Block cell – merged across all zone rows */}
-                          {isNewBlock && !isSubtotalRow && (
-                            <TableCell rowSpan={blockRowCount} align="center"
-                              sx={{
-                                verticalAlign: 'middle',
-                                backgroundColor: alpha('#04255e', 0.04),
-                                fontWeight: 'bold',
-                                color: '#04255e',
-                                fontSize: '1rem',
-                                border: 'none'
-                              }}>
-                              <Stack direction="column" spacing={1} alignItems="center">
-                                <LocationOnIcon sx={{ fontSize: 24, color: '#04255e', opacity: 0.7 }} />
-                                <Typography fontWeight={700} sx={{ color: '#04255e' }}>{row.blockName}</Typography>
-                              </Stack>
-                            </TableCell>
-                          )}
-
-                          {/* Zone name */}
-                          <TableCell sx={{ border: 'none' }}>
-                            {isSubtotalRow ? (
-                              <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#04255e', fontStyle: 'italic' }}>
-                                {row.zoneName}
+                              <Typography variant="body2" color="text.secondary">
+                                Please wait while we fetch the latest progress details.
                               </Typography>
-                            ) : (
-                              <Stack direction="row" spacing={1} alignItems="center">
-                                <StoreIcon sx={{ fontSize: 18, color: hasNoData ? '#ff9800' : '#04255e', opacity: 0.7 }} />
-                                <Typography fontWeight={hasNoData ? 400 : 500} color={hasNoData ? 'text.secondary' : 'text.primary'}>
-                                  {row.zoneName}
-                                  {hasNoData && (
+                            </Box>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ) : paginatedData.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={tableHeaders.length} align="center" sx={{ py: 6 }}>
+                          <Typography color="text.secondary">
+                            {searchTerm ? `No blocks/zones found matching "${searchTerm}"` : 'No data available'}
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      <>
+                        {(() => {
+                          const renderedRows = [];
+                          let lastBlockKey = null;
+                          let serialNumber = page * rowsPerPage;
+
+                          for (let i = 0; i < paginatedData.length; i++) {
+                            const row = paginatedData[i];
+                            const isNewBlock = row.blockKey !== lastBlockKey;
+                            const isSubtotalRow = row.type === 'subtotal';
+                            const hasNoData = !row.hasData && row.total === 0;
+                            const clickable = !isSubtotalRow && row.hasData;
+
+                            if (isNewBlock) {
+                              lastBlockKey = row.blockKey;
+                            }
+                            if (!isSubtotalRow) {
+                              serialNumber++;
+                            }
+
+                            const blockRowCount = isSubtotalRow
+                              ? 0
+                              : paginatedData.filter((r) => r.blockKey === row.blockKey && r.type !== 'subtotal').length;
+
+                            renderedRows.push(
+                              <TableRow
+                                key={row.id}
+                                hover={clickable}
+                                onClick={() => clickable && handleViewZoneDetails(row.zoneName, row.zoneId)}
+                                sx={{
+                                  cursor: clickable ? 'pointer' : 'default',
+                                  backgroundColor: isSubtotalRow
+                                    ? alpha(themeColor, 0.05)
+                                    : !row.hasData
+                                      ? alpha('#ff9800', 0.03)
+                                      : serialNumber % 2 === 1
+                                        ? alpha(themeColor, 0.015)
+                                        : 'transparent',
+                                  ...(isSubtotalRow && {
+                                    '& .MuiTableCell-root': {
+                                      borderTop: `1px solid ${alpha(themeColor, 0.2)}`,
+                                      borderBottom: `1px solid ${alpha(themeColor, 0.2)}`
+                                    }
+                                  }),
+                                  '&:hover': clickable
+                                    ? { backgroundColor: alpha(themeColor, 0.08), transition: '0.2s' }
+                                    : undefined
+                                }}
+                              >
+                                {/* Serial Number */}
+                                <TableCell
+                                  align="center"
+                                  colSpan={isSubtotalRow ? 2 : 1}
+                                  sx={{
+                                    borderRight: `1px solid ${alpha(themeColor, 0.06)}`
+                                  }}
+                                >
+                                  {isSubtotalRow ? (
+                                    <Typography variant="body2" sx={{ fontWeight: 700, color: themeColor }}>
+                                      —
+                                    </Typography>
+                                  ) : (
+                                    <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                                      {serialNumber}
+                                    </Typography>
+                                  )}
+                                </TableCell>
+
+                                {/* Block cell – grouped across zone rows */}
+                                {isNewBlock && !isSubtotalRow && (
+                                  <TableCell
+                                    rowSpan={blockRowCount}
+                                    align="center"
+                                    sx={{
+                                      verticalAlign: 'middle',
+                                      backgroundColor: alpha(themeColor, 0.03),
+                                      borderRight: `1px solid ${alpha(themeColor, 0.08)}`,
+                                      borderBottom: `1px solid ${alpha(themeColor, 0.08)}`
+                                    }}
+                                  >
+                                    <Stack direction="column" spacing={0.5} alignItems="center">
+                                      <LocationOnIcon sx={{ fontSize: 20, color: themeColor, opacity: 0.8 }} />
+                                      <Typography variant="body2" fontWeight={700} sx={{ color: themeColor }}>
+                                        {row.blockName}
+                                      </Typography>
+                                    </Stack>
+                                  </TableCell>
+                                )}
+
+                                {/* Zone name */}
+                                <TableCell
+                                  align="left"
+                                  sx={{
+                                    borderRight: `1px solid ${alpha(themeColor, 0.06)}`
+                                  }}
+                                >
+                                  {isSubtotalRow ? (
+                                    <Typography variant="body2" sx={{ fontWeight: 700, color: themeColor }}>
+                                      Total for {row.blockName}
+                                    </Typography>
+                                  ) : (
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                      <StoreIcon
+                                        sx={{
+                                          fontSize: 18,
+                                          color: !row.hasData ? '#ff9800' : themeColor,
+                                          opacity: 0.8
+                                        }}
+                                      />
+                                      <Typography
+                                        variant="body2"
+                                        sx={{
+                                          fontWeight: row.hasData ? 600 : 400,
+                                          color: row.hasData ? 'text.primary' : 'text.secondary'
+                                        }}
+                                      >
+                                        {row.zoneName}
+                                      </Typography>
+                                      {!row.hasData && (
+                                        <Chip
+                                          label="NA"
+                                          size="small"
+                                          sx={{
+                                            height: 18,
+                                            fontSize: '0.62rem',
+                                            bgcolor: alpha('#ff9800', 0.15),
+                                            color: '#e65100',
+                                            fontWeight: 700
+                                          }}
+                                        />
+                                      )}
+                                    </Stack>
+                                  )}
+                                </TableCell>
+
+                                {/* Total */}
+                                <TableCell align="center">
+                                  {hasNoData && !isSubtotalRow ? (
+                                    <Typography variant="body2" color="text.secondary">
+                                      NA
+                                    </Typography>
+                                  ) : (
                                     <Chip
-                                      label="No Data"
+                                      label={formatNumber(row.total)}
                                       size="small"
+                                      variant="filled"
                                       sx={{
-                                        ml: 1,
-                                        height: 18,
-                                        fontSize: '0.6rem',
-                                        bgcolor: alpha('#ff9800', 0.15),
-                                        color: '#e65100',
-                                        fontWeight: 600
+                                        fontWeight: 700,
+                                        bgcolor: isSubtotalRow ? alpha(themeColor, 0.15) : alpha(themeColor, 0.1),
+                                        color: themeColor
                                       }}
                                     />
                                   )}
-                                </Typography>
-                              </Stack>
-                            )}
-                          </TableCell>
+                                </TableCell>
 
-                          {/* Total */}
-                          <TableCell align="center" sx={{ border: 'none' }}>
-                            {hasNoData && !isSubtotalRow ? (
-                              <Typography variant="body2" color="text.secondary">NA</Typography>
-                            ) : (
-                              <Chip label={row.total} size="small"
-                                variant={isSubtotalRow ? 'filled' : 'outlined'}
-                                sx={{
-                                  fontWeight: isSubtotalRow ? 700 : 600,
-                                  bgcolor: isSubtotalRow ? alpha('#04255e', 0.15) : 'transparent',
-                                  color: isSubtotalRow ? '#04255e' : 'inherit'
-                                }} />
-                            )}
-                          </TableCell>
+                                {/* During Month (if range) */}
+                                {filterType === 'range' && (
+                                  <TableCell align="center">
+                                    {hasNoData && !isSubtotalRow ? (
+                                      <Typography variant="body2" color="text.secondary">
+                                        NA
+                                      </Typography>
+                                    ) : isSubtotalRow ? (
+                                      <Typography variant="body2" sx={{ fontWeight: 700, color: '#0288d1' }}>
+                                        {formatNumber(row.currentMonthCompleted)}
+                                      </Typography>
+                                    ) : row.currentMonthCompleted > 0 ? (
+                                      <Chip
+                                        label={formatNumber(row.currentMonthCompleted)}
+                                        size="small"
+                                        color="info"
+                                        variant="outlined"
+                                        sx={{ fontWeight: 600 }}
+                                      />
+                                    ) : (
+                                      <Typography variant="body2" color="text.secondary">
+                                        0
+                                      </Typography>
+                                    )}
+                                  </TableCell>
+                                )}
 
-                          {/* During the Month */}
+                                {/* Up to Month */}
+                                <TableCell align="center">
+                                  {hasNoData && !isSubtotalRow ? (
+                                    <Typography variant="body2" color="text.secondary">
+                                      NA
+                                    </Typography>
+                                  ) : isSubtotalRow ? (
+                                    <Typography variant="body2" sx={{ fontWeight: 700, color: '#2e7d32' }}>
+                                      {formatNumber(row.completed)}
+                                    </Typography>
+                                  ) : row.completed > 0 ? (
+                                    <Chip
+                                      label={formatNumber(row.completed)}
+                                      size="small"
+                                      color="success"
+                                      variant="outlined"
+                                      sx={{ fontWeight: 600 }}
+                                    />
+                                  ) : (
+                                    <Typography variant="body2" color="text.secondary">
+                                      0
+                                    </Typography>
+                                  )}
+                                </TableCell>
+
+                                {/* Ongoing */}
+                                <TableCell align="center">
+                                  {hasNoData && !isSubtotalRow ? (
+                                    <Typography variant="body2" color="text.secondary">
+                                      NA
+                                    </Typography>
+                                  ) : isSubtotalRow ? (
+                                    <Typography variant="body2" sx={{ fontWeight: 700, color: '#ed6c02' }}>
+                                      {formatNumber(row.ongoing)}
+                                    </Typography>
+                                  ) : row.ongoing > 0 ? (
+                                    <Chip
+                                      label={formatNumber(row.ongoing)}
+                                      size="small"
+                                      variant="outlined"
+                                      sx={{ fontWeight: 600, color: '#ed6c02', borderColor: '#ed6c02' }}
+                                    />
+                                  ) : (
+                                    <Typography variant="body2" color="text.secondary">
+                                      0
+                                    </Typography>
+                                  )}
+                                </TableCell>
+
+                                {/* Not Started */}
+                                <TableCell align="center">
+                                  {hasNoData && !isSubtotalRow ? (
+                                    <Typography variant="body2" color="text.secondary">
+                                      NA
+                                    </Typography>
+                                  ) : isSubtotalRow ? (
+                                    <Typography variant="body2" sx={{ fontWeight: 700, color: '#757575' }}>
+                                      {formatNumber(row.notStarted)}
+                                    </Typography>
+                                  ) : row.notStarted > 0 ? (
+                                    <Chip
+                                      label={formatNumber(row.notStarted)}
+                                      size="small"
+                                      variant="outlined"
+                                      sx={{ fontWeight: 600, color: 'text.secondary' }}
+                                    />
+                                  ) : (
+                                    <Typography variant="body2" color="text.secondary">
+                                      0
+                                    </Typography>
+                                  )}
+                                </TableCell>
+
+                                {/* Under Review */}
+                                <TableCell align="center">
+                                  {hasNoData && !isSubtotalRow ? (
+                                    <Typography variant="body2" color="text.secondary">
+                                      NA
+                                    </Typography>
+                                  ) : isSubtotalRow ? (
+                                    <Typography variant="body2" sx={{ fontWeight: 700, color: '#b76e00' }}>
+                                      {formatNumber(row.underReview)}
+                                    </Typography>
+                                  ) : row.underReview > 0 ? (
+                                    <Chip
+                                      label={formatNumber(row.underReview)}
+                                      size="small"
+                                      variant="outlined"
+                                      sx={{ fontWeight: 600, color: '#b76e00', borderColor: '#b76e00' }}
+                                    />
+                                  ) : (
+                                    <Typography variant="body2" color="text.secondary">
+                                      0
+                                    </Typography>
+                                  )}
+                                </TableCell>
+
+                                {/* Actions */}
+                                <TableCell align="center" onClick={(e) => e.stopPropagation()}>
+                                  {!isSubtotalRow && (
+                                    <Tooltip
+                                      title={!row.hasData ? 'No data available for this zone' : 'View Cluster Details'}
+                                    >
+                                      <span>
+                                        <IconButton
+                                          size="small"
+                                          onClick={() => handleViewZoneDetails(row.zoneName, row.zoneId)}
+                                          disabled={!row.hasData}
+                                          sx={{
+                                            color: !row.hasData ? alpha('#000', 0.26) : themeColor,
+                                            '&:hover': { bgcolor: alpha(themeColor, 0.1) }
+                                          }}
+                                        >
+                                          <VisibilityIcon fontSize="small" />
+                                        </IconButton>
+                                      </span>
+                                    </Tooltip>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          }
+                          return renderedRows;
+                        })()}
+
+                        {/* ── GRAND TOTAL ── */}
+                        <TableRow
+                          sx={{
+                            backgroundColor: alpha(themeColor, 0.09),
+                            '& .MuiTableCell-root': {
+                              borderTop: `2px solid ${alpha(themeColor, 0.35)}`,
+                              fontWeight: 800,
+                              color: themeColor
+                            }
+                          }}
+                        >
+                          <TableCell align="center" colSpan={2} sx={{ fontWeight: 800, color: themeColor }}>
+                            —
+                          </TableCell>
+                          <TableCell
+                            align="left"
+                            sx={{
+                              fontWeight: 800,
+                              color: themeColor,
+                              letterSpacing: 0.5
+                            }}
+                          >
+                            GRAND TOTAL
+                          </TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 800, color: themeColor }}>
+                            {formatNumber(stats.total)}
+                          </TableCell>
                           {filterType === 'range' && (
-                            <TableCell align="center" sx={{ border: 'none' }}>
-                              {hasNoData && !isSubtotalRow ? (
-                                <Typography variant="body2" color="text.secondary">NA</Typography>
-                              ) : row.currentMonthCompleted > 0 ? (
-                                <Chip label={row.currentMonthCompleted} size="small" color="success"
-                                  variant={isSubtotalRow ? 'filled' : 'outlined'}
-                                  sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
-                              ) : (
-                                <Typography variant="body2" color="text.secondary">{row.currentMonthCompleted}</Typography>
-                              )}
+                            <TableCell align="center" sx={{ fontWeight: 800, color: themeColor }}>
+                              {formatNumber(stats.currentMonthCompleted)}
                             </TableCell>
                           )}
-
-                          {/* Up to the Month */}
-                          <TableCell align="center" sx={{ border: 'none' }}>
-                            {hasNoData && !isSubtotalRow ? (
-                              <Typography variant="body2" color="text.secondary">NA</Typography>
-                            ) : row.completed > 0 ? (
-                              <Chip label={row.completed} size="small" color="success"
-                                variant={isSubtotalRow ? 'filled' : 'outlined'}
-                                sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
-                            ) : (
-                              <Typography variant="body2" color="text.secondary">{row.completed}</Typography>
-                            )}
+                          <TableCell align="center" sx={{ fontWeight: 800, color: themeColor }}>
+                            {formatNumber(stats.completed)}
                           </TableCell>
-
-                          {/* Ongoing */}
-                          <TableCell align="center" sx={{ border: 'none' }}>
-                            {hasNoData && !isSubtotalRow ? (
-                              <Typography variant="body2" color="text.secondary">NA</Typography>
-                            ) : row.ongoing > 0 ? (
-                              <Chip label={row.ongoing} size="small" color="primary"
-                                variant={isSubtotalRow ? 'filled' : 'outlined'}
-                                sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
-                            ) : (
-                              <Typography variant="body2" color="text.secondary">{row.ongoing}</Typography>
-                            )}
+                          <TableCell align="center" sx={{ fontWeight: 800, color: themeColor }}>
+                            {formatNumber(stats.ongoing)}
                           </TableCell>
-
-                          {/* Not Started */}
-                          <TableCell align="center" sx={{ border: 'none' }}>
-                            {hasNoData && !isSubtotalRow ? (
-                              <Typography variant="body2" color="text.secondary">NA</Typography>
-                            ) : row.notStarted > 0 ? (
-                              <Chip label={row.notStarted} size="small"
-                                variant={isSubtotalRow ? 'filled' : 'outlined'}
-                                sx={{
-                                  fontWeight: isSubtotalRow ? 700 : 500,
-                                  bgcolor: isSubtotalRow ? alpha('#757575', 0.15) : 'transparent'
-                                }} />
-                            ) : (
-                              <Typography variant="body2" color="text.secondary">{row.notStarted}</Typography>
-                            )}
+                          <TableCell align="center" sx={{ fontWeight: 800, color: themeColor }}>
+                            {formatNumber(stats.notStarted)}
                           </TableCell>
-
-                          {/* Under Review */}
-                          <TableCell align="center" sx={{ border: 'none' }}>
-                            {hasNoData && !isSubtotalRow ? (
-                              <Typography variant="body2" color="text.secondary">NA</Typography>
-                            ) : row.underReview > 0 ? (
-                              <Chip label={row.underReview} size="small" color="warning"
-                                variant={isSubtotalRow ? 'filled' : 'outlined'}
-                                sx={{ fontWeight: isSubtotalRow ? 700 : 500 }} />
-                            ) : (
-                              <Typography variant="body2" color="text.secondary">{row.underReview}</Typography>
-                            )}
+                          <TableCell align="center" sx={{ fontWeight: 800, color: themeColor }}>
+                            {formatNumber(stats.underReview)}
                           </TableCell>
-
-                          {/* Actions - Disabled for zones with no data */}
-                          <TableCell align="center" sx={{ border: 'none' }}>
-                            {!isSubtotalRow && (
-                              row.hasData ? (
-                                <Tooltip title="View Details">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleViewZoneDetails(row.zoneName, row.zoneId)}
-                                    sx={{
-                                      color: '#04255e',
-                                      '&:hover': { bgcolor: alpha('#04255e', 0.1) }
-                                    }}>
-                                    <VisibilityIcon />
-                                  </IconButton>
-                                </Tooltip>
-                              ) : (
-                                <Tooltip title="No data available - View disabled">
-                                  <IconButton
-                                    size="small"
-                                    disabled
-                                    sx={{
-                                      color: '#bdbdbd',
-                                      cursor: 'not-allowed'
-                                    }}>
-                                    <VisibilityOffIcon />
-                                  </IconButton>
-                                </Tooltip>
-                              )
-                            )}
-                          </TableCell>
+                          <TableCell align="center" />
                         </TableRow>
-                      );
-                    }
-                    return rows;
-                  })() : (
-                    <TableRow>
-                      <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
-                        <Typography color="text.secondary">
-                          {searchTerm ? `No blocks/zones found matching "${searchTerm}"` : 'No data available for selected filters'}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                      </>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
 
-            {searchFilteredData.length > 0 && !loading && (
-              <TablePagination component="div" count={searchFilteredData.length}
-                page={page} onPageChange={(_, p) => setPage(p)}
-                rowsPerPage={rowsPerPage}
-                onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
-                rowsPerPageOptions={[15, 25, 50, 100]}
-                sx={{ borderTop: `1px solid ${theme.palette.divider}` }} />
-            )}
-          </MainCard>
-        </Box>
-      </Grid>
-    </Grid>
+              {searchFilteredData.length > 0 && !loading && (
+                <TablePagination
+                  component="div"
+                  count={searchFilteredData.length}
+                  page={page}
+                  onPageChange={handleChangePage}
+                  rowsPerPage={rowsPerPage}
+                  onRowsPerPageChange={handleChangeRowsPerPage}
+                  rowsPerPageOptions={[15, 25, 50, 100]}
+                  sx={{
+                    borderTop: `1px solid ${alpha(themeColor, 0.1)}`,
+                    '& .MuiTablePagination-toolbar': { minHeight: 48 }
+                  }}
+                />
+              )}
+            </Box>
+          </Paper>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }
 

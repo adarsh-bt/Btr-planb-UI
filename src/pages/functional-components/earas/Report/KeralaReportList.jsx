@@ -60,12 +60,12 @@ const BASE_URL = mainapi.BTR_API;
 function KeralaReportList() {
   const theme = useTheme();
   const navigate = useNavigate();
-  
+
   // State for API data
   const [apiData, setApiData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+
   // Filter states
   const [seasonTab, setSeasonTab] = useState('ALL');
   const [landType, setLandType] = useState(null); // 'WET' or 'DRY' or null for ALL
@@ -73,7 +73,7 @@ function KeralaReportList() {
   const [fromMonth, setFromMonth] = useState('');
   const [toMonth, setToMonth] = useState('');
   const [singleMonth, setSingleMonth] = useState(getCurrentMonth());
-  
+
   // UI states
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
@@ -127,7 +127,7 @@ function KeralaReportList() {
         notStarted: districtDetails.wetNotStarted || 0,
         underReview: districtDetails.wetUnderView || 0
       };
-    } 
+    }
     // If land type is DRY, use dry statistics
     else if (landType === 'DRY') {
       return {
@@ -152,22 +152,22 @@ function KeralaReportList() {
   const fetchDashboardData = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       // Get token from localStorage
       const token = localStorage.getItem('token');
       if (!token) {
         throw new Error('Authorization token missing');
       }
-      
+
       let url = `${BASE_URL}/btr-service/api/report/clusters/AllDistricts`;
       const params = new URLSearchParams();
-      
+
       // Add landType filter
       if (landType && seasonTab !== 'ALL') {
         params.append('landType', landType.toLowerCase());
       }
-      
+
       // Add date filters - ALWAYS include startMonth (backend requires it)
       if (filterType === 'single' && singleMonth) {
         const formattedMonth = formatMonthForApi(singleMonth);
@@ -183,7 +183,7 @@ function KeralaReportList() {
           // If no fromMonth selected, default to current month
           params.append('startMonth', formatMonthForApi(getCurrentMonth()));
         }
-        
+
         if (toMonth) {
           params.append('endMonth', formatMonthForApi(toMonth));
         }
@@ -193,27 +193,27 @@ function KeralaReportList() {
         params.append('startMonth', currentMonth);
         params.append('endMonth', currentMonth);
       }
-      
+
       const queryString = params.toString();
       if (queryString) {
         url += `?${queryString}`;
       }
-      
+
       console.log('Fetching data from:', url);
-      
+
       // Make request with authorization header
       const response = await axios.get(url, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (response.data) {
         setApiData(response.data);
       }
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
-      
+
       // Handle specific error cases
       if (err.response?.status === 401) {
         setError('Session expired. Please login again.');
@@ -236,7 +236,7 @@ function KeralaReportList() {
     if (!apiData || !apiData.allSubDetails) {
       return [];
     }
-    
+
     return Object.entries(apiData.allSubDetails).map(([districtName, details]) => {
       const stats = getDistrictStats(details);
       return {
@@ -263,7 +263,7 @@ function KeralaReportList() {
   // Filter data based on search
   const filteredData = useMemo(() => {
     if (!searchTerm.trim()) return transformApiDataToDistricts;
-    return transformApiDataToDistricts.filter(row => 
+    return transformApiDataToDistricts.filter(row =>
       row.district.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [transformApiDataToDistricts, searchTerm]);
@@ -341,7 +341,7 @@ function KeralaReportList() {
     const district = transformApiDataToDistricts.find(d => d.district === districtName);
     if (district) {
       navigate(`/kerala_cluster_report/taluk_cluster_report/${district.id}`, {
-        state: { 
+        state: {
           districtId: district.id,
           districtName: districtName,
           landType: landType,
@@ -356,7 +356,7 @@ function KeralaReportList() {
       });
     } else {
       navigate(`/kerala_cluster_report/taluk_cluster_report/${districtName.toLowerCase()}`, {
-        state: { 
+        state: {
           districtName,
           landType: landType,
           seasonTab: seasonTab,
@@ -383,8 +383,8 @@ function KeralaReportList() {
   };
 
   const StatCard = ({ label, value, color, bgColor, icon }) => (
-    <Card sx={{ 
-      bgcolor: bgColor, 
+    <Card sx={{
+      bgcolor: bgColor,
       borderRadius: 3,
       transition: 'transform 0.2s, box-shadow 0.2s',
       '&:hover': {
@@ -423,7 +423,7 @@ function KeralaReportList() {
   return (
     <Grid container spacing={3}>
       <Breadcrumb />
-      
+
       {/* Header */}
       <Grid item xs={12}>
         <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
@@ -431,12 +431,8 @@ function KeralaReportList() {
             <AssessmentIcon sx={{ fontSize: 40, color: '#1a237e' }} />
             <Box>
               <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1a237e' }}>
-<<<<<<< HEAD:src/pages/functional-components/earas/Report/KeralaReportList.jsx
-                Cluster Report
-=======
                 Cluster Formation Progress Report
->>>>>>> a22e88c9546b017638c11df9b01a746c7e03b955:src/pages/functional-components/earas/Report/clusterReport/KeralaClusterReportList.jsx
-              </Typography>
+              </Typography >
               <Typography variant="body2" color="text.secondary">
                 {filterType === 'single' && singleMonth && ` • ${singleMonth}`}
                 {filterType === 'range' && fromMonth && toMonth && ` • ${fromMonth} - ${toMonth}`}
@@ -445,11 +441,11 @@ function KeralaReportList() {
                 {seasonTab !== 'ALL' && ` • ${seasonTab} Season`}
                 {apiData && ` • Total Clusters: ${apiData.totalCluster || 0}`}
               </Typography>
-            </Box>
-          </Stack>
+            </Box >
+          </Stack >
           {(fromMonth || toMonth || singleMonth || seasonTab !== 'ALL') && (
-            <Button 
-              variant="outlined" 
+            <Button
+              variant="outlined"
               onClick={handleClearFilters}
               startIcon={<ClearIcon />}
               size="small"
@@ -457,26 +453,29 @@ function KeralaReportList() {
             >
               Clear All Filters
             </Button>
-          )}
-        </Stack>
-      </Grid>
+          )
+          }
+        </Stack >
+      </Grid >
 
       {/* Error Message */}
-      {error && (
-        <Grid item xs={12}>
-          <Paper sx={{ p: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
-            <Typography color="error">Error: {error}</Typography>
-          </Paper>
-        </Grid>
-      )}
+      {
+        error && (
+          <Grid item xs={12}>
+            <Paper sx={{ p: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
+              <Typography color="error">Error: {error}</Typography>
+            </Paper>
+          </Grid>
+        )
+      }
 
       {/* Filters */}
       <Grid item xs={12}>
         <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
           <Stack spacing={2}>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
-              <Tabs 
-                value={seasonTab} 
+              <Tabs
+                value={seasonTab}
                 onChange={handleSeasonTabChange}
                 sx={{ minHeight: 40 }}
               >
@@ -524,9 +523,9 @@ function KeralaReportList() {
               ) : (
                 <FormControl size="small" sx={{ minWidth: 200 }}>
                   <InputLabel>Select Month</InputLabel>
-                  <Select 
-                    value={singleMonth} 
-                    label="Select Month" 
+                  <Select
+                    value={singleMonth}
+                    label="Select Month"
                     onChange={handleSingleMonthChange}
                   >
                     <MenuItem value="">None</MenuItem>
@@ -687,7 +686,7 @@ function KeralaReportList() {
                     </TableRow>
                   ) : paginatedData.length > 0 ? (
                     paginatedData.map((row) => (
-                      <TableRow 
+                      <TableRow
                         key={row.id}
                         hover
                         sx={{ '&:hover': { bgcolor: alpha('#04255e', 0.04) }, transition: '0.2s' }}
@@ -715,7 +714,7 @@ function KeralaReportList() {
                         </TableCell>
                         <TableCell align="center">
                           <Tooltip title="View Details">
-                            <IconButton 
+                            <IconButton
                               size="small"
                               onClick={() => handleViewDetails(row.district)}
                               sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
@@ -751,7 +750,7 @@ function KeralaReportList() {
           </MainCard>
         </Box>
       </Grid>
-    </Grid>
+    </Grid >
   );
 }
 

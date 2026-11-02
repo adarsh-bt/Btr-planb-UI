@@ -74,10 +74,19 @@ function getFallbackDistricts() {
   ];
 }
 
+const getCropKey = (crop) => {
+  if (!crop) return '';
+  if (crop.cropKey) return crop.cropKey;
+  const id = crop.cropId ?? '';
+  const name = cleanName(crop.cropName).toLowerCase();
+  return `${id}__${name}`;
+};
+
 function mergeGroupResponses(responses) {
   const districts = new Map();
   responses.forEach((rows) => {
-    (Array.isArray(rows) ? rows : []).forEach((d) => {
+    const list = Array.isArray(rows) ? rows : (rows?.data || rows?.payload || []);
+    list.forEach((d) => {
       const key = d.districtId ?? `name:${d.districtName || 'Unassigned'}`;
       if (!districts.has(key)) {
         districts.set(key, {
@@ -91,14 +100,17 @@ function mergeGroupResponses(responses) {
       if (!entry.clusterArea && d.clusterArea) entry.clusterArea = Number(d.clusterArea) || 0;
 
       (d.crops || []).forEach((c) => {
-        const existing = entry.crops.get(c.cropId);
+        const cropKey = getCropKey(c);
+        if (!cropKey) return;
+        const existing = entry.crops.get(cropKey);
         if (existing) {
           existing.areaInCents = (Number(existing.areaInCents) || 0) + (Number(c.areaInCents) || 0);
           if (!existing.cropUnit && c.cropUnit) existing.cropUnit = c.cropUnit;
         } else {
-          entry.crops.set(c.cropId, {
+          entry.crops.set(cropKey, {
+            cropKey,
             cropId: c.cropId,
-            cropName: c.cropName,
+            cropName: cleanName(c.cropName) || c.cropName,
             cropUnit: c.cropUnit,
             areaInCents: Number(c.areaInCents) || 0
           });
@@ -260,18 +272,23 @@ const KeralaForm3B = () => {
     const map = new Map();
     apiData.forEach((d) =>
       (d.crops || []).forEach((c) => {
-        if (!map.has(c.cropId)) {
-          map.set(c.cropId, {
+        const key = getCropKey(c);
+        if (!key) return;
+        if (!map.has(key)) {
+          map.set(key, {
+            cropKey: key,
             cropId: c.cropId,
-            cropName: cleanName(c.cropName),
+            cropName: cleanName(c.cropName) || c.cropName || '',
             cropUnit: c.cropUnit || ''
           });
-        } else if (!map.get(c.cropId).cropUnit && c.cropUnit) {
-          map.get(c.cropId).cropUnit = c.cropUnit;
+        } else if (!map.get(key).cropUnit && c.cropUnit) {
+          map.get(key).cropUnit = c.cropUnit;
         }
       })
     );
-    return Array.from(map.values()).sort((a, b) => a.cropName.localeCompare(b.cropName));
+    return Array.from(map.values()).sort(
+      (a, b) => a.cropName.localeCompare(b.cropName) || String(a.cropId).localeCompare(String(b.cropId))
+    );
   }, [apiData]);
 
   // ── Merge master districts with API data (master order preserved) ──
@@ -285,7 +302,15 @@ const KeralaForm3B = () => {
 
     const buildRow = (distId, distName, api) => {
       const byId = {};
-      (api?.crops || []).forEach((c) => { byId[c.cropId] = Number(c.areaInCents) || 0; });
+      (api?.crops || []).forEach((c) => {
+        const key = getCropKey(c);
+        if (key) {
+          byId[key] = (byId[key] || 0) + (Number(c.areaInCents) || 0);
+        }
+        if (c.cropId != null && byId[c.cropId] === undefined) {
+          byId[c.cropId] = Number(c.areaInCents) || 0;
+        }
+      });
       const clusterArea = Number(api?.clusterArea) || 0;
       const hasData = clusterArea > 0 || Object.keys(byId).length > 0;
       return {
@@ -324,10 +349,10 @@ const KeralaForm3B = () => {
 
   const cropTotals = useMemo(() => {
     const totals = {};
-    cropColumns.forEach((c) => (totals[c.cropId] = 0));
+    cropColumns.forEach((c) => (totals[c.cropKey] = 0));
     searchFilteredRows.forEach((row) => {
       cropColumns.forEach((c) => {
-        if (row.byId[c.cropId] !== undefined) totals[c.cropId] += row.byId[c.cropId];
+        if (row.byId[c.cropKey] !== undefined) totals[c.cropKey] += row.byId[c.cropKey];
       });
     });
     return totals;
@@ -401,7 +426,7 @@ const KeralaForm3B = () => {
       } else {
         cells.push(row.clusterArea ? Number(row.clusterArea) : '—');
         cropColumns.forEach((c) => {
-          const v = row.byId[c.cropId];
+          const v = row.byId[c.cropKey];
           cells.push(v ? Number(v) : '—');
         });
       }
@@ -411,7 +436,7 @@ const KeralaForm3B = () => {
     const totalsRow = [
       '', 'GRAND TOTAL',
       Number(areaTotals.clusterArea.toFixed(2)),
-      ...cropColumns.map((c) => Number((cropTotals[c.cropId] || 0).toFixed(2)))
+      ...cropColumns.map((c) => Number((cropTotals[c.cropKey] || 0).toFixed(2)))
     ];
 
     const aoa = [...headerMeta, headerRow, ...dataRows, totalsRow];
@@ -739,7 +764,7 @@ const KeralaForm3B = () => {
                   <colgroup>
                     <col style={{ width: DISTRICT_W }} />
                     <col style={{ width: AREA_W }} />
-                    {cropColumns.map((c) => (<col key={c.cropId} style={{ width: CROP_W }} />))}
+                    {cropColumns.map((c) => (<col key={c.cropKey} style={{ width: CROP_W }} />))}
                     <col style={{ width: 'auto' }} />
                   </colgroup>
 
@@ -784,7 +809,7 @@ const KeralaForm3B = () => {
                       </TableCell>
                       {cropColumns.map((crop) => (
                         <TableCell
-                          key={crop.cropId}
+                          key={crop.cropKey}
                           align="right"
                           sx={{
                             backgroundColor: themeColor,
@@ -933,9 +958,9 @@ const KeralaForm3B = () => {
                                 )}
                               </TableCell>
                               {cropColumns.map((crop) => {
-                                const val = row.byId[crop.cropId];
+                                const val = row.byId[crop.cropKey];
                                 return (
-                                  <TableCell key={crop.cropId} align="right" sx={numericCellSx}>
+                                  <TableCell key={crop.cropKey} align="right" sx={numericCellSx}>
                                     {!row.hasData ? (
                                       <Typography variant="body2" color="text.secondary">NA</Typography>
                                     ) : val ? (
@@ -975,8 +1000,8 @@ const KeralaForm3B = () => {
                           </TableCell>
                           <TableCell align="right" sx={numericCellSx}>{formatNumber(areaTotals.clusterArea)}</TableCell>
                           {cropColumns.map((crop) => (
-                            <TableCell key={crop.cropId} align="right" sx={numericCellSx}>
-                              {cropTotals[crop.cropId] ? formatNumber(cropTotals[crop.cropId]) : '—'}
+                            <TableCell key={crop.cropKey} align="right" sx={numericCellSx}>
+                              {cropTotals[crop.cropKey] ? formatNumber(cropTotals[crop.cropKey]) : '—'}
                             </TableCell>
                           ))}
                           <TableCell aria-hidden sx={{ backgroundColor: alpha(themeColor, 0.09) }} />

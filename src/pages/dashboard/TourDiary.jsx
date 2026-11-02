@@ -256,20 +256,12 @@ const TourDiary = () => {
         // For Field Data Collector - check individual halves (unlocked if rejected by either Field Inspector or Taluk Level Approver)
         if (isFieldDataCollector) {
             if (isFirstHalf) {
-<<<<<<< HEAD
                 // First Half: locked if submitted and neither admin nor verifier has rejected it
-=======
-                // First Half: locked if submitted and NOT rejected by Admin AND NOT rejected by Field Inspector (Verifier)
->>>>>>> bef10d97e9f5a2d0bc373d22d92f5d13251c4275
                 return submissionView.firstHalfSubmitted &&
                     submissionView.firstHalfAdminStatus !== 'REJECTED' &&
                     submissionView.firstHalfVerifiedStatus !== 'REJECTED';
             } else {
-<<<<<<< HEAD
                 // Second Half: locked if submitted and neither admin nor verifier has rejected it
-=======
-                // Second Half: locked if submitted and NOT rejected by Admin AND NOT rejected by Field Inspector (Verifier)
->>>>>>> bef10d97e9f5a2d0bc373d22d92f5d13251c4275
                 return submissionView.secondHalfSubmitted &&
                     submissionView.secondHalfAdminStatus !== 'REJECTED' &&
                     submissionView.secondHalfVerifiedStatus !== 'REJECTED';
@@ -688,7 +680,6 @@ const TourDiary = () => {
     // ============================ HALF SUBMIT ============================
     const handleSubmitHalf = async (half) => {
 
-<<<<<<< HEAD
         if (half === 'First Half') {
             const isFirstHalfRejected = (submissionView && (submissionView.firstHalfAdminStatus === 'REJECTED' || submissionView.firstHalfVerifiedStatus === 'REJECTED')) ||
                 (submissionStatus.firstHalf?.adminstatus === 'REJECTED' || submissionStatus.firstHalf?.verifiedStatus === 'REJECTED');
@@ -706,17 +697,6 @@ const TourDiary = () => {
                 closeSubmitMenu();
                 return;
             }
-=======
-        if (half === 'First Half' && submissionStatus.firstHalf?.isSubmitted && submissionStatus.firstHalf.adminstatus !== 'REJECTED' && submissionStatus.firstHalf.verifiedstatus !== 'REJECTED' && submissionView?.firstHalfAdminStatus !== 'REJECTED' && submissionView?.firstHalfVerifiedStatus !== 'REJECTED') {
-            showNotification('info', `First Half already submitted on ${new Date(submissionStatus.firstHalf.submittedAt || submissionView?.firstHalfSubmittedDate).toLocaleString()}`);
-            closeSubmitMenu();
-            return;
-        }
-        if (half === 'Second Half' && submissionStatus.secondHalf?.isSubmitted && submissionStatus.secondHalf.adminstatus !== 'REJECTED' && submissionStatus.secondHalf.verifiedstatus !== 'REJECTED' && submissionView?.secondHalfAdminStatus !== 'REJECTED' && submissionView?.secondHalfVerifiedStatus !== 'REJECTED') {
-            showNotification('info', `Second Half already submitted on ${new Date(submissionStatus.secondHalf.submittedAt || submissionView?.secondHalfSubmittedDate).toLocaleString()}`);
-            closeSubmitMenu();
-            return;
->>>>>>> bef10d97e9f5a2d0bc373d22d92f5d13251c4275
         }
 
         setSubmitDialog({ open: true, half });

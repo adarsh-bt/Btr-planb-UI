@@ -38,7 +38,8 @@ import {
   IconButton,
   Tooltip,
   Card,
-  CardContent
+  CardContent,
+  Checkbox
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -55,7 +56,9 @@ import {
   Warning as WarningIcon,
   Delete as DeleteIcon,
   CheckCircle as CheckCircleIcon,
-  Error as ErrorIcon
+  Error as ErrorIcon,
+  DeleteForever as DeleteForeverIcon,
+  WarningAmber as WarningAmberIcon
 } from '@mui/icons-material';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import mainapi from 'api/mainapi';
@@ -97,6 +100,15 @@ const KeyPlotListing = ({ zoneId }) => {
   const [selectedRowToRemove, setSelectedRowToRemove] = useState(null);
   const [reasonError, setReasonError] = useState(false);
   const [dialogLoading, setDialogLoading] = useState(false);
+
+  // Permanent Deletion Request states (Admin approval required)
+  const [openDeletionRequestDialog, setOpenDeletionRequestDialog] = useState(false);
+  const [selectedRowForDeletionRequest, setSelectedRowForDeletionRequest] = useState(null);
+  const [deletionReason, setDeletionReason] = useState('');
+  const [deletionPresetReason, setDeletionPresetReason] = useState('');
+  const [deletionReasonError, setDeletionReasonError] = useState('');
+  const [deletionRequestLoading, setDeletionRequestLoading] = useState(false);
+  const [confirmUnderstood, setConfirmUnderstood] = useState(false);
 
   // Plot details modal states
   const [openPlotDetailsModal, setOpenPlotDetailsModal] = useState(false);
@@ -204,11 +216,27 @@ const KeyPlotListing = ({ zoneId }) => {
     'Other'
   ];
 
+  // Preset reasons for Admin permanent deletion request
+  const deletionPresetReasons = [
+    'Localbody,Village , Block wrongare  . Please verify and remove it.',
+    'Duplicate Entry / Cluster Error',
+    'Incorrect Survey / Land Boundary Details',
+    'Wrong Land Type or Non-Existent Plot',
+    'Cluster Setup Error - Requires Complete Reset',
+    'Other'
+  ];
+
   // Transform API data to match table format
   const transformPlotData = (apiData) => {
     return apiData.map((plot, index) => ({
+      ...plot,
       id: plot.clusterId,
       plot_id: plot.keyplotId,
+      keyplotId: plot.keyplotId,
+      btr_id: plot.btr_id ?? plot.btrId ?? null,
+      // btrId: plot.btr_id ?? plot.btrId ?? null,
+      iseditable: plot.iseditable !== undefined ? plot.iseditable : true,
+      // plot_id: plot.keyplotId,
       slNo: index + 1,
       syNo: plot.syNo && !['null', 'null/', 'undefined', ''].includes(plot.syNo.trim().toLowerCase())
         ? plot.syNo
@@ -216,7 +244,7 @@ const KeyPlotListing = ({ zoneId }) => {
       panchayth: plot.panchayath,
       cluster_number: plot.cluster_no,
       area: plot.areaCents,
-      btyType: plot.btr_type,
+      btyType: plot.btr_type_id,
       villageBlock: plot.villageBlock,
       landType: plot.landType,
       kvillageName: plot.kvillageName,
@@ -840,6 +868,110 @@ const KeyPlotListing = ({ zoneId }) => {
   };
 
 
+  // Permanent Deletion Request Dialog Handlers
+  const handleOpenDeletionRequestDialog = (row) => {
+    const normalizedRow = {
+      ...row,
+      keyplotId: row.keyplotId || row.plot_id,
+      plot_id: row.plot_id || row.keyplotId,
+      btrId: row.btrId ?? row.btr_id ?? null,
+      btr_id: row.btr_id ?? row.btrId ?? null,
+      cluster_number: row.cluster_number ?? row.cluster_no ?? '--',
+      panchayth: row.panchayth || row.panchayath || '--',
+      kvillageName: row.kvillageName || row.village || '--',
+      area: row.area ?? row.areaCents ?? row.enumArea ?? '--',
+      status: row.status || 'Unknown',
+      syNo: row.syNo || '--'
+    };
+    setSelectedRowForDeletionRequest(normalizedRow);
+    setDeletionPresetReason('');
+    setDeletionReason('');
+    setDeletionReasonError('');
+    setConfirmUnderstood(false);
+    setOpenDeletionRequestDialog(true);
+  };
+
+  const handleCloseDeletionRequestDialog = () => {
+    if (deletionRequestLoading) return;
+    setOpenDeletionRequestDialog(false);
+    setSelectedRowForDeletionRequest(null);
+    setDeletionPresetReason('');
+    setDeletionReason('');
+    setDeletionReasonError('');
+    setConfirmUnderstood(false);
+  };
+
+  const handleDeletionPresetReasonChange = (e) => {
+    const val = e.target.value;
+    setDeletionPresetReason(val);
+    setDeletionReasonError('');
+    if (val !== 'Other') {
+      setDeletionReason(val);
+    } else {
+      setDeletionReason('');
+    }
+  };
+
+  const handleSubmitDeletionRequest = async () => {
+    if (!selectedRowForDeletionRequest) return;
+
+    const trimmedReason = deletionReason.trim();
+
+    if (!trimmedReason || trimmedReason.length < 5) {
+      setDeletionReasonError('Please provide a valid reason (minimum 5 characters) for the deletion request.');
+      return;
+    }
+
+    if (!confirmUnderstood) {
+      setDeletionReasonError('You must acknowledge the critical warning checkbox before proceeding.');
+      return;
+    }
+
+    setDeletionRequestLoading(true);
+    setDeletionReasonError('');
+
+    try {
+      const requestedBy = authservice.userid() || localStorage.getItem('userId') || '';
+      const payload = {
+        keyplotId: selectedRowForDeletionRequest.keyplotId || selectedRowForDeletionRequest.plot_id,
+        reason: trimmedReason,
+        btrId: selectedRowForDeletionRequest.btrId ?? selectedRowForDeletionRequest.btr_id ?? null,
+        requestedBy: requestedBy
+      };
+
+      console.log('Submitting keyplot deletion request:', payload);
+
+      const response = await api.post('/btr-service/keyplot-deletion-requests', payload);
+
+      setSnackbarMessage(
+        response?.data?.message ||
+        `✅ Deletion request for Survey No: ${selectedRowForDeletionRequest.syNo} submitted successfully! The cluster is now locked in non-editable mode pending Admin approval.`
+      );
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+
+      handleCloseDeletionRequestDialog();
+
+      // Refetch keyplots so that iseditable and cluster statuses are refreshed from server
+      await fetchKeyPlots();
+    } catch (err) {
+      console.error('Error submitting deletion request:', err);
+      if (err?.response?.status !== 401) {
+        const errorMsg =
+          err?.response?.data?.message ||
+          err?.response?.data ||
+          err?.message ||
+          'Failed to submit deletion request to Admin. Please try again.';
+        setDeletionReasonError(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg));
+        setSnackbarMessage(`Failed to submit request: ${typeof errorMsg === 'string' ? errorMsg : 'Server error'}`);
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+      }
+    } finally {
+      setDeletionRequestLoading(false);
+    }
+  };
+
   const handleSaveClusterChanges = async () => {
     if (hasDuplicateClusters() || hasAnyErrors()) {
       setSnackbarMessage("Fix errors before submitting");
@@ -1257,7 +1389,7 @@ const KeyPlotListing = ({ zoneId }) => {
                         color: 'white',
                         fontWeight: 'bold',
                         whiteSpace: 'nowrap',
-                        width: '100px', // Fixed width for action column
+                        width: '135px', // Fixed width for action column
                         '&:hover': { backgroundColor: '#032050' }
                       }}
                     >
@@ -1295,8 +1427,28 @@ const KeyPlotListing = ({ zoneId }) => {
                             onChange={(e) => handleClusterChange(row.id, e.target.value)}
                             onBlur={() => handleClusterBlur(row.id)}
                             error={!!clusterErrors[row.id]}
-                            helperText={clusterErrors[row.id]}
-                            sx={{ width: 70 }}
+                            helperText={clusterErrors[row.id] || (row.iseditable === false ? "🔒 Locked" : "")}
+                            FormHelperTextProps={{
+                              sx: {
+                                color: row.iseditable === false && !clusterErrors[row.id] ? 'error.main' : undefined,
+                                fontWeight: 'bold',
+                                fontSize: '0.65rem',
+                                m: 0,
+                                textAlign: 'center',
+                                whiteSpace: 'nowrap'
+                              }
+                            }}
+                            disabled={row.iseditable === false}
+                            sx={{
+                              width: 70,
+                              ...(row.iseditable === false && {
+                                '& .MuiInputBase-input.Mui-disabled': {
+                                  WebkitTextFillColor: '#555',
+                                  bgcolor: '#f5f5f5',
+                                  cursor: 'not-allowed'
+                                }
+                              })
+                            }}
                           />
                         </TableCell>
 
@@ -1317,16 +1469,59 @@ const KeyPlotListing = ({ zoneId }) => {
                             onClick={() => handleViewPlot(row.plot_id)}
                             sx={{ minWidth: 'unset', px: 0.5 }}
                           >
-                            <ViewIcon fontSize="small" />
+                            <Tooltip title="View Cluster Details" arrow>
+                              <span><ViewIcon fontSize="small" /></span>
+                            </Tooltip>
                           </Button>
 
                           <Button
-                            // disabled={true}
+                            disabled={row.iseditable === false}
                             sx={{ color: 'error.main', minWidth: 'unset', px: 0.5 }}
                             size="small"
                             onClick={() => handleOpenRemoveDialog(row)}
                           >
-                            <RemoveIcon fontSize="small" />
+                            <Tooltip title={row.iseditable === false ? "Locked: Cluster is in non-editable mode" : "Temporary KeyPlot Removal"} arrow>
+                              <span><RemoveIcon fontSize="small" /></span>
+                            </Tooltip>
+                          </Button>
+
+                          <Button
+                            disabled={
+                              row.status === 'Deletion Requested' ||
+                              row.status === 'Pending Deletion'
+                            }
+                            sx={{
+                              color:
+                                row.status === 'Deletion Requested' ||
+                                  row.status === 'Pending Deletion'
+                                  ? 'text.disabled'
+                                  : '#d32f2f',
+                              minWidth: 'unset',
+                              px: 0.5,
+                              '&:hover': {
+                                bgcolor:
+                                  row.status === 'Deletion Requested' ||
+                                    row.status === 'Pending Deletion'
+                                    ? 'transparent'
+                                    : '#ffebee'
+                              }
+                            }}
+                            size="small"
+                            onClick={() => handleOpenDeletionRequestDialog(row)}
+                          >
+                            <Tooltip
+                              title={
+                                row.status === 'Deletion Requested' ||
+                                  row.status === 'Pending Deletion'
+                                  ? "Deletion Request Already Submitted (Pending Admin Approval)"
+                                  : row.status === 'Completed'
+                                    ? "Request Permanent Deletion for Completed Cluster (Admin Approval Required)"
+                                    : "Request Permanent Deletion (Admin Approval Required)"
+                              }
+                              arrow
+                            >
+                              <span><DeleteForeverIcon fontSize="small" /></span>
+                            </Tooltip>
                           </Button>
 
                         </TableCell>
@@ -1849,9 +2044,57 @@ const KeyPlotListing = ({ zoneId }) => {
             <Button
               variant="outlined"
               color="primary"
+              disabled={plotDetailsData?.iseditable === false}
               onClick={handleOpenEnumEdit}
             >
               Edit Enumerated Area
+            </Button>
+
+            <Button
+              variant="contained"
+              color="error"
+              disabled={
+                plotDetailsData?.status === 'Deletion Requested' ||
+                plotDetailsData?.status === 'Pending Deletion'
+              }
+              startIcon={<DeleteForeverIcon />}
+              onClick={() => {
+                const targetRow =
+                  plotData.find(
+                    (p) =>
+                      p.plot_id === plotDetailsData?.keyplotId ||
+                      p.keyplotId === plotDetailsData?.keyplotId
+                  ) || {
+                    ...plotDetailsData,
+                    id: plotDetailsData?.clusterId,
+                    plot_id: plotDetailsData?.keyplotId,
+                    keyplotId: plotDetailsData?.keyplotId,
+                    btrId: plotDetailsData?.btr_id ?? plotDetailsData?.btrId ?? null,
+                    btr_id: plotDetailsData?.btr_id ?? plotDetailsData?.btrId ?? null,
+                    cluster_number: plotDetailsData?.cluster_no,
+                    panchayth: plotDetailsData?.panchayath,
+                    kvillageName: plotDetailsData?.kvillageName,
+                    villageBlock: plotDetailsData?.villageBlock,
+                    landType: plotDetailsData?.landType,
+                    area: plotDetailsData?.areaCents || plotDetailsData?.enumArea,
+                    status: plotDetailsData?.status,
+                    syNo: plotDetailsData?.syNo
+                  };
+                handleClosePlotDetailsModal();
+                handleOpenDeletionRequestDialog(targetRow);
+              }}
+              sx={{
+                bgcolor: '#d32f2f',
+                color: 'white',
+                fontWeight: 600,
+                '&:hover': {
+                  bgcolor: '#b71c1c'
+                }
+              }}
+            >
+              {plotDetailsData?.status === 'Completed'
+                ? 'Request Permanent Deletion (Completed Cluster)'
+                : 'Request Permanent Deletion'}
             </Button>
 
             <Button
@@ -2748,6 +2991,348 @@ const KeyPlotListing = ({ zoneId }) => {
                 {preCheckData.hasCrops ? 'View & Remove Crops' : 'Proceed to Remove'}
               </Button>
             )}
+          </DialogActions>
+        </Dialog>
+
+        {/* ============================================================== */}
+        {/* CRITICAL WARNING DIALOG: ADMIN PERMANENT DELETION REQUEST      */}
+        {/* ============================================================== */}
+        <Dialog
+          open={openDeletionRequestDialog}
+          onClose={() => {
+            if (!deletionRequestLoading) {
+              handleCloseDeletionRequestDialog();
+            }
+          }}
+          fullWidth
+          maxWidth="md"
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              overflow: 'hidden',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+              border: '2px solid #d32f2f'
+            }
+          }}
+        >
+          {/* Header */}
+          <DialogTitle
+            sx={{
+              background: 'linear-gradient(135deg, #b71c1c 0%, #d32f2f 100%)',
+              color: 'white',
+              py: 2,
+              px: 3,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <WarningAmberIcon sx={{ fontSize: 34, color: '#ffeb3b' }} />
+              <Box>
+                <Typography variant="h6" fontWeight="bold" sx={{ letterSpacing: 0.5 }}>
+                  REQUEST PERMANENT DELETION
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.85)', display: 'block' }}>
+                  Admin Authorization Required • Irreversible Data Removal
+                </Typography>
+              </Box>
+            </Box>
+            <Chip
+              label="ADMIN REQUEST"
+              size="small"
+              sx={{
+                bgcolor: '#ffeb3b',
+                color: '#b71c1c',
+                fontWeight: 'bold',
+                fontSize: '0.75rem'
+              }}
+            />
+          </DialogTitle>
+
+          <DialogContent dividers sx={{ p: 3 }}>
+            {/* Critical Warning Alert Banner */}
+            <Alert
+              severity="error"
+              variant="filled"
+              sx={{
+                mb: 3,
+                bgcolor: '#c62828',
+                color: 'white',
+                '& .MuiAlert-icon': { color: '#ffeb3b', fontSize: 28 }
+              }}
+            >
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                🚨 CRITICAL WARNING: Please read carefully before requesting deletion!
+              </Typography>
+              <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
+                This is a <strong>Permanent Deletion Request</strong> sent directly to the Administrator.
+                Once submitted:
+              </Typography>
+              <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px', fontSize: '0.875rem' }}>
+                <li>
+                  <strong>Immediate Lock:</strong> This cluster (Cluster #{selectedRowForDeletionRequest?.cluster_number}) will immediately enter <strong>Non-Editable Mode</strong>. You will not be able to modify cluster numbers or key plot details.
+                </li>
+                <li>
+                  <strong>Admin Action Only:</strong> Only the Administrator can review, approve, or reject this request. Field Data Collectors cannot modify or reverse this request once sent.
+                </li>
+                <li>
+                  <strong>Permanent & Irreversible Purge:</strong> When the Administrator approves, <strong>ALL</strong> associated data will be permanently wiped:
+                  <ul style={{ marginTop: '4px', paddingLeft: '16px' }}>
+                    <li>Key Plot record (Survey No: {selectedRowForDeletionRequest?.syNo})</li>
+                    <li>Cluster & Cluster order details</li>
+                    {/* <li>BTR records & classifications (BTR ID: {selectedRowForDeletionRequest?.btrId || selectedRowForDeletionRequest?.btr_id || 'N/A'})</li> */}
+                    <li>All assigned Crops & CCE plot details</li>
+                    <li>NUC and all cluster-related historical records</li>
+                  </ul>
+                </li>
+              </ul>
+            </Alert>
+
+            {/* Target Plot Details Card */}
+            <Card
+              variant="outlined"
+              sx={{
+                mb: 3,
+                bgcolor: '#fafafa',
+                borderColor: '#e0e0e0',
+                borderRadius: 2
+              }}
+            >
+              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                <Typography variant="subtitle2" fontWeight="bold" color="#05307a" gutterBottom>
+                  Target KeyPlot & Cluster Information
+                </Typography>
+                <Divider sx={{ mb: 1.5 }} />
+                <Grid container spacing={2}>
+                  <Grid item xs={6} sm={3}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Survey Number
+                    </Typography>
+                    <Typography variant="body2" fontWeight="bold" color="error.main">
+                      {selectedRowForDeletionRequest?.syNo || '--'}
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={6} sm={3}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Cluster Number
+                    </Typography>
+                    <Typography variant="body2" fontWeight="bold" color="#05307a">
+                      #{selectedRowForDeletionRequest?.cluster_number || '--'}
+                    </Typography>
+                  </Grid>
+
+                  {/* <Grid item xs={6} sm={3}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      BTR ID
+                    </Typography>
+                    <Typography variant="body2" fontWeight="bold">
+                      {selectedRowForDeletionRequest?.btrId || selectedRowForDeletionRequest?.btr_id || '--'}
+                    </Typography>
+                  </Grid> */}
+
+                  <Grid item xs={6} sm={3}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Current Status
+                    </Typography>
+                    <Chip
+                      label={selectedRowForDeletionRequest?.status || 'Unknown'}
+                      size="small"
+                      color={
+                        selectedRowForDeletionRequest?.status === 'Completed' ? 'success' :
+                          selectedRowForDeletionRequest?.status === 'On Going' ? 'primary' : 'default'
+                      }
+                      sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
+                    />
+                  </Grid>
+
+                  <Grid item xs={6} sm={3}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Panchayath / Village
+                    </Typography>
+                    <Typography variant="body2">
+                      {selectedRowForDeletionRequest?.panchayth || '--'} / {selectedRowForDeletionRequest?.kvillageName || '--'}
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={6} sm={3}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Village Block
+                    </Typography>
+                    <Typography variant="body2">
+                      {selectedRowForDeletionRequest?.villageBlock || '--'}
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={6} sm={3}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Land Type & Area
+                    </Typography>
+                    <Typography variant="body2">
+                      {selectedRowForDeletionRequest?.landType || '--'} • {selectedRowForDeletionRequest?.area || '--'} Cents
+                    </Typography>
+                  </Grid>
+
+                  {/* <Grid item xs={6} sm={3}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      KeyPlot UUID
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontFamily: 'monospace',
+                        display: 'block',
+                        wordBreak: 'break-all',
+                        color: 'text.secondary'
+                      }}
+                    >
+                      {selectedRowForDeletionRequest?.keyplotId || selectedRowForDeletionRequest?.plot_id || '--'}
+                    </Typography>
+                  </Grid> */}
+                </Grid>
+              </CardContent>
+            </Card>
+
+            {/* Preset Reasons */}
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                Select Reason for Requesting Permanent Deletion: *
+              </Typography>
+              <RadioGroup
+                value={deletionPresetReason}
+                onChange={handleDeletionPresetReasonChange}
+              >
+                <Grid container spacing={1}>
+                  {deletionPresetReasons.map((preset) => (
+                    <Grid item xs={12} sm={6} key={preset}>
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          borderRadius: 1.5,
+                          borderColor: deletionPresetReason === preset ? '#d32f2f' : '#e0e0e0',
+                          bgcolor: deletionPresetReason === preset ? '#fff5f5' : 'white',
+                          transition: 'all 0.2s',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => {
+                          setDeletionPresetReason(preset);
+                          setDeletionReasonError('');
+                          if (preset !== 'Other') {
+                            setDeletionReason(preset);
+                          } else {
+                            setDeletionReason('');
+                          }
+                        }}
+                      >
+                        <FormControlLabel
+                          value={preset}
+                          control={<Radio size="small" color="error" />}
+                          label={<Typography variant="body2">{preset}</Typography>}
+                          sx={{ m: 0, width: '100%' }}
+                        />
+                      </Paper>
+                    </Grid>
+                  ))}
+                </Grid>
+              </RadioGroup>
+            </Box>
+
+            {/* Custom Reason / Details TextField */}
+            <Box sx={{ mb: 3 }}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Reason / Justification for Administrator *"
+                placeholder="Please enter a detailed explanation why this keyplot and cluster must be permanently deleted..."
+                value={deletionReason}
+                onChange={(e) => {
+                  setDeletionReason(e.target.value);
+                  setDeletionReasonError('');
+                }}
+                error={!!deletionReasonError && (!deletionReason.trim() || deletionReason.trim().length < 5)}
+                helperText={
+                  deletionReasonError ||
+                  'Be specific. This justification will be reviewed by the Administrator before approving the permanent deletion.'
+                }
+              />
+            </Box>
+
+            {/* Acknowledgment Checkbox */}
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2,
+                bgcolor: confirmUnderstood ? '#ffebee' : '#f9f9f9',
+                borderColor: confirmUnderstood ? '#d32f2f' : '#ccc',
+                borderRadius: 2
+              }}
+            >
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={confirmUnderstood}
+                    onChange={(e) => {
+                      setConfirmUnderstood(e.target.checked);
+                      setDeletionReasonError('');
+                    }}
+                    color="error"
+                  />
+                }
+                label={
+                  <Typography variant="body2" fontWeight="bold" color="error.dark">
+                    I acknowledge that submitting this request will permanently lock this cluster into Non-Editable mode, and if approved by the Administrator, ALL keyplot, cluster, BTR, crops, NUC, and related data will be permanently purged.
+                  </Typography>
+                }
+              />
+            </Paper>
+
+            {deletionReasonError && (
+              <Alert severity="error" sx={{ mt: 2 }}>
+                {deletionReasonError}
+              </Alert>
+            )}
+          </DialogContent>
+
+          <DialogActions sx={{ p: 2.5, bgcolor: '#f8f9fa', gap: 1 }}>
+            <Button
+              onClick={handleCloseDeletionRequestDialog}
+              variant="outlined"
+              color="secondary"
+              disabled={deletionRequestLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitDeletionRequest}
+              variant="contained"
+              color="error"
+              disabled={
+                deletionRequestLoading ||
+                !confirmUnderstood ||
+                !deletionReason.trim() ||
+                deletionReason.trim().length < 5
+              }
+              startIcon={
+                deletionRequestLoading ? (
+                  <CircularProgress size={20} color="inherit" />
+                ) : (
+                  <DeleteForeverIcon />
+                )
+              }
+              sx={{
+                px: 3,
+                fontWeight: 'bold',
+                bgcolor: '#d32f2f',
+                '&:hover': { bgcolor: '#b71c1c' }
+              }}
+            >
+              {deletionRequestLoading ? 'Submitting to Admin...' : 'Submit Request to Admin'}
+            </Button>
           </DialogActions>
         </Dialog>
 

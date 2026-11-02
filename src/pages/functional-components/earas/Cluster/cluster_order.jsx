@@ -61,7 +61,7 @@ function ClusterSeatMap({ zoneId }) {
         );
 
         const data = res.data;
-
+        console.log("dtss " + `/btr-service/cluster-api/user-cluster-summary/${resolvedZoneId}/${agriYear}`)
         setClusters(data.payload || []);
 
         setSummary({
@@ -154,8 +154,34 @@ function ClusterSeatMap({ zoneId }) {
     }
   };
 
+  const defaultStatusConfig = {
+    main: '#757575',
+    light: '#f5f5f5',
+    border: '#9e9e9e',
+    icon: <PendingIcon sx={{ fontSize: 16 }} />
+  };
+
+  const getStatusConfig = (status) => {
+    if (!status) return defaultStatusConfig;
+    if (statusColors[status]) return statusColors[status];
+    const upper = status.toString().trim().toUpperCase();
+    if (upper === 'COMPLETED') return statusColors['Completed'];
+    if (upper === 'ON GOING' || upper === 'ONGOING') return statusColors['On Going'];
+    if (upper === 'UNDER REVIEW' || upper === 'UNDERREVIEW') return statusColors['Under Review'];
+    if (upper === 'NOT STARTED' || upper === 'NOTSTARTED') return statusColors['Not Started'];
+    if (upper.includes('DELET') || upper.includes('REQUEST')) {
+      return {
+        main: '#d32f2f',
+        light: '#ffebee',
+        border: '#ef5350',
+        icon: <PendingIcon sx={{ fontSize: 16 }} />
+      };
+    }
+    return defaultStatusConfig;
+  };
+
   const getStatusBorderColor = (status) => {
-    return statusColors[status]?.border || '#9e9e9e';
+    return getStatusConfig(status)?.border || '#9e9e9e';
   };
 
   const getClusterTypeBackgroundColor = (type) => {
@@ -221,7 +247,10 @@ function ClusterSeatMap({ zoneId }) {
   const StatusChip = ({ status, count, isActive, onClick }) => {
     const statusConfig = status === 'All'
       ? { main: '#556B2F', light: '#E0E0E0', icon: <AllInclusiveIcon sx={{ fontSize: 16 }} /> }
-      : statusColors[status];
+      : getStatusConfig(status);
+
+    const mainColor = statusConfig?.main || '#757575';
+    const lightColor = statusConfig?.light || '#f5f5f5';
 
     return (
       <Chip
@@ -234,20 +263,20 @@ function ClusterSeatMap({ zoneId }) {
           fontSize: '0.9rem',
           padding: '8px 16px',
           borderRadius: '20px',
-          backgroundColor: isActive ? statusConfig?.main : statusConfig?.light,
-          color: isActive ? 'white' : statusConfig?.main,
-          border: `2px solid ${statusConfig?.main}`,
+          backgroundColor: isActive ? mainColor : lightColor,
+          color: isActive ? 'white' : mainColor,
+          border: `2px solid ${mainColor}`,
           transition: 'all 0.3s ease',
           boxShadow: isActive
-            ? `0 4px 12px ${alpha(statusConfig?.main, 0.4)}`
+            ? `0 4px 12px ${alpha(mainColor, 0.4)}`
             : '0 2px 8px rgba(0,0,0,0.1)',
           '&:hover': {
             transform: 'translateY(-2px)',
-            boxShadow: `0 6px 16px ${alpha(statusConfig?.main, 0.3)}`,
-            backgroundColor: isActive ? statusConfig?.main : alpha(statusConfig?.main, 0.1),
+            boxShadow: `0 6px 16px ${alpha(mainColor, 0.3)}`,
+            backgroundColor: isActive ? mainColor : alpha(mainColor, 0.1),
           },
           '& .MuiChip-icon': {
-            color: isActive ? 'white' : statusConfig?.main,
+            color: isActive ? 'white' : mainColor,
           }
         }}
       />
@@ -522,7 +551,8 @@ function ClusterSeatMap({ zoneId }) {
                 {filteredClusters.map((cluster, index) => {
                   const cardBackgroundColor = getClusterTypeBackgroundColor(cluster.clusterType);
                   const cardBorderColor = getStatusBorderColor(cluster.status);
-                  const statusConfig = statusColors[cluster.status];
+                  const statusConfig = getStatusConfig(cluster.status);
+                  const mainColor = statusConfig?.main || '#757575';
 
                   return (
                     <Grid item xs={6} sm={4} md={3} lg={2} xl={1} key={cluster.keyplotId}>
@@ -561,7 +591,7 @@ function ClusterSeatMap({ zoneId }) {
                             ...((cluster.status === 'Ongoing' || cluster.status === 'On Going') && ongoingBorderAnimation),
                             '&:hover': {
                               transform: 'translateY(-4px)',
-                              boxShadow: `0 8px 24px ${alpha(cardBorderColor, 0.3)}`,
+                              boxShadow: `0 8px 24px ${alpha(cardBorderColor || '#9e9e9e', 0.3)}`,
                             },
                             height: '120px', // Fixed height for all boxes
                             display: 'flex',
@@ -599,13 +629,13 @@ function ClusterSeatMap({ zoneId }) {
                                 variant="caption"
                                 sx={{
                                   display: 'block',
-                                  color: statusConfig?.main,
+                                  color: mainColor,
                                   borderRadius: '12px',
                                   padding: '2px 8px',
                                   fontSize: '0.65rem',
                                   fontWeight: 'bold',
                                   textTransform: 'uppercase',
-                                  backgroundColor: alpha(statusConfig?.main, 0.1),
+                                  backgroundColor: alpha(mainColor, 0.1),
                                   mb: 0.5,
                                 }}
                               >
@@ -617,14 +647,14 @@ function ClusterSeatMap({ zoneId }) {
                                   <LocalFloristIcon
                                     sx={{
                                       fontSize: 14,
-                                      color: statusConfig?.main,
+                                      color: mainColor,
                                     }}
                                   />
                                   <Typography
                                     variant="caption"
                                     sx={{
                                       fontSize: '0.6rem',
-                                      color: statusConfig?.main,
+                                      color: mainColor,
                                       fontWeight: 'bold'
                                     }}
                                   >

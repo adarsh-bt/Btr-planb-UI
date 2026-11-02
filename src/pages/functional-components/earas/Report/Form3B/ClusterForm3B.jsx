@@ -102,6 +102,14 @@ function getSavedState() {
 }
 
 // Merge one or more crop-type responses with master cluster list into a single cluster list
+const getCropKey = (crop) => {
+  if (!crop) return '';
+  if (crop.cropKey) return crop.cropKey;
+  const id = crop.cropId ?? '';
+  const name = cleanName(crop.cropName).toLowerCase();
+  return `${id}__${name}`;
+};
+
 function mergeGroupResponses(responses, masterClusterList = [], landTypeTab = 'ALL') {
   const clusters = new Map();
 
@@ -127,7 +135,8 @@ function mergeGroupResponses(responses, masterClusterList = [], landTypeTab = 'A
 
   // 2. Process report API responses
   responses.forEach((rows) => {
-    (Array.isArray(rows) ? rows : []).forEach((c) => {
+    const list = Array.isArray(rows) ? rows : (rows?.data || rows?.payload || []);
+    list.forEach((c) => {
       let key = c.clusterId != null ? String(c.clusterId) : `num:${c.clusterNumber || 'Unassigned'}`;
       let entry = clusters.get(key);
 
@@ -172,14 +181,17 @@ function mergeGroupResponses(responses, masterClusterList = [], landTypeTab = 'A
       }
 
       (c.crops || []).forEach((crop) => {
-        const existing = entry.crops.get(crop.cropId);
+        const cropKey = getCropKey(crop);
+        if (!cropKey) return;
+        const existing = entry.crops.get(cropKey);
         if (existing) {
           existing.areaInCents = (Number(existing.areaInCents) || 0) + (Number(crop.areaInCents) || 0);
           if (!existing.cropUnit && crop.cropUnit) existing.cropUnit = crop.cropUnit;
         } else {
-          entry.crops.set(crop.cropId, {
+          entry.crops.set(cropKey, {
+            cropKey,
             cropId: crop.cropId,
-            cropName: crop.cropName,
+            cropName: cleanName(crop.cropName) || crop.cropName,
             cropUnit: crop.cropUnit,
             areaInCents: Number(crop.areaInCents) || 0
           });
@@ -367,25 +379,32 @@ const ClusterForm3B = () => {
     const map = new Map();
     apiData.forEach((c) =>
       (c.crops || []).forEach((crop) => {
-        if (!map.has(crop.cropId)) {
-          map.set(crop.cropId, {
+        const key = getCropKey(crop);
+        if (!key) return;
+        if (!map.has(key)) {
+          map.set(key, {
+            cropKey: key,
             cropId: crop.cropId,
-            cropName: cleanName(crop.cropName),
+            cropName: cleanName(crop.cropName) || crop.cropName || '',
             cropUnit: crop.cropUnit || ''
           });
-        } else if (!map.get(crop.cropId).cropUnit && crop.cropUnit) {
-          map.get(crop.cropId).cropUnit = crop.cropUnit;
+        } else if (!map.get(key).cropUnit && crop.cropUnit) {
+          map.get(key).cropUnit = crop.cropUnit;
         }
       })
     );
-    return Array.from(map.values()).sort((a, b) => a.cropName.localeCompare(b.cropName));
+    return Array.from(map.values()).sort(
+      (a, b) => a.cropName.localeCompare(b.cropName) || String(a.cropId).localeCompare(String(b.cropId))
+    );
   }, [apiData]);
 
   const clusterRows = useMemo(() => {
     const list = apiData.map((c) => {
       const byId = {};
       (c.crops || []).forEach((crop) => {
-        byId[crop.cropId] = Number(crop.areaInCents) || 0;
+        const key = getCropKey(crop);
+        if (key) byId[key] = (byId[key] || 0) + (Number(crop.areaInCents) || 0);
+        if (crop.cropId != null && byId[crop.cropId] === undefined) byId[crop.cropId] = Number(crop.areaInCents) || 0;
       });
       const clusterArea = Number(c.clusterArea) || 0;
       const hasData = clusterArea > 0 || Object.keys(byId).length > 0;
@@ -467,10 +486,10 @@ const ClusterForm3B = () => {
 
   const cropTotals = useMemo(() => {
     const totals = {};
-    cropColumns.forEach((c) => (totals[c.cropId] = 0));
+    cropColumns.forEach((c) => (totals[c.cropKey] = 0));
     searchFilteredRows.forEach((row) => {
       cropColumns.forEach((c) => {
-        if (row.byId[c.cropId] !== undefined) totals[c.cropId] += row.byId[c.cropId];
+        if (row.byId[c.cropKey] !== undefined) totals[c.cropKey] += row.byId[c.cropKey];
       });
     });
     return totals;
@@ -599,7 +618,7 @@ const ClusterForm3B = () => {
       } else {
         cells.push(row.clusterArea ? Number(row.clusterArea) : '—', row.localbodyname || '—');
         cropColumns.forEach((c) => {
-          const v = row.byId[c.cropId];
+          const v = row.byId[c.cropKey];
           cells.push(v ? Number(v) : '—');
         });
       }
@@ -612,7 +631,7 @@ const ClusterForm3B = () => {
       '',
       Number(areaTotals.clusterArea.toFixed(2)),
       '—',
-      ...cropColumns.map((c) => Number((cropTotals[c.cropId] || 0).toFixed(2)))
+      ...cropColumns.map((c) => Number((cropTotals[c.cropKey] || 0).toFixed(2)))
     ];
 
     const aoa = [...headerMeta, headerRow, ...dataRows, totalsRow];
@@ -1018,7 +1037,7 @@ const ClusterForm3B = () => {
                     <col style={{ width: AREA_W }} />
                     <col style={{ width: PANCHAYATH_W }} />
                     {cropColumns.map((c) => (
-                      <col key={c.cropId} style={{ width: CROP_W }} />
+                      <col key={c.cropKey} style={{ width: CROP_W }} />
                     ))}
                     <col style={{ width: 'auto' }} />
                   </colgroup>
@@ -1065,7 +1084,7 @@ const ClusterForm3B = () => {
                       </TableCell>
                       {cropColumns.map((crop) => (
                         <TableCell
-                          key={crop.cropId}
+                          key={crop.cropKey}
                           align="right"
                           sx={{
                             backgroundColor: themeColor,
@@ -1207,9 +1226,9 @@ const ClusterForm3B = () => {
                               </Typography>
                             </TableCell>
                             {cropColumns.map((crop) => {
-                              const val = row.byId[crop.cropId];
+                              const val = row.byId[crop.cropKey];
                               return (
-                                <TableCell key={crop.cropId} align="right" sx={numericCellSx}>
+                                <TableCell key={crop.cropKey} align="right" sx={numericCellSx}>
                                   {!row.hasData ? (
                                     <Chip label="NA" size="small" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
                                   ) : val ? (
@@ -1246,8 +1265,8 @@ const ClusterForm3B = () => {
                             —
                           </TableCell>
                           {cropColumns.map((crop) => (
-                            <TableCell key={crop.cropId} align="right" sx={{ ...numericCellSx, fontWeight: 800 }}>
-                              {cropTotals[crop.cropId] ? formatNumber(cropTotals[crop.cropId]) : '—'}
+                            <TableCell key={crop.cropKey} align="right" sx={{ ...numericCellSx, fontWeight: 800 }}>
+                              {cropTotals[crop.cropKey] ? formatNumber(cropTotals[crop.cropKey]) : '—'}
                             </TableCell>
                           ))}
                           <TableCell aria-hidden sx={{ backgroundColor: alpha(themeColor, 0.08) }} />

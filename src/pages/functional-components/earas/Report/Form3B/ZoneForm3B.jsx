@@ -103,11 +103,20 @@ function getSavedState() {
   }
 }
 
+const getCropKey = (crop) => {
+  if (!crop) return '';
+  if (crop.cropKey) return crop.cropKey;
+  const id = crop.cropId ?? '';
+  const name = cleanName(crop.cropName).toLowerCase();
+  return `${id}__${name}`;
+};
+
 function mergeGroupResponses(responses) {
   const zones = new Map();
 
   responses.forEach((rows) => {
-    (Array.isArray(rows) ? rows : []).forEach((z) => {
+    const list = Array.isArray(rows) ? rows : (rows?.data || rows?.payload || []);
+    list.forEach((z) => {
       const key = z.zoneId ?? `name:${z.blockId ?? ''}:${z.zoneName || 'Unknown'}`;
       if (!zones.has(key)) {
         zones.set(key, {
@@ -123,14 +132,17 @@ function mergeGroupResponses(responses) {
       if (!entry.clusterArea && z.clusterArea) entry.clusterArea = Number(z.clusterArea) || 0;
 
       (z.crops || []).forEach((c) => {
-        const existing = entry.crops.get(c.cropId);
+        const cropKey = getCropKey(c);
+        if (!cropKey) return;
+        const existing = entry.crops.get(cropKey);
         if (existing) {
           existing.areaInCents = (Number(existing.areaInCents) || 0) + (Number(c.areaInCents) || 0);
           if (!existing.cropUnit && c.cropUnit) existing.cropUnit = c.cropUnit;
         } else {
-          entry.crops.set(c.cropId, {
+          entry.crops.set(cropKey, {
+            cropKey,
             cropId: c.cropId,
-            cropName: c.cropName,
+            cropName: cleanName(c.cropName) || c.cropName,
             cropUnit: c.cropUnit,
             areaInCents: Number(c.areaInCents) || 0
           });
@@ -369,18 +381,23 @@ const ZoneForm3B = () => {
     const map = new Map();
     apiData.forEach((z) =>
       (z.crops || []).forEach((c) => {
-        if (!map.has(c.cropId)) {
-          map.set(c.cropId, {
+        const key = getCropKey(c);
+        if (!key) return;
+        if (!map.has(key)) {
+          map.set(key, {
+            cropKey: key,
             cropId: c.cropId,
-            cropName: cleanName(c.cropName),
+            cropName: cleanName(c.cropName) || c.cropName || '',
             cropUnit: c.cropUnit || ''
           });
-        } else if (!map.get(c.cropId).cropUnit && c.cropUnit) {
-          map.get(c.cropId).cropUnit = c.cropUnit;
+        } else if (!map.get(key).cropUnit && c.cropUnit) {
+          map.get(key).cropUnit = c.cropUnit;
         }
       })
     );
-    return Array.from(map.values()).sort((a, b) => a.cropName.localeCompare(b.cropName));
+    return Array.from(map.values()).sort(
+      (a, b) => a.cropName.localeCompare(b.cropName) || String(a.cropId).localeCompare(String(b.cropId))
+    );
   }, [apiData]);
 
   // ── Combine Master Zones with API Data ──
@@ -395,7 +412,9 @@ const ZoneForm3B = () => {
     const createRowFromApi = (z) => {
       const byId = {};
       (z.crops || []).forEach((c) => {
-        byId[c.cropId] = Number(c.areaInCents) || 0;
+        const key = getCropKey(c);
+        if (key) byId[key] = (byId[key] || 0) + (Number(c.areaInCents) || 0);
+        if (c.cropId != null && byId[c.cropId] === undefined) byId[c.cropId] = Number(c.areaInCents) || 0;
       });
       const clusterArea = Number(z.clusterArea) || 0;
       const hasData = clusterArea > 0 || Object.keys(byId).length > 0;
@@ -424,7 +443,9 @@ const ZoneForm3B = () => {
 
         const byId = {};
         (apiMatch?.crops || []).forEach((c) => {
-          byId[c.cropId] = Number(c.areaInCents) || 0;
+          const key = getCropKey(c);
+          if (key) byId[key] = (byId[key] || 0) + (Number(c.areaInCents) || 0);
+          if (c.cropId != null && byId[c.cropId] === undefined) byId[c.cropId] = Number(c.areaInCents) || 0;
         });
         const clusterArea = Number(apiMatch?.clusterArea) || 0;
         const hasData = clusterArea > 0 || Object.keys(byId).length > 0;
@@ -464,19 +485,19 @@ const ZoneForm3B = () => {
     const g = buildOrderedGroups(searchFilteredRows);
     const bt = {};
     const grand = { clusterArea: 0 };
-    cropColumns.forEach((c) => (grand[c.cropId] = 0));
+    cropColumns.forEach((c) => (grand[c.cropKey] = 0));
     Object.entries(g).forEach(([bn, rows]) => {
       const t = { clusterArea: 0 };
-      cropColumns.forEach((c) => (t[c.cropId] = 0));
+      cropColumns.forEach((c) => (t[c.cropKey] = 0));
       rows.forEach((r) => {
         t.clusterArea += r.clusterArea || 0;
         cropColumns.forEach((c) => {
-          if (r.byId[c.cropId] !== undefined) t[c.cropId] += r.byId[c.cropId];
+          if (r.byId[c.cropKey] !== undefined) t[c.cropKey] += r.byId[c.cropKey];
         });
       });
       bt[bn] = t;
       grand.clusterArea += t.clusterArea;
-      cropColumns.forEach((c) => (grand[c.cropId] += t[c.cropId]));
+      cropColumns.forEach((c) => (grand[c.cropKey] += t[c.cropKey]));
     });
     return { grouped: g, blockTotals: bt, grandTotals: grand };
   }, [searchFilteredRows, cropColumns]);
@@ -595,7 +616,7 @@ const ZoneForm3B = () => {
         } else {
           row.push(z.clusterArea ? Number(z.clusterArea) : '—');
           cropColumns.forEach((c) => {
-            const v = z.byId[c.cropId];
+            const v = z.byId[c.cropKey];
             row.push(v ? Number(v) : '—');
           });
         }
@@ -607,7 +628,7 @@ const ZoneForm3B = () => {
         `Total for ${blockName}`,
         '',
         bt.clusterArea ? Number(bt.clusterArea.toFixed(2)) : '—',
-        ...cropColumns.map((c) => (bt[c.cropId] ? Number(bt[c.cropId].toFixed(2)) : '—'))
+        ...cropColumns.map((c) => (bt[c.cropKey] ? Number(bt[c.cropKey].toFixed(2)) : '—'))
       ];
       dataRows.push(subtotalRow);
     });
@@ -617,7 +638,7 @@ const ZoneForm3B = () => {
       'GRAND TOTAL',
       '',
       grandTotals.clusterArea ? Number(grandTotals.clusterArea.toFixed(2)) : '—',
-      ...cropColumns.map((c) => (grandTotals[c.cropId] ? Number(grandTotals[c.cropId].toFixed(2)) : '—'))
+      ...cropColumns.map((c) => (grandTotals[c.cropKey] ? Number(grandTotals[c.cropKey].toFixed(2)) : '—'))
     ];
 
     const aoa = [...headerMeta, headerRow, ...dataRows, grandTotalRow];
@@ -989,7 +1010,7 @@ const ZoneForm3B = () => {
                     <col style={{ width: ZONE_W }} />
                     <col style={{ width: AREA_W }} />
                     {cropColumns.map((c) => (
-                      <col key={c.cropId} style={{ width: CROP_W }} />
+                      <col key={c.cropKey} style={{ width: CROP_W }} />
                     ))}
                     <col style={{ width: 'auto' }} />
                   </colgroup>
@@ -1025,7 +1046,7 @@ const ZoneForm3B = () => {
                       </TableCell>
                       {cropColumns.map((crop) => (
                         <TableCell
-                          key={crop.cropId}
+                          key={crop.cropKey}
                           align="right"
                           sx={{
                             backgroundColor: themeColor,
@@ -1182,9 +1203,9 @@ const ZoneForm3B = () => {
                                   )}
                                 </TableCell>
                                 {cropColumns.map((crop) => {
-                                  const val = zoneRow.byId[crop.cropId];
+                                  const val = zoneRow.byId[crop.cropKey];
                                   return (
-                                    <TableCell key={crop.cropId} align="right" sx={numericCellSx}>
+                                    <TableCell key={crop.cropKey} align="right" sx={numericCellSx}>
                                       {!zoneRow.hasData ? (
                                         <Chip label="NA" size="small" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
                                       ) : val ? (
@@ -1215,11 +1236,11 @@ const ZoneForm3B = () => {
                               </TableCell>
                               {cropColumns.map((crop) => (
                                 <TableCell
-                                  key={crop.cropId}
+                                  key={crop.cropKey}
                                   align="right"
                                   sx={{ ...numericCellSx, fontWeight: 700, bgcolor: stickyTintSubtotal }}
                                 >
-                                  {bt[crop.cropId] ? formatNumber(bt[crop.cropId]) : '—'}
+                                  {bt[crop.cropKey] ? formatNumber(bt[crop.cropKey]) : '—'}
                                 </TableCell>
                               ))}
                               <TableCell aria-hidden sx={{ bgcolor: stickyTintSubtotal }} />
@@ -1248,8 +1269,8 @@ const ZoneForm3B = () => {
                             {grandTotals.clusterArea ? formatNumber(grandTotals.clusterArea) : '—'}
                           </TableCell>
                           {cropColumns.map((crop) => (
-                            <TableCell key={crop.cropId} align="right" sx={{ ...numericCellSx, fontWeight: 800, bgcolor: stickyTintGrand }}>
-                              {grandTotals[crop.cropId] ? formatNumber(grandTotals[crop.cropId]) : '—'}
+                            <TableCell key={crop.cropKey} align="right" sx={{ ...numericCellSx, fontWeight: 800, bgcolor: stickyTintGrand }}>
+                              {grandTotals[crop.cropKey] ? formatNumber(grandTotals[crop.cropKey]) : '—'}
                             </TableCell>
                           ))}
                           <TableCell aria-hidden sx={{ bgcolor: stickyTintGrand }} />
