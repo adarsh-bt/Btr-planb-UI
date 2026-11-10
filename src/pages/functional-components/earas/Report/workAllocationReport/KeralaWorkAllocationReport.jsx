@@ -1,13 +1,27 @@
-
-
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import {
-  Grid,
-  Typography,
+  Alert,
   Box,
-  Paper,
+  Button,
   Card,
   CardContent,
+  Chip,
+  CircularProgress,
+  Divider,
+  Grid,
+  IconButton,
+  InputAdornment,
+  LinearProgress,
+  Paper,
+  Snackbar,
+  Stack,
+  Tab,
   Table,
   TableBody,
   TableCell,
@@ -15,358 +29,1482 @@ import {
   TableHead,
   TableRow,
   Tabs,
-  Tab,
   TextField,
-  InputAdornment,
-  TablePagination,
-  IconButton,
   Tooltip,
-  Chip,
-  Button,
-  Stack,
-  Snackbar,
-  Alert,
-  CircularProgress
+  Typography,
+  alpha,
+  useMediaQuery
 } from '@mui/material';
-import MainCard from 'components/MainCard';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
-import Breadcrumb from 'routes/Breadcrumb';
-import SearchIcon from '@mui/icons-material/Search';
-import ClearIcon from '@mui/icons-material/Clear';
+
 import AssessmentIcon from '@mui/icons-material/Assessment';
-import ParkIcon from '@mui/icons-material/Park';
 import AssignmentIcon from '@mui/icons-material/Assignment';
-import VisibilityIcon from '@mui/icons-material/Visibility';
+import ClearIcon from '@mui/icons-material/Clear';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import LandscapeIcon from '@mui/icons-material/Landscape';
 import LocationCityIcon from '@mui/icons-material/LocationCity';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import ParkIcon from '@mui/icons-material/Park';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import SearchIcon from '@mui/icons-material/Search';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import ViewModuleIcon from '@mui/icons-material/ViewModule';
+
 import axios from 'axios';
+
 import AuthService from 'pages/authentication/services/authservice';
 import mainapi from 'api/mainapi';
-/* ─────────────────────────── api ─────────────────────────── */
+import Breadcrumb from 'routes/Breadcrumb';
+
+/* ─────────────────────────── API ─────────────────────────── */
 
 const WA_BASE = `${mainapi.BTR_API}/btr-service`;
-
-// The WA endpoints ignore unknown query params (Spring). Flip to false if the
-// backend ever starts validating query strings.
 const SEND_AGRI_YEAR = true;
 
+// Preserve the colour language used in the uploaded Work Allocation UI.
+const UI_COLORS = {
+  primary: '#1976d2',
+  primaryDark: '#0d47a1',
+  green: '#2e7d32',
+  greenDark: '#1b5e20',
+  info: '#0288d1',
+  orange: '#ed6c02',
+  orangeDark: '#e65100',
+  headerBg: '#f8f9fa',
+  headerText: '#333333',
+  subHeaderText: '#555555',
+  border: '#e0e0e0',
+  strongBorder: '#8e8a8aff'
+};
+
+const HEADER_ROW_HEIGHT = 48;
+
 const authHeader = () => {
-  const token = AuthService.gettoken ? AuthService.gettoken() : localStorage.getItem('token');
-  if (!token) throw new Error('Authentication session token missing. Please log in again.');
-  return { Authorization: `Bearer ${token}` };
+  const token = AuthService.gettoken
+    ? AuthService.gettoken()
+    : localStorage.getItem('token');
+
+  if (!token) {
+    throw new Error(
+      'Authentication session token missing. Please log in again.'
+    );
+  }
+
+  return {
+    Authorization: `Bearer ${token}`
+  };
 };
 
 const withAgriYear = (url) =>
-  SEND_AGRI_YEAR ? `${url}?agriYear=${encodeURIComponent(AuthService.agriyear() || '2025-2026')}` : url;
+  SEND_AGRI_YEAR
+    ? `${url}?agriYear=${encodeURIComponent(
+      AuthService.agriyear() || '2025-2026'
+    )}`
+    : url;
 
-/* ─────────────────────── jurisdiction (inlined) ─────────────────────── */
+/* ─────────────────────── Jurisdiction ─────────────────────── */
 
-const TALUK_ROLES = ['Field Inspector', 'Taluk Level Data Viewer', 'Taluk Level Approver'];
-const DISTRICT_ROLES = ['District Level Data Viewer', 'District Level Approver'];
+const TALUK_ROLES = [
+  'Field Inspector',
+  'Taluk Level Data Viewer',
+  'Taluk Level Approver'
+];
+
+const DISTRICT_ROLES = [
+  'District Level Data Viewer',
+  'District Level Approver'
+];
 
 function getUserJurisdiction() {
-  let role = localStorage.getItem('des') || AuthService.getrole() || 'State Level Approver';
-  if (Array.isArray(role)) role = role[0];
-  const r = String(role).toLowerCase();
+  let role =
+    localStorage.getItem('des') ||
+    AuthService.getrole() ||
+    'State Level Approver';
+
+  if (Array.isArray(role)) {
+    role = role[0];
+  }
+
+  const normalizedRole = String(role).toLowerCase();
 
   let level = 'directorate';
-  if (TALUK_ROLES.some((x) => x.toLowerCase() === r)) level = 'taluk';
-  else if (DISTRICT_ROLES.some((x) => x.toLowerCase() === r)) level = 'district';
+
+  if (
+    TALUK_ROLES.some(
+      (item) =>
+        item.toLowerCase() ===
+        normalizedRole
+    )
+  ) {
+    level = 'taluk';
+  } else if (
+    DISTRICT_ROLES.some(
+      (item) =>
+        item.toLowerCase() ===
+        normalizedRole
+    )
+  ) {
+    level = 'district';
+  }
 
   return {
-    user: AuthService.getusername() || localStorage.getItem('user') || 'System User',
+    user:
+      AuthService.getusername() ||
+      localStorage.getItem('user') ||
+      'System User',
     role,
-    level, // 'directorate' | 'district' | 'taluk'
-    district: localStorage.getItem('userDistrict') || localStorage.getItem('dis') || '',
-    taluk: localStorage.getItem('userTaluk') || ''
+    level,
+    district:
+      localStorage.getItem(
+        'userDistrict'
+      ) ||
+      localStorage.getItem('dis') ||
+      '',
+    taluk:
+      localStorage.getItem(
+        'userTaluk'
+      ) || ''
   };
 }
 
-/* ─────────────────── payload → flat row ─────────────────── */
+/* ───────────────── Payload → flat row ───────────────── */
 
-// Backend shape (identical at state / district / taluk level):
-// { id, name, blockId, blockName, panchayathId, panchayathName,
-//   villageRecords:             { wet, dry, total },
-//   excludedArea:               { forestArea, plantationArea, areaOfWaterBodies, others },
-//   areaAvailableForEstimation: { noOfPlots: { wet, dry, total }, areaInCents: { wet, dry, total } } }
-function normalizeLocation(loc = {}, idx = 0) {
-  const n = (v) => Number(v) || 0;
+function normalizeLocation(
+  location = {},
+  index = 0
+) {
+  const numberValue = (value) =>
+    Number(value) || 0;
 
-  const vr = loc.villageRecords || {};
-  const ex = loc.excludedArea || {};
-  const av = loc.areaAvailableForEstimation || {};
-  const plots = av.noOfPlots || {};
-  const area = av.areaInCents || {};
+  const villageRecords =
+    location.villageRecords || {};
 
-  const wetInCents = n(vr.wet);
-  const dryInCents = n(vr.dry);
-  const plotsWet = n(plots.wet);
-  const plotsDry = n(plots.dry);
-  const availWetArea = n(area.wet);
-  const availDryArea = n(area.dry);
+  const excludedArea =
+    location.excludedArea || {};
+
+  const available =
+    location.areaAvailableForEstimation ||
+    {};
+
+  const plots =
+    available.noOfPlots || {};
+
+  const area =
+    available.areaInCents || {};
+
+  const clusters =
+    available.noOfClusters || {};
+
+  const wetInCents =
+    numberValue(
+      villageRecords.wet
+    );
+
+  const dryInCents =
+    numberValue(
+      villageRecords.dry
+    );
+
+  const plotsWet =
+    numberValue(plots.wet);
+
+  const plotsDry =
+    numberValue(plots.dry);
+
+  const clustersWet =
+    numberValue(clusters.wet);
+
+  const clustersDry =
+    numberValue(clusters.dry);
+
+  const availWetArea =
+    numberValue(area.wet);
+
+  const availDryArea =
+    numberValue(area.dry);
+
+  /*
+   * Backward-compatible excluded-area parsing.
+   * New APIs can return separate wet/dry fields while older
+   * responses can still return one aggregate field.
+   */
+  const forestWet =
+    numberValue(
+      excludedArea.forestAreaWet
+    );
+
+  const forestDry =
+    numberValue(
+      excludedArea.forestAreaDry
+    );
+
+  const forestAreas =
+    excludedArea.forestAreaWet !==
+      undefined ||
+      excludedArea.forestAreaDry !==
+      undefined
+      ? forestWet + forestDry
+      : numberValue(
+        excludedArea.forestArea
+      );
+
+  const plantationWet =
+    numberValue(
+      excludedArea.plantationAreaWet
+    );
+
+  const plantationDry =
+    numberValue(
+      excludedArea.plantationAreaDry
+    );
+
+  const plantationArea =
+    excludedArea.plantationAreaWet !==
+      undefined ||
+      excludedArea.plantationAreaDry !==
+      undefined
+      ? plantationWet +
+      plantationDry
+      : numberValue(
+        excludedArea.plantationArea
+      );
+
+  const waterBodiesWet =
+    numberValue(
+      excludedArea.areaOfWaterBodiesWet
+    );
+
+  const waterBodiesDry =
+    numberValue(
+      excludedArea.areaOfWaterBodiesDry
+    );
+
+  const waterBodiesArea =
+    excludedArea.areaOfWaterBodiesWet !==
+      undefined ||
+      excludedArea.areaOfWaterBodiesDry !==
+      undefined
+      ? waterBodiesWet +
+      waterBodiesDry
+      : numberValue(
+        excludedArea.areaOfWaterBodies
+      );
+
+  const othersWet =
+    numberValue(
+      excludedArea.othersWet
+    );
+
+  const othersDry =
+    numberValue(
+      excludedArea.othersDry
+    );
+
+  const otherAreas =
+    excludedArea.othersWet !==
+      undefined ||
+      excludedArea.othersDry !==
+      undefined
+      ? othersWet + othersDry
+      : numberValue(
+        excludedArea.others
+      );
 
   return {
-    id: loc.id ?? `loc_${idx}`,
-    name: loc.name || '',
-    blockId: loc.blockId ?? null,
-    blockName: loc.blockName || '',
-    panchayathName: loc.panchayathName || '',
+    id:
+      location.id ??
+      `loc_${index}`,
+    name: location.name || '',
+    blockId:
+      location.blockId ?? null,
+    blockName:
+      location.blockName || '',
+    panchayathName:
+      location.panchayathName ||
+      '',
+
     wetInCents,
     dryInCents,
-    totalInCents: n(vr.total) || wetInCents + dryInCents,
-    forestAreas: n(ex.forestArea),
-    plantationArea: n(ex.plantationArea),
-    waterBodiesArea: n(ex.areaOfWaterBodies),
-    otherAreas: n(ex.others),
+    totalInCents:
+      numberValue(
+        villageRecords.total
+      ) ||
+      wetInCents +
+      dryInCents,
+
+    forestAreas,
+    forestWet,
+    forestDry,
+    forestAreaWet: forestWet,
+    forestAreaDry: forestDry,
+
+    plantationArea,
+    plantationWet,
+    plantationDry,
+    plantationAreaWet:
+      plantationWet,
+    plantationAreaDry:
+      plantationDry,
+
+    waterBodiesArea,
+    waterBodiesWet,
+    waterBodiesDry,
+    areaOfWaterBodiesWet:
+      waterBodiesWet,
+    areaOfWaterBodiesDry:
+      waterBodiesDry,
+
+    otherAreas,
+    othersWet,
+    othersDry,
+
     plotsWet,
     plotsDry,
-    plotsTotal: n(plots.total) || plotsWet + plotsDry,
+    plotsTotal:
+      numberValue(plots.total) ||
+      plotsWet + plotsDry,
+
+    clustersWet,
+    clustersDry,
+    clustersTotal:
+      numberValue(
+        clusters.total
+      ) ||
+      clustersWet +
+      clustersDry,
+
     availWetArea,
     availDryArea,
-    availTotalArea: n(area.total) || availWetArea + availDryArea
+    availTotalArea:
+      numberValue(area.total) ||
+      availWetArea +
+      availDryArea
   };
 }
 
-/* ─────────────────── tabs / columns (drive the original layout) ─────────────────── */
+/* ───────────────────── Tabs / columns ───────────────────── */
 
 const TAB_DEFS = [
   {
     key: 'village',
-    label: 'Area As Per Village Records',
-    icon: <AssessmentIcon sx={{ fontSize: 20, color: '#1976d2' }} />,
-    loadingText: 'Loading Work Allocation data...',
+    label:
+      'Area As Per Village Records',
+    shortLabel: 'Village Records',
+    description:
+      'Wet, dry and total area recorded in village records.',
+    icon: AssessmentIcon,
+    accent: UI_COLORS.primary,
+    loadingText:
+      'Loading village-record area…',
     groups: [
       {
-        label: 'Area as per village records (in cents)',
+        label:
+          'Area as per village records (cents)',
         columns: [
-          { key: 'wetInCents', label: 'Wet in Cents', variant: 'plain' },
-          { key: 'dryInCents', label: 'Dry in cents', variant: 'plain' },
+          {
+            key: 'wetInCents',
+            label: 'Wet',
+            exportLabel:
+              'Wet (cents)',
+            tone: 'wet',
+            fixed: true
+          },
+          {
+            key: 'dryInCents',
+            label: 'Dry',
+            exportLabel:
+              'Dry (cents)',
+            tone: 'dry',
+            fixed: true
+          },
           {
             key: 'totalInCents',
-            label: 'Total in cents',
-            variant: 'green',
+            label: 'Total',
+            exportLabel:
+              'Total (cents)',
+            tone: 'total',
             fixed: true,
-            totalSx: { color: '#1b5e20', fontWeight: 800, fontSize: '1rem' }
+            groupEnd: true
           }
         ]
       }
     ]
   },
+
   {
     key: 'excluded',
     label: 'Excluded Areas',
-    icon: <ParkIcon sx={{ fontSize: 20, color: '#2e7d32' }} />,
-    loadingText: 'Loading Excluded Areas data...',
+    shortLabel: 'Excluded Areas',
+    description:
+      'Forest, plantation, water-body and other excluded areas, split by wet and dry land.',
+    icon: ParkIcon,
+    accent: UI_COLORS.green,
+    loadingText:
+      'Loading excluded areas…',
     uppercase: true,
     groups: [
       {
-        label: null,
+        label: 'Forest Areas',
         columns: [
-          { key: 'forestAreas', label: 'Forest Areas', variant: 'compact' },
-          { key: 'plantationArea', label: 'Plantation Area', variant: 'compact' },
           {
-            key: 'waterBodiesArea',
-            label: 'Area of Water Bodies',
-            variant: 'compact',
-            totalSx: { color: '#0288d1', fontWeight: 700 }
+            key: 'forestAreaWet',
+            label: 'Wet',
+            exportLabel:
+              'Forest (Wet)',
+            tone: 'wet',
+            fixed: true
           },
-          { key: 'otherAreas', label: 'Other Areas', variant: 'compact' }
-        ]
-      }
-    ]
-  },
-  {
-    key: 'estimation',
-    label: 'Area Available For Estimation',
-    icon: <AssignmentIcon sx={{ fontSize: 20, color: '#ed6c02' }} />,
-    loadingText: 'Loading Estimation Area data...',
-    groups: [
-      {
-        label: 'Number of Plots Available for Estimation',
-        columns: [
-          { key: 'plotsWet', label: 'Wet', exportLabel: 'Plots (Wet)', variant: 'plots' },
-          { key: 'plotsDry', label: 'Dry', exportLabel: 'Plots (Dry)', variant: 'plots' },
           {
-            key: 'plotsTotal',
+            key: 'forestAreaDry',
+            label: 'Dry',
+            exportLabel:
+              'Forest (Dry)',
+            tone: 'dry',
+            fixed: true
+          },
+          {
+            key: 'forestAreas',
             label: 'Total',
-            exportLabel: 'Plots (Total)',
-            variant: 'plotsTotal',
-            groupEnd: true,
-            totalSx: { fontWeight: 800 }
+            exportLabel:
+              'Forest (Total)',
+            tone: 'total',
+            fixed: true,
+            groupEnd: true
           }
         ]
       },
       {
-        label: 'Area (in cents) Available for Estimation',
+        label: 'Plantation Area',
+        columns: [
+          {
+            key:
+              'plantationAreaWet',
+            label: 'Wet',
+            exportLabel:
+              'Plantation (Wet)',
+            tone: 'wet',
+            fixed: true
+          },
+          {
+            key:
+              'plantationAreaDry',
+            label: 'Dry',
+            exportLabel:
+              'Plantation (Dry)',
+            tone: 'dry',
+            fixed: true
+          },
+          {
+            key:
+              'plantationArea',
+            label: 'Total',
+            exportLabel:
+              'Plantation (Total)',
+            tone: 'total',
+            fixed: true,
+            groupEnd: true
+          }
+        ]
+      },
+      {
+        label:
+          'Area of Water Bodies',
+        columns: [
+          {
+            key:
+              'areaOfWaterBodiesWet',
+            label: 'Wet',
+            exportLabel:
+              'Water Bodies (Wet)',
+            tone: 'wet',
+            fixed: true
+          },
+          {
+            key:
+              'areaOfWaterBodiesDry',
+            label: 'Dry',
+            exportLabel:
+              'Water Bodies (Dry)',
+            tone: 'dry',
+            fixed: true
+          },
+          {
+            key:
+              'waterBodiesArea',
+            label: 'Total',
+            exportLabel:
+              'Water Bodies (Total)',
+            tone: 'total',
+            fixed: true,
+            groupEnd: true
+          }
+        ]
+      },
+      {
+        label: 'Other Areas',
+        columns: [
+          {
+            key: 'othersWet',
+            label: 'Wet',
+            exportLabel:
+              'Others (Wet)',
+            tone: 'wet',
+            fixed: true
+          },
+          {
+            key: 'othersDry',
+            label: 'Dry',
+            exportLabel:
+              'Others (Dry)',
+            tone: 'dry',
+            fixed: true
+          },
+          {
+            key: 'otherAreas',
+            label: 'Total',
+            exportLabel:
+              'Others (Total)',
+            tone: 'total',
+            fixed: true,
+            groupEnd: true
+          }
+        ]
+      }
+    ]
+  },
+
+  {
+    key: 'estimation',
+    label:
+      'Area Available For Estimation',
+    shortLabel:
+      'Available for Estimation',
+    description:
+      'Plots, clusters and area currently available for estimation.',
+    icon: AssignmentIcon,
+    accent: UI_COLORS.orange,
+    loadingText:
+      'Loading estimation availability…',
+    groups: [
+      {
+        label:
+          'Number of Plots Available for Estimation',
+        columns: [
+          {
+            key: 'plotsWet',
+            label: 'Wet',
+            exportLabel:
+              'Plots (Wet)',
+            tone: 'wet'
+          },
+          {
+            key: 'plotsDry',
+            label: 'Dry',
+            exportLabel:
+              'Plots (Dry)',
+            tone: 'dry'
+          },
+          {
+            key: 'plotsTotal',
+            label: 'Total',
+            exportLabel:
+              'Plots (Total)',
+            tone: 'total',
+            groupEnd: true
+          }
+        ]
+      },
+      {
+        label:
+          'Number of Clusters Available for Estimation',
+        columns: [
+          {
+            key: 'clustersWet',
+            label: 'Wet',
+            exportLabel:
+              'Clusters (Wet)',
+            tone: 'wet'
+          },
+          {
+            key: 'clustersDry',
+            label: 'Dry',
+            exportLabel:
+              'Clusters (Dry)',
+            tone: 'dry'
+          },
+          {
+            key: 'clustersTotal',
+            label: 'Total',
+            exportLabel:
+              'Clusters (Total)',
+            tone: 'total',
+            groupEnd: true
+          }
+        ]
+      },
+      {
+        label:
+          'Area Available for Estimation (cents)',
         columns: [
           {
             key: 'availWetArea',
             label: 'Wet',
-            exportLabel: 'Area Wet (cents)',
-            variant: 'blue',
-            fixed: true,
-            totalSx: { color: '#0d47a1', fontWeight: 700 }
+            exportLabel:
+              'Area Wet (cents)',
+            tone: 'wet',
+            fixed: true
           },
           {
             key: 'availDryArea',
             label: 'Dry',
-            exportLabel: 'Area Dry (cents)',
-            variant: 'blue',
-            fixed: true,
-            totalSx: { color: '#0d47a1', fontWeight: 700 }
+            exportLabel:
+              'Area Dry (cents)',
+            tone: 'dry',
+            fixed: true
           },
           {
-            key: 'availTotalArea',
+            key:
+              'availTotalArea',
             label: 'Total',
-            exportLabel: 'Area Total (cents)',
-            variant: 'blueTotal',
+            exportLabel:
+              'Area Total (cents)',
+            tone: 'total',
             fixed: true,
-            groupEnd: true,
-            totalSx: { color: '#0d47a1', fontWeight: 800 }
+            groupEnd: true
           }
         ]
       },
-      { label: null, columns: [{ key: '__remarks', label: 'Remarks', type: 'remarks' }] }
+      {
+        label: null,
+        columns: [
+          {
+            key: '__remarks',
+            label: 'Remarks',
+            type: 'remarks'
+          }
+        ]
+      }
     ]
   }
 ];
 
-const leafColumns = (tab) => tab.groups.flatMap((g) => g.columns);
-const hasGroupHeader = (tab) => tab.groups.some((g) => Boolean(g.label));
-const METRIC_KEYS = TAB_DEFS.flatMap((t) => leafColumns(t))
-  .filter((c) => c.type !== 'remarks')
-  .map((c) => c.key);
-
-/* ─────────────────── cell / header styling (as approved) ─────────────────── */
-
-const CELL_SX = {
-  plain: { p: 1, bgcolor: '#f8f9fa', border: '1px solid #e0e0e0', borderRadius: 1.5, textAlign: 'center', maxWidth: 160, mx: 'auto', fontSize: '0.9rem' },
-  compact: { p: 1, bgcolor: '#f8f9fa', border: '1px solid #e0e0e0', borderRadius: 1.5, textAlign: 'center', maxWidth: 140, mx: 'auto' },
-  green: { p: 1, bgcolor: '#e8f5e9', color: '#1b5e20', border: '1px solid #c8e6c9', borderRadius: 1.5, textAlign: 'center', maxWidth: 180, mx: 'auto', fontWeight: 700, fontSize: '0.95rem' },
-  plots: { p: 0.8, bgcolor: '#f8f9fa', border: '1px solid #e0e0e0', borderRadius: 1.5, textAlign: 'center', fontSize: '0.85rem' },
-  plotsTotal: { p: 0.8, bgcolor: '#f8f9fa', border: '1px solid #e0e0e0', borderRadius: 1.5, textAlign: 'center', fontWeight: 600, fontSize: '0.85rem' },
-  blue: { p: 0.8, bgcolor: '#e3f2fd', border: '1px solid #bbdefb', borderRadius: 1.5, textAlign: 'center', fontSize: '0.85rem' },
-  blueTotal: { p: 0.8, bgcolor: '#e3f2fd', color: '#0d47a1', border: '1px solid #90caf9', borderRadius: 1.5, textAlign: 'center', fontWeight: 700, fontSize: '0.85rem' }
-};
-
-const TH_TEXT = {
-  fontWeight: 'bold',
-  fontSize: '0.9rem',
-  color: '#333',
-  borderRight: '1px solid #e0e0e0',
-  borderBottom: '1px solid #8e8a8aff'
-};
-const TH_GROUP = { fontWeight: 'bold', fontSize: '0.9rem', color: '#333', borderBottom: '1px solid #e0e0e0' };
-const TH_SUB = { fontWeight: 'bold', fontSize: '0.8rem', color: '#555', borderBottom: '1px solid #8e8a8aff' };
-const TH_FLAT = { fontWeight: 'bold', fontSize: '0.85rem', color: '#333', borderBottom: '1px solid #8e8a8aff' };
-const TD_TOTAL_TOP = '1px solid #8e8a8aff';
-
-const cellValue = (row, col) => {
-  const v = Number(row[col.key] || 0);
-  return col.fixed ? v.toFixed(2) : v;
-};
-
-const DataBox = ({ row, col }) =>
-  col.type === 'remarks' ? (
-    <Box sx={{ p: 1, bgcolor: '#fdfdfd', border: '1px dashed #cccccc', borderRadius: 1.5, minHeight: 32 }} />
-  ) : (
-    <Box sx={CELL_SX[col.variant]}>{cellValue(row, col)}</Box>
+const leafColumns = (tab) =>
+  tab.groups.flatMap(
+    (group) => group.columns
   );
 
-/* ─────────────────── SpreadsheetML export (same .xls the client signed off) ─────────────────── */
+const hasGroupHeader = (tab) =>
+  tab.groups.some(
+    (group) => Boolean(group.label)
+  );
 
-const xmlEscape = (str) =>
-  str === null || str === undefined
+const METRIC_KEYS =
+  TAB_DEFS.flatMap((tab) =>
+    leafColumns(tab)
+  )
+    .filter(
+      (column) =>
+        column.type !== 'remarks'
+    )
+    .map((column) => column.key);
+
+const TEXT_COLS = [
+  {
+    label: 'District Name',
+    width: '220px',
+    get: (row) => row.name
+  }
+];
+
+const TOTAL_LABELS = [
+  'Kerala Total / Summary',
+  'Total Excluded Summary',
+  'Total Available Summary'
+];
+
+/* ───────────────────── Display helpers ───────────────────── */
+
+const formatNumber = (
+  value,
+  fixed = false
+) => {
+  const number =
+    Number(value || 0);
+
+  return number.toLocaleString(
+    undefined,
+    fixed
+      ? {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }
+      : {
+        maximumFractionDigits: 2
+      }
+  );
+};
+
+const cellValue = (
+  row,
+  column
+) => {
+  const value =
+    Number(
+      row[column.key] || 0
+    );
+
+  return column.fixed
+    ? value.toFixed(2)
+    : value;
+};
+
+function MetricValue({
+  row,
+  column,
+  total = false
+}) {
+  const theme = useTheme();
+
+  if (
+    column.type === 'remarks'
+  ) {
+    return (
+      <Typography
+        variant="body2"
+        color="text.disabled"
+      >
+        —
+      </Typography>
+    );
+  }
+
+  const value =
+    Number(
+      row[column.key] || 0
+    );
+
+  const toneColor =
+    column.tone === 'wet'
+      ? UI_COLORS.primaryDark
+      : column.tone === 'dry'
+        ? UI_COLORS.orangeDark
+        : theme.palette.text.primary;
+
+  return (
+    <Typography
+      component="span"
+      variant="body2"
+      sx={{
+        color:
+          value === 0
+            ? 'text.secondary'
+            : toneColor,
+        fontWeight:
+          total ||
+            column.tone === 'total'
+            ? 700
+            : value > 0
+              ? 550
+              : 400,
+        fontVariantNumeric:
+          'tabular-nums',
+        whiteSpace: 'nowrap'
+      }}
+    >
+      {formatNumber(
+        value,
+        column.fixed
+      )}
+    </Typography>
+  );
+}
+
+function SummaryMetricCard({
+  label,
+  total,
+  wet,
+  dry,
+  unit,
+  color,
+  icon,
+  loading,
+  decimal = false
+}) {
+  return (
+    <Card
+      elevation={0}
+      sx={{
+        height: '100%',
+        borderRadius: 2.5,
+        border:
+          `1px solid ${alpha(
+            color,
+            0.15
+          )}`,
+        bgcolor:
+          'background.paper'
+      }}
+    >
+      <CardContent
+        sx={{
+          p: 1.75,
+          '&:last-child': {
+            pb: 1.75
+          }
+        }}
+      >
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="flex-start"
+          spacing={1.5}
+        >
+          <Box sx={{ minWidth: 0 }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{
+                fontWeight: 700,
+                textTransform:
+                  'uppercase',
+                letterSpacing: 0.4
+              }}
+            >
+              {label}
+            </Typography>
+
+            <Stack
+              direction="row"
+              alignItems="baseline"
+              spacing={0.75}
+              sx={{ mt: 0.45 }}
+            >
+              <Typography
+                variant="h3"
+                sx={{
+                  fontWeight: 800,
+                  lineHeight: 1,
+                  color,
+                  fontVariantNumeric:
+                    'tabular-nums'
+                }}
+              >
+                {loading
+                  ? (
+                    <CircularProgress
+                      size={20}
+                      sx={{ color }}
+                    />
+                  )
+                  : formatNumber(
+                    total,
+                    decimal
+                  )}
+              </Typography>
+
+              {unit && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{
+                    fontWeight: 600
+                  }}
+                >
+                  {unit}
+                </Typography>
+              )}
+            </Stack>
+          </Box>
+
+          <Box
+            sx={{
+              width: 34,
+              height: 34,
+              borderRadius: 2,
+              display: 'grid',
+              placeItems: 'center',
+              color,
+              bgcolor: alpha(
+                color,
+                0.09
+              ),
+              flex: '0 0 auto'
+            }}
+          >
+            {icon}
+          </Box>
+        </Stack>
+
+        <Divider sx={{ my: 1.25 }} />
+
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns:
+              'repeat(2, minmax(0, 1fr))',
+            gap: 1
+          }}
+        >
+          <Box>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+            >
+              Wet
+            </Typography>
+
+            <Typography
+              variant="body2"
+              sx={{
+                mt: 0.1,
+                fontWeight: 700,
+                color: UI_COLORS.primaryDark,
+                fontVariantNumeric:
+                  'tabular-nums'
+              }}
+            >
+              {loading
+                ? '…'
+                : formatNumber(
+                  wet,
+                  decimal
+                )}
+            </Typography>
+          </Box>
+
+          <Box>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+            >
+              Dry
+            </Typography>
+
+            <Typography
+              variant="body2"
+              sx={{
+                mt: 0.1,
+                fontWeight: 700,
+                color:
+                  UI_COLORS.orangeDark,
+                fontVariantNumeric:
+                  'tabular-nums'
+              }}
+            >
+              {loading
+                ? '…'
+                : formatNumber(
+                  dry,
+                  decimal
+                )}
+            </Typography>
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AreaOverviewCard({
+  total,
+  wet,
+  dry,
+  loading
+}) {
+  const theme = useTheme();
+
+  const totalValue =
+    Math.max(
+      Number(total || 0),
+      0
+    );
+
+  const wetValue =
+    Math.max(
+      Number(wet || 0),
+      0
+    );
+
+  const dryValue =
+    Math.max(
+      Number(dry || 0),
+      0
+    );
+
+  const wetPercent =
+    totalValue > 0
+      ? Math.min(
+        (wetValue /
+          totalValue) *
+        100,
+        100
+      )
+      : 0;
+
+  const dryPercent =
+    totalValue > 0
+      ? Math.min(
+        (dryValue /
+          totalValue) *
+        100,
+        100
+      )
+      : 0;
+
+  return (
+    <Card
+      elevation={0}
+      sx={{
+        height: '100%',
+        borderRadius: 3,
+        border:
+          `1px solid ${alpha(
+            theme.palette.success.main,
+            0.2
+          )}`,
+        background:
+          `linear-gradient(135deg, ${alpha(
+            theme.palette.success.main,
+            0.09
+          )} 0%, ${alpha(
+            theme.palette.primary.main,
+            0.03
+          )} 100%)`
+      }}
+    >
+      <CardContent
+        sx={{
+          p: {
+            xs: 2,
+            md: 2.25
+          },
+          '&:last-child': {
+            pb: {
+              xs: 2,
+              md: 2.25
+            }
+          }
+        }}
+      >
+        <Stack spacing={1.6}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="flex-start"
+            spacing={1.5}
+          >
+            <Box>
+              <Typography
+                variant="overline"
+                color="text.secondary"
+                sx={{ fontWeight: 700 }}
+              >
+                Area Available for Estimation
+              </Typography>
+
+              <Stack
+                direction="row"
+                alignItems="baseline"
+                spacing={0.8}
+              >
+                <Typography
+                  variant="h2"
+                  sx={{
+                    fontWeight: 800,
+                    lineHeight: 1,
+                    color: UI_COLORS.greenDark,
+                    fontVariantNumeric:
+                      'tabular-nums'
+                  }}
+                >
+                  {loading
+                    ? (
+                      <CircularProgress
+                        size={24}
+                        color="success"
+                      />
+                    )
+                    : formatNumber(
+                      totalValue,
+                      true
+                    )}
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                >
+                  cents
+                </Typography>
+              </Stack>
+            </Box>
+
+            <Box
+              sx={{
+                width: 38,
+                height: 38,
+                borderRadius: 2,
+                display: 'grid',
+                placeItems: 'center',
+                color:
+                  UI_COLORS.green,
+                bgcolor: alpha(
+                  theme.palette.success.main,
+                  0.11
+                )
+              }}
+            >
+              <LandscapeIcon fontSize="small" />
+            </Box>
+          </Stack>
+
+          <Box>
+            <Box
+              sx={{
+                display: 'flex',
+                height: 8,
+                borderRadius: 99,
+                overflow: 'hidden',
+                bgcolor: alpha(
+                  theme.palette.grey[500],
+                  0.12
+                )
+              }}
+            >
+              <Box
+                sx={{
+                  width:
+                    `${wetPercent}%`,
+                  bgcolor:
+                    UI_COLORS.primary
+                }}
+              />
+
+              <Box
+                sx={{
+                  width:
+                    `${dryPercent}%`,
+                  bgcolor:
+                    UI_COLORS.orange
+                }}
+              />
+            </Box>
+
+            <Stack
+              direction={{
+                xs: 'column',
+                sm: 'row'
+              }}
+              justifyContent="space-between"
+              spacing={0.5}
+              sx={{ mt: 0.75 }}
+            >
+              <Typography
+                variant="caption"
+                color="text.secondary"
+              >
+                Wet:{' '}
+                <strong>
+                  {formatNumber(
+                    wetValue,
+                    true
+                  )}
+                </strong>
+                {' cents'}
+                {totalValue > 0
+                  ? ` (${wetPercent.toFixed(1)}%)`
+                  : ''}
+              </Typography>
+
+              <Typography
+                variant="caption"
+                color="text.secondary"
+              >
+                Dry:{' '}
+                <strong>
+                  {formatNumber(
+                    dryValue,
+                    true
+                  )}
+                </strong>
+                {' cents'}
+                {totalValue > 0
+                  ? ` (${dryPercent.toFixed(1)}%)`
+                  : ''}
+              </Typography>
+            </Stack>
+          </Box>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MobileField({
+  label,
+  row,
+  column
+}) {
+  return (
+    <Box>
+      <Typography
+        variant="caption"
+        color="text.secondary"
+      >
+        {label}
+      </Typography>
+
+      <Box sx={{ mt: 0.15 }}>
+        <MetricValue
+          row={row}
+          column={column}
+        />
+      </Box>
+    </Box>
+  );
+}
+
+/* ───────────────── SpreadsheetML export ───────────────── */
+
+const xmlEscape = (value) =>
+  value === null ||
+    value === undefined
     ? ''
-    : String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&apos;');
+    : String(value)
+      .replace(
+        /&/g,
+        '&amp;'
+      )
+      .replace(
+        /</g,
+        '&lt;'
+      )
+      .replace(
+        />/g,
+        '&gt;'
+      )
+      .replace(
+        /"/g,
+        '&quot;'
+      )
+      .replace(
+        /'/g,
+        '&apos;'
+      );
 
-const XML_STYLE_FOR = { green: 'GreenHighlight', blue: 'BlueHighlight', blueTotal: 'BlueHighlight' };
+const XML_STYLE_FOR = {
+  total: 'GreenHighlight'
+};
 
-// textColumns: [{ label, get(row) }] — District / Taluk / Block+Zone+Panchayat.
-function downloadWorkAllocationXls({ textColumns, rows, totals, totalLabels, reportLevelName, username }) {
-  const downloadTime = new Date().toLocaleString('en-IN', { timeZoneName: 'short' });
+function downloadWorkAllocationXls({
+  textColumns,
+  rows,
+  totals,
+  totalLabels,
+  reportLevelName,
+  username
+}) {
+  const downloadTime =
+    new Date().toLocaleString(
+      'en-IN',
+      {
+        timeZoneName: 'short'
+      }
+    );
 
-  const sheets = TAB_DEFS.map((tab, tabIndex) => {
-    const cols = leafColumns(tab);
-    const upper = (s) => (tab.uppercase ? String(s).toUpperCase() : s);
+  const sheets =
+    TAB_DEFS.map(
+      (tab, tabIndex) => {
+        const columns =
+          leafColumns(tab);
 
-    let body = `
-      <Row ss:Height="24">
-        ${textColumns
-          .map((tc) => `<Cell ss:StyleID="Header"><Data ss:Type="String">${xmlEscape(upper(tc.label))}</Data></Cell>`)
-          .join('')}
-        ${cols
-          .map(
-            (c) =>
-              `<Cell ss:StyleID="Header"><Data ss:Type="String">${xmlEscape(upper(c.exportLabel || c.label))}</Data></Cell>`
-          )
-          .join('')}
-      </Row>
-    `;
+        const upper =
+          (value) =>
+            tab.uppercase
+              ? String(
+                value
+              ).toUpperCase()
+              : value;
 
-    rows.forEach((row) => {
-      body += `
-        <Row>
-          ${textColumns
-            .map((tc) => `<Cell><Data ss:Type="String">${xmlEscape(tc.get(row) || 'N/A')}</Data></Cell>`)
+        let body = `
+          <Row ss:Height="24">
+            ${textColumns
+            .map(
+              (textColumn) =>
+                `<Cell ss:StyleID="Header"><Data ss:Type="String">${xmlEscape(
+                  upper(
+                    textColumn.label
+                  )
+                )}</Data></Cell>`
+            )
             .join('')}
-          ${cols
-            .map((c) => {
-              if (c.type === 'remarks') return '<Cell><Data ss:Type="String"></Data></Cell>';
-              const style = XML_STYLE_FOR[c.variant];
-              return `<Cell${style ? ` ss:StyleID="${style}"` : ''}><Data ss:Type="Number">${cellValue(row, c)}</Data></Cell>`;
-            })
+            ${columns
+            .map(
+              (column) =>
+                `<Cell ss:StyleID="Header"><Data ss:Type="String">${xmlEscape(
+                  upper(
+                    column.exportLabel ||
+                    column.label
+                  )
+                )}</Data></Cell>`
+            )
             .join('')}
-        </Row>
-      `;
-    });
+          </Row>
+        `;
 
-    body += `
-      <Row ss:StyleID="BoldRow">
-        ${textColumns
-          .map(
-            (tc, i) =>
-              `<Cell><Data ss:Type="String">${xmlEscape(i === textColumns.length - 1 ? totalLabels[tabIndex] : 'Total')}</Data></Cell>`
-          )
-          .join('')}
-        ${cols
-          .map((c) => {
-            if (c.type === 'remarks') return '<Cell><Data ss:Type="String"></Data></Cell>';
-            const style = XML_STYLE_FOR[c.variant];
-            const v = c.fixed ? Number(totals[c.key] || 0).toFixed(2) : Number(totals[c.key] || 0);
-            return `<Cell${style ? ` ss:StyleID="${style}"` : ''}><Data ss:Type="Number">${v}</Data></Cell>`;
-          })
-          .join('')}
-      </Row>
-    `;
+        rows.forEach((row) => {
+          body += `
+            <Row>
+              ${textColumns
+              .map(
+                (textColumn) =>
+                  `<Cell><Data ss:Type="String">${xmlEscape(
+                    textColumn.get(
+                      row
+                    ) ||
+                    'N/A'
+                  )}</Data></Cell>`
+              )
+              .join('')}
+              ${columns
+              .map(
+                (column) => {
+                  if (
+                    column.type ===
+                    'remarks'
+                  ) {
+                    return '<Cell><Data ss:Type="String"></Data></Cell>';
+                  }
 
-    return { name: tab.label, body };
-  });
+                  const style =
+                    XML_STYLE_FOR[
+                    column.tone
+                    ];
+
+                  return `<Cell${style
+                      ? ` ss:StyleID="${style}"`
+                      : ''
+                    }><Data ss:Type="Number">${cellValue(
+                      row,
+                      column
+                    )}</Data></Cell>`;
+                }
+              )
+              .join('')}
+            </Row>
+          `;
+        });
+
+        body += `
+          <Row ss:StyleID="BoldRow">
+            ${textColumns
+            .map(
+              (
+                textColumn,
+                index
+              ) =>
+                `<Cell><Data ss:Type="String">${xmlEscape(
+                  index ===
+                    textColumns.length -
+                    1
+                    ? totalLabels[
+                    tabIndex
+                    ]
+                    : 'Total'
+                )}</Data></Cell>`
+            )
+            .join('')}
+            ${columns
+            .map(
+              (column) => {
+                if (
+                  column.type ===
+                  'remarks'
+                ) {
+                  return '<Cell><Data ss:Type="String"></Data></Cell>';
+                }
+
+                const style =
+                  XML_STYLE_FOR[
+                  column.tone
+                  ];
+
+                const value =
+                  column.fixed
+                    ? Number(
+                      totals[
+                      column.key
+                      ] || 0
+                    ).toFixed(2)
+                    : Number(
+                      totals[
+                      column.key
+                      ] || 0
+                    );
+
+                return `<Cell${style
+                    ? ` ss:StyleID="${style}"`
+                    : ''
+                  }><Data ss:Type="Number">${value}</Data></Cell>`;
+              }
+            )
+            .join('')}
+          </Row>
+        `;
+
+        return {
+          name: tab.label,
+          body
+        };
+      }
+    );
 
   const metaRows = [
-    ['Report Module', 'Work Allocation Abstract Progress Report'],
-    ['Geographical Level / View', reportLevelName],
-    ['Agricultural Year', AuthService.agriyear() || ''],
-    ['Downloaded By User', username],
-    ['Download Timestamp', downloadTime],
-    ['Total Records Exported', String(rows.length)],
-    ['Worksheets Contained', '1. Area As Per Village Records, 2. Excluded Areas, 3. Area Available For Estimation, 4. Metadata'],
-    ['Source Platform', 'AIDeA BTR EARAS System']
+    [
+      'Report Module',
+      'Work Allocation Abstract Progress Report'
+    ],
+    [
+      'Geographical Level / View',
+      reportLevelName
+    ],
+    [
+      'Agricultural Year',
+      AuthService.agriyear() ||
+      ''
+    ],
+    [
+      'Downloaded By User',
+      username
+    ],
+    [
+      'Download Timestamp',
+      downloadTime
+    ],
+    [
+      'Total Records Exported',
+      String(rows.length)
+    ],
+    [
+      'Worksheets Contained',
+      '1. Area As Per Village Records, 2. Excluded Areas, 3. Area Available For Estimation, 4. Metadata'
+    ],
+    [
+      'Source Platform',
+      'AIDeA BTR EARAS System'
+    ]
   ]
     .map(
-      ([k, v]) => `
-      <Row>
-        <Cell ss:StyleID="BoldCell"><Data ss:Type="String">${xmlEscape(k)}</Data></Cell>
-        <Cell><Data ss:Type="String">${xmlEscape(v)}</Data></Cell>
-      </Row>`
+      ([key, value]) => `
+        <Row>
+          <Cell ss:StyleID="BoldCell"><Data ss:Type="String">${xmlEscape(
+        key
+      )}</Data></Cell>
+          <Cell><Data ss:Type="String">${xmlEscape(
+        value
+      )}</Data></Cell>
+        </Row>`
     )
     .join('');
 
@@ -378,7 +1516,9 @@ function downloadWorkAllocationXls({ textColumns, rows, totals, totalLabels, rep
  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
  xmlns:html="http://www.w3.org/TR/REC-html40">
  <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
-  <Author>${xmlEscape(username)}</Author>
+  <Author>${xmlEscape(
+    username
+  )}</Author>
   <Created>${new Date().toISOString()}</Created>
  </DocumentProperties>
  <Styles>
@@ -408,20 +1548,19 @@ function downloadWorkAllocationXls({ textColumns, rows, totals, totalLabels, rep
    <Font ss:FontName="Calibri" ss:Size="11" ss:Color="#1B5E20" ss:Bold="1"/>
    <Interior ss:Color="#E8F5E9" ss:Pattern="Solid"/>
   </Style>
-  <Style ss:ID="BlueHighlight">
-   <Font ss:FontName="Calibri" ss:Size="11" ss:Color="#0D47A1" ss:Bold="1"/>
-   <Interior ss:Color="#E3F2FD" ss:Pattern="Solid"/>
-  </Style>
  </Styles>
-${sheets
-  .map(
-    (s) => ` <Worksheet ss:Name="${xmlEscape(s.name)}">
+ ${sheets
+      .map(
+        (sheet) => `
+ <Worksheet ss:Name="${xmlEscape(
+          sheet.name
+        )}">
   <Table>
-   ${s.body}
+   ${sheet.body}
   </Table>
  </Worksheet>`
-  )
-  .join('\n')}
+      )
+      .join('\n')}
  <Worksheet ss:Name="Metadata">
   <Table>
    <Row ss:Height="24">
@@ -433,125 +1572,496 @@ ${sheets
  </Worksheet>
 </Workbook>`;
 
-  const blob = new Blob([xmlWorkbook], { type: 'application/vnd.ms-excel' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `Work_Allocation_Abstract_${reportLevelName.replace(/[^a-zA-Z0-9]/g, '_')}.xls`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  const blob =
+    new Blob(
+      [xmlWorkbook],
+      {
+        type:
+          'application/vnd.ms-excel'
+      }
+    );
+
+  const url =
+    URL.createObjectURL(blob);
+
+  const anchor =
+    document.createElement('a');
+
+  anchor.href = url;
+  anchor.download =
+    `Work_Allocation_Abstract_${reportLevelName.replace(
+      /[^a-zA-Z0-9]/g,
+      '_'
+    )}.xls`;
+
+  document.body.appendChild(
+    anchor
+  );
+
+  anchor.click();
+  anchor.remove();
   URL.revokeObjectURL(url);
 }
 
-const TEXT_COLS = [{ label: 'District Name', width: '35%', get: (r) => r.name }];
-const TOTAL_LABELS = ['Kerala Total / Summary', 'Total Excluded Summary', 'Total Available Summary'];
-
-/* ─────────────────────────── component ─────────────────────────── */
+/* ───────────────────────── Component ───────────────────────── */
 
 function KeralaWorkAllocationReport() {
   const theme = useTheme();
   const navigate = useNavigate();
 
-  const jurisdiction = useMemo(() => getUserJurisdiction(), []);
+  const isMobile =
+    useMediaQuery(
+      theme.breakpoints.down('md')
+    );
 
-  const [rows, setRows] = useState([]);
-  const [summaryPlots, setSummaryPlots] = useState({ wet: 0, dry: 0, total: 0 });
-  const [summaryArea, setSummaryArea] = useState({ wet: 0, dry: 0, total: 0 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [restrictionNotice, setRestrictionNotice] = useState('');
+  const latestRequestRef =
+    useRef(0);
 
-  const [activeTab, setActiveTab] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const jurisdiction =
+    useMemo(
+      () => getUserJurisdiction(),
+      []
+    );
 
-  const tab = TAB_DEFS[activeTab];
-  const columns = leafColumns(tab);
+  const [rows, setRows] =
+    useState([]);
 
-  const fetchStateWorkAllocation = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await axios.get(withAgriYear(`${WA_BASE}/api/report/work-allocation-progress`), {
-        headers: authHeader()
-      });
-      const data = res.data || {};
-      setSummaryPlots(data.noOfPlots || { wet: 0, dry: 0, total: 0 });
-      setSummaryArea(data.areaAvailableForEstimation || { wet: 0, dry: 0, total: 0 });
-      setRows(Array.isArray(data.locations) ? data.locations.map(normalizeLocation) : []);
-    } catch (err) {
-      console.error('Error fetching Kerala work allocation report:', err);
-      setError(err.response?.data?.message || err.message || 'Error loading work allocation report data.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [
+    summaryPlots,
+    setSummaryPlots
+  ] = useState(null);
 
-  // Taluk level users never see the state list.
+  const [
+    summaryClusters,
+    setSummaryClusters
+  ] = useState(null);
+
+  const [
+    summaryArea,
+    setSummaryArea
+  ] = useState(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState(null);
+
+  const [
+    restrictionNotice,
+    setRestrictionNotice
+  ] = useState('');
+
+  const [
+    activeTab,
+    setActiveTab
+  ] = useState(0);
+
+  const [
+    searchTerm,
+    setSearchTerm
+  ] = useState('');
+
+  const tab =
+    TAB_DEFS[activeTab];
+
+  const columns =
+    leafColumns(tab);
+
+  const TabIcon =
+    tab.icon;
+
+  const fetchStateWorkAllocation =
+    useCallback(async () => {
+      const requestId =
+        latestRequestRef.current + 1;
+
+      latestRequestRef.current =
+        requestId;
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response =
+          await axios.get(
+            withAgriYear(
+              `${WA_BASE}/api/report/work-allocation-progress`
+            ),
+            {
+              headers:
+                authHeader()
+            }
+          );
+
+        if (
+          requestId !==
+          latestRequestRef.current
+        ) {
+          return;
+        }
+
+        const data =
+          response.data || {};
+
+        setSummaryPlots(
+          data.noOfPlots || null
+        );
+
+        setSummaryClusters(
+          data.noOfClusters ||
+          null
+        );
+
+        setSummaryArea(
+          data.areaAvailableForEstimation ||
+          null
+        );
+
+        setRows(
+          Array.isArray(
+            data.locations
+          )
+            ? data.locations.map(
+              normalizeLocation
+            )
+            : []
+        );
+      } catch (fetchError) {
+        if (
+          requestId !==
+          latestRequestRef.current
+        ) {
+          return;
+        }
+
+        console.error(
+          'Error fetching Kerala work allocation report:',
+          fetchError
+        );
+
+        setError(
+          fetchError.response?.data
+            ?.message ||
+          fetchError.message ||
+          'Error loading work allocation report data.'
+        );
+      } finally {
+        if (
+          requestId ===
+          latestRequestRef.current
+        ) {
+          setLoading(false);
+        }
+      }
+    }, []);
+
+  /*
+   * Taluk-level users do not use this statewide view.
+   * Preserve the original direct redirect behaviour.
+   */
   useEffect(() => {
-    if (jurisdiction.level === 'taluk') {
-      navigate(
-        `/report/kerala_work_allocation_report/zone/${encodeURIComponent(jurisdiction.district)}/${encodeURIComponent(jurisdiction.taluk)}`,
-        { replace: true }
-      );
-      return;
-    }
-    fetchStateWorkAllocation();
-  }, [jurisdiction.level, jurisdiction.district, jurisdiction.taluk, navigate, fetchStateWorkAllocation]);
-
-  const filteredData = useMemo(() => {
-    const q = searchTerm.toLowerCase();
-    return q ? rows.filter((r) => r.name.toLowerCase().includes(q)) : rows;
-  }, [rows, searchTerm]);
-
-  const paginatedData = useMemo(
-    () => filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [filteredData, page, rowsPerPage]
-  );
-
-  const totals = useMemo(() => {
-    const acc = {};
-    METRIC_KEYS.forEach((k) => {
-      acc[k] = filteredData.reduce((s, r) => s + Number(r[k] || 0), 0);
-    });
-    return acc;
-  }, [filteredData]);
-
-  const totalPlotsWet = Number(summaryPlots.wet) || totals.plotsWet || 0;
-  const totalPlotsDry = Number(summaryPlots.dry) || totals.plotsDry || 0;
-  const totalPlotsTotal = Number(summaryPlots.total) || totalPlotsWet + totalPlotsDry;
-  const totalAreaWet = Number(summaryArea.wet) || totals.availWetArea || 0;
-  const totalAreaDry = Number(summaryArea.dry) || totals.availDryArea || 0;
-  const totalAreaTotal = Number(summaryArea.total) || totalAreaWet + totalAreaDry;
-
-  const handleDrillDownToTaluk = (row) => {
     if (
-      jurisdiction.level === 'district' &&
-      String(row.name).toLowerCase() !== String(jurisdiction.district).toLowerCase()
+      jurisdiction.level ===
+      'taluk'
     ) {
-      setRestrictionNotice(`Access Restricted: You are assigned to ${jurisdiction.district} District.`);
+      navigate(
+        `/report/kerala_work_allocation_report/zone/${encodeURIComponent(
+          jurisdiction.district
+        )}/${encodeURIComponent(
+          jurisdiction.taluk
+        )}`,
+        {
+          replace: true
+        }
+      );
+
       return;
     }
-    navigate(`/report/kerala_work_allocation_report/taluk/${encodeURIComponent(row.name)}`, {
-      state: { districtId: row.id, districtName: row.name, districtData: row }
-    });
+
+    fetchStateWorkAllocation();
+  }, [
+    fetchStateWorkAllocation,
+    jurisdiction.district,
+    jurisdiction.level,
+    jurisdiction.taluk,
+    navigate
+  ]);
+
+  const filteredData =
+    useMemo(() => {
+      const query =
+        searchTerm
+          .trim()
+          .toLowerCase();
+
+      if (!query) {
+        return rows;
+      }
+
+      return rows.filter(
+        (row) =>
+          row.name
+            .toLowerCase()
+            .includes(query)
+      );
+    }, [rows, searchTerm]);
+
+  const calculateTotals =
+    useCallback(
+      (sourceRows) => {
+        const result = {};
+
+        METRIC_KEYS.forEach(
+          (key) => {
+            result[key] =
+              sourceRows.reduce(
+                (
+                  sum,
+                  row
+                ) =>
+                  sum +
+                  Number(
+                    row[key] ||
+                    0
+                  ),
+                0
+              );
+          }
+        );
+
+        return result;
+      },
+      []
+    );
+
+  /*
+   * State totals are independent of the district search.
+   * Table totals follow the currently visible/filtered rows.
+   */
+  const stateTotals =
+    useMemo(
+      () =>
+        calculateTotals(rows),
+      [calculateTotals, rows]
+    );
+
+  const tableTotals =
+    useMemo(
+      () =>
+        calculateTotals(
+          filteredData
+        ),
+      [
+        calculateTotals,
+        filteredData
+      ]
+    );
+
+  const summaryValue = (
+    summary,
+    key,
+    fallback
+  ) => {
+    if (
+      summary &&
+      summary[key] !==
+      undefined &&
+      summary[key] !== null
+    ) {
+      const value =
+        Number(summary[key]);
+
+      return Number.isNaN(value)
+        ? fallback
+        : value;
+    }
+
+    return fallback;
   };
 
-  const reportLevelName = `Kerala State Report (${jurisdiction.role})`;
+  const totalPlotsWet =
+    summaryValue(
+      summaryPlots,
+      'wet',
+      stateTotals.plotsWet || 0
+    );
 
-  const handleExportExcel = () =>
-    downloadWorkAllocationXls({
-      textColumns: TEXT_COLS,
-      rows: filteredData,
-      totals,
-      totalLabels: TOTAL_LABELS,
-      reportLevelName,
-      username: jurisdiction.user
-    });
+  const totalPlotsDry =
+    summaryValue(
+      summaryPlots,
+      'dry',
+      stateTotals.plotsDry || 0
+    );
 
-  const colSpanAll = TEXT_COLS.length + columns.length + 1;
+  const totalPlotsTotal =
+    summaryValue(
+      summaryPlots,
+      'total',
+      totalPlotsWet +
+      totalPlotsDry
+    );
+
+  const totalClustersWet =
+    summaryValue(
+      summaryClusters,
+      'wet',
+      stateTotals.clustersWet ||
+      0
+    );
+
+  const totalClustersDry =
+    summaryValue(
+      summaryClusters,
+      'dry',
+      stateTotals.clustersDry ||
+      0
+    );
+
+  const totalClustersTotal =
+    summaryValue(
+      summaryClusters,
+      'total',
+      totalClustersWet +
+      totalClustersDry
+    );
+
+  const totalAreaWet =
+    summaryValue(
+      summaryArea,
+      'wet',
+      stateTotals.availWetArea ||
+      0
+    );
+
+  const totalAreaDry =
+    summaryValue(
+      summaryArea,
+      'dry',
+      stateTotals.availDryArea ||
+      0
+    );
+
+  const totalAreaTotal =
+    summaryValue(
+      summaryArea,
+      'total',
+      totalAreaWet +
+      totalAreaDry
+    );
+
+  const canAccessRow =
+    useCallback(
+      (row) => {
+        if (
+          jurisdiction.level !==
+          'district'
+        ) {
+          return true;
+        }
+
+        return (
+          String(
+            row.name
+          ).toLowerCase() ===
+          String(
+            jurisdiction.district
+          ).toLowerCase()
+        );
+      },
+      [
+        jurisdiction.district,
+        jurisdiction.level
+      ]
+    );
+
+  const handleDrillDownToTaluk =
+    (row) => {
+      if (!canAccessRow(row)) {
+        setRestrictionNotice(
+          `Access Restricted: You are assigned to ${jurisdiction.district} District.`
+        );
+        return;
+      }
+
+      navigate(
+        `/report/kerala_work_allocation_report/taluk/${encodeURIComponent(
+          row.name
+        )}`,
+        {
+          state: {
+            districtId:
+              row.id,
+            districtName:
+              row.name,
+            districtData:
+              row
+          }
+        }
+      );
+    };
+
+  const reportLevelName =
+    `Kerala State Report (${jurisdiction.role})`;
+
+  const handleExportExcel =
+    () =>
+      downloadWorkAllocationXls(
+        {
+          textColumns:
+            TEXT_COLS,
+          rows:
+            filteredData,
+          totals:
+            tableTotals,
+          totalLabels:
+            TOTAL_LABELS,
+          reportLevelName,
+          username:
+            jurisdiction.user
+        }
+      );
+
+  const colSpanAll =
+    TEXT_COLS.length +
+    columns.length +
+    1;
+
+  const initialLoading =
+    loading &&
+    rows.length === 0 &&
+    !error;
+
+  const activeAccent =
+    tab.accent;
+
+  if (initialLoading) {
+    return (
+      <Grid
+        container
+        spacing={3}
+        justifyContent="center"
+        alignItems="center"
+        sx={{ minHeight: 420 }}
+      >
+        <Grid item>
+          <Stack
+            spacing={1.5}
+            alignItems="center"
+          >
+            <CircularProgress />
+
+            <Typography
+              variant="body2"
+              color="text.secondary"
+            >
+              Loading work allocation report…
+            </Typography>
+          </Stack>
+        </Grid>
+      </Grid>
+    );
+  }
 
   return (
     <Grid container spacing={3}>
@@ -559,384 +2069,1429 @@ function KeralaWorkAllocationReport() {
         <Breadcrumb />
       </Grid>
 
-      {/* Header */}
+      {/* Page header */}
       <Grid item xs={12}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 2 }}>
-          <Typography variant="h3" sx={{ fontWeight: 700, color: theme.palette.text.primary }}>
-            Work Allocation Abstract Report - Kerala State
-          </Typography>
+        <Stack
+          direction={{
+            xs: 'column',
+            sm: 'row'
+          }}
+          justifyContent="space-between"
+          alignItems={{
+            xs: 'flex-start',
+            sm: 'center'
+          }}
+          spacing={1.5}
+        >
+          <Stack
+            direction="row"
+            spacing={1.2}
+            alignItems="center"
+          >
+            <Box
+              sx={{
+                width: 42,
+                height: 42,
+                borderRadius: 2.25,
+                display: 'grid',
+                placeItems: 'center',
+                color:
+                  'primary.main',
+                bgcolor: alpha(
+                  theme.palette.primary.main,
+                  0.09
+                )
+              }}
+            >
+              <AssignmentIcon />
+            </Box>
+
+            <Box>
+              <Typography
+                variant="h4"
+                sx={{
+                  fontWeight: 750,
+                  lineHeight: 1.2
+                }}
+              >
+                Work Allocation Abstract
+              </Typography>
+
+              <Stack
+                direction="row"
+                spacing={0.75}
+                alignItems="center"
+                flexWrap="wrap"
+                sx={{ mt: 0.3 }}
+              >
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                >
+                  Kerala State
+                  {' • '}
+                  Agricultural Year{' '}
+                  {AuthService.agriyear() ||
+                    '2025-2026'}
+                  {' • '}
+                  {rows.length ||
+                    14}{' '}
+                  Districts
+                </Typography>
+
+                {jurisdiction.level ===
+                  'district' && (
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      label={`Drill-down: ${jurisdiction.district}`}
+                      sx={{ height: 22 }}
+                    />
+                  )}
+
+                {loading && (
+                  <Typography
+                    variant="caption"
+                    color="primary.main"
+                  >
+                    Refreshing…
+                  </Typography>
+                )}
+              </Stack>
+            </Box>
+          </Stack>
+
           <Button
             variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={fetchStateWorkAllocation}
+            size="small"
+            startIcon={
+              loading
+                ? (
+                  <CircularProgress
+                    size={15}
+                  />
+                )
+                : (
+                  <RefreshIcon />
+                )
+            }
+            onClick={
+              fetchStateWorkAllocation
+            }
             disabled={loading}
-            sx={{ borderRadius: 2 }}
+            sx={{
+              minHeight: 38,
+              width: {
+                xs: '100%',
+                sm: 'auto'
+              }
+            }}
           >
             Refresh
           </Button>
-        </Box>
+        </Stack>
       </Grid>
 
       {error && (
         <Grid item xs={12}>
-          <Alert severity="error" onClose={() => setError(null)}>
-            {error}
+          <Alert
+            severity={
+              rows.length
+                ? 'warning'
+                : 'error'
+            }
+            onClose={() =>
+              setError(null)
+            }
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                onClick={
+                  fetchStateWorkAllocation
+                }
+              >
+                Retry
+              </Button>
+            }
+          >
+            {rows.length
+              ? `The latest refresh failed. The previously loaded data remains visible. ${error}`
+              : error}
           </Alert>
         </Grid>
       )}
 
-      {/* Compact Summary Cards */}
-      <Grid item xs={12} md={6}>
-        <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', bgcolor: '#ffffff' }}>
-          <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <LocationCityIcon sx={{ color: '#1976d2', mr: 0.8, fontSize: 20 }} />
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#333', fontSize: '0.95rem' }}>
-                Number of Plots Available for Estimation
-              </Typography>
-            </Box>
-            <Grid container spacing={1.5}>
-              <Grid item xs={4}>
-                <Box sx={{ py: 0.8, px: 1, bgcolor: '#e3f2fd', borderRadius: 1.5, border: '1px solid #bbdefb', textAlign: 'center' }}>
-                  <Typography variant="caption" sx={{ color: '#0d47a1', fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', display: 'block' }}>
-                    Wet
-                  </Typography>
-                  <Typography sx={{ color: '#0d47a1', fontWeight: 800, fontSize: '1.05rem', lineHeight: 1.2, mt: 0.3 }}>
-                    {loading ? <CircularProgress size={16} /> : totalPlotsWet.toLocaleString()}
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={4}>
-                <Box sx={{ py: 0.8, px: 1, bgcolor: '#fff3e0', borderRadius: 1.5, border: '1px solid #ffe0b2', textAlign: 'center' }}>
-                  <Typography variant="caption" sx={{ color: '#e65100', fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', display: 'block' }}>
-                    Dry
-                  </Typography>
-                  <Typography sx={{ color: '#e65100', fontWeight: 800, fontSize: '1.05rem', lineHeight: 1.2, mt: 0.3 }}>
-                    {loading ? <CircularProgress size={16} /> : totalPlotsDry.toLocaleString()}
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={4}>
-                <Box sx={{ py: 0.8, px: 1, bgcolor: '#e8f5e9', borderRadius: 1.5, border: '1px solid #c8e6c9', textAlign: 'center' }}>
-                  <Typography variant="caption" sx={{ color: '#1b5e20', fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', display: 'block' }}>
-                    Total
-                  </Typography>
-                  <Typography sx={{ color: '#1b5e20', fontWeight: 800, fontSize: '1.05rem', lineHeight: 1.2, mt: 0.3 }}>
-                    {loading ? <CircularProgress size={16} /> : totalPlotsTotal.toLocaleString()}
-                  </Typography>
-                </Box>
-              </Grid>
-            </Grid>
-          </CardContent>
-        </Card>
-      </Grid>
-
-      <Grid item xs={12} md={6}>
-        <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', bgcolor: '#ffffff' }}>
-          <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <LandscapeIcon sx={{ color: '#2e7d32', mr: 0.8, fontSize: 20 }} />
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#333', fontSize: '0.95rem' }}>
-                Area (in cents) Available for Estimation
-              </Typography>
-            </Box>
-            <Grid container spacing={1.5}>
-              <Grid item xs={4}>
-                <Box sx={{ py: 0.8, px: 1, bgcolor: '#e3f2fd', borderRadius: 1.5, border: '1px solid #bbdefb', textAlign: 'center' }}>
-                  <Typography variant="caption" sx={{ color: '#0d47a1', fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', display: 'block' }}>
-                    Wet
-                  </Typography>
-                  <Typography sx={{ color: '#0d47a1', fontWeight: 800, fontSize: '1.05rem', lineHeight: 1.2, mt: 0.3 }}>
-                    {loading ? <CircularProgress size={16} /> : totalAreaWet.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={4}>
-                <Box sx={{ py: 0.8, px: 1, bgcolor: '#fff3e0', borderRadius: 1.5, border: '1px solid #ffe0b2', textAlign: 'center' }}>
-                  <Typography variant="caption" sx={{ color: '#e65100', fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', display: 'block' }}>
-                    Dry
-                  </Typography>
-                  <Typography sx={{ color: '#e65100', fontWeight: 800, fontSize: '1.05rem', lineHeight: 1.2, mt: 0.3 }}>
-                    {loading ? <CircularProgress size={16} /> : totalAreaDry.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={4}>
-                <Box sx={{ py: 0.8, px: 1, bgcolor: '#e8f5e9', borderRadius: 1.5, border: '1px solid #c8e6c9', textAlign: 'center' }}>
-                  <Typography variant="caption" sx={{ color: '#1b5e20', fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', display: 'block' }}>
-                    Total
-                  </Typography>
-                  <Typography sx={{ color: '#1b5e20', fontWeight: 800, fontSize: '1.05rem', lineHeight: 1.2, mt: 0.3 }}>
-                    {loading ? <CircularProgress size={16} /> : totalAreaTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </Typography>
-                </Box>
-              </Grid>
-            </Grid>
-          </CardContent>
-        </Card>
-      </Grid>
-
-      {/* Main Table Card */}
+      {/* State summary */}
       <Grid item xs={12}>
-        <MainCard title={`Work Allocation Abstract - District Wise Report (${rows.length} Districts)`}>
-          <Box sx={{ width: '100%' }}>
-            {/* Search + records chip + download */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-              <TextField
-                size="small"
-                placeholder="Search District Name..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setPage(0);
-                }}
-                sx={{ width: { xs: '100%', sm: 320 } }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" color="action" />
-                    </InputAdornment>
-                  ),
-                  endAdornment: searchTerm && (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={() => { setSearchTerm(''); setPage(0); }}>
-                        <ClearIcon fontSize="small" />
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                }}
-              />
+        <Box sx={{ mb: 1.25 }}>
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: 700 }}
+          >
+            State Summary
+          </Typography>
 
-              <Stack direction="row" spacing={1.5} alignItems="center">
-                <Chip
-                  label={`Showing ${filteredData.length} Records`}
-                  color="primary"
-                  variant="outlined"
-                  sx={{ fontWeight: 'bold', borderRadius: 2 }}
-                />
-                <Button
-                  variant="contained"
-                  color="success"
-                  startIcon={<FileDownloadIcon />}
+          <Typography
+            variant="caption"
+            color="text.secondary"
+          >
+            Current availability for estimation across Kerala
+          </Typography>
+        </Box>
+
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              lg:
+                'minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr)'
+            },
+            gap: 1.5,
+            opacity:
+              loading ? 0.7 : 1,
+            transition:
+              theme.transitions.create(
+                'opacity'
+              )
+          }}
+        >
+          <AreaOverviewCard
+            total={
+              totalAreaTotal
+            }
+            wet={totalAreaWet}
+            dry={totalAreaDry}
+            loading={loading}
+          />
+
+          <SummaryMetricCard
+            label="Plots for Estimation"
+            total={
+              totalPlotsTotal
+            }
+            wet={
+              totalPlotsWet
+            }
+            dry={
+              totalPlotsDry
+            }
+            unit="plots"
+            color={
+              UI_COLORS.primary
+            }
+            icon={
+              <LocationCityIcon fontSize="small" />
+            }
+            loading={loading}
+          />
+
+          <SummaryMetricCard
+            label="Clusters for Estimation"
+            total={
+              totalClustersTotal
+            }
+            wet={
+              totalClustersWet
+            }
+            dry={
+              totalClustersDry
+            }
+            unit="clusters"
+            color={
+              UI_COLORS.info
+            }
+            icon={
+              <ViewModuleIcon fontSize="small" />
+            }
+            loading={loading}
+          />
+        </Box>
+      </Grid>
+
+      {/* Main report */}
+      <Grid item xs={12}>
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: 3,
+            border:
+              `1px solid ${theme.palette.divider}`,
+            overflow: 'hidden'
+          }}
+        >
+          {loading && (
+            <LinearProgress
+              aria-label="Refreshing work allocation data"
+            />
+          )}
+
+          {/* Toolbar */}
+          <Box
+            sx={{
+              p: {
+                xs: 1.5,
+                md: 2
+              }
+            }}
+          >
+            <Stack
+              direction={{
+                xs: 'column',
+                md: 'row'
+              }}
+              justifyContent="space-between"
+              alignItems={{
+                xs: 'stretch',
+                md: 'center'
+              }}
+              spacing={1.5}
+            >
+              <Box>
+                <Typography
+                  variant="h6"
                   sx={{
-                    textTransform: 'none',
-                    fontWeight: 700,
-                    borderRadius: 2,
-                    bgcolor: '#2e7d32',
-                    '&:hover': { bgcolor: '#1b5e20' },
-                    boxShadow: '0 2px 6px rgba(46, 125, 50, 0.3)'
+                    fontWeight: 700
                   }}
-                  onClick={handleExportExcel}
                 >
-                  Download Excel
-                </Button>
-              </Stack>
-            </Box>
+                  District Work Allocation
+                </Typography>
 
-            {/* Tabs */}
-            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-              <Tabs
-                value={activeTab}
-                onChange={(e, v) => { setActiveTab(v); setPage(0); }}
-                aria-label="Work Allocation Tabs"
-                sx={{
-                  minHeight: '48px',
-                  '& .MuiTabs-indicator': { height: '3.5px', borderRadius: '3px 3px 0 0', backgroundColor: '#1976d2' },
-                  '& .MuiTab-root': {
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    fontSize: '0.95rem',
-                    minHeight: '48px',
-                    padding: '8px 20px',
-                    marginRight: 1,
-                    borderRadius: '8px 8px 0 0',
-                    transition: 'all 0.2s ease',
-                    color: '#555',
-                    '&.Mui-selected': { color: '#1976d2', backgroundColor: '#e3f2fd', fontWeight: 700 },
-                    '&:hover': { backgroundColor: '#f5f5f5', color: '#1976d2' }
-                  }
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                >
+                  {filteredData.length}
+                  {' of '}
+                  {rows.length}
+                  {' districts shown'}
+                </Typography>
+              </Box>
+
+              <Stack
+                direction={{
+                  xs: 'column',
+                  sm: 'row'
                 }}
+                spacing={1}
               >
-                {TAB_DEFS.map((t) => (
-                  <Tab key={t.key} icon={t.icon} iconPosition="start" label={t.label} />
-                ))}
-              </Tabs>
-            </Box>
-
-            {/* Table */}
-            <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 2, overflow: 'hidden' }}>
-              <Table sx={{ minWidth: 650 }}>
-                <TableHead>
-                  <TableRow sx={{ bgcolor: '#f8f9fa' }}>
-                    {TEXT_COLS.map((tc) => (
-                      <TableCell
-                        key={tc.label}
-                        rowSpan={hasGroupHeader(tab) ? 2 : 1}
-                        sx={{ ...TH_TEXT, width: tc.width, ...(tab.uppercase ? { fontSize: '0.85rem', textTransform: 'uppercase' } : {}) }}
-                      >
-                        {tc.label}
-                      </TableCell>
-                    ))}
-                    {tab.groups.map((g, gi) =>
-                      g.label ? (
-                        <TableCell
-                          key={gi}
-                          colSpan={g.columns.length}
-                          align="center"
-                          sx={{ ...TH_GROUP, ...(gi < tab.groups.length - 1 ? { borderRight: '1px solid #e0e0e0' } : {}) }}
-                        >
-                          {g.label}
-                        </TableCell>
-                      ) : (
-                        g.columns.map((c) => (
-                          <TableCell
-                            key={c.key}
-                            rowSpan={hasGroupHeader(tab) ? 2 : 1}
-                            align="center"
-                            sx={{ ...TH_FLAT, ...(tab.uppercase ? { textTransform: 'uppercase' } : {}) }}
-                          >
-                            {c.label}
-                          </TableCell>
-                        ))
-                      )
-                    )}
-                    <TableCell
-                      rowSpan={hasGroupHeader(tab) ? 2 : 1}
-                      align="center"
-                      sx={{ fontWeight: 'bold', width: '10%', borderBottom: '1px solid #8e8a8aff' }}
-                    >
-                      Action
-                    </TableCell>
-                  </TableRow>
-                  {hasGroupHeader(tab) && (
-                    <TableRow sx={{ bgcolor: '#f8f9fa' }}>
-                      {tab.groups
-                        .filter((g) => g.label)
-                        .flatMap((g) => g.columns)
-                        .map((c) => (
-                          <TableCell
-                            key={c.key}
-                            align="center"
-                            sx={{ ...TH_SUB, ...(c.groupEnd ? { borderRight: '1px solid #e0e0e0' } : {}) }}
-                          >
-                            {c.label}
-                          </TableCell>
-                        ))}
-                    </TableRow>
-                  )}
-                </TableHead>
-
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={colSpanAll} align="center" sx={{ py: 5 }}>
-                        <CircularProgress size={32} />
-                        <Typography variant="body2" sx={{ mt: 1, color: '#666' }}>
-                          {tab.loadingText}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : paginatedData.length > 0 ? (
-                    paginatedData.map((row, index) => (
-                      <TableRow
-                        key={row.id ?? index}
-                        hover
-                        sx={{ cursor: 'pointer', '&:nth-of-type(even)': { bgcolor: '#fafafa' } }}
-                        onClick={() => handleDrillDownToTaluk(row)}
-                      >
-                        <TableCell sx={{ fontWeight: 500, borderRight: '1px solid #f0f0f0', borderBottom: '1px solid #e0e0e0' }}>
-                          {row.name || 'N/A'}
-                        </TableCell>
-                        {columns.map((c) => (
-                          <TableCell
-                            key={c.key}
-                            align="center"
-                            sx={{ borderBottom: '1px solid #e0e0e0', ...(c.groupEnd ? { borderRight: '1px solid #f0f0f0' } : {}) }}
-                          >
-                            <DataBox row={row} col={c} />
-                          </TableCell>
-                        ))}
-                        <TableCell align="center" sx={{ borderBottom: '1px solid #e0e0e0' }}>
-                          <Tooltip title="View details / Drill down">
+                <TextField
+                  size="small"
+                  label="Search district"
+                  placeholder="e.g. Kollam"
+                  value={searchTerm}
+                  onChange={(event) =>
+                    setSearchTerm(
+                      event.target.value
+                    )
+                  }
+                  sx={{
+                    width: {
+                      xs: '100%',
+                      sm: 250
+                    }
+                  }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                    endAdornment:
+                      searchTerm
+                        ? (
+                          <InputAdornment position="end">
                             <IconButton
                               size="small"
-                              color="primary"
+                              edge="end"
+                              aria-label="Clear district search"
+                              onClick={() =>
+                                setSearchTerm(
+                                  ''
+                                )
+                              }
+                            >
+                              <ClearIcon fontSize="small" />
+                            </IconButton>
+                          </InputAdornment>
+                        )
+                        : null
+                  }}
+                />
+
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={
+                    <FileDownloadIcon />
+                  }
+                  onClick={
+                    handleExportExcel
+                  }
+                  disabled={
+                    !filteredData.length ||
+                    loading
+                  }
+                  sx={{
+                    minHeight: 40,
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  Export Excel
+                </Button>
+              </Stack>
+            </Stack>
+          </Box>
+
+          <Divider />
+
+          {/* Report tabs */}
+          <Box
+            sx={{
+              px: {
+                xs: 1,
+                md: 1.5
+              },
+              bgcolor: alpha(
+                activeAccent,
+                0.025
+              ),
+              borderBottom:
+                `1px solid ${theme.palette.divider}`
+            }}
+          >
+            <Tabs
+              value={activeTab}
+              onChange={(
+                _,
+                value
+              ) =>
+                setActiveTab(
+                  value
+                )
+              }
+              aria-label="Work allocation report sections"
+              variant="scrollable"
+              scrollButtons="auto"
+              sx={{
+                minHeight: 50,
+                '& .MuiTabs-indicator':
+                {
+                  height: 3,
+                  borderRadius:
+                    '3px 3px 0 0',
+                  bgcolor:
+                    activeAccent
+                },
+                '& .MuiTab-root':
+                {
+                  textTransform:
+                    'none',
+                  fontWeight: 600,
+                  minHeight: 50,
+                  px: {
+                    xs: 1.25,
+                    md: 2
+                  },
+                  color: 'text.secondary',
+                  '&.Mui-selected': {
+                    color: activeAccent,
+                    bgcolor: alpha(
+                      activeAccent,
+                      0.08
+                    )
+                  }
+                }
+              }}
+            >
+              {TAB_DEFS.map(
+                (
+                  definition,
+                  index
+                ) => {
+                  const Icon =
+                    definition.icon;
+
+                  return (
+                    <Tab
+                      key={
+                        definition.key
+                      }
+                      icon={
+                        <Icon
+                          sx={{
+                            fontSize: 18
+                          }}
+                        />
+                      }
+                      iconPosition="start"
+                      label={
+                        definition.shortLabel
+                      }
+                    />
+                  );
+                }
+              )}
+            </Tabs>
+          </Box>
+
+          {/* Active section context */}
+          <Box
+            sx={{
+              px: {
+                xs: 1.5,
+                md: 2
+              },
+              py: 1.25,
+              bgcolor:
+                'background.paper'
+            }}
+          >
+            <Stack
+              direction={{
+                xs: 'column',
+                sm: 'row'
+              }}
+              justifyContent="space-between"
+              alignItems={{
+                xs: 'flex-start',
+                sm: 'center'
+              }}
+              spacing={0.75}
+            >
+              <Stack
+                direction="row"
+                spacing={0.9}
+                alignItems="center"
+              >
+                <Box
+                  sx={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 1.5,
+                    display: 'grid',
+                    placeItems: 'center',
+                    color:
+                      activeAccent,
+                    bgcolor: alpha(
+                      activeAccent,
+                      0.08
+                    )
+                  }}
+                >
+                  <TabIcon
+                    sx={{
+                      fontSize: 17
+                    }}
+                  />
+                </Box>
+
+                <Box>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{
+                      fontWeight: 700
+                    }}
+                  >
+                    {tab.label}
+                  </Typography>
+
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                  >
+                    {tab.description}
+                  </Typography>
+                </Box>
+              </Stack>
+
+              {!isMobile &&
+                columns.length > 6 && (
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                  >
+                    Scroll horizontally to view all columns
+                  </Typography>
+                )}
+            </Stack>
+          </Box>
+
+          <Divider />
+
+          <Box
+            sx={{
+              opacity:
+                loading && rows.length
+                  ? 0.62
+                  : 1,
+              pointerEvents:
+                loading && rows.length
+                  ? 'none'
+                  : 'auto',
+              transition:
+                theme.transitions.create(
+                  'opacity'
+                )
+            }}
+          >
+            {isMobile ? (
+              /* Mobile cards preserve every metric from the active tab. */
+              <Stack
+                spacing={1.25}
+                sx={{ p: 1.5 }}
+              >
+                {filteredData.length >
+                  0 ? (
+                  filteredData.map(
+                    (row) => {
+                      const accessible =
+                        canAccessRow(
+                          row
+                        );
+
+                      return (
+                        <Card
+                          key={row.id}
+                          variant="outlined"
+                          sx={{
+                            borderRadius: 2.25
+                          }}
+                        >
+                          <CardContent
+                            sx={{
+                              p: 1.6,
+                              '&:last-child':
+                              {
+                                pb: 1.6
+                              }
+                            }}
+                          >
+                            <Stack
+                              direction="row"
+                              justifyContent="space-between"
+                              alignItems="flex-start"
+                              spacing={1}
+                            >
+                              <Box>
+                                <Typography
+                                  variant="subtitle1"
+                                  sx={{
+                                    fontWeight: 700
+                                  }}
+                                >
+                                  {row.name ||
+                                    'N/A'}
+                                </Typography>
+
+                                {!accessible && (
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                  >
+                                    Drill-down restricted
+                                  </Typography>
+                                )}
+                              </Box>
+
+                              <Tooltip
+                                title={
+                                  accessible
+                                    ? 'View taluk details'
+                                    : `Access restricted to ${jurisdiction.district}`
+                                }
+                              >
+                                <IconButton
+                                  size="small"
+                                  color={
+                                    accessible
+                                      ? 'primary'
+                                      : 'default'
+                                  }
+                                  onClick={() =>
+                                    handleDrillDownToTaluk(
+                                      row
+                                    )
+                                  }
+                                >
+                                  {accessible
+                                    ? (
+                                      <VisibilityIcon fontSize="small" />
+                                    )
+                                    : (
+                                      <LockOutlinedIcon fontSize="small" />
+                                    )}
+                                </IconButton>
+                              </Tooltip>
+                            </Stack>
+
+                            <Stack
+                              spacing={1.5}
+                              sx={{ mt: 1.5 }}
+                            >
+                              {tab.groups.map(
+                                (
+                                  group,
+                                  groupIndex
+                                ) => (
+                                  <Box
+                                    key={
+                                      group.label ||
+                                      `group-${groupIndex}`
+                                    }
+                                  >
+                                    {group.label && (
+                                      <Typography
+                                        variant="caption"
+                                        sx={{
+                                          display:
+                                            'block',
+                                          mb: 0.7,
+                                          fontWeight: 700,
+                                          color:
+                                            'text.secondary',
+                                          textTransform:
+                                            tab.uppercase
+                                              ? 'uppercase'
+                                              : 'none'
+                                        }}
+                                      >
+                                        {group.label}
+                                      </Typography>
+                                    )}
+
+                                    <Box
+                                      sx={{
+                                        display:
+                                          'grid',
+                                        gridTemplateColumns:
+                                        {
+                                          xs:
+                                            group.columns.length >=
+                                              3
+                                              ? 'repeat(3, minmax(0, 1fr))'
+                                              : 'repeat(2, minmax(0, 1fr))'
+                                        },
+                                        gap: 1
+                                      }}
+                                    >
+                                      {group.columns.map(
+                                        (
+                                          column
+                                        ) => (
+                                          <MobileField
+                                            key={
+                                              column.key
+                                            }
+                                            label={
+                                              column.label
+                                            }
+                                            row={
+                                              row
+                                            }
+                                            column={
+                                              column
+                                            }
+                                          />
+                                        )
+                                      )}
+                                    </Box>
+                                  </Box>
+                                )
+                              )}
+                            </Stack>
+                          </CardContent>
+                        </Card>
+                      );
+                    }
+                  )
+                ) : (
+                  <Box
+                    sx={{
+                      py: 6,
+                      px: 2,
+                      textAlign: 'center'
+                    }}
+                  >
+                    <SearchIcon
+                      sx={{
+                        fontSize: 38,
+                        color:
+                          'text.disabled'
+                      }}
+                    />
+
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        mt: 0.75,
+                        fontWeight: 600
+                      }}
+                    >
+                      No matching districts
+                    </Typography>
+
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                    >
+                      Try a different district name.
+                    </Typography>
+                  </Box>
+                )}
+              </Stack>
+            ) : (
+              <TableContainer
+                sx={{
+                  maxHeight: '68vh',
+                  overflowX: 'auto'
+                }}
+              >
+                <Table
+                  stickyHeader
+                  size="small"
+                  sx={{
+                    minWidth:
+                      tab.key ===
+                        'excluded'
+                        ? 1420
+                        : tab.key ===
+                          'estimation'
+                          ? 1160
+                          : 720,
+                    '& .MuiTableCell-root':
+                    {
+                      borderBottom:
+                        `1px solid ${theme.palette.divider}`
+                    }
+                  }}
+                  aria-label={`${tab.label} work allocation report`}
+                >
+                  <TableHead>
+                    <TableRow sx={{ height: HEADER_ROW_HEIGHT }}>
+                      {TEXT_COLS.map(
+                        (
+                          textColumn
+                        ) => (
+                          <TableCell
+                            key={
+                              textColumn.label
+                            }
+                            rowSpan={
+                              hasGroupHeader(
+                                tab
+                              )
+                                ? 2
+                                : 1
+                            }
+                            sx={{
+                              width:
+                                textColumn.width,
+                              minWidth: 220,
+                              color:
+                                UI_COLORS.headerText,
+                              bgcolor:
+                                UI_COLORS.headerBg,
+                              fontWeight: 700,
+                              position:
+                                'sticky',
+                              left: 0,
+                              top: 0,
+                              zIndex: 12,
+                              borderRight:
+                                `1px solid ${UI_COLORS.border}`,
+                              borderBottom:
+                                `1px solid ${UI_COLORS.strongBorder}`,
+                              boxShadow:
+                                `2px 0 0 ${UI_COLORS.border}`,
+                              textTransform:
+                                tab.uppercase
+                                  ? 'uppercase'
+                                  : 'none'
+                            }}
+                          >
+                            {
+                              textColumn.label
+                            }
+                          </TableCell>
+                        )
+                      )}
+
+                      {tab.groups.map(
+                        (
+                          group,
+                          groupIndex
+                        ) =>
+                          group.label ? (
+                            <TableCell
+                              key={
+                                group.label
+                              }
+                              colSpan={
+                                group.columns.length
+                              }
+                              align="center"
                               sx={{
-                                bgcolor: '#e3f2fd',
-                                color: '#1976d2',
-                                '&:hover': { bgcolor: '#1976d2', color: '#ffffff' },
-                                transition: 'all 0.2s ease',
-                                p: 0.8
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDrillDownToTaluk(row);
+                                color:
+                                  UI_COLORS.headerText,
+                                bgcolor:
+                                  UI_COLORS.headerBg,
+                                fontWeight: 700,
+                                position: 'sticky',
+                                top: 0,
+                                zIndex: 9,
+                                borderRight:
+                                  groupIndex <
+                                    tab.groups
+                                      .length -
+                                    1
+                                    ? `1px solid ${UI_COLORS.border}`
+                                    : undefined,
+                                borderBottom:
+                                  `1px solid ${UI_COLORS.border}`,
+                                textTransform:
+                                  tab.uppercase
+                                    ? 'uppercase'
+                                    : 'none',
+                                whiteSpace:
+                                  'nowrap'
                               }}
                             >
-                              <VisibilityIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
+                              {group.label}
+                            </TableCell>
+                          ) : (
+                            group.columns.map(
+                              (
+                                column
+                              ) => (
+                                <TableCell
+                                  key={
+                                    column.key
+                                  }
+                                  rowSpan={
+                                    hasGroupHeader(
+                                      tab
+                                    )
+                                      ? 2
+                                      : 1
+                                  }
+                                  align="center"
+                                  sx={{
+                                    minWidth:
+                                      column.type ===
+                                        'remarks'
+                                        ? 170
+                                        : 100,
+                                    color:
+                                      UI_COLORS.headerText,
+                                    bgcolor:
+                                      UI_COLORS.headerBg,
+                                    fontWeight: 700,
+                                    position: 'sticky',
+                                    top: 0,
+                                    zIndex: 9,
+                                    borderBottom:
+                                      `1px solid ${UI_COLORS.strongBorder}`
+                                  }}
+                                >
+                                  {
+                                    column.label
+                                  }
+                                </TableCell>
+                              )
+                            )
+                          )
+                      )}
+
+                      <TableCell
+                        rowSpan={
+                          hasGroupHeader(
+                            tab
+                          )
+                            ? 2
+                            : 1
+                        }
+                        align="center"
+                        sx={{
+                          width: 72,
+                          minWidth: 72,
+                          color:
+                            UI_COLORS.headerText,
+                          bgcolor:
+                            UI_COLORS.headerBg,
+                          fontWeight: 700,
+                          position:
+                            'sticky',
+                          right: 0,
+                          top: 0,
+                          zIndex: 12,
+                          borderLeft:
+                            `1px solid ${UI_COLORS.border}`,
+                          borderBottom:
+                            `1px solid ${UI_COLORS.strongBorder}`
+                        }}
+                      >
+                        View
+                      </TableCell>
+                    </TableRow>
+
+                    {hasGroupHeader(
+                      tab
+                    ) && (
+                        <TableRow>
+                          {tab.groups
+                            .filter(
+                              (group) =>
+                                group.label
+                            )
+                            .flatMap(
+                              (group) =>
+                                group.columns
+                            )
+                            .map(
+                              (
+                                column
+                              ) => {
+                                return (
+                                  <TableCell
+                                    key={
+                                      column.key
+                                    }
+                                    align="center"
+                                    sx={{
+                                      minWidth:
+                                        column.type ===
+                                          'remarks'
+                                          ? 170
+                                          : 96,
+                                      color:
+                                        column.tone === 'wet'
+                                          ? UI_COLORS.primaryDark
+                                          : column.tone === 'dry'
+                                            ? UI_COLORS.orangeDark
+                                            : UI_COLORS.subHeaderText,
+                                      bgcolor:
+                                        UI_COLORS.headerBg,
+                                      fontWeight: 650,
+                                      fontSize:
+                                        '0.75rem',
+                                      whiteSpace:
+                                        'nowrap',
+                                      position:
+                                        'sticky',
+                                      top:
+                                        HEADER_ROW_HEIGHT,
+                                      zIndex: 8,
+                                      borderBottom:
+                                        `1px solid ${UI_COLORS.strongBorder}`,
+                                      borderRight:
+                                        column.groupEnd
+                                          ? `1px solid ${UI_COLORS.border}`
+                                          : undefined
+                                    }}
+                                  >
+                                    {
+                                      column.label
+                                    }
+                                  </TableCell>
+                                );
+                              }
+                            )}
+                        </TableRow>
+                      )}
+                  </TableHead>
+
+                  <TableBody>
+                    {filteredData.length >
+                      0 ? (
+                      filteredData.map(
+                        (row) => {
+                          const accessible =
+                            canAccessRow(
+                              row
+                            );
+
+                          return (
+                            <TableRow
+                              key={row.id}
+                              hover
+                              onClick={() =>
+                                handleDrillDownToTaluk(
+                                  row
+                                )
+                              }
+                              sx={{
+                                cursor:
+                                  accessible
+                                    ? 'pointer'
+                                    : 'default',
+                                '&:nth-of-type(even)':
+                                {
+                                  bgcolor:
+                                    alpha(
+                                      theme.palette.primary.main,
+                                      0.015
+                                    )
+                                },
+                                '&:hover':
+                                {
+                                  bgcolor:
+                                    alpha(
+                                      accessible
+                                        ? theme.palette.primary.main
+                                        : theme.palette.warning.main,
+                                      0.045
+                                    )
+                                }
+                              }}
+                            >
+                              <TableCell
+                                sx={{
+                                  position:
+                                    'sticky',
+                                  left: 0,
+                                  zIndex: 3,
+                                  bgcolor:
+                                    'inherit',
+                                  minWidth: 220,
+                                  boxShadow:
+                                    `2px 0 0 ${theme.palette.divider}`
+                                }}
+                              >
+                                <Stack
+                                  direction="row"
+                                  alignItems="center"
+                                  spacing={0.8}
+                                >
+                                  <Typography
+                                    variant="body2"
+                                    sx={{
+                                      fontWeight: 650,
+                                      whiteSpace:
+                                        'nowrap'
+                                    }}
+                                  >
+                                    {row.name ||
+                                      'N/A'}
+                                  </Typography>
+
+                                  {!accessible && (
+                                    <LockOutlinedIcon
+                                      sx={{
+                                        fontSize: 14,
+                                        color:
+                                          'text.disabled'
+                                      }}
+                                    />
+                                  )}
+                                </Stack>
+                              </TableCell>
+
+                              {columns.map(
+                                (
+                                  column
+                                ) => (
+                                  <TableCell
+                                    key={
+                                      column.key
+                                    }
+                                    align="center"
+                                    sx={{
+                                      minWidth:
+                                        column.type ===
+                                          'remarks'
+                                          ? 170
+                                          : 96,
+                                      bgcolor:
+                                        column.tone ===
+                                          'total'
+                                          ? alpha(
+                                            activeAccent,
+                                            0.035
+                                          )
+                                          : 'inherit',
+                                      borderRight:
+                                        column.groupEnd
+                                          ? `1px solid ${theme.palette.divider}`
+                                          : undefined
+                                    }}
+                                  >
+                                    <MetricValue
+                                      row={
+                                        row
+                                      }
+                                      column={
+                                        column
+                                      }
+                                    />
+                                  </TableCell>
+                                )
+                              )}
+
+                              <TableCell
+                                align="center"
+                                sx={{
+                                  position:
+                                    'sticky',
+                                  right: 0,
+                                  zIndex: 3,
+                                  bgcolor:
+                                    'inherit',
+                                  boxShadow:
+                                    `-2px 0 0 ${theme.palette.divider}`
+                                }}
+                              >
+                                <Tooltip
+                                  title={
+                                    accessible
+                                      ? 'View taluk details'
+                                      : `Access restricted to ${jurisdiction.district} District`
+                                  }
+                                >
+                                  <IconButton
+                                    size="small"
+                                    onClick={(
+                                      event
+                                    ) => {
+                                      event.stopPropagation();
+                                      handleDrillDownToTaluk(
+                                        row
+                                      );
+                                    }}
+                                    sx={{
+                                      color:
+                                        accessible
+                                          ? 'primary.main'
+                                          : 'text.disabled',
+                                      bgcolor:
+                                        accessible
+                                          ? alpha(
+                                            theme.palette.primary.main,
+                                            0.07
+                                          )
+                                          : 'transparent'
+                                    }}
+                                  >
+                                    {accessible
+                                      ? (
+                                        <VisibilityIcon fontSize="small" />
+                                      )
+                                      : (
+                                        <LockOutlinedIcon fontSize="small" />
+                                      )}
+                                  </IconButton>
+                                </Tooltip>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        }
+                      )
+                    ) : (
+                      <TableRow>
+                        <TableCell
+                          colSpan={
+                            colSpanAll
+                          }
+                          align="center"
+                          sx={{
+                            py: 6
+                          }}
+                        >
+                          <SearchIcon
+                            sx={{
+                              fontSize: 36,
+                              color:
+                                'text.disabled'
+                            }}
+                          />
+
+                          <Typography
+                            variant="subtitle1"
+                            sx={{
+                              mt: 0.75,
+                              fontWeight: 600
+                            }}
+                          >
+                            No matching district records
+                          </Typography>
+
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                          >
+                            Try another district name.
+                          </Typography>
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={colSpanAll} align="center" sx={{ py: 3, color: '#888' }}>
-                        No data available
-                      </TableCell>
-                    </TableRow>
-                  )}
+                    )}
 
-                  {/* Total Summary Row */}
-                  {!loading && filteredData.length > 0 && (
-                    <TableRow sx={{ bgcolor: '#f0f4f8', fontWeight: 'bold' }}>
-                      <TableCell sx={{ fontWeight: 'bold', fontSize: '0.95rem', borderTop: TD_TOTAL_TOP }}>
-                        {TOTAL_LABELS[activeTab]}
-                      </TableCell>
-                      {columns.map((c) => (
-                        <TableCell
-                          key={c.key}
-                          align="center"
-                          sx={{ borderTop: TD_TOTAL_TOP, ...(c.groupEnd ? { borderRight: '1px solid #e0e0e0' } : {}) }}
+                    {!loading &&
+                      filteredData.length >
+                      0 && (
+                        <TableRow
+                          sx={{
+                            bgcolor:
+                              alpha(
+                                activeAccent,
+                                0.07
+                              ),
+                            '& .MuiTableCell-root':
+                            {
+                              borderTop:
+                                `2px solid ${alpha(
+                                  activeAccent,
+                                  0.22
+                                )}`
+                            }
+                          }}
                         >
-                          {c.type === 'remarks' ? null : (
-                            <Box sx={{ p: 1, ...(c.totalSx || { fontWeight: 700 }) }}>
-                              {c.fixed ? Number(totals[c.key] || 0).toFixed(2) : Number(totals[c.key] || 0)}
-                            </Box>
-                          )}
-                        </TableCell>
-                      ))}
-                      <TableCell sx={{ borderTop: TD_TOTAL_TOP }} />
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                          <TableCell
+                            sx={{
+                              position:
+                                'sticky',
+                              left: 0,
+                              zIndex: 4,
+                              bgcolor:
+                                alpha(
+                                  activeAccent,
+                                  0.07
+                                ),
+                              fontWeight: 800,
+                              whiteSpace:
+                                'nowrap'
+                            }}
+                          >
+                            {searchTerm
+                              ? 'Filtered Total'
+                              : TOTAL_LABELS[
+                              activeTab
+                              ]}
+                          </TableCell>
 
-            <TablePagination
-              rowsPerPageOptions={[5, 10, 25, 50]}
-              component="div"
-              count={filteredData.length}
-              rowsPerPage={rowsPerPage}
-              page={page}
-              onPageChange={(e, p) => setPage(p)}
-              onRowsPerPageChange={(e) => {
-                setRowsPerPage(parseInt(e.target.value, 10));
-                setPage(0);
-              }}
-            />
+                          {columns.map(
+                            (
+                              column
+                            ) => (
+                              <TableCell
+                                key={
+                                  column.key
+                                }
+                                align="center"
+                                sx={{
+                                  bgcolor:
+                                    column.tone ===
+                                      'total'
+                                      ? alpha(
+                                        activeAccent,
+                                        0.1
+                                      )
+                                      : 'inherit',
+                                  borderRight:
+                                    column.groupEnd
+                                      ? `1px solid ${theme.palette.divider}`
+                                      : undefined
+                                }}
+                              >
+                                {column.type ===
+                                  'remarks' ? null : (
+                                  <MetricValue
+                                    row={
+                                      tableTotals
+                                    }
+                                    column={
+                                      column
+                                    }
+                                    total
+                                  />
+                                )}
+                              </TableCell>
+                            )
+                          )}
+
+                          <TableCell
+                            sx={{
+                              position:
+                                'sticky',
+                              right: 0,
+                              zIndex: 4,
+                              bgcolor:
+                                alpha(
+                                  activeAccent,
+                                  0.07
+                                )
+                            }}
+                          />
+                        </TableRow>
+                      )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
           </Box>
-        </MainCard>
+
+          {/* No pagination: statewide view is only 14 districts. */}
+          <Box
+            sx={{
+              px: {
+                xs: 1.5,
+                md: 2
+              },
+              py: 1.1,
+              borderTop:
+                `1px solid ${theme.palette.divider}`,
+              bgcolor:
+                alpha(
+                  theme.palette.primary.main,
+                  0.015
+                )
+            }}
+          >
+            <Typography
+              variant="caption"
+              color="text.secondary"
+            >
+              Showing all{' '}
+              {filteredData.length}
+              {' matching '}
+              district
+              {filteredData.length ===
+                1
+                ? ''
+                : 's'}
+              .
+              {searchTerm
+                ? ' Totals reflect the current search.'
+                : ' State totals are shown in the summary above.'}
+            </Typography>
+          </Box>
+        </Paper>
       </Grid>
 
-      {/* Access Restriction Notification Toast */}
       <Snackbar
-        open={Boolean(restrictionNotice)}
+        open={Boolean(
+          restrictionNotice
+        )}
         autoHideDuration={4000}
-        onClose={() => setRestrictionNotice('')}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        onClose={() =>
+          setRestrictionNotice('')
+        }
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'center'
+        }}
       >
-        <Alert onClose={() => setRestrictionNotice('')} severity="warning" variant="filled" sx={{ width: '100%', fontWeight: 600 }}>
+        <Alert
+          onClose={() =>
+            setRestrictionNotice('')
+          }
+          severity="warning"
+          variant="filled"
+          sx={{
+            width: '100%',
+            fontWeight: 600
+          }}
+        >
           {restrictionNotice}
         </Alert>
       </Snackbar>

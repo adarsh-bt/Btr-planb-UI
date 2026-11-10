@@ -30,6 +30,7 @@ import {
   Hub,
   CheckCircle,
   Pending,
+  EventBusy,
   Block,
   RateReview,
   Search as SearchIcon,
@@ -127,6 +128,7 @@ const Form5 = () => {
   const [stats, setStats] = useState({
     totalCCECrops: 0,
     ongoing: 0,
+    missedCce: 0,
     completed: 0,
     notStarted: 0,
     underReview: 0,
@@ -195,6 +197,7 @@ const Form5 = () => {
         setStats({
           totalCCECrops: data.totalCCECrops || 0,
           ongoing: data.ongoing || 0,
+          missedCce: data.missedCce || data.missed || data.missedCCE || 0,
           completed: data.completed || 0,
           notStarted: data.notStarted || 0,
           underReview: data.underReview || 0,
@@ -241,6 +244,8 @@ const Form5 = () => {
     switch (status) {
       case 'COMPLETED': return theme.palette.success.main;
       case 'ONGOING': return theme.palette.warning.main;
+      case 'MISSED CCE':
+      case 'MISSED': return '#d32f2f';
       case 'NOT STARTED': return theme.palette.grey[600];
       case 'UNDER REVIEW': return theme.palette.info.main;
       case 'NOT AVAILABLE': return theme.palette.error.main;
@@ -252,6 +257,8 @@ const Form5 = () => {
     switch (status) {
       case 'COMPLETED': return alpha(theme.palette.success.main, 0.1);
       case 'ONGOING': return alpha(theme.palette.warning.main, 0.1);
+      case 'MISSED CCE':
+      case 'MISSED': return alpha('#d32f2f', 0.1);
       case 'NOT STARTED': return alpha(theme.palette.grey[600], 0.1);
       case 'UNDER REVIEW': return alpha(theme.palette.info.main, 0.1);
       case 'NOT AVAILABLE': return alpha(theme.palette.error.main, 0.1);
@@ -336,6 +343,12 @@ const Form5 = () => {
       count: stats.ongoing,
       icon: Pending,
       color: theme.palette.warning.main,
+    },
+    {
+      title: 'Missed CCE',
+      count: stats.missedCce,
+      icon: EventBusy,
+      color: '#d32f2f',
     },
     {
       title: 'Not Available',

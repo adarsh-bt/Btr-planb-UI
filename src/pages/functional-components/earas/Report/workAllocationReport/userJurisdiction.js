@@ -155,14 +155,38 @@ export function normalizeLocationData(item, index = 0) {
   const dryInCents = Number(villageRecords.dry ?? item.dryInCents ?? item.dryArea ?? 0);
   const totalInCents = Number(villageRecords.total ?? item.totalInCents ?? (wetInCents + dryInCents));
 
-  const forestAreas = Number(excludedArea.forestArea ?? item.forestAreas ?? 0);
-  const plantationArea = Number(excludedArea.plantationArea ?? item.plantationArea ?? 0);
-  const waterBodiesArea = Number(excludedArea.areaOfWaterBodies ?? item.waterBodiesArea ?? 0);
-  const otherAreas = Number(excludedArea.others ?? item.otherAreas ?? 0);
+  const forestWet = Number(excludedArea.forestAreaWet ?? 0);
+  const forestDry = Number(excludedArea.forestAreaDry ?? 0);
+  const forestAreas = (excludedArea.forestAreaWet !== undefined || excludedArea.forestAreaDry !== undefined)
+    ? forestWet + forestDry
+    : Number(excludedArea.forestArea ?? item.forestAreas ?? 0);
+
+  const plantationWet = Number(excludedArea.plantationAreaWet ?? 0);
+  const plantationDry = Number(excludedArea.plantationAreaDry ?? 0);
+  const plantationArea = (excludedArea.plantationAreaWet !== undefined || excludedArea.plantationAreaDry !== undefined)
+    ? plantationWet + plantationDry
+    : Number(excludedArea.plantationArea ?? item.plantationArea ?? 0);
+
+  const waterBodiesWet = Number(excludedArea.areaOfWaterBodiesWet ?? 0);
+  const waterBodiesDry = Number(excludedArea.areaOfWaterBodiesDry ?? 0);
+  const waterBodiesArea = (excludedArea.areaOfWaterBodiesWet !== undefined || excludedArea.areaOfWaterBodiesDry !== undefined)
+    ? waterBodiesWet + waterBodiesDry
+    : Number(excludedArea.areaOfWaterBodies ?? item.waterBodiesArea ?? 0);
+
+  const othersWet = Number(excludedArea.othersWet ?? 0);
+  const othersDry = Number(excludedArea.othersDry ?? 0);
+  const otherAreas = (excludedArea.othersWet !== undefined || excludedArea.othersDry !== undefined)
+    ? othersWet + othersDry
+    : Number(excludedArea.others ?? item.otherAreas ?? 0);
 
   const plotsWet = Number(noOfPlots.wet ?? item.plotsWet ?? 0);
   const plotsDry = Number(noOfPlots.dry ?? item.plotsDry ?? 0);
   const plotsTotal = Number(noOfPlots.total ?? item.plotsTotal ?? (plotsWet + plotsDry));
+
+  const clustersObj = estimationObj.noOfClusters || {};
+  const clustersWet = Number(clustersObj.wet ?? item.clustersWet ?? 0);
+  const clustersDry = Number(clustersObj.dry ?? item.clustersDry ?? 0);
+  const clustersTotal = Number(clustersObj.total ?? item.clustersTotal ?? (clustersWet + clustersDry));
 
   const availWetArea = Number(areaInCents.wet ?? item.availWetArea ?? wetInCents ?? 0);
   const availDryArea = Number(areaInCents.dry ?? item.availDryArea ?? dryInCents ?? 0);
@@ -189,9 +213,26 @@ export function normalizeLocationData(item, index = 0) {
     plantationArea,
     waterBodiesArea,
     otherAreas,
+    forestWet,
+    forestDry,
+    forestAreaWet: forestWet,
+    forestAreaDry: forestDry,
+    plantationWet,
+    plantationDry,
+    plantationAreaWet: plantationWet,
+    plantationAreaDry: plantationDry,
+    waterBodiesWet,
+    waterBodiesDry,
+    areaOfWaterBodiesWet: waterBodiesWet,
+    areaOfWaterBodiesDry: waterBodiesDry,
+    othersWet,
+    othersDry,
     plotsWet,
     plotsDry,
     plotsTotal,
+    clustersWet,
+    clustersDry,
+    clustersTotal,
     availWetArea,
     availDryArea,
     availTotalArea

@@ -1,31 +1,33 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  Grid,
-  Typography,
+  Alert,
   Box,
-  Paper,
+  Button,
   Card,
   CardContent,
+  Chip,
+  CircularProgress,
+  Divider,
+  Grid,
+  IconButton,
+  InputAdornment,
+  LinearProgress,
+  Paper,
+  Stack,
+  Tab,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   Tabs,
-  Tab,
   TextField,
-  InputAdornment,
-  TablePagination,
-  IconButton,
-  Chip,
-  Button,
-  Stack,
-  Alert,
-  CircularProgress
+  Typography,
+  useMediaQuery
 } from '@mui/material';
-import MainCard from 'components/MainCard';
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import Breadcrumb from 'routes/Breadcrumb';
 import SearchIcon from '@mui/icons-material/Search';
@@ -37,6 +39,7 @@ import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import LandscapeIcon from '@mui/icons-material/Landscape';
 import LocationCityIcon from '@mui/icons-material/LocationCity';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import axios from 'axios';
 import AuthService from 'pages/authentication/services/authservice';
@@ -48,6 +51,47 @@ const WA_BASE = `${mainapi.BTR_API}/btr-service`;
 // The WA endpoints ignore unknown query params (Spring). Flip to false if the
 // backend ever starts validating query strings.
 const SEND_AGRI_YEAR = true;
+
+// Shared Work Allocation visual system — same as State and Taluk pages.
+const UI_COLORS = {
+  primary: '#1976d2',
+  primaryDark: '#0d47a1',
+  green: '#2e7d32',
+  greenDark: '#1b5e20',
+  info: '#0288d1',
+  orange: '#ed6c02',
+  orangeDark: '#e65100',
+  headerBg: '#f8f9fa',
+  headerText: '#333333',
+  subHeaderText: '#555555',
+  border: '#e0e0e0',
+  strongBorder: '#8e8a8aff',
+  subtotalBg: '#f7faff',
+  subtotalText: '#04255e'
+};
+
+const HEADER_ROW_HEIGHT = 48;
+const BLOCK_COLUMN_WIDTH = 150;
+const ZONE_COLUMN_WIDTH = 165;
+const LOCAL_BODY_COLUMN_WIDTH = 285;
+
+const TAB_META = [
+  {
+    shortLabel: 'Village Records',
+    description: 'Wet, dry and total area recorded in village records.',
+    accent: UI_COLORS.primary
+  },
+  {
+    shortLabel: 'Excluded Areas',
+    description: 'Forest, plantation, water-body and other excluded areas, split by wet and dry land.',
+    accent: UI_COLORS.green
+  },
+  {
+    shortLabel: 'Available for Estimation',
+    description: 'Plots, clusters and area currently available for estimation.',
+    accent: UI_COLORS.orange
+  }
+];
 
 const authHeader = () => {
   const token = AuthService.gettoken ? AuthService.gettoken() : localStorage.getItem('token');
@@ -96,30 +140,96 @@ function normalizeLocation(loc = {}, idx = 0) {
   const av = loc.areaAvailableForEstimation || {};
   const plots = av.noOfPlots || {};
   const area = av.areaInCents || {};
+  const clusters = av.noOfClusters || {};
 
   const wetInCents = n(vr.wet);
   const dryInCents = n(vr.dry);
   const plotsWet = n(plots.wet);
   const plotsDry = n(plots.dry);
+  const clustersWet = n(clusters.wet);
+  const clustersDry = n(clusters.dry);
   const availWetArea = n(area.wet);
   const availDryArea = n(area.dry);
+
+  // Backward-compatible Excluded Areas:
+  // Supports new split keys: forestAreaWet / forestAreaDry, plantationAreaWet / plantationAreaDry, etc.
+  // Falls back to previous single keys: forestArea, plantationArea, areaOfWaterBodies, others.
+  const forestWet = n(ex.forestAreaWet);
+  const forestDry = n(ex.forestAreaDry);
+  const forestAreas = (ex.forestAreaWet !== undefined || ex.forestAreaDry !== undefined)
+    ? forestWet + forestDry
+    : n(ex.forestArea);
+
+  const plantationWet = n(ex.plantationAreaWet);
+  const plantationDry = n(ex.plantationAreaDry);
+  const plantationArea = (ex.plantationAreaWet !== undefined || ex.plantationAreaDry !== undefined)
+    ? plantationWet + plantationDry
+    : n(ex.plantationArea);
+
+  const waterBodiesWet = n(ex.areaOfWaterBodiesWet);
+  const waterBodiesDry = n(ex.areaOfWaterBodiesDry);
+  const waterBodiesArea = (ex.areaOfWaterBodiesWet !== undefined || ex.areaOfWaterBodiesDry !== undefined)
+    ? waterBodiesWet + waterBodiesDry
+    : n(ex.areaOfWaterBodies);
+
+  const othersWet = n(ex.othersWet);
+  const othersDry = n(ex.othersDry);
+  const otherAreas = (ex.othersWet !== undefined || ex.othersDry !== undefined)
+    ? othersWet + othersDry
+    : n(ex.others);
+
+  const explicitPanchayath =
+    loc.panchayathName ||
+    loc.panchayatName ||
+    loc.panchayath ||
+    loc.panchayat ||
+    loc.localBody ||
+    loc.localbodyName ||
+    loc.localBodyName ||
+    '';
+
+  // If panchayathName is explicitly provided, use blockName for block and explicitPanchayath for panchayat.
+  // If panchayathName is missing (e.g. older payload where localbody was mapped into blockName),
+  // fallback to loc.blockName so that Panchayat is never displayed as 'N/A'.
+  const hasExplicitPanchayath = Boolean(explicitPanchayath);
+  const panchayathName = hasExplicitPanchayath ? explicitPanchayath : (loc.blockName || loc.name || '');
+  const blockName = hasExplicitPanchayath
+    ? (loc.blockName || 'General Block')
+    : (loc.blockName && loc.blockName !== panchayathName ? loc.blockName : 'General Block');
 
   return {
     id: loc.id ?? `loc_${idx}`,
     name: loc.name || '',
     blockId: loc.blockId ?? null,
-    blockName: loc.blockName || '',
-    panchayathName: loc.panchayathName || '',
+    blockName,
+    panchayathName,
     wetInCents,
     dryInCents,
     totalInCents: n(vr.total) || wetInCents + dryInCents,
-    forestAreas: n(ex.forestArea),
-    plantationArea: n(ex.plantationArea),
-    waterBodiesArea: n(ex.areaOfWaterBodies),
-    otherAreas: n(ex.others),
+    forestAreas,
+    forestWet,
+    forestDry,
+    forestAreaWet: forestWet,
+    forestAreaDry: forestDry,
+    plantationArea,
+    plantationWet,
+    plantationDry,
+    plantationAreaWet: plantationWet,
+    plantationAreaDry: plantationDry,
+    waterBodiesArea,
+    waterBodiesWet,
+    waterBodiesDry,
+    areaOfWaterBodiesWet: waterBodiesWet,
+    areaOfWaterBodiesDry: waterBodiesDry,
+    otherAreas,
+    othersWet,
+    othersDry,
     plotsWet,
     plotsDry,
     plotsTotal: n(plots.total) || plotsWet + plotsDry,
+    clustersWet,
+    clustersDry,
+    clustersTotal: n(clusters.total) || clustersWet + clustersDry,
     availWetArea,
     availDryArea,
     availTotalArea: n(area.total) || availWetArea + availDryArea
@@ -159,17 +269,67 @@ const TAB_DEFS = [
     uppercase: true,
     groups: [
       {
-        label: null,
+        label: 'Forest Areas',
         columns: [
-          { key: 'forestAreas', label: 'Forest Areas', variant: 'compact' },
-          { key: 'plantationArea', label: 'Plantation Area', variant: 'compact' },
+          { key: 'forestAreaWet', label: 'Wet', exportLabel: 'Forest (Wet)', variant: 'plots', fixed: true },
+          { key: 'forestAreaDry', label: 'Dry', exportLabel: 'Forest (Dry)', variant: 'plots', fixed: true },
+          {
+            key: 'forestAreas',
+            label: 'Total',
+            exportLabel: 'Forest (Total)',
+            variant: 'plotsTotal',
+            fixed: true,
+            groupEnd: true,
+            totalSx: { fontWeight: 800 }
+          }
+        ]
+      },
+      {
+        label: 'Plantation Area',
+        columns: [
+          { key: 'plantationAreaWet', label: 'Wet', exportLabel: 'Plantation (Wet)', variant: 'plots', fixed: true },
+          { key: 'plantationAreaDry', label: 'Dry', exportLabel: 'Plantation (Dry)', variant: 'plots', fixed: true },
+          {
+            key: 'plantationArea',
+            label: 'Total',
+            exportLabel: 'Plantation (Total)',
+            variant: 'plotsTotal',
+            fixed: true,
+            groupEnd: true,
+            totalSx: { fontWeight: 800 }
+          }
+        ]
+      },
+      {
+        label: 'Area of Water Bodies',
+        columns: [
+          { key: 'areaOfWaterBodiesWet', label: 'Wet', exportLabel: 'Water Bodies (Wet)', variant: 'plots', fixed: true },
+          { key: 'areaOfWaterBodiesDry', label: 'Dry', exportLabel: 'Water Bodies (Dry)', variant: 'plots', fixed: true },
           {
             key: 'waterBodiesArea',
-            label: 'Area of Water Bodies',
-            variant: 'compact',
-            totalSx: { color: '#0288d1', fontWeight: 700 }
-          },
-          { key: 'otherAreas', label: 'Other Areas', variant: 'compact' }
+            label: 'Total',
+            exportLabel: 'Water Bodies (Total)',
+            variant: 'plotsTotal',
+            fixed: true,
+            groupEnd: true,
+            totalSx: { color: '#0288d1', fontWeight: 800 }
+          }
+        ]
+      },
+      {
+        label: 'Other Areas',
+        columns: [
+          { key: 'othersWet', label: 'Wet', exportLabel: 'Others (Wet)', variant: 'plots', fixed: true },
+          { key: 'othersDry', label: 'Dry', exportLabel: 'Others (Dry)', variant: 'plots', fixed: true },
+          {
+            key: 'otherAreas',
+            label: 'Total',
+            exportLabel: 'Others (Total)',
+            variant: 'plotsTotal',
+            fixed: true,
+            groupEnd: true,
+            totalSx: { fontWeight: 800 }
+          }
         ]
       }
     ]
@@ -189,6 +349,21 @@ const TAB_DEFS = [
             key: 'plotsTotal',
             label: 'Total',
             exportLabel: 'Plots (Total)',
+            variant: 'plotsTotal',
+            groupEnd: true,
+            totalSx: { fontWeight: 800 }
+          }
+        ]
+      },
+      {
+        label: 'Number of Clusters Available for Estimation',
+        columns: [
+          { key: 'clustersWet', label: 'Wet', exportLabel: 'Clusters (Wet)', variant: 'plots' },
+          { key: 'clustersDry', label: 'Dry', exportLabel: 'Clusters (Dry)', variant: 'plots' },
+          {
+            key: 'clustersTotal',
+            label: 'Total',
+            exportLabel: 'Clusters (Total)',
             variant: 'plotsTotal',
             groupEnd: true,
             totalSx: { fontWeight: 800 }
@@ -265,12 +440,256 @@ const cellValue = (row, col) => {
   return col.fixed ? v.toFixed(2) : v;
 };
 
-const DataBox = ({ row, col }) =>
-  col.type === 'remarks' ? (
-    <Box sx={{ p: 1, bgcolor: '#fdfdfd', border: '1px dashed #cccccc', borderRadius: 1.5, minHeight: 32 }} />
-  ) : (
-    <Box sx={CELL_SX[col.variant]}>{cellValue(row, col)}</Box>
+const formatMetric = (value, fixed = false) =>
+  Number(value || 0).toLocaleString(
+    undefined,
+    fixed
+      ? { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+      : { maximumFractionDigits: 2 }
   );
+
+const DataBox = ({ row, col, total = false }) => {
+  if (col.type === 'remarks') {
+    return (
+      <Typography variant="body2" color="text.disabled">
+        —
+      </Typography>
+    );
+  }
+
+  const value = Number(row[col.key] || 0);
+  const key = String(col.key || '').toLowerCase();
+  const isWet = key.includes('wet');
+  const isDry = key.includes('dry');
+  const isTotal =
+    col.groupEnd ||
+    col.variant === 'green' ||
+    col.variant === 'plotsTotal' ||
+    col.variant === 'blueTotal';
+
+  return (
+    <Typography
+      component="span"
+      variant="body2"
+      sx={{
+        color:
+          value === 0
+            ? 'text.secondary'
+            : isWet
+              ? UI_COLORS.primaryDark
+              : isDry
+                ? UI_COLORS.orangeDark
+                : 'text.primary',
+        fontWeight: total || isTotal ? 700 : value > 0 ? 550 : 400,
+        fontVariantNumeric: 'tabular-nums',
+        whiteSpace: 'nowrap'
+      }}
+    >
+      {formatMetric(value, col.fixed)}
+    </Typography>
+  );
+};
+
+function SummaryMetricCard({ label, total, wet, dry, unit, color, icon, loading }) {
+  return (
+    <Card
+      elevation={0}
+      sx={{
+        height: '100%',
+        borderRadius: 2.5,
+        border: `1px solid ${alpha(color, 0.15)}`,
+        bgcolor: 'background.paper'
+      }}
+    >
+      <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}
+            >
+              {label}
+            </Typography>
+
+            <Stack direction="row" alignItems="baseline" spacing={0.75} sx={{ mt: 0.45 }}>
+              <Typography
+                variant="h3"
+                sx={{
+                  fontWeight: 800,
+                  lineHeight: 1,
+                  color,
+                  fontVariantNumeric: 'tabular-nums'
+                }}
+              >
+                {loading ? <CircularProgress size={20} sx={{ color }} /> : formatMetric(total)}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                {unit}
+              </Typography>
+            </Stack>
+          </Box>
+
+          <Box
+            sx={{
+              width: 34,
+              height: 34,
+              borderRadius: 2,
+              display: 'grid',
+              placeItems: 'center',
+              color,
+              bgcolor: alpha(color, 0.09),
+              flex: '0 0 auto'
+            }}
+          >
+            {icon}
+          </Box>
+        </Stack>
+
+        <Divider sx={{ my: 1.25 }} />
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1 }}>
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              Wet
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{ mt: 0.1, fontWeight: 700, color: UI_COLORS.primaryDark, fontVariantNumeric: 'tabular-nums' }}
+            >
+              {loading ? '…' : formatMetric(wet)}
+            </Typography>
+          </Box>
+
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              Dry
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{ mt: 0.1, fontWeight: 700, color: UI_COLORS.orangeDark, fontVariantNumeric: 'tabular-nums' }}
+            >
+              {loading ? '…' : formatMetric(dry)}
+            </Typography>
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AreaOverviewCard({ total, wet, dry, loading }) {
+  const theme = useTheme();
+
+  const totalValue = Math.max(Number(total || 0), 0);
+  const wetValue = Math.max(Number(wet || 0), 0);
+  const dryValue = Math.max(Number(dry || 0), 0);
+
+  const wetPercent = totalValue > 0 ? Math.min((wetValue / totalValue) * 100, 100) : 0;
+  const dryPercent = totalValue > 0 ? Math.min((dryValue / totalValue) * 100, 100) : 0;
+
+  return (
+    <Card
+      elevation={0}
+      sx={{
+        height: '100%',
+        borderRadius: 3,
+        border: `1px solid ${alpha(UI_COLORS.green, 0.2)}`,
+        background: `linear-gradient(135deg, ${alpha(UI_COLORS.green, 0.09)} 0%, ${alpha(
+          UI_COLORS.primary,
+          0.03
+        )} 100%)`
+      }}
+    >
+      <CardContent sx={{ p: { xs: 2, md: 2.25 }, '&:last-child': { pb: { xs: 2, md: 2.25 } } }}>
+        <Stack spacing={1.6}>
+          <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
+            <Box>
+              <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
+                Area Available for Estimation
+              </Typography>
+
+              <Stack direction="row" alignItems="baseline" spacing={0.8}>
+                <Typography
+                  variant="h2"
+                  sx={{
+                    fontWeight: 800,
+                    lineHeight: 1,
+                    color: UI_COLORS.greenDark,
+                    fontVariantNumeric: 'tabular-nums'
+                  }}
+                >
+                  {loading ? <CircularProgress size={24} color="success" /> : formatMetric(totalValue, true)}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  cents
+                </Typography>
+              </Stack>
+            </Box>
+
+            <Box
+              sx={{
+                width: 38,
+                height: 38,
+                borderRadius: 2,
+                display: 'grid',
+                placeItems: 'center',
+                color: UI_COLORS.green,
+                bgcolor: alpha(UI_COLORS.green, 0.11)
+              }}
+            >
+              <LandscapeIcon fontSize="small" />
+            </Box>
+          </Stack>
+
+          <Box>
+            <Box
+              sx={{
+                display: 'flex',
+                height: 8,
+                borderRadius: 99,
+                overflow: 'hidden',
+                bgcolor: alpha(theme.palette.grey[500], 0.12)
+              }}
+            >
+              <Box sx={{ width: `${wetPercent}%`, bgcolor: UI_COLORS.primary }} />
+              <Box sx={{ width: `${dryPercent}%`, bgcolor: UI_COLORS.orange }} />
+            </Box>
+
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              justifyContent="space-between"
+              spacing={0.5}
+              sx={{ mt: 0.75 }}
+            >
+              <Typography variant="caption" color="text.secondary">
+                Wet: <strong>{formatMetric(wetValue, true)}</strong> cents
+                {totalValue > 0 ? ` (${wetPercent.toFixed(1)}%)` : ''}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Dry: <strong>{formatMetric(dryValue, true)}</strong> cents
+                {totalValue > 0 ? ` (${dryPercent.toFixed(1)}%)` : ''}
+              </Typography>
+            </Stack>
+          </Box>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MobileMetric({ label, row, col, total = false }) {
+  return (
+    <Box>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      <Box sx={{ mt: 0.15 }}>
+        <DataBox row={row} col={col} total={total} />
+      </Box>
+    </Box>
+  );
+}
 
 /* ─────────────────── zone grouping helpers ─────────────────── */
 
@@ -416,11 +835,11 @@ const xmlEscape = (str) =>
   str === null || str === undefined
     ? ''
     : String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&apos;');
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
 
 const XML_STYLE_FOR = { green: 'GreenHighlight', blue: 'BlueHighlight', blueTotal: 'BlueHighlight' };
 
@@ -435,14 +854,14 @@ function downloadWorkAllocationXls({ textColumns, rows, totals, totalLabels, rep
     let body = `
       <Row ss:Height="24">
         ${textColumns
-          .map((tc) => `<Cell ss:StyleID="Header"><Data ss:Type="String">${xmlEscape(upper(tc.label))}</Data></Cell>`)
-          .join('')}
+        .map((tc) => `<Cell ss:StyleID="Header"><Data ss:Type="String">${xmlEscape(upper(tc.label))}</Data></Cell>`)
+        .join('')}
         ${cols
-          .map(
-            (c) =>
-              `<Cell ss:StyleID="Header"><Data ss:Type="String">${xmlEscape(upper(c.exportLabel || c.label))}</Data></Cell>`
-          )
-          .join('')}
+        .map(
+          (c) =>
+            `<Cell ss:StyleID="Header"><Data ss:Type="String">${xmlEscape(upper(c.exportLabel || c.label))}</Data></Cell>`
+        )
+        .join('')}
       </Row>
     `;
 
@@ -451,15 +870,15 @@ function downloadWorkAllocationXls({ textColumns, rows, totals, totalLabels, rep
       body += `
         <Row${rowAttr}>
           ${textColumns
-            .map((tc) => `<Cell><Data ss:Type="String">${xmlEscape(tc.get(row) || 'N/A')}</Data></Cell>`)
-            .join('')}
+          .map((tc) => `<Cell><Data ss:Type="String">${xmlEscape(tc.get(row) || 'N/A')}</Data></Cell>`)
+          .join('')}
           ${cols
-            .map((c) => {
-              if (c.type === 'remarks') return '<Cell><Data ss:Type="String"></Data></Cell>';
-              const style = XML_STYLE_FOR[c.variant];
-              return `<Cell${style ? ` ss:StyleID="${style}"` : ''}><Data ss:Type="Number">${cellValue(row, c)}</Data></Cell>`;
-            })
-            .join('')}
+          .map((c) => {
+            if (c.type === 'remarks') return '<Cell><Data ss:Type="String"></Data></Cell>';
+            const style = XML_STYLE_FOR[c.variant];
+            return `<Cell${style ? ` ss:StyleID="${style}"` : ''}><Data ss:Type="Number">${cellValue(row, c)}</Data></Cell>`;
+          })
+          .join('')}
         </Row>
       `;
     });
@@ -467,19 +886,19 @@ function downloadWorkAllocationXls({ textColumns, rows, totals, totalLabels, rep
     body += `
       <Row ss:StyleID="BoldRow">
         ${textColumns
-          .map(
-            (tc, i) =>
-              `<Cell><Data ss:Type="String">${xmlEscape(i === textColumns.length - 1 ? totalLabels[tabIndex] : 'Total')}</Data></Cell>`
-          )
-          .join('')}
+        .map(
+          (tc, i) =>
+            `<Cell><Data ss:Type="String">${xmlEscape(i === textColumns.length - 1 ? totalLabels[tabIndex] : 'Total')}</Data></Cell>`
+        )
+        .join('')}
         ${cols
-          .map((c) => {
-            if (c.type === 'remarks') return '<Cell><Data ss:Type="String"></Data></Cell>';
-            const style = XML_STYLE_FOR[c.variant];
-            const v = c.fixed ? Number(totals[c.key] || 0).toFixed(2) : Number(totals[c.key] || 0);
-            return `<Cell${style ? ` ss:StyleID="${style}"` : ''}><Data ss:Type="Number">${v}</Data></Cell>`;
-          })
-          .join('')}
+        .map((c) => {
+          if (c.type === 'remarks') return '<Cell><Data ss:Type="String"></Data></Cell>';
+          const style = XML_STYLE_FOR[c.variant];
+          const v = c.fixed ? Number(totals[c.key] || 0).toFixed(2) : Number(totals[c.key] || 0);
+          return `<Cell${style ? ` ss:StyleID="${style}"` : ''}><Data ss:Type="Number">${v}</Data></Cell>`;
+        })
+        .join('')}
       </Row>
     `;
 
@@ -554,14 +973,14 @@ function downloadWorkAllocationXls({ textColumns, rows, totals, totalLabels, rep
   </Style>
  </Styles>
 ${sheets
-  .map(
-    (s) => ` <Worksheet ss:Name="${xmlEscape(s.name)}">
+      .map(
+        (s) => ` <Worksheet ss:Name="${xmlEscape(s.name)}">
   <Table>
    ${s.body}
   </Table>
  </Worksheet>`
-  )
-  .join('\n')}
+      )
+      .join('\n')}
  <Worksheet ss:Name="Metadata">
   <Table>
    <Row ss:Height="24">
@@ -587,7 +1006,7 @@ ${sheets
 const TEXT_COLS = [
   { label: 'Block', width: '15%', align: 'center', get: (r) => r.blockName || 'General Block' },
   { label: 'Zone Name', width: '12%', get: (r) => r.name },
-  { label: 'Panchayat / Municipality / Corporation', width: '25%', get: (r) => r.panchayathName }
+  { label: 'Panchayat / Municipality / Corporation', width: '25%', get: (r) => r.panchayathName || 'N/A' }
 ];
 const TOTAL_LABELS = ['Summary Total', 'Total Excluded Summary', 'Total Available Summary'];
 
@@ -596,6 +1015,7 @@ const TOTAL_LABELS = ['Summary Total', 'Total Excluded Summary', 'Total Availabl
 function ZoneWorkAllocationReport() {
   const theme = useTheme();
   const navigate = useNavigate();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const location = useLocation();
   const { districtName: rawDistrictName, talukName: rawTalukName } = useParams();
 
@@ -611,6 +1031,7 @@ function ZoneWorkAllocationReport() {
   const [rows, setRows] = useState([]);
   const [summaryPlots, setSummaryPlots] = useState({ wet: 0, dry: 0, total: 0 });
   const [summaryArea, setSummaryArea] = useState({ wet: 0, dry: 0, total: 0 });
+  const [summaryClusters, setSummaryClusters] = useState({ wet: 0, dry: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -621,6 +1042,8 @@ function ZoneWorkAllocationReport() {
 
   const tab = TAB_DEFS[activeTab];
   const columns = leafColumns(tab);
+  const tabMeta = TAB_META[activeTab];
+  const activeAccent = tabMeta.accent;
 
   // On a direct/refresh load neither id is in navigation state, so walk
   // state list → taluk list once and cache the result in a ref.
@@ -661,6 +1084,7 @@ function ZoneWorkAllocationReport() {
       const data = res.data || {};
       setSummaryPlots(data.noOfPlots || { wet: 0, dry: 0, total: 0 });
       setSummaryArea(data.areaAvailableForEstimation || { wet: 0, dry: 0, total: 0 });
+      setSummaryClusters(data.noOfClusters || { wet: 0, dry: 0, total: 0 });
 
       const mapped = (Array.isArray(data.locations) ? data.locations : []).map(normalizeLocation);
       // Keep blocks — and zones inside each block — contiguous so the merged
@@ -714,20 +1138,36 @@ function ZoneWorkAllocationReport() {
     return c;
   }, [zoneIndex]);
 
-  const totals = useMemo(() => {
+  const calculateTotals = useCallback((sourceRows) => {
     const acc = {};
-    METRIC_KEYS.forEach((k) => {
-      acc[k] = filteredData.reduce((s, r) => s + Number(r[k] || 0), 0);
+    METRIC_KEYS.forEach((key) => {
+      acc[key] = sourceRows.reduce((sum, row) => sum + Number(row[key] || 0), 0);
     });
     return acc;
-  }, [filteredData]);
+  }, []);
 
-  const totalPlotsWet = Number(summaryPlots.wet) || totals.plotsWet || 0;
-  const totalPlotsDry = Number(summaryPlots.dry) || totals.plotsDry || 0;
-  const totalPlotsTotal = Number(summaryPlots.total) || totalPlotsWet + totalPlotsDry;
-  const totalAreaWet = Number(summaryArea.wet) || totals.availWetArea || 0;
-  const totalAreaDry = Number(summaryArea.dry) || totals.availDryArea || 0;
-  const totalAreaTotal = Number(summaryArea.total) || totalAreaWet + totalAreaDry;
+  const talukTotals = useMemo(() => calculateTotals(rows), [calculateTotals, rows]);
+  const totals = useMemo(() => calculateTotals(filteredData), [calculateTotals, filteredData]);
+
+  const summaryValue = (summary, key, fallback) => {
+    if (summary && summary[key] !== undefined && summary[key] !== null) {
+      const value = Number(summary[key]);
+      return Number.isNaN(value) ? fallback : value;
+    }
+    return fallback;
+  };
+
+  const totalPlotsWet = summaryValue(summaryPlots, 'wet', talukTotals.plotsWet || 0);
+  const totalPlotsDry = summaryValue(summaryPlots, 'dry', talukTotals.plotsDry || 0);
+  const totalPlotsTotal = summaryValue(summaryPlots, 'total', totalPlotsWet + totalPlotsDry);
+
+  const totalClustersWet = summaryValue(summaryClusters, 'wet', talukTotals.clustersWet || 0);
+  const totalClustersDry = summaryValue(summaryClusters, 'dry', talukTotals.clustersDry || 0);
+  const totalClustersTotal = summaryValue(summaryClusters, 'total', totalClustersWet + totalClustersDry);
+
+  const totalAreaWet = summaryValue(summaryArea, 'wet', talukTotals.availWetArea || 0);
+  const totalAreaDry = summaryValue(summaryArea, 'dry', talukTotals.availDryArea || 0);
+  const totalAreaTotal = summaryValue(summaryArea, 'total', totalAreaWet + totalAreaDry);
 
   const reportLevelName = `${talukName} Taluk (${districtName} District) Report (${jurisdiction.role})`;
 
@@ -744,455 +1184,981 @@ function ZoneWorkAllocationReport() {
 
   const colSpanAll = TEXT_COLS.length + columns.length;
 
+  const blockCount = useMemo(
+    () => new Set(rows.map((row) => row.blockName || 'General Block')).size,
+    [rows]
+  );
+
+  const zoneCount = useMemo(
+    () => new Set(rows.map((row) => zoneKeyOf(row))).size,
+    [rows]
+  );
+
+  const initialLoading = loading && rows.length === 0 && !error;
+
+  const stickyLeftForTextColumn = (index) => {
+    if (index === 0) return 0;
+    if (index === 1) return BLOCK_COLUMN_WIDTH;
+    return BLOCK_COLUMN_WIDTH + ZONE_COLUMN_WIDTH;
+  };
+
+  const widthForTextColumn = (index) => {
+    if (index === 0) return BLOCK_COLUMN_WIDTH;
+    if (index === 1) return ZONE_COLUMN_WIDTH;
+    return LOCAL_BODY_COLUMN_WIDTH;
+  };
+
+  if (initialLoading) {
+    return (
+      <Grid
+        container
+        spacing={3}
+        justifyContent="center"
+        alignItems="center"
+        sx={{ minHeight: 420 }}
+      >
+        <Grid item>
+          <Stack spacing={1.5} alignItems="center">
+            <CircularProgress />
+            <Typography variant="body2" color="text.secondary">
+              Loading zone-wise work allocation report…
+            </Typography>
+          </Stack>
+        </Grid>
+      </Grid>
+    );
+  }
+
   return (
     <Grid container spacing={3}>
       <Grid item xs={12}>
         <Breadcrumb />
       </Grid>
 
-      {/* Header */}
+      {/* Page header — same visual structure as State/Taluk pages */}
       <Grid item xs={12}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 2 }}>
-          <Stack direction="row" spacing={2} alignItems="center">
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          justifyContent="space-between"
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          spacing={1.5}
+        >
+          <Stack direction="row" spacing={1.2} alignItems="center">
             {jurisdiction.level !== 'taluk' && (
-              <Button
-                variant="outlined"
-                startIcon={<ArrowBackIcon />}
+              <IconButton
+                size="small"
+                aria-label={`Back to ${districtName} taluks`}
                 onClick={() =>
                   navigate(`/report/kerala_work_allocation_report/taluk/${encodeURIComponent(districtName)}`, {
                     state: { districtId: stateDistrictId, districtName }
                   })
                 }
-                sx={{ textTransform: 'none', borderRadius: 2 }}
+                sx={{
+                  width: 38,
+                  height: 38,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: 2
+                }}
               >
-                Back to {districtName} Taluks
-              </Button>
+                <ArrowBackIcon fontSize="small" />
+              </IconButton>
             )}
-            <Typography variant="h3" sx={{ fontWeight: 700, color: theme.palette.text.primary }}>
-              {talukName} Taluk ({districtName} District) - Zone / Panchayat Report
-            </Typography>
+
+            <Box
+              sx={{
+                width: 42,
+                height: 42,
+                borderRadius: 2.25,
+                display: 'grid',
+                placeItems: 'center',
+                color: 'primary.main',
+                bgcolor: alpha(UI_COLORS.primary, 0.09),
+                flex: '0 0 auto'
+              }}
+            >
+              <AssignmentIcon />
+            </Box>
+
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="h4" sx={{ fontWeight: 750, lineHeight: 1.2 }}>
+                Work Allocation Abstract
+              </Typography>
+
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.3 }}>
+                {districtName} District
+                {' • '}
+                {talukName} Taluk
+                {' • '}
+                Agricultural Year {AuthService.agriyear() || '2025-2026'}
+                {' • '}
+                {zoneCount} Zones
+                {' • '}
+                {rows.length} Local Bodies
+                {loading ? ' • Refreshing…' : ''}
+              </Typography>
+            </Box>
           </Stack>
+
           <Button
             variant="outlined"
-            startIcon={<RefreshIcon />}
+            size="small"
+            startIcon={loading ? <CircularProgress size={15} /> : <RefreshIcon />}
             onClick={fetchZoneWorkAllocation}
             disabled={loading}
-            sx={{ borderRadius: 2 }}
+            sx={{ minHeight: 38, width: { xs: '100%', sm: 'auto' } }}
           >
             Refresh
           </Button>
-        </Box>
+        </Stack>
       </Grid>
 
       {error && (
         <Grid item xs={12}>
-          <Alert severity="error" onClose={() => setError(null)}>
-            {error}
+          <Alert
+            severity={rows.length ? 'warning' : 'error'}
+            onClose={() => setError(null)}
+            action={
+              <Button color="inherit" size="small" onClick={fetchZoneWorkAllocation}>
+                Retry
+              </Button>
+            }
+          >
+            {rows.length
+              ? `The latest refresh failed. The previously loaded data remains visible. ${error}`
+              : error}
           </Alert>
         </Grid>
       )}
 
-      {/* Compact Summary Cards */}
-      <Grid item xs={12} md={6}>
-        <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', bgcolor: '#ffffff' }}>
-          <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <LocationCityIcon sx={{ color: '#1976d2', mr: 0.8, fontSize: 20 }} />
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#333', fontSize: '0.95rem' }}>
-                Number of Plots Available for Estimation
-              </Typography>
-            </Box>
-            <Grid container spacing={1.5}>
-              <Grid item xs={4}>
-                <Box sx={{ py: 0.8, px: 1, bgcolor: '#e3f2fd', borderRadius: 1.5, border: '1px solid #bbdefb', textAlign: 'center' }}>
-                  <Typography variant="caption" sx={{ color: '#0d47a1', fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', display: 'block' }}>
-                    Wet
-                  </Typography>
-                  <Typography sx={{ color: '#0d47a1', fontWeight: 800, fontSize: '1.05rem', lineHeight: 1.2, mt: 0.3 }}>
-                    {loading ? <CircularProgress size={16} /> : totalPlotsWet.toLocaleString()}
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={4}>
-                <Box sx={{ py: 0.8, px: 1, bgcolor: '#fff3e0', borderRadius: 1.5, border: '1px solid #ffe0b2', textAlign: 'center' }}>
-                  <Typography variant="caption" sx={{ color: '#e65100', fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', display: 'block' }}>
-                    Dry
-                  </Typography>
-                  <Typography sx={{ color: '#e65100', fontWeight: 800, fontSize: '1.05rem', lineHeight: 1.2, mt: 0.3 }}>
-                    {loading ? <CircularProgress size={16} /> : totalPlotsDry.toLocaleString()}
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={4}>
-                <Box sx={{ py: 0.8, px: 1, bgcolor: '#e8f5e9', borderRadius: 1.5, border: '1px solid #c8e6c9', textAlign: 'center' }}>
-                  <Typography variant="caption" sx={{ color: '#1b5e20', fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', display: 'block' }}>
-                    Total
-                  </Typography>
-                  <Typography sx={{ color: '#1b5e20', fontWeight: 800, fontSize: '1.05rem', lineHeight: 1.2, mt: 0.3 }}>
-                    {loading ? <CircularProgress size={16} /> : totalPlotsTotal.toLocaleString()}
-                  </Typography>
-                </Box>
-              </Grid>
-            </Grid>
-          </CardContent>
-        </Card>
-      </Grid>
-
-      <Grid item xs={12} md={6}>
-        <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', bgcolor: '#ffffff' }}>
-          <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <LandscapeIcon sx={{ color: '#2e7d32', mr: 0.8, fontSize: 20 }} />
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#333', fontSize: '0.95rem' }}>
-                Area (in cents) Available for Estimation
-              </Typography>
-            </Box>
-            <Grid container spacing={1.5}>
-              <Grid item xs={4}>
-                <Box sx={{ py: 0.8, px: 1, bgcolor: '#e3f2fd', borderRadius: 1.5, border: '1px solid #bbdefb', textAlign: 'center' }}>
-                  <Typography variant="caption" sx={{ color: '#0d47a1', fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', display: 'block' }}>
-                    Wet
-                  </Typography>
-                  <Typography sx={{ color: '#0d47a1', fontWeight: 800, fontSize: '1.05rem', lineHeight: 1.2, mt: 0.3 }}>
-                    {loading ? <CircularProgress size={16} /> : totalAreaWet.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={4}>
-                <Box sx={{ py: 0.8, px: 1, bgcolor: '#fff3e0', borderRadius: 1.5, border: '1px solid #ffe0b2', textAlign: 'center' }}>
-                  <Typography variant="caption" sx={{ color: '#e65100', fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', display: 'block' }}>
-                    Dry
-                  </Typography>
-                  <Typography sx={{ color: '#e65100', fontWeight: 800, fontSize: '1.05rem', lineHeight: 1.2, mt: 0.3 }}>
-                    {loading ? <CircularProgress size={16} /> : totalAreaDry.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={4}>
-                <Box sx={{ py: 0.8, px: 1, bgcolor: '#e8f5e9', borderRadius: 1.5, border: '1px solid #c8e6c9', textAlign: 'center' }}>
-                  <Typography variant="caption" sx={{ color: '#1b5e20', fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', display: 'block' }}>
-                    Total
-                  </Typography>
-                  <Typography sx={{ color: '#1b5e20', fontWeight: 800, fontSize: '1.05rem', lineHeight: 1.2, mt: 0.3 }}>
-                    {loading ? <CircularProgress size={16} /> : totalAreaTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </Typography>
-                </Box>
-              </Grid>
-            </Grid>
-          </CardContent>
-        </Card>
-      </Grid>
-
-      {/* Main Table Card */}
+      {/* Taluk summary — same hierarchy as State/Taluk pages */}
       <Grid item xs={12}>
-        <MainCard title={`Work Allocation Abstract - Panchayats / Municipalities of ${talukName} (${rows.length} Zones)`}>
-          <Box sx={{ width: '100%' }}>
-            {/* Search + records chip + download */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-              <TextField
-                size="small"
-                placeholder="Search Block / Zone / Panchayat..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setPage(0);
-                }}
-                sx={{ width: { xs: '100%', sm: 320 } }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" color="action" />
-                    </InputAdornment>
-                  ),
-                  endAdornment: searchTerm && (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={() => { setSearchTerm(''); setPage(0); }}>
-                        <ClearIcon fontSize="small" />
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                }}
-              />
+        <Box sx={{ mb: 1.25 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            Taluk Summary
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Current estimation availability across {talukName} Taluk
+            {' • '}
+            {blockCount} Blocks
+            {' • '}
+            {zoneCount} Zones
+            {' • '}
+            {rows.length} Local Bodies
+          </Typography>
+        </Box>
 
-              <Stack direction="row" spacing={1.5} alignItems="center">
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              lg: 'minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr)'
+            },
+            gap: 1.5,
+            opacity: loading ? 0.7 : 1,
+            transition: theme.transitions.create('opacity')
+          }}
+        >
+          <AreaOverviewCard
+            total={totalAreaTotal}
+            wet={totalAreaWet}
+            dry={totalAreaDry}
+            loading={loading}
+          />
+
+          <SummaryMetricCard
+            label="Plots for Estimation"
+            total={totalPlotsTotal}
+            wet={totalPlotsWet}
+            dry={totalPlotsDry}
+            unit="plots"
+            color={UI_COLORS.primary}
+            icon={<LocationCityIcon fontSize="small" />}
+            loading={loading}
+          />
+
+          <SummaryMetricCard
+            label="Clusters for Estimation"
+            total={totalClustersTotal}
+            wet={totalClustersWet}
+            dry={totalClustersDry}
+            unit="clusters"
+            color={UI_COLORS.info}
+            icon={<ViewModuleIcon fontSize="small" />}
+            loading={loading}
+          />
+        </Box>
+      </Grid>
+
+      {/* Zone / Local Body report */}
+      <Grid item xs={12}>
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: 3,
+            border: `1px solid ${theme.palette.divider}`,
+            overflow: 'hidden'
+          }}
+        >
+          {loading && <LinearProgress aria-label="Refreshing zone-wise work allocation data" />}
+
+          {/* Toolbar */}
+          <Box sx={{ p: { xs: 1.5, md: 2 } }}>
+            <Stack
+              direction={{ xs: 'column', lg: 'row' }}
+              justifyContent="space-between"
+              alignItems={{ xs: 'stretch', lg: 'center' }}
+              spacing={1.5}
+            >
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  Zone / Local Body Work Allocation
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {filteredData.length} of {rows.length} local bodies shown
+                  {' • '}
+                  {zoneCount} zones
+                </Typography>
+              </Box>
+
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1}
+                alignItems={{ xs: 'stretch', sm: 'center' }}
+              >
+                <TextField
+                  size="small"
+                  label="Search"
+                  placeholder="Block, zone or local body"
+                  value={searchTerm}
+                  onChange={(event) => {
+                    setSearchTerm(event.target.value);
+                    setPage(0);
+                  }}
+                  sx={{ width: { xs: '100%', sm: 280 } }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                    endAdornment: searchTerm ? (
+                      <InputAdornment position="end">
+                        <IconButton
+                          size="small"
+                          edge="end"
+                          aria-label="Clear search"
+                          onClick={() => {
+                            setSearchTerm('');
+                            setPage(0);
+                          }}
+                        >
+                          <ClearIcon fontSize="small" />
+                        </IconButton>
+                      </InputAdornment>
+                    ) : null
+                  }}
+                />
+
                 {multiPanchayatZones > 0 && (
                   <Chip
                     label={`${multiPanchayatZones} Multi-Panchayat Zone${multiPanchayatZones > 1 ? 's' : ''}`}
                     size="small"
-                    sx={{ fontWeight: 700, borderRadius: 2, bgcolor: '#f7faff', color: '#04255e', border: '1px solid #cfe0f5' }}
+                    variant="outlined"
+                    sx={{
+                      minHeight: 32,
+                      fontWeight: 650,
+                      color: UI_COLORS.subtotalText,
+                      borderColor: '#cfe0f5',
+                      bgcolor: UI_COLORS.subtotalBg
+                    }}
                   />
                 )}
-                <Chip
-                  label={`Showing ${filteredData.length} Records`}
-                  color="primary"
-                  variant="outlined"
-                  sx={{ fontWeight: 'bold', borderRadius: 2 }}
-                />
+
                 <Button
-                  variant="contained"
-                  color="success"
+                  variant="outlined"
+                  size="small"
                   startIcon={<FileDownloadIcon />}
-                  sx={{
-                    textTransform: 'none',
-                    fontWeight: 700,
-                    borderRadius: 2,
-                    bgcolor: '#2e7d32',
-                    '&:hover': { bgcolor: '#1b5e20' },
-                    boxShadow: '0 2px 6px rgba(46, 125, 50, 0.3)'
-                  }}
                   onClick={handleExportExcel}
+                  disabled={!filteredData.length || loading}
+                  sx={{ minHeight: 40, whiteSpace: 'nowrap' }}
                 >
-                  Download Excel
+                  Export Excel
                 </Button>
               </Stack>
-            </Box>
+            </Stack>
+          </Box>
 
-            {/* Tabs */}
-            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-              <Tabs
-                value={activeTab}
-                onChange={(e, v) => { setActiveTab(v); setPage(0); }}
-                aria-label="Work Allocation Tabs"
-                sx={{
-                  minHeight: '48px',
-                  '& .MuiTabs-indicator': { height: '3.5px', borderRadius: '3px 3px 0 0', backgroundColor: '#1976d2' },
-                  '& .MuiTab-root': {
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    fontSize: '0.95rem',
-                    minHeight: '48px',
-                    padding: '8px 20px',
-                    marginRight: 1,
-                    borderRadius: '8px 8px 0 0',
-                    transition: 'all 0.2s ease',
-                    color: '#555',
-                    '&.Mui-selected': { color: '#1976d2', backgroundColor: '#e3f2fd', fontWeight: 700 },
-                    '&:hover': { backgroundColor: '#f5f5f5', color: '#1976d2' }
+          <Divider />
+
+          {/* Tabs */}
+          <Box
+            sx={{
+              px: { xs: 1, md: 1.5 },
+              bgcolor: alpha(activeAccent, 0.025),
+              borderBottom: `1px solid ${theme.palette.divider}`
+            }}
+          >
+            <Tabs
+              value={activeTab}
+              onChange={(_, value) => {
+                setActiveTab(value);
+                setPage(0);
+              }}
+              aria-label="Work allocation report sections"
+              variant="scrollable"
+              scrollButtons="auto"
+              sx={{
+                minHeight: 50,
+                '& .MuiTabs-indicator': {
+                  height: 3,
+                  borderRadius: '3px 3px 0 0',
+                  bgcolor: activeAccent
+                },
+                '& .MuiTab-root': {
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  minHeight: 50,
+                  px: { xs: 1.25, md: 2 },
+                  color: 'text.secondary',
+                  '&.Mui-selected': {
+                    color: activeAccent,
+                    bgcolor: alpha(activeAccent, 0.08)
                   }
+                }
+              }}
+            >
+              {TAB_DEFS.map((definition, index) => (
+                <Tab
+                  key={definition.key}
+                  icon={definition.icon}
+                  iconPosition="start"
+                  label={TAB_META[index].shortLabel}
+                />
+              ))}
+            </Tabs>
+          </Box>
+
+          {/* Active section context */}
+          <Box sx={{ px: { xs: 1.5, md: 2 }, py: 1.25, bgcolor: 'background.paper' }}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              justifyContent="space-between"
+              alignItems={{ xs: 'flex-start', sm: 'center' }}
+              spacing={0.75}
+            >
+              <Stack direction="row" spacing={0.9} alignItems="center">
+                <Box
+                  sx={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 1.5,
+                    display: 'grid',
+                    placeItems: 'center',
+                    color: activeAccent,
+                    bgcolor: alpha(activeAccent, 0.08)
+                  }}
+                >
+                  {React.cloneElement(tab.icon, { sx: { fontSize: 17, color: activeAccent } })}
+                </Box>
+
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    {tab.label}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {tabMeta.description}
+                  </Typography>
+                </Box>
+              </Stack>
+
+              {!isMobile && (
+                <Typography variant="caption" color="text.secondary">
+                  Block, Zone and Local Body stay fixed while metrics scroll horizontally
+                </Typography>
+              )}
+            </Stack>
+          </Box>
+
+          <Divider />
+
+          <Box
+            sx={{
+              opacity: loading && rows.length ? 0.62 : 1,
+              pointerEvents: loading && rows.length ? 'none' : 'auto',
+              transition: theme.transitions.create('opacity')
+            }}
+          >
+            {isMobile ? (
+              <Stack spacing={1.25} sx={{ p: 1.5 }}>
+                {displayItems.length > 0 ? (
+                  displayItems.map((item, index) => {
+                    if (item.kind === 'subtotal') {
+                      return (
+                        <Card
+                          key={item.row.id}
+                          variant="outlined"
+                          sx={{
+                            borderRadius: 2.25,
+                            bgcolor: UI_COLORS.subtotalBg,
+                            borderColor: '#cfe0f5'
+                          }}
+                        >
+                          <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                            <Typography
+                              variant="subtitle2"
+                              sx={{ fontWeight: 750, fontStyle: 'italic', color: UI_COLORS.subtotalText }}
+                            >
+                              {item.zoneName} — {item.label}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {item.blockName}
+                            </Typography>
+
+                            <Stack spacing={1.4} sx={{ mt: 1.25 }}>
+                              {tab.groups.map((group, groupIndex) => (
+                                <Box key={group.label || `subtotal-group-${groupIndex}`}>
+                                  {group.label && (
+                                    <Typography
+                                      variant="caption"
+                                      sx={{
+                                        display: 'block',
+                                        mb: 0.65,
+                                        fontWeight: 700,
+                                        color: 'text.secondary',
+                                        textTransform: tab.uppercase ? 'uppercase' : 'none'
+                                      }}
+                                    >
+                                      {group.label}
+                                    </Typography>
+                                  )}
+
+                                  <Box
+                                    sx={{
+                                      display: 'grid',
+                                      gridTemplateColumns:
+                                        group.columns.length >= 3
+                                          ? 'repeat(3, minmax(0, 1fr))'
+                                          : 'repeat(2, minmax(0, 1fr))',
+                                      gap: 1
+                                    }}
+                                  >
+                                    {group.columns.map((col) => (
+                                      <MobileMetric
+                                        key={col.key}
+                                        label={col.label}
+                                        row={item.row}
+                                        col={col}
+                                        total
+                                      />
+                                    ))}
+                                  </Box>
+                                </Box>
+                              ))}
+                            </Stack>
+                          </CardContent>
+                        </Card>
+                      );
+                    }
+
+                    const row = item.row;
+
+                    return (
+                      <Card key={row.id ?? index} variant="outlined" sx={{ borderRadius: 2.25 }}>
+                        <CardContent sx={{ p: 1.6, '&:last-child': { pb: 1.6 } }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                            {row.panchayathName || 'N/A'}
+                          </Typography>
+
+                          <Stack direction="row" spacing={0.75} flexWrap="wrap" sx={{ mt: 0.45 }}>
+                            <Chip
+                              size="small"
+                              label={item.blockName}
+                              variant="outlined"
+                              sx={{ height: 22, fontSize: '0.68rem' }}
+                            />
+                            <Chip
+                              size="small"
+                              label={`Zone: ${item.zoneName}`}
+                              variant="outlined"
+                              sx={{
+                                height: 22,
+                                fontSize: '0.68rem',
+                                color: UI_COLORS.primaryDark,
+                                borderColor: alpha(UI_COLORS.primary, 0.28)
+                              }}
+                            />
+                          </Stack>
+
+                          <Stack spacing={1.4} sx={{ mt: 1.5 }}>
+                            {tab.groups.map((group, groupIndex) => (
+                              <Box key={group.label || `group-${groupIndex}`}>
+                                {group.label && (
+                                  <Typography
+                                    variant="caption"
+                                    sx={{
+                                      display: 'block',
+                                      mb: 0.65,
+                                      fontWeight: 700,
+                                      color: 'text.secondary',
+                                      textTransform: tab.uppercase ? 'uppercase' : 'none'
+                                    }}
+                                  >
+                                    {group.label}
+                                  </Typography>
+                                )}
+
+                                <Box
+                                  sx={{
+                                    display: 'grid',
+                                    gridTemplateColumns:
+                                      group.columns.length >= 3
+                                        ? 'repeat(3, minmax(0, 1fr))'
+                                        : 'repeat(2, minmax(0, 1fr))',
+                                    gap: 1
+                                  }}
+                                >
+                                  {group.columns.map((col) => (
+                                    <MobileMetric
+                                      key={col.key}
+                                      label={col.label}
+                                      row={row}
+                                      col={col}
+                                    />
+                                  ))}
+                                </Box>
+                              </Box>
+                            ))}
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                ) : (
+                  <Box sx={{ py: 6, px: 2, textAlign: 'center' }}>
+                    <SearchIcon sx={{ fontSize: 38, color: 'text.disabled' }} />
+                    <Typography variant="subtitle1" sx={{ mt: 0.75, fontWeight: 600 }}>
+                      No matching records
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Try another block, zone or local-body name.
+                    </Typography>
+                  </Box>
+                )}
+              </Stack>
+            ) : (
+              <TableContainer
+                sx={{
+                  maxHeight: '68vh',
+                  overflowX: 'auto',
+                  overflowY: 'auto'
                 }}
               >
-                {TAB_DEFS.map((t) => (
-                  <Tab key={t.key} icon={t.icon} iconPosition="start" label={t.label} />
-                ))}
-              </Tabs>
-            </Box>
-
-            {/* Table */}
-            <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 2, overflow: 'hidden' }}>
-              <Table sx={{ minWidth: 650 }}>
-                <TableHead>
-                  <TableRow sx={{ bgcolor: '#f8f9fa' }}>
-                    {TEXT_COLS.map((tc) => (
-                      <TableCell
-                        key={tc.label}
-                        rowSpan={hasGroupHeader(tab) ? 2 : 1}
-                        align={tc.align || 'inherit'}
-                        sx={{ ...TH_TEXT, width: tc.width, ...(tab.uppercase ? { fontSize: '0.85rem', textTransform: 'uppercase' } : {}) }}
-                      >
-                        {tc.label}
-                      </TableCell>
-                    ))}
-                    {tab.groups.map((g, gi) =>
-                      g.label ? (
+                <Table
+                  stickyHeader
+                  size="small"
+                  sx={{
+                    minWidth:
+                      tab.key === 'excluded'
+                        ? 1900
+                        : tab.key === 'estimation'
+                          ? 1650
+                          : 1050,
+                    '& .MuiTableCell-root': {
+                      borderBottom: `1px solid ${theme.palette.divider}`
+                    }
+                  }}
+                  aria-label={`${tab.label} zone-wise work allocation report`}
+                >
+                  <TableHead>
+                    <TableRow sx={{ height: HEADER_ROW_HEIGHT }}>
+                      {TEXT_COLS.map((textColumn, index) => (
                         <TableCell
-                          key={gi}
-                          colSpan={g.columns.length}
-                          align="center"
-                          sx={{ ...TH_GROUP, ...(gi < tab.groups.length - 1 ? { borderRight: '1px solid #e0e0e0' } : {}) }}
+                          key={textColumn.label}
+                          rowSpan={hasGroupHeader(tab) ? 2 : 1}
+                          align={textColumn.align || 'inherit'}
+                          sx={{
+                            width: widthForTextColumn(index),
+                            minWidth: widthForTextColumn(index),
+                            maxWidth: widthForTextColumn(index),
+                            color: UI_COLORS.headerText,
+                            bgcolor: UI_COLORS.headerBg,
+                            fontWeight: 700,
+                            position: 'sticky',
+                            top: 0,
+                            left: stickyLeftForTextColumn(index),
+                            zIndex: 14 - index,
+                            borderRight: `1px solid ${UI_COLORS.border}`,
+                            borderBottom: `1px solid ${UI_COLORS.strongBorder}`,
+                            boxShadow:
+                              index === 2 ? `2px 0 0 ${UI_COLORS.border}` : undefined,
+                            textTransform: tab.uppercase ? 'uppercase' : 'none'
+                          }}
                         >
-                          {g.label}
+                          {textColumn.label}
                         </TableCell>
-                      ) : (
-                        g.columns.map((c) => (
-                          <TableCell
-                            key={c.key}
-                            rowSpan={hasGroupHeader(tab) ? 2 : 1}
-                            align="center"
-                            sx={{ ...TH_FLAT, ...(tab.uppercase ? { textTransform: 'uppercase' } : {}) }}
-                          >
-                            {c.label}
-                          </TableCell>
-                        ))
-                      )
-                    )}
-                  </TableRow>
-                  {hasGroupHeader(tab) && (
-                    <TableRow sx={{ bgcolor: '#f8f9fa' }}>
-                      {tab.groups
-                        .filter((g) => g.label)
-                        .flatMap((g) => g.columns)
-                        .map((c) => (
-                          <TableCell
-                            key={c.key}
-                            align="center"
-                            sx={{ ...TH_SUB, ...(c.groupEnd ? { borderRight: '1px solid #e0e0e0' } : {}) }}
-                          >
-                            {c.label}
-                          </TableCell>
-                        ))}
-                    </TableRow>
-                  )}
-                </TableHead>
+                      ))}
 
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={colSpanAll} align="center" sx={{ py: 5 }}>
-                        <CircularProgress size={32} />
-                        <Typography variant="body2" sx={{ mt: 1, color: '#666' }}>
-                          {tab.loadingText}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : displayItems.length > 0 ? (
-                    displayItems.map((item, index) => {
-                      const isBlockStart = blockSpans[index] !== undefined;
-                      const nextItem = displayItems[index + 1];
-                      const isLastRowOfBlock = !nextItem || nextItem.blockName !== item.blockName;
-                      const isLastRowOfZone = !nextItem || nextItem.zoneKey !== item.zoneKey;
-                      const rowBorderBottom = isLastRowOfBlock
-                        ? '1px solid #8e8a8aff'
-                        : isLastRowOfZone
-                          ? '1px solid #c5cdd6'
-                          : '1px solid #e0e0e0';
-
-                      /* ── Zone Subtotal row (only for zones with >1 panchayat) ── */
-                      if (item.kind === 'subtotal') {
-                        return (
-                          <TableRow key={item.row.id} sx={{ bgcolor: '#f7faff' }}>
+                      {tab.groups.map((group, groupIndex) =>
+                        group.label ? (
+                          <TableCell
+                            key={group.label}
+                            colSpan={group.columns.length}
+                            align="center"
+                            sx={{
+                              color: UI_COLORS.headerText,
+                              bgcolor: UI_COLORS.headerBg,
+                              fontWeight: 700,
+                              position: 'sticky',
+                              top: 0,
+                              zIndex: 9,
+                              borderRight:
+                                groupIndex < tab.groups.length - 1
+                                  ? `1px solid ${UI_COLORS.border}`
+                                  : undefined,
+                              borderBottom: `1px solid ${UI_COLORS.border}`,
+                              textTransform: tab.uppercase ? 'uppercase' : 'none',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {group.label}
+                          </TableCell>
+                        ) : (
+                          group.columns.map((col) => (
                             <TableCell
+                              key={col.key}
+                              rowSpan={hasGroupHeader(tab) ? 2 : 1}
+                              align="center"
                               sx={{
+                                minWidth: col.type === 'remarks' ? 170 : 100,
+                                color: UI_COLORS.headerText,
+                                bgcolor: UI_COLORS.headerBg,
                                 fontWeight: 700,
-                                fontStyle: 'italic',
-                                fontSize: '0.9rem',
-                                color: '#04255e',
-                                borderRight: '1px solid #f0f0f0',
-                                borderBottom: rowBorderBottom
+                                position: 'sticky',
+                                top: 0,
+                                zIndex: 9,
+                                borderBottom: `1px solid ${UI_COLORS.strongBorder}`
                               }}
                             >
-                              {item.label}
+                              {col.label}
                             </TableCell>
-                            {columns.map((c) => (
+                          ))
+                        )
+                      )}
+                    </TableRow>
+
+                    {hasGroupHeader(tab) && (
+                      <TableRow>
+                        {tab.groups
+                          .filter((group) => group.label)
+                          .flatMap((group) => group.columns)
+                          .map((col) => {
+                            const key = String(col.key || '').toLowerCase();
+                            const isWet = key.includes('wet');
+                            const isDry = key.includes('dry');
+
+                            return (
                               <TableCell
-                                key={c.key}
+                                key={col.key}
                                 align="center"
-                                sx={{ borderBottom: rowBorderBottom, ...(c.groupEnd ? { borderRight: '1px solid #f0f0f0' } : {}) }}
+                                sx={{
+                                  minWidth: col.type === 'remarks' ? 170 : 96,
+                                  color: isWet
+                                    ? UI_COLORS.primaryDark
+                                    : isDry
+                                      ? UI_COLORS.orangeDark
+                                      : UI_COLORS.subHeaderText,
+                                  bgcolor: UI_COLORS.headerBg,
+                                  fontWeight: 650,
+                                  fontSize: '0.75rem',
+                                  whiteSpace: 'nowrap',
+                                  position: 'sticky',
+                                  top: HEADER_ROW_HEIGHT,
+                                  zIndex: 8,
+                                  borderBottom: `1px solid ${UI_COLORS.strongBorder}`,
+                                  borderRight: col.groupEnd
+                                    ? `1px solid ${UI_COLORS.border}`
+                                    : undefined
+                                }}
                               >
-                                {c.type === 'remarks' ? null : (
-                                  <Box sx={{ p: 1, ...(c.totalSx || { fontWeight: 700 }) }}>
-                                    {c.fixed ? Number(item.row[c.key] || 0).toFixed(2) : Number(item.row[c.key] || 0)}
-                                  </Box>
-                                )}
+                                {col.label}
+                              </TableCell>
+                            );
+                          })}
+                      </TableRow>
+                    )}
+                  </TableHead>
+
+                  <TableBody>
+                    {displayItems.length > 0 ? (
+                      displayItems.map((item, index) => {
+                        const isBlockStart = blockSpans[index] !== undefined;
+                        const nextItem = displayItems[index + 1];
+                        const isLastRowOfBlock =
+                          !nextItem || nextItem.blockName !== item.blockName;
+                        const isLastRowOfZone =
+                          !nextItem || nextItem.zoneKey !== item.zoneKey;
+
+                        const rowBorderBottom = isLastRowOfBlock
+                          ? `1px solid ${UI_COLORS.strongBorder}`
+                          : isLastRowOfZone
+                            ? '1px solid #c5cdd6'
+                            : `1px solid ${UI_COLORS.border}`;
+
+                        if (item.kind === 'subtotal') {
+                          return (
+                            <TableRow key={item.row.id} sx={{ bgcolor: UI_COLORS.subtotalBg }}>
+                              <TableCell
+                                sx={{
+                                  position: 'sticky',
+                                  left: BLOCK_COLUMN_WIDTH + ZONE_COLUMN_WIDTH,
+                                  zIndex: 4,
+                                  minWidth: LOCAL_BODY_COLUMN_WIDTH,
+                                  maxWidth: LOCAL_BODY_COLUMN_WIDTH,
+                                  bgcolor: UI_COLORS.subtotalBg,
+                                  fontWeight: 700,
+                                  fontStyle: 'italic',
+                                  color: UI_COLORS.subtotalText,
+                                  borderRight: `1px solid ${UI_COLORS.border}`,
+                                  borderBottom: rowBorderBottom,
+                                  boxShadow: `2px 0 0 ${UI_COLORS.border}`
+                                }}
+                              >
+                                {item.label}
+                              </TableCell>
+
+                              {columns.map((col) => (
+                                <TableCell
+                                  key={col.key}
+                                  align="center"
+                                  sx={{
+                                    bgcolor: col.groupEnd
+                                      ? alpha(activeAccent, 0.025)
+                                      : 'inherit',
+                                    borderBottom: rowBorderBottom,
+                                    borderRight: col.groupEnd
+                                      ? `1px solid ${UI_COLORS.border}`
+                                      : undefined
+                                  }}
+                                >
+                                  {col.type === 'remarks' ? null : (
+                                    <DataBox row={item.row} col={col} total />
+                                  )}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          );
+                        }
+
+                        const row = item.row;
+
+                        return (
+                          <TableRow
+                            key={row.id ?? index}
+                            hover
+                            sx={{
+                              '&:nth-of-type(even)': {
+                                bgcolor: alpha(UI_COLORS.primary, 0.015)
+                              },
+                              '&:hover': {
+                                bgcolor: alpha(UI_COLORS.primary, 0.035)
+                              }
+                            }}
+                          >
+                            {isBlockStart && (
+                              <TableCell
+                                rowSpan={blockSpans[index]}
+                                align="center"
+                                sx={{
+                                  position: 'sticky',
+                                  left: 0,
+                                  zIndex: 5,
+                                  minWidth: BLOCK_COLUMN_WIDTH,
+                                  maxWidth: BLOCK_COLUMN_WIDTH,
+                                  fontWeight: 700,
+                                  color: UI_COLORS.subtotalText,
+                                  bgcolor: '#f5f7fa',
+                                  borderRight: `1px solid ${UI_COLORS.border}`,
+                                  borderBottom: `1px solid ${UI_COLORS.strongBorder}`,
+                                  verticalAlign: 'middle'
+                                }}
+                              >
+                                {item.blockName}
+                              </TableCell>
+                            )}
+
+                            {item.zoneStart && (
+                              <TableCell
+                                rowSpan={item.zoneSpan}
+                                align={item.zoneMerged ? 'center' : 'left'}
+                                sx={{
+                                  position: 'sticky',
+                                  left: BLOCK_COLUMN_WIDTH,
+                                  zIndex: 4,
+                                  minWidth: ZONE_COLUMN_WIDTH,
+                                  maxWidth: ZONE_COLUMN_WIDTH,
+                                  fontWeight: 650,
+                                  color: UI_COLORS.primaryDark,
+                                  bgcolor: item.zoneMerged ? '#fbfcff' : 'background.paper',
+                                  borderRight: `1px solid ${UI_COLORS.border}`,
+                                  borderBottom: item.zoneMerged
+                                    ? '1px solid #c5cdd6'
+                                    : rowBorderBottom,
+                                  verticalAlign: 'middle'
+                                }}
+                              >
+                                {row.name || 'N/A'}
+                              </TableCell>
+                            )}
+
+                            <TableCell
+                              sx={{
+                                position: 'sticky',
+                                left: BLOCK_COLUMN_WIDTH + ZONE_COLUMN_WIDTH,
+                                zIndex: 3,
+                                minWidth: LOCAL_BODY_COLUMN_WIDTH,
+                                maxWidth: LOCAL_BODY_COLUMN_WIDTH,
+                                bgcolor: 'inherit',
+                                fontWeight: 550,
+                                borderRight: `1px solid ${UI_COLORS.border}`,
+                                borderBottom: rowBorderBottom,
+                                boxShadow: `2px 0 0 ${UI_COLORS.border}`
+                              }}
+                            >
+                              {row.panchayathName || 'N/A'}
+                            </TableCell>
+
+                            {columns.map((col) => (
+                              <TableCell
+                                key={col.key}
+                                align="center"
+                                sx={{
+                                  bgcolor: col.groupEnd
+                                    ? alpha(activeAccent, 0.025)
+                                    : 'inherit',
+                                  borderBottom: rowBorderBottom,
+                                  borderRight: col.groupEnd
+                                    ? `1px solid ${UI_COLORS.border}`
+                                    : undefined
+                                }}
+                              >
+                                <DataBox row={row} col={col} />
                               </TableCell>
                             ))}
                           </TableRow>
                         );
-                      }
-
-                      /* ── Normal data row ── */
-                      const row = item.row;
-                      const blockNameVal = item.blockName;
-
-                      return (
-                        <TableRow key={row.id ?? index} hover sx={{ '&:nth-of-type(even)': { bgcolor: '#fafafa' } }}>
-                          {isBlockStart && (
-                            <TableCell
-                              rowSpan={blockSpans[index]}
-                              align="center"
-                              sx={{
-                                fontWeight: 700,
-                                color: '#04255e',
-                                bgcolor: '#f5f7fa',
-                                borderRight: '1px solid #e0e0e0',
-                                borderBottom: '1px solid #8e8a8aff',
-                                verticalAlign: 'middle'
-                              }}
-                            >
-                              {blockNameVal}
-                            </TableCell>
-                          )}
-                          {item.zoneStart && (
-                            <TableCell
-                              rowSpan={item.zoneSpan}
-                              sx={{
-                                fontWeight: 600,
-                                borderRight: '1px solid #f0f0f0',
-                                borderBottom: item.zoneMerged ? '1px solid #c5cdd6' : rowBorderBottom,
-                                color: '#1976d2',
-                                ...(item.zoneMerged ? { verticalAlign: 'middle', textAlign: 'center', bgcolor: '#fbfcff' } : {})
-                              }}
-                            >
-                              {row.name || 'N/A'}
-                            </TableCell>
-                          )}
-                          <TableCell sx={{ fontWeight: 500, borderRight: '1px solid #f0f0f0', borderBottom: rowBorderBottom }}>
-                            {row.panchayathName || 'N/A'}
-                          </TableCell>
-                          {columns.map((c) => (
-                            <TableCell
-                              key={c.key}
-                              align="center"
-                              sx={{ borderBottom: rowBorderBottom, ...(c.groupEnd ? { borderRight: '1px solid #f0f0f0' } : {}) }}
-                            >
-                              <DataBox row={row} col={c} />
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      );
-                    })
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={colSpanAll} align="center" sx={{ py: 3, color: '#888' }}>
-                        No data available
-                      </TableCell>
-                    </TableRow>
-                  )}
-
-                  {/* Total Summary Row */}
-                  {!loading && filteredData.length > 0 && (
-                    <TableRow sx={{ bgcolor: '#f0f4f8', fontWeight: 'bold' }}>
-                      <TableCell sx={{ fontWeight: 'bold', fontSize: '0.95rem', color: '#04255e', borderTop: TD_TOTAL_TOP }}>
-                        Total
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', fontSize: '0.95rem', color: '#1976d2', borderTop: TD_TOTAL_TOP }}>
-                        All Zones
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', fontSize: '0.95rem', borderTop: TD_TOTAL_TOP }}>
-                        {TOTAL_LABELS[activeTab]}
-                      </TableCell>
-                      {columns.map((c) => (
-                        <TableCell
-                          key={c.key}
-                          align="center"
-                          sx={{ borderTop: TD_TOTAL_TOP, ...(c.groupEnd ? { borderRight: '1px solid #e0e0e0' } : {}) }}
-                        >
-                          {c.type === 'remarks' ? null : (
-                            <Box sx={{ p: 1, ...(c.totalSx || { fontWeight: 700 }) }}>
-                              {c.fixed ? Number(totals[c.key] || 0).toFixed(2) : Number(totals[c.key] || 0)}
-                            </Box>
-                          )}
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={colSpanAll} align="center" sx={{ py: 6 }}>
+                          <SearchIcon sx={{ fontSize: 36, color: 'text.disabled' }} />
+                          <Typography variant="subtitle1" sx={{ mt: 0.75, fontWeight: 600 }}>
+                            No matching records
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Try another block, zone or local-body name.
+                          </Typography>
                         </TableCell>
-                      ))}
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                      </TableRow>
+                    )}
 
-            <TablePagination
-              rowsPerPageOptions={[5, 10, 25, 50]}
-              component="div"
-              count={filteredData.length}
-              rowsPerPage={rowsPerPage}
-              page={page}
-              onPageChange={(e, p) => setPage(p)}
-              onRowsPerPageChange={(e) => {
-                setRowsPerPage(parseInt(e.target.value, 10));
-                setPage(0);
-              }}
-            />
+                    {!loading && filteredData.length > 0 && (
+                      <TableRow
+                        sx={{
+                          bgcolor: alpha(activeAccent, 0.07),
+                          '& .MuiTableCell-root': {
+                            borderTop: `2px solid ${alpha(activeAccent, 0.22)}`
+                          }
+                        }}
+                      >
+                        <TableCell
+                          sx={{
+                            position: 'sticky',
+                            left: 0,
+                            zIndex: 6,
+                            minWidth: BLOCK_COLUMN_WIDTH,
+                            maxWidth: BLOCK_COLUMN_WIDTH,
+                            bgcolor: alpha(activeAccent, 0.07),
+                            fontWeight: 800
+                          }}
+                        >
+                          Total
+                        </TableCell>
+
+                        <TableCell
+                          sx={{
+                            position: 'sticky',
+                            left: BLOCK_COLUMN_WIDTH,
+                            zIndex: 5,
+                            minWidth: ZONE_COLUMN_WIDTH,
+                            maxWidth: ZONE_COLUMN_WIDTH,
+                            bgcolor: alpha(activeAccent, 0.07),
+                            fontWeight: 800,
+                            color: UI_COLORS.primaryDark
+                          }}
+                        >
+                          All Zones
+                        </TableCell>
+
+                        <TableCell
+                          sx={{
+                            position: 'sticky',
+                            left: BLOCK_COLUMN_WIDTH + ZONE_COLUMN_WIDTH,
+                            zIndex: 4,
+                            minWidth: LOCAL_BODY_COLUMN_WIDTH,
+                            maxWidth: LOCAL_BODY_COLUMN_WIDTH,
+                            bgcolor: alpha(activeAccent, 0.07),
+                            fontWeight: 800,
+                            boxShadow: `2px 0 0 ${UI_COLORS.border}`
+                          }}
+                        >
+                          {searchTerm ? 'Filtered Total' : TOTAL_LABELS[activeTab]}
+                        </TableCell>
+
+                        {columns.map((col) => (
+                          <TableCell
+                            key={col.key}
+                            align="center"
+                            sx={{
+                              bgcolor: col.groupEnd
+                                ? alpha(activeAccent, 0.1)
+                                : 'inherit',
+                              borderRight: col.groupEnd
+                                ? `1px solid ${UI_COLORS.border}`
+                                : undefined
+                            }}
+                          >
+                            {col.type === 'remarks' ? null : (
+                              <DataBox row={totals} col={col} total />
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
           </Box>
-        </MainCard>
+
+          {/* Pagination retained at Zone level because the row count can be large. */}
+          <TablePagination
+            rowsPerPageOptions={[5, 10, 25, 50]}
+            component="div"
+            count={filteredData.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={(_, newPage) => setPage(newPage)}
+            onRowsPerPageChange={(event) => {
+              setRowsPerPage(parseInt(event.target.value, 10));
+              setPage(0);
+            }}
+            sx={{
+              borderTop: `1px solid ${theme.palette.divider}`,
+              bgcolor: alpha(UI_COLORS.primary, 0.015)
+            }}
+          />
+        </Paper>
       </Grid>
     </Grid>
   );

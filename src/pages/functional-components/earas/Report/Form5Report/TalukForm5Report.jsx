@@ -1,68 +1,67 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
-  Grid,
-  Typography,
-  Paper,
+  Alert,
   Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Divider,
+  FormControl,
+  Grid,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
-  TableRow,
-  Chip,
-  Card,
-  CardContent,
-  IconButton,
-  Tooltip,
-  Button,
-  TextField,
-  Stack,
-  InputAdornment,
   TablePagination,
-  alpha,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
+  TableRow,
+  TextField,
   ToggleButton,
   ToggleButtonGroup,
-  CircularProgress
+  Tooltip,
+  Typography,
+  alpha,
+  useMediaQuery
 } from '@mui/material';
-import MainCard from 'components/MainCard';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import PendingIcon from '@mui/icons-material/Pending';
-import ScheduleIcon from '@mui/icons-material/Schedule';
-import RateReviewIcon from '@mui/icons-material/RateReview';
+
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ClearIcon from '@mui/icons-material/Clear';
+import DownloadIcon from '@mui/icons-material/Download';
+import EventBusyIcon from '@mui/icons-material/EventBusy';
+import GrassIcon from '@mui/icons-material/Grass';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import PendingIcon from '@mui/icons-material/Pending';
+import RateReviewIcon from '@mui/icons-material/RateReview';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import SearchIcon from '@mui/icons-material/Search';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
-import SearchIcon from '@mui/icons-material/Search';
-import ClearIcon from '@mui/icons-material/Clear';
-import CancelIcon from '@mui/icons-material/Cancel';
-import HubIcon from '@mui/icons-material/Hub';
-import GrassIcon from '@mui/icons-material/Grass';
-import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import DownloadIcon from '@mui/icons-material/Download';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import * as XLSX from 'xlsx';
-import Breadcrumb from 'routes/Breadcrumb';
+import ViewWeekIcon from '@mui/icons-material/ViewWeek';
+import CancelIcon from '@mui/icons-material/Cancel';
+
 import axios from 'axios';
+import api from 'api/api';
 import mainapi from 'api/mainapi';
 import AuthService from 'pages/authentication/services/authservice';
-import api from 'api/api';
+import Breadcrumb from 'routes/Breadcrumb';
 
-// Gateway root (e.g. http://localhost:8080). The '/earas-form1-entry' service
-// prefix is added on the request path below.
-// NOTE: if mainapi.FORM_API already ends in '/earas-form1-entry',
-// drop the duplicate segment from the URL to avoid a doubled prefix (404).
 const BASE_URL = mainapi.FORM_API;
-
 const SESSION_KEY = 'talukForm5ReportState';
 
 /* ─────────────────────────── helpers ─────────────────────────── */
@@ -161,10 +160,9 @@ function getCurrentMonthValue(monthOptions) {
   );
 }
 
-// Fallback taluks for a district
 function getFallbackTaluks(districtId) {
   const taluksByDistrict = {
-    1: ['Thiruvananthapuran', 'Neyyattinkara', 'Nedumangad', 'Chirayinkeezhu'],
+    1: ['Thiruvananthapuram', 'Neyyattinkara', 'Nedumangad', 'Chirayinkeezhu'],
     2: ['Kollam', 'Karunagappally', 'Kottarakkara', 'Pathanapuram', 'Punalur'],
     3: ['Pathanamthitta', 'Kozhencherry', 'Ranni', 'Mallappally', 'Thiruvalla', 'Adoor'],
     4: ['Alappuzha', 'Chengannur', 'Mavelikkara', 'Kuttanad', 'Ambalappuzha'],
@@ -188,11 +186,161 @@ function getFallbackTaluks(districtId) {
   }));
 }
 
+function MetricText({
+  value,
+  noData = false,
+  color = 'text.primary',
+  strong = false
+}) {
+  if (noData) {
+    return (
+      <Typography component="span" variant="body2" color="text.disabled">
+        —
+      </Typography>
+    );
+  }
+
+  const numericValue = Number(value || 0);
+
+  return (
+    <Typography
+      component="span"
+      variant="body2"
+      sx={{
+        color: numericValue > 0 ? color : 'text.secondary',
+        fontWeight: strong ? 700 : numericValue > 0 ? 600 : 400,
+        fontVariantNumeric: 'tabular-nums',
+        whiteSpace: 'nowrap'
+      }}
+    >
+      {numericValue.toLocaleString()}
+    </Typography>
+  );
+}
+
+function StatCard({ label, value, color, icon, badge, tooltip }) {
+  const content = (
+    <Card
+      elevation={0}
+      sx={{
+        height: '100%',
+        borderRadius: 2,
+        border: `1px solid ${alpha(color, 0.13)}`,
+        bgcolor: alpha(color, 0.03),
+        transition: 'all 0.18s ease-in-out',
+        '&:hover': {
+          bgcolor: alpha(color, 0.06),
+          borderColor: alpha(color, 0.3),
+          transform: 'translateY(-1px)',
+          boxShadow: `0 2px 8px ${alpha(color, 0.08)}`
+        }
+      }}
+    >
+      <CardContent sx={{ p: { xs: 1.1, sm: 1.25 }, '&:last-child': { pb: { xs: 1.1, sm: 1.25 } } }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={0.5} sx={{ mb: 0.5 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              fontWeight: 700,
+              color: 'text.secondary',
+              textTransform: 'uppercase',
+              fontSize: '0.675rem',
+              letterSpacing: '0.35px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+          >
+            {label}
+          </Typography>
+
+          <Box
+            sx={{
+              color,
+              display: 'flex',
+              alignItems: 'center',
+              opacity: 0.85,
+              flexShrink: 0
+            }}
+          >
+            {icon}
+          </Box>
+        </Stack>
+
+        <Stack direction="row" alignItems="baseline" spacing={0.75}>
+          <Typography
+            variant="h5"
+            sx={{
+              color: color || 'text.primary',
+              fontWeight: 750,
+              lineHeight: 1.15,
+              fontSize: { xs: '1.2rem', sm: '1.35rem' },
+              fontVariantNumeric: 'tabular-nums'
+            }}
+          >
+            {Number(value || 0).toLocaleString()}
+          </Typography>
+
+          {badge && (
+            <Box
+              component="span"
+              sx={{
+                fontSize: '0.7rem',
+                fontWeight: 750,
+                color: color || 'success.dark',
+                bgcolor: alpha(color || '#2e7d32', 0.12),
+                px: 0.6,
+                py: 0.1,
+                borderRadius: 1,
+                lineHeight: 1.2
+              }}
+            >
+              {badge}
+            </Box>
+          )}
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+
+  return tooltip ? (
+    <Tooltip title={tooltip} arrow placement="top" enterDelay={250}>
+      {content}
+    </Tooltip>
+  ) : (
+    content
+  );
+}
+
+function FilterLabel({ children }) {
+  return (
+    <Typography
+      variant="caption"
+      color="text.secondary"
+      sx={{ display: 'block', mb: 0.75, fontWeight: 600 }}
+    >
+      {children}
+    </Typography>
+  );
+}
+
+function MobileMetric({ label, children }) {
+  return (
+    <Box>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      <Box sx={{ mt: 0.2 }}>{children}</Box>
+    </Box>
+  );
+}
+
 /* ─────────────────────────── component ─────────────────────────── */
 
 function TalukForm5Report() {
   const theme = useTheme();
   const navigate = useNavigate();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { districtId: routeDistrictId } = useParams();
   const location = useLocation();
 
@@ -216,18 +364,20 @@ function TalukForm5Report() {
     resolvedDistrictId.current = resolveDistrictId();
   }
 
-  // Agricultural year from AuthService (e.g. '2025-2026'), and its month options.
   const agriculturalYear = AuthService.agriyear() || stateData.agriculturalYear || '2025-2026';
   const monthOptions = useMemo(() => buildAgriMonthOptions(), []);
   const defaultFromMonth = monthOptions[0]?.value || '';
   const defaultToMonth = getCurrentMonthValue(monthOptions);
-  const defaultSingleMonth = getCurrentMonthValue(monthOptions);
-  const monthLabel = (value) => monthOptions.find((m) => m.value === value)?.label || '';
+  const defaultSingleMonth = defaultToMonth;
+
+  const monthLabel = useCallback(
+    (value) => monthOptions.find((m) => m.value === value)?.label || value || '',
+    [monthOptions]
+  );
 
   const [cropName, setCropName] = useState(stateData.cropName || 'ALL');
   const [cropOptions, setCropOptions] = useState([]);
 
-  // Month filter states
   const [filterType, setFilterType] = useState(stateData.filterType || 'range');
   const [singleMonth, setSingleMonth] = useState(
     stateData.singleMonth ? resolveMonthValue(stateData.singleMonth, monthOptions) : defaultSingleMonth
@@ -248,6 +398,7 @@ function TalukForm5Report() {
   const [taluksList, setTaluksList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [masterTaluksLoading, setMasterTaluksLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
@@ -273,31 +424,25 @@ function TalukForm5Report() {
 
   /* ─────────────────────────── fetch master taluks ─────────────────────────── */
 
-  const fetchMasterTaluks = async (districtId) => {
+  const fetchMasterTaluks = useCallback(async (districtId) => {
     setMasterTaluksLoading(true);
     try {
-      // Try multiple possible endpoints
       let response = null;
 
-      // Try 1: BTR API endpoint
       try {
         response = await api.get(`${mainapi.BTR_API}/btr-service/btr-api/taluks?distId=${districtId}`);
-        console.log('Master Taluks Response (attempt 1):', response.data);
       } catch (err) {
-        console.log('Attempt 1 failed, trying alternative endpoint...');
+        // try fallback endpoint
       }
 
-      // Try 2: Form API endpoint
       if (!response || !response.data) {
         try {
           response = await api.get(`${BASE_URL}/earas-form1-entry/api/taluks?districtId=${districtId}`);
-          console.log('Master Taluks Response (attempt 2):', response.data);
         } catch (err) {
-          console.log('Attempt 2 failed, trying alternative endpoint...');
+          // fallback
         }
       }
 
-      // Process response
       if (response && response.data) {
         let taluks = [];
 
@@ -312,14 +457,11 @@ function TalukForm5Report() {
         }
 
         if (taluks.length > 0) {
-          console.log('Setting taluks list:', taluks);
           setTaluksList(taluks);
         } else {
-          console.warn('No taluks found in response, using fallback');
           setTaluksList(getFallbackTaluks(districtId));
         }
       } else {
-        console.warn('No response data received, using fallback');
         setTaluksList(getFallbackTaluks(districtId));
       }
     } catch (err) {
@@ -328,11 +470,11 @@ function TalukForm5Report() {
     } finally {
       setMasterTaluksLoading(false);
     }
-  };
+  }, []);
 
   /* ─────────────────────────── fetch ─────────────────────────── */
 
-  const fetchTalukWiseData = async () => {
+  const fetchTalukWiseData = useCallback(async () => {
     const districtIdValue = resolvedDistrictId.current;
 
     if (!districtIdValue) {
@@ -344,38 +486,33 @@ function TalukForm5Report() {
     setError(null);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = AuthService.gettoken ? AuthService.gettoken() : localStorage.getItem('token');
       if (!token) throw new Error('Authorization token missing');
 
       let url = `${BASE_URL}/earas-form1-entry/api/progress-report/cce-summary`;
       const params = new URLSearchParams();
 
-      // agriYear (mandatory) — e.g. '2025-2026'
       params.append('agriYear', agriculturalYear);
 
-      // Month filters — API expects a numeric month (1–12). startMonth is mandatory.
       if (filterType === 'single') {
         const start = monthNum(singleMonth) || monthNum(defaultSingleMonth);
-        params.append('startMonth', start);
-        params.append('endMonth', start);
+        params.append('startMonth', String(start));
+        params.append('endMonth', String(start));
       } else {
         const start = monthNum(fromMonth) || monthNum(defaultFromMonth);
         const end = monthNum(toMonth) || monthNum(defaultToMonth);
-        params.append('startMonth', start);
-        if (end) params.append('endMonth', end);
+        params.append('startMonth', String(start));
+        if (end) params.append('endMonth', String(end));
       }
 
-      // District drill-down → backend returns the taluks for this district.
-      params.append('districtId', districtIdValue);
+      params.append('districtId', String(districtIdValue));
 
-      // Crop filter — backend now accepts cropId
       if (cropName !== 'ALL') {
         const selectedCrop = cropOptions.find((c) => c.cropName === cropName);
-        if (selectedCrop) params.append('cropId', selectedCrop.cropId);
+        if (selectedCrop?.cropId) params.append('cropId', String(selectedCrop.cropId));
       }
 
       url += `?${params.toString()}`;
-      console.log('Fetching taluk Form 5 data from:', url);
 
       const mainRequest = axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
@@ -387,17 +524,16 @@ function TalukForm5Report() {
         if (lastMonth) {
           const lmParams = new URLSearchParams();
           lmParams.append('agriYear', agriculturalYear);
-          lmParams.append('startMonth', lastMonth);
-          lmParams.append('endMonth', lastMonth);
-          lmParams.append('districtId', districtIdValue);
+          lmParams.append('startMonth', String(lastMonth));
+          lmParams.append('endMonth', String(lastMonth));
+          lmParams.append('districtId', String(districtIdValue));
 
           if (cropName !== 'ALL') {
             const selectedCrop = cropOptions.find((c) => c.cropName === cropName);
-            if (selectedCrop) lmParams.append('cropId', selectedCrop.cropId);
+            if (selectedCrop?.cropId) lmParams.append('cropId', String(selectedCrop.cropId));
           }
 
           const lmUrl = `${BASE_URL}/earas-form1-entry/api/progress-report/cce-summary?${lmParams.toString()}`;
-          console.log('Fetching last month taluk Form 5 data from:', lmUrl);
           lastMonthRequest = axios.get(lmUrl, {
             headers: { Authorization: `Bearer ${token}` }
           }).then((res) => res.data).catch((err) => {
@@ -426,9 +562,8 @@ function TalukForm5Report() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [agriculturalYear, cropName, cropOptions, defaultFromMonth, defaultSingleMonth, defaultToMonth, filterType, fromMonth, singleMonth, toMonth]);
 
-  // Index of selected fromMonth in monthOptions
   const fromMonthIndex = useMemo(
     () => monthOptions.findIndex((option) => option.value === fromMonth),
     [fromMonth, monthOptions]
@@ -451,35 +586,29 @@ function TalukForm5Report() {
     }
   };
 
-  // Fetch crop list for the dropdown filter
-const fetchCropsList = async () => {
-  try {
-    const response = await api.get(
-      `${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-logs?agriYear=${agriculturalYear}`
-    );
-    if (response.data && Array.isArray(response.data)) {
-      setCropOptions(response.data); // { cropId, cropName, ... } objects
+  const fetchCropsList = useCallback(async () => {
+    try {
+      const response = await api.get(
+        `${BASE_URL}/earas-form1-entry/cce-crop-details/fetch-all-cce-logs?agriYear=${agriculturalYear}`
+      );
+      if (response.data && Array.isArray(response.data)) {
+        setCropOptions(response.data);
+      }
+    } catch (err) {
+      console.error('Error fetching crops list:', err);
     }
-  } catch (err) {
-    console.error('Error fetching crops list:', err);
-  }
-};
+  }, [agriculturalYear]);
 
-  /* ─────────────────────────── effects ─────────────────────────── */
-
-  // Fetch master taluks on mount
   useEffect(() => {
     if (resolvedDistrictId.current) {
       fetchMasterTaluks(resolvedDistrictId.current);
     }
     fetchCropsList();
-  }, []);
+  }, [fetchCropsList, fetchMasterTaluks]);
 
-  // Fetch data when month filters change.
   useEffect(() => {
     fetchTalukWiseData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterType, singleMonth, fromMonth, toMonth, cropName]);
+  }, [fetchTalukWiseData]);
 
   /* ─────────────────────────── derived data ─────────────────────────── */
 
@@ -525,6 +654,7 @@ const fetchCropsList = async () => {
           (tData.completed || 0) > 0 ||
           currentMonthCompleted > 0 ||
           (tData.ongoing || 0) > 0 ||
+          (tData.missedCce || tData.missed || tData.missedCCE || 0) > 0 ||
           (tData.notAvailable || 0) > 0 ||
           (tData.notStarted || 0) > 0 ||
           (tData.underReview || 0) > 0;
@@ -537,6 +667,7 @@ const fetchCropsList = async () => {
           currentMonthCompleted: currentMonthCompleted,
           completed: tData.completed || 0,
           ongoing: tData.ongoing || 0,
+          missedCce: tData.missedCce || tData.missed || tData.missedCCE || 0,
           notAvailable: tData.notAvailable || 0,
           notStarted: tData.notStarted || 0,
           underReview: tData.underReview || 0,
@@ -559,6 +690,7 @@ const fetchCropsList = async () => {
         currentMonthCompleted: currentMonthCompleted,
         completed: t.completed || 0,
         ongoing: t.ongoing || 0,
+        missedCce: t.missedCce || t.missed || t.missedCCE || 0,
         notAvailable: t.notAvailable || 0,
         notStarted: t.notStarted || 0,
         underReview: t.underReview || 0,
@@ -567,6 +699,7 @@ const fetchCropsList = async () => {
           (t.completed || 0) > 0 ||
           currentMonthCompleted > 0 ||
           (t.ongoing || 0) > 0 ||
+          (t.missedCce || t.missed || t.missedCCE || 0) > 0 ||
           (t.notAvailable || 0) > 0 ||
           (t.notStarted || 0) > 0 ||
           (t.underReview || 0) > 0
@@ -574,18 +707,17 @@ const fetchCropsList = async () => {
     });
   }, [apiData, lastMonthApiData, taluksList, filterType]);
 
-  // Count taluks with no data
   const taluksWithNoData = useMemo(() => {
     return talukData.filter((d) => !d.hasData).length;
   }, [talukData]);
 
-  // Dynamic summary stats derived from taluk data
   const stats = useMemo(() => {
     const allowtedCceSum = talukData.reduce((sum, t) => sum + (t.allowtedCce || 0), 0);
     const selectedCceSum = talukData.reduce((sum, t) => sum + (t.selectedCce || 0), 0);
     const currentMonthCompletedSum = talukData.reduce((sum, t) => sum + (t.currentMonthCompleted || 0), 0);
     const completedSum = talukData.reduce((sum, t) => sum + (t.completed || 0), 0);
     const ongoingSum = talukData.reduce((sum, t) => sum + (t.ongoing || 0), 0);
+    const missedCceSum = talukData.reduce((sum, t) => sum + (t.missedCce || 0), 0);
     const notAvailableSum = talukData.reduce((sum, t) => sum + (t.notAvailable || 0), 0);
     const notStartedSum = talukData.reduce((sum, t) => sum + (t.notStarted || 0), 0);
     const underReviewSum = talukData.reduce((sum, t) => sum + (t.underReview || 0), 0);
@@ -596,6 +728,7 @@ const fetchCropsList = async () => {
       currentMonthCompleted: currentMonthCompletedSum,
       completed: completedSum,
       ongoing: ongoingSum,
+      missedCce: missedCceSum > 0 ? missedCceSum : (apiData?.missedCce || apiData?.missed || apiData?.missedCCE || 0),
       notAvailable: notAvailableSum,
       notStarted: notStartedSum,
       underReview: underReviewSum
@@ -646,7 +779,28 @@ const fetchCropsList = async () => {
     setPage(0);
   };
 
-  // Build a meaningful filename from the active filters
+  const filtersAreDirty =
+    cropName !== 'ALL' ||
+    filterType !== 'range' ||
+    fromMonth !== defaultFromMonth ||
+    toMonth !== defaultToMonth ||
+    singleMonth !== defaultSingleMonth ||
+    Boolean(searchTerm);
+
+  const displayDistrictName = stateData.districtName || 'District';
+
+  const reportPeriodText =
+    filterType === 'single'
+      ? monthLabel(singleMonth)
+      : `${monthLabel(fromMonth)} – ${monthLabel(toMonth)}`;
+
+  const endMonthText =
+    monthLabel(
+      filterType === 'single'
+        ? singleMonth
+        : toMonth
+    );
+
   const generateExcelFileName = () => {
     const parts = ['CCE_Taluk_Report', displayDistrictName.replace(/\s+/g, '_')];
 
@@ -663,58 +817,61 @@ const fetchCropsList = async () => {
       parts.push(`Search-${searchTerm.trim().replace(/\s+/g, '_')}`);
     }
 
-    parts.push(new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
+    parts.push(new Date().toISOString().slice(0, 10));
     return `${parts.join('_')}.xlsx`;
   };
 
-  // Export the FULL search-filtered dataset (not just the current page) to Excel
-  const handleExportExcel = () => {
-    if (!searchFilteredData || searchFilteredData.length === 0) return;
+  const handleExportExcel = async () => {
+    if (!searchFilteredData || searchFilteredData.length === 0 || exporting) return;
 
-    const exportRows = searchFilteredData.map((row, index) => {
-      const rowObj = {
-        '#': index + 1,
-        Taluk: row.taluk,
-        'Allowted CCE': row.hasData ? row.allowtedCce : 'NA',
-        'Selected CCE': row.hasData ? row.selectedCce : 'NA'
-      };
+    setExporting(true);
 
-      if (filterType === 'range') {
-        rowObj['During the Month'] = row.hasData ? row.currentMonthCompleted : 'NA';
-        rowObj['Up to the Month'] = row.hasData ? row.completed : 'NA';
-      } else {
-        rowObj['Completed'] = row.hasData ? row.completed : 'NA';
-      }
+    try {
+      const XLSX = await import('xlsx');
 
-      rowObj['Ongoing'] = row.hasData ? row.ongoing : 'NA';
-      rowObj['Not Available'] = row.hasData ? row.notAvailable : 'NA';
-      rowObj['Not Started'] = row.hasData ? row.notStarted : 'NA';
-      rowObj['Under Review'] = row.hasData ? row.underReview : 'NA';
+      const exportRows = searchFilteredData.map((row, index) => {
+        const rowObj = {
+          '#': index + 1,
+          Taluk: row.taluk,
+          'Allowed CCE': row.hasData ? row.allowtedCce : 'NA',
+          'Selected CCE': row.hasData ? row.selectedCce : 'NA'
+        };
 
-      return rowObj;
-    });
+        if (filterType === 'range') {
+          rowObj[`During the Month ${endMonthText}`] = row.hasData ? row.currentMonthCompleted : 'NA';
+          rowObj[`Up to the Month ${endMonthText}`] = row.hasData ? row.completed : 'NA';
+        } else {
+          rowObj[`During the Month ${endMonthText}`] = row.hasData ? row.completed : 'NA';
+        }
 
-    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+        rowObj['Ongoing'] = row.hasData ? row.ongoing : 'NA';
+        rowObj['Missed CCE'] = row.hasData ? row.missedCce : 'NA';
+        rowObj['Not Available'] = row.hasData ? row.notAvailable : 'NA';
+        rowObj['Not Started'] = row.hasData ? row.notStarted : 'NA';
+        rowObj['Under Review'] = row.hasData ? row.underReview : 'NA';
 
-    // Reasonable column widths so it doesn't open looking cramped
-    worksheet['!cols'] = filterType === 'range'
-      ? [
-          { wch: 5 }, { wch: 25 }, { wch: 12 }, { wch: 12 },
-          { wch: 16 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }
-        ]
-      : [
-          { wch: 5 }, { wch: 25 }, { wch: 12 }, { wch: 12 },
-          { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 14 }
-        ];
+        return rowObj;
+      });
 
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'District Report');
+      const worksheet = XLSX.utils.json_to_sheet(exportRows);
 
-    XLSX.writeFile(workbook, generateExcelFileName());
+      worksheet['!cols'] = [
+        { wch: 5 }, { wch: 24 }, { wch: 14 }, { wch: 14 },
+        { wch: 20 }, { wch: 22 }, { wch: 12 }, { wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 16 }
+      ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Taluk Report');
+
+      XLSX.writeFile(workbook, generateExcelFileName());
+    } catch (err) {
+      console.error('Excel export failed:', err);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleViewTalukDetails = (talukName, talukId, hasData) => {
-    // Only navigate if taluk has data
     if (!hasData) return;
 
     const formattedTalukName = talukName.toLowerCase().replace(/\s+/g, '-');
@@ -741,103 +898,46 @@ const fetchCropsList = async () => {
     );
   };
 
-  /* ─────────────────────────── sub-components ─────────────────────────── */
+  const initialLoading =
+    (loading || masterTaluksLoading) && !apiData && taluksList.length === 0;
 
-  const StatCard = ({ label, value, color, bgColor, icon }) => (
-    <Card
-      sx={{
-        bgcolor: bgColor,
-        borderRadius: 3,
-        height: '100%',
-        transition: 'transform 0.2s, box-shadow 0.2s',
-        '&:hover': { transform: 'translateY(-4px)', boxShadow: theme.shadows[4] }
-      }}
-    >
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Box>
-            <Typography variant="h3" sx={{ color, fontWeight: 'bold', lineHeight: 1.2 }}>
-              {value}
-            </Typography>
-            <Typography variant="body2" sx={{ color: alpha(color, 0.8), mt: 0.5, fontWeight: 500 }}>
-              {label}
-            </Typography>
-          </Box>
-          {icon}
-        </Stack>
-      </CardContent>
-    </Card>
-  );
+  const headerBackground = theme.palette.primary.dark;
+  const selectedColor = theme.palette.primary.main;
+  const completedColor = theme.palette.success.main;
+  const currentColor = theme.palette.info.main;
+  const reviewColor = theme.palette.warning.dark;
+  const errorColor = theme.palette.error.main;
 
-  /* ─────────────────────────── display name ─────────────────────────── */
-
-  const displayDistrictName = stateData.districtName || 'District';
-
-  // Table headers based on filter type
-  const tableHeaders = useMemo(() => {
-    if (filterType === 'range') {
-      return [
-        '#',
-        'Taluk',
-        'Allowted CCE',
-        'Selected CCE',
-        'During the Month',
-        'Up to the Month',
-        'Ongoing',
-        'Not Available',
-        'Not Started',
-        'Under Review',
-        'Actions'
-      ];
-    }
-    return [
-      '#',
-      'Taluk',
-      'Allowted CCE',
-      'Selected CCE',
-      'Completed',
-      'Ongoing',
-      'Not Available',
-      'Not Started',
-      'Under Review',
-      'Actions'
-    ];
-  }, [filterType]);
-
-  // Stat cards configuration
-  const statCards = [
-    { label: 'Allowted CCE', value: stats.allowtedCce, color: '#1565c0', icon: <HubIcon sx={{ fontSize: 32, color: '#1565c0', opacity: 0.7 }} /> },
-    { label: 'Selected CCE', value: stats.selectedCce, color: '#04255e', icon: <AssessmentIcon sx={{ fontSize: 32, color: '#04255e', opacity: 0.7 }} /> },
-    ...(filterType === 'range'
-      ? [
-          {
-            label: 'During the Month',
-            value: stats.currentMonthCompleted,
-            color: '#0288d1',
-            icon: <CalendarMonthIcon sx={{ fontSize: 32, color: '#0288d1', opacity: 0.7 }} />
-          }
-        ]
-      : []),
-    {
-      label: filterType === 'range' ? 'Up to the Month' : 'Completed',
-      value: stats.completed,
-      color: '#2e7d32',
-      icon: <CheckCircleIcon sx={{ fontSize: 32, color: '#2e7d32', opacity: 0.7 }} />
-    },
-    { label: 'Ongoing', value: stats.ongoing, color: '#ed6c02', icon: <PendingIcon sx={{ fontSize: 32, color: '#ed6c02', opacity: 0.7 }} /> },
-    { label: 'Not Available', value: stats.notAvailable, color: '#c62828', icon: <CancelIcon sx={{ fontSize: 32, color: '#c62828', opacity: 0.7 }} /> },
-    { label: 'Not Started', value: stats.notStarted, color: '#757575', icon: <ScheduleIcon sx={{ fontSize: 32, color: '#757575', opacity: 0.7 }} /> },
-    { label: 'Under Review', value: stats.underReview, color: '#b76e00', icon: <RateReviewIcon sx={{ fontSize: 32, color: '#b76e00', opacity: 0.7 }} /> }
-  ];
-
-  /* ─────────────────────────── render ─────────────────────────── */
-
-  if ((loading || masterTaluksLoading) && !apiData && taluksList.length === 0) {
+  if (initialLoading) {
     return (
-      <Grid container spacing={3} justifyContent="center" alignItems="center" sx={{ minHeight: '400px' }}>
+      <Grid container spacing={3} justifyContent="center" alignItems="center" sx={{ minHeight: 420 }}>
         <Grid item>
-          <CircularProgress />
-          <Typography sx={{ mt: 2 }}>Loading taluk data...</Typography>
+          <Stack alignItems="center" spacing={1.5}>
+            <CircularProgress />
+            <Typography variant="body2" color="text.secondary">
+              Loading taluk CCE progress…
+            </Typography>
+          </Stack>
+        </Grid>
+      </Grid>
+    );
+  }
+
+  if (error && !apiData) {
+    return (
+      <Grid container spacing={3}>
+        <Breadcrumb />
+        <Grid item xs={12}>
+          <Alert
+            severity="error"
+            action={
+              <Button color="inherit" size="small" onClick={fetchTalukWiseData}>
+                Retry
+              </Button>
+            }
+          >
+            {error}
+          </Alert>
         </Grid>
       </Grid>
     );
@@ -853,107 +953,219 @@ const fetchCropsList = async () => {
           direction={{ xs: 'column', sm: 'row' }}
           justifyContent="space-between"
           alignItems={{ xs: 'flex-start', sm: 'center' }}
-          spacing={2}
+          spacing={1.5}
         >
-          <Stack direction="row" spacing={1} alignItems="center">
-            <LocationOnIcon sx={{ fontSize: 40, color: '#1a237e' }} />
+          <Stack direction="row" spacing={1.25} alignItems="center">
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: 2,
+                display: 'grid',
+                placeItems: 'center',
+                color: 'primary.main',
+                bgcolor: alpha(theme.palette.primary.main, 0.08)
+              }}
+            >
+              <LocationOnIcon fontSize="small" />
+            </Box>
+
             <Box>
-              <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1a237e' }}>
-                {displayDistrictName} – Taluk wise CCE Progress Report
+              <Typography variant="h5" sx={{ fontWeight: 750, lineHeight: 1.2 }}>
+                {displayDistrictName} — Taluk-wise CCE Report
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {`Agricultural Year: ${agriculturalYear}`}
-                {filterType === 'single' && singleMonth && ` • ${monthLabel(singleMonth)}`}
-                {filterType === 'range' && fromMonth && toMonth && ` • ${monthLabel(fromMonth)} – ${monthLabel(toMonth)}`}
-                {filterType === 'range' && fromMonth && !toMonth && ` • From ${monthLabel(fromMonth)}`}
-                {filterType === 'range' && !fromMonth && toMonth && ` • Until ${monthLabel(toMonth)}`}
-                {cropName !== 'ALL' && ` • Crop: ${cropName}`}
-                {apiData?.allowedCCECrops != null && ` • Total Allowted CCE: ${apiData.allowedCCECrops}`}
-                {taluksWithNoData > 0 && ` • ${taluksWithNoData} taluks with no data`}
+
+              <Typography variant="caption" color="text.secondary">
+                Agricultural Year {agriculturalYear} • {reportPeriodText}
+                {cropName !== 'ALL' ? ` • ${cropName}` : ' • All crops'}
+                {loading ? ' • Refreshing…' : ''}
               </Typography>
             </Box>
           </Stack>
-          {(cropName !== 'ALL' || fromMonth || toMonth || (filterType === 'single' && singleMonth !== defaultSingleMonth)) && (
-            <Button variant="outlined" onClick={handleClearFilters} startIcon={<ClearIcon />} size="small" sx={{ borderRadius: 2 }}>
-              Clear All Filters
+
+          <Stack direction="row" spacing={1} alignItems="center">
+            {filtersAreDirty && (
+              <Button
+                variant="text"
+                size="small"
+                startIcon={<ClearIcon />}
+                onClick={handleClearFilters}
+                sx={{ textTransform: 'none', color: 'text.secondary' }}
+              >
+                Reset filters
+              </Button>
+            )}
+
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<ArrowBackIcon />}
+              onClick={() => navigate('/kerala_form5_report', { state: { ...stateData } })}
+              sx={{ textTransform: 'none', minHeight: 36 }}
+            >
+              Back to Kerala Report
             </Button>
-          )}
+          </Stack>
         </Stack>
       </Grid>
 
-      {/* Error */}
-      {error && (
+      {error && apiData && (
         <Grid item xs={12}>
-          <Paper sx={{ p: 2, bgcolor: alpha('#f44336', 0.1), borderRadius: 2 }}>
-            <Typography color="error">{error}</Typography>
-          </Paper>
+          <Alert severity="warning">
+            The latest refresh failed. Showing the last successfully loaded data. {error}
+          </Alert>
         </Grid>
       )}
 
-      {/* Info Banner for taluks with no data */}
-      {taluksWithNoData > 0 && !loading && (
-        <Grid item xs={12}>
-          <Paper
-            sx={{
-              p: 1.5,
-              bgcolor: alpha('#ff9800', 0.08),
-              borderRadius: 2,
-              border: `1px solid ${alpha('#ff9800', 0.3)}`,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1
-            }}
-          >
-            <InfoOutlinedIcon sx={{ color: '#ff9800', fontSize: 20 }} />
-            <Typography variant="body2" color="text.secondary">
-              <strong>{taluksWithNoData}</strong> taluk{taluksWithNoData > 1 ? 's' : ''} have no data available for the selected filters.
-              <strong> View details is disabled for taluks without data.</strong>
-            </Typography>
-          </Paper>
-        </Grid>
-      )}
-
-      {/* Filters - Crop Name (UI only for now) + month single / range */}
+      {/* Filters Card */}
       <Grid item xs={12}>
-        <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
-            <Stack direction="row" spacing={1} alignItems="center">
-              <GrassIcon sx={{ color: '#2e7d32' }} />
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 2, md: 2.5 },
+            borderRadius: 3,
+            border: `1px solid ${theme.palette.divider}`
+          }}
+        >
+          <Stack spacing={2}>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
                 Filters
               </Typography>
-            </Stack>
-            <FormControl size="small" sx={{ minWidth: 220 }}>
-              <InputLabel>Crop Name</InputLabel>
-              <Select value={cropName} label="Crop Name" onChange={handleCropNameChange}>
-                <MenuItem value="ALL">ALL</MenuItem>
-                {cropOptions.map((crop) => (
-                  <MenuItem key={crop.cropId} value={crop.cropName}>
-                    {crop.cropName}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+              <Typography variant="caption" color="text.secondary">
+                Select crop and reporting period for taluk CCE progress in {displayDistrictName}.
+              </Typography>
+            </Box>
 
-            <ToggleButtonGroup value={filterType} exclusive onChange={handleFilterTypeChange} size="small">
-              <ToggleButton value="range">
-                <ViewWeekIcon sx={{ mr: 0.5, fontSize: 18 }} />
-                Month Range
-              </ToggleButton>
-              <ToggleButton value="single">
-                <ViewModuleIcon sx={{ mr: 0.5, fontSize: 18 }} />
-                Single Month
-              </ToggleButton>
-            </ToggleButtonGroup>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  sm: 'minmax(220px, 1fr) minmax(200px, 1fr)'
+                },
+                gap: 1.5,
+                alignItems: 'end'
+              }}
+            >
+              <Box>
+                <FilterLabel>Crop</FilterLabel>
+                <FormControl size="small" fullWidth>
+                  <InputLabel id="crop-label">Crop</InputLabel>
+                  <Select
+                    labelId="crop-label"
+                    value={cropName}
+                    label="Crop"
+                    onChange={handleCropNameChange}
+                    startAdornment={
+                      <InputAdornment position="start">
+                        <GrassIcon fontSize="small" color="success" />
+                      </InputAdornment>
+                    }
+                  >
+                    <MenuItem value="ALL">All crops</MenuItem>
+                    {cropOptions.map((crop) => (
+                      <MenuItem key={crop.cropId ?? crop.cropName} value={crop.cropName}>
+                        {crop.cropName}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+
+              <Box>
+                <FilterLabel>Period</FilterLabel>
+                <ToggleButtonGroup
+                  value={filterType}
+                  exclusive
+                  fullWidth
+                  size="small"
+                  aria-label="Report period"
+                  onChange={handleFilterTypeChange}
+                >
+                  <ToggleButton value="range">
+                    <ViewWeekIcon sx={{ mr: 0.75, fontSize: 18 }} />
+                    Range
+                  </ToggleButton>
+                  <ToggleButton value="single">
+                    <ViewModuleIcon sx={{ mr: 0.75, fontSize: 18 }} />
+                    Single Month
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+            </Box>
+
+            <Divider />
 
             {filterType === 'range' ? (
-              <>
-                <FormControl size="small" sx={{ minWidth: 170 }}>
-                  <InputLabel>From Month</InputLabel>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', sm: '1fr auto 1fr' },
+                  gap: 1.5,
+                  alignItems: 'end',
+                  maxWidth: 620
+                }}
+              >
+                <Box>
+                  <FilterLabel>From Month</FilterLabel>
+                  <FormControl size="small" fullWidth>
+                    <InputLabel>From Month</InputLabel>
+                    <Select value={fromMonth} label="From Month" onChange={handleFromMonthChange}>
+                      {monthOptions.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          {option.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+
+                <Typography
+                  aria-hidden="true"
+                  color="text.secondary"
+                  sx={{ pb: 1.1, display: { xs: 'none', sm: 'block' } }}
+                >
+                  →
+                </Typography>
+
+                <Box>
+                  <FilterLabel>To Month</FilterLabel>
+                  <FormControl size="small" fullWidth>
+                    <InputLabel>To Month</InputLabel>
+                    <Select
+                      value={toMonth}
+                      label="To Month"
+                      onChange={(e) => {
+                        setToMonth(e.target.value);
+                        setPage(0);
+                      }}
+                    >
+                      {monthOptions.map((option, index) => (
+                        <MenuItem
+                          key={option.value}
+                          value={option.value}
+                          disabled={index < fromMonthIndex}
+                        >
+                          {option.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+              </Box>
+            ) : (
+              <Box sx={{ maxWidth: { xs: '100%', sm: 300 } }}>
+                <FilterLabel>Month</FilterLabel>
+                <FormControl size="small" fullWidth>
+                  <InputLabel>Select Month</InputLabel>
                   <Select
-                    value={fromMonth}
-                    label="From Month"
-                    onChange={handleFromMonthChange}
+                    value={singleMonth}
+                    label="Select Month"
+                    onChange={(e) => {
+                      setSingleMonth(e.target.value);
+                      setPage(0);
+                    }}
                   >
                     {monthOptions.map((option) => (
                       <MenuItem key={option.value} value={option.value}>
@@ -962,363 +1174,703 @@ const fetchCropsList = async () => {
                     ))}
                   </Select>
                 </FormControl>
-                <Typography variant="body2" color="text.secondary">
-                  →
-                </Typography>
-                <FormControl size="small" sx={{ minWidth: 170 }}>
-                  <InputLabel>To Month</InputLabel>
-                  <Select
-                    value={toMonth}
-                    label="To Month"
-                    onChange={(e) => {
-                      setToMonth(e.target.value);
-                      setPage(0);
-                    }}
-                  >
-                    {monthOptions.map((option, index) => (
-                      <MenuItem
-                        key={option.value}
-                        value={option.value}
-                        disabled={index < fromMonthIndex}
-                      >
-                        {option.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </>
-            ) : (
-              <FormControl size="small" sx={{ minWidth: 200 }}>
-                <InputLabel>Select Month</InputLabel>
-                <Select
-                  value={singleMonth}
-                  label="Select Month"
-                  onChange={(e) => {
-                    setSingleMonth(e.target.value);
-                    setPage(0);
-                  }}
-                >
-                  {monthOptions.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              </Box>
             )}
           </Stack>
         </Paper>
       </Grid>
 
-      {/* Stats Cards */}
+      {/* Summary Section */}
       <Grid item xs={12}>
-        <Box
+        <Paper
+          variant="outlined"
           sx={{
-            position: 'relative',
-            border: `1px solid ${alpha('#04255e', 0.15)}`,
-            borderRadius: 3,
-            p: 2,
-            pt: 3,
-            bgcolor: '#fff'
+            p: { xs: 1.25, sm: 1.5 },
+            borderRadius: 2.5,
+            bgcolor: 'background.paper',
+            borderColor: theme.palette.divider
           }}
         >
-          <Chip
-            label={`${displayDistrictName} – District Report Summary`}
-            size="small"
-            sx={{
-              position: 'absolute',
-              top: -12,
-              left: 20,
-              zIndex: 10,
-              fontWeight: 600,
-              bgcolor: '#04255e',
-              color: '#fff',
-              px: 1
-            }}
-          />
-          <Grid container spacing={2}>
-            {statCards.map(({ label, value, color, icon }) => (
-              <Grid item xs={12} sm={6} md={4} lg key={label}>
-                <StatCard label={label} value={value} color={color} bgColor={alpha(color, 0.08)} icon={icon} />
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
+          {(() => {
+            const safeAllowed = Math.max(Number(stats.allowtedCce || 0), 0);
+            const safeSelected = Math.max(Number(stats.selectedCce || 0), 0);
+            const safeCompleted = Math.max(Number(stats.completed || 0), 0);
+            const selectionRate = safeAllowed > 0 ? Math.min((safeSelected / safeAllowed) * 100, 100) : 0;
+            const completionRate = safeSelected > 0 ? Math.min((safeCompleted / safeSelected) * 100, 100) : 0;
+            const remainingSelected = Math.max(safeSelected - safeCompleted, 0);
+
+            return (
+              <>
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  justifyContent="space-between"
+                  alignItems={{ xs: 'flex-start', sm: 'center' }}
+                  spacing={1}
+                  sx={{ mb: 1.25, px: 0.5 }}
+                >
+                  <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+                    <Typography
+                      variant="subtitle2"
+                      sx={{ fontWeight: 750, color: 'text.primary', letterSpacing: '0.2px' }}
+                    >
+                      {displayDistrictName} Summary
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      • {cropName === 'ALL' ? 'All crops' : cropName} • {reportPeriodText} • {talukData.length} taluks
+                    </Typography>
+                  </Stack>
+
+                  <Stack direction="row" alignItems="center" spacing={1.25} sx={{ minWidth: { sm: 220 } }}>
+                    <Typography
+                      variant="caption"
+                      sx={{ fontWeight: 650, color: 'text.secondary', whiteSpace: 'nowrap' }}
+                    >
+                      Completion: <strong style={{ color: theme.palette.success.dark }}>{completionRate.toFixed(1)}%</strong>
+                      {remainingSelected > 0 ? ` (${remainingSelected.toLocaleString()} left)` : ''}
+                    </Typography>
+                    <Box sx={{ width: { xs: 70, sm: 90 } }}>
+                      <LinearProgress
+                        variant="determinate"
+                        value={completionRate}
+                        sx={{
+                          height: 5,
+                          borderRadius: 3,
+                          bgcolor: alpha(theme.palette.success.main, 0.12),
+                          '& .MuiLinearProgress-bar': {
+                            borderRadius: 3,
+                            bgcolor: 'success.main'
+                          }
+                        }}
+                      />
+                    </Box>
+                  </Stack>
+                </Stack>
+
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: {
+                      xs: 'repeat(2, minmax(0, 1fr))',
+                      sm: 'repeat(3, minmax(0, 1fr))',
+                      md:
+                        filterType === 'range'
+                          ? 'repeat(5, minmax(0, 1fr))'
+                          : 'repeat(4, minmax(0, 1fr))',
+                      lg:
+                        filterType === 'range'
+                          ? 'repeat(9, minmax(0, 1fr))'
+                          : 'repeat(8, minmax(0, 1fr))'
+                    },
+                    gap: 1,
+                    opacity: loading ? 0.7 : 1,
+                    transition: theme.transitions.create('opacity')
+                  }}
+                >
+                  <StatCard
+                    label="Allowed CCE"
+                    value={stats.allowtedCce}
+                    color={theme.palette.primary.main}
+                    icon={<AssessmentIcon sx={{ fontSize: 17 }} />}
+                    tooltip="Total CCE plots allowed for survey"
+                  />
+
+                  <StatCard
+                    label="Selected CCE"
+                    value={stats.selectedCce}
+                    badge={safeAllowed > 0 ? `${selectionRate.toFixed(1)}%` : undefined}
+                    color={theme.palette.primary.main}
+                    icon={<AssessmentIcon sx={{ fontSize: 17 }} />}
+                    tooltip="CCE plots selected for survey"
+                  />
+
+                  {filterType === 'range' && (
+                    <StatCard
+                      label="During the Month"
+                      value={stats.currentMonthCompleted}
+                      color={theme.palette.info.main}
+                      icon={<CalendarMonthIcon sx={{ fontSize: 17 }} />}
+                      tooltip={`CCE completed during the month of ${endMonthText}`}
+                    />
+                  )}
+
+                  <StatCard
+                    label={filterType === 'range' ? 'Up to the Month' : 'Completed'}
+                    value={stats.completed}
+                    badge={`${completionRate.toFixed(1)}%`}
+                    color={theme.palette.success.main}
+                    icon={<CheckCircleIcon sx={{ fontSize: 17 }} />}
+                    tooltip={
+                      filterType === 'range'
+                        ? `Cumulative CCE completed up to ${endMonthText}`
+                        : `CCE completed during ${endMonthText}`
+                    }
+                  />
+
+                  <StatCard
+                    label="Ongoing"
+                    value={stats.ongoing}
+                    color={theme.palette.info.dark}
+                    icon={<PendingIcon sx={{ fontSize: 17 }} />}
+                    tooltip="CCE currently in progress"
+                  />
+
+                  <StatCard
+                    label="Missed CCE"
+                    value={stats.missedCce}
+                    color={theme.palette.error.main}
+                    icon={<EventBusyIcon sx={{ fontSize: 17 }} />}
+                    tooltip="Missed CCE plots"
+                  />
+
+                  <StatCard
+                    label="Not Available"
+                    value={stats.notAvailable}
+                    color={theme.palette.error.dark}
+                    icon={<CancelIcon sx={{ fontSize: 17 }} />}
+                    tooltip="Plots not available for CCE"
+                  />
+
+                  <StatCard
+                    label="Not Started"
+                    value={stats.notStarted}
+                    color={theme.palette.text.secondary}
+                    icon={<ScheduleIcon sx={{ fontSize: 17 }} />}
+                    tooltip="CCE plots not yet started"
+                  />
+
+                  <StatCard
+                    label="Under Review"
+                    value={stats.underReview}
+                    color={theme.palette.warning.dark}
+                    icon={<RateReviewIcon sx={{ fontSize: 17 }} />}
+                    tooltip="CCE entries under verification"
+                  />
+                </Box>
+              </>
+            );
+          })()}
+        </Paper>
       </Grid>
 
-      {/* Taluk Table */}
+      {/* Taluk Table Card */}
       <Grid item xs={12}>
-        <Box
+        <Paper
+          elevation={0}
           sx={{
-            position: 'relative',
-            border: `1px solid ${alpha('#04255e', 0.15)}`,
             borderRadius: 3,
-            pt: 3,
-            bgcolor: '#fff'
+            border: `1px solid ${theme.palette.divider}`,
+            overflow: 'hidden'
           }}
         >
-          <Chip
-            label="Taluk Report Summary"
-            size="small"
-            sx={{
-              position: 'absolute',
-              top: -12,
-              left: 20,
-              zIndex: 10,
-              fontWeight: 600,
-              bgcolor: '#04255e',
-              color: '#fff',
-              px: 1,
-              boxShadow: 2
-            }}
-          />
+          {loading && <LinearProgress aria-label="Refreshing taluk data" />}
 
-          {/* Search + Export row */}
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            justifyContent="flex-end"
-            alignItems="center"
-            spacing={1.5}
-            sx={{ px: 2, pb: 2 }}
-          >
-            <TextField
-              placeholder="Search taluk..."
-              size="small"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setPage(0);
-              }}
-              sx={{ width: 250 }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                ),
-                endAdornment: searchTerm && (
-                  <InputAdornment position="end">
-                    <IconButton
-                      size="small"
-                      onClick={handleClearSearch}
-                      edge="end"
-                    >
-                      <ClearIcon fontSize="small" />
-                    </IconButton>
-                  </InputAdornment>
-                )
-              }}
-            />
-            <Tooltip
-              title={
-                searchFilteredData.length === 0
-                  ? 'No data available to export'
-                  : `Export ${searchFilteredData.length} taluk${searchFilteredData.length > 1 ? 's' : ''} to Excel`
-              }
+          <Box sx={{ p: { xs: 2, md: 2.5 }, pb: 1.5 }}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              justifyContent="space-between"
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+              spacing={2}
             >
-              <span>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<DownloadIcon />}
-                  onClick={handleExportExcel}
-                  disabled={searchFilteredData.length === 0 || loading}
-                  sx={{ borderRadius: 2, whiteSpace: 'nowrap' }}
-                >
-                  Download Excel
-                </Button>
-              </span>
-            </Tooltip>
-          </Stack>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  Taluk Progress
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {searchFilteredData.length} taluk{searchFilteredData.length === 1 ? '' : 's'} shown
+                  {taluksWithNoData > 0 ? ` • ${taluksWithNoData} without data` : ''}
+                </Typography>
+              </Box>
 
-          <MainCard
-            title={`Taluks in ${displayDistrictName}`}
-            sx={{ borderRadius: 3 }}
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1.25}
+                sx={{ width: { xs: '100%', sm: 'auto' } }}
+              >
+                <TextField
+                  placeholder="Search taluk..."
+                  size="small"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setPage(0);
+                  }}
+                  sx={{ width: { xs: '100%', sm: 260 } }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                    endAdornment: searchTerm ? (
+                      <InputAdornment position="end">
+                        <IconButton
+                          size="small"
+                          onClick={handleClearSearch}
+                          edge="end"
+                          aria-label="Clear taluk search"
+                        >
+                          <ClearIcon fontSize="small" />
+                        </IconButton>
+                      </InputAdornment>
+                    ) : null
+                  }}
+                />
+
+                <Tooltip
+                  title={
+                    searchFilteredData.length === 0
+                      ? 'No data available to export'
+                      : `Export ${searchFilteredData.length} taluk${searchFilteredData.length > 1 ? 's' : ''} to Excel`
+                  }
+                >
+                  <span>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={exporting ? <CircularProgress size={16} /> : <DownloadIcon />}
+                      onClick={handleExportExcel}
+                      disabled={searchFilteredData.length === 0 || loading || exporting}
+                      sx={{
+                        minHeight: 40,
+                        width: { xs: '100%', sm: 'auto' },
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {exporting ? 'Preparing…' : 'Export Excel'}
+                    </Button>
+                  </span>
+                </Tooltip>
+              </Stack>
+            </Stack>
+          </Box>
+
+          <Divider />
+
+          <Box
+            sx={{
+              opacity: loading ? 0.62 : 1,
+              pointerEvents: loading ? 'none' : 'auto',
+              transition: theme.transitions.create('opacity')
+            }}
           >
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ bgcolor: '#04255e' }}>
-                    {tableHeaders.map((label, idx) => (
-                      <TableCell
-                        key={idx}
-                        align={idx === 0 ? 'center' : idx === 1 ? 'left' : 'center'}
-                        sx={{ color: 'white', fontWeight: 600, py: 1.5, whiteSpace: 'nowrap' }}
+            {searchFilteredData.length === 0 ? (
+              <Box sx={{ py: 8, px: 2, textAlign: 'center' }}>
+                <SearchIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  No matching taluks
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  Try changing the search term or report filters.
+                </Typography>
+              </Box>
+            ) : isMobile ? (
+              <Stack spacing={1.5} sx={{ p: 2 }}>
+                {paginatedData.map((row) => (
+                  <Card
+                    key={row.id}
+                    variant="outlined"
+                    sx={{
+                      borderRadius: 2.5,
+                      bgcolor: row.hasData ? 'background.paper' : alpha(theme.palette.warning.main, 0.035)
+                    }}
+                  >
+                    <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <LocationOnIcon fontSize="small" sx={{ color: row.hasData ? 'primary.main' : 'warning.main' }} />
+                          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                            {row.taluk}
+                          </Typography>
+                        </Stack>
+
+                        {!row.hasData && (
+                          <Chip label="No Data" size="small" color="warning" variant="outlined" />
+                        )}
+                      </Stack>
+
+                      <Box
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                          gap: 1.5,
+                          mt: 2
+                        }}
                       >
-                        {label}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {loading ? (
+                        <MobileMetric label="Allowed">
+                          <MetricText value={row.allowtedCce} noData={!row.hasData} />
+                        </MobileMetric>
+
+                        <MobileMetric label="Selected">
+                          <MetricText value={row.selectedCce} noData={!row.hasData} color={selectedColor} />
+                        </MobileMetric>
+
+                        {filterType === 'range' && (
+                          <MobileMetric label={`During Month (${endMonthText})`}>
+                            <MetricText value={row.currentMonthCompleted} noData={!row.hasData} color={currentColor} />
+                          </MobileMetric>
+                        )}
+
+                        <MobileMetric
+                          label={filterType === 'range' ? `Up to Month (${endMonthText})` : `During Month (${endMonthText})`}
+                        >
+                          <MetricText value={row.completed} noData={!row.hasData} color={completedColor} />
+                        </MobileMetric>
+
+                        <MobileMetric label="Ongoing">
+                          <MetricText value={row.ongoing} noData={!row.hasData} color={currentColor} />
+                        </MobileMetric>
+
+                        <MobileMetric label="Missed CCE">
+                          <MetricText value={row.missedCce} noData={!row.hasData} color={errorColor} />
+                        </MobileMetric>
+
+                        <MobileMetric label="Not Available">
+                          <MetricText value={row.notAvailable} noData={!row.hasData} color={errorColor} />
+                        </MobileMetric>
+
+                        <MobileMetric label="Not Started">
+                          <MetricText value={row.notStarted} noData={!row.hasData} />
+                        </MobileMetric>
+
+                        <MobileMetric label="Under Review">
+                          <MetricText value={row.underReview} noData={!row.hasData} color={reviewColor} />
+                        </MobileMetric>
+                      </Box>
+
+                      <Button
+                        fullWidth
+                        size="small"
+                        variant="text"
+                        startIcon={row.hasData ? <VisibilityIcon /> : <VisibilityOffIcon />}
+                        disabled={!row.hasData}
+                        onClick={() => handleViewTalukDetails(row.taluk, row.id, row.hasData)}
+                        sx={{ mt: 1.5 }}
+                      >
+                        {row.hasData ? 'View zone details' : 'Details unavailable'}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </Stack>
+            ) : (
+              <TableContainer sx={{ maxHeight: '68vh', overflowX: 'auto' }}>
+                <Table
+                  stickyHeader
+                  size="small"
+                  aria-label="Taluk CCE progress"
+                  sx={{
+                    minWidth: filterType === 'range' ? 1160 : 1020,
+                    '& .MuiTableCell-root': {
+                      borderBottom: `1px solid ${theme.palette.divider}`
+                    }
+                  }}
+                >
+                  <TableHead>
                     <TableRow>
-                      <TableCell colSpan={tableHeaders.length} align="center" sx={{ py: 6 }}>
-                        <CircularProgress size={40} />
+                      <TableCell
+                        rowSpan={2}
+                        align="center"
+                        sx={{
+                          width: 56,
+                          minWidth: 56,
+                          color: 'primary.contrastText',
+                          bgcolor: headerBackground,
+                          fontWeight: 700,
+                          position: 'sticky',
+                          left: 0,
+                          top: 0,
+                          zIndex: 7
+                        }}
+                      >
+                        #
+                      </TableCell>
+
+                      <TableCell
+                        rowSpan={2}
+                        sx={{
+                          minWidth: 200,
+                          color: 'primary.contrastText',
+                          bgcolor: headerBackground,
+                          fontWeight: 700,
+                          position: 'sticky',
+                          left: 56,
+                          top: 0,
+                          zIndex: 7,
+                          boxShadow: `2px 0 0 ${alpha(theme.palette.common.white, 0.12)}`
+                        }}
+                      >
+                        Taluk
+                      </TableCell>
+
+                      <TableCell
+                        rowSpan={2}
+                        align="center"
+                        sx={{ color: 'primary.contrastText', bgcolor: headerBackground, fontWeight: 700 }}
+                      >
+                        Allowed
+                      </TableCell>
+
+                      <TableCell
+                        rowSpan={2}
+                        align="center"
+                        sx={{ color: 'primary.contrastText', bgcolor: headerBackground, fontWeight: 700 }}
+                      >
+                        Selected
+                      </TableCell>
+
+                      {filterType === 'range' && (
+                        <TableCell
+                          rowSpan={2}
+                          align="center"
+                          sx={{ color: 'primary.contrastText', bgcolor: headerBackground, fontWeight: 700 }}
+                        >
+                          During the Month
+                          <Typography variant="caption" display="block" sx={{ color: 'inherit', opacity: 0.82 }}>
+                            {endMonthText}
+                          </Typography>
+                        </TableCell>
+                      )}
+
+                      <TableCell
+                        rowSpan={2}
+                        align="center"
+                        sx={{ color: 'primary.contrastText', bgcolor: headerBackground, fontWeight: 700 }}
+                      >
+                        {filterType === 'range' ? 'Up to the Month' : 'Completed In'}
+                        <Typography variant="caption" display="block" sx={{ color: 'inherit', opacity: 0.82 }}>
+                          {endMonthText}
+                        </Typography>
+                      </TableCell>
+
+                      <TableCell
+                        rowSpan={2}
+                        align="center"
+                        sx={{ color: 'primary.contrastText', bgcolor: headerBackground, fontWeight: 700 }}
+                      >
+                        Ongoing
+                      </TableCell>
+
+                      <TableCell
+                        colSpan={2}
+                        align="center"
+                        sx={{
+                          color: 'primary.contrastText',
+                          bgcolor: headerBackground,
+                          fontWeight: 700,
+                          borderBottom: `1px solid ${alpha(theme.palette.common.white, 0.18)}`
+                        }}
+                      >
+                        Exceptions
+                      </TableCell>
+
+                      <TableCell
+                        rowSpan={2}
+                        align="center"
+                        sx={{ color: 'primary.contrastText', bgcolor: headerBackground, fontWeight: 700 }}
+                      >
+                        Not Started
+                      </TableCell>
+
+                      <TableCell
+                        rowSpan={2}
+                        align="center"
+                        sx={{ color: 'primary.contrastText', bgcolor: headerBackground, fontWeight: 700 }}
+                      >
+                        Review
+                      </TableCell>
+
+                      <TableCell
+                        rowSpan={2}
+                        align="center"
+                        sx={{ color: 'primary.contrastText', bgcolor: headerBackground, fontWeight: 700 }}
+                      >
+                        Action
                       </TableCell>
                     </TableRow>
-                  ) : paginatedData.length > 0 ? (
-                    paginatedData.map((row, index) => {
+
+                    <TableRow>
+                      <TableCell
+                        align="center"
+                        sx={{
+                          top: 41,
+                          color: 'primary.contrastText',
+                          bgcolor: headerBackground,
+                          fontWeight: 600,
+                          fontSize: '0.75rem'
+                        }}
+                      >
+                        Missed
+                      </TableCell>
+
+                      <TableCell
+                        align="center"
+                        sx={{
+                          top: 41,
+                          color: 'primary.contrastText',
+                          bgcolor: headerBackground,
+                          fontWeight: 600,
+                          fontSize: '0.75rem'
+                        }}
+                      >
+                        Unavailable
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+
+                  <TableBody>
+                    {paginatedData.map((row, index) => {
                       const serialNumber = page * rowsPerPage + index + 1;
-                      const hasNoData = !row.hasData;
+                      const rowBackground = row.hasData
+                        ? theme.palette.background.paper
+                        : alpha(theme.palette.warning.main, 0.035);
 
                       return (
                         <TableRow
                           key={row.id || index}
                           hover
                           sx={{
-                            '&:hover': { bgcolor: alpha('#04255e', 0.04) },
-                            transition: '0.2s',
-                            ...(hasNoData && {
-                              bgcolor: alpha('#ff9800', 0.03),
-                              '&:hover': { bgcolor: alpha('#ff9800', 0.08) }
-                            })
+                            bgcolor: rowBackground,
+                            '&:hover': {
+                              bgcolor: row.hasData
+                                ? alpha(theme.palette.primary.main, 0.035)
+                                : alpha(theme.palette.warning.main, 0.075)
+                            }
                           }}
                         >
-                          <TableCell align="center">
-                            <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                          <TableCell
+                            align="center"
+                            sx={{
+                              position: 'sticky',
+                              left: 0,
+                              zIndex: 3,
+                              bgcolor: 'inherit',
+                              width: 56,
+                              minWidth: 56
+                            }}
+                          >
+                            <Typography variant="body2" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
                               {serialNumber}
                             </Typography>
                           </TableCell>
-                          <TableCell>
-                            <Stack direction="row" spacing={1} alignItems="center">
-                              <LocationOnIcon sx={{ fontSize: 18, color: hasNoData ? '#ff9800' : '#04255e', opacity: 0.7 }} />
-                              <Typography fontWeight={hasNoData ? 400 : 500} color={hasNoData ? 'text.secondary' : 'text.primary'}>
+
+                          <TableCell
+                            sx={{
+                              position: 'sticky',
+                              left: 56,
+                              zIndex: 3,
+                              bgcolor: 'inherit',
+                              minWidth: 200,
+                              boxShadow: `2px 0 0 ${theme.palette.divider}`
+                            }}
+                          >
+                            <Stack direction="row" spacing={0.8} alignItems="center">
+                              <LocationOnIcon
+                                sx={{
+                                  fontSize: 17,
+                                  color: row.hasData ? 'primary.main' : 'warning.main',
+                                  opacity: 0.85
+                                }}
+                              />
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontWeight: row.hasData ? 600 : 500,
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
                                 {row.taluk}
-                                {hasNoData && (
-                                  <Chip
-                                    label="No Data"
-                                    size="small"
-                                    sx={{
-                                      ml: 1,
-                                      height: 18,
-                                      fontSize: '0.6rem',
-                                      bgcolor: alpha('#ff9800', 0.15),
-                                      color: '#e65100',
-                                      fontWeight: 600
-                                    }}
-                                  />
-                                )}
                               </Typography>
+                              {!row.hasData && (
+                                <Chip
+                                  label="No Data"
+                                  size="small"
+                                  color="warning"
+                                  variant="outlined"
+                                  sx={{ height: 20, fontSize: '0.65rem' }}
+                                />
+                              )}
                             </Stack>
                           </TableCell>
+
                           <TableCell align="center">
-                            {hasNoData ? (
-                              <Typography variant="body2" color="text.secondary">NA</Typography>
-                            ) : (
-                              <Chip label={row.allowtedCce} size="small" variant="filled" sx={{ fontWeight: 600, bgcolor: alpha('#04255e', 0.1) }} />
-                            )}
+                            <MetricText value={row.allowtedCce} noData={!row.hasData} />
                           </TableCell>
+
                           <TableCell align="center">
-                            {hasNoData ? (
-                              <Typography variant="body2" color="text.secondary">NA</Typography>
-                            ) : row.selectedCce > 0 ? (
-                              <Chip
-                                label={row.selectedCce}
-                                size="small"
-                                variant="outlined"
-                                sx={{ color: '#04255e', borderColor: alpha('#04255e', 0.4), fontWeight: 600 }}
-                              />
-                            ) : (
-                              row.selectedCce
-                            )}
+                            <MetricText value={row.selectedCce} noData={!row.hasData} color={selectedColor} />
                           </TableCell>
+
                           {filterType === 'range' && (
                             <TableCell align="center">
-                              {hasNoData ? (
-                                <Typography variant="body2" color="text.secondary">NA</Typography>
-                              ) : row.currentMonthCompleted > 0 ? (
-                                <Chip label={row.currentMonthCompleted} size="small" color="success" variant="outlined" />
-                              ) : (
-                                row.currentMonthCompleted
-                              )}
+                              <MetricText value={row.currentMonthCompleted} noData={!row.hasData} color={currentColor} />
                             </TableCell>
                           )}
+
                           <TableCell align="center">
-                            {hasNoData ? (
-                              <Typography variant="body2" color="text.secondary">NA</Typography>
-                            ) : row.completed > 0 ? (
-                              <Chip label={row.completed} size="small" color="success" variant="outlined" />
-                            ) : (
-                              row.completed
-                            )}
+                            <MetricText value={row.completed} noData={!row.hasData} color={completedColor} />
                           </TableCell>
+
                           <TableCell align="center">
-                            {hasNoData ? (
-                              <Typography variant="body2" color="text.secondary">NA</Typography>
-                            ) : row.ongoing > 0 ? (
-                              <Chip label={row.ongoing} size="small" color="primary" variant="outlined" />
-                            ) : (
-                              row.ongoing
-                            )}
+                            <MetricText value={row.ongoing} noData={!row.hasData} color={currentColor} />
                           </TableCell>
+
                           <TableCell align="center">
-                            {hasNoData ? (
-                              <Typography variant="body2" color="text.secondary">NA</Typography>
-                            ) : row.notAvailable > 0 ? (
-                              <Chip label={row.notAvailable} size="small" color="error" variant="outlined" />
-                            ) : (
-                              row.notAvailable
-                            )}
+                            <MetricText value={row.missedCce} noData={!row.hasData} color={errorColor} />
                           </TableCell>
+
                           <TableCell align="center">
-                            {hasNoData ? (
-                              <Typography variant="body2" color="text.secondary">NA</Typography>
-                            ) : row.notStarted > 0 ? (
-                              <Chip label={row.notStarted} size="small" variant="outlined" />
-                            ) : (
-                              row.notStarted
-                            )}
+                            <MetricText value={row.notAvailable} noData={!row.hasData} color={errorColor} />
                           </TableCell>
+
                           <TableCell align="center">
-                            {hasNoData ? (
-                              <Typography variant="body2" color="text.secondary">NA</Typography>
-                            ) : row.underReview > 0 ? (
-                              <Chip label={row.underReview} size="small" color="warning" variant="outlined" />
-                            ) : (
-                              row.underReview
-                            )}
+                            <MetricText value={row.notStarted} noData={!row.hasData} />
                           </TableCell>
+
                           <TableCell align="center">
-                            {row.hasData ? (
-                              <Tooltip title="View Zone Details">
+                            <MetricText value={row.underReview} noData={!row.hasData} color={reviewColor} />
+                          </TableCell>
+
+                          <TableCell align="center">
+                            <Tooltip
+                              title={
+                                row.hasData ? `View ${row.taluk} zone details` : 'No data available for this taluk'
+                              }
+                            >
+                              <span>
                                 <IconButton
                                   size="small"
+                                  disabled={!row.hasData}
                                   onClick={() => handleViewTalukDetails(row.taluk, row.id, row.hasData)}
-                                  sx={{ color: '#04255e', '&:hover': { bgcolor: alpha('#04255e', 0.1) } }}
+                                  aria-label={
+                                    row.hasData
+                                      ? `View details for ${row.taluk}`
+                                      : `Details unavailable for ${row.taluk}`
+                                  }
+                                  sx={{
+                                    color: 'primary.main',
+                                    '&:hover': {
+                                      bgcolor: (t) => alpha(t.palette.primary.main, 0.08)
+                                    }
+                                  }}
                                 >
-                                  <VisibilityIcon />
+                                  {row.hasData ? (
+                                    <VisibilityIcon fontSize="small" />
+                                  ) : (
+                                    <VisibilityOffIcon fontSize="small" />
+                                  )}
                                 </IconButton>
-                              </Tooltip>
-                            ) : (
-                              <Tooltip title="No data available - View disabled">
-                                <IconButton
-                                  size="small"
-                                  disabled
-                                  sx={{ color: '#bdbdbd', cursor: 'not-allowed' }}
-                                >
-                                  <VisibilityOffIcon />
-                                </IconButton>
-                              </Tooltip>
-                            )}
+                              </span>
+                            </Tooltip>
                           </TableCell>
                         </TableRow>
                       );
-                    })
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={tableHeaders.length} align="center" sx={{ py: 6 }}>
-                        <Typography color="text.secondary">
-                          {searchTerm ? `No taluks found matching "${searchTerm}"` : 'No data available for selected filters'}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
 
-            {searchFilteredData.length > 0 && !loading && (
+            {searchFilteredData.length > 0 && (
               <TablePagination
                 component="div"
                 count={searchFilteredData.length}
@@ -1330,11 +1882,19 @@ const fetchCropsList = async () => {
                   setPage(0);
                 }}
                 rowsPerPageOptions={[15, 25, 50, 100]}
-                sx={{ borderTop: `1px solid ${theme.palette.divider}` }}
+                labelRowsPerPage={isMobile ? 'Rows:' : 'Rows per page:'}
+                sx={{
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                  '& .MuiTablePagination-toolbar': {
+                    flexWrap: { xs: 'wrap', sm: 'nowrap' },
+                    justifyContent: { xs: 'center', sm: 'flex-end' },
+                    gap: { xs: 0.5, sm: 0 }
+                  }
+                }}
               />
             )}
-          </MainCard>
-        </Box>
+          </Box>
+        </Paper>
       </Grid>
     </Grid>
   );

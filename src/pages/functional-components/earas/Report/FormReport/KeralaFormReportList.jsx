@@ -229,79 +229,111 @@ function MetricText({ value, noData = false, color = 'text.primary', area = fals
   );
 }
 
-function StatCard({ label, value, color, icon, areaValue, tooltip }) {
-  const theme = useTheme();
-
+function StatCard({ label, value, color, icon, areaValue, badge, tooltip }) {
   const content = (
     <Card
       elevation={0}
       sx={{
         height: '100%',
-        borderRadius: 3,
-        border: `1px solid ${alpha(color, 0.16)}`,
-        bgcolor: alpha(color, 0.055),
-        transition: theme.transitions.create(['transform', 'box-shadow', 'border-color']),
+        borderRadius: 2,
+        border: `1px solid ${alpha(color, 0.13)}`,
+        bgcolor: alpha(color, 0.03),
+        transition: 'all 0.18s ease-in-out',
         '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: theme.shadows[3],
-          borderColor: alpha(color, 0.28)
+          bgcolor: alpha(color, 0.06),
+          borderColor: alpha(color, 0.3),
+          transform: 'translateY(-1px)',
+          boxShadow: `0 2px 8px ${alpha(color, 0.08)}`
         }
       }}
     >
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-        <Stack direction="row" justifyContent="space-between" spacing={2}>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography
-              variant="h3"
-              sx={{
-                color,
-                fontWeight: 700,
-                lineHeight: 1.1,
-                fontVariantNumeric: 'tabular-nums'
-              }}
-            >
-              {Number(value || 0).toLocaleString()}
-            </Typography>
-
-            <Typography
-              variant="body2"
-              sx={{ mt: 0.7, color: 'text.primary', fontWeight: 600 }}
-            >
-              {label}
-            </Typography>
-
-            {areaValue !== undefined && (
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ display: 'block', mt: 0.5, fontVariantNumeric: 'tabular-nums' }}
-              >
-                {formatArea(areaValue)} cents
-              </Typography>
-            )}
-          </Box>
+      <CardContent sx={{ p: { xs: 1.1, sm: 1.25 }, '&:last-child': { pb: { xs: 1.1, sm: 1.25 } } }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={0.5} sx={{ mb: 0.5 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              fontWeight: 700,
+              color: 'text.secondary',
+              textTransform: 'uppercase',
+              fontSize: '0.675rem',
+              letterSpacing: '0.35px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+          >
+            {label}
+          </Typography>
 
           <Box
             sx={{
-              flex: '0 0 auto',
-              width: 38,
-              height: 38,
-              borderRadius: 2,
-              display: 'grid',
-              placeItems: 'center',
-              bgcolor: alpha(color, 0.12),
-              color
+              color,
+              display: 'flex',
+              alignItems: 'center',
+              opacity: 0.85,
+              flexShrink: 0
             }}
           >
             {icon}
           </Box>
         </Stack>
+
+        <Stack direction="row" alignItems="baseline" spacing={0.75}>
+          <Typography
+            variant="h5"
+            sx={{
+              color: color || 'text.primary',
+              fontWeight: 750,
+              lineHeight: 1.15,
+              fontSize: { xs: '1.2rem', sm: '1.35rem' },
+              fontVariantNumeric: 'tabular-nums'
+            }}
+          >
+            {Number(value || 0).toLocaleString()}
+          </Typography>
+
+          {badge && (
+            <Box
+              component="span"
+              sx={{
+                fontSize: '0.7rem',
+                fontWeight: 750,
+                color: color || 'success.dark',
+                bgcolor: alpha(color || '#2e7d32', 0.12),
+                px: 0.6,
+                py: 0.1,
+                borderRadius: 1,
+                lineHeight: 1.2
+              }}
+            >
+              {badge}
+            </Box>
+          )}
+        </Stack>
+
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{
+            display: 'block',
+            mt: 0.35,
+            fontSize: '0.68rem',
+            minHeight: '1rem',
+            lineHeight: 1.2,
+            fontVariantNumeric: 'tabular-nums',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}
+        >
+          {areaValue !== undefined ? `${formatArea(areaValue)} cents` : ' '}
+        </Typography>
       </CardContent>
     </Card>
   );
 
   return tooltip ? (
-    <Tooltip title={tooltip} arrow placement="top">
+    <Tooltip title={tooltip} arrow placement="top" enterDelay={250}>
       {content}
     </Tooltip>
   ) : (
@@ -1227,98 +1259,141 @@ function KeralaFormReportList() {
       </Grid>
 
       <Grid item xs={12}>
-        <Box>
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            justifyContent="space-between"
-            alignItems={{ xs: 'flex-start', sm: 'center' }}
-            spacing={0.5}
-            sx={{ mb: 1.5 }}
-          >
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                State Summary
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {getSeasonLabel(seasonId)} • {reportPeriodText}
-              </Typography>
-            </Box>
-          </Stack>
+        <Paper
+          variant="outlined"
+          sx={{
+            p: { xs: 1.25, sm: 1.5 },
+            borderRadius: 2.5,
+            bgcolor: 'background.paper',
+            borderColor: theme.palette.divider
+          }}
+        >
+          {(() => {
+            const safeTotal = Math.max(Number(stats.all || 0), 0);
+            const safeCompleted = Math.max(Number(stats.completed || 0), 0);
+            const percentage = safeTotal > 0 ? Math.min((safeCompleted / safeTotal) * 100, 100) : 0;
+            const remaining = Math.max(safeTotal - safeCompleted, 0);
 
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                sm: 'repeat(2, minmax(0, 1fr))',
-                md: 'repeat(3, minmax(0, 1fr))',
-                xl:
-                  filterType === 'range'
-                    ? 'repeat(6, minmax(0, 1fr))'
-                    : 'repeat(5, minmax(0, 1fr))'
-              },
-              gap: 2,
-              opacity: loading ? 0.7 : 1,
-              transition: theme.transitions.create('opacity')
-            }}
-          >
-            <StatCard
-              label="Total Clusters"
-              value={stats.all}
-              color={theme.palette.primary.main}
-              icon={<AssessmentIcon fontSize="small" />}
-              tooltip="Total clusters allocated for survey in the selected season"
-            />
+            return (
+              <>
+                {/* Header: Title + Season + Period & Inline Progress */}
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  justifyContent="space-between"
+                  alignItems={{ xs: 'flex-start', sm: 'center' }}
+                  spacing={1}
+                  sx={{ mb: 1.25, px: 0.5 }}
+                >
+                  <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+                    <Typography variant="subtitle2" sx={{ fontWeight: 750, color: 'text.primary', letterSpacing: '0.2px' }}>
+                      State Summary
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      • {getSeasonLabel(seasonId)} • {reportPeriodText} • 14 districts
+                    </Typography>
+                  </Stack>
 
-            {filterType === 'range' && (
-              <StatCard
-                label="During the Month"
-                value={stats.currentMonthCompleted}
-                areaValue={stats.currentMonthArea}
-                color={theme.palette.info.main}
-                icon={<CalendarMonthIcon fontSize="small" />}
-                tooltip="Clusters completed during the selected end month"
-              />
-            )}
+                  <Stack direction="row" alignItems="center" spacing={1.25} sx={{ minWidth: { sm: 220 } }}>
+                    <Typography variant="caption" sx={{ fontWeight: 650, color: 'text.secondary', whiteSpace: 'nowrap' }}>
+                      Completion: <strong style={{ color: theme.palette.success.dark }}>{percentage.toFixed(1)}%</strong>
+                      {filterType === 'range' && remaining > 0 ? ` (${remaining.toLocaleString()} left)` : ''}
+                    </Typography>
+                    <Box sx={{ width: { xs: 70, sm: 90 } }}>
+                      <LinearProgress
+                        variant="determinate"
+                        value={percentage}
+                        sx={{
+                          height: 5,
+                          borderRadius: 3,
+                          bgcolor: alpha(theme.palette.success.main, 0.12),
+                          '& .MuiLinearProgress-bar': {
+                            borderRadius: 3,
+                            bgcolor: 'success.main'
+                          }
+                        }}
+                      />
+                    </Box>
+                  </Stack>
+                </Stack>
 
-            <StatCard
-              label={filterType === 'range' ? 'Up to the Month' : 'During the Month'}
-              value={stats.completed}
-              areaValue={stats.completedArea}
-              color={theme.palette.success.main}
-              icon={<CheckCircleIcon fontSize="small" />}
-              tooltip={
-                filterType === 'range'
-                  ? 'Cumulative clusters completed up to the selected end month'
-                  : 'Clusters completed during the selected month'
-              }
-            />
+                {/* Minimalist Grid of Metric Cards */}
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: {
+                      xs: 'repeat(2, minmax(0, 1fr))',
+                      sm: 'repeat(3, minmax(0, 1fr))',
+                      lg:
+                        filterType === 'range'
+                          ? 'repeat(6, minmax(0, 1fr))'
+                          : 'repeat(5, minmax(0, 1fr))'
+                    },
+                    gap: 1,
+                    opacity: loading ? 0.7 : 1,
+                    transition: theme.transitions.create('opacity')
+                  }}
+                >
+                  <StatCard
+                    label="Total Clusters"
+                    value={stats.all}
+                    color={theme.palette.primary.main}
+                    icon={<AssessmentIcon sx={{ fontSize: 17 }} />}
+                    tooltip="Total clusters allocated for survey in the selected season"
+                  />
 
-            <StatCard
-              label="Ongoing"
-              value={stats.ongoing}
-              color={theme.palette.info.dark}
-              icon={<PendingIcon fontSize="small" />}
-              tooltip="Clusters currently ongoing"
-            />
+                  {filterType === 'range' && (
+                    <StatCard
+                      label="During the Month"
+                      value={stats.currentMonthCompleted}
+                      areaValue={stats.currentMonthArea}
+                      color={theme.palette.info.main}
+                      icon={<CalendarMonthIcon sx={{ fontSize: 17 }} />}
+                      tooltip="Clusters completed during the selected end month"
+                    />
+                  )}
 
-            <StatCard
-              label="Not Started"
-              value={stats.notStarted}
-              color={theme.palette.text.secondary}
-              icon={<ScheduleIcon fontSize="small" />}
-              tooltip="Clusters not yet started"
-            />
+                  <StatCard
+                    label={filterType === 'range' ? 'Up to the Month' : 'During the Month'}
+                    value={stats.completed}
+                    badge={`${percentage.toFixed(1)}%`}
+                    areaValue={stats.completedArea}
+                    color={theme.palette.success.main}
+                    icon={<CheckCircleIcon sx={{ fontSize: 17 }} />}
+                    tooltip={
+                      filterType === 'range'
+                        ? 'Cumulative clusters completed up to the selected end month'
+                        : 'Clusters completed during the selected month'
+                    }
+                  />
 
-            <StatCard
-              label="Under Review"
-              value={stats.underReview}
-              color={theme.palette.warning.dark}
-              icon={<RateReviewIcon fontSize="small" />}
-              tooltip="Clusters currently under review"
-            />
-          </Box>
-        </Box>
+                  <StatCard
+                    label="Ongoing"
+                    value={stats.ongoing}
+                    color={theme.palette.info.dark}
+                    icon={<PendingIcon sx={{ fontSize: 17 }} />}
+                    tooltip="Clusters currently ongoing"
+                  />
+
+                  <StatCard
+                    label="Not Started"
+                    value={stats.notStarted}
+                    color={theme.palette.text.secondary}
+                    icon={<ScheduleIcon sx={{ fontSize: 17 }} />}
+                    tooltip="Clusters not yet started"
+                  />
+
+                  <StatCard
+                    label="Under Review"
+                    value={stats.underReview}
+                    color={theme.palette.warning.dark}
+                    icon={<RateReviewIcon sx={{ fontSize: 17 }} />}
+                    tooltip="Clusters currently under review"
+                  />
+                </Box>
+              </>
+            );
+          })()}
+        </Paper>
       </Grid>
 
       <Grid item xs={12}>
